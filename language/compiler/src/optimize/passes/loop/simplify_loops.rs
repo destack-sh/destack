@@ -1,6 +1,7 @@
 use destack_core::FxIndexMap;
 
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext, declare_pass};
 use destack_mir::{
@@ -20,6 +21,7 @@ impl FunctionPass for SimplifyLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -42,7 +44,7 @@ impl FunctionPass for SimplifyLoops {
         }
 
         // run loop simplification
-        let changed = run_simplify_loops(entry, function, tree, &loops, &cfg);
+        let changed = run_simplify_loops(entry, function, tree, &loops, &cfg, provenance);
         if changed {
             Mutation::CONTROL
         } else {
@@ -58,6 +60,7 @@ fn run_simplify_loops(
     tree: &mut mir::Tree,
     loops: &LoopTable,
     cfg: &ControlTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // collect work items using loop indices (avoids cloning)
     let mut preheader_work: Vec<usize> = Vec::new();
@@ -139,21 +142,34 @@ fn run_simplify_loops(
 
     // phase 1: insert preheaders
     for data in preheader_data {
-        if insert_preheader(data.header, &data.loop_blocks, function, tree, entry) {
+        if insert_preheader(
+            data.header,
+            &data.loop_blocks,
+            function,
+            tree,
+            entry,
+            provenance,
+        ) {
             changed = true;
         }
     }
 
     // phase 2: merge latches
     for data in latch_data {
-        if merge_latches(data.header, &data.latches, function, tree) {
+        if merge_latches(data.header, &data.latches, function, tree, provenance) {
             changed = true;
         }
     }
 
     // phase 3: create dedicated exit blocks
     for work in exit_work {
-        if insert_dedicated_exit(work.exit_block, &work.exiting_blocks, function, tree) {
+        if insert_dedicated_exit(
+            work.exit_block,
+            &work.exiting_blocks,
+            function,
+            tree,
+            provenance,
+        ) {
             changed = true;
         }
     }
@@ -183,12 +199,14 @@ struct ExitWork {
 fn fresh_parameters_like(
     parameters: &[mir::BlockParameter],
     function: &mut mir::Function,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> Vec<mir::BlockParameter> {
     parameters
         .iter()
         .map(|parameter| mir::BlockParameter {
             value: function.next_typed_value(parameter.ty),
             ty: parameter.ty,
+            provenance: provenance.derive(parameter.provenance),
         })
         .collect()
 }
@@ -260,6 +278,7 @@ fn insert_preheader(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     entry: mir::LocalNodeId<mir::Block>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     let is_entry_header = header == entry;
     let header_params = tree.get(header).parameters.clone();
@@ -269,18 +288,20 @@ fn insert_preheader(
         function
             .parameters
             .iter()
-            .map(mir::FunctionParameter::block_parameter)
+            .map(|parameter| parameter.block_parameter(provenance))
             .collect()
     } else {
-        fresh_parameters_like(&header_params, function)
+        fresh_parameters_like(&header_params, function, provenance)
     };
 
     // separate old entry values from loop-carried header values
     if is_entry_header {
-        let new_header_params = fresh_parameters_like(&header_params, function);
+        let new_header_params = fresh_parameters_like(&header_params, function, provenance);
         let substitutions = parameter_substitutions(&header_params, &new_header_params);
-        tree.get_mut(header).parameters = new_header_params;
-        substitute_values_in_blocks(loop_blocks, &substitutions, tree);
+        let mut header_block = tree.get(header).clone();
+        header_block.parameters = new_header_params;
+        tree.rewrite(header, header_block, provenance);
+        substitute_values_in_blocks(loop_blocks, &substitutions, tree, provenance);
     }
 
     // preheader unconditionally jumps to header, forwarding its parameters
@@ -289,25 +310,28 @@ fn insert_preheader(
         .map(|parameter| parameter.value)
         .collect();
     let preheader_args = tree.add_values(&preheader_args);
-    let preheader_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(header, preheader_args),
-    });
+    let [terminator_provenance, block_provenance] =
+        provenance.generate_many(&[tree.provenance(header)]);
+    let preheader_terminator = tree.insert(
+        mir::Terminator::Jump {
+            target: mir::BlockTarget::new(header, preheader_args),
+        },
+        terminator_provenance,
+    );
     let preheader = mir::Block {
         parameters: preheader_params.clone(),
         instructions: vec![],
         terminator: preheader_terminator,
     };
-    let preheader_id = tree.insert(preheader);
+    let preheader_id = tree.insert(preheader, block_provenance);
 
     // keep textual entry order aligned with function.entry()
     if is_entry_header {
-        let Some(entry_index) = function
+        let entry_index = function
             .blocks()
             .iter()
             .position(|block_id| *block_id == header)
-        else {
-            return false;
-        };
+            .unwrap_or_else(|| unreachable!("function entry is absent from its block list"));
         let mut blocks = function.blocks().to_vec();
         blocks.insert(entry_index, preheader_id);
         function.replace_blocks(blocks, tree);
@@ -326,7 +350,7 @@ fn insert_preheader(
         let terminator_id = tree.get(block_id).terminator;
         let terminator = tree.get(terminator_id).clone();
         if let Some(new_terminator) = redirect_terminator(tree, &terminator, header, preheader_id) {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             redirected = true;
         }
     }
@@ -334,10 +358,11 @@ fn insert_preheader(
     // if header was the entry, preheader becomes entry
     if is_entry_header {
         function.set_entry(preheader_id);
-        redirected = true;
+    } else if !redirected {
+        unreachable!("loop header has no outside predecessor");
     }
 
-    redirected
+    true
 }
 
 /// Build one value substitution map from paired parameter lists.
@@ -356,6 +381,7 @@ fn substitute_values_in_blocks(
     blocks: &[mir::LocalNodeId<mir::Block>],
     substitutions: &FxIndexMap<mir::Value, mir::Value>,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     if substitutions.is_empty() {
         return;
@@ -367,15 +393,18 @@ fn substitute_values_in_blocks(
         // rewrite instruction operands
         for instruction_id in block.instructions {
             let instruction = tree.get(instruction_id).clone();
-            let instruction =
-                instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
-            tree.set(instruction_id, instruction);
+            let updated = instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
+            if updated != instruction {
+                tree.rewrite(instruction_id, updated, provenance);
+            }
         }
 
         // rewrite terminator operands
         let terminator = tree.get(block.terminator).clone();
-        let terminator = terminator_substitute_uses(tree, &terminator, substitutions);
-        tree.set(block.terminator, terminator);
+        let updated = terminator_substitute_uses(tree, &terminator, substitutions);
+        if updated != terminator {
+            tree.rewrite(block.terminator, updated, provenance);
+        }
     }
 }
 
@@ -388,132 +417,14 @@ fn redirect_terminator(
     old_target: mir::LocalNodeId<mir::Block>,
     new_target: mir::LocalNodeId<mir::Block>,
 ) -> Option<mir::Terminator> {
-    match terminator {
-        mir::Terminator::Jump { target } => {
-            if target.block == old_target {
-                Some(mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(new_target, target.arguments),
-                })
-            } else {
-                None
-            }
-        }
+    let mut terminator = terminator.clone();
+    let is_redirected = terminator.rewrite_successor(
+        old_target,
+        |target, _| mir::BlockTarget::new(new_target, target.arguments),
+        tree,
+    );
 
-        mir::Terminator::Branch {
-            condition,
-            then_target,
-            else_target,
-        } => {
-            let redirect_then = then_target.block == old_target;
-            let redirect_else = else_target.block == old_target;
-
-            if redirect_then || redirect_else {
-                Some(mir::Terminator::Branch {
-                    condition: *condition,
-                    then_target: mir::BlockTarget::new(
-                        if redirect_then {
-                            new_target
-                        } else {
-                            then_target.block
-                        },
-                        then_target.arguments,
-                    ),
-                    else_target: mir::BlockTarget::new(
-                        if redirect_else {
-                            new_target
-                        } else {
-                            else_target.block
-                        },
-                        else_target.arguments,
-                    ),
-                })
-            } else {
-                None
-            }
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            let redirect_success = success.block == old_target;
-            let redirect_failure = failure.block == old_target;
-
-            if redirect_success || redirect_failure {
-                Some(mir::Terminator::Check {
-                    constraint: constraint.clone(),
-                    success: mir::BlockTarget::new(
-                        if redirect_success {
-                            new_target
-                        } else {
-                            success.block
-                        },
-                        success.arguments,
-                    ),
-                    failure: mir::BlockTarget::new(
-                        if redirect_failure {
-                            new_target
-                        } else {
-                            failure.block
-                        },
-                        failure.arguments,
-                    ),
-                })
-            } else {
-                None
-            }
-        }
-
-        mir::Terminator::Switch {
-            value,
-            default,
-            cases,
-        } => {
-            let redirect_default = default.block == old_target;
-            let redirect_cases: Vec<bool> = tree
-                .get_switch_cases(*cases)
-                .iter()
-                .map(|case| case.target.block == old_target)
-                .collect();
-            let any_case_redirected = redirect_cases.iter().any(|&r| r);
-
-            if redirect_default || any_case_redirected {
-                let new_cases: Vec<_> = tree
-                    .get_switch_cases(*cases)
-                    .iter()
-                    .zip(redirect_cases.iter())
-                    .map(|(case, &redirect)| mir::SwitchCase {
-                        value: case.value,
-                        target: mir::BlockTarget::new(
-                            if redirect {
-                                new_target
-                            } else {
-                                case.target.block
-                            },
-                            case.target.arguments,
-                        ),
-                    })
-                    .collect();
-
-                Some(mir::Terminator::Switch {
-                    value: *value,
-                    default: mir::BlockTarget::new(
-                        if redirect_default {
-                            new_target
-                        } else {
-                            default.block
-                        },
-                        default.arguments,
-                    ),
-                    cases: tree.add_switch_cases(&new_cases),
-                })
-            } else {
-                None
-            }
-        }
-
-        _ => None,
-    }
+    is_redirected.then_some(terminator)
 }
 
 /// Merge multiple latch blocks into a single latch.
@@ -529,6 +440,7 @@ fn merge_latches(
     latches: &[mir::LocalNodeId<mir::Block>],
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     if latches.len() <= 1 {
         return false;
@@ -538,7 +450,7 @@ fn merge_latches(
     let header_params = &header_block.parameters;
 
     // create merged latch with fresh parameters matching header's types
-    let latch_params = fresh_parameters_like(header_params, function);
+    let latch_params = fresh_parameters_like(header_params, function, provenance);
 
     // merged latch jumps to header, forwarding its parameters
     let latch_args: Vec<_> = latch_params
@@ -546,26 +458,32 @@ fn merge_latches(
         .map(|parameter| parameter.value)
         .collect();
     let latch_args = tree.add_values(&latch_args);
-    let latch_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(header, latch_args),
-    });
+    let sources = std::iter::once(header)
+        .chain(latches.iter().copied())
+        .map(|block| tree.provenance(block))
+        .collect::<Vec<_>>();
+    let [terminator_provenance, block_provenance] = provenance.generate_many(&sources);
+    let latch_terminator = tree.insert(
+        mir::Terminator::Jump {
+            target: mir::BlockTarget::new(header, latch_args),
+        },
+        terminator_provenance,
+    );
     let new_latch = mir::Block {
         parameters: latch_params,
         instructions: vec![],
         terminator: latch_terminator,
     };
-    let new_latch_id = tree.insert(new_latch);
+    let new_latch_id = tree.insert(new_latch, block_provenance);
     function.add_block(new_latch_id, tree);
 
     // redirect all original latches to the new merged latch
     for &latch_id in latches {
         let terminator_id = tree.get(latch_id).terminator;
         let latch_terminator = tree.get(terminator_id).clone();
-        if let Some(new_terminator) =
-            redirect_terminator(tree, &latch_terminator, header, new_latch_id)
-        {
-            tree.set(terminator_id, new_terminator);
-        }
+        let new_terminator = redirect_terminator(tree, &latch_terminator, header, new_latch_id)
+            .unwrap_or_else(|| unreachable!("loop latch does not target its header"));
+        tree.rewrite(terminator_id, new_terminator, provenance);
     }
 
     true
@@ -587,12 +505,17 @@ fn insert_dedicated_exit(
     exiting_blocks: &[mir::LocalNodeId<mir::Block>],
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
+    if exiting_blocks.is_empty() {
+        unreachable!("dedicated loop exit has no exiting block");
+    }
+
     let exit_block_data = tree.get(exit_block);
     let exit_params = &exit_block_data.parameters;
 
     // create dedicated exit with fresh parameters matching exit block's types
-    let dedicated_params = fresh_parameters_like(exit_params, function);
+    let dedicated_params = fresh_parameters_like(exit_params, function, provenance);
 
     // dedicated exit jumps to original exit, forwarding its parameters
     let dedicated_args: Vec<_> = dedicated_params
@@ -600,31 +523,36 @@ fn insert_dedicated_exit(
         .map(|parameter| parameter.value)
         .collect();
     let dedicated_args = tree.add_values(&dedicated_args);
-    let dedicated_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(exit_block, dedicated_args),
-    });
+    let sources = std::iter::once(exit_block)
+        .chain(exiting_blocks.iter().copied())
+        .map(|block| tree.provenance(block))
+        .collect::<Vec<_>>();
+    let [terminator_provenance, block_provenance] = provenance.generate_many(&sources);
+    let dedicated_terminator = tree.insert(
+        mir::Terminator::Jump {
+            target: mir::BlockTarget::new(exit_block, dedicated_args),
+        },
+        terminator_provenance,
+    );
     let dedicated_exit = mir::Block {
         parameters: dedicated_params,
         instructions: vec![],
         terminator: dedicated_terminator,
     };
-    let dedicated_id = tree.insert(dedicated_exit);
+    let dedicated_id = tree.insert(dedicated_exit, block_provenance);
     function.add_block(dedicated_id, tree);
 
     // redirect exiting blocks to the dedicated exit
-    let mut redirected = false;
     for &exiting_id in exiting_blocks {
         let terminator_id = tree.get(exiting_id).terminator;
         let exiting_terminator = tree.get(terminator_id).clone();
-        if let Some(new_terminator) =
+        let new_terminator =
             redirect_terminator(tree, &exiting_terminator, exit_block, dedicated_id)
-        {
-            tree.set(terminator_id, new_terminator);
-            redirected = true;
-        }
+                .unwrap_or_else(|| unreachable!("loop exit block does not target its exit"));
+        tree.rewrite(terminator_id, new_terminator, provenance);
     }
 
-    redirected
+    true
 }
 
 #[cfg(test)]

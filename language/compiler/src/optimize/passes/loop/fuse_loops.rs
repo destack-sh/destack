@@ -2,14 +2,14 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, BlockParamForwarding, ConstantTable, ControlTable, DefinitionTable, DominatorTable,
     LoopEffectPolicy, LoopTable, MemoryAccessEffect, MemoryTable, Mutation, ValueEquivalence,
-    block_is_speculatable_no_reads, clone_instruction_tables, collect_loop_effects,
-    control_instructions_for_latch, instruction_is_speculatable, instruction_map,
-    loop_guard_branch, loop_preheader,
+    block_is_speculatable_no_reads, collect_loop_effects, control_instructions_for_latch,
+    instruction_is_speculatable, instruction_map, loop_guard_branch, loop_preheader,
 };
 
 declare_pass! {
@@ -87,6 +87,7 @@ impl FunctionPass for FuseLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -106,6 +107,7 @@ impl FunctionPass for FuseLoops {
         let changed = run_fuse_loops(
             function,
             tree,
+            provenance,
             accesses,
             &loops,
             &cfg,
@@ -170,6 +172,7 @@ struct LoopGuard {
 fn run_fuse_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     loops: &LoopTable,
     cfg: &ControlTable,
@@ -208,7 +211,15 @@ fn run_fuse_loops(
     };
 
     // apply the fusion
-    apply_fusion(function, tree, accesses, cfg, &candidate, &definitions)
+    apply_fusion(
+        function,
+        tree,
+        provenance,
+        accesses,
+        cfg,
+        &candidate,
+        &definitions,
+    )
 }
 
 /// Build a fusion candidate from a loop.
@@ -475,7 +486,7 @@ fn guard_info(
         _ => return None,
     }
     let operand_type = function.expect_value_type(*left);
-    let is_signed = tree.get(operand_type).integer_signedness()?;
+    let is_signed = tree.ty(operand_type).integer_signedness()?;
 
     // resolve the induction parameter
     let induction_index = header_block
@@ -740,6 +751,7 @@ fn const_i64(
 fn apply_fusion(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     cfg: &ControlTable,
     candidate: &FusionCandidate,
@@ -840,14 +852,10 @@ fn apply_fusion(
     for &instruction_id in &candidate.second.body_instructions {
         let original = tree.get(instruction_id).clone();
         let new_instruction = instruction_map(&original, &value_map, tree);
-        let new_instruction_id = tree.insert(new_instruction);
-        clone_instruction_tables(
-            tree,
-            accesses,
-            instruction_id,
-            new_instruction_id,
-            &value_map,
-        );
+        let source = tree.provenance(instruction_id);
+        let output = provenance.derive(source);
+        let new_instruction_id = tree.insert(new_instruction, output);
+        accesses.clone_instruction(instruction_id, new_instruction_id, &value_map);
         new_instructions.push(new_instruction_id);
     }
 
@@ -857,7 +865,7 @@ fn apply_fusion(
     }
 
     // commit the rewritten latch
-    function.replace_block_instructions(candidate.first.latch, new_instructions, tree);
+    function.replace_block_instructions(candidate.first.latch, new_instructions, tree, provenance);
 
     // update loop1 header exit to loop2 exit
     let header_block = tree.get(candidate.first.header).clone();
@@ -892,8 +900,7 @@ fn apply_fusion(
             else_target: else_target.clone(),
         }
     };
-    tree.set(candidate.first.header, header_block);
-    tree.set(tree.get(candidate.first.header).terminator, new_terminator);
+    tree.rewrite(header_block.terminator, new_terminator, provenance);
 
     // drop loop2 blocks from the function
     let mut to_remove = FxIndexSet::default();
@@ -904,7 +911,12 @@ fn apply_fusion(
     }
 
     // prune removed blocks from the function
-    function.retain_blocks(|block_id| !to_remove.contains(&block_id), tree);
+    function.retain_blocks(
+        |block_id| !to_remove.contains(&block_id),
+        tree,
+        accesses,
+        provenance,
+    );
 
     true
 }

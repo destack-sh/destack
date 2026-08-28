@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -44,10 +45,12 @@ impl FunctionPass for EliminateDeadLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
+        let accesses = &mut optimized.accesses;
 
         if function.entry().is_none() {
             return Mutation::NONE;
@@ -66,7 +69,9 @@ impl FunctionPass for EliminateDeadLoops {
         }
 
         // run loop deletion
-        let changed = run_eliminate_dead_loops(function, tree, &loops, &domtree, &constants);
+        let changed = run_eliminate_dead_loops(
+            function, tree, accesses, provenance, &loops, &domtree, &constants,
+        );
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -79,6 +84,8 @@ impl FunctionPass for EliminateDeadLoops {
 fn run_eliminate_dead_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     loops: &LoopTable,
     domtree: &DominatorTable,
     constants: &ConstantTable,
@@ -98,7 +105,7 @@ fn run_eliminate_dead_loops(
 
     // delete loops
     for candidate in &deletable {
-        delete_loop(function, tree, candidate);
+        delete_loop(function, tree, accesses, candidate, provenance);
     }
 
     true
@@ -330,20 +337,30 @@ fn preheader_to_header_args(
 }
 
 /// Delete a loop by replacing the preheader's terminator with a jump to exit.
-fn delete_loop(function: &mut mir::Function, tree: &mut mir::Tree, candidate: &DeleteCandidate) {
+fn delete_loop(
+    function: &mut mir::Function,
+    tree: &mut mir::Tree,
+    accesses: &mut mir::AccessTable,
+    candidate: &DeleteCandidate,
+    provenance: &mut ProvenanceJournal<'_>,
+) {
     // update preheader to jump directly to exit
-    let preheader = tree.get(candidate.preheader).clone();
+    let terminator = tree.get(candidate.preheader).terminator;
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
             candidate.exit_block,
             tree.add_values(&candidate.exit_arguments),
         ),
     };
-    tree.set(candidate.preheader, preheader);
-    tree.set(tree.get(candidate.preheader).terminator, new_terminator);
+    tree.rewrite(terminator, new_terminator, provenance);
 
     // remove loop blocks from function (they're now unreachable)
-    function.retain_blocks(|block| !candidate.loop_blocks.contains(&block), tree);
+    function.retain_blocks(
+        |block| !candidate.loop_blocks.contains(&block),
+        tree,
+        accesses,
+        provenance,
+    );
 }
 
 #[cfg(test)]

@@ -2,12 +2,12 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
-    CallTable, DefinitionTable, Hotness, Mutation, clone_instruction_tables, constant_for_value,
-    instruction_map_with_locals, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_remap, terminator_substitute_uses,
+    CallTable, DefinitionTable, Hotness, Mutation, constant_for_value, instruction_map_with_locals,
+    instruction_substitute_uses_in_tree, terminator_remap, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -49,14 +49,16 @@ impl ModulePass for InlineFunctions {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
         let dispatch = &optimized.dispatch;
 
-        let changed = run_inline(tree, accesses, dispatch, ctx, analyses);
+        let changed = run_inline(tree, accesses, dispatch, ctx, analyses, &mut journal);
 
         // report what this pass changed
         if changed {
@@ -131,6 +133,7 @@ fn run_inline(
     dispatch: &mir::DispatchTable,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::AnalysisCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // load module analysis state
     let callgraph = analyses.call(tree, dispatch);
@@ -216,7 +219,7 @@ fn run_inline(
             };
 
             // attempt to inline the selected callsite
-            let did_inline = inline_callsite(&mut function, tree, accesses, &site.site);
+            let did_inline = inline_callsite(&mut function, tree, accesses, &site.site, provenance);
             if !did_inline {
                 break;
             }
@@ -237,12 +240,9 @@ fn run_inline(
         component_budgets.insert(component, component_budget);
 
         // commit the updated function back into the tree
-        *tree.get_mut(function_id) = function;
-    }
-
-    // record pass activity for downstream diagnostics
-    if changed {
-        ctx.strings.intern("inline-functions");
+        if inline_count > 0 {
+            tree.rewrite(function_id, function, provenance);
+        }
     }
 
     changed
@@ -601,6 +601,7 @@ fn inline_callsite(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     site: &InlineFunctionsSite,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // load the callee and entry block
     let callee = tree.get(site.callee_id).clone();
@@ -611,7 +612,7 @@ fn inline_callsite(
     // reject mismatched return handling
     let return_type = callee.return_type;
 
-    if matches!(tree.get(return_type), mir::Type::Void) && site.destination.is_some() {
+    if matches!(tree.ty(return_type), mir::Type::Void) && site.destination.is_some() {
         return false;
     }
 
@@ -643,8 +644,16 @@ fn inline_callsite(
     }
 
     // clone locals and blocks before rewriting the caller
-    let local_map = clone_locals(caller, tree, &callee);
-    let (block_map, value_map) = clone_callee_blocks(caller, tree, &callee, &argument_map);
+    let call_source = tree.provenance(site.call_instruction_id);
+    let local_map = clone_locals(caller, tree, &callee, call_source, provenance);
+    let (block_map, value_map) = clone_callee_blocks(
+        caller,
+        tree,
+        &callee,
+        &argument_map,
+        call_source,
+        provenance,
+    );
 
     // split the caller block and jump into the inlined entry
     let inline_entry = block_map[&entry_block];
@@ -659,18 +668,33 @@ fn inline_callsite(
         site.destination,
         &entry_params,
         &argument_map,
+        call_source,
+        provenance,
     );
-    let Some(split) = split else {
-        return false;
-    };
+
+    // place the cloned callee blocks between the call prefix and continuation
+    let mut blocks = caller.blocks().to_vec();
+    let continuation_index = blocks
+        .iter()
+        .position(|block| *block == split.continuation_id)
+        .unwrap_or_else(|| unreachable!("inline continuation is absent from the caller"));
+    let cloned_blocks = callee.blocks().iter().map(|block| block_map[block]);
+    blocks.splice(continuation_index..continuation_index, cloned_blocks);
+    caller.replace_blocks(blocks, tree);
 
     // substitute the call result in the continuation block
     if let (Some(destination), Some(result_value)) = (site.destination, split.result_value) {
-        substitute_value_in_function(tree, accesses, caller, destination, result_value);
+        substitute_value_in_function(
+            tree,
+            accesses,
+            caller,
+            destination,
+            result_value,
+            provenance,
+        );
     }
 
     // remap the inlined blocks and rewrite returns
-    let call_source = tree.get_source(site.call_instruction_id.id);
     remap_inline_blocks(
         tree,
         accesses,
@@ -679,12 +703,14 @@ fn inline_callsite(
         &value_map,
         &local_map,
         call_source,
+        provenance,
     );
     rewrite_inlined_returns(
         tree,
         &block_map,
         split.continuation_id,
         site.destination.is_some(),
+        provenance,
     );
 
     // clean up tables for the removed call instruction
@@ -706,12 +732,15 @@ fn clone_locals(
     caller: &mut mir::Function,
     tree: &mut mir::Tree,
     callee: &mir::Function,
+    call_source: ProvenanceId,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> FxIndexMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>> {
     // allocate new locals in the caller
     let mut local_map = FxIndexMap::default();
     for local_id in callee.locals() {
         let local = tree.get(*local_id).clone();
-        let new_local = tree.insert(local);
+        let source = tree.provenance(*local_id);
+        let new_local = tree.insert(local, provenance.expand(source, call_source));
         local_map.insert(*local_id, new_local);
         caller.add_local(new_local);
     }
@@ -725,6 +754,8 @@ fn clone_callee_blocks(
     tree: &mut mir::Tree,
     callee: &mir::Function,
     argument_map: &FxIndexMap<mir::Value, mir::Value>,
+    call_source: ProvenanceId,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> (
     FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     FxIndexMap<mir::Value, mir::Value>,
@@ -750,6 +781,7 @@ fn clone_callee_blocks(
                 mir::BlockParameter {
                     value: new_value,
                     ty,
+                    provenance: provenance.expand(param.provenance, call_source),
                 }
             })
             .collect();
@@ -765,15 +797,19 @@ fn clone_callee_blocks(
         }
 
         // create the empty cloned block with its own terminator
-        let new_terminator = tree.insert(mir::Terminator::Unreachable);
+        let terminator_source = tree.provenance(original.terminator);
+        let new_terminator = tree.insert(
+            mir::Terminator::Unreachable,
+            provenance.expand(terminator_source, call_source),
+        );
         let new_block = mir::Block {
             parameters: new_params,
             instructions: Vec::new(),
             terminator: new_terminator,
         };
-        let new_block_id = tree.insert(new_block);
+        let block_source = tree.provenance(*block_id);
+        let new_block_id = tree.insert(new_block, provenance.expand(block_source, call_source));
         block_map.insert(*block_id, new_block_id);
-        caller.add_block(new_block_id, tree);
     }
 
     (block_map, value_map)
@@ -787,22 +823,27 @@ fn split_block_for_inline(
     call_index: usize,
     call_instruction_id: mir::LocalNodeId<mir::Instruction>,
     inline_entry: mir::LocalNodeId<mir::Block>,
-    return_type: mir::LocalNodeId<mir::Type>,
+    return_type: mir::TypeId,
     destination: Option<mir::Value>,
     entry_params: &[mir::BlockParameter],
     argument_map: &FxIndexMap<mir::Value, mir::Value>,
-) -> Option<InlineFunctionsSplit> {
+    call_source: ProvenanceId,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> InlineFunctionsSplit {
     // load the call block for editing
     let mut block = tree.get(block_id).clone();
     if call_index >= block.instructions.len() {
-        return None;
+        unreachable!("inline call index is outside its block");
     }
     if block.instructions[call_index] != call_instruction_id {
-        return None;
+        unreachable!("inline call index does not identify the selected call");
     }
 
-    // build the continuation block
-    let continuation_terminator = tree.insert(mir::Terminator::Abort { payload: None });
+    // preserve the original terminator for the continuation
+    let terminator_source = tree.provenance(block.terminator);
+    let original_terminator = tree.get(block.terminator).clone();
+    let continuation_terminator =
+        tree.insert_from(original_terminator, block.terminator, provenance);
     let mut continuation_block = mir::Block::new(continuation_terminator);
     let mut result_value = None;
 
@@ -812,6 +853,7 @@ fn split_block_for_inline(
         continuation_block.parameters.push(mir::BlockParameter {
             value: new_value,
             ty: return_type,
+            provenance: provenance.derive(call_source),
         });
         result_value = Some(new_value);
     }
@@ -820,17 +862,17 @@ fn split_block_for_inline(
     let after_instructions = block.instructions.split_off(call_index + 1);
     let removed = block.instructions.pop();
     if removed != Some(call_instruction_id) {
-        return None;
+        unreachable!("inline call disappeared while splitting its block");
     }
-
-    // preserve the original terminator for the continuation
-    let original_terminator = tree.get(block.terminator).clone();
 
     // build jump arguments for the inlined entry block
     let mut entry_arguments = Vec::new();
     for param in entry_params {
         let param_value = param.value;
-        let argument = argument_map.get(&param_value).copied()?;
+        let argument = argument_map
+            .get(&param_value)
+            .copied()
+            .unwrap_or_else(|| unreachable!("inline entry parameter has no call argument"));
         entry_arguments.push(argument);
     }
     let entry_arguments = tree.add_values(&entry_arguments);
@@ -839,21 +881,20 @@ fn split_block_for_inline(
     let jump_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(inline_entry, entry_arguments),
     };
-    tree.set(block.terminator, jump_terminator);
-    caller.replace_block_instructions(block_id, block.instructions, tree);
+    let jump_provenance = provenance.generate(&[call_source, terminator_source]);
+    tree.replace(block.terminator, jump_terminator, jump_provenance);
+    tree.record_removal(call_instruction_id, provenance);
 
     // finish the continuation block
     continuation_block.instructions = after_instructions;
-    tree.set(continuation_terminator, original_terminator);
 
-    // insert the continuation block into the caller
-    let continuation_id = tree.insert(continuation_block);
-    caller.add_block(continuation_id, tree);
+    // split the source block into the call prefix and continuation
+    let continuation_id = caller.split_block(block_id, block, continuation_block, tree, provenance);
 
-    Some(InlineFunctionsSplit {
+    InlineFunctionsSplit {
         continuation_id,
         result_value,
-    })
+    }
 }
 
 /// Substitute a value inside a single block.
@@ -863,6 +904,7 @@ fn substitute_value_in_function(
     function: &mir::Function,
     from: mir::Value,
     to: mir::Value,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // build substitution map for a single replacement
     let mut substitutions = FxIndexMap::default();
@@ -874,14 +916,16 @@ fn substitute_value_in_function(
         for instruction_id in &block.instructions {
             let instruction = tree.get(*instruction_id).clone();
             let updated = instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
-            tree.set(*instruction_id, updated);
-            remap_instruction_memory_accesses(accesses, *instruction_id, &substitutions);
+            if updated != instruction {
+                tree.rewrite(*instruction_id, updated, provenance);
+                accesses.remap_instruction(*instruction_id, &substitutions);
+            }
         }
 
         let terminator = tree.get(block.terminator).clone();
         let updated_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
         if updated_terminator != terminator {
-            tree.set(block.terminator, updated_terminator);
+            tree.rewrite(block.terminator, updated_terminator, provenance);
         }
     }
 }
@@ -894,7 +938,8 @@ fn remap_inline_blocks(
     block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     value_map: &FxIndexMap<mir::Value, mir::Value>,
     local_map: &FxIndexMap<mir::LocalNodeId<mir::Local>, mir::LocalNodeId<mir::Local>>,
-    call_source: Option<u32>,
+    call_source: ProvenanceId,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // clone instruction bodies and remap terminators for each block
     for block_id in callee.blocks() {
@@ -911,30 +956,21 @@ fn remap_inline_blocks(
             // remap the instruction operands and destination
             let instruction = tree.get(instruction_id).clone();
             let remapped = instruction_map_with_locals(&instruction, value_map, local_map, tree);
-            let new_id = tree.insert(remapped);
+            let source = tree.provenance(instruction_id);
+            let new_id = tree.insert(remapped, provenance.expand(source, call_source));
 
             // clone memory access entries onto the new instruction
-            clone_instruction_tables(tree, accesses, instruction_id, new_id, value_map);
-
-            // use call source when the callee instruction has no source
-            if tree.get_source(new_id.id).is_none()
-                && let Some(call_source) = call_source
-            {
-                tree.set_source(new_id.id, call_source);
-            }
+            accesses.clone_instruction(instruction_id, new_id, value_map);
 
             new_instructions.push(new_id);
         }
 
         // remap the terminator and commit the new block body
         new_block.instructions = new_instructions;
-        tree.set(new_block.terminator, original_terminator);
-
-        let mut remapped_terminator = tree.get(new_block.terminator).clone();
+        let mut remapped_terminator = original_terminator;
         terminator_remap(tree, &mut remapped_terminator, block_map, value_map);
-        tree.set(new_block.terminator, remapped_terminator);
-
-        tree.set(new_block_id, new_block);
+        tree.set_payload(new_block.terminator, remapped_terminator);
+        tree.set_payload(new_block_id, new_block);
     }
 }
 
@@ -944,6 +980,7 @@ fn rewrite_inlined_returns(
     block_map: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
     continuation: mir::LocalNodeId<mir::Block>,
     expects_value: bool,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // rewrite return terminators to jump to the continuation
     for &new_block_id in block_map.values() {
@@ -965,8 +1002,7 @@ fn rewrite_inlined_returns(
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(continuation, arguments),
         };
-        tree.set(block.terminator, new_terminator);
-        tree.set(new_block_id, block);
+        tree.rewrite(block.terminator, new_terminator, provenance);
     }
 }
 

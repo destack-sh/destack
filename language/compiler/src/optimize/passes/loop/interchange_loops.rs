@@ -2,6 +2,7 @@ use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -76,6 +77,7 @@ impl FunctionPass for InterchangeLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -97,6 +99,7 @@ impl FunctionPass for InterchangeLoops {
             &cfg,
             &domtree,
             memory.as_ref(),
+            provenance,
         );
 
         // report what this pass changed
@@ -137,6 +140,7 @@ fn run_interchange_loops(
     cfg: &ControlTable,
     domtree: &DominatorTable,
     memory: &MemoryTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // build definition info
     let definitions = DefinitionTable::build(function, tree);
@@ -163,7 +167,7 @@ fn run_interchange_loops(
     };
 
     // apply interchange
-    apply_interchange(tree, &candidate)
+    apply_interchange(tree, &candidate, provenance)
 }
 
 /// Build a loop interchange candidate.
@@ -354,20 +358,20 @@ fn loops_are_read_only(
 }
 
 /// Apply loop interchange to a candidate.
-fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> bool {
+fn apply_interchange(
+    tree: &mut mir::Tree,
+    candidate: &InterchangeCandidate,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
     // update the outer preheader to jump to the inner header
-    let preheader_block = tree.get(candidate.outer_preheader).clone();
+    let preheader_terminator_id = tree.get(candidate.outer_preheader).terminator;
     let preheader_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
             candidate.inner_header,
             tree.add_values(&candidate.inner_header_args),
         ),
     };
-    tree.set(candidate.outer_preheader, preheader_block);
-    tree.set(
-        tree.get(candidate.outer_preheader).terminator,
-        preheader_terminator,
-    );
+    tree.rewrite(preheader_terminator_id, preheader_terminator, provenance);
 
     // update the inner header to branch to the outer header
     let inner_header_block = tree.get(candidate.inner_header).clone();
@@ -397,10 +401,10 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
             else_target: mir::BlockTarget::new(candidate.outer_header, outer_preheader_args),
         }
     };
-    tree.set(candidate.inner_header, inner_header_block);
-    tree.set(
-        tree.get(candidate.inner_header).terminator,
+    tree.rewrite(
+        inner_header_block.terminator,
         new_inner_terminator,
+        provenance,
     );
 
     // update the outer header to exit to the inner latch
@@ -430,10 +434,10 @@ fn apply_interchange(tree: &mut mir::Tree, candidate: &InterchangeCandidate) -> 
             else_target: mir::BlockTarget::new(candidate.outer_latch, mir::ValueSlice::default()),
         }
     };
-    tree.set(candidate.outer_header, outer_header_block);
-    tree.set(
-        tree.get(candidate.outer_header).terminator,
+    tree.rewrite(
+        outer_header_block.terminator,
         new_outer_terminator,
+        provenance,
     );
 
     true

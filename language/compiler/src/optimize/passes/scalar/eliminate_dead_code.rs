@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use crate::optimize::declare_pass;
 use destack_core::FxIndexSet;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -38,6 +39,7 @@ impl FunctionPass for EliminateDeadCode {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -50,7 +52,8 @@ impl FunctionPass for EliminateDeadCode {
         let memory = analyses.memory(function, tree, accesses, effects);
 
         // run dead code elimination
-        let changed = run_dead_code_elimination(function, tree, accesses, &alias, &memory);
+        let changed =
+            run_dead_code_elimination(function, tree, provenance, accesses, &alias, &memory);
 
         // report what this pass changed
         if changed {
@@ -65,12 +68,13 @@ impl FunctionPass for EliminateDeadCode {
 fn run_dead_code_elimination(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    accesses: &mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
+    accesses: &mut mir::AccessTable,
     alias: &AliasTable,
     memory: &MemoryTable,
 ) -> bool {
     // drop dead stores before liveness
-    let mut changed = remove_dead_stores(function, tree, accesses, alias, memory);
+    let mut changed = remove_dead_stores(function, tree, provenance, accesses, alias, memory);
 
     // snapshot value definitions before tracing liveness
     let definitions = DefinitionTable::build(function, tree);
@@ -144,7 +148,16 @@ fn run_dead_code_elimination(
 
         // rewrite the block when instructions are removed
         if live_instructions.len() != original_len {
-            function.replace_block_instructions(block_id, live_instructions, tree);
+            for instruction in block
+                .instructions
+                .iter()
+                .copied()
+                .filter(|instruction| !live.contains(instruction))
+            {
+                tree.record_removal(instruction, provenance);
+                accesses.remove(instruction);
+            }
+            function.replace_block_instructions(block_id, live_instructions, tree, provenance);
             changed = true;
         }
     }
@@ -156,7 +169,8 @@ fn run_dead_code_elimination(
 fn remove_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    accesses: &mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
+    accesses: &mut mir::AccessTable,
     alias: &AliasTable,
     memory: &MemoryTable,
 ) -> bool {
@@ -225,9 +239,18 @@ fn remove_dead_stores(
     for block_id in block_ids {
         let block = tree.get(block_id);
         if block.instructions.iter().any(|id| dead_stores.contains(id)) {
+            for instruction in block
+                .instructions
+                .iter()
+                .copied()
+                .filter(|instruction| dead_stores.contains(instruction))
+            {
+                tree.record_removal(instruction, provenance);
+                accesses.remove(instruction);
+            }
             let mut instructions = block.instructions.clone();
             instructions.retain(|id| !dead_stores.contains(id));
-            function.replace_block_instructions(block_id, instructions, tree);
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
         }
     }
 

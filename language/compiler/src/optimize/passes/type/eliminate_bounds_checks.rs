@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -56,6 +57,7 @@ impl FunctionPass for EliminateBoundsChecks {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -116,7 +118,7 @@ impl FunctionPass for EliminateBoundsChecks {
                 } else {
                     candidate.out_of_bounds_target.clone()
                 };
-                replace_terminator_with_jump(tree, block_id, target);
+                replace_terminator_with_jump(tree, block_id, target, provenance);
                 changed = true;
                 continue;
             }
@@ -169,7 +171,12 @@ impl FunctionPass for EliminateBoundsChecks {
 
             // rewrite the check when constraints imply the bounds
             if constraints_imply {
-                replace_terminator_with_jump(tree, block_id, candidate.in_bounds_target.clone());
+                replace_terminator_with_jump(
+                    tree,
+                    block_id,
+                    candidate.in_bounds_target.clone(),
+                    provenance,
+                );
                 changed = true;
             }
         }
@@ -353,11 +360,12 @@ fn replace_terminator_with_jump(
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     target: mir::BlockTarget,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // overwrite the terminator with a jump
     let block = tree.get(block_id);
     let terminator = mir::Terminator::Jump { target };
-    tree.set(block.terminator, terminator);
+    tree.rewrite(block.terminator, terminator, provenance);
 }
 
 /// Extract a bounds check candidate from a block terminator.
@@ -1227,7 +1235,7 @@ fn constraints_for_condition(
 
                         // preserve the explicit integer domain
                         let operand_type = function.expect_value_type(*left);
-                        let is_signed = tree.get(operand_type).integer_signedness()?;
+                        let is_signed = tree.ty(operand_type).integer_signedness()?;
 
                         // emit inclusive lower and upper constraints
                         let constraints = vec![
@@ -1266,7 +1274,7 @@ fn constraints_for_condition(
                             ranges,
                         );
                         let operand_type = function.expect_value_type(*left);
-                        let is_signed = tree.get(operand_type).integer_signedness()?;
+                        let is_signed = tree.ty(operand_type).integer_signedness()?;
 
                         // build the comparison constraint
                         comparison_constraint(

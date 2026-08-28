@@ -3,12 +3,10 @@ use std::collections::VecDeque;
 use crate::optimize::declare_pass;
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{
-    AliasTable, EdgeSplitPolicy, MemoryAccessId, MemoryNode, MemoryTable, Mutation,
-    ensure_edge_block,
-};
+use destack_mir::{AliasTable, MemoryAccessId, MemoryNode, MemoryTable, Mutation};
 
 declare_pass! {
     /// Sink stores down to the successors that use them.
@@ -55,6 +53,7 @@ impl FunctionPass for SinkStores {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -68,7 +67,7 @@ impl FunctionPass for SinkStores {
         }
 
         // run store sinking
-        let changed = run_sink_stores(function, tree, accesses, effects, analyses);
+        let changed = run_sink_stores(function, tree, accesses, effects, analyses, provenance);
 
         // report what this pass changed
         if changed {
@@ -114,9 +113,9 @@ fn run_sink_stores(
     accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // gather analyses
-    let cfg = analyses.control(function, tree).clone();
     let memory = analyses.memory(function, tree, accesses, effects);
     let alias = analyses.alias(function, tree).clone();
 
@@ -129,22 +128,17 @@ fn run_sink_stores(
     // map clobbering defs to the blocks that read from them
     let use_blocks_by_def = collect_use_blocks_by_def(function, tree, memory.as_ref(), &alias);
 
-    // track modifications
-    let mut edge_blocks: FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    > = FxIndexMap::default();
+    // track replaced stores
     let mut to_remove = FxIndexSet::default();
-    let mut changed = false;
 
     // evaluate candidates for sinking
     for candidate in candidates {
         let block = tree.get(candidate.block);
         let terminator = tree.get(block.terminator);
-        let successors = terminator.successors(tree);
+        let edges = terminator.edges(tree, candidate.block);
 
         // require multiple successors
-        if successors.len() < 2 {
+        if edges.len() < 2 {
             continue;
         }
 
@@ -156,33 +150,31 @@ fn run_sink_stores(
 
         // determine which successors need the store
         let mut needed = Vec::new();
-        for successor in &successors {
-            let successor = *successor;
-
-            if successor_reaches_use(tree, successor, use_blocks) {
-                needed.push(successor);
+        for (edge, successor) in &edges {
+            if successor_reaches_use(tree, *successor, use_blocks) {
+                needed.push(*edge);
             }
         }
 
         // skip when the store is needed on every edge
-        if needed.len() == successors.len() {
+        if needed.len() == edges.len() {
             continue;
         }
+        let source = tree.provenance(candidate.instruction);
+        let outputs = provenance.split_many(source, needed.len());
 
         // insert stores on needed edges
-        for successor in &needed {
-            let insertion_block = ensure_edge_block(
-                candidate.block,
-                *successor,
+        for (edge, output) in needed.iter().zip(outputs) {
+            let insertion_edge = edge.split(function, tree, provenance);
+
+            let store_id = insert_store_for_candidate(
                 function,
                 tree,
-                &cfg,
-                &mut edge_blocks,
-                EdgeSplitPolicy::PredecessorMultiSuccessor,
-                &mut changed,
+                insertion_edge.source,
+                &candidate,
+                output,
+                provenance,
             );
-
-            let store_id = insert_store_for_candidate(function, tree, insertion_block, &candidate);
             clone_store_accesses(accesses, candidate.instruction, store_id, candidate.pointer);
         }
 
@@ -195,11 +187,14 @@ fn run_sink_stores(
         return false;
     }
 
-    // remove sunk stores
+    // remove replaced stores from their original blocks
     for block_id in function.blocks().to_vec() {
+        let previous_count = tree.get(block_id).instructions.len();
         let mut instructions = tree.get(block_id).instructions.clone();
         instructions.retain(|id| !to_remove.contains(id));
-        function.replace_block_instructions(block_id, instructions, tree);
+        if instructions.len() != previous_count {
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
+        }
     }
 
     // drop memory accesses for removed stores
@@ -392,24 +387,30 @@ fn insert_store_for_candidate(
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     candidate: &StoreCandidate,
+    output: ProvenanceId,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> mir::LocalNodeId<mir::Instruction> {
     // build the new store instruction
     let instruction = match candidate.kind {
         StoreKind::Store => mir::Instruction::Store {
-            pointer: candidate.pointer.expect("store pointer required"),
+            pointer: candidate
+                .pointer
+                .unwrap_or_else(|| unreachable!("store candidate must have a pointer")),
             value: candidate.value,
         },
         StoreKind::LocalSet => mir::Instruction::LocalSet {
-            local: candidate.local.expect("local target required"),
+            local: candidate
+                .local
+                .unwrap_or_else(|| unreachable!("local store candidate must have a target")),
             value: candidate.value,
         },
     };
 
     // insert the instruction in the edge block
-    let instruction_id = tree.insert(instruction);
+    let instruction_id = tree.insert(instruction, output);
     let mut instructions = tree.get(block_id).instructions.clone();
     instructions.push(instruction_id);
-    function.replace_block_instructions(block_id, instructions, tree);
+    function.replace_block_instructions(block_id, instructions, tree, provenance);
 
     instruction_id
 }

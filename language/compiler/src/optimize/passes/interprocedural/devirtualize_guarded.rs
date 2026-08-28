@@ -2,6 +2,7 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{DevirtualizeGuardedOptions, MirOptimized, ModulePass, PipelineContext};
 use mir::{Mutation, SampleSite, ValueProfile};
@@ -18,12 +19,14 @@ impl ModulePass for DevirtualizeGuarded {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         let Some(profile) = ctx.profile() else {
             return Mutation::NONE;
         };
+        let mut journal = provenance.record(Self::metadata().id);
 
         let changed = DevirtualizeGuardedState::new(
             &optimized.profile,
@@ -31,7 +34,7 @@ impl ModulePass for DevirtualizeGuarded {
             profile,
             ctx.options.devirtualize_guarded,
         )
-        .apply(&mut optimized.tree);
+        .apply(&mut optimized.tree, &mut optimized.accesses, &mut journal);
 
         if changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -70,7 +73,12 @@ impl<'a> DevirtualizeGuardedState<'a> {
     }
 
     /// Apply DevirtualizeGuarded across one module.
-    fn apply(&self, tree: &mut mir::Tree) -> bool {
+    fn apply(
+        &self,
+        tree: &mut mir::Tree,
+        accesses: &mut mir::AccessTable,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> bool {
         let mut changed = false;
         let functions_by_symbol = Self::functions_by_symbol(tree);
         let function_ids = tree
@@ -80,7 +88,13 @@ impl<'a> DevirtualizeGuardedState<'a> {
 
         // promote one site at a time because each rewrite changes block layout
         for function_id in function_ids {
-            while self.promote_next_function_call(tree, function_id, &functions_by_symbol) {
+            while self.promote_next_function_call(
+                tree,
+                accesses,
+                function_id,
+                &functions_by_symbol,
+                provenance,
+            ) {
                 changed = true;
             }
         }
@@ -99,8 +113,10 @@ impl<'a> DevirtualizeGuardedState<'a> {
     fn promote_next_function_call(
         &self,
         tree: &mut mir::Tree,
+        accesses: &mut mir::AccessTable,
         function_id: mir::FunctionId,
         functions_by_symbol: &FxIndexMap<mir::Symbol, mir::FunctionId>,
+        provenance: &mut ProvenanceJournal<'_>,
     ) -> bool {
         let function = tree.get(function_id);
         if !function.is_defined() {
@@ -131,8 +147,8 @@ impl<'a> DevirtualizeGuardedState<'a> {
 
         let mut function = tree.get(function_id).clone();
         function.recompute_next_value_id(tree);
-        promotion.apply(&mut function, tree);
-        tree.set(function_id, function);
+        promotion.apply(&mut function, tree, accesses, provenance);
+        tree.rewrite(function_id, function, provenance);
 
         true
     }
@@ -276,13 +292,19 @@ struct Promotion {
 
 impl Promotion {
     /// Apply this promotion to a function.
-    fn apply(self, function: &mut mir::Function, tree: &mut mir::Tree) {
+    fn apply(
+        self,
+        function: &mut mir::Function,
+        tree: &mut mir::Tree,
+        accesses: &mut mir::AccessTable,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) {
         match self.node {
             CallNode::Instruction(instruction) => {
-                self.apply_instruction(function, tree, instruction);
+                self.apply_instruction(function, tree, accesses, instruction, provenance);
             }
             CallNode::Terminator(block) => {
-                self.apply_terminator(function, tree, block);
+                self.apply_terminator(function, tree, block, provenance);
             }
         }
     }
@@ -292,8 +314,11 @@ impl Promotion {
         self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
+        accesses: &mut mir::AccessTable,
         instruction: mir::LocalNodeId<mir::Instruction>,
+        provenance: &mut ProvenanceJournal<'_>,
     ) {
+        let source = tree.provenance(instruction);
         let block = function
             .instruction_block(instruction)
             .unwrap_or_else(|| unreachable!("promoted instruction is not in the function"));
@@ -305,10 +330,15 @@ impl Promotion {
         let block_node = tree.get(block).clone();
         let mut prefix = block_node.instructions[..position].to_vec();
         let suffix = block_node.instructions[position + 1..].to_vec();
-        let old_terminator = tree.insert(tree.get(block_node.terminator).clone());
+        let old_terminator = tree.insert_from(
+            tree.get(block_node.terminator).clone(),
+            block_node.terminator,
+            provenance,
+        );
 
         // materialize the runtime identity carried by the dynamic receiver
-        let (type_projection, type_id) = self.insert_type_projection(function, tree);
+        let (type_projection, type_id) =
+            self.insert_type_projection(function, tree, source, provenance);
         prefix.push(type_projection);
 
         // build continuation block around the original suffix and terminator
@@ -321,30 +351,42 @@ impl Promotion {
             continuation.parameters.push(mir::BlockParameter {
                 value: destination,
                 ty,
+                provenance: provenance.derive(source),
             });
         }
-        let continuation = tree.insert(continuation);
+        let mut prefix_block = block_node;
+        prefix_block.instructions = prefix;
+        let continuation =
+            function.split_block(block, prefix_block, continuation, tree, provenance);
 
         // preserve instruction-call unwinding through one explicit resume block
-        let unwind_terminator = tree.insert(mir::Terminator::UnwindResume);
-        let unwind = tree.insert(mir::Block::new(unwind_terminator));
+        let [unwind_terminator_provenance, unwind_block_provenance] =
+            provenance.generate_many(&[source]);
+        let unwind_terminator =
+            tree.insert(mir::Terminator::UnwindResume, unwind_terminator_provenance);
+        let unwind = tree.insert(mir::Block::new(unwind_terminator), unwind_block_provenance);
         let (direct, fallback) = self
             .instruction_terminators(&original, continuation, unwind)
             .unwrap_or_else(|| unreachable!("promoted instruction is not a dispatch call"));
 
         // build hot and fallback call blocks
-        let hot = Self::insert_block_with_terminator(tree, direct);
-        let fallback = Self::insert_block_with_terminator(tree, fallback);
+        let [direct_provenance, fallback_provenance] = provenance.split(source);
+        let [hot_provenance, fallback_block_provenance] = provenance.generate_many(&[source]);
+        let direct = tree.insert(direct, direct_provenance);
+        let fallback = tree.insert(fallback, fallback_provenance);
+        let hot = tree.insert(mir::Block::new(direct), hot_provenance);
+        let fallback = tree.insert(mir::Block::new(fallback), fallback_block_provenance);
 
         // replace the original block with the dispatch guard
-        function.replace_block_instructions(block, prefix, tree);
+        accesses.remove(instruction);
         let check = self.check_terminator(type_id, hot, fallback);
-        tree.set(tree.get(block).terminator, check);
+        let terminator = tree.get(block).terminator;
+        let inputs = [source, tree.provenance(terminator)];
+        tree.replace(terminator, check, provenance.generate(&inputs));
 
         // keep the promoted blocks next to the original control flow
         function.insert_block_after(block, hot, tree);
         function.insert_block_after(hot, fallback, tree);
-        function.insert_block_after(fallback, continuation, tree);
         function.insert_block_after(continuation, unwind, tree);
     }
 
@@ -354,25 +396,33 @@ impl Promotion {
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         block: mir::BlockId,
+        provenance: &mut ProvenanceJournal<'_>,
     ) {
-        let terminator = tree.get(tree.get(block).terminator).clone();
+        let terminator_id = tree.get(block).terminator;
+        let source = tree.provenance(terminator_id);
+        let terminator = tree.get(terminator_id).clone();
         let (direct, fallback) = self
             .terminator_replacements(&terminator)
             .unwrap_or_else(|| unreachable!("promoted terminator is not a dispatch call"));
 
         // materialize the runtime identity carried by the dynamic receiver
-        let (type_projection, type_id) = self.insert_type_projection(function, tree);
+        let (type_projection, type_id) =
+            self.insert_type_projection(function, tree, source, provenance);
         let mut instructions = tree.get(block).instructions.clone();
         instructions.push(type_projection);
-        function.replace_block_instructions(block, instructions, tree);
+        function.replace_block_instructions(block, instructions, tree, provenance);
 
         // build hot and fallback terminator blocks
-        let hot = Self::insert_block_with_terminator(tree, direct);
-        let fallback = Self::insert_block_with_terminator(tree, fallback);
+        let [direct_provenance, fallback_provenance] = provenance.split(source);
+        let [hot_provenance, fallback_block_provenance] = provenance.generate_many(&[source]);
+        let direct = tree.insert(direct, direct_provenance);
+        let fallback = tree.insert(fallback, fallback_provenance);
+        let hot = tree.insert(mir::Block::new(direct), hot_provenance);
+        let fallback = tree.insert(mir::Block::new(fallback), fallback_block_provenance);
 
         // replace the original terminator with the guard
         let check = self.check_terminator(type_id, hot, fallback);
-        tree.set(tree.get(block).terminator, check);
+        tree.replace(terminator_id, check, provenance.generate(&[source]));
 
         // place the cloned calls after the guard block
         function.insert_block_after(block, hot, tree);
@@ -384,13 +434,19 @@ impl Promotion {
         &self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
+        source: ProvenanceId,
+        provenance: &mut ProvenanceJournal<'_>,
     ) -> (mir::LocalNodeId<mir::Instruction>, mir::Value) {
         let type_id = tree.intern_type(mir::Type::TypeId);
         let destination = function.next_typed_value(type_id);
-        let instruction = tree.insert(mir::Instruction::DynamicType {
-            destination,
-            dynamic: self.receiver,
-        });
+        let output = provenance.generate(&[source]);
+        let instruction = tree.insert(
+            mir::Instruction::DynamicType {
+                destination,
+                dynamic: self.receiver,
+            },
+            output,
+        );
 
         (instruction, destination)
     }
@@ -410,16 +466,6 @@ impl Promotion {
             success: mir::BlockTarget::new(hot, mir::ValueSlice::default()),
             failure: mir::BlockTarget::new(fallback, mir::ValueSlice::default()),
         }
-    }
-
-    /// Insert a block containing one terminator.
-    fn insert_block_with_terminator(
-        tree: &mut mir::Tree,
-        terminator: mir::Terminator,
-    ) -> mir::BlockId {
-        let terminator = tree.insert(terminator);
-
-        tree.insert(mir::Block::new(terminator))
     }
 
     /// Return terminator calls for an instruction call promotion.

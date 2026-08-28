@@ -3,6 +3,7 @@ use std::collections::VecDeque;
 use crate::optimize::declare_pass;
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -85,6 +86,7 @@ impl FunctionPass for DistributeLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -109,6 +111,7 @@ impl FunctionPass for DistributeLoops {
             &domtree,
             memory.as_ref(),
             &alias,
+            provenance,
         );
 
         // report what this pass changed
@@ -158,6 +161,7 @@ fn run_distribute_loops(
     domtree: &DominatorTable,
     memory: &MemoryTable,
     alias: &AliasTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // build value definition info
     let definitions = DefinitionTable::build(function, tree);
@@ -181,7 +185,7 @@ fn run_distribute_loops(
     };
 
     // apply the distribution
-    apply_distribution(function, tree, accesses, &candidate)
+    apply_distribution(function, tree, accesses, &candidate, provenance)
 }
 
 /// Build a distribution candidate for a loop.
@@ -557,6 +561,7 @@ fn apply_distribution(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     candidate: &DistributeCandidate,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // prepare for cloning
     function.recompute_next_value_id(tree);
@@ -573,7 +578,7 @@ fn apply_distribution(
     for _ in 1..candidate.groups.len() {
         let loop_blocks: FxIndexSet<_> = [candidate.header, candidate.latch].into_iter().collect();
         let (block_map, value_map, instruction_map) =
-            clone_loop_blocks_with_instructions(&loop_blocks, function, tree, accesses);
+            clone_loop_blocks_with_instructions(&loop_blocks, function, tree, provenance, accesses);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
@@ -581,8 +586,7 @@ fn apply_distribution(
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(tree, &mut terminator, &block_map, &value_map);
-            tree.set(cloned_id, block);
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
         }
 
         // insert cloned blocks into the function
@@ -608,7 +612,14 @@ fn apply_distribution(
             return false;
         };
 
-        prune_latch_instructions(function, tree, accesses, instance.latch, &keep_set);
+        prune_latch_instructions(
+            function,
+            tree,
+            accesses,
+            instance.latch,
+            &keep_set,
+            provenance,
+        );
     }
 
     // chain loop exits together
@@ -624,21 +635,21 @@ fn apply_distribution(
             next_header,
             &candidate.preheader_args,
             candidate.in_loop_is_then,
+            provenance,
         ) {
             return false;
         }
     }
 
     // update the preheader to enter the first header
-    let preheader_block = tree.get(candidate.preheader).clone();
+    let preheader_terminator = tree.get(candidate.preheader).terminator;
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(
             loop_instances[0].header,
             tree.add_values(&candidate.preheader_args),
         ),
     };
-    tree.set(candidate.preheader, preheader_block);
-    tree.set(tree.get(candidate.preheader).terminator, new_terminator);
+    tree.rewrite(preheader_terminator, new_terminator, provenance);
 
     true
 }
@@ -683,6 +694,7 @@ fn prune_latch_instructions(
     accesses: &mut mir::AccessTable,
     latch: mir::LocalNodeId<mir::Block>,
     keep: &FxIndexSet<mir::LocalNodeId<mir::Instruction>>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // filter instruction ids
     let instruction_ids = tree.get(latch).instructions.clone();
@@ -691,12 +703,13 @@ fn prune_latch_instructions(
         if keep.contains(&instruction_id) {
             filtered.push(instruction_id);
         } else {
+            tree.record_removal(instruction_id, provenance);
             accesses.remove(instruction_id);
         }
     }
 
     // commit the filtered latch
-    function.replace_block_instructions(latch, filtered, tree);
+    function.replace_block_instructions(latch, filtered, tree, provenance);
 }
 
 /// Update the header terminator to chain loop exits.
@@ -707,6 +720,7 @@ fn update_header_exit(
     next_header: Option<mir::LocalNodeId<mir::Block>>,
     preheader_args: &[mir::Value],
     in_loop_is_then: bool,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // read the header branch terminator
     let header_block = tree.get(header).clone();
@@ -745,8 +759,7 @@ fn update_header_exit(
     };
 
     // store the rewritten terminator
-    tree.set(header, header_block);
-    tree.set(tree.get(header).terminator, new_terminator);
+    tree.rewrite(header_block.terminator, new_terminator, provenance);
     true
 }
 

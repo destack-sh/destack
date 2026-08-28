@@ -2,13 +2,14 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantState, ConstantTable, DefinitionTable, Mutation, RangeState, RangeTable, TargetLayout,
     constant_all_ones_like, constant_is_all_ones, constant_is_one, constant_is_zero,
     constant_zero_like, fold_binary, fold_cast, fold_unary, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 /// Maximum recursion depth for chained field.set simplification.
@@ -50,6 +51,7 @@ impl FunctionPass for CombineInstructions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -62,6 +64,7 @@ impl FunctionPass for CombineInstructions {
         let changed = run_combine_instructions(
             function,
             tree,
+            provenance,
             accesses,
             &constants,
             &ranges,
@@ -99,6 +102,7 @@ struct FieldGetEntry {
 fn run_combine_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     constants: &ConstantTable,
     ranges: &RangeTable,
@@ -254,16 +258,20 @@ fn run_combine_instructions(
                 applied_simplification = true;
                 match simplification {
                     Simplification::Constant(value) => {
-                        let dest = instruction.destination().unwrap();
+                        let dest = instruction.destination().unwrap_or_else(|| {
+                            unreachable!("simplified instruction must define a value")
+                        });
                         let new_instruction = mir::Instruction::Const {
                             destination: dest,
                             value: value.clone(),
                         };
                         block_constants.insert(dest, value);
-                        tree.set(instruction_id, new_instruction);
+                        tree.rewrite(instruction_id, new_instruction, provenance);
                     }
                     Simplification::Substitute(replacement) => {
-                        let dest = instruction.destination().unwrap();
+                        let dest = instruction.destination().unwrap_or_else(|| {
+                            unreachable!("simplified instruction must define a value")
+                        });
                         substitutions.insert(dest, replacement);
                         to_remove.push(instruction_id);
                         let constant_lookup = ConstantLookup::new(&block_constants, &block_ranges);
@@ -307,8 +315,8 @@ fn run_combine_instructions(
                 let new_instruction =
                     instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
                 if new_instruction != instruction {
-                    tree.set(instruction_id, new_instruction);
-                    remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                    tree.rewrite(instruction_id, new_instruction, provenance);
+                    accesses.remap_instruction(instruction_id, &substitutions);
                 }
             }
         }
@@ -326,10 +334,23 @@ fn run_combine_instructions(
                 .filter(|id| !to_remove.contains(id))
                 .collect();
 
-            // replace the block when terminators or instructions change
-            if new_terminator != terminator || filtered.len() != block.instructions.len() {
-                tree.set(terminator_id, new_terminator);
-                function.replace_block_instructions(block_id, filtered, tree);
+            // rewrite the terminator when substitutions changed it
+            if new_terminator != terminator {
+                tree.rewrite(terminator_id, new_terminator, provenance);
+            }
+
+            // remove substituted instructions from the block
+            if filtered.len() != block.instructions.len() {
+                for instruction in block
+                    .instructions
+                    .iter()
+                    .copied()
+                    .filter(|instruction| to_remove.contains(instruction))
+                {
+                    tree.record_removal(instruction, provenance);
+                    accesses.remove(instruction);
+                }
+                function.replace_block_instructions(block_id, filtered, tree, provenance);
             }
         }
     }
@@ -354,7 +375,7 @@ fn simplify_binary_operator(
     let left_const_ref = left_const.as_ref();
     let right_const_ref = right_const.as_ref();
     let ty = function.expect_value_type(left);
-    let is_float = tree.get(ty).is_float(tree);
+    let is_float = tree.ty(ty).is_float(tree);
 
     // fold comparisons using range evidence
     if let Some(left_range) = ranges.get(left)

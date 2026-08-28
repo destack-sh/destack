@@ -2,11 +2,12 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    Mutation, instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_substitute_uses,
+    Mutation, instruction_substitute_uses_in_tree, resolve_substitution_chains,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -43,6 +44,7 @@ impl FunctionPass for PropagateCopies {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         _analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -50,7 +52,7 @@ impl FunctionPass for PropagateCopies {
         let accesses = &mut optimized.accesses;
 
         // run copy propagation
-        let changed = run_propagate_copies(function, tree, accesses);
+        let changed = run_propagate_copies(function, tree, provenance, accesses);
 
         // report what this pass changed
         if changed {
@@ -65,6 +67,7 @@ impl FunctionPass for PropagateCopies {
 fn run_propagate_copies(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
 ) -> bool {
     // collect incoming argument lists by target block
@@ -261,8 +264,8 @@ fn run_propagate_copies(
 
             // replace instructions when substitutions apply
             if new_instruction != instruction {
-                tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                tree.rewrite(instruction_id, new_instruction, provenance);
+                accesses.remap_instruction(instruction_id, &substitutions);
             }
         }
     }
@@ -299,9 +302,29 @@ fn run_propagate_copies(
             || new_parameters.len() != parameters.len()
             || new_instructions.len() != instructions.len()
         {
-            tree.set(terminator_id, new_terminator);
-            function.replace_block_instructions(block_id, new_instructions, tree);
-            tree.get_mut(block_id).parameters = new_parameters;
+            if new_terminator != terminator {
+                tree.rewrite(terminator_id, new_terminator, provenance);
+            }
+            for instruction in instructions
+                .iter()
+                .copied()
+                .filter(|instruction| to_remove.contains(instruction))
+            {
+                tree.record_removal(instruction, provenance);
+                accesses.remove(instruction);
+            }
+            for parameter in parameters
+                .iter()
+                .filter(|parameter| substitutions.contains_key(&parameter.value))
+            {
+                provenance.remove(&[parameter.provenance]);
+            }
+            let replacement = mir::Block {
+                parameters: new_parameters,
+                instructions: new_instructions,
+                terminator: terminator_id,
+            };
+            function.replace_block(block_id, replacement, tree, provenance);
         }
     }
 

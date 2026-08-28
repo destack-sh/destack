@@ -1,4 +1,5 @@
 use destack_core::{FxIndexMap, FxIndexSet};
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
@@ -7,14 +8,13 @@ use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantTable, DefinitionTable, DominatorTable, Mutation, RangeState, RangeTable, UseTable,
     ValueRange, apply_substitutions_in_dominated_blocks, block_parameters_used_outside_block,
-    block_uses_available_in_predecessor, clone_instruction_tables, function_thread_jumps,
-    instruction_is_speculatable, instruction_map, substitute_values, terminator_remap,
-    terminator_substitute_uses,
+    block_uses_available_in_predecessor, function_thread_jumps, instruction_is_speculatable,
+    instruction_map, substitute_values, terminator_remap, terminator_substitute_uses,
 };
 
 /// Return block tables for canonicalization.
 #[derive(Debug, Clone)]
-struct ReturnBlockInfo {
+struct ReturnBlock {
     /// Block parameters for the return block.
     params: Vec<mir::BlockParameter>,
     /// The returned value, if any.
@@ -81,16 +81,22 @@ impl FunctionPass for SimplifyControlFlow {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
-
         // run simplify cfg with bounded fixed point
-        let changed =
-            run_simplify_control_flow(function, tree, accesses, ctx.profile(), ctx, analyses);
-
+        let changed = run_simplify_control_flow(
+            function,
+            tree,
+            provenance,
+            accesses,
+            ctx.profile(),
+            ctx,
+            analyses,
+        );
         // report what this pass changed
         if changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -104,6 +110,7 @@ impl FunctionPass for SimplifyControlFlow {
 fn run_simplify_control_flow(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     profile: Option<&mir::Profile>,
     _ctx: &PipelineContext<'_>,
@@ -139,26 +146,39 @@ fn run_simplify_control_flow(
 
         // phase 1: branch folding
         // converts `branch always_true, A, B` to `jump A`
-        let mut changed_this_round =
-            fold_branches(function, tree, &constants, &ranges, &loop_blocks);
+        let mut changed_this_round = fold_branches(
+            function,
+            tree,
+            provenance,
+            &constants,
+            &ranges,
+            &loop_blocks,
+        );
 
         // phase 2: path sensitive jump threading
         // thread edges using edge specific range state
-        changed_this_round |=
-            thread_edge_conditions(function, tree, &constants, &ranges, &domtree, &loop_blocks);
+        changed_this_round |= thread_edge_conditions(
+            function,
+            tree,
+            provenance,
+            &constants,
+            &ranges,
+            &domtree,
+            &loop_blocks,
+        );
 
         // phase 3: jump threading
         // threads jumps through empty blocks
-        changed_this_round |= function_thread_jumps(function, tree);
+        changed_this_round |= function_thread_jumps(function, tree, provenance);
 
         // phase 4: canonicalize return blocks
-        changed_this_round |= canonicalize_return_blocks(function, tree);
+        changed_this_round |= canonicalize_return_blocks(function, tree, accesses, provenance);
 
         // phase 5: fold branches and checks with identical edges
-        changed_this_round |= fold_redundant_edges(function, tree);
+        changed_this_round |= fold_redundant_edges(function, tree, provenance);
 
         // phase 6: fold branches that share the same target
-        changed_this_round |= fold_same_target_branches(function, tree);
+        changed_this_round |= fold_same_target_branches(function, tree, provenance);
 
         // restart after early control flow rewrites
         if changed_this_round {
@@ -176,7 +196,7 @@ fn run_simplify_control_flow(
         // phase 7: block merging
         // merges blocks with single predecessor/successor
         if let Some(entry) = function.entry()
-            && merge_blocks(function, tree, accesses, entry, &domtree)
+            && merge_blocks(function, tree, provenance, accesses, entry, &domtree)
         {
             changed = true;
             analyses.invalidate(rewrite_mutation);
@@ -191,7 +211,7 @@ fn run_simplify_control_flow(
 
         // phase 8: eliminate unreachable blocks
         if let Some(entry) = function.entry()
-            && eliminate_unreachable_blocks(function, tree, entry)
+            && eliminate_unreachable_blocks(function, tree, accesses, entry, provenance)
         {
             changed = true;
             analyses.invalidate(rewrite_mutation);
@@ -208,6 +228,7 @@ fn run_simplify_control_flow(
         if tail_duplicate_blocks(
             function,
             tree,
+            provenance,
             accesses,
             profile,
             analyses,
@@ -230,7 +251,7 @@ fn run_simplify_control_flow(
     }
 
     // split critical edges after simplification converges
-    changed |= split_critical_edges(function, tree);
+    changed |= split_critical_edges(function, tree, provenance);
 
     changed
 }
@@ -240,6 +261,7 @@ fn run_simplify_control_flow(
 fn fold_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     constants: &ConstantTable,
     ranges: &RangeTable,
     loop_blocks: &FxIndexSet<mir::LocalNodeId<mir::Block>>,
@@ -291,9 +313,7 @@ fn fold_branches(
                         else_target.clone()
                     };
 
-                    let new_block = block.clone();
-                    tree.set(block_id, new_block);
-                    tree.set(terminator_id, mir::Terminator::Jump { target });
+                    tree.rewrite(terminator_id, mir::Terminator::Jump { target }, provenance);
                     changed = true;
                 }
             }
@@ -315,9 +335,7 @@ fn fold_branches(
                         failure.clone()
                     };
 
-                    let new_block = block.clone();
-                    tree.set(block_id, new_block);
-                    tree.set(terminator_id, mir::Terminator::Jump { target });
+                    tree.rewrite(terminator_id, mir::Terminator::Jump { target }, provenance);
                     changed = true;
                 }
             }
@@ -350,7 +368,7 @@ fn fold_branches(
                         if let Some(lowered) =
                             lower_boolean_switch(*value, default, &cases, is_boolean_value)
                         {
-                            tree.set(terminator_id, lowered);
+                            tree.rewrite(terminator_id, lowered, provenance);
                             changed = true;
                             continue;
                         }
@@ -359,6 +377,8 @@ fn fold_branches(
                         if let Some((new_instructions, lowered)) = lower_single_case_switch(
                             function,
                             tree,
+                            provenance,
+                            terminator_id,
                             *value,
                             default,
                             &cases,
@@ -366,13 +386,18 @@ fn fold_branches(
                         ) {
                             let mut instructions = block.instructions.clone();
                             instructions.extend(new_instructions);
-                            function.replace_block_instructions(block_id, instructions, tree);
-                            tree.set(terminator_id, lowered);
+                            function.replace_block_instructions(
+                                block_id,
+                                instructions,
+                                tree,
+                                provenance,
+                            );
+                            tree.rewrite(terminator_id, lowered, provenance);
                         } else {
-                            tree.set(terminator_id, new_terminator);
+                            tree.rewrite(terminator_id, new_terminator, provenance);
                         }
                     } else {
-                        tree.set(terminator_id, new_terminator);
+                        tree.rewrite(terminator_id, new_terminator, provenance);
                     }
                     changed = true;
                     continue;
@@ -382,19 +407,26 @@ fn fold_branches(
                 if let Some(new_terminator) =
                     lower_boolean_switch(*value, default, &cases, is_boolean_value)
                 {
-                    tree.set(terminator_id, new_terminator);
+                    tree.rewrite(terminator_id, new_terminator, provenance);
                     changed = true;
                     continue;
                 }
 
                 // lower single case switches into branches when safe
-                if let Some((new_instructions, new_terminator)) =
-                    lower_single_case_switch(function, tree, *value, default, &cases, range_value)
-                {
+                if let Some((new_instructions, new_terminator)) = lower_single_case_switch(
+                    function,
+                    tree,
+                    provenance,
+                    terminator_id,
+                    *value,
+                    default,
+                    &cases,
+                    range_value,
+                ) {
                     let mut instructions = block.instructions.clone();
                     instructions.extend(new_instructions);
-                    function.replace_block_instructions(block_id, instructions, tree);
-                    tree.set(terminator_id, new_terminator);
+                    function.replace_block_instructions(block_id, instructions, tree, provenance);
+                    tree.rewrite(terminator_id, new_terminator, provenance);
                     changed = true;
                 }
             }
@@ -409,6 +441,7 @@ fn fold_branches(
 fn thread_edge_conditions(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     constants: &ConstantTable,
     ranges: &RangeTable,
     domtree: &DominatorTable,
@@ -485,7 +518,7 @@ fn thread_edge_conditions(
 
         // update block terminator when changes were made
         if let Some(terminator) = new_terminator {
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
             changed = true;
         }
     }
@@ -1219,6 +1252,8 @@ fn lower_boolean_switch(
 fn lower_single_case_switch(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+    source: mir::LocalNodeId<mir::Terminator>,
     value: mir::Value,
     default: &mir::BlockTarget,
     cases: &[mir::SwitchCase],
@@ -1260,20 +1295,28 @@ fn lower_single_case_switch(
             width: *width,
         }
     };
-    let constant_id = tree.insert(mir::Instruction::Const {
-        destination: constant_value,
-        value: constant,
-    });
+    let source = tree.provenance(source);
+    let [constant_provenance, compare_provenance] = provenance.generate_many(&[source]);
+    let constant_id = tree.insert(
+        mir::Instruction::Const {
+            destination: constant_value,
+            value: constant,
+        },
+        constant_provenance,
+    );
 
     // compare the switch value against the case
     let bool_type = tree.boolean_type();
     let condition_value = function.next_typed_value(bool_type);
-    let compare_id = tree.insert(mir::Instruction::Binary {
-        destination: condition_value,
-        operator: mir::BinaryOperator::Equal,
-        left: value,
-        right: constant_value,
-    });
+    let compare_id = tree.insert(
+        mir::Instruction::Binary {
+            destination: condition_value,
+            operator: mir::BinaryOperator::Equal,
+            left: value,
+            right: constant_value,
+        },
+        compare_provenance,
+    );
 
     // build the conditional branch
     let terminator = mir::Terminator::Branch {
@@ -1289,41 +1332,51 @@ fn lower_single_case_switch(
 fn remap_return_edge_arguments(
     tree: &mir::Tree,
     target: &mir::BlockTarget,
-    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlock>,
     is_void_return: bool,
+    result_count: usize,
 ) -> Option<Vec<mir::Value>> {
     // lookup return block tables
     let target_block = target.block;
-    let info = return_blocks.get(&target_block)?;
+    let return_block = return_blocks.get(&target_block)?;
 
     // ensure the argument count matches the block parameters
-    if info.params.len() != target.arguments.len() {
+    let arguments = target.arguments(tree);
+    if return_block.params.len() != arguments.len() + result_count {
         return None;
     }
 
     // drop arguments for void returns
     if is_void_return {
-        return Some(Vec::new());
+        return (result_count == 0).then(Vec::new);
     }
 
     // require a concrete return value for non void returns
-    let return_value = info.return_value?;
-    let mut remapped_value = return_value;
+    let return_value = return_block.return_value?;
+    let parameter_index = return_block
+        .params
+        .iter()
+        .position(|parameter| parameter.value == return_value);
 
-    // substitute the return value if it is a block parameter
-    for (param, arg) in info.params.iter().zip(target.arguments(tree).iter()) {
-        if param.value == return_value {
-            remapped_value = *arg;
-            break;
-        }
+    // forward one value produced by the edge
+    if result_count == 1 && parameter_index == Some(0) {
+        return Some(Vec::new());
     }
+
+    // other implicit results cannot target the one parameter return block
+    if result_count != 0 {
+        return None;
+    }
+
+    // substitute explicit block parameters with their edge arguments
+    let remapped_value = parameter_index.map_or(return_value, |index| arguments[index]);
 
     Some(vec![remapped_value])
 }
 
 /// Record a return block that could not be remapped.
 fn record_kept_return(
-    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlock>,
     kept_returns: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
     target: mir::BlockId,
 ) {
@@ -1337,7 +1390,7 @@ fn record_kept_return(
 fn function_has_remappable_return_edges(
     function: &mir::Function,
     tree: &mir::Tree,
-    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlock>,
     is_void_return: bool,
 ) -> bool {
     // scan blocks for return targets that can be remapped
@@ -1346,65 +1399,20 @@ fn function_has_remappable_return_edges(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
-        // inspect terminator targets
-        match terminator {
-            mir::Terminator::Jump { target } => {
-                // check jump targets
-                if remap_return_edge_arguments(tree, target, return_blocks, is_void_return)
-                    .is_some()
-                {
-                    return true;
-                }
+        // inspect every physical target
+        for (edge, target) in terminator.targets(tree, block_id) {
+            let result_count = terminator.target_result_count(tree, edge.successor);
+            if remap_return_edge_arguments(
+                tree,
+                target,
+                return_blocks,
+                is_void_return,
+                result_count,
+            )
+            .is_some()
+            {
+                return true;
             }
-            mir::Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                // check branch targets
-                if remap_return_edge_arguments(tree, then_target, return_blocks, is_void_return)
-                    .is_some()
-                    || remap_return_edge_arguments(tree, else_target, return_blocks, is_void_return)
-                        .is_some()
-                {
-                    return true;
-                }
-            }
-            mir::Terminator::Check {
-                success, failure, ..
-            } => {
-                // check check targets
-                if remap_return_edge_arguments(tree, success, return_blocks, is_void_return)
-                    .is_some()
-                    || remap_return_edge_arguments(tree, failure, return_blocks, is_void_return)
-                        .is_some()
-                {
-                    return true;
-                }
-            }
-            mir::Terminator::Switch { default, cases, .. } => {
-                // check default switch edge
-                if remap_return_edge_arguments(tree, default, return_blocks, is_void_return)
-                    .is_some()
-                {
-                    return true;
-                }
-
-                // check each switch case edge
-                for case in tree.get_switch_cases(*cases) {
-                    if remap_return_edge_arguments(
-                        tree,
-                        &case.target,
-                        return_blocks,
-                        is_void_return,
-                    )
-                    .is_some()
-                    {
-                        return true;
-                    }
-                }
-            }
-            _ => {}
         }
     }
 
@@ -1412,16 +1420,21 @@ fn function_has_remappable_return_edges(
 }
 
 /// Canonicalize empty return blocks by routing them to one return block.
-fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
+fn canonicalize_return_blocks(
+    function: &mut mir::Function,
+    tree: &mut mir::Tree,
+    accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
     // collect candidate return and unreachable blocks
-    let mut return_blocks: FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo> =
+    let mut return_blocks: FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlock> =
         FxIndexMap::default();
     let mut unreachable_blocks: Vec<mir::LocalNodeId<mir::Block>> = Vec::new();
     let mut changed = false;
 
     // determine return type expectations
     let return_type_id = function.return_type;
-    let return_type = tree.get(return_type_id);
+    let return_type = tree.ty(return_type_id);
     let is_void_return = matches!(return_type, mir::Type::Void);
 
     // scan blocks for empty return and unreachable terminators
@@ -1447,7 +1460,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
 
                 return_blocks.insert(
                     block_id,
-                    ReturnBlockInfo {
+                    ReturnBlock {
                         params: block.parameters.clone(),
                         return_value: *value,
                     },
@@ -1472,8 +1485,13 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
             .map(|block_id| (*block_id, canonical_unreachable))
             .collect();
 
-        changed |= remap_block_targets(function, tree, &redirects);
-        function.retain_blocks(|block_id| !redirects.contains_key(&block_id), tree);
+        changed |= remap_block_targets(function, tree, provenance, &redirects);
+        function.retain_blocks(
+            |block_id| !redirects.contains_key(&block_id),
+            tree,
+            accesses,
+            provenance,
+        );
     }
 
     // skip when there is nothing to canonicalize
@@ -1487,30 +1505,54 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
     }
 
     // build a canonical return block
+    let mut sources = Vec::new();
+    for block in return_blocks.keys() {
+        let block_data = tree.get(*block);
+        sources.push(tree.provenance(*block));
+        sources.extend(
+            block_data
+                .parameters
+                .iter()
+                .map(|parameter| parameter.provenance),
+        );
+        sources.push(tree.provenance(block_data.terminator));
+    }
     let canonical_return = if is_void_return {
-        let terminator = tree.insert(mir::Terminator::Return { value: None });
+        let [block_provenance, terminator_provenance] = provenance.fuse_many(&sources);
+        let terminator = tree.insert(
+            mir::Terminator::Return { value: None },
+            terminator_provenance,
+        );
         let block = mir::Block::new(terminator);
-        let canonical_id = tree.insert(block);
+        let canonical_id = tree.insert(block, block_provenance);
         function.add_block(canonical_id, tree);
         canonical_id
     } else {
+        let [
+            block_provenance,
+            parameter_provenance,
+            terminator_provenance,
+        ] = provenance.fuse_many(&sources);
         let return_value = function.next_typed_value(return_type_id);
         let param = mir::BlockParameter {
             value: return_value,
             ty: return_type_id,
+            provenance: parameter_provenance,
         };
-        let terminator = tree.insert(mir::Terminator::Return {
-            value: Some(return_value),
-        });
+        let terminator = tree.insert(
+            mir::Terminator::Return {
+                value: Some(return_value),
+            },
+            terminator_provenance,
+        );
         let block = mir::Block::with_parameters(vec![param], terminator);
-        let canonical_id = tree.insert(block);
+        let canonical_id = tree.insert(block, block_provenance);
         function.add_block(canonical_id, tree);
         canonical_id
     };
 
     // redirect edges into canonical return
     let mut kept_returns: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
-    let mut referenced_returns: FxIndexSet<mir::LocalNodeId<mir::Block>> = FxIndexSet::default();
 
     // snapshot return block ids for later filtering
     let return_ids: FxIndexSet<_> = return_blocks.keys().copied().collect();
@@ -1524,6 +1566,7 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
         let new_terminator = rewrite_return_targets(
             tree,
             &terminator,
+            block_id,
             &return_blocks,
             canonical_return,
             is_void_return,
@@ -1531,19 +1574,8 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
         );
 
         if new_terminator != terminator {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
-        }
-    }
-
-    // recompute referenced return blocks
-    for &block_id in function.blocks() {
-        let block = tree.get(block_id);
-        let terminator = tree.get(block.terminator);
-        for successor in terminator.successors(tree) {
-            if return_ids.contains(&successor) {
-                referenced_returns.insert(successor);
-            }
         }
     }
 
@@ -1567,14 +1599,11 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
             }
 
             // keep return blocks that could not be remapped
-            if kept_returns.contains(&block_id) {
-                return true;
-            }
-
-            // keep return blocks that remain referenced
-            referenced_returns.contains(&block_id)
+            kept_returns.contains(&block_id)
         },
         tree,
+        accesses,
+        provenance,
     );
 
     changed
@@ -1584,177 +1613,43 @@ fn canonicalize_return_blocks(function: &mut mir::Function, tree: &mut mir::Tree
 fn rewrite_return_targets(
     tree: &mut mir::Tree,
     terminator: &mir::Terminator,
-    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlockInfo>,
+    source: mir::LocalNodeId<mir::Block>,
+    return_blocks: &FxIndexMap<mir::LocalNodeId<mir::Block>, ReturnBlock>,
     canonical_return: mir::LocalNodeId<mir::Block>,
     is_void_return: bool,
     kept_returns: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
 ) -> mir::Terminator {
-    // rewrite return block targets based on the terminator kind
-    match terminator {
-        mir::Terminator::Jump { target } => {
-            // remap jump targets that point at return blocks
-            let remapped = remap_return_edge_arguments(tree, target, return_blocks, is_void_return);
+    let targets = terminator
+        .targets(tree, source)
+        .into_iter()
+        .map(|(edge, target)| (edge.successor, target.clone()))
+        .collect::<Vec<_>>();
+    let mut rewritten = terminator.clone();
 
-            // build the remapped jump when possible
-            if let Some(arguments) = remapped {
-                let arguments = tree.add_values(&arguments);
-                return mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(canonical_return, arguments),
-                };
-            }
-
-            // keep the return block when remapping is not possible
+    // remap every compatible physical target
+    for (successor, target) in targets {
+        let result_count = terminator.target_result_count(tree, successor);
+        let Some(arguments) =
+            remap_return_edge_arguments(tree, &target, return_blocks, is_void_return, result_count)
+        else {
             record_kept_return(return_blocks, kept_returns, target.block);
-
-            terminator.clone()
+            continue;
+        };
+        let arguments = tree.add_values(&arguments);
+        let target = mir::BlockTarget::new(canonical_return, arguments);
+        if !rewritten.replace_edge(successor, target, tree) {
+            unreachable!("return edge cannot be replaced in its terminator");
         }
-        mir::Terminator::Branch {
-            condition,
-            then_target,
-            else_target,
-        } => {
-            // remap then and else edges into the canonical return block
-            let then_remap =
-                remap_return_edge_arguments(tree, then_target, return_blocks, is_void_return);
-            let else_remap =
-                remap_return_edge_arguments(tree, else_target, return_blocks, is_void_return);
-
-            // apply remapped then edge when available
-            let mut remapped = false;
-            let new_then_target = if let Some(arguments) = then_remap {
-                remapped = true;
-                let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return, arguments)
-            } else {
-                record_kept_return(return_blocks, kept_returns, then_target.block);
-                then_target.clone()
-            };
-
-            // apply remapped else edge when available
-            let new_else_target = if let Some(arguments) = else_remap {
-                remapped = true;
-                let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return, arguments)
-            } else {
-                record_kept_return(return_blocks, kept_returns, else_target.block);
-                else_target.clone()
-            };
-
-            // rebuild the branch when any edge was remapped
-            if remapped {
-                return mir::Terminator::Branch {
-                    condition: *condition,
-                    then_target: new_then_target,
-                    else_target: new_else_target,
-                };
-            }
-
-            terminator.clone()
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            // remap check edges into the canonical return block
-            let success_remap =
-                remap_return_edge_arguments(tree, success, return_blocks, is_void_return);
-            let failure_remap =
-                remap_return_edge_arguments(tree, failure, return_blocks, is_void_return);
-
-            // apply remapped success edge when available
-            let mut remapped = false;
-            let new_success = if let Some(arguments) = success_remap {
-                remapped = true;
-                let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return, arguments)
-            } else {
-                record_kept_return(return_blocks, kept_returns, success.block);
-                success.clone()
-            };
-
-            // apply remapped failure edge when available
-            let new_failure = if let Some(arguments) = failure_remap {
-                remapped = true;
-                let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return, arguments)
-            } else {
-                record_kept_return(return_blocks, kept_returns, failure.block);
-                failure.clone()
-            };
-
-            // rebuild the check when any edge was remapped
-            if remapped {
-                return mir::Terminator::Check {
-                    constraint: constraint.clone(),
-                    success: new_success,
-                    failure: new_failure,
-                };
-            }
-
-            terminator.clone()
-        }
-        mir::Terminator::Switch {
-            value,
-            default,
-            cases,
-        } => {
-            // remap the default edge into the canonical return block
-            let default_remap =
-                remap_return_edge_arguments(tree, default, return_blocks, is_void_return);
-
-            // apply the default remap when available
-            let mut remapped = false;
-            let new_default = if let Some(arguments) = default_remap {
-                remapped = true;
-                let arguments = tree.add_values(&arguments);
-                mir::BlockTarget::new(canonical_return, arguments)
-            } else {
-                record_kept_return(return_blocks, kept_returns, default.block);
-                default.clone()
-            };
-
-            // remap switch cases into the canonical return block
-            let cases = tree.get_switch_cases(*cases).to_vec();
-            let mut new_cases = Vec::with_capacity(cases.len());
-            for case in &cases {
-                let case_remap =
-                    remap_return_edge_arguments(tree, &case.target, return_blocks, is_void_return);
-
-                // apply the case remap when available
-                if let Some(arguments) = case_remap {
-                    remapped = true;
-                    let arguments = tree.add_values(&arguments);
-                    new_cases.push(mir::SwitchCase {
-                        value: case.value,
-                        target: mir::BlockTarget::new(canonical_return, arguments),
-                    });
-                } else {
-                    record_kept_return(return_blocks, kept_returns, case.target.block);
-                    new_cases.push(case.clone());
-                }
-            }
-
-            // rebuild the switch when any edge was remapped
-            if remapped {
-                let new_cases = tree.add_switch_cases(&new_cases);
-                return mir::Terminator::Switch {
-                    value: *value,
-                    default: new_default,
-                    cases: new_cases,
-                };
-            }
-
-            terminator.clone()
-        }
-        _ => terminator.clone(),
     }
+
+    rewritten
 }
 
 /// Remap block targets for terminators based on a redirect map.
 fn remap_block_targets(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     redirects: &FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
 ) -> bool {
     // track whether any changes were made
@@ -1768,13 +1663,12 @@ fn remap_block_targets(
 
         // remap terminator targets in place
         let block = tree.get(block_id);
-        let new_block = block.clone();
-        let mut new_terminator = tree.get(new_block.terminator).clone();
+        let terminator_id = block.terminator;
+        let mut new_terminator = tree.get(terminator_id).clone();
         terminator_remap(tree, &mut new_terminator, redirects, &value_map);
 
-        if new_terminator != *tree.get(new_block.terminator) {
-            tree.set(new_block.terminator, new_terminator);
-            tree.set(block_id, new_block);
+        if new_terminator != *tree.get(terminator_id) {
+            tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
         }
     }
@@ -1783,7 +1677,11 @@ fn remap_block_targets(
 }
 
 /// Fold branches and checks that target identical edges.
-fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::Tree) -> bool {
+fn fold_redundant_edges(
+    function: &mir::Function,
+    tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
     // track whether any changes were made
     let mut changed = false;
 
@@ -1842,7 +1740,7 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::Tree) -> bool 
         };
 
         if let Some(new_terminator) = new_terminator {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
         }
     }
@@ -1851,7 +1749,11 @@ fn fold_redundant_edges(function: &mir::Function, tree: &mut mir::Tree) -> bool 
 }
 
 /// Fold branches that target the same block into a jump with selects.
-fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
+fn fold_same_target_branches(
+    function: &mut mir::Function,
+    tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
     // track whether any changes were made
     let mut changed = false;
 
@@ -1904,7 +1806,9 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
                 then_value: *then_arg,
                 else_value: *else_arg,
             };
-            let instruction_id = tree.insert(instruction);
+            let source = tree.provenance(block.terminator);
+            let output = provenance.generate(&[source]);
+            let instruction_id = tree.insert(instruction, output);
             new_instructions.push(instruction_id);
             new_arguments.push(destination);
             inserted_select = true;
@@ -1920,8 +1824,8 @@ fn fold_same_target_branches(function: &mut mir::Function, tree: &mut mir::Tree)
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(then_target.block, new_arguments),
         };
-        tree.set(block.terminator, new_terminator);
-        function.replace_block_instructions(block_id, new_instructions, tree);
+        tree.rewrite(block.terminator, new_terminator, provenance);
+        function.replace_block_instructions(block_id, new_instructions, tree, provenance);
         changed = true;
     }
 
@@ -1941,6 +1845,7 @@ struct JumpPredecessor {
 fn tail_duplicate_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     profile: Option<&mir::Profile>,
     analyses: &mut mir::FunctionCache,
@@ -2111,8 +2016,8 @@ fn tail_duplicate_blocks(
                 }
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
-                let new_id = tree.insert(cloned);
-                clone_instruction_tables(tree, accesses, *instruction_id, new_id, &value_map);
+                let new_id = tree.insert_from(cloned, *instruction_id, provenance);
+                accesses.clone_instruction(*instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 
@@ -2120,22 +2025,20 @@ fn tail_duplicate_blocks(
             let new_terminator = terminator_substitute_uses(tree, &terminator, &value_map);
 
             // create the duplicated block
-            let new_terminator_id = tree.insert(new_terminator);
+            let new_terminator_id = tree.insert_from(new_terminator, block.terminator, provenance);
             let mut new_block = mir::Block::new(new_terminator_id);
             new_block.instructions = new_instructions;
 
             // insert the duplicated block
-            let new_block_id = tree.insert(new_block);
-            insert_block_after(function, pred.pred, new_block_id, tree);
+            let new_block_id = tree.insert_from(new_block, block_id, provenance);
+            function.insert_block_after(pred.pred, new_block_id, tree);
 
             // rewrite the predecessor jump to target the duplicated block
-            let pred_block = tree.get(pred.pred).clone();
-            let updated_pred = pred_block.clone();
+            let pred_block = tree.get(pred.pred);
             let new_pred_terminator = mir::Terminator::Jump {
                 target: mir::BlockTarget::new(new_block_id, mir::ValueSlice::default()),
             };
-            tree.set(updated_pred.terminator, new_pred_terminator);
-            tree.set(pred.pred, updated_pred);
+            tree.rewrite(pred_block.terminator, new_pred_terminator, provenance);
             changed = true;
         }
     }
@@ -2143,7 +2046,6 @@ fn tail_duplicate_blocks(
     changed
 }
 
-/// Return true when all block uses are available at a predecessor.
 /// Return true when all values are available in the given block.
 fn values_available_in_block(
     block_id: mir::LocalNodeId<mir::Block>,
@@ -2219,275 +2121,45 @@ fn select_tail_dup_predecessors(
         .collect()
 }
 
-/// Insert a block after a specific block in the function ordering.
-fn insert_block_after(
-    function: &mut mir::Function,
-    after: mir::LocalNodeId<mir::Block>,
-    block: mir::LocalNodeId<mir::Block>,
-    tree: &mir::Tree,
-) {
-    // insert next to the requested block when possible
-    if function.blocks().contains(&after) {
-        function.insert_block_after(after, block, tree);
-    } else {
-        function.add_block(block, tree);
-    }
-}
-
 /// Split critical edges into their own blocks.
-fn split_critical_edges(function: &mut mir::Function, tree: &mut mir::Tree) -> bool {
-    // collect predecessor sets for each block
-    let mut predecessors: FxIndexMap<
-        mir::LocalNodeId<mir::Block>,
-        FxIndexSet<mir::LocalNodeId<mir::Block>>,
-    > = FxIndexMap::default();
-    let mut successor_counts: FxIndexMap<mir::LocalNodeId<mir::Block>, usize> =
-        FxIndexMap::default();
-
+fn split_critical_edges(
+    function: &mut mir::Function,
+    tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
+    // count physical incoming edges
+    let mut incoming = FxIndexMap::default();
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-
-        // record unique successors for the block
-        let mut unique_successors = FxIndexSet::default();
         for successor in terminator.successors(tree) {
-            unique_successors.insert(successor);
-        }
-
-        // store successor count for critical edge checks
-        successor_counts.insert(block_id, unique_successors.len());
-
-        // update predecessor sets for each successor
-        for successor in unique_successors {
-            predecessors.entry(successor).or_default().insert(block_id);
+            *incoming.entry(successor).or_insert(0) += 1;
         }
     }
 
-    // snapshot original blocks for iteration
-    let original_blocks = function.blocks().to_vec();
-
-    // track split blocks and changes
-    let mut split_cache: FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    > = FxIndexMap::default();
-    let mut changed = false;
-
-    for &block_id in &original_blocks {
-        // skip blocks with a single successor
-        let successor_count = successor_counts.get(&block_id).copied().unwrap_or(0);
-        if successor_count <= 1 {
+    // collect critical edges before mutating the function
+    let mut critical = Vec::new();
+    for &block_id in function.blocks() {
+        let block = tree.get(block_id);
+        let terminator = tree.get(block.terminator);
+        let edges = terminator.edges(tree, block_id);
+        if edges.len() <= 1 {
             continue;
         }
 
-        // read the block
-        let block = tree.get(block_id).clone();
-        let terminator = tree.get(block.terminator).clone();
-
-        // rewrite terminator edges when they are critical
-        let new_terminator = match &terminator {
-            mir::Terminator::Branch {
-                condition,
-                then_target,
-                else_target,
-            } => {
-                // split the then edge when critical
-                let new_then_target = split_critical_edge_target(
-                    function,
-                    tree,
-                    block_id,
-                    then_target,
-                    &predecessors,
-                    &mut split_cache,
-                )
-                .unwrap_or_else(|| then_target.clone());
-
-                // split the else edge when critical
-                let new_else_target = split_critical_edge_target(
-                    function,
-                    tree,
-                    block_id,
-                    else_target,
-                    &predecessors,
-                    &mut split_cache,
-                )
-                .unwrap_or_else(|| else_target.clone());
-
-                if new_then_target != *then_target || new_else_target != *else_target {
-                    Some(mir::Terminator::Branch {
-                        condition: *condition,
-                        then_target: new_then_target,
-                        else_target: new_else_target,
-                    })
-                } else {
-                    None
-                }
+        for (edge, target) in edges {
+            if incoming.get(&target).copied().unwrap_or(0) > 1 {
+                critical.push(edge);
             }
-            mir::Terminator::Check {
-                constraint,
-                success,
-                failure,
-            } => {
-                // split the success edge when critical
-                let new_success_target = split_critical_edge_target(
-                    function,
-                    tree,
-                    block_id,
-                    success,
-                    &predecessors,
-                    &mut split_cache,
-                )
-                .unwrap_or_else(|| success.clone());
-
-                // split the failure edge when critical
-                let new_failure_target = split_critical_edge_target(
-                    function,
-                    tree,
-                    block_id,
-                    failure,
-                    &predecessors,
-                    &mut split_cache,
-                )
-                .unwrap_or_else(|| failure.clone());
-
-                if new_success_target != *success || new_failure_target != *failure {
-                    Some(mir::Terminator::Check {
-                        constraint: constraint.clone(),
-                        success: new_success_target,
-                        failure: new_failure_target,
-                    })
-                } else {
-                    None
-                }
-            }
-            mir::Terminator::Switch {
-                value,
-                default,
-                cases,
-            } => {
-                // split the default edge when critical
-                let new_default = split_critical_edge_target(
-                    function,
-                    tree,
-                    block_id,
-                    default,
-                    &predecessors,
-                    &mut split_cache,
-                )
-                .unwrap_or_else(|| default.clone());
-
-                // split each case edge when critical
-                let cases = tree.get_switch_cases(*cases).to_vec();
-                let mut updated_cases = Vec::with_capacity(cases.len());
-                let mut remapped = new_default != *default;
-
-                for case in &cases {
-                    let new_target = split_critical_edge_target(
-                        function,
-                        tree,
-                        block_id,
-                        &case.target,
-                        &predecessors,
-                        &mut split_cache,
-                    )
-                    .unwrap_or_else(|| case.target.clone());
-
-                    if new_target != case.target {
-                        remapped = true;
-                    }
-
-                    updated_cases.push(mir::SwitchCase {
-                        value: case.value,
-                        target: new_target,
-                    });
-                }
-
-                if remapped {
-                    let updated_cases = tree.add_switch_cases(&updated_cases);
-                    Some(mir::Terminator::Switch {
-                        value: *value,
-                        default: new_default,
-                        cases: updated_cases,
-                    })
-                } else {
-                    None
-                }
-            }
-            _ => None,
-        };
-
-        // update the terminator when it changes
-        if let Some(new_terminator) = new_terminator {
-            tree.set(block.terminator, new_terminator);
-            changed = true;
         }
     }
 
-    changed
-}
-
-/// Split a critical edge target and return the new block id when needed.
-fn split_critical_edge_target(
-    function: &mut mir::Function,
-    tree: &mut mir::Tree,
-    source: mir::LocalNodeId<mir::Block>,
-    target: &mir::BlockTarget,
-    predecessors: &FxIndexMap<
-        mir::LocalNodeId<mir::Block>,
-        FxIndexSet<mir::LocalNodeId<mir::Block>>,
-    >,
-    split_cache: &mut FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    >,
-) -> Option<mir::BlockTarget> {
-    let target_block_id = target.block;
-
-    // require multiple predecessors to be critical
-    let target_preds = predecessors
-        .get(&target_block_id)
-        .map_or(0, FxIndexSet::len);
-    if target_preds <= 1 {
-        return None;
+    // split each exact edge
+    for edge in &critical {
+        edge.split(function, tree, provenance);
     }
 
-    // reuse previously split edges for the same source and target
-    if let Some(existing) = split_cache.get(&(source, target_block_id)) {
-        let arguments = target.arguments;
-        return Some(mir::BlockTarget::new(*existing, arguments));
-    }
-
-    // read the target block parameters
-    let target_block = tree.get(target_block_id);
-    let target_arguments = target.arguments(tree);
-    if target_block.parameters.len() != target_arguments.len() {
-        return None;
-    }
-
-    // build new parameters that mirror the target parameter types
-    let mut new_parameters = Vec::with_capacity(target_block.parameters.len());
-    let mut new_arguments = Vec::with_capacity(target_block.parameters.len());
-    for param in &target_block.parameters {
-        let ty = param.ty;
-
-        let value = function.next_typed_value(ty);
-        new_parameters.push(mir::BlockParameter { value, ty });
-        new_arguments.push(value);
-    }
-
-    // build the split block
-    let new_arguments = tree.add_values(&new_arguments);
-    let new_terminator = tree.insert(mir::Terminator::Jump {
-        target: mir::BlockTarget::new(target_block_id, new_arguments),
-    });
-    let new_block = mir::Block::with_parameters(new_parameters, new_terminator);
-
-    // insert the block and record it for reuse
-    let new_block_id = tree.insert(new_block);
-    insert_block_after(function, source, new_block_id, tree);
-    split_cache.insert((source, target_block_id), new_block_id);
-
-    Some(mir::BlockTarget::new(new_block_id, target.arguments))
+    !critical.is_empty()
 }
 
 /// Merge blocks where predecessor has single successor and successor has single predecessor.
@@ -2499,6 +2171,7 @@ fn split_critical_edge_target(
 fn merge_blocks(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
     domtree: &DominatorTable,
@@ -2530,7 +2203,7 @@ fn merge_blocks(
                 continue;
             }
 
-            // extract info from block without holding borrow
+            // read the block without retaining its borrow
             let (target, arguments, block_instructions, block_terminator) = {
                 let block = tree.get(block_id);
                 let terminator = tree.get(block.terminator);
@@ -2567,7 +2240,7 @@ fn merge_blocks(
                 continue;
             }
 
-            // extract target block info
+            // read the target block
             let param_to_arg = {
                 let target_block = tree.get(target);
 
@@ -2602,6 +2275,7 @@ fn merge_blocks(
             apply_substitutions_in_dominated_blocks(
                 function,
                 tree,
+                provenance,
                 accesses,
                 domtree,
                 target,
@@ -2617,18 +2291,22 @@ fn merge_blocks(
                 )
             };
 
-            // merge: append target's instructions and replace our terminator
+            // move target instructions into the predecessor
             let mut instructions = block_instructions;
+            instructions.extend_from_slice(&target_instructions);
 
-            // copy and substitute instructions from target
-            for instruction_id in target_instructions {
-                let instruction = tree.get(instruction_id).clone();
-                let new_id = tree.insert(instruction);
-                instructions.push(new_id);
-            }
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
+            let sources = [
+                tree.provenance(block_terminator),
+                tree.provenance(tree.get(target).terminator),
+            ];
+            let terminator_provenance = provenance.fuse(&sources);
+            tree.replace(block_terminator, target_terminator, terminator_provenance);
 
-            function.replace_block_instructions(block_id, instructions, tree);
-            tree.set(block_terminator, target_terminator);
+            // keep moved instructions out of the removal record
+            let mut target_block = tree.get(target).clone();
+            target_block.instructions.clear();
+            tree.set_payload(target, target_block);
 
             // mark target as merged away
             merged_away.insert(target);
@@ -2643,19 +2321,25 @@ fn merge_blocks(
 
     // remove merged blocks from function
     if !merged_away.is_empty() {
-        function.retain_blocks(|block_id| !merged_away.contains(&block_id), tree);
+        function.retain_blocks(
+            |block_id| !merged_away.contains(&block_id),
+            tree,
+            accesses,
+            provenance,
+        );
     }
 
     changed
 }
 
-/// Return true when block parameters are used outside the block.
 /// Eliminate blocks not reachable from the entry block.
 /// Returns true if any blocks were removed.
 fn eliminate_unreachable_blocks(
     function: &mut mir::Function,
     tree: &mir::Tree,
+    accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // find all reachable blocks via BFS from entry
     let mut reachable = FxIndexSet::default();
@@ -2677,7 +2361,12 @@ fn eliminate_unreachable_blocks(
 
     // remove unreachable blocks from the function
     let original_len = function.blocks().len();
-    function.retain_blocks(|block_id| reachable.contains(&block_id), tree);
+    function.retain_blocks(
+        |block_id| reachable.contains(&block_id),
+        tree,
+        accesses,
+        provenance,
+    );
 
     function.blocks().len() != original_len
 }
@@ -3751,9 +3440,12 @@ b4(v5: int32):
         // run tail duplication with the profile data
         function.recompute_next_value_id(&test.optimized.tree);
         let mut profiled_targets = FxIndexSet::default();
+        let mut provenance = test.optimized.provenance.extend();
+        let mut journal = provenance.record(SimplifyControlFlow::metadata().id);
         let changed = tail_duplicate_blocks(
             &mut function,
             &mut test.optimized.tree,
+            &mut journal,
             &mut test.optimized.accesses,
             Some(&profile),
             &mut analyses,
@@ -3763,7 +3455,8 @@ b4(v5: int32):
 
         // persist changes and assert the snapshot
         assert!(changed);
-        *test.optimized.tree.get_mut(function_id) = function;
+        test.optimized.tree.set_payload(function_id, function);
+        test.optimized.provenance = provenance.finish();
         test.assert_output(expected);
     }
 

@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use crate::optimize::declare_pass;
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     Mutation, TargetLayout, UseTable, fold_binary, fold_cast, fold_intrinsic, fold_unary,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -54,6 +54,7 @@ impl FunctionPass for PropagateSparseConstants {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         _analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -61,8 +62,13 @@ impl FunctionPass for PropagateSparseConstants {
         let accesses = &mut optimized.accesses;
 
         // run SCCP
-        let (cfg_changed, value_changed) =
-            run_propagate_sparse_constants(function, tree, accesses, ctx.target_layout());
+        let (cfg_changed, value_changed) = run_propagate_sparse_constants(
+            function,
+            tree,
+            provenance,
+            accesses,
+            ctx.target_layout(),
+        );
 
         if cfg_changed || value_changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -76,6 +82,7 @@ impl FunctionPass for PropagateSparseConstants {
 fn run_propagate_sparse_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     target_layout: TargetLayout,
 ) -> (bool, bool) {
@@ -93,7 +100,7 @@ fn run_propagate_sparse_constants(
     let result = state.run();
 
     // apply constant folding and reachability
-    apply_propagate_sparse_constants_result(function, tree, accesses, &result)
+    apply_propagate_sparse_constants_result(function, tree, provenance, accesses, &result)
 }
 
 /// Lattice state for SCCP values.
@@ -860,6 +867,7 @@ fn select_switch_target(value: i128, cases: &[mir::SwitchCase]) -> Option<&mir::
 fn apply_propagate_sparse_constants_result(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     result: &PropagateSparseConstantsResult,
 ) -> (bool, bool) {
@@ -872,8 +880,13 @@ fn apply_propagate_sparse_constants_result(
 
     // insert consts for constant block params and build substitutions
     let mut substitutions = FxIndexMap::default();
-    value_changed |=
-        function_insert_block_param_constants(function, tree, result, &mut substitutions);
+    value_changed |= function_insert_block_param_constants(
+        function,
+        tree,
+        provenance,
+        result,
+        &mut substitutions,
+    );
 
     // fold instructions and terminators in executable blocks
     let block_ids = function.blocks().to_vec();
@@ -917,7 +930,7 @@ fn apply_propagate_sparse_constants_result(
                 destination,
                 value: constant,
             };
-            tree.set(instruction_id, new_instruction);
+            tree.rewrite(instruction_id, new_instruction, provenance);
             value_changed = true;
         }
 
@@ -926,7 +939,7 @@ fn apply_propagate_sparse_constants_result(
             && new_terminator != terminator
         {
             let terminator_id = tree.get(block_id).terminator;
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             cfg_changed = true;
         }
     }
@@ -934,14 +947,19 @@ fn apply_propagate_sparse_constants_result(
     // substitute constant uses after folding
     if !substitutions.is_empty() {
         value_changed |=
-            function_substitute_constant_uses(function, tree, accesses, &substitutions);
+            function_substitute_constant_uses(function, tree, provenance, accesses, &substitutions);
     }
 
     // remove unreachable blocks
     let original_len = function.blocks().len();
 
     // retain only executable blocks
-    function.retain_blocks(|block_id| result.is_executable(block_id), tree);
+    function.retain_blocks(
+        |block_id| result.is_executable(block_id),
+        tree,
+        accesses,
+        provenance,
+    );
 
     // record cfg changes when blocks are removed
     if function.blocks().len() != original_len {
@@ -955,6 +973,7 @@ fn apply_propagate_sparse_constants_result(
 fn function_insert_block_param_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     result: &PropagateSparseConstantsResult,
     substitutions: &mut FxIndexMap<mir::Value, mir::Value>,
 ) -> bool {
@@ -978,8 +997,7 @@ fn function_insert_block_param_constants(
         }
 
         // build consts to insert at block entry
-        let mut inserted_constants: Vec<(mir::Constant, mir::LocalNodeId<mir::Type>, mir::Value)> =
-            Vec::new();
+        let mut inserted_constants: Vec<(mir::Constant, mir::TypeId, mir::Value)> = Vec::new();
         let mut new_instructions = Vec::new();
 
         // scan parameters for constant values
@@ -1006,7 +1024,9 @@ fn function_insert_block_param_constants(
                     destination: new_value,
                     value: constant.clone(),
                 };
-                let instruction_id = tree.insert(instruction);
+                let source = tree.provenance(block_id);
+                let output = provenance.generate(&[source]);
+                let instruction_id = tree.insert(instruction, output);
                 inserted_constants.push((constant.clone(), ty, new_value));
                 new_instructions.push(instruction_id);
                 new_value
@@ -1021,7 +1041,7 @@ fn function_insert_block_param_constants(
             let block = tree.get(block_id);
             let mut updated = new_instructions;
             updated.extend(block.instructions.iter().copied());
-            function.replace_block_instructions(block_id, updated, tree);
+            function.replace_block_instructions(block_id, updated, tree, provenance);
             changed = true;
         }
     }
@@ -1033,6 +1053,7 @@ fn function_insert_block_param_constants(
 fn function_substitute_constant_uses(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     substitutions: &FxIndexMap<mir::Value, mir::Value>,
 ) -> bool {
@@ -1063,8 +1084,8 @@ fn function_substitute_constant_uses(
 
             // update instruction when rewritten
             if new_instruction != instruction {
-                tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(accesses, instruction_id, substitutions);
+                tree.rewrite(instruction_id, new_instruction, provenance);
+                accesses.remap_instruction(instruction_id, substitutions);
                 changed = true;
             }
         }
@@ -1074,7 +1095,7 @@ fn function_substitute_constant_uses(
 
         // update terminator when rewritten
         if new_terminator != terminator {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
         }
     }

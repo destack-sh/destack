@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::passes::scalar::{PropagateSparseConstants, SimplifyControlFlow};
 use crate::optimize::{
@@ -51,6 +52,7 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
@@ -65,7 +67,15 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
             let tree = &mut optimized.tree;
             let accesses = &mut optimized.accesses;
             let effects = &optimized.effects;
-            run_interprocedural_sccp(tree, accesses, effects, ctx, &function_effects)
+            let mut journal = provenance.record(Self::metadata().id);
+            run_interprocedural_sccp(
+                tree,
+                &mut journal,
+                accesses,
+                effects,
+                ctx,
+                &function_effects,
+            )
         };
 
         // clean up functions changed by interprocedural propagation
@@ -73,7 +83,7 @@ impl ModulePass for PropagateInterproceduralSparseConstants {
             let sccp = PropagateSparseConstants;
             let simplify = SimplifyControlFlow;
             let passes: [&dyn FunctionPass; 2] = [&sccp, &simplify];
-            if run_function_passes(function_id, optimized, ctx, passes) {
+            if run_function_passes(function_id, optimized, provenance, ctx, passes) {
                 changed = true;
             }
         }
@@ -148,6 +158,7 @@ struct CallData {
 /// Run interprocedural SCCP over the module.
 fn run_interprocedural_sccp(
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     effects: &mir::EffectTable,
     ctx: &PipelineContext<'_>,
@@ -206,7 +217,7 @@ fn run_interprocedural_sccp(
 
         // apply constant substitutions and track updates
         let constants = state_constants(state);
-        if apply_constant_parameters(*function_id, &constants, tree, accesses) {
+        if apply_constant_parameters(*function_id, &constants, tree, provenance, accesses) {
             cleanup_functions.insert(*function_id);
             changed = true;
         }
@@ -215,6 +226,7 @@ fn run_interprocedural_sccp(
     // replace pure constant calls with literals
     if replace_constant_calls(
         tree,
+        provenance,
         accesses,
         &call_data,
         &states,
@@ -423,7 +435,7 @@ fn return_state_for_function(
     let return_type = function.return_type;
 
     // skip void returns
-    if matches!(tree.get(return_type), mir::Type::Void) {
+    if matches!(tree.ty(return_type), mir::Type::Void) {
         return LatticeConstant::Overdefined;
     }
 
@@ -535,6 +547,7 @@ fn state_constants(state: &FunctionState) -> Vec<Option<mir::Constant>> {
 /// Replace pure callsites with constant returns.
 fn replace_constant_calls(
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     call_data: &CallData,
     states: &FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
@@ -592,12 +605,13 @@ fn replace_constant_calls(
         }
 
         // replace the call with a constant instruction
-        tree.set(
+        tree.rewrite(
             call_instruction,
             mir::Instruction::Const {
                 destination,
                 value: constant.clone(),
             },
+            provenance,
         );
         accesses.remove(call_instruction);
         changed = true;

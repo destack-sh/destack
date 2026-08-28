@@ -1,5 +1,6 @@
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use mir::{Mutation, ResolutionTable};
@@ -16,14 +17,16 @@ impl ModulePass for Devirtualize {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
 
         let resolution = analyses.resolution(tree, &optimized.dispatch);
         let rewrites = Devirtualization::collect(tree, &resolution);
-        let changed = rewrites.apply(tree);
+        let changed = rewrites.apply(tree, &mut journal);
 
         if changed {
             Mutation::CONTROL | Mutation::VALUE
@@ -58,18 +61,18 @@ impl Devirtualization {
     }
 
     /// Apply every collected rewrite.
-    fn apply(self, tree: &mut mir::Tree) -> bool {
+    fn apply(self, tree: &mut mir::Tree, provenance: &mut ProvenanceJournal<'_>) -> bool {
         let changed = !self.instructions.is_empty() || !self.terminators.is_empty();
 
         // replace instruction calls
         for (instruction, replacement) in self.instructions {
-            tree.set(instruction, replacement);
+            tree.rewrite(instruction, replacement, provenance);
         }
 
         // replace terminator calls
         for (block, replacement) in self.terminators {
             let terminator = tree.get(block).terminator;
-            tree.set(terminator, replacement);
+            tree.rewrite(terminator, replacement, provenance);
         }
 
         changed

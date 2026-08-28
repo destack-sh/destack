@@ -4,6 +4,7 @@ use crate::optimize::{
     MirOptimized, PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext,
     ProgramWorkset,
 };
+use destack_source::ProvenanceBuilder;
 
 /// A composable pipeline element.
 ///
@@ -12,7 +13,12 @@ pub trait Pipeline: Send + Sync {
     /// Run the pipeline on a module.
     ///
     /// Returns true if any changes were made.
-    fn run(&self, mir: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool;
+    fn run(
+        &self,
+        optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
+        ctx: &mut PipelineContext<'_>,
+    ) -> bool;
 
     /// Get the name of this pipeline.
     fn name(&self) -> &'static str;

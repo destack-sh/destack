@@ -1,5 +1,6 @@
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{Mutation, RangeTable, instruction_is_pure};
@@ -37,6 +38,7 @@ impl FunctionPass for PropagateValueRanges {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -51,7 +53,7 @@ impl FunctionPass for PropagateValueRanges {
         let ranges = { analyses.range(function, tree).clone() };
 
         // fold instructions with constant ranges
-        let changed = propagate_value_ranges(function, tree, &ranges);
+        let changed = propagate_value_ranges(function, tree, &ranges, provenance);
 
         // report what this pass changed
         if changed {
@@ -67,6 +69,7 @@ fn propagate_value_ranges(
     function: &mir::Function,
     tree: &mut mir::Tree,
     ranges: &RangeTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // track whether any instruction was replaced
     let mut changed = false;
@@ -111,7 +114,7 @@ fn propagate_value_ranges(
                 destination,
                 value: constant.clone(),
             };
-            tree.set(instruction_id, new_instruction);
+            tree.rewrite(instruction_id, new_instruction, provenance);
             changed = true;
         }
     }

@@ -2,12 +2,13 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlTable, DefinitionTable, DominatorTable, EdgeArguments, Hotness, Loop, Mutation,
-    RangeTable, clone_instruction_tables, clone_loop_blocks, instruction_is_speculatable,
-    instruction_map_with_locals, terminator_remap,
+    RangeTable, clone_loop_blocks, instruction_is_speculatable, instruction_map_with_locals,
+    terminator_remap,
 };
 
 declare_pass! {
@@ -64,6 +65,7 @@ impl FunctionPass for UnswitchLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -76,7 +78,7 @@ impl FunctionPass for UnswitchLoops {
         }
 
         // run loop unswitching
-        let changed = run_unswitch_loops(function, tree, accesses, ctx, analyses);
+        let changed = run_unswitch_loops(function, tree, accesses, ctx, analyses, provenance);
 
         // report what this pass changed
         if changed {
@@ -94,6 +96,7 @@ fn run_unswitch_loops(
     accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // track progress and exclusions
     let mut changed = false;
@@ -157,7 +160,7 @@ fn run_unswitch_loops(
         function.recompute_next_value_id(tree);
         unswitched_headers.insert(candidate.header);
         unswitched_blocks.push(candidate.loop_blocks.clone());
-        unswitch_loop(function, tree, accesses, &candidate);
+        unswitch_loop(function, tree, accesses, &candidate, provenance);
         unswitched += 1;
         changed = true;
     }
@@ -605,10 +608,11 @@ fn unswitch_loop(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     candidate: &UnswitchCandidate,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // clone all loop blocks with fresh IDs and values
     let (block_map, value_map) =
-        clone_loop_blocks(&candidate.loop_blocks, function, tree, accesses);
+        clone_loop_blocks(&candidate.loop_blocks, function, tree, provenance, accesses);
 
     // get the cloned header and cloned branch block
     let cloned_header = block_map[&candidate.header];
@@ -622,8 +626,7 @@ fn unswitch_loop(
             tree.add_values(&candidate.then_arguments),
         ),
     };
-    tree.set(branch_block.terminator, branch_terminator);
-    tree.set(candidate.branch_block, branch_block);
+    tree.rewrite(branch_block.terminator, branch_terminator, provenance);
 
     // modify cloned branch block: always take the "else" branch
     let cloned = tree.get(cloned_branch_block).clone();
@@ -640,8 +643,7 @@ fn unswitch_loop(
     let cloned_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(else_target, tree.add_values(&else_arguments)),
     };
-    tree.set(cloned.terminator, cloned_terminator);
-    tree.set(cloned_branch_block, cloned);
+    tree.rewrite(cloned.terminator, cloned_terminator, provenance);
 
     // modify preheader: branch based on condition
     let preheader = tree.get(candidate.preheader).clone();
@@ -653,17 +655,13 @@ fn unswitch_loop(
         let local_map = FxIndexMap::default();
         let hoisted_inst =
             instruction_map_with_locals(&hoisted.instruction, &value_map, &local_map, tree);
-        let hoisted_id = tree.insert(hoisted_inst);
-        clone_instruction_tables(
-            tree,
-            accesses,
-            hoisted.instruction_id,
-            hoisted_id,
-            &value_map,
-        );
+        let source = tree.provenance(hoisted.instruction_id);
+        let output = provenance.derive(source);
+        let hoisted_id = tree.insert(hoisted_inst, output);
+        accesses.clone_instruction(hoisted.instruction_id, hoisted_id, &value_map);
         let mut instructions = preheader.instructions.clone();
         instructions.push(hoisted_id);
-        function.replace_block_instructions(candidate.preheader, instructions, tree);
+        function.replace_block_instructions(candidate.preheader, instructions, tree, provenance);
         new_value
     } else {
         candidate.condition
@@ -679,7 +677,7 @@ fn unswitch_loop(
             tree.add_values(&candidate.preheader_to_header_args),
         ),
     };
-    tree.set(preheader.terminator, preheader_terminator);
+    tree.rewrite(preheader.terminator, preheader_terminator, provenance);
 
     // remap terminators in cloned blocks (except the branch block which we already handled)
     for (&original, &cloned_id) in &block_map {
@@ -690,7 +688,7 @@ fn unswitch_loop(
         let terminator_id = tree.get(cloned_id).terminator;
         let mut terminator = tree.get(terminator_id).clone();
         terminator_remap(tree, &mut terminator, &block_map, &value_map);
-        tree.set(terminator_id, terminator);
+        tree.rewrite(terminator_id, terminator, provenance);
     }
 
     // add cloned blocks to function (sorted for deterministic output)

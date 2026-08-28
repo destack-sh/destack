@@ -2,12 +2,12 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ConstantTable, Mutation, TargetLayout, fold_binary, fold_cast, fold_intrinsic, fold_unary,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    resolve_substitution_chains, terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -40,6 +40,7 @@ impl FunctionPass for FoldConstants {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -50,7 +51,14 @@ impl FunctionPass for FoldConstants {
         let constants = { analyses.constant(function, tree).clone() };
 
         // run constant folding
-        let changed = run_fold_constants(function, tree, accesses, &constants, ctx.target_layout());
+        let changed = run_fold_constants(
+            function,
+            tree,
+            provenance,
+            accesses,
+            &constants,
+            ctx.target_layout(),
+        );
 
         // report what this pass changed
         if changed {
@@ -65,6 +73,7 @@ impl FunctionPass for FoldConstants {
 fn run_fold_constants(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     constants: &ConstantTable,
     target_layout: TargetLayout,
@@ -114,7 +123,7 @@ fn run_fold_constants(
                             destination,
                             value: result.clone(),
                         };
-                        tree.set(instruction_id, new_instruction);
+                        tree.rewrite(instruction_id, new_instruction, provenance);
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
@@ -138,7 +147,7 @@ fn run_fold_constants(
                             destination,
                             value: result.clone(),
                         };
-                        tree.set(instruction_id, new_instruction);
+                        tree.rewrite(instruction_id, new_instruction, provenance);
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
@@ -169,7 +178,7 @@ fn run_fold_constants(
                                 destination,
                                 value: result.clone(),
                             };
-                            tree.set(instruction_id, new_instruction);
+                            tree.rewrite(instruction_id, new_instruction, provenance);
                             block_constants.insert(destination, result.clone());
                             changed = true;
                         } else {
@@ -207,7 +216,7 @@ fn run_fold_constants(
                             destination,
                             value: result.clone(),
                         };
-                        tree.set(instruction_id, new_instruction);
+                        tree.rewrite(instruction_id, new_instruction, provenance);
                         block_constants.insert(destination, result);
                         changed = true;
                     } else {
@@ -238,7 +247,7 @@ fn run_fold_constants(
                                 destination,
                                 value: result.clone(),
                             };
-                            tree.set(instruction_id, new_instruction);
+                            tree.rewrite(instruction_id, new_instruction, provenance);
                             block_constants.insert(destination, result);
                             changed = true;
                         } else {
@@ -277,8 +286,8 @@ fn run_fold_constants(
 
                 // replace instructions when substitutions apply
                 if updated != instruction {
-                    tree.set(instruction_id, updated);
-                    remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                    tree.rewrite(instruction_id, updated, provenance);
+                    accesses.remap_instruction(instruction_id, &substitutions);
                 }
             }
         }
@@ -299,8 +308,18 @@ fn run_fold_constants(
 
             // rewrite blocks when instructions or terminators change
             if new_terminator != terminator || new_instructions.len() != instructions.len() {
-                tree.set(terminator_id, new_terminator);
-                function.replace_block_instructions(block_id, new_instructions, tree);
+                if new_terminator != terminator {
+                    tree.rewrite(terminator_id, new_terminator, provenance);
+                }
+                for instruction in instructions
+                    .iter()
+                    .copied()
+                    .filter(|instruction| to_remove.contains(instruction))
+                {
+                    tree.record_removal(instruction, provenance);
+                    accesses.remove(instruction);
+                }
+                function.replace_block_instructions(block_id, new_instructions, tree, provenance);
             }
         }
 
@@ -308,7 +327,7 @@ fn run_fold_constants(
     }
 
     // fold terminators with constant conditions
-    changed |= fold_terminators(function, tree, constants);
+    changed |= fold_terminators(function, tree, provenance, constants);
 
     changed
 }
@@ -317,6 +336,7 @@ fn run_fold_constants(
 fn fold_terminators(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     constants: &ConstantTable,
 ) -> bool {
     // track whether any terminators change
@@ -381,7 +401,7 @@ fn fold_terminators(
 
         // update the terminator when a constant fold applies
         if let Some(new_terminator) = new_terminator {
-            tree.set(block.terminator, new_terminator);
+            tree.rewrite(block.terminator, new_terminator, provenance);
             changed = true;
         }
     }

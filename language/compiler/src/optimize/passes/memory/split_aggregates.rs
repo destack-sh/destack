@@ -2,11 +2,11 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ConstantTable, Mutation, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, terminator_substitute_uses,
+    ConstantTable, Mutation, instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -54,6 +54,7 @@ impl FunctionPass for SplitAggregates {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -79,6 +80,7 @@ impl FunctionPass for SplitAggregates {
             entry,
             ctx.options.split_aggregates_max_array_elements,
             &constants,
+            provenance,
         );
 
         // report what this pass changed
@@ -99,6 +101,7 @@ fn run_split_aggregates(
     entry: mir::LocalNodeId<mir::Block>,
     max_array_elements: usize,
     constants: &ConstantTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // find splittable locals
     let candidates = find_candidates(function, tree, accesses, max_array_elements, constants);
@@ -112,7 +115,9 @@ fn run_split_aggregates(
     // split each candidate
     let mut made_changes = false;
     for candidate in candidates {
-        if split_local(&candidate, function, tree, layouts, accesses, entry) {
+        if split_local(
+            &candidate, function, tree, layouts, accesses, entry, provenance,
+        ) {
             made_changes = true;
         }
     }
@@ -127,13 +132,13 @@ struct SplitCandidate {
     /// The instruction materializing the local address.
     address_instruction: mir::LocalNodeId<mir::Instruction>,
     /// The aggregate layout type.
-    layout: mir::LocalNodeId<mir::Type>,
+    layout: mir::TypeId,
     /// The original local reference type.
-    result_type: mir::LocalNodeId<mir::Type>,
+    result_type: mir::TypeId,
     /// Reference tables for derived stack slots.
     reference_spec: ReferenceSpec,
     /// The element types after splitting.
-    element_types: Vec<mir::LocalNodeId<mir::Type>>,
+    element_types: Vec<mir::TypeId>,
     /// Uses of the local address.
     uses: Vec<UseInfo>,
     /// Loads performed directly on the base reference.
@@ -242,14 +247,14 @@ fn find_candidates(
                 let layout = tree.get(local).ty;
                 let destination = *destination;
 
-                let reference_spec = match ReferenceSpec::from_type(tree.get(result_type)) {
+                let reference_spec = match ReferenceSpec::from_type(tree.ty(result_type)) {
                     Some(spec) => spec,
                     None => continue,
                 };
-                let ty = tree.get(layout);
+                let ty = tree.ty(layout);
 
                 // check if this is a splittable aggregate type
-                let element_types = match get_element_types(ty, tree, max_array_elements) {
+                let element_types = match get_element_types(ty, max_array_elements) {
                     Some(types) => types,
                     None => continue,
                 };
@@ -290,21 +295,11 @@ fn find_candidates(
 /// Returns None if the type is not an aggregate or is too large to split.
 /// Does not recursively flatten nested aggregates - those will be split in
 /// subsequent passes.
-fn get_element_types(
-    ty: &mir::Type,
-    tree: &mir::Tree,
-    max_array_elements: usize,
-) -> Option<Vec<mir::LocalNodeId<mir::Type>>> {
+fn get_element_types(ty: &mir::Type, max_array_elements: usize) -> Option<Vec<mir::TypeId>> {
     match ty {
         mir::Type::Struct { fields, copy: _ } => {
             // collect field types without recursive flattening
-            let types: Vec<_> = fields
-                .iter()
-                .map(|&field_id| {
-                    let field = tree.get(field_id);
-                    field.ty
-                })
-                .collect();
+            let types = fields.iter().map(|field| field.ty).collect();
 
             Some(types)
         }
@@ -403,7 +398,7 @@ fn analyze_uses(
 
                     // loads and stores are allowed, base reference uses are recorded
                     mir::Instruction::Load { pointer, .. } if *pointer == value => {
-                        if accesses.requires_exact_position(inst_id, tree) {
+                        if accesses.get(inst_id).is_some() {
                             return None;
                         }
                         if value == local_address {
@@ -412,7 +407,7 @@ fn analyze_uses(
                     }
 
                     mir::Instruction::Store { pointer, .. } if *pointer == value => {
-                        if accesses.requires_exact_position(inst_id, tree) {
+                        if accesses.get(inst_id).is_some() {
                             return None;
                         }
                         if value == local_address {
@@ -498,13 +493,43 @@ fn split_local(
     layouts: &mut mir::LayoutTable,
     accesses: &mut mir::AccessTable,
     entry: mir::LocalNodeId<mir::Block>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // create scalar locals and their addresses
     let mut addresses: Vec<mir::Value> = Vec::new();
     let mut address_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    let local_source = tree.provenance(candidate.local);
+    let address_source = tree.provenance(candidate.address_instruction);
+    let local_provenance = provenance.split_many(local_source, candidate.element_types.len());
+    let address_provenance = (0..candidate.element_types.len())
+        .map(|index| {
+            let mut sources = vec![address_source];
+            sources.extend(
+                candidate
+                    .uses
+                    .iter()
+                    .filter(|use_info| use_info.index == index)
+                    .map(|use_info| tree.provenance(use_info.instruction)),
+            );
 
-    for &elem_type in &candidate.element_types {
-        let local = tree.insert(mir::Local::mutable(elem_type));
+            if sources.len() == 1 {
+                provenance.derive(address_source)
+            } else {
+                provenance.fuse(&sources)
+            }
+        })
+        .collect::<Vec<_>>();
+    if address_provenance.is_empty() {
+        provenance.remove(&[address_source]);
+    }
+
+    for ((&elem_type, local_provenance), address_provenance) in candidate
+        .element_types
+        .iter()
+        .zip(local_provenance)
+        .zip(address_provenance)
+    {
+        let local = tree.insert(mir::Local::mutable(elem_type), local_provenance);
         function.add_local(local);
 
         let result_type = tree.intern_type(mir::Type::Reference {
@@ -527,7 +552,7 @@ fn split_local(
         };
 
         // materialize each scalar address at function entry
-        let new_inst_id = tree.insert(new_inst);
+        let new_inst_id = tree.insert(new_inst, address_provenance);
         address_instructions.push(new_inst_id);
     }
 
@@ -536,7 +561,7 @@ fn split_local(
         let entry_block = tree.get(entry);
         let mut entry_instructions = address_instructions;
         entry_instructions.extend(entry_block.instructions.iter().copied());
-        function.replace_block_instructions(entry, entry_instructions, tree);
+        function.replace_block_instructions(entry, entry_instructions, tree, provenance);
     }
 
     // build mapping from field/element index to new value
@@ -553,14 +578,14 @@ fn split_local(
     }
 
     // apply substitutions to all instructions
-    apply_substitutions(&substitutions, function, tree, accesses);
+    apply_substitutions(&substitutions, function, tree, accesses, provenance);
 
     // remove the original local address and its derived projections
-    let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
-    to_remove.insert(candidate.address_instruction);
+    let mut replaced: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
+    replaced.insert(candidate.address_instruction);
 
     for use_info in &candidate.uses {
-        to_remove.insert(use_info.instruction);
+        replaced.insert(use_info.instruction);
     }
 
     // rewrite base reference loads and stores
@@ -580,22 +605,34 @@ fn split_local(
         for instruction_id in instruction_ids {
             // rewrite base reference loads into scalar loads
             if base_loads.contains(&instruction_id) {
-                let mut rewritten =
-                    rewrite_base_load(candidate, function, tree, &index_to_value, instruction_id);
+                let mut rewritten = rewrite_base_load(
+                    candidate,
+                    function,
+                    tree,
+                    &index_to_value,
+                    instruction_id,
+                    provenance,
+                );
                 new_instructions.append(&mut rewritten);
                 continue;
             }
 
             // rewrite base reference stores into scalar stores
             if base_stores.contains(&instruction_id) {
-                let mut rewritten =
-                    rewrite_base_store(candidate, function, tree, &index_to_value, instruction_id);
+                let mut rewritten = rewrite_base_store(
+                    candidate,
+                    function,
+                    tree,
+                    &index_to_value,
+                    instruction_id,
+                    provenance,
+                );
                 new_instructions.append(&mut rewritten);
                 continue;
             }
 
             // drop instructions that are replaced or removed
-            if to_remove.contains(&instruction_id) {
+            if replaced.contains(&instruction_id) {
                 continue;
             }
 
@@ -604,7 +641,16 @@ fn split_local(
         }
 
         if tree.get(block_id).instructions != new_instructions {
-            function.replace_block_instructions(block_id, new_instructions, tree);
+            for instruction in tree
+                .get(block_id)
+                .instructions
+                .iter()
+                .copied()
+                .filter(|instruction| !new_instructions.contains(instruction))
+            {
+                accesses.remove(instruction);
+            }
+            function.replace_block_instructions(block_id, new_instructions, tree, provenance);
         }
     }
 
@@ -621,6 +667,7 @@ fn rewrite_base_load(
     tree: &mut mir::Tree,
     index_to_value: &FxIndexMap<usize, mir::Value>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // extract load destination
     let (destination, _pointer) = match tree.get(instruction_id) {
@@ -629,17 +676,17 @@ fn rewrite_base_load(
             pointer,
             ..
         } => (*destination, *pointer),
-        _ => panic!("split-aggregates base load rewrite expects a load instruction"),
+        _ => unreachable!("aggregate base load candidate must remain a load"),
     };
 
     // load each scalar element in order
     let mut element_values: Vec<mir::Value> = Vec::new();
-    let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    let mut new_instructions = Vec::new();
     for index in 0..candidate.element_types.len() {
         let element_pointer = index_to_value
             .get(&index)
             .copied()
-            .expect("missing scalar slot for aggregate element");
+            .unwrap_or_else(|| unreachable!("aggregate element must have a scalar local"));
         let element_type = candidate.element_types[index];
         let element_value = function.next_typed_value(element_type);
         let load_inst = mir::Instruction::Load {
@@ -647,15 +694,22 @@ fn rewrite_base_load(
             pointer: element_pointer,
             result_type: element_type,
         };
-        let load_id = tree.insert(load_inst);
-        new_instructions.push(load_id);
+        new_instructions.push(load_inst);
         element_values.push(element_value);
     }
 
     // rebuild the aggregate value from the loaded elements
     let aggregate_inst = build_aggregate_instruction(tree, destination, &element_values);
-    let aggregate_id = tree.insert(aggregate_inst);
-    new_instructions.push(aggregate_id);
+    new_instructions.push(aggregate_inst);
+
+    // insert the replacement instructions
+    let source = tree.provenance(instruction_id);
+    let outputs = provenance.split_many(source, new_instructions.len());
+    let new_instructions = new_instructions
+        .into_iter()
+        .zip(outputs)
+        .map(|(instruction, provenance)| tree.insert(instruction, provenance))
+        .collect();
 
     new_instructions
 }
@@ -667,24 +721,25 @@ fn rewrite_base_store(
     tree: &mut mir::Tree,
     index_to_value: &FxIndexMap<usize, mir::Value>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> Vec<mir::LocalNodeId<mir::Instruction>> {
     // extract stored value
     let stored_value = match tree.get(instruction_id) {
         mir::Instruction::Store { value, .. } => *value,
-        _ => panic!("split-aggregates base store rewrite expects a store instruction"),
+        _ => unreachable!("aggregate base store candidate must remain a store"),
     };
 
-    let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = Vec::new();
+    let mut new_instructions = Vec::new();
     for index in 0..candidate.element_types.len() {
         let element_pointer = index_to_value
             .get(&index)
             .copied()
-            .expect("missing scalar slot for aggregate element");
+            .unwrap_or_else(|| unreachable!("aggregate element must have a scalar local"));
         let element_type = candidate.element_types[index];
         let element_value = function.next_typed_value(element_type);
 
         // extract the static aggregate slot
-        let slot_get = if matches!(tree.get(candidate.layout), mir::Type::FixedArray { .. }) {
+        let slot_get = if matches!(tree.ty(candidate.layout), mir::Type::FixedArray { .. }) {
             mir::Instruction::ElementGet {
                 destination: element_value,
                 aggregate: stored_value,
@@ -697,7 +752,6 @@ fn rewrite_base_store(
                 field: index as u32,
             }
         };
-        let slot_get = tree.insert(slot_get);
         new_instructions.push(slot_get);
 
         // store the scalar into its local
@@ -705,9 +759,17 @@ fn rewrite_base_store(
             pointer: element_pointer,
             value: element_value,
         };
-        let store_id = tree.insert(store_inst);
-        new_instructions.push(store_id);
+        new_instructions.push(store_inst);
     }
+
+    // insert the replacement instructions
+    let source = tree.provenance(instruction_id);
+    let outputs = provenance.split_many(source, new_instructions.len());
+    let new_instructions = new_instructions
+        .into_iter()
+        .zip(outputs)
+        .map(|(instruction, provenance)| tree.insert(instruction, provenance))
+        .collect();
 
     new_instructions
 }
@@ -733,6 +795,7 @@ fn apply_substitutions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     if substitutions.is_empty() {
         return;
@@ -749,15 +812,19 @@ fn apply_substitutions(
             let instruction = tree.get(inst_id).clone();
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, substitutions, tree);
-            tree.set(inst_id, new_instruction);
-            remap_instruction_memory_accesses(accesses, inst_id, substitutions);
+            if new_instruction != instruction {
+                tree.rewrite(inst_id, new_instruction, provenance);
+                accesses.remap_instruction(inst_id, substitutions);
+            }
         }
 
         // substitute in terminator
         let terminator_id = tree.get(block_id).terminator;
         let terminator = tree.get(terminator_id).clone();
         let new_terminator = terminator_substitute_uses(tree, &terminator, substitutions);
-        tree.set(terminator_id, new_terminator);
+        if new_terminator != terminator {
+            tree.rewrite(terminator_id, new_terminator, provenance);
+        }
     }
 }
 

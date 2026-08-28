@@ -1,6 +1,7 @@
 use destack_artifact::ProgramAnalysis;
 use destack_mir as mir;
 use destack_mir::Mutation;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext, declare_pass};
 
@@ -45,13 +46,21 @@ impl ModulePass for EliminateDeadFunctions {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
         let drops = &mut optimized.drops;
-        let changed = run_eliminate_dead_functions(tree, accesses, drops, ctx.program_analysis());
+        let changed = run_eliminate_dead_functions(
+            tree,
+            accesses,
+            drops,
+            ctx.program_analysis(),
+            &mut journal,
+        );
 
         // report stripped definitions as control-flow changes
         if changed {
@@ -68,6 +77,7 @@ pub(crate) fn run_eliminate_dead_functions(
     accesses: &mut mir::AccessTable,
     drops: &mut mir::DropTable,
     program: &ProgramAnalysis,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // an empty scope defines no symbols, so nothing can be proven dead
     if program.is_empty() {
@@ -84,7 +94,7 @@ pub(crate) fn run_eliminate_dead_functions(
 
     // strip each unreachable function down to an external declaration
     for function_id in &dead {
-        strip_function_body(*function_id, tree, accesses);
+        strip_function_body(*function_id, tree, accesses, provenance);
         drops.remove_function(*function_id);
     }
 
@@ -96,14 +106,41 @@ pub(crate) fn strip_function_body(
     function_id: mir::LocalNodeId<mir::Function>,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // collect blocks and instructions before stripping the body
-    let block_ids = tree.get(function_id).blocks().to_vec();
+    let mut function = tree.get(function_id).clone();
+    let block_ids = function.blocks().to_vec();
+
+    // remove function body provenance
+    let mut removed = function
+        .locals()
+        .iter()
+        .map(|local| tree.provenance(*local))
+        .collect::<Vec<_>>();
+    for block_id in &block_ids {
+        let block = tree.get(*block_id);
+        removed.push(tree.provenance(*block_id));
+        removed.push(tree.provenance(block.terminator));
+        removed.extend(
+            block
+                .parameters
+                .iter()
+                .map(|parameter| parameter.provenance),
+        );
+        removed.extend(
+            block
+                .instructions
+                .iter()
+                .map(|instruction| tree.provenance(*instruction)),
+        );
+    }
+    provenance.remove(&removed);
 
     // convert the definition into an import declaration
-    let function = tree.get_mut(function_id);
     function.linkage = mir::Linkage::Import;
     function.clear_body();
+    tree.rewrite(function_id, function, provenance);
 
     // remove instruction tables tied to stripped blocks
     for block_id in &block_ids {
@@ -164,12 +201,18 @@ entry:
 
         // the export reaches `live`; `dead` is reached by nothing
         let program = module_analysis(&test);
-        let changed = run_eliminate_dead_functions(
-            &mut test.optimized.tree,
-            &mut test.optimized.accesses,
-            &mut test.optimized.drops,
-            &program,
-        );
+        let mut provenance = test.optimized.provenance.extend();
+        let changed = {
+            let mut journal = provenance.record("eliminate-dead-functions");
+            run_eliminate_dead_functions(
+                &mut test.optimized.tree,
+                &mut test.optimized.accesses,
+                &mut test.optimized.drops,
+                &program,
+                &mut journal,
+            )
+        };
+        test.optimized.provenance = provenance.finish();
 
         // reachable functions keep their bodies; the unreachable one is externalized
         assert!(changed);
@@ -239,12 +282,18 @@ entry(v0: ref<Dead, borrowed, exclusive, frame>):
 
         // retain destructors selected by execution and remove the unused entry
         let program = module_analysis(&test);
-        let changed = run_eliminate_dead_functions(
-            &mut test.optimized.tree,
-            &mut test.optimized.accesses,
-            &mut test.optimized.drops,
-            &program,
-        );
+        let mut provenance = test.optimized.provenance.extend();
+        let changed = {
+            let mut journal = provenance.record("eliminate-dead-functions");
+            run_eliminate_dead_functions(
+                &mut test.optimized.tree,
+                &mut test.optimized.accesses,
+                &mut test.optimized.drops,
+                &program,
+                &mut journal,
+            )
+        };
+        test.optimized.provenance = provenance.finish();
 
         assert!(changed);
         assert!(test.optimized.tree.get(drop_dropped).entry().is_some());

@@ -1,5 +1,6 @@
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::Mutation;
@@ -49,6 +50,7 @@ impl FunctionPass for EliminateGuards {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -83,7 +85,7 @@ impl FunctionPass for EliminateGuards {
             // rewrite the terminator when the outcome is known
             if let Some(is_true) = check_outcome {
                 let target = if is_true { success } else { failure };
-                replace_check_with_jump(tree, block_id, target);
+                replace_check_with_jump(tree, block_id, target, provenance);
                 changed = true;
             }
         }
@@ -102,11 +104,12 @@ fn replace_check_with_jump(
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     target: mir::BlockTarget,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // build a jump terminator replacement
     let block = tree.get(block_id);
     let new_terminator = mir::Terminator::Jump { target };
-    tree.set(block.terminator, new_terminator);
+    tree.rewrite(block.terminator, new_terminator, provenance);
 }
 
 #[cfg(test)]

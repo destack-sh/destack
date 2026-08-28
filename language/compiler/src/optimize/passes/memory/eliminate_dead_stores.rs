@@ -2,6 +2,7 @@ use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -52,11 +53,12 @@ impl FunctionPass for EliminateDeadStores {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
         let tree = &mut optimized.tree;
-        let accesses = &optimized.accesses;
+        let accesses = &mut optimized.accesses;
         let effects = &optimized.effects;
 
         // skip empty functions
@@ -70,8 +72,15 @@ impl FunctionPass for EliminateDeadStores {
         let postdom = analyses.postdominator(function, tree);
 
         // run dead store elimination
-        let changed =
-            run_eliminate_dead_stores(function, tree, &aliases, memory.as_ref(), &postdom);
+        let changed = run_eliminate_dead_stores(
+            function,
+            tree,
+            provenance,
+            accesses,
+            &aliases,
+            memory.as_ref(),
+            &postdom,
+        );
 
         // report what this pass changed
         if changed {
@@ -88,6 +97,8 @@ impl FunctionPass for EliminateDeadStores {
 fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+    accesses: &mut mir::AccessTable,
     aliases: &AliasTable,
     memory: &MemoryTable,
     postdom: &PostdominatorTable,
@@ -143,10 +154,18 @@ fn run_eliminate_dead_stores(
     }
 
     // remove dead stores
+    for &instruction in &dead_stores {
+        tree.record_removal(instruction, provenance);
+        accesses.remove(instruction);
+    }
+
     for block_id in function.blocks().to_vec() {
+        let previous_count = tree.get(block_id).instructions.len();
         let mut instructions = tree.get(block_id).instructions.clone();
         instructions.retain(|id| !dead_stores.contains(id));
-        function.replace_block_instructions(block_id, instructions, tree);
+        if instructions.len() != previous_count {
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
+        }
     }
 
     true

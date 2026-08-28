@@ -2,6 +2,7 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -53,6 +54,7 @@ impl FunctionPass for PropagateCorrelatedValues {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -70,8 +72,9 @@ impl FunctionPass for PropagateCorrelatedValues {
         let constants = analyses.constant(function, tree).clone();
 
         // run correlated propagation
-        let changed =
-            run_propagate_correlated_values(function, tree, accesses, &domtree, &cfg, &constants);
+        let changed = run_propagate_correlated_values(
+            function, tree, provenance, accesses, &domtree, &cfg, &constants,
+        );
 
         // report what this pass changed
         if changed {
@@ -86,6 +89,7 @@ impl FunctionPass for PropagateCorrelatedValues {
 fn run_propagate_correlated_values(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     domtree: &DominatorTable,
     cfg: &ControlTable,
@@ -157,6 +161,7 @@ fn run_propagate_correlated_values(
                     let applied = apply_substitutions_in_dominated_blocks(
                         function,
                         tree,
+                        provenance,
                         accesses,
                         domtree,
                         equality_block,
@@ -178,6 +183,7 @@ fn run_propagate_correlated_values(
                 range_changed |= apply_range_constraint(
                     function,
                     tree,
+                    provenance,
                     domtree,
                     then_target,
                     &constraint,
@@ -193,6 +199,7 @@ fn run_propagate_correlated_values(
                 range_changed |= apply_range_constraint(
                     function,
                     tree,
+                    provenance,
                     domtree,
                     else_target,
                     &constraint,
@@ -256,7 +263,7 @@ fn equality_condition(
         let left = *left;
         let right = *right;
         let ty = function.expect_value_type(left);
-        let is_float = tree.get(ty).is_float(tree);
+        let is_float = tree.ty(ty).is_float(tree);
         if is_float {
             return None;
         }
@@ -294,7 +301,7 @@ fn equality_condition(
         let left = *left;
         let right = *right;
         let ty = function.expect_value_type(left);
-        let is_float = tree.get(ty).is_float(tree);
+        let is_float = tree.ty(ty).is_float(tree);
         if is_float {
             return None;
         }
@@ -516,6 +523,7 @@ fn integer_range_from_bounds(
 fn apply_range_constraint(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     domtree: &DominatorTable,
     root: mir::LocalNodeId<mir::Block>,
     constraint: &RangeConstraint,
@@ -564,7 +572,7 @@ fn apply_range_constraint(
                     destination,
                     value: mir::Constant::Boolean { value: result },
                 };
-                tree.set(instruction_id, new_instruction);
+                tree.rewrite(instruction_id, new_instruction, provenance);
                 changed = true;
             }
         }

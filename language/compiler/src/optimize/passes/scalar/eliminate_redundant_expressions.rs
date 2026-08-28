@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -48,6 +49,7 @@ impl FunctionPass for EliminateRedundantExpressions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -72,6 +74,7 @@ impl FunctionPass for EliminateRedundantExpressions {
             entry,
             function,
             tree,
+            provenance,
             accesses,
             &dom_children,
             &alias,
@@ -92,6 +95,7 @@ fn run_eliminate_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     dom_children: &FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>>,
     alias: &AliasTable,
@@ -107,7 +111,14 @@ fn run_eliminate_redundant_expressions(
     }
 
     // apply substitutions and remove redundant instructions
-    apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
+    apply_substitutions_in_function(
+        function,
+        tree,
+        provenance,
+        accesses,
+        &substitutions,
+        Some(&to_remove),
+    );
 
     true
 }

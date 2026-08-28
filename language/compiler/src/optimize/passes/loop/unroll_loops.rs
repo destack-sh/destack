@@ -2,12 +2,13 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlTable, DefinitionTable, DominatorTable, EvolutionTable, Hotness,
-    Loop, LoopTable, Mutation, Scev, clone_instruction_tables, clone_loop_blocks,
-    instruction_is_speculatable, instruction_map, terminator_remap,
+    Loop, LoopTable, Mutation, Scev, clone_loop_blocks, instruction_is_speculatable,
+    instruction_map, terminator_remap,
 };
 
 declare_pass! {
@@ -114,6 +115,7 @@ impl FunctionPass for UnrollLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -126,7 +128,7 @@ impl FunctionPass for UnrollLoops {
         }
 
         // run loop unrolling
-        let changed = run_unroll_loops(function, tree, accesses, ctx, analyses);
+        let changed = run_unroll_loops(function, tree, accesses, provenance, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -143,6 +145,7 @@ impl FunctionPass for UnrollAndJamLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -155,7 +158,7 @@ impl FunctionPass for UnrollAndJamLoops {
         }
 
         // run loop unroll and jam
-        let changed = run_unroll_loops_and_jam(function, tree, accesses, ctx, analyses);
+        let changed = run_unroll_loops_and_jam(function, tree, accesses, provenance, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -293,6 +296,7 @@ fn run_unroll_loops(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
 ) -> bool {
@@ -383,7 +387,9 @@ fn run_unroll_loops(
 
         // apply transformation
         function.recompute_next_value_id(tree);
-        if !unroll_loop(function, tree, accesses, &candidate, mode, &cfg, &domtree) {
+        if !unroll_loop(
+            function, tree, accesses, provenance, &candidate, mode, &cfg, &domtree,
+        ) {
             break;
         }
 
@@ -407,6 +413,7 @@ fn run_unroll_loops_and_jam(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
 ) -> bool {
@@ -510,7 +517,7 @@ fn run_unroll_loops_and_jam(
         // apply transformation
         function.recompute_next_value_id(tree);
         if !unroll_and_jam_loop(
-            function, tree, accesses, ctx, &candidate, plan, &cfg, &domtree,
+            function, tree, accesses, provenance, ctx, &candidate, plan, &cfg, &domtree,
         ) {
             break;
         }
@@ -1488,6 +1495,7 @@ fn unroll_and_jam_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     plan: JamPlan,
@@ -1505,6 +1513,7 @@ fn unroll_and_jam_loop(
             function,
             tree,
             accesses,
+            provenance,
             candidate,
             cfg,
             domtree,
@@ -1522,7 +1531,7 @@ fn unroll_and_jam_loop(
     };
 
     // update the outer latch induction step
-    if !rewrite_outer_latch_step(function, tree, ctx, candidate, plan.factor) {
+    if !rewrite_outer_latch_step(function, tree, provenance, ctx, candidate, plan.factor) {
         return false;
     }
 
@@ -1531,6 +1540,7 @@ fn unroll_and_jam_loop(
         function,
         tree,
         accesses,
+        provenance,
         ctx,
         candidate,
         plan.factor,
@@ -1586,6 +1596,7 @@ fn peel_jam_remainder(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     candidate: &JamCandidate,
     cfg: &ControlTable,
     domtree: &DominatorTable,
@@ -1601,15 +1612,20 @@ fn peel_jam_remainder(
     let mut peeled_iterations = Vec::new();
     for _ in 0..remainder {
         // clone loop blocks and values
-        let (block_map, value_map) =
-            clone_loop_blocks(&candidate.outer_blocks, function, tree, accesses);
+        let (block_map, value_map) = clone_loop_blocks(
+            &candidate.outer_blocks,
+            function,
+            tree,
+            provenance,
+            accesses,
+        );
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
             let terminator_id = tree.get(cloned_id).terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(tree, &mut terminator, &block_map, &value_map);
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
         }
 
         // insert cloned blocks into the function
@@ -1635,7 +1651,7 @@ fn peel_jam_remainder(
     let preheader_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(first_iteration.header, preheader_args),
     };
-    tree.set(preheader_terminator_id, preheader_terminator);
+    tree.rewrite(preheader_terminator_id, preheader_terminator, provenance);
 
     // chain peeled iterations together
     for (index, iteration) in peeled_iterations.iter().enumerate() {
@@ -1646,13 +1662,16 @@ fn peel_jam_remainder(
             peeled_iterations[index + 1].header
         };
 
-        let mut latch_block = tree.get(iteration.latch).clone();
-        let updated = rewrite_latch_to_jump(tree, &mut latch_block, iteration.header, next_header);
+        let updated = rewrite_latch_to_jump(
+            tree,
+            provenance,
+            iteration.latch,
+            iteration.header,
+            next_header,
+        );
         if !updated {
             return false;
         }
-
-        tree.set(iteration.latch, latch_block);
     }
 
     true
@@ -1756,6 +1775,7 @@ fn inner_update_info(
 fn rewrite_outer_latch_step(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
@@ -1796,7 +1816,9 @@ fn rewrite_outer_latch_step(
         destination: const_value,
         value: scaled_constant,
     };
-    let const_id = tree.insert(const_instruction);
+    let source = tree.provenance(latch_block.terminator);
+    let [constant_provenance, add_provenance] = provenance.generate_many(&[source]);
+    let const_id = tree.insert(const_instruction, constant_provenance);
 
     let updated_value = function.next_typed_value_like(current_value);
     let add_instruction = mir::Instruction::Binary {
@@ -1805,20 +1827,25 @@ fn rewrite_outer_latch_step(
         left: current_value,
         right: const_value,
     };
-    let add_id = tree.insert(add_instruction);
+    let add_id = tree.insert(add_instruction, add_provenance);
 
     // append the update before the terminator
     let mut latch_instructions = latch_block.instructions.clone();
     latch_instructions.push(const_id);
     latch_instructions.push(add_id);
-    function.replace_block_instructions(candidate.outer_latch, latch_instructions, tree);
+    function.replace_block_instructions(
+        candidate.outer_latch,
+        latch_instructions,
+        tree,
+        provenance,
+    );
 
     arguments[candidate.outer_param_index] = updated_value;
 
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(candidate.outer_header, tree.add_values(&arguments)),
     };
-    tree.set(latch_block.terminator, new_terminator);
+    tree.rewrite(latch_block.terminator, new_terminator, provenance);
 
     true
 }
@@ -1828,6 +1855,7 @@ fn jam_inner_body(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     ctx: &PipelineContext<'_>,
     candidate: &JamCandidate,
     factor: u64,
@@ -1858,7 +1886,9 @@ fn jam_inner_body(
             destination: offset_const_value,
             value: step_constant,
         };
-        let offset_const_id = tree.insert(offset_const_instruction);
+        let source = tree.provenance(update_info.update_instruction);
+        let [constant_provenance, add_provenance] = provenance.generate_many(&[source]);
+        let offset_const_id = tree.insert(offset_const_instruction, constant_provenance);
         new_instructions.push(offset_const_id);
 
         let offset_value = function.next_typed_value_like(candidate.inner_outer_param);
@@ -1868,7 +1898,7 @@ fn jam_inner_body(
             left: candidate.inner_outer_param,
             right: offset_const_value,
         };
-        let offset_add_id = tree.insert(offset_add_instruction);
+        let offset_add_id = tree.insert(offset_add_instruction, add_provenance);
         new_instructions.push(offset_add_id);
 
         // clone body instructions with remapped values
@@ -1886,8 +1916,8 @@ fn jam_inner_body(
             }
 
             let cloned = instruction_map(&instruction, &value_map, tree);
-            let cloned_id = tree.insert(cloned);
-            clone_instruction_tables(tree, accesses, instruction_id, cloned_id, &value_map);
+            let cloned_id = tree.insert_from(cloned, instruction_id, provenance);
+            accesses.clone_instruction(instruction_id, cloned_id, &value_map);
             new_instructions.push(cloned_id);
         }
     }
@@ -1895,7 +1925,7 @@ fn jam_inner_body(
     new_instructions.push(update_info.update_instruction);
     new_instructions.extend(update_info.trailing_instructions.iter().copied());
 
-    function.replace_block_instructions(candidate.inner_latch, new_instructions, tree);
+    function.replace_block_instructions(candidate.inner_latch, new_instructions, tree, provenance);
 
     true
 }
@@ -1904,13 +1934,13 @@ fn jam_inner_body(
 fn scaled_step_constant(
     step: i128,
     factor: u64,
-    type_id: mir::LocalNodeId<mir::Type>,
+    type_id: mir::TypeId,
     tree: &mir::Tree,
     pointer_width_bits: u16,
 ) -> Option<mir::Constant> {
     let scaled = step.checked_mul(factor as i128)?;
 
-    match tree.get(type_id) {
+    match tree.ty(type_id) {
         mir::Type::Int {
             width,
             is_signed: signed,
@@ -2036,6 +2066,7 @@ fn unroll_loop(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     candidate: &UnrollCandidate,
     mode: UnrollMode,
     cfg: &ControlTable,
@@ -2045,7 +2076,9 @@ fn unroll_loop(
     if let UnrollMode::Partial { remainder, .. } = mode
         && remainder > 0
     {
-        let peeled = peel_remainder(function, tree, accesses, candidate, cfg, domtree, remainder);
+        let peeled = peel_remainder(
+            function, tree, accesses, provenance, candidate, cfg, domtree, remainder,
+        );
         if !peeled {
             return false;
         }
@@ -2073,7 +2106,7 @@ fn unroll_loop(
     for _ in 1..iterations {
         // clone blocks and values
         let (block_map, value_map) =
-            clone_loop_blocks(&candidate.loop_blocks, function, tree, accesses);
+            clone_loop_blocks(&candidate.loop_blocks, function, tree, provenance, accesses);
 
         // remap terminators to cloned targets
         for &cloned_id in block_map.values() {
@@ -2081,7 +2114,7 @@ fn unroll_loop(
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(tree, &mut terminator, &block_map, &value_map);
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
         }
 
         // add cloned blocks to the function
@@ -2109,10 +2142,10 @@ fn unroll_loop(
         };
 
         // update the latch terminator
-        let mut latch_block = tree.get(iteration.latch).clone();
         let updated = rewrite_latch_block(
             tree,
-            &mut latch_block,
+            provenance,
+            iteration.latch,
             candidate,
             iteration,
             next_iteration,
@@ -2122,8 +2155,6 @@ fn unroll_loop(
         if !updated {
             return false;
         }
-
-        tree.set(iteration.latch, latch_block);
     }
 
     true
@@ -2134,6 +2165,7 @@ fn peel_remainder(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
     candidate: &UnrollCandidate,
     cfg: &ControlTable,
     domtree: &DominatorTable,
@@ -2154,14 +2186,14 @@ fn peel_remainder(
     for _ in 0..remainder {
         // clone loop blocks and values
         let (block_map, value_map) =
-            clone_loop_blocks(&candidate.loop_blocks, function, tree, accesses);
+            clone_loop_blocks(&candidate.loop_blocks, function, tree, provenance, accesses);
 
         // remap cloned terminators
         for &cloned_id in block_map.values() {
             let terminator_id = tree.get(cloned_id).terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(tree, &mut terminator, &block_map, &value_map);
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
         }
 
         // insert cloned blocks into the function
@@ -2187,7 +2219,7 @@ fn peel_remainder(
     let preheader_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(first_iteration.header, preheader_args),
     };
-    tree.set(preheader_terminator_id, preheader_terminator);
+    tree.rewrite(preheader_terminator_id, preheader_terminator, provenance);
 
     // chain peeled iterations together
     for (index, iteration) in peeled_iterations.iter().enumerate() {
@@ -2198,13 +2230,16 @@ fn peel_remainder(
             peeled_iterations[index + 1].header
         };
 
-        let mut latch_block = tree.get(iteration.latch).clone();
-        let updated = rewrite_latch_to_jump(tree, &mut latch_block, iteration.header, next_header);
+        let updated = rewrite_latch_to_jump(
+            tree,
+            provenance,
+            iteration.latch,
+            iteration.header,
+            next_header,
+        );
         if !updated {
             return false;
         }
-
-        tree.set(iteration.latch, latch_block);
     }
 
     true
@@ -2252,12 +2287,14 @@ fn find_preheader(
 /// Rewrite a latch to unconditionally jump to the next header.
 fn rewrite_latch_to_jump(
     tree: &mut mir::Tree,
-    block: &mut mir::Block,
+    provenance: &mut ProvenanceJournal<'_>,
+    block: mir::LocalNodeId<mir::Block>,
     header: mir::LocalNodeId<mir::Block>,
     next_header: mir::LocalNodeId<mir::Block>,
 ) -> bool {
     // locate the loop backedge arguments
-    let terminator = tree.get(block.terminator).clone();
+    let terminator_id = tree.get(block).terminator;
+    let terminator = tree.get(terminator_id).clone();
     let latch_has_edge = terminator.successors(tree).contains(&header);
     if !latch_has_edge {
         return false;
@@ -2272,7 +2309,7 @@ fn rewrite_latch_to_jump(
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(next_header, latch_args),
     };
-    tree.set(block.terminator, new_terminator);
+    tree.rewrite(terminator_id, new_terminator, provenance);
 
     true
 }
@@ -2280,14 +2317,16 @@ fn rewrite_latch_to_jump(
 /// Rewrite an exiting block for a specific unrolled iteration.
 fn rewrite_latch_block(
     tree: &mut mir::Tree,
-    block: &mut mir::Block,
+    provenance: &mut ProvenanceJournal<'_>,
+    block: mir::LocalNodeId<mir::Block>,
     candidate: &UnrollCandidate,
     iteration: &UnrollIteration,
     next_iteration: Option<&UnrollIteration>,
     mode: UnrollMode,
     is_last: bool,
 ) -> bool {
-    let terminator = tree.get(block.terminator).clone();
+    let terminator_id = tree.get(block).terminator;
+    let terminator = tree.get(terminator_id).clone();
 
     // extract latch arguments
     let latch_has_edge = terminator.successors(tree).contains(&iteration.header);
@@ -2312,7 +2351,7 @@ fn rewrite_latch_block(
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(next.header, latch_args),
         };
-        tree.set(block.terminator, new_terminator);
+        tree.rewrite(terminator_id, new_terminator, provenance);
 
         return true;
     }
@@ -2335,7 +2374,7 @@ fn rewrite_latch_block(
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(candidate.exit_block, exit_arguments),
         };
-        tree.set(block.terminator, new_terminator);
+        tree.rewrite(terminator_id, new_terminator, provenance);
 
         return true;
     }
@@ -2346,7 +2385,7 @@ fn rewrite_latch_block(
         let new_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(candidate.header, latch_args),
         };
-        tree.set(block.terminator, new_terminator);
+        tree.rewrite(terminator_id, new_terminator, provenance);
 
         return true;
     }
@@ -2386,7 +2425,7 @@ fn rewrite_latch_block(
             else_arguments,
         ),
     };
-    tree.set(block.terminator, new_terminator);
+    tree.rewrite(terminator_id, new_terminator, provenance);
 
     true
 }
@@ -2422,7 +2461,7 @@ fn guard_from_condition(
     let left = forwarding.resolve(*left);
     let right = forwarding.resolve(*right);
     let operand_type = function.expect_value_type(left);
-    let is_signed = tree.get(operand_type).integer_signedness()?;
+    let is_signed = tree.ty(operand_type).integer_signedness()?;
 
     normalize_guard(operator, left, right, guard_is_true, is_signed)
 }

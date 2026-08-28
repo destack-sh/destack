@@ -2,12 +2,13 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     BlockParamForwarding, ControlTable, EvolutionTable, LoopTable, Mutation, Scev,
     constant_is_zero, fold_binary, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
+    resolve_substitution_chains, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -55,6 +56,7 @@ impl FunctionPass for SimplifyInductionVariables {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -78,8 +80,9 @@ impl FunctionPass for SimplifyInductionVariables {
 
         // run the simplification pass
         function.recompute_next_value_id(tree);
-        let changed =
-            run_simplify_induction_variables(function, tree, accesses, &loops, &scev, &cfg);
+        let changed = run_simplify_induction_variables(
+            function, tree, accesses, &loops, &scev, &cfg, provenance,
+        );
         if changed {
             Mutation::VALUE
         } else {
@@ -125,6 +128,7 @@ fn run_simplify_induction_variables(
     loops: &LoopTable,
     scev: &EvolutionTable,
     cfg: &ControlTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // collect substitutions for redundant induction variables
     let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
@@ -229,7 +233,9 @@ fn run_simplify_induction_variables(
                     lp.header,
                     base_value,
                     offset,
+                    param.provenance,
                     &mut header_inserts,
+                    provenance,
                 )
             } else {
                 signature_match.or(scev_match).unwrap_or(param_value)
@@ -281,7 +287,7 @@ fn run_simplify_induction_variables(
 
             let mut new_instructions = inserts;
             new_instructions.extend(tree.get(header_id).instructions.iter().copied());
-            function.replace_block_instructions(header_id, new_instructions, tree);
+            function.replace_block_instructions(header_id, new_instructions, tree, provenance);
         }
     }
 
@@ -331,8 +337,8 @@ fn run_simplify_induction_variables(
 
             // replace instructions that changed
             if new_instruction != instruction {
-                tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                tree.rewrite(instruction_id, new_instruction, provenance);
+                accesses.remap_instruction(instruction_id, &substitutions);
             }
         }
     }
@@ -358,12 +364,26 @@ fn run_simplify_induction_variables(
             .cloned()
             .collect();
 
-        // replace blocks that changed
-        if new_terminator != terminator || new_parameters.len() != parameters.len() {
+        // remove eliminated parameter provenance
+        let removed: Vec<_> = parameters
+            .iter()
+            .filter(|parameter| substitutions.contains_key(&parameter.value))
+            .map(|parameter| parameter.provenance)
+            .collect();
+        if !removed.is_empty() {
+            provenance.remove(&removed);
+        }
+
+        // replace the parameter list when it changed
+        if new_parameters.len() != parameters.len() {
             let mut new_block = block;
             new_block.parameters = new_parameters;
-            tree.set(block_id, new_block);
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(block_id, new_block, provenance);
+        }
+
+        // replace the terminator when its uses or arguments changed
+        if new_terminator != terminator {
+            tree.rewrite(terminator_id, new_terminator, provenance);
         }
     }
 
@@ -422,10 +442,12 @@ fn insert_offset_value(
     header: mir::LocalNodeId<mir::Block>,
     base_value: mir::Value,
     offset: mir::Constant,
+    source: ProvenanceId,
     header_inserts: &mut FxIndexMap<
         mir::LocalNodeId<mir::Block>,
         Vec<mir::LocalNodeId<mir::Instruction>>,
     >,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> mir::Value {
     // materialize the offset constant
     let const_value = function.next_typed_value_like(base_value);
@@ -433,7 +455,8 @@ fn insert_offset_value(
         destination: const_value,
         value: offset,
     };
-    let const_id = tree.insert(const_instruction);
+    let [constant_provenance, add_provenance] = provenance.generate_many(&[source]);
+    let const_id = tree.insert(const_instruction, constant_provenance);
 
     // materialize the adjusted value
     let adjusted_value = function.next_typed_value_like(base_value);
@@ -443,7 +466,7 @@ fn insert_offset_value(
         left: base_value,
         right: const_value,
     };
-    let add_id = tree.insert(add_instruction);
+    let add_id = tree.insert(add_instruction, add_provenance);
 
     // schedule instructions for insertion
     let inserts = header_inserts.entry(header).or_default();

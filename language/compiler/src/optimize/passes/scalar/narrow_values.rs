@@ -2,6 +2,7 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{Mutation, RangeState, RangeTable, ValueRange};
@@ -40,6 +41,7 @@ impl FunctionPass for NarrowValues {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -54,7 +56,7 @@ impl FunctionPass for NarrowValues {
         let ranges = analyses.range(function, tree).clone();
 
         // apply narrowing
-        let changed = run_narrow(function, tree, &ranges);
+        let changed = run_narrow(function, tree, provenance, &ranges);
         if changed {
             Mutation::VALUE
         } else {
@@ -75,7 +77,12 @@ struct IntegerInfo {
 }
 
 /// Run narrowing on a single function and report whether it changed.
-fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &RangeTable) -> bool {
+fn run_narrow(
+    function: &mut mir::Function,
+    tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+    ranges: &RangeTable,
+) -> bool {
     // refresh value ids before inserting casts
     function.recompute_next_value_id(tree);
 
@@ -92,8 +99,7 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
         // initialize per block caches
         let mut new_instructions = Vec::new();
         let mut cast_cache: FxIndexMap<(mir::Value, u16, bool), mir::Value> = FxIndexMap::default();
-        let mut type_cache: FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>> =
-            FxIndexMap::default();
+        let mut type_cache: FxIndexMap<(u16, bool), mir::TypeId> = FxIndexMap::default();
 
         // reuse the widest cast per value within this block
         let mut value_cast_width: FxIndexMap<mir::Value, u16> = FxIndexMap::default();
@@ -101,6 +107,7 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
         // rewrite instructions with narrower operands
         for &instruction_id in &block.instructions {
             let mut instruction = tree.get(instruction_id).clone();
+            let instruction_source = tree.provenance(instruction_id);
             let mut updated = false;
 
             // narrow comparison operands when ranges permit
@@ -121,6 +128,8 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
                     &mut type_cache,
                     &mut value_cast_width,
                     block_ranges,
+                    provenance,
+                    instruction_source,
                 )
             {
                 instruction = mir::Instruction::Binary {
@@ -134,7 +143,7 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
 
             // commit instruction updates when changed
             if updated {
-                tree.set(instruction_id, instruction);
+                tree.rewrite(instruction_id, instruction, provenance);
                 changed = true;
             }
             new_instructions.push(instruction_id);
@@ -142,6 +151,7 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
 
         // narrow terminator operands for bounds checks
         let terminator = tree.get(block.terminator).clone();
+        let terminator_source = tree.provenance(block.terminator);
         let mut new_terminator = terminator.clone();
         if let mir::Terminator::Check {
             constraint,
@@ -169,6 +179,8 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
                     &mut type_cache,
                     &mut value_cast_width,
                     block_ranges,
+                    provenance,
+                    terminator_source,
                 )
             {
                 updated_constraint = mir::CheckConstraint::Bounds {
@@ -194,8 +206,10 @@ fn run_narrow(function: &mut mir::Function, tree: &mut mir::Tree, ranges: &Range
         // update the block when instruction or terminator changed
         if new_instructions != block.instructions || new_terminator != terminator {
             let terminator_id = block.terminator;
-            function.replace_block_instructions(block_id, new_instructions, tree);
-            tree.set(terminator_id, new_terminator);
+            function.replace_block_instructions(block_id, new_instructions, tree, provenance);
+            if new_terminator != terminator {
+                tree.rewrite(terminator_id, new_terminator, provenance);
+            }
             changed = true;
         }
     }
@@ -270,7 +284,7 @@ fn integer_info_for_value(
 
     // require a matching integer type
     let type_id = function.expect_value_type(value);
-    let original = tree.get(type_id);
+    let original = tree.ty(type_id);
     let mir::Type::Int {
         width: original_width,
         is_signed: signed,
@@ -305,9 +319,11 @@ fn narrow_pair(
     tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
     cast_cache: &mut FxIndexMap<(mir::Value, u16, bool), mir::Value>,
-    type_cache: &mut FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    type_cache: &mut FxIndexMap<(u16, bool), mir::TypeId>,
     value_cast_width: &mut FxIndexMap<mir::Value, u16>,
     ranges: &RangeState,
+    provenance: &mut ProvenanceJournal<'_>,
+    source: ProvenanceId,
 ) -> Option<(mir::Value, mir::Value)> {
     // compute range info for both operands
     let left_info = integer_info_for_value(left, ranges, function, tree)?;
@@ -341,6 +357,8 @@ fn narrow_pair(
         new_instructions,
         cast_cache,
         type_cache,
+        provenance,
+        source,
     );
     let right_cast = narrow_value_to_width(
         right,
@@ -351,6 +369,8 @@ fn narrow_pair(
         new_instructions,
         cast_cache,
         type_cache,
+        provenance,
+        source,
     );
 
     value_cast_width.insert(left, target_width);
@@ -368,7 +388,9 @@ fn narrow_value_to_width(
     tree: &mut mir::Tree,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
     cast_cache: &mut FxIndexMap<(mir::Value, u16, bool), mir::Value>,
-    type_cache: &mut FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    type_cache: &mut FxIndexMap<(u16, bool), mir::TypeId>,
+    provenance: &mut ProvenanceJournal<'_>,
+    source: ProvenanceId,
 ) -> mir::Value {
     // reuse any existing cast for this value and width
     let cache_key = (value, width, signed);
@@ -389,7 +411,8 @@ fn narrow_value_to_width(
         argument: value,
         to_type: ty_id,
     };
-    let cast_id = tree.insert(cast);
+    let provenance = provenance.derive(source);
+    let cast_id = tree.insert(cast, provenance);
     new_instructions.push(cast_id);
     cast_cache.insert(cache_key, destination);
 

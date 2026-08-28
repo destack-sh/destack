@@ -2,14 +2,14 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, MemoryAccessId,
-    MemoryNode, MemoryTable, Mutation, append_edge_arguments, apply_substitutions_in_function,
-    ensure_edge_block, instruction_allows_read_only_motion, instruction_has_side_effects,
-    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
-    value_available_in_block,
+    AliasTable, ControlTable, DefinitionTable, DominatorTable, MemoryAccessId, MemoryNode,
+    MemoryTable, Mutation, apply_substitutions_in_function, instruction_allows_read_only_motion,
+    instruction_has_side_effects, instruction_is_read_only_access, instruction_is_speculatable,
+    resolve_edge_value, value_available_in_block,
 };
 
 declare_pass! {
@@ -57,6 +57,7 @@ impl FunctionPass for EliminatePartialRedundantLoads {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -70,8 +71,9 @@ impl FunctionPass for EliminatePartialRedundantLoads {
         }
 
         // run load PRE
-        let changed =
-            run_eliminate_partial_redundant_loads(function, tree, accesses, effects, ctx, analyses);
+        let changed = run_eliminate_partial_redundant_loads(
+            function, tree, accesses, effects, ctx, analyses, provenance,
+        );
 
         // report what this pass changed
         if changed {
@@ -94,7 +96,7 @@ struct LoadCandidate {
     /// Load reference value.
     pointer: mir::Value,
     /// Load result type.
-    result_type: mir::LocalNodeId<mir::Type>,
+    result_type: mir::TypeId,
 }
 
 /// MemoryTable data for a candidate load.
@@ -107,8 +109,8 @@ struct LoadAccessInfo {
 /// Load insertion plan for a predecessor edge.
 #[derive(Clone, Copy)]
 struct EdgeInsertion {
-    /// Predecessor block id.
-    predecessor: mir::LocalNodeId<mir::Block>,
+    /// Exact incoming edge.
+    edge: mir::Edge,
     /// Pointer value to load from on this edge.
     pointer: mir::Value,
     /// Existing value to reuse instead of inserting a load.
@@ -123,6 +125,7 @@ fn run_eliminate_partial_redundant_loads(
     effects: &mir::EffectTable,
     _ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // gather analyses
     let cfg = analyses.control(function, tree).clone();
@@ -139,10 +142,6 @@ fn run_eliminate_partial_redundant_loads(
     // track modifications
     let mut substitutions = FxIndexMap::default();
     let mut to_remove = FxIndexSet::default();
-    let mut edge_blocks: FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    > = FxIndexMap::default();
     let mut changed = false;
 
     // scan each block for eligible loads
@@ -208,27 +207,22 @@ fn run_eliminate_partial_redundant_loads(
             let param = mir::BlockParameter {
                 value: param_value,
                 ty: load.result_type,
+                provenance: provenance.derive(tree.provenance(load.load_id)),
             };
-            let mut updated_block = tree.get(block_id).clone();
-            updated_block.parameters.push(param);
-            tree.set(block_id, updated_block);
-            changed = true;
-
             // insert loads on each edge and append arguments
             for insertion in edge_insertions {
-                // select or create the insertion block
-                let insertion_block = match insertion.existing_value {
-                    Some(_) => insertion.predecessor,
-                    None => ensure_edge_block(
-                        insertion.predecessor,
-                        load.block,
-                        function,
-                        tree,
-                        &cfg,
-                        &mut edge_blocks,
-                        EdgeSplitPolicy::PredecessorMultiSuccessor,
-                        &mut changed,
-                    ),
+                // isolate edges that need a new load
+                let insertion_edge = match insertion.existing_value {
+                    Some(_) => insertion.edge,
+                    None => {
+                        let source = tree.get(insertion.edge.source);
+                        let terminator = tree.get(source.terminator);
+                        if terminator.edges(tree, insertion.edge.source).len() > 1 {
+                            insertion.edge.split(function, tree, provenance)
+                        } else {
+                            insertion.edge
+                        }
+                    }
                 };
 
                 // reuse an existing load or insert a new one
@@ -242,15 +236,19 @@ fn run_eliminate_partial_redundant_loads(
                         pointer: insertion.pointer,
                         result_type: load.result_type,
                     };
-                    let load_id = tree.insert(load_instruction);
+                    let source = tree.provenance(load.load_id);
+                    let output = provenance.derive(source);
+                    let load_id = tree.insert(load_instruction, output);
 
                     // append the new load before the terminator
+                    let insertion_block = insertion_edge.source;
                     let mut insertion_instructions = tree.get(insertion_block).instructions.clone();
                     insertion_instructions.push(load_id);
                     function.replace_block_instructions(
                         insertion_block,
                         insertion_instructions,
                         tree,
+                        provenance,
                     );
 
                     // clone memory access entries when present
@@ -259,8 +257,14 @@ fn run_eliminate_partial_redundant_loads(
                 };
 
                 // append the load argument to the successor edge
-                append_edge_arguments(tree, insertion_block, load.block, &[load_value]);
+                insertion_edge.append_arguments(&[load_value], tree, provenance);
             }
+
+            // append the parameter after splitting its incoming edges
+            let mut updated_block = tree.get(block_id).clone();
+            updated_block.parameters.push(param);
+            tree.rewrite(block_id, updated_block, provenance);
+            changed = true;
 
             // record substitution and remove the original load
             substitutions.insert(load.destination, param_value);
@@ -274,13 +278,14 @@ fn run_eliminate_partial_redundant_loads(
     }
 
     // apply substitutions and removals
-    let updated =
-        apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
-
-    // drop memory tables for removed loads
-    for load_id in &to_remove {
-        accesses.remove(*load_id);
-    }
+    let updated = apply_substitutions_in_function(
+        function,
+        tree,
+        provenance,
+        accesses,
+        &substitutions,
+        Some(&to_remove),
+    );
 
     changed || updated
 }
@@ -411,53 +416,55 @@ fn collect_edge_insertions(
         return None;
     }
 
-    // scan predecessors for insertion opportunities
+    // scan exact incoming edges for insertion opportunities
     for &predecessor in predecessors {
-        // resolve the edge pointer
         let predecessor_block = tree.get(predecessor);
-        let pointer = resolve_edge_value(
-            load.pointer,
-            load.block,
-            predecessor_block,
-            tree,
-            param_indices,
-        )?;
+        let predecessor_terminator = tree.get(predecessor_block.terminator);
+        let edges = predecessor_terminator
+            .edges(tree, predecessor)
+            .into_iter()
+            .filter(|(_, target)| *target == load.block);
 
-        // ensure the reference value is available on this edge
-        if !value_available_in_block(pointer, predecessor, definitions, domtree) {
-            return None;
+        for (edge, _) in edges {
+            // resolve the edge pointer
+            let pointer = resolve_edge_value(load.pointer, edge, tree, param_indices)?;
+
+            // ensure the reference value is available on this edge
+            if !value_available_in_block(pointer, predecessor, definitions, domtree) {
+                return None;
+            }
+
+            // read the incoming memory access for this predecessor
+            let incoming_access = incoming_by_pred.get(&predecessor).copied()?;
+
+            // reuse an existing load when possible
+            let existing_value = reusable_predecessor_load(
+                predecessor,
+                pointer,
+                load.result_type,
+                incoming_access,
+                tree,
+                memory,
+                alias,
+            );
+
+            // record the insertion decision
+            insertions.push(EdgeInsertion {
+                edge,
+                pointer,
+                existing_value,
+            });
         }
-
-        // read the incoming memory access for this predecessor
-        let incoming_access = incoming_by_pred.get(&predecessor).copied()?;
-
-        // reuse an existing load when possible
-        let existing_value = reusable_predecessor_load(
-            predecessor,
-            pointer,
-            load.result_type,
-            incoming_access,
-            tree,
-            memory,
-            alias,
-        );
-
-        // record the insertion decision
-        insertions.push(EdgeInsertion {
-            predecessor,
-            pointer,
-            existing_value,
-        });
     }
 
-    Some(insertions)
+    (!insertions.is_empty()).then_some(insertions)
 }
 
 /// Find a reusable load value in a predecessor block.
 fn reusable_predecessor_load(
     predecessor: mir::LocalNodeId<mir::Block>,
     pointer: mir::Value,
-    result_type: mir::LocalNodeId<mir::Type>,
+    result_type: mir::TypeId,
     incoming_access: MemoryAccessId,
     tree: &mir::Tree,
     memory: &MemoryTable,

@@ -54,12 +54,13 @@ macro_rules! declare_pass {
 pub(crate) use declare_pass;
 
 use destack_mir as mir;
+use destack_mir::{AnalysisCache, FunctionCache, Mutation};
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{
     MirOptimized, PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext,
     ProgramWorkset,
 };
-use destack_mir::{AnalysisCache, FunctionCache, Mutation};
 
 /// Trait for optimization passes that operate on individual functions.
 pub trait FunctionPass: Pass + Send + Sync {
@@ -70,6 +71,7 @@ pub trait FunctionPass: Pass + Send + Sync {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         context: &PipelineContext<'_>,
         analyses: &mut FunctionCache,
     ) -> Mutation;
@@ -81,6 +83,7 @@ pub trait ModulePass: Pass + Send + Sync {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         context: &PipelineContext<'_>,
         analyses: &mut AnalysisCache,
     ) -> Mutation;
@@ -102,6 +105,7 @@ pub trait ProgramPass: Pass + Send + Sync {
 pub fn run_function_passes<'a>(
     function_id: mir::LocalNodeId<mir::Function>,
     optimized: &mut MirOptimized,
+    provenance: &mut ProvenanceBuilder,
     context: &PipelineContext<'_>,
     passes: impl IntoIterator<Item = &'a dyn FunctionPass>,
 ) -> bool {
@@ -119,18 +123,28 @@ pub fn run_function_passes<'a>(
 
     let mut changed = false;
     for pass in passes {
-        let mutation = pass.run(&mut function, optimized, context, &mut analyses);
+        let mut provenance = provenance.record(pass.metadata().id);
+        let mutation = pass.run(
+            &mut function,
+            optimized,
+            &mut provenance,
+            context,
+            &mut analyses,
+        );
 
         // drop the analyses this pass's mutation invalidates
         analyses.invalidate(mutation);
         if !mutation.is_none() {
             function.rebuild_instruction_index(&optimized.tree);
+            optimized
+                .tree
+                .rewrite_provenance(function_id, &mut provenance);
             changed = true;
         }
     }
 
     if changed {
-        *optimized.tree.get_mut(function_id) = function;
+        optimized.tree.set_payload(function_id, function);
     }
 
     changed

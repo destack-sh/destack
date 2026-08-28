@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -49,6 +50,7 @@ impl FunctionPass for SinkInstructions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -71,7 +73,7 @@ impl FunctionPass for SinkInstructions {
 
         // run sink
         let changed = run_sink(
-            entry, function, tree, accesses, &cfg, &domtree, &loops, &alias, &memory,
+            entry, function, tree, provenance, accesses, &cfg, &domtree, &loops, &alias, &memory,
         );
 
         // report what this pass changed
@@ -88,6 +90,7 @@ fn run_sink(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mir::AccessTable,
     cfg: &ControlTable,
     domtree: &DominatorTable,
@@ -285,13 +288,13 @@ fn run_sink(
         for w in &work_items {
             from_instructions.remove(w.instruction_idx);
         }
-        function.replace_block_instructions(from_block, from_instructions, tree);
+        function.replace_block_instructions(from_block, from_instructions, tree, provenance);
 
         // insert at beginning of target blocks
         for (instruction_id, to_block) in to_sink {
             let mut to_instructions = tree.get(to_block).instructions.clone();
             to_instructions.insert(0, instruction_id);
-            function.replace_block_instructions(to_block, to_instructions, tree);
+            function.replace_block_instructions(to_block, to_instructions, tree, provenance);
         }
     }
 

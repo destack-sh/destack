@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use crate::optimize::declare_pass;
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlTable, DominatorTable, Mutation, compute_dominance_frontiers,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
-    terminator_substitute_uses,
+    instruction_substitute_uses_in_tree, terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -45,6 +45,7 @@ impl FunctionPass for PromoteMemoryToRegisters {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -65,7 +66,8 @@ impl FunctionPass for PromoteMemoryToRegisters {
         };
 
         // run promote-memory-to-registers
-        let changed = run_promote_memory_to_registers(function, tree, accesses, &cfg, &domtree);
+        let changed =
+            run_promote_memory_to_registers(function, tree, accesses, &cfg, &domtree, provenance);
 
         // report what this pass changed
         if changed {
@@ -83,6 +85,7 @@ fn run_promote_memory_to_registers(
     accesses: &mut mir::AccessTable,
     cfg: &ControlTable,
     domtree: &DominatorTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // find promotable locals (only LocalGet/LocalSet, no address taken)
     let promotable = find_promotable_locals(function, tree);
@@ -112,7 +115,8 @@ fn run_promote_memory_to_registers(
     );
 
     // insert block parameters for locals
-    let block_params = insert_block_parameters(&param_placements, &promotable, function, tree);
+    let block_params =
+        insert_block_parameters(&param_placements, &promotable, function, tree, provenance);
 
     // rename variables: replace LocalGet/LocalSet with SSA values
     let entry = function.entry().expect("function has no entry block");
@@ -125,10 +129,14 @@ fn run_promote_memory_to_registers(
         cfg,
         domtree,
         entry,
+        provenance,
     );
 
     // remove promoted locals from the function
     let promoted_set: FxIndexSet<_> = promotable.keys().copied().collect();
+    for local in &promoted_set {
+        tree.record_removal(*local, provenance);
+    }
     function.retain_locals(|local| !promoted_set.contains(&local));
 
     true
@@ -138,7 +146,7 @@ fn run_promote_memory_to_registers(
 #[derive(Debug)]
 struct PromotableLocal {
     /// The type of the local.
-    ty: mir::LocalNodeId<mir::Type>,
+    ty: mir::TypeId,
 }
 
 /// Type alias for the renaming worklist to avoid type_complexity warning.
@@ -381,6 +389,7 @@ fn insert_block_parameters(
     promotable: &FxIndexMap<mir::LocalNodeId<mir::Local>, PromotableLocal>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> FxIndexMap<(mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Local>), mir::Value> {
     let mut block_params = FxIndexMap::default();
 
@@ -407,12 +416,13 @@ fn insert_block_parameters(
             block.parameters.push(mir::BlockParameter {
                 value: param_value,
                 ty,
+                provenance: provenance.derive(tree.provenance(local)),
             });
 
             block_params.insert((block_id, local), param_value);
         }
 
-        tree.set(block_id, block);
+        tree.rewrite(block_id, block, provenance);
     }
 
     block_params
@@ -431,6 +441,7 @@ fn rename_variables(
     _cfg: &ControlTable,
     domtree: &DominatorTable,
     entry: mir::LocalNodeId<mir::Block>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // current value for each local during renaming (stack for each local)
     let mut value_stacks: FxIndexMap<mir::LocalNodeId<mir::Local>, Vec<mir::Value>> =
@@ -507,7 +518,7 @@ fn rename_variables(
         );
 
         if new_terminator != terminator {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
         }
 
         // record current stack depths for children
@@ -537,8 +548,8 @@ fn rename_variables(
             let new_instruction =
                 instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
             if new_instruction != instruction {
-                tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                tree.rewrite(instruction_id, new_instruction, provenance);
+                accesses.remap_instruction(instruction_id, &substitutions);
             }
         }
 
@@ -547,7 +558,7 @@ fn rename_variables(
         let terminator = tree.get(terminator_id).clone();
         let new_terminator = terminator_substitute_uses(tree, &terminator, &substitutions);
         if new_terminator != terminator {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
         }
     }
 
@@ -563,7 +574,16 @@ fn rename_variables(
             .collect();
 
         if new_instructions.len() != block.instructions.len() {
-            function.replace_block_instructions(block_id, new_instructions, tree);
+            for instruction in block
+                .instructions
+                .iter()
+                .copied()
+                .filter(|instruction| instructions_to_remove.contains(instruction))
+            {
+                tree.record_removal(instruction, provenance);
+                accesses.remove(instruction);
+            }
+            function.replace_block_instructions(block_id, new_instructions, tree, provenance);
         }
     }
 }

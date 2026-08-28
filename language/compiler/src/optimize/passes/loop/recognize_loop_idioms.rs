@@ -2,6 +2,7 @@ use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -66,6 +67,7 @@ impl FunctionPass for RecognizeLoopIdioms {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -77,7 +79,8 @@ impl FunctionPass for RecognizeLoopIdioms {
             return Mutation::NONE;
         }
 
-        let changed = run_recognize_loop_idioms(function, tree, accesses, ctx, analyses);
+        let changed =
+            run_recognize_loop_idioms(function, tree, accesses, ctx, analyses, provenance);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -89,6 +92,8 @@ impl FunctionPass for RecognizeLoopIdioms {
 /// The induction guard pattern of one loop.
 #[derive(Debug, Clone)]
 struct LoopGuard {
+    /// The comparison instruction used by the guard.
+    instruction: mir::LocalNodeId<mir::Instruction>,
     /// The induction value used by the guard.
     induction: mir::Value,
     /// The bound value used by the guard.
@@ -102,6 +107,7 @@ fn run_recognize_loop_idioms(
     accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     let mut changed = false;
     loop {
@@ -240,6 +246,10 @@ fn run_recognize_loop_idioms(
                 if !array_is_uint8(pattern.array, function, tree) {
                     continue;
                 }
+                let sources = [
+                    tree.provenance(pattern.store),
+                    tree.provenance(guard.instruction),
+                ];
 
                 // decide whether the copy needs a bounds guard
                 let should_guard = should_guard_copy_bounds(
@@ -252,24 +262,12 @@ fn run_recognize_loop_idioms(
                     tree,
                 );
 
-                // place the intrinsic behind a guard block, or directly in the preheader
-                let mem_block = if should_guard {
-                    let terminator = tree.insert(mir::Terminator::Jump {
-                        target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
-                    });
-                    let mem_block = tree.insert(mir::Block {
-                        parameters: Vec::new(),
-                        instructions: Vec::new(),
-                        terminator,
-                    });
-                    function.add_block(mem_block, tree);
-                    mem_block
-                } else {
-                    preheader
-                };
-
                 // materialize the byte length ahead of the intrinsic
-                let mut mem_block_body = tree.get(mem_block).clone();
+                let mut instructions = if should_guard {
+                    Vec::new()
+                } else {
+                    tree.get(preheader).instructions.clone()
+                };
                 let Some(length_value) = emit_copy_length(
                     bound_value,
                     start_value,
@@ -281,12 +279,14 @@ fn run_recognize_loop_idioms(
                     &definitions,
                     function,
                     tree,
-                    &mut mem_block_body,
+                    &mut instructions,
+                    &sources,
+                    provenance,
                 ) else {
                     continue;
                 };
 
-                // emit the memset and jump straight to the loop exit
+                // emit the memset
                 emit_memset(
                     pattern.array,
                     pattern.element_addr_type,
@@ -295,34 +295,34 @@ fn run_recognize_loop_idioms(
                     length_value,
                     function,
                     tree,
-                    &mut mem_block_body,
+                    &mut instructions,
+                    &sources,
+                    provenance,
                 );
-                let mem_terminator = mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
-                };
-                let mem_instructions = mem_block_body.instructions;
-                function.replace_block_instructions(mem_block, mem_instructions, tree);
-                tree.set(tree.get(mem_block).terminator, mem_terminator);
 
                 // bypass the original loop body
                 if should_guard {
-                    let guard_inst = insert_bound_guard(
+                    let memory_block =
+                        insert_memory_block(exit_block, instructions, tree, &sources, provenance);
+                    function.add_block(memory_block, tree);
+                    insert_bound_guard(
                         start_value,
                         bound_value,
                         function,
                         tree,
                         preheader,
-                        mem_block,
+                        memory_block,
                         exit_block,
+                        &sources,
+                        provenance,
                     );
-                    if guard_inst.is_none() {
-                        continue;
-                    }
                 } else {
+                    function.replace_block_instructions(preheader, instructions, tree, provenance);
                     let preheader_terminator = mir::Terminator::Jump {
                         target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                     };
-                    tree.set(tree.get(preheader).terminator, preheader_terminator);
+                    let terminator = tree.get(preheader).terminator;
+                    tree.rewrite(terminator, preheader_terminator, provenance);
                 }
 
                 // record the rewrite and rescan from the top
@@ -382,7 +382,7 @@ fn run_recognize_loop_idioms(
             }
 
             // require a known element size
-            let element = tree.get(dest_element);
+            let element = tree.ty(dest_element);
             let Some(element_size) = element.byte_size(tree, ctx.target_layout().pointer_bits())
             else {
                 continue;
@@ -398,6 +398,11 @@ fn run_recognize_loop_idioms(
             if dest_space != src_space {
                 continue;
             }
+            let sources = [
+                tree.provenance(pattern.store),
+                tree.provenance(pattern.load),
+                tree.provenance(guard.instruction),
+            ];
 
             // decide whether the copy needs a bounds guard
             let should_guard = should_guard_copy_bounds(
@@ -410,24 +415,12 @@ fn run_recognize_loop_idioms(
                 tree,
             );
 
-            // place the intrinsic behind a guard block, or directly in the preheader
-            let mem_block = if should_guard {
-                let terminator = tree.insert(mir::Terminator::Jump {
-                    target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
-                });
-                let mem_block = tree.insert(mir::Block {
-                    parameters: Vec::new(),
-                    instructions: Vec::new(),
-                    terminator,
-                });
-                function.add_block(mem_block, tree);
-                mem_block
-            } else {
-                preheader
-            };
-
             // materialize the byte length ahead of the intrinsic
-            let mut mem_block_body = tree.get(mem_block).clone();
+            let mut instructions = if should_guard {
+                Vec::new()
+            } else {
+                tree.get(preheader).instructions.clone()
+            };
             let Some(length_value) = emit_copy_length(
                 bound_value,
                 start_value,
@@ -439,7 +432,9 @@ fn run_recognize_loop_idioms(
                 &definitions,
                 function,
                 tree,
-                &mut mem_block_body,
+                &mut instructions,
+                &sources,
+                provenance,
             ) else {
                 continue;
             };
@@ -454,7 +449,7 @@ fn run_recognize_loop_idioms(
                 mir::Intrinsic::Memmove
             };
 
-            // emit the intrinsic and jump straight to the loop exit
+            // emit the intrinsic
             emit_memcpy_or_memmove(
                 intrinsic,
                 pattern.dest_array,
@@ -465,34 +460,34 @@ fn run_recognize_loop_idioms(
                 length_value,
                 function,
                 tree,
-                &mut mem_block_body,
+                &mut instructions,
+                &sources,
+                provenance,
             );
-            let mem_terminator = mir::Terminator::Jump {
-                target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
-            };
-            let mem_instructions = mem_block_body.instructions;
-            function.replace_block_instructions(mem_block, mem_instructions, tree);
-            tree.set(tree.get(mem_block).terminator, mem_terminator);
 
             // bypass the original loop body
             if should_guard {
-                let guard_inst = insert_bound_guard(
+                let memory_block =
+                    insert_memory_block(exit_block, instructions, tree, &sources, provenance);
+                function.add_block(memory_block, tree);
+                insert_bound_guard(
                     start_value,
                     bound_value,
                     function,
                     tree,
                     preheader,
-                    mem_block,
+                    memory_block,
                     exit_block,
+                    &sources,
+                    provenance,
                 );
-                if guard_inst.is_none() {
-                    continue;
-                }
             } else {
+                function.replace_block_instructions(preheader, instructions, tree, provenance);
                 let preheader_terminator = mir::Terminator::Jump {
                     target: mir::BlockTarget::new(exit_block, mir::ValueSlice::default()),
                 };
-                tree.set(tree.get(preheader).terminator, preheader_terminator);
+                let terminator = tree.get(preheader).terminator;
+                tree.rewrite(terminator, preheader_terminator, provenance);
             }
 
             // record the rewrite and rescan from the top
@@ -513,10 +508,12 @@ fn run_recognize_loop_idioms(
 /// One loop body recognized as a memset.
 #[derive(Debug, Clone)]
 struct MemsetPattern {
+    /// The store replaced by the intrinsic.
+    store: mir::LocalNodeId<mir::Instruction>,
     /// The array being filled.
     array: mir::Value,
     /// The element address result type.
-    element_addr_type: mir::LocalNodeId<mir::Type>,
+    element_addr_type: mir::TypeId,
     /// The constant value written by the store, when available.
     value_constant: Option<mir::Constant>,
     /// The block containing the store.
@@ -526,14 +523,18 @@ struct MemsetPattern {
 /// One loop body recognized as a memcpy or memmove.
 #[derive(Debug, Clone)]
 struct MemcpyPattern {
+    /// The store replaced by the intrinsic.
+    store: mir::LocalNodeId<mir::Instruction>,
+    /// The load replaced by the intrinsic.
+    load: mir::LocalNodeId<mir::Instruction>,
     /// Destination array value.
     dest_array: mir::Value,
     /// Source array value.
     src_array: mir::Value,
     /// The destination element address result type.
-    dest_element_addr_type: mir::LocalNodeId<mir::Type>,
+    dest_element_addr_type: mir::TypeId,
     /// The source element address result type.
-    src_element_addr_type: mir::LocalNodeId<mir::Type>,
+    src_element_addr_type: mir::TypeId,
     /// The block containing the store.
     store_block: mir::LocalNodeId<mir::Block>,
     /// The block containing the load.
@@ -557,6 +558,7 @@ fn match_memset_pattern(
     let mut store_reference = None;
     let mut store_value = None;
     let mut store_block = None;
+    let mut store_instruction = None;
 
     for &block_id in &lp.blocks {
         let block = tree.get(block_id);
@@ -584,6 +586,7 @@ fn match_memset_pattern(
                     store_reference = Some(*pointer);
                     store_value = Some(*value);
                     store_block = Some(block_id);
+                    store_instruction = Some(inst_id);
                     continue;
                 }
 
@@ -610,6 +613,7 @@ fn match_memset_pattern(
     let value = store_value?;
     let value_const = constant_for_value(value, definitions, tree);
     Some(MemsetPattern {
+        store: store_instruction?,
         array,
         element_addr_type,
         value_constant: value_const,
@@ -631,9 +635,11 @@ fn match_memcpy_pattern(
     let mut store_reference = None;
     let mut store_value = None;
     let mut store_block = None;
+    let mut store_instruction = None;
     let mut load_reference = None;
     let mut load_value = None;
     let mut load_block = None;
+    let mut load_instruction = None;
 
     for &block_id in &lp.blocks {
         let block = tree.get(block_id);
@@ -661,6 +667,7 @@ fn match_memcpy_pattern(
                     store_reference = Some(*pointer);
                     store_value = Some(*value);
                     store_block = Some(block_id);
+                    store_instruction = Some(inst_id);
                     continue;
                 }
                 mir::Instruction::Load {
@@ -674,6 +681,7 @@ fn match_memcpy_pattern(
                     load_reference = Some(*pointer);
                     load_value = Some(*destination);
                     load_block = Some(block_id);
+                    load_instruction = Some(inst_id);
                     continue;
                 }
                 _ => {}
@@ -717,6 +725,8 @@ fn match_memcpy_pattern(
     }
 
     Some(MemcpyPattern {
+        store: store_instruction?,
+        load: load_instruction?,
         dest_array,
         src_array,
         dest_element_addr_type,
@@ -733,7 +743,7 @@ fn element_addr_for_pointer(
     pointer: mir::Value,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-) -> Option<(mir::Value, mir::Value, mir::LocalNodeId<mir::Type>)> {
+) -> Option<(mir::Value, mir::Value, mir::TypeId)> {
     // find the instruction that defines the pointer
     let inst_id = definitions.instruction(pointer)?;
 
@@ -755,7 +765,7 @@ fn array_is_uint8(array: mir::Value, function: &mir::Function, tree: &mir::Tree)
     let Some(element) = array_element_type(array, function, tree) else {
         return false;
     };
-    let element_ty = tree.get(element);
+    let element_ty = tree.ty(element);
     matches!(
         element_ty,
         mir::Type::Int {
@@ -770,15 +780,15 @@ fn array_element_type(
     array: mir::Value,
     function: &mir::Function,
     tree: &mir::Tree,
-) -> Option<mir::LocalNodeId<mir::Type>> {
+) -> Option<mir::TypeId> {
     // resolve the fixed array type
     let ty_id = function.expect_value_type(array);
-    let ty = tree.get(ty_id);
+    let ty = tree.ty(ty_id);
 
     match ty {
         mir::Type::FixedArray { element, .. } => Some(*element),
         mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-            match tree.get(*pointee) {
+            match tree.ty(*pointee) {
                 mir::Type::FixedArray { element, .. } => Some(*element),
                 _ => None,
             }
@@ -801,13 +811,13 @@ fn arrays_are_value_types(
     let dest_ty = function.expect_value_type(dest_array);
     let src_ty = function.expect_value_type(src_array);
 
-    matches!(tree.get(dest_ty), mir::Type::FixedArray { .. })
-        && matches!(tree.get(src_ty), mir::Type::FixedArray { .. })
+    matches!(tree.ty(dest_ty), mir::Type::FixedArray { .. })
+        && matches!(tree.ty(src_ty), mir::Type::FixedArray { .. })
 }
 
 /// Return the space for a reference type.
 fn reference_space(ty_id: mir::TypeId, tree: &mir::Tree) -> Option<mir::Space> {
-    match tree.get(ty_id) {
+    match tree.ty(ty_id) {
         mir::Type::Reference { storage, .. } => storage.heap_space(),
         _ => None,
     }
@@ -845,6 +855,28 @@ fn should_guard_copy_bounds(
     start_max > bound_min
 }
 
+/// Insert the memory intrinsic block.
+fn insert_memory_block(
+    exit: mir::LocalNodeId<mir::Block>,
+    instructions: Vec<mir::LocalNodeId<mir::Instruction>>,
+    tree: &mut mir::Tree,
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
+) -> mir::LocalNodeId<mir::Block> {
+    let [terminator_provenance, block_provenance] = provenance.generate_many(sources);
+    let terminator = tree.insert(
+        mir::Terminator::Jump {
+            target: mir::BlockTarget::new(exit, mir::ValueSlice::default()),
+        },
+        terminator_provenance,
+    );
+
+    let mut block = mir::Block::new(terminator);
+    block.instructions = instructions;
+
+    tree.insert(block, block_provenance)
+}
+
 /// Insert a bounds guard branching to the fast path or exit.
 fn insert_bound_guard(
     start: mir::Value,
@@ -854,77 +886,89 @@ fn insert_bound_guard(
     preheader: mir::LocalNodeId<mir::Block>,
     success_target: mir::LocalNodeId<mir::Block>,
     failure_target: mir::LocalNodeId<mir::Block>,
-) -> Option<mir::LocalNodeId<mir::Instruction>> {
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
+) {
     // emit the bound comparison
     let bool_type = tree.boolean_type();
-    let guard_inst = tree.insert(mir::Instruction::Binary {
-        destination: function.next_typed_value(bool_type),
-        operator: mir::BinaryOperator::LessEqual,
-        left: start,
-        right: bound,
-    });
+    let guard_value = function.next_typed_value(bool_type);
+    let guard_provenance = provenance.generate(sources);
+    let guard_inst = tree.insert(
+        mir::Instruction::Binary {
+            destination: guard_value,
+            operator: mir::BinaryOperator::LessEqual,
+            left: start,
+            right: bound,
+        },
+        guard_provenance,
+    );
     let mut instructions = tree.get(preheader).instructions.clone();
     instructions.push(guard_inst);
-    function.replace_block_instructions(preheader, instructions, tree);
+    function.replace_block_instructions(preheader, instructions, tree, provenance);
 
     // branch on the guard to the fast path or exit
-    let guard_value = tree.get(guard_inst).destination()?;
     let guard_terminator = mir::Terminator::Branch {
         condition: guard_value,
         then_target: mir::BlockTarget::new(success_target, mir::ValueSlice::default()),
         else_target: mir::BlockTarget::new(failure_target, mir::ValueSlice::default()),
     };
-    tree.set(tree.get(preheader).terminator, guard_terminator);
-
-    Some(guard_inst)
+    let terminator = tree.get(preheader).terminator;
+    let inputs = [tree.provenance(terminator), guard_provenance];
+    tree.replace(terminator, guard_terminator, provenance.generate(&inputs));
 }
 
 /// Emit an intrinsic.memory.raw.setBytes for the loop idiom.
 fn emit_memset(
     array: mir::Value,
-    element_addr_type: mir::LocalNodeId<mir::Type>,
+    element_addr_type: mir::TypeId,
     start: mir::Value,
     fill_value: mir::Constant,
     length: mir::Value,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    block: &mut mir::Block,
+    instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // materialize the fill constant
-    let element_type = match tree.get(element_addr_type) {
-        mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => Some(*pointee),
-        _ => None,
+    let element_type = match tree.ty(element_addr_type) {
+        mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
+        _ => unreachable!("element address must produce a reference or pointer"),
     };
-    let Some(element_type) = element_type else {
-        return;
-    };
-    let fill_inst = tree.insert(mir::Instruction::Const {
-        destination: function.next_typed_value(element_type),
-        value: fill_value,
-    });
-    block.instructions.push(fill_inst);
+    let fill = function.next_typed_value(element_type);
+    let fill_inst = tree.insert(
+        mir::Instruction::Const {
+            destination: fill,
+            value: fill_value,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(fill_inst);
 
     // compute the base reference for the memset
-    let ptr_inst = tree.insert(mir::Instruction::ElementAddr {
-        destination: function.next_typed_value(element_addr_type),
-        base: array,
-        index: start,
-        result_type: element_addr_type,
-    });
-    block.instructions.push(ptr_inst);
+    let pointer = function.next_typed_value(element_addr_type);
+    let ptr_inst = tree.insert(
+        mir::Instruction::ElementAddr {
+            destination: pointer,
+            base: array,
+            index: start,
+            result_type: element_addr_type,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(ptr_inst);
 
     // emit the memset call
-    let args = tree.add_values(&[
-        tree.get(ptr_inst).destination().unwrap(),
-        tree.get(fill_inst).destination().unwrap(),
-        length,
-    ]);
-    let mem_inst = tree.insert(mir::Instruction::Intrinsic {
-        destination: None,
-        intrinsic: mir::Intrinsic::Memset,
-        arguments: args,
-    });
-    block.instructions.push(mem_inst);
+    let args = tree.add_values(&[pointer, fill, length]);
+    let mem_inst = tree.insert(
+        mir::Instruction::Intrinsic {
+            destination: None,
+            intrinsic: mir::Intrinsic::Memset,
+            arguments: args,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(mem_inst);
 }
 
 /// Emit memcpy or memmove for the loop idiom.
@@ -932,44 +976,53 @@ fn emit_memcpy_or_memmove(
     intrinsic: mir::Intrinsic,
     dest_array: mir::Value,
     src_array: mir::Value,
-    dest_element_addr_type: mir::LocalNodeId<mir::Type>,
-    src_element_addr_type: mir::LocalNodeId<mir::Type>,
+    dest_element_addr_type: mir::TypeId,
+    src_element_addr_type: mir::TypeId,
     start: mir::Value,
     length: mir::Value,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    block: &mut mir::Block,
+    instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // compute the destination base reference
-    let dest_ptr_inst = tree.insert(mir::Instruction::ElementAddr {
-        destination: function.next_typed_value(dest_element_addr_type),
-        base: dest_array,
-        index: start,
-        result_type: dest_element_addr_type,
-    });
-    block.instructions.push(dest_ptr_inst);
+    let destination_pointer = function.next_typed_value(dest_element_addr_type);
+    let dest_ptr_inst = tree.insert(
+        mir::Instruction::ElementAddr {
+            destination: destination_pointer,
+            base: dest_array,
+            index: start,
+            result_type: dest_element_addr_type,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(dest_ptr_inst);
 
     // compute the source base reference
-    let src_ptr_inst = tree.insert(mir::Instruction::ElementAddr {
-        destination: function.next_typed_value(src_element_addr_type),
-        base: src_array,
-        index: start,
-        result_type: src_element_addr_type,
-    });
-    block.instructions.push(src_ptr_inst);
+    let source_pointer = function.next_typed_value(src_element_addr_type);
+    let src_ptr_inst = tree.insert(
+        mir::Instruction::ElementAddr {
+            destination: source_pointer,
+            base: src_array,
+            index: start,
+            result_type: src_element_addr_type,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(src_ptr_inst);
 
     // emit the intrinsic call
-    let args = tree.add_values(&[
-        tree.get(dest_ptr_inst).destination().unwrap(),
-        tree.get(src_ptr_inst).destination().unwrap(),
-        length,
-    ]);
-    let mem_inst = tree.insert(mir::Instruction::Intrinsic {
-        destination: None,
-        intrinsic,
-        arguments: args,
-    });
-    block.instructions.push(mem_inst);
+    let args = tree.add_values(&[destination_pointer, source_pointer, length]);
+    let mem_inst = tree.insert(
+        mir::Instruction::Intrinsic {
+            destination: None,
+            intrinsic,
+            arguments: args,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(mem_inst);
 }
 
 /// Return unsigned integer bounds for a value when available.
@@ -1034,7 +1087,9 @@ fn emit_copy_length(
     definitions: &DefinitionTable,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    block: &mut mir::Block,
+    instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> Option<mir::Value> {
     // skip length materialization when byte sized with zero start
     let start_const = constant_for_value(start, definitions, tree);
@@ -1092,14 +1147,18 @@ fn emit_copy_length(
     let length_base = if start_is_zero {
         bound
     } else {
-        let subtract_inst = tree.insert(mir::Instruction::Binary {
-            destination: function.next_typed_value_like(bound),
-            operator: mir::BinaryOperator::Subtract,
-            left: bound,
-            right: start,
-        });
-        block.instructions.push(subtract_inst);
-        tree.get(subtract_inst).destination().unwrap()
+        let destination = function.next_typed_value_like(bound);
+        let subtract_inst = tree.insert(
+            mir::Instruction::Binary {
+                destination,
+                operator: mir::BinaryOperator::Subtract,
+                left: bound,
+                right: start,
+            },
+            provenance.fuse(sources),
+        );
+        instructions.push(subtract_inst);
+        destination
     };
 
     // return the base length directly for byte sized elements
@@ -1112,22 +1171,30 @@ fn emit_copy_length(
         value: u128::from(element_size),
         width: bound_width,
     };
-    let size_inst = tree.insert(mir::Instruction::Const {
-        destination: function.next_typed_value_like(bound),
-        value: size_const,
-    });
-    block.instructions.push(size_inst);
+    let size_value = function.next_typed_value_like(bound);
+    let size_inst = tree.insert(
+        mir::Instruction::Const {
+            destination: size_value,
+            value: size_const,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(size_inst);
 
     // multiply by element size
-    let length_inst = tree.insert(mir::Instruction::Binary {
-        destination: function.next_typed_value_like(bound),
-        operator: mir::BinaryOperator::Multiply,
-        left: length_base,
-        right: tree.get(size_inst).destination().unwrap(),
-    });
-    block.instructions.push(length_inst);
+    let length_value = function.next_typed_value_like(bound);
+    let length_inst = tree.insert(
+        mir::Instruction::Binary {
+            destination: length_value,
+            operator: mir::BinaryOperator::Multiply,
+            left: length_base,
+            right: size_value,
+        },
+        provenance.fuse(sources),
+    );
+    instructions.push(length_inst);
 
-    tree.get(length_inst).destination()
+    Some(length_value)
 }
 
 /// Check whether a value is loop invariant.
@@ -1261,7 +1328,7 @@ fn guard_from_header(
 
     // accept only unsigned less than guards
     let operand_type = function.expect_value_type(*left);
-    let is_unsigned = tree.get(operand_type).integer_signedness() == Some(false);
+    let is_unsigned = tree.ty(operand_type).integer_signedness() == Some(false);
     if *operator != mir::BinaryOperator::LessThan || !is_unsigned {
         return None;
     }
@@ -1277,6 +1344,7 @@ fn guard_from_header(
     }
 
     Some(LoopGuard {
+        instruction,
         induction: *left,
         bound: *right,
     })

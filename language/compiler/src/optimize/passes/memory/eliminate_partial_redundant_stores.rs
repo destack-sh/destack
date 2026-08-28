@@ -2,13 +2,14 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    AliasTable, ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, MemoryAccessEffect,
-    MemoryAccessId, MemoryNode, MemoryRegion, MemoryTable, Mutation, ValueEquivalence,
-    ensure_edge_block, instruction_is_read_only_access, instruction_is_speculatable,
-    resolve_edge_value, value_available_in_block,
+    AliasTable, ControlTable, DefinitionTable, DominatorTable, MemoryAccessEffect, MemoryAccessId,
+    MemoryNode, MemoryRegion, MemoryTable, Mutation, ValueEquivalence,
+    instruction_is_read_only_access, instruction_is_speculatable, resolve_edge_value,
+    value_available_in_block,
 };
 
 declare_pass! {
@@ -58,6 +59,7 @@ impl FunctionPass for EliminatePartialRedundantStores {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -72,7 +74,7 @@ impl FunctionPass for EliminatePartialRedundantStores {
 
         // run store PRE
         let changed = run_eliminate_partial_redundant_stores(
-            function, tree, accesses, effects, ctx, analyses,
+            function, tree, accesses, effects, ctx, analyses, provenance,
         );
 
         // report what this pass changed
@@ -115,8 +117,8 @@ struct StoreCandidate {
 /// Store insertion plan for a predecessor edge.
 #[derive(Clone, Copy)]
 struct EdgeStorePlan {
-    /// Predecessor block id.
-    predecessor: mir::LocalNodeId<mir::Block>,
+    /// Exact incoming edge.
+    edge: mir::Edge,
     /// Pointer value to store to on this edge.
     pointer: Option<mir::Value>,
     /// Local target when applicable.
@@ -135,6 +137,7 @@ fn run_eliminate_partial_redundant_stores(
     effects: &mir::EffectTable,
     _ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // gather analyses
     let cfg = analyses.control(function, tree).clone();
@@ -147,12 +150,7 @@ fn run_eliminate_partial_redundant_stores(
     let definitions = DefinitionTable::build(function, tree);
 
     // track modifications
-    let mut edge_blocks: FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    > = FxIndexMap::default();
     let mut to_remove = FxIndexSet::default();
-    let mut changed = false;
 
     // scan each block for eligible stores
     let block_ids = function.blocks().to_vec();
@@ -234,21 +232,24 @@ fn run_eliminate_partial_redundant_stores(
                     continue;
                 }
 
-                // select or create the insertion block
-                let insertion_block = ensure_edge_block(
-                    plan.predecessor,
-                    candidate.block,
-                    function,
-                    tree,
-                    &cfg,
-                    &mut edge_blocks,
-                    EdgeSplitPolicy::PredecessorMultiSuccessor,
-                    &mut changed,
-                );
+                // isolate the selected edge when its source has other outcomes
+                let source = tree.get(plan.edge.source);
+                let terminator = tree.get(source.terminator);
+                let insertion_edge = if terminator.edges(tree, plan.edge.source).len() > 1 {
+                    plan.edge.split(function, tree, provenance)
+                } else {
+                    plan.edge
+                };
 
                 // insert a new store at the edge block
-                let store_id =
-                    insert_store_for_plan(function, tree, insertion_block, plan, candidate.kind);
+                let store_id = insert_store_for_plan(
+                    function,
+                    tree,
+                    insertion_edge.source,
+                    plan,
+                    &candidate,
+                    provenance,
+                );
                 clone_store_metadata(accesses, candidate.instruction, store_id, plan.pointer);
             }
 
@@ -258,15 +259,21 @@ fn run_eliminate_partial_redundant_stores(
     }
 
     // return early when nothing changes
-    if to_remove.is_empty() && !changed {
+    if to_remove.is_empty() {
         return false;
     }
 
     // remove original stores
+    for instruction_id in &to_remove {
+        tree.record_removal(*instruction_id, provenance);
+    }
     for block_id in function.blocks().to_vec() {
+        let previous_count = tree.get(block_id).instructions.len();
         let mut instructions = tree.get(block_id).instructions.clone();
         instructions.retain(|id| !to_remove.contains(id));
-        function.replace_block_instructions(block_id, instructions, tree);
+        if instructions.len() != previous_count {
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
+        }
     }
 
     // drop memory tables for removed stores
@@ -422,64 +429,60 @@ fn collect_edge_insertions(
         .map(|(block, access)| (*block, *access))
         .collect();
 
-    // scan predecessors for insertion opportunities
+    // scan exact incoming edges for insertion opportunities
     for &predecessor in predecessors {
-        // resolve the pointer and value for this edge
         let predecessor_block = tree.get(predecessor);
-        let pointer = match store.pointer {
-            Some(ptr) => Some(resolve_edge_value(
-                ptr,
-                store.block,
-                predecessor_block,
+        let predecessor_terminator = tree.get(predecessor_block.terminator);
+        let edges = predecessor_terminator
+            .edges(tree, predecessor)
+            .into_iter()
+            .filter(|(_, target)| *target == store.block);
+
+        for (edge, _) in edges {
+            // resolve the pointer and value for this edge
+            let pointer = match store.pointer {
+                Some(pointer) => Some(resolve_edge_value(pointer, edge, tree, param_indices)?),
+                None => None,
+            };
+            let value = resolve_edge_value(store.value, edge, tree, param_indices)?;
+
+            // ensure the reference value is available on this edge
+            if let Some(pointer) = pointer
+                && !value_available_in_block(pointer, predecessor, definitions, domtree)
+            {
+                return None;
+            }
+
+            // ensure the stored value is available on this edge
+            if !value_available_in_block(value, predecessor, definitions, domtree) {
+                return None;
+            }
+
+            // read the incoming memory access for this predecessor
+            let incoming_access = incoming_by_pred.get(&predecessor).copied()?;
+
+            // detect equivalent stores on this edge
+            let already_stored = incoming_def_matches(
+                store,
+                incoming_access,
+                pointer,
+                value,
+                accesses,
+                memory,
+                alias,
                 tree,
-                param_indices,
-            )?),
-            None => None,
-        };
-        let value = resolve_edge_value(
-            store.value,
-            store.block,
-            predecessor_block,
-            tree,
-            param_indices,
-        )?;
+                equivalence,
+            );
 
-        // ensure the reference value is available on this edge
-        if let Some(ptr) = pointer
-            && !value_available_in_block(ptr, predecessor, definitions, domtree)
-        {
-            return None;
+            // record the insertion decision
+            insertions.push(EdgeStorePlan {
+                edge,
+                pointer,
+                local: store.local,
+                value,
+                already_stored,
+            });
         }
-
-        // ensure the stored value is available on this edge
-        if !value_available_in_block(value, predecessor, definitions, domtree) {
-            return None;
-        }
-
-        // read the incoming memory access for this predecessor
-        let incoming_access = incoming_by_pred.get(&predecessor).copied()?;
-
-        // detect equivalent stores on this edge
-        let already_stored = incoming_def_matches(
-            store,
-            incoming_access,
-            pointer,
-            value,
-            accesses,
-            memory,
-            alias,
-            tree,
-            equivalence,
-        );
-
-        // record the insertion decision
-        insertions.push(EdgeStorePlan {
-            predecessor,
-            pointer,
-            local: store.local,
-            value,
-            already_stored,
-        });
     }
 
     Some(insertions)
@@ -563,25 +566,32 @@ fn insert_store_for_plan(
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     plan: &EdgeStorePlan,
-    kind: StoreKind,
+    candidate: &StoreCandidate,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> mir::LocalNodeId<mir::Instruction> {
     // build the new store instruction
-    let instruction = match kind {
+    let instruction = match candidate.kind {
         StoreKind::Store => mir::Instruction::Store {
-            pointer: plan.pointer.expect("store pointer required"),
+            pointer: plan
+                .pointer
+                .unwrap_or_else(|| unreachable!("store plan must have a pointer")),
             value: plan.value,
         },
         StoreKind::LocalSet => mir::Instruction::LocalSet {
-            local: plan.local.expect("local target required"),
+            local: plan
+                .local
+                .unwrap_or_else(|| unreachable!("local store plan must have a target")),
             value: plan.value,
         },
     };
 
     // insert the instruction in the edge block
-    let instruction_id = tree.insert(instruction);
+    let source = tree.provenance(candidate.instruction);
+    let output = provenance.derive(source);
+    let instruction_id = tree.insert(instruction, output);
     let mut instructions = tree.get(block_id).instructions.clone();
     instructions.push(instruction_id);
-    function.replace_block_instructions(block_id, instructions, tree);
+    function.replace_block_instructions(block_id, instructions, tree, provenance);
     instruction_id
 }
 

@@ -1,6 +1,7 @@
 use crate::optimize::declare_pass;
 use destack_artifact::ProgramAnalysis;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::passes::interprocedural::{
     run_eliminate_dead_functions, run_eliminate_global_dead_code,
@@ -46,20 +47,25 @@ impl ModulePass for EliminateInterproceduralDeadCode {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
         let drops = &mut optimized.drops;
 
         // run the cleanup pass
-        let changed =
-            run_interprocedural_dce_cleanup(tree, accesses, drops, ctx.program_analysis());
+        let changed = run_interprocedural_dce_cleanup(
+            tree,
+            accesses,
+            drops,
+            ctx.program_analysis(),
+            &mut journal,
+        );
 
-        // report what this pass changed
         if changed {
-            ctx.strings.intern("eliminate-interprocedural-dead-code");
             Mutation::CONTROL
         } else {
             Mutation::NONE
@@ -73,14 +79,15 @@ fn run_interprocedural_dce_cleanup(
     accesses: &mut mir::AccessTable,
     drops: &mut mir::DropTable,
     program: &ProgramAnalysis,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     let mut changed = false;
 
-    if run_eliminate_dead_functions(tree, accesses, drops, program) {
+    if run_eliminate_dead_functions(tree, accesses, drops, program, provenance) {
         changed = true;
     }
 
-    if run_eliminate_global_dead_code(tree) {
+    if run_eliminate_global_dead_code(tree, provenance) {
         changed = true;
     }
 

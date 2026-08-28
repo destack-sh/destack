@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -90,6 +91,7 @@ impl FunctionPass for VersionLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -101,7 +103,7 @@ impl FunctionPass for VersionLoops {
             return Mutation::NONE;
         }
 
-        let changed = run_version_loops(function, tree, accesses, ctx, analyses);
+        let changed = run_version_loops(function, tree, accesses, ctx, analyses, provenance);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -113,6 +115,8 @@ impl FunctionPass for VersionLoops {
 /// Captures the induction guard pattern for a loop.
 #[derive(Debug, Clone)]
 struct LoopGuard {
+    /// The comparison instruction used by the guard.
+    instruction: mir::LocalNodeId<mir::Instruction>,
     /// The induction value used by the guard.
     induction: mir::Value,
     /// The bound value used by the guard.
@@ -128,6 +132,7 @@ fn run_version_loops(
     accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // gather analyses
     let loops = analyses.loops(function, tree).clone();
@@ -177,9 +182,15 @@ fn run_version_loops(
         }
 
         // find a matching bounds check inside the loop
-        let Some((length, collection)) = bounds_check_in_loop(lp, guard.induction, tree) else {
+        let Some((length, collection, bounds_check)) =
+            bounds_check_in_loop(lp, guard.induction, tree)
+        else {
             continue;
         };
+        let sources = [
+            tree.provenance(guard.instruction),
+            tree.provenance(bounds_check),
+        ];
 
         // require loop invariant bounds
         let resolved_length = forwarding.resolve(length);
@@ -220,25 +231,25 @@ fn run_version_loops(
             function,
             tree,
             &ranges,
+            &sources,
+            provenance,
         ) else {
             continue;
         };
 
         // insert the preheader guard for the fast path
-        let Some(fast_guard) = insert_preheader_guard(
-            preheader,
+        let fast_guard = insert_preheader_guard(
             guard_bound,
             resolved_length,
             function,
             tree,
-            &preheader_args,
-            header,
-        ) else {
-            continue;
-        };
+            &sources,
+            provenance,
+        );
 
         // clone the loop body for the fast path
-        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree, accesses);
+        let (block_map, value_map) =
+            clone_loop_blocks(&lp.blocks, function, tree, provenance, accesses);
 
         // remember the cloned header for the fast path
         let fast_header = block_map[&header];
@@ -249,7 +260,7 @@ fn run_version_loops(
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(tree, &mut terminator, &block_map, &value_map);
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
         }
 
         // remove bounds checks in the cloned loop
@@ -262,6 +273,7 @@ fn run_version_loops(
             cloned_length,
             cloned_collection,
             tree,
+            provenance,
         );
 
         // update the preheader to emit guard instructions and branch between fast and slow loops
@@ -269,7 +281,7 @@ fn run_version_loops(
         let mut preheader_instructions = preheader_block.instructions.clone();
         preheader_instructions.extend(guard_instructions);
         preheader_instructions.push(fast_guard);
-        function.replace_block_instructions(preheader, preheader_instructions, tree);
+        function.replace_block_instructions(preheader, preheader_instructions, tree, provenance);
         let Some(condition) = tree.get(fast_guard).destination() else {
             continue;
         };
@@ -279,7 +291,7 @@ fn run_version_loops(
             then_target: mir::BlockTarget::new(fast_header, preheader_args),
             else_target: mir::BlockTarget::new(header, preheader_args),
         };
-        tree.set(preheader_block.terminator, preheader_terminator);
+        tree.rewrite(preheader_block.terminator, preheader_terminator, provenance);
 
         // append cloned blocks
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();
@@ -379,7 +391,7 @@ fn guard_from_header(
 
     // require an unsigned induction value
     let induction_type = function.expect_value_type(*induction);
-    let is_unsigned = tree.get(induction_type).integer_signedness() == Some(false);
+    let is_unsigned = tree.ty(induction_type).integer_signedness() == Some(false);
     if !is_unsigned {
         return None;
     }
@@ -395,6 +407,7 @@ fn guard_from_header(
     }
 
     Some(LoopGuard {
+        instruction,
         induction: *induction,
         bound: *bound,
         is_strict,
@@ -425,7 +438,7 @@ fn bounds_check_in_loop(
     lp: &mir::Loop,
     induction: mir::Value,
     tree: &mir::Tree,
-) -> Option<(mir::Value, mir::Value)> {
+) -> Option<(mir::Value, mir::Value, mir::LocalNodeId<mir::Terminator>)> {
     // scan loop blocks for a matching bounds check
     for &block_id in &lp.blocks {
         let block = tree.get(block_id);
@@ -454,7 +467,7 @@ fn bounds_check_in_loop(
             continue;
         }
 
-        return Some((*length, *collection));
+        return Some((*length, *collection, block.terminator));
     }
 
     None
@@ -481,29 +494,13 @@ fn value_is_loop_invariant(
 
 /// Insert a preheader guard for the fast path.
 fn insert_preheader_guard(
-    preheader: mir::LocalNodeId<mir::Block>,
     bound: mir::Value,
     length: mir::Value,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    preheader_args: &[mir::Value],
-    header: mir::LocalNodeId<mir::Block>,
-) -> Option<mir::LocalNodeId<mir::Instruction>> {
-    // verify the preheader still jumps to the header
-    let preheader_block = tree.get(preheader);
-    let preheader_terminator = tree.get(preheader_block.terminator);
-    let target_args = match preheader_terminator {
-        mir::Terminator::Jump { target } if target.block == header => {
-            tree.get_values(target.arguments)
-        }
-        _ => return None,
-    };
-
-    // reject mismatched argument lists
-    if target_args != preheader_args {
-        return None;
-    }
-
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
+) -> mir::LocalNodeId<mir::Instruction> {
     // build the guard instruction
     let bool_type = tree.boolean_type();
     let destination = function.next_typed_value(bool_type);
@@ -513,9 +510,9 @@ fn insert_preheader_guard(
         left: bound,
         right: length,
     };
-    let guard_id = tree.insert(guard);
+    let output = provenance.generate(sources);
 
-    Some(guard_id)
+    tree.insert(guard, output)
 }
 
 /// Compute the bound value to use for the preheader guard.
@@ -527,6 +524,8 @@ fn preheader_guard_bound(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     ranges: &RangeTable,
+    sources: &[ProvenanceId],
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> Option<(Vec<mir::LocalNodeId<mir::Instruction>>, mir::Value)> {
     // use the existing bound for strict guards
     if guard.is_strict {
@@ -563,19 +562,26 @@ fn preheader_guard_bound(
 
     // build a constant one value for the add
     let one_value = function.next_typed_value_like(bound);
-    let one_inst = tree.insert(mir::Instruction::Const {
-        destination: one_value,
-        value: mir::Constant::UInt { value: 1, width },
-    });
+    let [one_provenance, add_provenance] = provenance.generate_many(sources);
+    let one_inst = tree.insert(
+        mir::Instruction::Const {
+            destination: one_value,
+            value: mir::Constant::UInt { value: 1, width },
+        },
+        one_provenance,
+    );
 
     // build the incremented bound
     let add_value = function.next_typed_value_like(bound);
-    let add_inst = tree.insert(mir::Instruction::Binary {
-        destination: add_value,
-        operator: mir::BinaryOperator::Add,
-        left: bound,
-        right: one_value,
-    });
+    let add_inst = tree.insert(
+        mir::Instruction::Binary {
+            destination: add_value,
+            operator: mir::BinaryOperator::Add,
+            left: bound,
+            right: one_value,
+        },
+        add_provenance,
+    );
 
     Some((vec![one_inst, add_inst], add_value))
 }
@@ -587,6 +593,7 @@ fn strip_bounds_checks(
     length: mir::Value,
     collection: mir::Value,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // strip matching bounds checks in cloned blocks
     for &cloned_id in block_map.values() {
@@ -621,8 +628,7 @@ fn strip_bounds_checks(
         let new_terminator = mir::Terminator::Jump {
             target: success.clone(),
         };
-        tree.set(block.terminator, new_terminator);
-        tree.set(cloned_id, block);
+        tree.rewrite(block.terminator, new_terminator, provenance);
     }
 }
 

@@ -2,6 +2,7 @@ use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{ControlTable, DominatorTable, Mutation, clone_loop_blocks, terminator_remap};
@@ -57,6 +58,7 @@ impl FunctionPass for PeelLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -68,7 +70,7 @@ impl FunctionPass for PeelLoops {
             return Mutation::NONE;
         }
 
-        let changed = run_peel_loops(function, tree, accesses, ctx, analyses);
+        let changed = run_peel_loops(function, tree, accesses, ctx, analyses, provenance);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -84,6 +86,7 @@ fn run_peel_loops(
     accesses: &mut mir::AccessTable,
     _ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // gather analyses
     let loops = analyses.loops(function, tree).clone();
@@ -120,7 +123,8 @@ fn run_peel_loops(
         };
 
         // clone the loop once to form the peeled iteration
-        let (block_map, value_map) = clone_loop_blocks(&lp.blocks, function, tree, accesses);
+        let (block_map, value_map) =
+            clone_loop_blocks(&lp.blocks, function, tree, provenance, accesses);
 
         // map header and latch to their cloned counterparts
         let cloned_header = block_map[&lp.header];
@@ -132,17 +136,15 @@ fn run_peel_loops(
             let terminator_id = block.terminator;
             let mut terminator = tree.get(terminator_id).clone();
             terminator_remap(tree, &mut terminator, &block_map, &value_map);
-            tree.set(cloned_id, block);
-            tree.set(terminator_id, terminator);
+            tree.rewrite(terminator_id, terminator, provenance);
         }
 
         // redirect preheader to the peeled iteration
-        let preheader_block = tree.get(preheader).clone();
+        let preheader_terminator_id = tree.get(preheader).terminator;
         let preheader_terminator = mir::Terminator::Jump {
             target: mir::BlockTarget::new(cloned_header, tree.add_values(&preheader_args)),
         };
-        tree.set(preheader, preheader_block);
-        tree.set(tree.get(preheader).terminator, preheader_terminator);
+        tree.rewrite(preheader_terminator_id, preheader_terminator, provenance);
 
         // redirect cloned backedge to original header
         let cloned_latch_block = tree.get(cloned_latch).clone();
@@ -151,8 +153,11 @@ fn run_peel_loops(
         if !redirect_backedge(&mut cloned_latch_terminator, cloned_header, lp.header) {
             continue;
         }
-        tree.set(cloned_latch, cloned_latch_block);
-        tree.set(cloned_latch_terminator_id, cloned_latch_terminator);
+        tree.rewrite(
+            cloned_latch_terminator_id,
+            cloned_latch_terminator,
+            provenance,
+        );
 
         // append cloned blocks to the function
         let mut cloned_blocks: Vec<_> = block_map.values().copied().collect();

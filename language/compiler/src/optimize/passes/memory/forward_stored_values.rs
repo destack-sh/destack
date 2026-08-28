@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -59,6 +60,7 @@ impl FunctionPass for ForwardStoredValues {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -86,6 +88,7 @@ impl FunctionPass for ForwardStoredValues {
             entry,
             function,
             tree,
+            provenance,
             accesses,
             &aliases,
             memory.as_ref(),
@@ -106,6 +109,7 @@ fn run_forward_stored_values(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     aliases: &AliasTable,
     memory: &MemoryTable,
@@ -124,7 +128,14 @@ fn run_forward_stored_values(
     let substitutions = resolve_substitution_chains(substitutions);
 
     // apply substitutions and remove forwarded loads
-    apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
+    apply_substitutions_in_function(
+        function,
+        tree,
+        provenance,
+        accesses,
+        &substitutions,
+        Some(&to_remove),
+    );
 
     true
 }

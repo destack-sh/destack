@@ -2,13 +2,14 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, Hotness, Mutation, UseTable,
+    DefinitionTable, DominatorTable, Hotness, Mutation, UseTable,
     block_parameters_used_outside_block, block_uses_available_in_predecessor,
-    clone_instruction_tables, collect_reachable_blocks, ensure_edge_block,
-    instruction_is_speculatable, instruction_map, terminator_substitute_uses,
+    collect_reachable_blocks, instruction_is_speculatable, instruction_map,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -49,6 +50,7 @@ impl FunctionPass for OrderBlocks {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -69,7 +71,9 @@ impl FunctionPass for OrderBlocks {
         }
 
         // compute a new layout
-        let changed = order_blocks(function, tree, accesses, entry, profile, ctx, analyses);
+        let changed = order_blocks(
+            function, tree, accesses, entry, profile, ctx, analyses, provenance,
+        );
 
         // report what this pass changed
         if changed {
@@ -92,10 +96,8 @@ const HOT_EDGE_DUP_MIN_RATIO: f64 = 0.20;
 /// Predecessor edge data for hot edge duplication.
 #[derive(Debug, Clone)]
 struct EdgePredecessor {
-    /// The predecessor block.
-    pred: mir::LocalNodeId<mir::Block>,
-    /// The successor from the predecessor.
-    successor: mir::Successor,
+    /// The incoming edge.
+    edge: mir::Edge,
     /// Arguments passed to the target block.
     arguments: Vec<mir::Value>,
     /// Profile count for this edge.
@@ -111,6 +113,7 @@ fn order_blocks(
     profile: &mir::Profile,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // derive block counts and hotness
     let execution_counts = mir::ExecutionCounts::new(function, tree, Some(profile), analyses);
@@ -135,13 +138,17 @@ fn order_blocks(
         execution_counts.edges(),
         &domtree,
         &mut block_counts,
+        provenance,
     );
 
-    // rebuild cfg after duplication for cold edge outlining
-    let cfg = ControlTable::build(function, tree);
-
     // outline hot to cold edges for layout
-    let outlined = outline_cold_edges(function, tree, &cfg, &mut cold_blocks, &mut block_counts);
+    let outlined = outline_cold_edges(
+        function,
+        tree,
+        &mut cold_blocks,
+        &mut block_counts,
+        provenance,
+    );
 
     // record reachability for stable layout
     let reachable = collect_reachable_blocks(function, tree, entry);
@@ -257,12 +264,11 @@ fn classify_cold_blocks(
 fn outline_cold_edges(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    cfg: &ControlTable,
     cold_blocks: &mut FxIndexSet<mir::LocalNodeId<mir::Block>>,
     block_counts: &mut FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // track newly created edge blocks and changes
-    let mut edge_blocks = FxIndexMap::default();
     let mut changed = false;
 
     // scan edges from warm to cold blocks
@@ -276,32 +282,24 @@ fn outline_cold_edges(
         // inspect successor edges for cold targets
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
-        for successor in terminator.successors(tree) {
-            if !cold_blocks.contains(&successor) {
+        let edges = terminator.edges(tree, block_id);
+        let requires_split = edges.len() > 1;
+        for (edge, successor) in edges {
+            if !cold_blocks.contains(&successor) || !requires_split {
                 continue;
             }
 
-            // insert an edge block for multi successor preds
-            let edge_block = ensure_edge_block(
-                block_id,
-                successor,
-                function,
-                tree,
-                cfg,
-                &mut edge_blocks,
-                EdgeSplitPolicy::PredecessorMultiSuccessor,
-                &mut changed,
-            );
+            // isolate this cold edge
+            let edge_block = edge.split(function, tree, provenance).source;
+            changed = true;
 
             // record outlined blocks for layout
-            if edge_block != block_id {
-                cold_blocks.insert(edge_block);
+            cold_blocks.insert(edge_block);
 
-                // mirror target counts for outlined blocks
-                let target_count = block_counts.get(&successor).copied().unwrap_or(0);
-                if target_count > 0 {
-                    block_counts.insert(edge_block, target_count);
-                }
+            // mirror target counts for outlined blocks
+            let target_count = block_counts.get(&successor).copied().unwrap_or(0);
+            if target_count > 0 {
+                block_counts.insert(edge_block, target_count);
             }
         }
     }
@@ -317,6 +315,7 @@ fn duplicate_hot_edges(
     edge_counts: &FxIndexMap<mir::Edge, u64>,
     domtree: &DominatorTable,
     block_counts: &mut FxIndexMap<mir::LocalNodeId<mir::Block>, u64>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // snapshot value definitions and uses
     let definitions = DefinitionTable::build(function, tree);
@@ -329,59 +328,16 @@ fn duplicate_hot_edges(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
-        let mut record_edge =
-            |successor: mir::Successor, target: &mir::BlockTarget, arguments: &[mir::Value]| {
-                let target_block = target.block;
-
-                let edge = mir::Edge::new(block_id, successor, target_block);
-                let count = edge_counts.get(&edge).copied().unwrap_or(0);
-
-                predecessors
-                    .entry(target_block)
-                    .or_default()
-                    .push(EdgePredecessor {
-                        pred: block_id,
-                        successor,
-                        arguments: arguments.to_vec(),
-                        count,
-                    });
-            };
-
-        match terminator {
-            mir::Terminator::Jump { target } => {
-                record_edge(mir::Successor::Jump, target, target.arguments(tree));
-            }
-            mir::Terminator::Branch {
-                then_target,
-                else_target,
-                ..
-            } => {
-                record_edge(
-                    mir::Successor::BranchThen,
-                    then_target,
-                    then_target.arguments(tree),
-                );
-                record_edge(
-                    mir::Successor::BranchElse,
-                    else_target,
-                    else_target.arguments(tree),
-                );
-            }
-            mir::Terminator::Check {
-                success, failure, ..
-            } => {
-                record_edge(
-                    mir::Successor::CheckSuccess,
-                    success,
-                    success.arguments(tree),
-                );
-                record_edge(
-                    mir::Successor::CheckFailure,
-                    failure,
-                    failure.arguments(tree),
-                );
-            }
-            _ => {}
+        for (edge, target) in terminator.targets(tree, block_id) {
+            let count = edge_counts.get(&edge).copied().unwrap_or(0);
+            predecessors
+                .entry(target.block)
+                .or_default()
+                .push(EdgePredecessor {
+                    edge,
+                    arguments: target.arguments(tree).to_vec(),
+                    count,
+                });
         }
     }
 
@@ -451,7 +407,7 @@ fn duplicate_hot_edges(
                 target,
                 &block,
                 tree,
-                pred.pred,
+                pred.edge.source,
                 &definitions,
                 domtree,
             ) {
@@ -471,7 +427,7 @@ fn duplicate_hot_edges(
 
         // duplicate the block into each hot predecessor edge
         for pred in safe_candidates.clone() {
-            if pred.pred == target {
+            if pred.edge.source == target {
                 continue;
             }
 
@@ -493,8 +449,8 @@ fn duplicate_hot_edges(
                 }
 
                 let cloned = instruction_map(&instruction, &value_map, tree);
-                let new_id = tree.insert(cloned);
-                clone_instruction_tables(tree, accesses, *instruction_id, new_id, &value_map);
+                let new_id = tree.insert_from(cloned, *instruction_id, provenance);
+                accesses.clone_instruction(*instruction_id, new_id, &value_map);
                 new_instructions.push(new_id);
             }
 
@@ -503,23 +459,16 @@ fn duplicate_hot_edges(
             let new_terminator = terminator_substitute_uses(tree, &block_terminator, &value_map);
 
             // create the duplicated block
-            let new_terminator_id = tree.insert(new_terminator);
+            let new_terminator_id = tree.insert_from(new_terminator, block.terminator, provenance);
             let mut new_block = mir::Block::new(new_terminator_id);
             new_block.instructions = new_instructions;
 
-            let new_block_id = tree.insert(new_block);
-            insert_block_after(function, pred.pred, new_block_id, tree);
+            let new_block_id = tree.insert_from(new_block, target, provenance);
+            function.insert_block_after(pred.edge.source, new_block_id, tree);
 
             // rewrite the predecessor edge to the duplicated block
-            let pred_block = tree.get(pred.pred).clone();
-            let pred_terminator = tree.get(pred_block.terminator);
-            let Some(updated) =
-                rewrite_hot_edge_target(pred_terminator, pred.successor, target, new_block_id)
-            else {
-                continue;
-            };
-
-            tree.set(pred_block.terminator, updated);
+            let duplicated_target = mir::BlockTarget::new(new_block_id, mir::ValueSlice::default());
+            pred.edge.redirect(duplicated_target, tree, provenance);
 
             // track hot block counts for layout ordering
             let new_count = if pred.count > 0 {
@@ -547,137 +496,28 @@ fn select_hot_edge_predecessors(predecessors: &[EdgePredecessor]) -> Vec<EdgePre
     }
 
     // collect hot edges by ratio
-    let mut hot_preds = Vec::new();
-    for pred in predecessors {
-        let ratio = pred.count as f64 / total_count as f64;
-        if ratio >= HOT_EDGE_DUP_RATIO {
-            hot_preds.push(pred.pred);
-        }
-    }
-
-    if !hot_preds.is_empty() {
-        return predecessors
-            .iter()
-            .filter(|pred| hot_preds.contains(&pred.pred))
-            .cloned()
-            .collect();
+    let hot_predecessors = predecessors
+        .iter()
+        .filter(|predecessor| predecessor.count as f64 / total_count as f64 >= HOT_EDGE_DUP_RATIO)
+        .cloned()
+        .collect::<Vec<_>>();
+    if !hot_predecessors.is_empty() {
+        return hot_predecessors;
     }
 
     // select the hottest edge when it dominates enough
-    let mut hottest: Option<(mir::LocalNodeId<mir::Block>, u64)> = None;
-    for pred in predecessors {
-        if hottest.map(|(_, count)| pred.count > count).unwrap_or(true) {
-            hottest = Some((pred.pred, pred.count));
-        }
-    }
-
-    let Some((hottest_pred, hottest_count)) = hottest else {
+    let Some(hottest) = predecessors
+        .iter()
+        .max_by_key(|predecessor| predecessor.count)
+    else {
         return Vec::new();
     };
-    let ratio = hottest_count as f64 / total_count as f64;
+    let ratio = hottest.count as f64 / total_count as f64;
     if ratio < HOT_EDGE_DUP_MIN_RATIO {
         return Vec::new();
     }
 
-    predecessors
-        .iter()
-        .filter(|pred| pred.pred == hottest_pred)
-        .cloned()
-        .collect()
-}
-
-/// Insert a block immediately after the predecessor.
-fn insert_block_after(
-    function: &mut mir::Function,
-    predecessor: mir::LocalNodeId<mir::Block>,
-    block: mir::LocalNodeId<mir::Block>,
-    tree: &mir::Tree,
-) {
-    if function.blocks().contains(&predecessor) {
-        function.insert_block_after(predecessor, block, tree);
-    } else {
-        panic!("missing predecessor block in function layout: {predecessor:?}");
-    }
-}
-
-/// Rewrite a hot edge target to the duplicated block.
-fn rewrite_hot_edge_target(
-    terminator: &mir::Terminator,
-    successor: mir::Successor,
-    target: mir::LocalNodeId<mir::Block>,
-    new_target: mir::LocalNodeId<mir::Block>,
-) -> Option<mir::Terminator> {
-    // rewrite jump edge targets
-    if let mir::Terminator::Jump {
-        target: jump_target,
-        ..
-    } = terminator
-        && matches!(successor, mir::Successor::Jump)
-        && jump_target.block == target
-    {
-        return Some(mir::Terminator::Jump {
-            target: mir::BlockTarget::new(new_target, mir::ValueSlice::default()),
-        });
-    }
-
-    if let mir::Terminator::Branch {
-        condition,
-        then_target,
-        else_target,
-    } = terminator
-    {
-        return match successor {
-            mir::Successor::BranchThen if then_target.block == target => {
-                Some(mir::Terminator::Branch {
-                    condition: *condition,
-                    then_target: mir::BlockTarget::new(new_target, mir::ValueSlice::default()),
-                    else_target: else_target.clone(),
-                })
-            }
-            mir::Successor::BranchElse if else_target.block == target => {
-                Some(mir::Terminator::Branch {
-                    condition: *condition,
-                    then_target: then_target.clone(),
-                    else_target: mir::BlockTarget::new(new_target, mir::ValueSlice::default()),
-                })
-            }
-            _ => None,
-        };
-    }
-
-    // rewrite check edge targets
-    if let mir::Terminator::Check {
-        constraint,
-        success,
-        failure,
-    } = terminator
-    {
-        return match successor {
-            mir::Successor::CheckSuccess if success.block == target => {
-                let mut updated_success = success.clone();
-                updated_success.block = new_target;
-                updated_success.arguments = mir::ValueSlice::default();
-                Some(mir::Terminator::Check {
-                    constraint: constraint.clone(),
-                    success: updated_success,
-                    failure: failure.clone(),
-                })
-            }
-            mir::Successor::CheckFailure if failure.block == target => {
-                let mut updated_failure = failure.clone();
-                updated_failure.block = new_target;
-                updated_failure.arguments = mir::ValueSlice::default();
-                Some(mir::Terminator::Check {
-                    constraint: constraint.clone(),
-                    success: success.clone(),
-                    failure: updated_failure,
-                })
-            }
-            _ => None,
-        };
-    }
-
-    None
+    vec![hottest.clone()]
 }
 
 /// Order layout seeds by hotness.

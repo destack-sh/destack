@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{DefinitionTable, EffectTable, Mutation, UseTable, ValueUse};
@@ -38,9 +39,11 @@ impl ModulePass for OptimizeGlobals {
     fn run(
         &self,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        provenance: &mut ProvenanceBuilder,
+        _ctx: &PipelineContext<'_>,
         analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
         let accesses = &optimized.accesses;
         let effects = &mut optimized.effects;
@@ -48,11 +51,10 @@ impl ModulePass for OptimizeGlobals {
 
         let resolution = analyses.resolution(tree, dispatch);
         let function_effects = analyses.effect(tree, accesses, effects, dispatch);
-        let changed = run_optimize_globals(tree, effects, &resolution, &function_effects);
+        let changed =
+            run_optimize_globals(tree, effects, &resolution, &function_effects, &mut journal);
 
-        // report what this pass changed
         if changed {
-            ctx.strings.intern("optimize-globals");
             Mutation::VALUE
         } else {
             Mutation::NONE
@@ -66,6 +68,7 @@ fn run_optimize_globals(
     effects: &mir::EffectTable,
     resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // collect global address definitions and pointer uses
     let addr_info = collect_global_addr_info(tree);
@@ -124,8 +127,9 @@ fn run_optimize_globals(
         }
 
         // mark the global as immutable when no writes remain
-        let global = tree.get_mut(global_id);
+        let mut global = tree.get(global_id).clone();
         global.mutability = mir::Mutability::Immutable;
+        tree.rewrite(global_id, global, provenance);
         changed = true;
     }
 

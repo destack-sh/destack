@@ -2,12 +2,13 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     AliasTable, MemoryLocation, MemoryTable, Mutation, PureExpression,
-    instruction_has_side_effects, instruction_substitute_uses_in_tree,
-    remap_instruction_memory_accesses, resolve_substitution_chains, terminator_substitute_uses,
+    instruction_has_side_effects, instruction_substitute_uses_in_tree, resolve_substitution_chains,
+    terminator_substitute_uses,
 };
 
 declare_pass! {
@@ -41,6 +42,7 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -53,8 +55,9 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
         let memory = analyses.memory(function, tree, accesses, effects);
 
         // run local CSE
-        let changed =
-            run_eliminate_local_common_subexpressions(function, tree, accesses, &alias, &memory);
+        let changed = run_eliminate_local_common_subexpressions(
+            function, tree, provenance, accesses, &alias, &memory,
+        );
 
         // report what this pass changed
         if changed {
@@ -69,6 +72,7 @@ impl FunctionPass for EliminateLocalCommonSubexpressions {
 fn run_eliminate_local_common_subexpressions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     alias: &AliasTable,
     memory: &MemoryTable,
@@ -80,7 +84,7 @@ fn run_eliminate_local_common_subexpressions(
     let block_ids = function.blocks().to_vec();
     for block_id in block_ids {
         changed |= eliminate_common_subexpressions_in_block(
-            function, block_id, tree, accesses, alias, memory,
+            function, block_id, tree, provenance, accesses, alias, memory,
         );
     }
     changed
@@ -93,6 +97,7 @@ fn eliminate_common_subexpressions_in_block(
     function: &mut mir::Function,
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     alias: &AliasTable,
     memory: &MemoryTable,
@@ -228,8 +233,8 @@ fn eliminate_common_subexpressions_in_block(
         let new_instruction =
             instruction_substitute_uses_in_tree(&instruction, &substitutions, tree);
         if new_instruction != instruction {
-            tree.set(instruction_id, new_instruction);
-            remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+            tree.rewrite(instruction_id, new_instruction, provenance);
+            accesses.remap_instruction(instruction_id, &substitutions);
         }
     }
 
@@ -241,8 +246,14 @@ fn eliminate_common_subexpressions_in_block(
     // update block: remove redundant instructions and update terminator
     let mut instructions = tree.get(block_id).instructions.clone();
     instructions.retain(|id| !to_remove.contains(id));
-    function.replace_block_instructions(block_id, instructions, tree);
-    tree.set(terminator_id, new_terminator);
+    for instruction in to_remove {
+        tree.record_removal(instruction, provenance);
+        accesses.remove(instruction);
+    }
+    function.replace_block_instructions(block_id, instructions, tree, provenance);
+    if new_terminator != terminator {
+        tree.rewrite(terminator_id, new_terminator, provenance);
+    }
 
     true
 }

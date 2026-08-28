@@ -2,6 +2,7 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{ConstantState, ConstantTable, DefinitionTable, Mutation, fold_binary};
@@ -41,6 +42,7 @@ impl FunctionPass for ReassociateExpressions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -50,7 +52,7 @@ impl FunctionPass for ReassociateExpressions {
         let constants = { analyses.constant(function, tree).clone() };
 
         // run reassociation
-        let changed = run_reassociate(function, tree, &constants);
+        let changed = run_reassociate(function, tree, provenance, &constants);
 
         // report what this pass changed
         if changed {
@@ -65,6 +67,7 @@ impl FunctionPass for ReassociateExpressions {
 fn run_reassociate(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     constants: &ConstantTable,
 ) -> bool {
     // snapshot value definitions before rewriting instructions
@@ -88,6 +91,7 @@ fn run_reassociate(
         for instruction_id in &instruction_ids {
             // read the current instruction
             let instruction = tree.get(*instruction_id).clone();
+            let source = tree.provenance(*instruction_id);
 
             // attempt reassociation for binary instructions
             if let mir::Instruction::Binary {
@@ -99,7 +103,7 @@ fn run_reassociate(
             {
                 // build a reassociation plan
                 let ty = function.expect_value_type(left);
-                let plan = if tree.get(ty).is_float(tree) {
+                let plan = if tree.ty(ty).is_float(tree) {
                     None
                 } else {
                     reassociate_binary(
@@ -125,6 +129,8 @@ fn run_reassociate(
                         function,
                         tree,
                         &block_constants,
+                        provenance,
+                        source,
                     );
                     let combined_value = resolved.value;
 
@@ -146,6 +152,8 @@ fn run_reassociate(
                         &operands,
                         function.expect_value_type(destination),
                         &mut new_instructions,
+                        provenance,
+                        source,
                     ) else {
                         new_instructions.push(*instruction_id);
                         continue;
@@ -158,7 +166,7 @@ fn run_reassociate(
                         left: base,
                         right: last,
                     };
-                    tree.set(*instruction_id, new_instruction.clone());
+                    tree.rewrite(*instruction_id, new_instruction.clone(), provenance);
                     changed = true;
 
                     // update operand tracking for constant propagation
@@ -201,7 +209,7 @@ fn run_reassociate(
 
         // update block instructions when needed
         if new_instructions != block.instructions {
-            function.replace_block_instructions(block_id, new_instructions, tree);
+            function.replace_block_instructions(block_id, new_instructions, tree, provenance);
             changed = true;
         }
     }
@@ -425,8 +433,10 @@ fn rebuild_chain(
     tree: &mut mir::Tree,
     operator: mir::BinaryOperator,
     operands: &[mir::Value],
-    result_type: mir::LocalNodeId<mir::Type>,
+    result_type: mir::TypeId,
     new_instructions: &mut Vec<mir::LocalNodeId<mir::Instruction>>,
+    provenance: &mut ProvenanceJournal<'_>,
+    source: ProvenanceId,
 ) -> Option<(mir::Value, mir::Value)> {
     // require at least two operands
     if operands.len() < 2 {
@@ -443,7 +453,8 @@ fn rebuild_chain(
             left: current,
             right: (*operand),
         };
-        let instruction_id = tree.insert(instruction);
+        let provenance = provenance.derive(source);
+        let instruction_id = tree.insert(instruction, provenance);
         new_instructions.push(instruction_id);
         current = destination;
     }
@@ -481,10 +492,12 @@ struct ResolvedConstant {
 /// Resolve a constant value or create a new instruction.
 fn resolve_constant_value(
     constant: mir::Constant,
-    result_type: mir::LocalNodeId<mir::Type>,
+    result_type: mir::TypeId,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
     block_constants: &ConstantState,
+    provenance: &mut ProvenanceJournal<'_>,
+    source: ProvenanceId,
 ) -> ResolvedConstant {
     // reuse an existing constant when available
     for (value, existing) in block_constants.iter() {
@@ -502,7 +515,8 @@ fn resolve_constant_value(
         destination,
         value: constant,
     };
-    let instruction_id = tree.insert(instruction);
+    let provenance = provenance.derive(source);
+    let instruction_id = tree.insert(instruction, provenance);
 
     ResolvedConstant {
         value: destination,

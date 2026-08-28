@@ -3,12 +3,12 @@ use std::collections::VecDeque;
 use crate::optimize::declare_pass;
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
-    ControlTable, DefinitionTable, DominatorTable, EdgeSplitPolicy, ExpressionTable, Mutation,
-    PureExpression, append_edge_arguments, apply_substitutions_in_function,
-    collect_reachable_blocks, compute_dominance_frontiers, ensure_edge_block,
+    ControlTable, DefinitionTable, DominatorTable, ExpressionTable, Mutation, PureExpression,
+    apply_substitutions_in_function, collect_reachable_blocks, compute_dominance_frontiers,
     instruction_has_side_effects, instruction_is_speculatable,
 };
 
@@ -55,6 +55,7 @@ impl FunctionPass for EliminatePartialRedundancy {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -72,7 +73,9 @@ impl FunctionPass for EliminatePartialRedundancy {
         let available = analyses.expression(function, tree);
 
         // run PRE
-        let changed = run_pre(entry, function, tree, accesses, &cfg, &domtree, &available);
+        let changed = run_pre(
+            entry, function, tree, accesses, &cfg, &domtree, &available, provenance,
+        );
 
         // report what this pass changed
         if changed {
@@ -132,6 +135,7 @@ fn run_pre(
     cfg: &ControlTable,
     domtree: &DominatorTable,
     available: &ExpressionTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // collect reachable blocks
     let reachable = collect_reachable_blocks(function, tree, entry);
@@ -142,9 +146,11 @@ fn run_pre(
     // collect expression occurrences and templates
     let mut occurrences: FxIndexMap<PureExpression, Vec<ExpressionOccurrence>> =
         FxIndexMap::default();
-    let mut templates: FxIndexMap<PureExpression, ExpressionTemplate> = FxIndexMap::default();
-    let mut key_types: FxIndexMap<PureExpression, mir::LocalNodeId<mir::Type>> =
-        FxIndexMap::default();
+    let mut templates: FxIndexMap<
+        PureExpression,
+        (ExpressionTemplate, mir::LocalNodeId<mir::Instruction>),
+    > = FxIndexMap::default();
+    let mut key_types: FxIndexMap<PureExpression, mir::TypeId> = FxIndexMap::default();
     let mut speculatable_keys: FxIndexMap<PureExpression, bool> = FxIndexMap::default();
 
     let mut order = 0usize;
@@ -175,7 +181,7 @@ fn run_pre(
             // record template for the expression
             templates
                 .entry(key.clone())
-                .or_insert_with(|| template_from_instruction(instruction));
+                .or_insert_with(|| (template_from_instruction(instruction), instruction_id));
 
             // record type for the expression
             key_types.entry(key.clone()).or_insert(value_type);
@@ -209,8 +215,6 @@ fn run_pre(
     // plan phi placements per block
     let mut phi_map: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<PhiPlacement>> =
         FxIndexMap::default();
-    let mut changed = false;
-
     // ensure value ids are fresh before inserting parameters
     function.recompute_next_value_id(tree);
 
@@ -258,9 +262,14 @@ fn run_pre(
 
             // allocate a new parameter for the expression
             let param_value = function.next_typed_value(value_type);
+            let source = templates
+                .get(key)
+                .map(|(_, instruction)| tree.provenance(*instruction))
+                .unwrap_or_else(|| unreachable!("PRE expression template is absent"));
             let param = mir::BlockParameter {
                 value: param_value,
                 ty: value_type,
+                provenance: provenance.derive(source),
             };
             let order = occs.iter().map(|occ| occ.order).min().unwrap_or(usize::MAX);
             phi_map.entry(phi_block).or_default().push(PhiPlacement {
@@ -268,7 +277,6 @@ fn run_pre(
                 param,
                 order,
             });
-            changed = true;
         }
     }
 
@@ -281,15 +289,6 @@ fn run_pre(
         placements.sort_by_key(|placement| placement.order);
     }
 
-    // append the new parameters to each phi block
-    for (&block_id, placements) in &phi_map {
-        let mut block = tree.get(block_id).clone();
-        for placement in placements {
-            block.parameters.push(placement.param);
-        }
-        tree.set(block_id, block);
-    }
-
     // compute substitutions, exit values, and edge blocks
     let dom_children = build_dominator_children(function, domtree);
     let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
@@ -298,11 +297,6 @@ fn run_pre(
         mir::LocalNodeId<mir::Block>,
         FxIndexMap<PureExpression, mir::Value>,
     > = FxIndexMap::default();
-    let mut edge_blocks: FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    > = FxIndexMap::default();
-
     let mut current: FxIndexMap<PureExpression, Vec<mir::Value>> = FxIndexMap::default();
     rename_block(
         entry,
@@ -316,82 +310,90 @@ fn run_pre(
     );
 
     // fill predecessor arguments for phi parameters
-    let mut inserted = false;
     for (&block_id, placements) in &phi_map {
         let predecessors = cfg.predecessors(block_id);
         if predecessors.is_empty() {
-            continue;
+            unreachable!("PRE parameter block has no predecessor");
         }
 
-        for &pred in predecessors {
-            // split critical edges so insertions are placed on a dedicated edge
-            let insertion_block = ensure_edge_block(
-                pred,
-                block_id,
-                function,
-                tree,
-                cfg,
-                &mut edge_blocks,
-                EdgeSplitPolicy::CriticalOnly,
-                &mut changed,
-            );
+        for &predecessor in predecessors {
+            let predecessor_block = tree.get(predecessor);
+            let predecessor_terminator = tree.get(predecessor_block.terminator);
+            let edges = predecessor_terminator
+                .edges(tree, predecessor)
+                .into_iter()
+                .filter(|(_, target)| *target == block_id)
+                .map(|(edge, _)| edge)
+                .collect::<Vec<_>>();
+            if edges.is_empty() {
+                unreachable!("PRE predecessor has no physical edge to its successor");
+            }
+            let requires_split = predecessor_terminator.edges(tree, predecessor).len() > 1;
 
-            // collect arguments for each phi placement
-            let mut args = Vec::new();
-            for placement in placements {
-                // resolve the value that should flow along this edge
-                let value = if let Some(values) = exit_values.get(&pred)
-                    && let Some(value) = values.get(&placement.key).copied()
-                {
-                    value
-                } else {
-                    // insert a missing computation along this edge when possible
-                    let value_type = placement.param.ty;
+            for edge in edges {
+                let mut insertion_edge = edge;
 
-                    let inserted_value = insert_expression_in_block(
-                        pred,
-                        insertion_block,
-                        placement.key.clone(),
-                        value_type,
-                        function,
-                        tree,
-                        templates.get(&placement.key),
-                        &definitions,
-                        domtree,
-                    );
+                // collect arguments for each phi placement
+                let mut arguments = Vec::new();
+                for placement in placements {
+                    // resolve the value that should flow along this edge
+                    let value = if let Some(values) = exit_values.get(&predecessor)
+                        && let Some(value) = values.get(&placement.key).copied()
+                    {
+                        value
+                    } else {
+                        // isolate the edge before inserting a computation
+                        if requires_split && insertion_edge == edge {
+                            insertion_edge = edge.split(function, tree, provenance);
+                        }
 
-                    let Some(inserted_value) = inserted_value else {
-                        continue;
+                        // insert the missing computation
+                        let template = templates
+                            .get(&placement.key)
+                            .map(|(template, source)| (template, *source))
+                            .unwrap_or_else(|| unreachable!("PRE expression template is absent"));
+                        insert_expression_in_block(
+                            predecessor,
+                            insertion_edge.source,
+                            placement.key.clone(),
+                            placement.param.ty,
+                            function,
+                            tree,
+                            template,
+                            &definitions,
+                            domtree,
+                            provenance,
+                        )
                     };
+                    arguments.push(value);
+                }
 
-                    exit_values
-                        .entry(pred)
-                        .or_default()
-                        .insert(placement.key.clone(), inserted_value);
-                    inserted = true;
-                    inserted_value
-                };
-                args.push(value);
-            }
-
-            if !args.is_empty() {
-                // append the arguments on the chosen edge
-                append_edge_arguments(tree, insertion_block, block_id, &args);
-                changed = true;
+                // append every parameter argument on the chosen edge
+                insertion_edge.append_arguments(&arguments, tree, provenance);
             }
         }
     }
 
-    if inserted {
-        // inserted instructions may enable more substitutions
-        apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
-        true
-    } else if changed || !substitutions.is_empty() || !to_remove.is_empty() {
-        apply_substitutions_in_function(function, tree, accesses, &substitutions, Some(&to_remove));
-        true
-    } else {
-        false
+    // append the new parameters after splitting incoming edges
+    for (&block_id, placements) in &phi_map {
+        let mut block = tree.get(block_id).clone();
+        for placement in placements {
+            block.parameters.push(placement.param);
+        }
+        tree.rewrite(block_id, block, provenance);
     }
+
+    // apply substitutions and remove redundant expressions
+    apply_substitutions_in_function(
+        function,
+        tree,
+        provenance,
+        accesses,
+        &substitutions,
+        Some(&to_remove),
+    );
+
+    true
 }
 
 /// Build an expression template for a given instruction.
@@ -414,7 +416,7 @@ fn template_from_instruction(instruction: &mir::Instruction) -> ExpressionTempla
         mir::Instruction::ElementGet { index, .. } => {
             ExpressionTemplate::ElementGet { index: *index }
         }
-        _ => panic!("unsupported expression template: {instruction:?}"),
+        _ => unreachable!("expression candidate must have a supported template"),
     }
 }
 
@@ -510,7 +512,10 @@ fn build_dominator_children(
     // build parent to children mapping
     for &block_id in function.blocks() {
         if let Some(idom) = domtree.immediate_dominator(block_id) {
-            children.get_mut(&idom).unwrap().push(block_id);
+            children
+                .get_mut(&idom)
+                .unwrap_or_else(|| unreachable!("dominator must belong to the function"))
+                .push(block_id);
         }
     }
 
@@ -612,32 +617,34 @@ fn insert_expression_in_block(
     availability_block: mir::LocalNodeId<mir::Block>,
     insert_block: mir::LocalNodeId<mir::Block>,
     key: PureExpression,
-    value_type: mir::LocalNodeId<mir::Type>,
+    value_type: mir::TypeId,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    template: Option<&ExpressionTemplate>,
+    template: (&ExpressionTemplate, mir::LocalNodeId<mir::Instruction>),
     definitions: &DefinitionTable,
     domtree: &DominatorTable,
-) -> Option<mir::Value> {
-    // require a template describing how to rebuild the expression
-    let template = template?;
+    provenance: &mut ProvenanceJournal<'_>,
+) -> mir::Value {
+    let (template, source) = template;
 
     // require operands to be available at the insertion point
     if !operands_available_in_block(&key, availability_block, domtree, definitions) {
-        return None;
+        unreachable!("PRE expression operands are unavailable at the planned insertion");
     }
 
     // build the new instruction
     let destination = function.next_typed_value(value_type);
     let instruction = build_instruction_from_key(&key, template, destination);
-    let instruction_id = tree.insert(instruction);
+    let source = tree.provenance(source);
+    let output = provenance.derive(source);
+    let instruction_id = tree.insert(instruction, output);
 
     // insert into the block before the terminator
     let mut instructions = tree.get(insert_block).instructions.clone();
     instructions.push(instruction_id);
-    function.replace_block_instructions(insert_block, instructions, tree);
+    function.replace_block_instructions(insert_block, instructions, tree, provenance);
 
-    Some(destination)
+    destination
 }
 
 /// Rebuild an instruction for the given expression key.

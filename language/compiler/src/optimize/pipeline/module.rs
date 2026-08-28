@@ -4,6 +4,7 @@ use crate::optimize::{
     FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
 };
 use destack_mir as mir;
+use destack_source::ProvenanceBuilder;
 
 use super::pipeline::Pipeline;
 
@@ -53,7 +54,12 @@ impl FunctionPipeline {
 }
 
 impl Pipeline for FunctionPipeline {
-    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(
+        &self,
+        optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
+        ctx: &mut PipelineContext<'_>,
+    ) -> bool {
         let mut any_changed = false;
 
         // collect function ids
@@ -65,7 +71,7 @@ impl Pipeline for FunctionPipeline {
 
         for function_id in function_ids {
             let passes = self.passes.iter().map(|pass| pass.as_ref());
-            any_changed |= run_function_passes(function_id, optimized, ctx, passes);
+            any_changed |= run_function_passes(function_id, optimized, provenance, ctx, passes);
         }
 
         any_changed
@@ -116,14 +122,19 @@ impl ModulePipeline {
 }
 
 impl Pipeline for ModulePipeline {
-    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(
+        &self,
+        optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
+        ctx: &mut PipelineContext<'_>,
+    ) -> bool {
         let mut any_changed = false;
 
         // retain analyses across the module pass sequence
         let mut analyses = mir::AnalysisCache::with_options(ctx.options.analysis);
 
         for pass in &self.passes {
-            let mutation = pass.run(optimized, ctx, &mut analyses);
+            let mutation = pass.run(optimized, provenance, ctx, &mut analyses);
 
             // drop the analyses this pass's mutation invalidates
             analyses.invalidate(mutation);
@@ -163,8 +174,13 @@ impl FunctionToModuleAdaptor {
 }
 
 impl Pipeline for FunctionToModuleAdaptor {
-    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
-        self.inner.run(optimized, ctx)
+    fn run(
+        &self,
+        optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
+        ctx: &mut PipelineContext<'_>,
+    ) -> bool {
+        self.inner.run(optimized, provenance, ctx)
     }
 
     fn name(&self) -> &'static str {
@@ -211,11 +227,16 @@ impl RepeatedPipeline {
 }
 
 impl Pipeline for RepeatedPipeline {
-    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(
+        &self,
+        optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
+        ctx: &mut PipelineContext<'_>,
+    ) -> bool {
         let mut any_changed = false;
 
         for _ in 0..self.max_iterations {
-            let changed = self.inner.run(optimized, ctx);
+            let changed = self.inner.run(optimized, provenance, ctx);
             any_changed |= changed;
 
             // stop if no changes (fixed point reached)
@@ -272,10 +293,15 @@ impl CompositePipeline {
 }
 
 impl Pipeline for CompositePipeline {
-    fn run(&self, optimized: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool {
+    fn run(
+        &self,
+        optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
+        ctx: &mut PipelineContext<'_>,
+    ) -> bool {
         let mut any_changed = false;
         for pipeline in &self.pipelines {
-            let changed = pipeline.run(optimized, ctx);
+            let changed = pipeline.run(optimized, provenance, ctx);
             any_changed |= changed;
         }
         any_changed
@@ -293,6 +319,7 @@ impl Pipeline for CompositePipeline {
 #[cfg(test)]
 mod tests {
     use destack_mir::Mutation;
+    use destack_source::ProvenanceJournal;
 
     use super::*;
     use crate::optimize::{Pass, PassMetadata, PipelineBuilder};
@@ -318,6 +345,7 @@ mod tests {
             &self,
             _func: &mut mir::Function,
             _optimized: &mut MirOptimized,
+            _provenance: &mut ProvenanceJournal<'_>,
             _ctx: &PipelineContext<'_>,
             _analyses: &mut mir::FunctionCache,
         ) -> Mutation {

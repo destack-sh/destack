@@ -2,6 +2,7 @@ use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::Mutation;
@@ -38,16 +39,16 @@ impl ModulePass for EliminateGlobalDeadCode {
     fn run(
         &self,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        provenance: &mut ProvenanceBuilder,
+        _ctx: &PipelineContext<'_>,
         _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
 
-        let changed = run_eliminate_global_dead_code(tree);
+        let changed = run_eliminate_global_dead_code(tree, &mut journal);
 
-        // report what this pass changed
         if changed {
-            ctx.strings.intern("eliminate-global-dead-code");
             Mutation::CONTROL
         } else {
             Mutation::NONE
@@ -56,7 +57,10 @@ impl ModulePass for EliminateGlobalDeadCode {
 }
 
 /// Run global dead code elimination over the module.
-pub(crate) fn run_eliminate_global_dead_code(tree: &mut mir::Tree) -> bool {
+pub(crate) fn run_eliminate_global_dead_code(
+    tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
+) -> bool {
     // collect globals referenced by instructions
     let used_globals = collect_used_globals(tree);
 
@@ -78,9 +82,10 @@ pub(crate) fn run_eliminate_global_dead_code(tree: &mut mir::Tree) -> bool {
             continue;
         }
 
-        let global = tree.get_mut(global_id);
+        let mut global = tree.get(global_id).clone();
         global.linkage = mir::Linkage::Import;
         global.initializer = None;
+        tree.rewrite(global_id, global, provenance);
         changed = true;
     }
 

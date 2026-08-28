@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{ControlTable, DominatorTable, Loop, LoopTable, Mutation};
@@ -18,6 +19,7 @@ impl FunctionPass for RotateLoops {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -40,7 +42,7 @@ impl FunctionPass for RotateLoops {
             return Mutation::NONE;
         }
 
-        let changed = run_rotate_loops(entry, function, tree, &loops, &cfg, &domtree);
+        let changed = run_rotate_loops(entry, function, tree, &loops, &cfg, &domtree, provenance);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -57,6 +59,7 @@ fn run_rotate_loops(
     loops: &LoopTable,
     cfg: &ControlTable,
     domtree: &DominatorTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // collect rotation candidates, innermost first
     let mut candidates: Vec<RotationCandidate> = Vec::new();
@@ -73,7 +76,7 @@ fn run_rotate_loops(
 
     let mut changed = false;
     for candidate in candidates {
-        if rotate_loop(function, tree, &candidate) {
+        if rotate_loop(function, tree, &candidate, provenance) {
             changed = true;
         }
     }
@@ -213,6 +216,7 @@ fn rotate_loop(
     _function: &mut mir::Function,
     tree: &mut mir::Tree,
     candidate: &RotationCandidate,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     let header_block = tree.get(candidate.header);
     let header_params: Vec<_> = header_block
@@ -282,12 +286,8 @@ fn rotate_loop(
         }
     };
 
-    let preheader = tree.get(candidate.preheader).clone();
-    tree.set(candidate.preheader, preheader);
-    tree.set(
-        tree.get(candidate.preheader).terminator,
-        preheader_terminator,
-    );
+    let preheader_terminator_id = tree.get(candidate.preheader).terminator;
+    tree.rewrite(preheader_terminator_id, preheader_terminator, provenance);
 
     // update latch: jump -> rotated branch
     let latch_body_args = remap_args(&candidate.body_arguments, &latch_value_map);
@@ -310,9 +310,8 @@ fn rotate_loop(
         }
     };
 
-    let latch = tree.get(candidate.latch).clone();
-    tree.set(candidate.latch, latch);
-    tree.set(tree.get(candidate.latch).terminator, latch_terminator);
+    let latch_terminator_id = tree.get(candidate.latch).terminator;
+    tree.rewrite(latch_terminator_id, latch_terminator, provenance);
 
     // header is now unreachable, SimplifyControlFlow will remove it
 

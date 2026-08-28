@@ -2,6 +2,7 @@ use destack_core::FxIndexMap;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -68,6 +69,7 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -98,6 +100,7 @@ impl FunctionPass for EliminateLoopBoundsChecks {
         let changed = run_eliminate_loop_bounds_checks(
             function,
             tree,
+            provenance,
             &loops,
             &domtree,
             &ranges,
@@ -164,6 +167,7 @@ struct NonNegativeGuard {
 fn run_eliminate_loop_bounds_checks(
     function: &mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     loops: &LoopTable,
     domtree: &DominatorTable,
     ranges: &RangeTable,
@@ -269,7 +273,7 @@ fn run_eliminate_loop_bounds_checks(
             }
 
             // replace the check with an unconditional jump
-            replace_terminator_with_jump(tree, block_id, success);
+            replace_terminator_with_jump(tree, block_id, success, provenance);
             changed = true;
         }
     }
@@ -362,7 +366,7 @@ fn collect_loop_guards(
 
         // resolve the integer comparison domain
         let operand_type = function.expect_value_type(left);
-        let Some(is_signed) = tree.get(operand_type).integer_signedness() else {
+        let Some(is_signed) = tree.ty(operand_type).integer_signedness() else {
             continue;
         };
 
@@ -810,11 +814,12 @@ fn replace_terminator_with_jump(
     tree: &mut mir::Tree,
     block_id: mir::LocalNodeId<mir::Block>,
     target: mir::BlockTarget,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // overwrite the terminator with a jump
     let block = tree.get(block_id);
     let terminator = mir::Terminator::Jump { target };
-    tree.set(block.terminator, terminator);
+    tree.rewrite(block.terminator, terminator, provenance);
 }
 
 #[cfg(test)]

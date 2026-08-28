@@ -2,6 +2,7 @@ use destack_core::FxIndexSet;
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -46,6 +47,7 @@ impl FunctionPass for EliminateRedundantMemory {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -72,6 +74,7 @@ impl FunctionPass for EliminateRedundantMemory {
         let changed = run_eliminate_redundant_memory(
             function,
             tree,
+            provenance,
             accesses,
             memory.as_ref(),
             &alias,
@@ -149,7 +152,8 @@ struct SourceAccess {
 fn run_eliminate_redundant_memory(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
-    accesses: &mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
+    accesses: &mut mir::AccessTable,
     memory: &MemoryTable,
     alias: &AliasTable,
     constants: &ConstantTable,
@@ -184,10 +188,18 @@ fn run_eliminate_redundant_memory(
     }
 
     // remove redundant instructions
+    for &instruction in &redundant {
+        tree.record_removal(instruction, provenance);
+        accesses.remove(instruction);
+    }
+
     for block_id in function.blocks().to_vec() {
+        let previous_count = tree.get(block_id).instructions.len();
         let mut instructions = tree.get(block_id).instructions.clone();
         instructions.retain(|id| !redundant.contains(id));
-        function.replace_block_instructions(block_id, instructions, tree);
+        if instructions.len() != previous_count {
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
+        }
     }
 
     true

@@ -5,14 +5,14 @@ use crate::optimize::passes::scalar::{
     EliminateDeadCode, FoldConstants, PropagateSparseConstants, SimplifyControlFlow,
 };
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{
     FunctionPass, MirOptimized, ModulePass, PipelineContext, run_function_passes,
 };
 use destack_mir::{
     ConstantTable, Hotness, Mutation, ParameterRemap, SignatureKey, apply_constant_parameters,
-    clone_instruction_tables, constant_arguments_for_parameters, instruction_map_with_locals,
-    terminator_remap,
+    constant_arguments_for_parameters, instruction_map_with_locals, terminator_remap,
 };
 
 /// Maximum specializations per function.
@@ -69,15 +69,14 @@ impl ModulePass for SpecializeArguments {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
         // run the specialization pass
-        let changed = run_specialize_arguments(optimized, ctx, analyses);
+        let changed = run_specialize_arguments(optimized, provenance, ctx, analyses);
 
-        // report what this pass changed
         if changed {
-            ctx.strings.intern("specialize-arguments");
             Mutation::CONTROL | Mutation::VALUE
         } else {
             Mutation::NONE
@@ -148,6 +147,7 @@ enum ConstantKey {
 /// Run argument specialization over the module.
 fn run_specialize_arguments(
     optimized: &mut MirOptimized,
+    provenance: &mut ProvenanceBuilder,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::AnalysisCache,
 ) -> bool {
@@ -155,6 +155,7 @@ fn run_specialize_arguments(
 
     // specialize callsites while holding the mutable MIR tables
     let changed = {
+        let mut journal = provenance.record(SpecializeArguments::metadata().id);
         let MirOptimized {
             tree,
             layouts,
@@ -250,6 +251,7 @@ fn run_specialize_arguments(
                     tree,
                     accesses,
                     ctx,
+                    &mut journal,
                 );
                 specialization_cache.insert(key, new_callee);
                 specialized_functions.push(new_callee);
@@ -267,6 +269,7 @@ fn run_specialize_arguments(
                 tree,
                 layouts,
                 effects,
+                &mut journal,
             ) {
                 changed = true;
             }
@@ -274,7 +277,8 @@ fn run_specialize_arguments(
 
         changed
     };
-    let simplified = simplify_specialized_functions(&specialized_functions, optimized, ctx);
+    let simplified =
+        simplify_specialized_functions(&specialized_functions, optimized, provenance, ctx);
 
     changed || simplified
 }
@@ -438,6 +442,7 @@ fn specialize_callee(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> mir::LocalNodeId<mir::Function> {
     // build the specialized function name
     let base_name = ctx.strings.get(tree.get(callee).name).to_string();
@@ -445,15 +450,15 @@ fn specialize_callee(
     let name = ctx.strings.intern(&format!("{base_name}{suffix}"));
 
     // clone the function body
-    let new_function_id = clone_function(callee, name, tree, accesses);
+    let new_function_id = clone_function(callee, name, tree, accesses, provenance);
 
     // insert constant parameters into the clone
-    apply_constant_parameters(new_function_id, constants, tree, accesses);
+    apply_constant_parameters(new_function_id, constants, tree, provenance, accesses);
 
     // remove parameters that are constant and not required
     if !removal_indices.is_empty() {
         let remap = ParameterRemap::new(removal_indices);
-        apply_parameter_removals(new_function_id, &remap, tree);
+        apply_parameter_removals(new_function_id, &remap, tree, provenance);
     }
 
     new_function_id
@@ -463,6 +468,7 @@ fn specialize_callee(
 fn simplify_specialized_functions(
     function_ids: &[mir::LocalNodeId<mir::Function>],
     optimized: &mut MirOptimized,
+    provenance: &mut ProvenanceBuilder,
     ctx: &PipelineContext<'_>,
 ) -> bool {
     let propagate = PropagateSparseConstants;
@@ -473,7 +479,7 @@ fn simplify_specialized_functions(
 
     let mut changed = false;
     for function_id in function_ids {
-        changed |= run_function_passes(*function_id, optimized, ctx, passes);
+        changed |= run_function_passes(*function_id, optimized, provenance, ctx, passes);
     }
 
     changed
@@ -490,6 +496,7 @@ fn clone_function(
     name: destack_core::StringId,
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> mir::LocalNodeId<mir::Function> {
     // read the original function
     let original = tree.get(function_id).clone();
@@ -499,7 +506,7 @@ fn clone_function(
     let mut new_locals = Vec::new();
     for local_id in original.locals() {
         let local = tree.get(*local_id).clone();
-        let new_local = tree.insert(local);
+        let new_local = tree.insert_from(local, *local_id, provenance);
         local_map.insert(*local_id, new_local);
         new_locals.push(new_local);
     }
@@ -508,15 +515,22 @@ fn clone_function(
     let mut block_map = FxIndexMap::default();
     for block_id in original.blocks() {
         let block = tree.get(*block_id);
-        let parameters = block.parameters.clone();
+        let parameters = block
+            .parameters
+            .iter()
+            .map(|parameter| mir::BlockParameter {
+                provenance: provenance.derive(parameter.provenance),
+                ..*parameter
+            })
+            .collect();
         let terminator = tree.get(block.terminator).clone();
-        let terminator = tree.insert(terminator);
+        let terminator = tree.insert_from(terminator, block.terminator, provenance);
         let new_block = mir::Block {
             parameters,
             instructions: Vec::new(),
             terminator,
         };
-        let new_block_id = tree.insert(new_block);
+        let new_block_id = tree.insert_from(new_block, *block_id, provenance);
         block_map.insert(*block_id, new_block_id);
     }
 
@@ -531,10 +545,10 @@ fn clone_function(
             // remap instruction operands to the cloned locals and values
             let instruction = tree.get(instruction_id).clone();
             let remapped = instruction_map_with_locals(&instruction, &value_map, &local_map, tree);
-            let new_id = tree.insert(remapped);
+            let new_id = tree.insert_from(remapped, instruction_id, provenance);
 
             // preserve memory access entries for the cloned instruction
-            clone_instruction_tables(tree, accesses, instruction_id, new_id, &value_map);
+            accesses.clone_instruction(instruction_id, new_id, &value_map);
 
             new_instructions.push(new_id);
         }
@@ -542,7 +556,7 @@ fn clone_function(
         // update the cloned block instruction list
         let mut new_block = tree.get(new_block_id).clone();
         new_block.instructions = new_instructions;
-        tree.set(new_block_id, new_block);
+        tree.set_payload(new_block_id, new_block);
     }
 
     // remap terminators with new block ids
@@ -551,13 +565,17 @@ fn clone_function(
         let terminator_id = tree.get(new_block_id).terminator;
         let mut terminator = tree.get(terminator_id).clone();
         terminator_remap(tree, &mut terminator, &block_map, &value_map);
-        tree.set(terminator_id, terminator);
+        tree.set_payload(terminator_id, terminator);
     }
 
     // build the new function
     let mut new_function = original.clone();
     new_function.name = name;
+    new_function.symbol = mir::Symbol::declared(name, original.symbol.raw());
     new_function.linkage = mir::Linkage::Local;
+    for parameter in &mut new_function.parameters {
+        parameter.provenance = provenance.derive(parameter.provenance);
+    }
     new_function.replace_locals(new_locals);
     new_function.replace_blocks(
         original
@@ -572,11 +590,11 @@ fn clone_function(
     }
 
     // insert the specialized function
-    let new_function_id = tree.insert(new_function);
+    let new_function_id = tree.insert_from(new_function, function_id, provenance);
     // recompute value id state for the clone
     let mut cloned_function = tree.get(new_function_id).clone();
     cloned_function.recompute_next_value_id(tree);
-    *tree.get_mut(new_function_id) = cloned_function;
+    tree.set_payload(new_function_id, cloned_function);
     new_function_id
 }
 
@@ -613,17 +631,36 @@ fn apply_parameter_removals(
     function_id: mir::LocalNodeId<mir::Function>,
     remap: &ParameterRemap,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
-    // update function parameters and attributes
+    // remove specialized function parameters
     let entry_id = {
-        let function = tree.get_mut(function_id);
+        let mut function = tree.get(function_id).clone();
+        let removed = remap
+            .removal_indices()
+            .iter()
+            .map(|index| function.parameters[*index].provenance)
+            .collect::<Vec<_>>();
+        provenance.remove(&removed);
         function.parameters = remap.filter_by_index(&function.parameters);
-        function.entry().expect("defined function has entry block")
+        let entry = function
+            .entry()
+            .unwrap_or_else(|| unreachable!("specialized function must have an entry block"));
+        tree.rewrite(function_id, function, provenance);
+
+        entry
     };
 
     // update entry block parameters to match the new signature
-    let entry = tree.get_mut(entry_id);
+    let mut entry = tree.get(entry_id).clone();
+    let removed = remap
+        .removal_indices()
+        .iter()
+        .map(|index| entry.parameters[*index].provenance)
+        .collect::<Vec<_>>();
+    provenance.remove(&removed);
     entry.parameters = remap.filter_by_index(&entry.parameters);
+    tree.rewrite(entry_id, entry, provenance);
 }
 
 /// Update a callsite to invoke a specialized clone.
@@ -634,6 +671,7 @@ fn update_callsite(
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
     effects: &mut mir::EffectTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // prepare removal remapping data
     let remap = ParameterRemap::new(removal_indices);
@@ -667,7 +705,7 @@ fn update_callsite(
     call.signature = signature;
 
     let updated = mir::Instruction::Call { destination, call };
-    tree.set(callsite.call_instruction, updated);
+    tree.rewrite(callsite.call_instruction, updated, provenance);
 
     let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
     if let Some(tables) = effects.call_mut(callsite_id) {

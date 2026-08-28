@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{Mutation, ParameterRemap, SignatureKey, UseTable};
@@ -42,18 +43,18 @@ impl ModulePass for EliminateDeadArguments {
     fn run(
         &self,
         optimized: &mut MirOptimized,
-        ctx: &PipelineContext<'_>,
+        provenance: &mut ProvenanceBuilder,
+        _ctx: &PipelineContext<'_>,
         _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
         let layouts = &mut optimized.layouts;
         let effects = &mut optimized.effects;
 
-        let changed = run_eliminate_dead_arguments(tree, layouts, effects);
+        let changed = run_eliminate_dead_arguments(tree, layouts, effects, &mut journal);
 
-        // report what this pass changed
         if changed {
-            ctx.strings.intern("eliminate-dead-arguments");
             Mutation::VALUE
         } else {
             Mutation::NONE
@@ -84,6 +85,7 @@ fn run_eliminate_dead_arguments(
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
     effects: &mut mir::EffectTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // collect callsite information up front
     let call_data = collect_call_data(tree);
@@ -118,11 +120,19 @@ fn run_eliminate_dead_arguments(
         }
 
         // update the function signature and entry block parameters
-        apply_parameter_removals(function_id, &unused, tree);
+        apply_parameter_removals(function_id, &unused, tree, provenance);
 
         // update direct callsites that target this function
         if let Some(calls) = call_data.direct_calls.get(&function_id) {
-            update_call_sites(function_id, calls, &unused, tree, layouts, effects);
+            update_call_sites(
+                function_id,
+                calls,
+                &unused,
+                tree,
+                layouts,
+                effects,
+                provenance,
+            );
         }
 
         changed = true;
@@ -221,23 +231,40 @@ fn apply_parameter_removals(
     function_id: mir::LocalNodeId<mir::Function>,
     unused: &[usize],
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // prepare removal remapping data
     let remap = ParameterRemap::new(unused);
 
-    // update function parameters and attributes
+    // remove unused function parameters
     let entry_id = {
-        let function = tree.get_mut(function_id);
+        let mut function = tree.get(function_id).clone();
+        let removed = remap
+            .removal_indices()
+            .iter()
+            .map(|index| function.parameters[*index].provenance)
+            .collect::<Vec<_>>();
+        provenance.remove(&removed);
         function.parameters = remap.filter_by_index(&function.parameters);
 
-        function
+        let entry_id = function
             .entry()
-            .unwrap_or_else(|| panic!("missing entry for rewritten function: {function_id:?}"))
+            .unwrap_or_else(|| unreachable!("rewritten function must have an entry block"));
+        tree.rewrite(function_id, function, provenance);
+
+        entry_id
     };
 
     // update entry block parameters to match the new signature
-    let entry = tree.get_mut(entry_id);
+    let mut entry = tree.get(entry_id).clone();
+    let removed = remap
+        .removal_indices()
+        .iter()
+        .map(|index| entry.parameters[*index].provenance)
+        .collect::<Vec<_>>();
+    provenance.remove(&removed);
     entry.parameters = remap.filter_by_index(&entry.parameters);
+    tree.rewrite(entry_id, entry, provenance);
 }
 
 /// Update direct callsites to drop removed arguments.
@@ -248,6 +275,7 @@ fn update_call_sites(
     tree: &mut mir::Tree,
     layouts: &mut mir::LayoutTable,
     effects: &mut mir::EffectTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) {
     // prepare removal remapping data
     let remap = ParameterRemap::new(unused);
@@ -266,7 +294,7 @@ fn update_call_sites(
                     {
                         (*destination, call.arguments, call.clone())
                     }
-                    _ => panic!("stale direct callsite instruction: {instruction_id:?}"),
+                    _ => unreachable!("stale direct callsite instruction: {instruction_id:?}"),
                 };
 
                 // filter the argument list
@@ -283,7 +311,7 @@ fn update_call_sites(
                 call.signature = signature;
 
                 let updated = mir::Instruction::Call { destination, call };
-                *tree.get_mut(instruction_id) = updated;
+                tree.rewrite(instruction_id, updated, provenance);
 
                 // preserve tables when the callsite carries it
                 if let Some(tables) = effects.call_mut(callsite) {
@@ -291,8 +319,7 @@ fn update_call_sites(
                 }
             }
             DirectCallSite::Terminator(block_id) => {
-                let block = tree.get_mut(block_id);
-                let terminator_id = block.terminator;
+                let terminator_id = tree.get(block_id).terminator;
                 let terminator = tree.get(terminator_id).clone();
                 match &terminator {
                     mir::Terminator::Invoke {
@@ -312,7 +339,7 @@ fn update_call_sites(
                             target: target.clone(),
                             unwind: unwind.clone(),
                         };
-                        tree.set(terminator_id, new_terminator);
+                        tree.rewrite(terminator_id, new_terminator, provenance);
                     }
                     mir::Terminator::TailCall { call }
                         if call.callee.function() == Some(function_id) =>
@@ -325,9 +352,9 @@ fn update_call_sites(
                         new_call.signature = signature;
 
                         let new_terminator = mir::Terminator::TailCall { call: new_call };
-                        tree.set(terminator_id, new_terminator);
+                        tree.rewrite(terminator_id, new_terminator, provenance);
                     }
-                    _ => panic!("stale direct callsite terminator: {block_id:?}"),
+                    _ => unreachable!("stale direct callsite terminator: {block_id:?}"),
                 }
 
                 // preserve tables when the terminator carries it

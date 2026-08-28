@@ -2,12 +2,13 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlTable, DefinitionTable, DominatorTable, Mutation, PureExpression,
-    apply_substitutions_in_dominated_blocks, clone_instruction_tables, instruction_is_speculatable,
-    instruction_map, instruction_substitute_uses_in_tree,
+    apply_substitutions_in_dominated_blocks, instruction_is_speculatable, instruction_map,
+    instruction_substitute_uses_in_tree,
 };
 
 declare_pass! {
@@ -54,6 +55,7 @@ impl FunctionPass for HoistInstructions {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -73,7 +75,7 @@ impl FunctionPass for HoistInstructions {
         let domtree = analyses.dominator(function, tree).clone();
 
         // run the hoisting pass
-        let changed = run_hoist_instructions(function, tree, accesses, &cfg, &domtree);
+        let changed = run_hoist_instructions(function, tree, provenance, accesses, &cfg, &domtree);
 
         // report what this pass changed
         if changed {
@@ -88,6 +90,7 @@ impl FunctionPass for HoistInstructions {
 fn run_hoist_instructions(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     cfg: &ControlTable,
     domtree: &DominatorTable,
@@ -135,6 +138,7 @@ fn run_hoist_instructions(
         let hoisted = hoist_common_prefix(
             function,
             tree,
+            provenance,
             accesses,
             domtree,
             &definitions,
@@ -156,6 +160,7 @@ fn run_hoist_instructions(
 fn hoist_common_prefix(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     domtree: &DominatorTable,
     definitions: &DefinitionTable,
@@ -266,8 +271,11 @@ fn hoist_common_prefix(
 
             // clone instruction with updated destinations and operands
             let hoisted_instruction = instruction_map(&candidate.instruction, &value_map, tree);
-            let hoisted_id = tree.insert(hoisted_instruction);
-            clone_instruction_tables(tree, accesses, candidate.then_id, hoisted_id, &value_map);
+            let then_source = tree.provenance(candidate.then_id);
+            let else_source = tree.provenance(candidate.else_id);
+            let output = provenance.fuse(&[then_source, else_source]);
+            let hoisted_id = tree.insert(hoisted_instruction, output);
+            accesses.clone_instruction(candidate.then_id, hoisted_id, &value_map);
             new_header_instructions.push(hoisted_id);
 
             // record substitutions for both branches
@@ -286,18 +294,22 @@ fn hoist_common_prefix(
     }
 
     // update the header block with hoisted instructions
-    function.replace_block_instructions(header, new_header_instructions, tree);
+    function.replace_block_instructions(header, new_header_instructions, tree, provenance);
 
     // drop hoisted instructions from both successor blocks
     let then_trimmed = drop_instructions(&then_data, &hoisted_then_ids);
     let else_trimmed = drop_instructions(&else_data, &hoisted_else_ids);
-    function.replace_block_instructions(then_block, then_trimmed, tree);
-    function.replace_block_instructions(else_block, else_trimmed, tree);
+    function.replace_block_instructions(then_block, then_trimmed, tree, provenance);
+    function.replace_block_instructions(else_block, else_trimmed, tree, provenance);
+    for instruction in hoisted_then_ids.iter().chain(&hoisted_else_ids) {
+        accesses.remove(*instruction);
+    }
 
     // apply substitutions to dominated blocks
     let then_changed = apply_substitutions_in_dominated_blocks(
         function,
         tree,
+        provenance,
         accesses,
         domtree,
         then_block,
@@ -306,6 +318,7 @@ fn hoist_common_prefix(
     let else_changed = apply_substitutions_in_dominated_blocks(
         function,
         tree,
+        provenance,
         accesses,
         domtree,
         else_block,

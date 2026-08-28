@@ -2,13 +2,13 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
     ControlTable, DefinitionTable, DominatorTable, EvolutionTable, Loop, LoopTable, Mutation,
-    RangeTable, Scev, TargetLayout, UseTable, ValueDefinition, ValueRange,
-    clone_instruction_tables, constant_is_zero, instruction_is_speculatable, instruction_map,
-    instruction_substitute_uses_in_tree, remap_instruction_memory_accesses,
+    RangeTable, Scev, TargetLayout, UseTable, ValueDefinition, ValueRange, constant_is_zero,
+    instruction_is_speculatable, instruction_map, instruction_substitute_uses_in_tree,
     resolve_substitution_chains, terminator_substitute_uses,
 };
 
@@ -66,6 +66,7 @@ impl FunctionPass for ReduceLoopStrength {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -98,7 +99,7 @@ impl FunctionPass for ReduceLoopStrength {
             ranges: &ranges,
             target_layout: ctx.target_layout(),
         };
-        let changed = run_reduce_loop_strength(function, tree, accesses, &context);
+        let changed = run_reduce_loop_strength(function, tree, accesses, &context, provenance);
         if changed {
             Mutation::CONTROL | Mutation::VALUE
         } else {
@@ -118,12 +119,14 @@ struct StrengthReductionCandidate {
     latch: mir::LocalNodeId<mir::Block>,
     /// Value to replace.
     value: mir::Value,
+    /// Instruction that defines the replaced value.
+    instruction: mir::LocalNodeId<mir::Instruction>,
     /// Recurrence start expression.
     start: Scev,
     /// Recurrence step expression.
     step: Scev,
     /// Type of the value being replaced.
-    value_type: mir::LocalNodeId<mir::Type>,
+    value_type: mir::TypeId,
     /// Blocks inside the loop.
     loop_blocks: FxIndexSet<mir::LocalNodeId<mir::Block>>,
 }
@@ -133,6 +136,8 @@ struct StrengthReductionCandidate {
 struct StrengthReductionPlanItem {
     /// Original value to replace.
     original: mir::Value,
+    /// Instruction that defines the original value.
+    source: mir::LocalNodeId<mir::Instruction>,
     /// New header parameter.
     new_param: mir::TypedValue,
     /// Start value provided by the preheader.
@@ -309,10 +314,10 @@ impl<'a> CandidateContext<'a> {
                         continue;
                     }
 
-                    // skip parameters that are already induction variables
-                    if matches!(definition, ValueDefinition::BlockParameter { .. }) {
+                    // require an instruction defined recurrence
+                    let ValueDefinition::Instruction { instruction, .. } = definition else {
                         continue;
-                    }
+                    };
 
                     // require uses dominated by the header
                     if !uses_within_loop(destination, &lp.blocks, self.uses) {
@@ -325,6 +330,7 @@ impl<'a> CandidateContext<'a> {
                         preheader,
                         latch,
                         value: destination,
+                        instruction,
                         start: *start,
                         step: *step,
                         value_type,
@@ -344,6 +350,7 @@ fn run_reduce_loop_strength(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
     context: &StrengthReduceContext<'_>,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // build definition and use tables
     let definitions = DefinitionTable::build(function, tree);
@@ -407,6 +414,7 @@ fn run_reduce_loop_strength(
             context.ranges,
             context.domtree,
             context.target_layout,
+            provenance,
         );
 
         // merge substitutions into the global map
@@ -436,8 +444,8 @@ fn run_reduce_loop_strength(
 
             // replace instructions that changed
             if new_instruction != instruction {
-                tree.set(instruction_id, new_instruction);
-                remap_instruction_memory_accesses(accesses, instruction_id, &substitutions);
+                tree.rewrite(instruction_id, new_instruction, provenance);
+                accesses.remap_instruction(instruction_id, &substitutions);
             }
         }
     }
@@ -453,7 +461,7 @@ fn run_reduce_loop_strength(
 
         // replace blocks that changed
         if new_terminator != terminator {
-            tree.set(terminator_id, new_terminator);
+            tree.rewrite(terminator_id, new_terminator, provenance);
         }
     }
 
@@ -470,6 +478,7 @@ fn apply_candidates_for_loop(
     ranges: &RangeTable,
     domtree: &DominatorTable,
     target_layout: TargetLayout,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> Vec<(mir::Value, mir::Value)> {
     // skip empty candidate lists
     if candidates.is_empty() {
@@ -492,11 +501,15 @@ fn apply_candidates_for_loop(
         ranges,
         domtree,
         target_layout,
+        provenance,
+        candidates[0].instruction,
     );
 
     // build plan items
     let mut plan_items: Vec<StrengthReductionPlanItem> = Vec::new();
     for candidate in candidates {
+        materializer.source = candidate.instruction;
+
         // materialize the start value
         let Some(start_value) = materializer.materialize(function, &candidate.start) else {
             continue;
@@ -517,6 +530,7 @@ fn apply_candidates_for_loop(
         // record the planned rewrite
         plan_items.push(StrengthReductionPlanItem {
             original: candidate.value,
+            source: candidate.instruction,
             new_param,
             start_value,
             step_value,
@@ -561,9 +575,10 @@ fn apply_candidates_for_loop(
         header_block.parameters.push(mir::BlockParameter {
             value: item.new_param.value,
             ty: item.new_param.ty,
+            provenance: provenance.derive(tree.provenance(item.source)),
         });
     }
-    tree.set(header, header_block);
+    tree.rewrite(header, header_block, provenance);
 
     // insert recurrence updates into the latch
     let mut latch_instructions = latch_block.instructions.clone();
@@ -574,17 +589,17 @@ fn apply_candidates_for_loop(
             left: item.new_param.value,
             right: item.step_value,
         };
-        let instruction_id = tree.insert(instruction);
+        let instruction_id = tree.insert_from(instruction, item.source, provenance);
         latch_instructions.push(instruction_id);
     }
-    function.replace_block_instructions(latch, latch_instructions, tree);
+    function.replace_block_instructions(latch, latch_instructions, tree, provenance);
 
     // install latch terminator
-    tree.set(latch_block.terminator, latch_terminator);
+    tree.rewrite(latch_block.terminator, latch_terminator, provenance);
 
     // install preheader terminator
     if preheader_terminator != preheader_current_terminator {
-        tree.set(preheader_block.terminator, preheader_terminator);
+        tree.rewrite(preheader_block.terminator, preheader_terminator, provenance);
     }
 
     // return substitutions
@@ -617,13 +632,9 @@ fn scev_is_zero(scev: &Scev) -> bool {
 }
 
 /// Check if a type is an integer.
-fn type_is_integer(
-    ty: mir::LocalNodeId<mir::Type>,
-    pointer_width_bits: u16,
-    tree: &mir::Tree,
-) -> bool {
+fn type_is_integer(ty: mir::TypeId, pointer_width_bits: u16, tree: &mir::Tree) -> bool {
     // inspect the referenced type
-    tree.get(ty)
+    tree.ty(ty)
         .int_info_with_pointer_width(pointer_width_bits)
         .is_some()
 }
@@ -640,7 +651,7 @@ fn division_is_safe(
     tree: &mir::Tree,
 ) -> bool {
     let operand_type = function.expect_value_type(left);
-    let Some(is_signed) = tree.get(operand_type).integer_signedness() else {
+    let Some(is_signed) = tree.ty(operand_type).integer_signedness() else {
         return false;
     };
 
@@ -806,7 +817,7 @@ fn signed_min_for_value(
 ) -> Option<i128> {
     let ty = function.expect_value_type(value);
     let (width, is_signed) = tree
-        .get(ty)
+        .ty(ty)
         .int_info_with_pointer_width(pointer_width_bits)?;
     if !is_signed {
         return None;
@@ -903,128 +914,19 @@ fn append_successor_arguments(
         return Some(terminator.clone());
     }
 
-    // match terminator kinds with successor edges
-    match terminator {
-        mir::Terminator::Jump { target } => {
-            // ensure the jump targets the successor
-            if target.block != successor {
-                return None;
-            }
+    // update every matching physical edge
+    let mut terminator = terminator.clone();
+    let is_changed = terminator.rewrite_successor(
+        successor,
+        |target, tree| {
+            let arguments = appended_arguments(tree, target.arguments, new_args);
 
-            // append arguments for the jump
-            let updated_args = appended_arguments(tree, target.arguments, new_args);
-            Some(mir::Terminator::Jump {
-                target: mir::BlockTarget::new(target.block, updated_args),
-            })
-        }
-        mir::Terminator::Branch {
-            condition,
-            then_target,
-            else_target,
-        } => {
-            // update branch arguments for matching edges
-            let mut updated_then = then_target.arguments;
-            let mut updated_else = else_target.arguments;
-            let mut touched = false;
+            mir::BlockTarget::new(target.block, arguments)
+        },
+        tree,
+    );
 
-            if then_target.block == successor {
-                updated_then = appended_arguments(tree, then_target.arguments, new_args);
-                touched = true;
-            }
-
-            // update else arguments when needed
-            if else_target.block == successor {
-                updated_else = appended_arguments(tree, else_target.arguments, new_args);
-                touched = true;
-            }
-
-            // ensure the successor was updated
-            if !touched {
-                return None;
-            }
-
-            Some(mir::Terminator::Branch {
-                condition: *condition,
-                then_target: mir::BlockTarget::new(then_target.block, updated_then),
-                else_target: mir::BlockTarget::new(else_target.block, updated_else),
-            })
-        }
-        mir::Terminator::Check {
-            constraint,
-            success,
-            failure,
-        } => {
-            // update check target arguments for matching edges
-            let mut updated_success = success.arguments;
-            let mut updated_failure = failure.arguments;
-            let mut touched = false;
-
-            if success.block == successor {
-                updated_success = appended_arguments(tree, success.arguments, new_args);
-                touched = true;
-            }
-
-            // update failure arguments when needed
-            if failure.block == successor {
-                updated_failure = appended_arguments(tree, failure.arguments, new_args);
-                touched = true;
-            }
-
-            // ensure the successor was updated
-            if !touched {
-                return None;
-            }
-
-            Some(mir::Terminator::Check {
-                constraint: constraint.clone(),
-                success: mir::BlockTarget::new(success.block, updated_success),
-                failure: mir::BlockTarget::new(failure.block, updated_failure),
-            })
-        }
-        mir::Terminator::Switch {
-            value,
-            default,
-            cases,
-        } => {
-            // update switch case arguments for matching edges
-            let mut updated_cases = Vec::new();
-            let mut updated_default = default.arguments;
-            let mut touched = false;
-
-            // update default arguments when needed
-            if default.block == successor {
-                updated_default = appended_arguments(tree, default.arguments, new_args);
-                touched = true;
-            }
-
-            // update case arguments when needed
-            let cases = tree.get_switch_cases(*cases).to_vec();
-            for case in cases {
-                let mut updated_case_args = case.target.arguments;
-                if case.target.block == successor {
-                    updated_case_args = appended_arguments(tree, case.target.arguments, new_args);
-                    touched = true;
-                }
-
-                updated_cases.push(mir::SwitchCase {
-                    value: case.value,
-                    target: mir::BlockTarget::new(case.target.block, updated_case_args),
-                });
-            }
-
-            // ensure the successor was updated
-            if !touched {
-                return None;
-            }
-
-            Some(mir::Terminator::Switch {
-                value: *value,
-                default: mir::BlockTarget::new(default.block, updated_default),
-                cases: tree.add_switch_cases(&updated_cases),
-            })
-        }
-        _ => None,
-    }
+    is_changed.then_some(terminator)
 }
 
 /// Append values to one compact argument slice.
@@ -1040,11 +942,15 @@ fn appended_arguments(
 }
 
 /// Helper for materializing SCEV expressions in the preheader.
-struct ScevMaterializer<'a> {
+struct ScevMaterializer<'a, 'p> {
     /// Mutable tree reference.
     tree: &'a mut mir::Tree,
     /// Mutable memory metadata reference.
     accesses: &'a mut mir::AccessTable,
+    /// Provenance journal for inserted instructions and rewritten blocks.
+    provenance: &'a mut ProvenanceJournal<'p>,
+    /// The instruction that requires the materialized value.
+    source: mir::LocalNodeId<mir::Instruction>,
     /// Preheader block id.
     preheader: mir::LocalNodeId<mir::Block>,
     /// Blocks inside the loop.
@@ -1064,12 +970,12 @@ struct ScevMaterializer<'a> {
     /// Values currently being materialized.
     value_in_progress: FxIndexSet<mir::Value>,
     /// Cached integer types by width and signedness.
-    type_cache: FxIndexMap<(u16, bool), mir::LocalNodeId<mir::Type>>,
+    type_cache: FxIndexMap<(u16, bool), mir::TypeId>,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
 
-impl<'a> ScevMaterializer<'a> {
+impl<'a, 'p> ScevMaterializer<'a, 'p> {
     /// Create a new materializer for the preheader.
     fn new(
         tree: &'a mut mir::Tree,
@@ -1080,6 +986,8 @@ impl<'a> ScevMaterializer<'a> {
         ranges: &'a RangeTable,
         domtree: &'a DominatorTable,
         target_layout: TargetLayout,
+        provenance: &'a mut ProvenanceJournal<'p>,
+        source: mir::LocalNodeId<mir::Instruction>,
     ) -> Self {
         // collect constants already in the preheader
         let mut constant_cache = Vec::new();
@@ -1100,6 +1008,8 @@ impl<'a> ScevMaterializer<'a> {
         Self {
             tree,
             accesses,
+            provenance,
+            source,
             preheader,
             loop_blocks,
             definitions,
@@ -1341,7 +1251,7 @@ impl<'a> ScevMaterializer<'a> {
             destination,
             value: constant.clone(),
         };
-        self.insert_instruction(function, instruction);
+        self.insert_instruction(function, instruction, self.source);
         self.constant_cache.push((constant.clone(), destination));
 
         Some(destination)
@@ -1454,14 +1364,9 @@ impl<'a> ScevMaterializer<'a> {
         let cloned = instruction_map(instruction, &value_map, self.tree);
 
         // insert the cloned instruction in the preheader
-        let cloned_id = self.insert_instruction(function, cloned);
-        clone_instruction_tables(
-            self.tree,
-            self.accesses,
-            instruction_id,
-            cloned_id,
-            &value_map,
-        );
+        let cloned_id = self.insert_instruction(function, cloned, instruction_id);
+        self.accesses
+            .clone_instruction(instruction_id, cloned_id, &value_map);
 
         Some(destination)
     }
@@ -1482,7 +1387,7 @@ impl<'a> ScevMaterializer<'a> {
             left,
             right,
         };
-        self.insert_instruction(function, instruction);
+        self.insert_instruction(function, instruction, self.source);
         destination
     }
 
@@ -1500,7 +1405,7 @@ impl<'a> ScevMaterializer<'a> {
             operator,
             argument,
         };
-        self.insert_instruction(function, instruction);
+        self.insert_instruction(function, instruction, self.source);
         destination
     }
 
@@ -1510,7 +1415,7 @@ impl<'a> ScevMaterializer<'a> {
         function: &mut mir::Function,
         operator: mir::CastOperator,
         argument: mir::Value,
-        to_type: mir::LocalNodeId<mir::Type>,
+        to_type: mir::TypeId,
     ) -> mir::Value {
         // allocate a destination value
         let destination = function.next_typed_value(to_type);
@@ -1520,7 +1425,7 @@ impl<'a> ScevMaterializer<'a> {
             argument,
             to_type,
         };
-        self.insert_instruction(function, instruction);
+        self.insert_instruction(function, instruction, self.source);
         destination
     }
 
@@ -1529,12 +1434,18 @@ impl<'a> ScevMaterializer<'a> {
         &mut self,
         function: &mut mir::Function,
         instruction: mir::Instruction,
+        source: mir::LocalNodeId<mir::Instruction>,
     ) -> mir::LocalNodeId<mir::Instruction> {
         // append the instruction to the preheader
-        let instruction_id = self.tree.insert(instruction);
+        let instruction_id = self.tree.insert_from(instruction, source, self.provenance);
         let mut instructions = self.tree.get(self.preheader).instructions.clone();
         instructions.push(instruction_id);
-        function.replace_block_instructions(self.preheader, instructions, self.tree);
+        function.replace_block_instructions(
+            self.preheader,
+            instructions,
+            self.tree,
+            self.provenance,
+        );
         instruction_id
     }
 
@@ -1557,7 +1468,7 @@ impl<'a> ScevMaterializer<'a> {
     }
 
     /// Get or create an integer type.
-    fn int_type(&mut self, width: u16, signed: bool) -> Option<mir::LocalNodeId<mir::Type>> {
+    fn int_type(&mut self, width: u16, signed: bool) -> Option<mir::TypeId> {
         // reuse cached types when possible
         if let Some(existing) = self.type_cache.get(&(width, signed)) {
             return Some(*existing);
@@ -1574,7 +1485,7 @@ impl<'a> ScevMaterializer<'a> {
     fn truncate_signedness(&self, function: &mir::Function, argument: mir::Value) -> Option<bool> {
         // read the argument type
         let ty_id = function.expect_value_type(argument);
-        let ty = self.tree.get(ty_id);
+        let ty = self.tree.ty(ty_id);
         let (_, signed) = ty.int_info_with_pointer_width(self.target_layout.pointer_bits())?;
         Some(signed)
     }

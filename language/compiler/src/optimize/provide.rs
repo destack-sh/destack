@@ -97,6 +97,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let mut optimized = MirOptimized {
             tree: elaborated.tree.clone(),
+            provenance: elaborated.provenance.clone(),
             layouts: elaborated.layouts.clone(),
             dispatch: lowered.dispatch.clone(),
             drops: elaborated.drops.clone(),
@@ -131,7 +132,9 @@ impl Compiler {
             None,
             program_analysis,
         );
-        pipeline.run(&mut optimized, &mut pipeline_context);
+        let mut provenance = optimized.provenance.extend();
+        pipeline.run(&mut optimized, &mut provenance, &mut pipeline_context);
+        optimized.provenance = provenance.finish();
 
         // collect accumulated diagnostics from verification passes
         for error in pipeline_context.take_errors() {

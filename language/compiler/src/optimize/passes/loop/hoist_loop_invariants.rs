@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
 use destack_mir::{
@@ -50,6 +51,7 @@ impl FunctionPass for HoistLoopInvariants {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         _ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -89,6 +91,7 @@ impl FunctionPass for HoistLoopInvariants {
             &constants,
             &alias,
             memory.as_ref(),
+            provenance,
         );
 
         // report what this pass changed
@@ -112,6 +115,7 @@ fn run_hoist_loop_invariants(
     constants: &ConstantTable,
     alias: &AliasTable,
     memory: &MemoryTable,
+    provenance: &mut ProvenanceJournal<'_>,
 ) -> bool {
     // order loops from inner to outer
     let mut loop_order: Vec<&Loop> = loops.loops().iter().collect();
@@ -276,16 +280,19 @@ fn run_hoist_loop_invariants(
 
     // remove hoisted instructions
     for block_id in function.blocks().to_vec() {
+        let previous_count = tree.get(block_id).instructions.len();
         let mut instructions = tree.get(block_id).instructions.clone();
         instructions.retain(|id| !to_remove.contains(id));
-        function.replace_block_instructions(block_id, instructions, tree);
+        if instructions.len() != previous_count {
+            function.replace_block_instructions(block_id, instructions, tree, provenance);
+        }
     }
 
     // insert instructions into preheaders
     for (preheader_id, instructions) in insertion_by_preheader {
         let mut preheader_instructions = tree.get(preheader_id).instructions.clone();
         preheader_instructions.extend(instructions);
-        function.replace_block_instructions(preheader_id, preheader_instructions, tree);
+        function.replace_block_instructions(preheader_id, preheader_instructions, tree, provenance);
     }
 
     true

@@ -2,6 +2,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::{ProvenanceBuilder, ProvenanceJournal};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{
@@ -53,18 +54,19 @@ impl ModulePass for PropagateInterproceduralConstants {
     fn run(
         &self,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceBuilder,
         ctx: &PipelineContext<'_>,
         _analyses: &mut mir::AnalysisCache,
     ) -> Mutation {
+        let mut journal = provenance.record(Self::metadata().id);
         let tree = &mut optimized.tree;
         let accesses = &mut optimized.accesses;
 
         let pointer_width_bits = ctx.options.target_layout().pointer_bits();
-        let changed = run_interprocedural_constant_prop(tree, accesses, pointer_width_bits);
+        let changed =
+            run_interprocedural_constant_prop(tree, &mut journal, accesses, pointer_width_bits);
 
-        // report what this pass changed
         if changed {
-            ctx.strings.intern("propagate-interprocedural-constants");
             Mutation::VALUE
         } else {
             Mutation::NONE
@@ -93,6 +95,7 @@ struct CallData {
 /// Run interprocedural constant propagation over the module.
 fn run_interprocedural_constant_prop(
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     pointer_width_bits: u16,
 ) -> bool {
@@ -143,7 +146,7 @@ fn run_interprocedural_constant_prop(
         }
 
         // insert constants and rewrite uses inside the callee
-        if apply_constant_parameters(function_id, &constants, tree, accesses) {
+        if apply_constant_parameters(function_id, &constants, tree, provenance, accesses) {
             changed = true;
         }
     }

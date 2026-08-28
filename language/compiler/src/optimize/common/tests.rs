@@ -112,8 +112,19 @@ impl TestProgram {
         {
             panic!("failed to parse MIR: {:?}", parsed.diagnostics);
         }
-        let (mut tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (
+            mut tree,
+            provenance,
+            target,
+            layouts,
+            dispatch,
+            drops,
+            accesses,
+            effects,
+            profile,
+            strings,
+            _,
+        ) = parsed.into_parts();
 
         // mirror the primitive universe guaranteed by MIR lowering
         let primitive_types = std::iter::once(mir::Type::TypeId).chain(
@@ -143,6 +154,7 @@ impl TestProgram {
         Self {
             optimized: MirOptimized {
                 tree,
+                provenance,
                 layouts,
                 dispatch,
                 drops,
@@ -409,6 +421,7 @@ impl TestProgram {
             .collect();
 
         // run pass on each function
+        let mut provenance = self.optimized.provenance.extend();
         for function_id in function_ids {
             let mut function = self.optimized.tree.get(function_id).clone();
 
@@ -420,9 +433,22 @@ impl TestProgram {
             // recompute next_value_id so passes can allocate fresh values
             function.recompute_next_value_id(&self.optimized.tree);
             let mut analyses = self.function_cache();
-            pass.run(&mut function, &mut self.optimized, &context, &mut analyses);
-            *self.optimized.tree.get_mut(function_id) = function;
+            let mut journal = provenance.record(pass.metadata().id);
+            let mutation = pass.run(
+                &mut function,
+                &mut self.optimized,
+                &mut journal,
+                &context,
+                &mut analyses,
+            );
+            if !mutation.is_none() {
+                self.optimized
+                    .tree
+                    .rewrite_provenance(function_id, &mut journal);
+            }
+            self.optimized.tree.set_payload(function_id, function);
         }
+        self.optimized.provenance = provenance.finish();
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -680,7 +706,14 @@ impl TestProgram {
 
         // run the pass against the whole optimized artifact
         let mut analyses = self.analysis_cache();
-        pass.run(&mut self.optimized, &context, &mut analyses);
+        let mut provenance = self.optimized.provenance.extend();
+        pass.run(
+            &mut self.optimized,
+            &mut provenance,
+            &context,
+            &mut analyses,
+        );
+        self.optimized.provenance = provenance.finish();
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -714,7 +747,14 @@ impl TestProgram {
 
         // run the pass against the whole optimized artifact
         let mut analyses = self.analysis_cache();
-        pass.run(&mut self.optimized, &context, &mut analyses);
+        let mut provenance = self.optimized.provenance.extend();
+        pass.run(
+            &mut self.optimized,
+            &mut provenance,
+            &context,
+            &mut analyses,
+        );
+        self.optimized.provenance = provenance.finish();
 
         // collect diagnostics after pass completes
         self.errors = context
@@ -791,20 +831,22 @@ mod tests {
     use destack_core::{StringId, StringPool};
     use destack_mir as mir;
     use destack_mir::{Mutation, instruction_is_speculatable};
+    use destack_source::ProvenanceId;
 
     use super::*;
 
     /// Build one function with the requested SSA value types.
-    fn test_function(
-        tree: &mut mir::Tree,
-        value_types: &[mir::LocalNodeId<mir::Type>],
-    ) -> mir::Function {
-        let terminator = tree.insert(mir::Terminator::Return { value: None });
-        let entry = tree.insert(mir::Block {
-            parameters: Vec::new(),
-            instructions: Vec::new(),
-            terminator,
-        });
+    fn test_function(tree: &mut mir::Tree, value_types: &[mir::TypeId]) -> mir::Function {
+        let provenance = ProvenanceId::new(0);
+        let terminator = tree.insert(mir::Terminator::Return { value: None }, provenance);
+        let entry = tree.insert(
+            mir::Block {
+                parameters: Vec::new(),
+                instructions: Vec::new(),
+                terminator,
+            },
+            provenance,
+        );
         let body = mir::FunctionBody::new(
             entry,
             vec![entry],

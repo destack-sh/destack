@@ -2,11 +2,10 @@ use destack_core::{FxIndexMap, FxIndexSet};
 
 use crate::optimize::declare_pass;
 use destack_mir as mir;
+use destack_source::ProvenanceJournal;
 
 use crate::optimize::{FunctionPass, MirOptimized, PipelineContext};
-use destack_mir::{
-    ControlTable, Mutation, clone_instruction_tables, instruction_is_speculatable, instruction_map,
-};
+use destack_mir::{ControlTable, Mutation, instruction_is_speculatable, instruction_map};
 
 declare_pass! {
     /// Convert simple diamonds into select instructions.
@@ -61,6 +60,7 @@ impl FunctionPass for ConvertBranches {
         &self,
         function: &mut mir::Function,
         optimized: &mut MirOptimized,
+        provenance: &mut ProvenanceJournal<'_>,
         ctx: &PipelineContext<'_>,
         analyses: &mut mir::FunctionCache,
     ) -> Mutation {
@@ -73,7 +73,7 @@ impl FunctionPass for ConvertBranches {
         }
 
         // run if conversion
-        let changed = run_convert_branches(function, tree, accesses, ctx, analyses);
+        let changed = run_convert_branches(function, tree, provenance, accesses, ctx, analyses);
 
         // report what this pass changed
         if changed {
@@ -121,6 +121,7 @@ impl ConvertBranchesCandidate {
 fn run_convert_branches(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
@@ -160,6 +161,7 @@ fn run_convert_branches(
             &candidate,
             function,
             tree,
+            provenance,
             accesses,
             execution_counts.edges(),
             &cost,
@@ -268,6 +270,7 @@ fn apply_convert_branches(
     candidate: &ConvertBranchesCandidate,
     function: &mut mir::Function,
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     edge_counts: &FxIndexMap<mir::Edge, u64>,
     cost: &mir::CostTable,
@@ -295,23 +298,6 @@ fn apply_convert_branches(
         return false;
     };
 
-    // clone branch instructions into the header
-    let mut new_instructions = tree.get(candidate.header).instructions.clone();
-    clone_block_instructions(
-        tree,
-        accesses,
-        &then_block,
-        &then_value_map,
-        &mut new_instructions,
-    );
-    clone_block_instructions(
-        tree,
-        accesses,
-        &else_block,
-        &else_value_map,
-        &mut new_instructions,
-    );
-
     // read merge arguments
     let then_terminator = tree.get(then_block.terminator);
     let Some(then_merge_args) = jump_arguments(tree, then_terminator) else {
@@ -331,14 +317,42 @@ fn apply_convert_branches(
     }
 
     // require merge parameters to match the argument count
-    let merge_block = tree.get(candidate.merge_block);
-    if merge_block.parameters.len() != then_merge_args.len() {
+    let merge_parameters = tree
+        .get(candidate.merge_block)
+        .parameters
+        .iter()
+        .map(|parameter| parameter.provenance)
+        .collect::<Vec<_>>();
+    if merge_parameters.len() != then_merge_args.len() {
         return false;
     }
 
+    // clone branch instructions into the header
+    let mut new_instructions = tree.get(candidate.header).instructions.clone();
+    clone_block_instructions(
+        tree,
+        provenance,
+        accesses,
+        &then_block,
+        &then_value_map,
+        &mut new_instructions,
+    );
+    clone_block_instructions(
+        tree,
+        provenance,
+        accesses,
+        &else_block,
+        &else_value_map,
+        &mut new_instructions,
+    );
+
     // build select values for merge arguments
     let mut select_args = Vec::with_capacity(then_merge_args.len());
-    for (then_value, else_value) in then_merge_args.iter().zip(else_merge_args.iter()) {
+    for (index, (then_value, else_value)) in then_merge_args
+        .iter()
+        .zip(else_merge_args.iter())
+        .enumerate()
+    {
         let then_value = remap_value(*then_value, &then_value_map);
         let else_value = remap_value(*else_value, &else_value_map);
 
@@ -349,18 +363,28 @@ fn apply_convert_branches(
             then_value,
             else_value,
         };
-        let select_id = tree.insert(select);
+        let inputs = [
+            tree.provenance(then_block.terminator),
+            tree.provenance(else_block.terminator),
+            merge_parameters[index],
+        ];
+        let select_provenance = provenance.generate(&inputs);
+        let select_id = tree.insert(select, select_provenance);
         new_instructions.push(select_id);
         select_args.push(destination);
     }
 
     // update header block
-    function.replace_block_instructions(candidate.header, new_instructions, tree);
+    function.replace_block_instructions(candidate.header, new_instructions, tree, provenance);
     let select_args = tree.add_values(&select_args);
     let new_terminator = mir::Terminator::Jump {
         target: mir::BlockTarget::new(candidate.merge_block, select_args),
     };
-    tree.set(tree.get(candidate.header).terminator, new_terminator);
+    tree.rewrite(
+        tree.get(candidate.header).terminator,
+        new_terminator,
+        provenance,
+    );
 
     true
 }
@@ -471,6 +495,7 @@ fn build_value_map(
 /// Clone a block's instructions into a header instruction list.
 fn clone_block_instructions(
     tree: &mut mir::Tree,
+    provenance: &mut ProvenanceJournal<'_>,
     accesses: &mut mir::AccessTable,
     block: &mir::Block,
     value_map: &FxIndexMap<mir::Value, mir::Value>,
@@ -480,8 +505,10 @@ fn clone_block_instructions(
     for &instruction_id in &block.instructions {
         let instruction = tree.get(instruction_id).clone();
         let cloned = instruction_map(&instruction, value_map, tree);
-        let cloned_id = tree.insert(cloned);
-        clone_instruction_tables(tree, accesses, instruction_id, cloned_id, value_map);
+        let source = tree.provenance(instruction_id);
+        let output = provenance.derive(source);
+        let cloned_id = tree.insert(cloned, output);
+        accesses.clone_instruction(instruction_id, cloned_id, value_map);
         target.push(cloned_id);
     }
 }
