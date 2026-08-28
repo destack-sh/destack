@@ -9,7 +9,8 @@ use destack_fir::format::Allocator;
 use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
 use destack_repository::FormatterOptions;
 use destack_source::{
-    DiagnosticCollection, DiagnosticSeverity, File, LanguageType, ModuleId, PackageId, Span,
+    DiagnosticCollection, DiagnosticSeverity, File, LanguageType, ModuleId, PackageId,
+    ProvenanceTable, Span,
 };
 
 use crate::context::is_line_terminator;
@@ -215,6 +216,7 @@ fn parse_file(file: &File, source: &str) -> Result<ParsedFile, FormatFileError> 
         file,
         language_type,
         tree,
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention: CommentRetention::All,
             ..ParseOptions::default()

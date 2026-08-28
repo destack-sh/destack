@@ -8,8 +8,8 @@ use destack_fir::format::{Allocator, Format};
 use destack_parser::{CommentRetention, ParseOptions, Parser, ParserResult};
 use destack_repository::FormatterOptions;
 use destack_source::{
-    DiffOptions, File, FileId, FileType, LanguageType, ModuleId, MultiSpan, PackageId, Uri,
-    print_diff,
+    DiffOptions, File, FileId, FileType, LanguageType, ModuleId, MultiSpan, PackageId,
+    ProvenanceTable, Uri, print_diff,
 };
 
 /// Parse and format one source string for tests.
@@ -109,6 +109,7 @@ impl TestFormatter {
                 file.clone(),
                 language,
                 Tree::new(module_id),
+                ProvenanceTable::new(),
                 ParseOptions {
                     comment_retention: CommentRetention::All,
                     ..ParseOptions::default()

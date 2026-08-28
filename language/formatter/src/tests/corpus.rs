@@ -6,8 +6,8 @@ use destack_dir::Tree;
 use destack_parser::{CommentRetention, ParseOptions, Parser, source_colorizer};
 use destack_repository::FormatterOptions;
 use destack_source::{
-    DiffOptions, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions, Uri,
-    print_diagnostics, print_diff,
+    DiffOptions, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions,
+    ProvenanceTable, Uri, print_diagnostics, print_diff,
 };
 
 use crate::format_file_source;
@@ -176,6 +176,7 @@ fn print_parse_diagnostics(path: &Path, logical_path: &Path, source: &str) {
         file.clone(),
         LanguageType::Destack,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention: CommentRetention::All,
             ..ParseOptions::default()

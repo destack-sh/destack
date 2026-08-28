@@ -9,7 +9,8 @@ use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_li
 use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::FormatterOptions;
 use destack_source::{
-    DiagnosticSeverity, File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri,
+    DiagnosticSeverity, File, FileId, FileType, LanguageType, ModuleId, PackageId, ProvenanceTable,
+    Uri,
 };
 
 /// Format one complete source file and reject diagnostics at the requested severity.
@@ -56,6 +57,7 @@ pub(super) fn format_source(
         file.clone(),
         language,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention: CommentRetention::All,
             ..ParseOptions::default()
