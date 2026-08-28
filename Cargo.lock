@@ -1100,7 +1100,6 @@ dependencies = [
  "destack_serde",
  "destack_source",
  "serde",
- "serde_json",
 ]
 
 [[package]]
