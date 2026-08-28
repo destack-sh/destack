@@ -8,7 +8,7 @@ use destack_runtime::service::{
     SnapshotRequest, SpawnRuntimeRequest,
 };
 use destack_runtime::world::{Run, RunOutcome};
-use destack_source::{Edit, FileId};
+use destack_source::{Edit, FileId, ProvenanceTable};
 use destack_workspace::{EditRequest, RevisionRequest, WatchEvent, WatchRequest};
 
 use super::harness::TestDaemon;
@@ -114,7 +114,7 @@ fn test_put_read_blob() {
 fn test_serve_world_connection() {
     let daemon = TestDaemon::start("daemon_world_connection");
     let connection = daemon.connect();
-    let program = ProgramBuilder::new(Default::default())
+    let program = ProgramBuilder::new(Default::default(), ProvenanceTable::new())
         .bytecode(Default::default())
         .build()
         .expect("empty Program should build");
