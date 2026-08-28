@@ -32,7 +32,7 @@ impl Parser {
             right,
         };
         let expression = self.insert_node(expression, self.range_since(start));
-        self.tree.set_main_range(expression, operator_range);
+        self.set_main_range(expression, operator_range);
 
         Ok(expression)
     }
@@ -100,7 +100,7 @@ impl Parser {
             let (field, main_range) = self.parse_object_assignment_field(position, stop)?;
             let field = self.insert_node(field, self.range_since(&field_start));
             if let Some(main_range) = main_range {
-                self.tree.set_main_range(field, main_range);
+                self.set_main_range(field, main_range);
             }
             self.attach_documentation(field, documentation);
             fields.push(field);
@@ -168,7 +168,7 @@ impl Parser {
             };
             let expression =
                 self.insert_node(Expression::Identifier { name: identifier }, name_range);
-            self.tree.set_main_range(expression, name_range);
+            self.set_main_range(expression, name_range);
             let pattern = self.lower_assignment_pattern(expression)?;
             let pattern = self.parse_assignment_pattern_default_after(pattern, position)?;
 
@@ -298,12 +298,12 @@ impl Parser {
         expression: LocalNodeId<Expression>,
         operator: AssignOperator,
     ) -> ParserResult<LocalNodeId<AssignPattern>> {
-        let mark = self.tree.mark();
+        let mark = self.mark_nodes();
         let target = self.lower_assignment_pattern(expression);
         let target = match target {
             Ok(target) => target,
             Err(error) => {
-                self.tree.restore_to_mark(mark);
+                self.restore_nodes(mark);
 
                 return Err(error);
             }
@@ -314,7 +314,7 @@ impl Parser {
             && !matches!(self.tree.get(target), AssignPattern::Place { .. })
         {
             let range = self.tree.get_range(target);
-            self.tree.restore_to_mark(mark);
+            self.restore_nodes(mark);
 
             return Err(ParserError::invalid_assignment_target(range));
         }

@@ -4,7 +4,8 @@ use std::sync::Arc;
 
 use destack_dir::Tree;
 use destack_source::{
-    File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions, Uri, print_diagnostics,
+    File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions, ProvenanceTable, Uri,
+    print_diagnostics,
 };
 
 use crate::{CommentRetention, Parse, ParseOptions, Parser, source_colorizer};
@@ -76,6 +77,7 @@ fn parse_library_source(path: &Path, root: &Path) -> Parse {
         file,
         LanguageType::Destack,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention: CommentRetention::Documentation,
             ..ParseOptions::default()

@@ -40,7 +40,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(try_id, keyword_range);
+            self.set_main_range(try_id, keyword_range);
 
             Ok(try_id)
         }
@@ -56,7 +56,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(try_id, keyword_range);
+            self.set_main_range(try_id, keyword_range);
 
             Ok(try_id)
         }

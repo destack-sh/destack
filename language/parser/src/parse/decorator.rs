@@ -86,7 +86,7 @@ impl Parser {
             .tree
             .get_main_range(expression)
             .unwrap_or_else(|| self.tree.get_range(expression));
-        self.tree.set_main_range(decorator, main_span);
+        self.set_main_range(decorator, main_span);
         Ok(decorator)
     }
 }

@@ -72,16 +72,15 @@ impl Parser {
             },
             self.range_since(&start),
         );
-        self.tree
-            .set_side_range(mapped_id, NodeSpanType::Head, head.range);
+        self.set_side_range(mapped_id, NodeSpanType::Head, head.range);
         if let Some(value) = value {
-            self.tree.set_side_range(
+            self.set_side_range(
                 mapped_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 value.range,
             );
         }
-        self.tree.set_main_range(mapped_id, head.name_range);
+        self.set_main_range(mapped_id, head.name_range);
 
         Ok(mapped_id)
     }
@@ -146,7 +145,7 @@ impl Parser {
             },
             range,
         );
-        self.tree.set_main_range(parameter, name_range);
+        self.set_main_range(parameter, name_range);
         self.attach_documentation(parameter, documentation);
 
         Ok(MappedTypeHead {

@@ -34,7 +34,7 @@ impl Parser {
             },
             self.range_since(&start),
         );
-        self.tree.set_main_range(type_expression_id, name_range);
+        self.set_main_range(type_expression_id, name_range);
 
         Ok(type_expression_id)
     }

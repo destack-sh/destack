@@ -146,7 +146,7 @@ impl Parser {
             end: right_range.end,
         };
         let expression = self.insert_node(expression, source_range);
-        self.tree.set_main_range(expression, operator_range);
+        self.set_main_range(expression, operator_range);
 
         expression
     }
@@ -226,7 +226,7 @@ impl Parser {
                     *label = Some(name);
                 }
                 self.tree.set_range(body, self.range_since(start));
-                self.tree.set_main_range(body, name_range);
+                self.set_main_range(body, name_range);
 
                 Ok(body)
             }
@@ -290,7 +290,7 @@ impl Parser {
             }
         };
         let ty = self.insert_node(ty, name_range);
-        self.tree.set_main_range(ty, name_range);
+        self.set_main_range(ty, name_range);
         let properties = self.parse_object_literal()?;
 
         Ok(self.insert_node(
@@ -343,7 +343,7 @@ impl Parser {
                 let keyword_range = self.peek_token().range();
                 self.bump();
                 let expression = self.insert_node(Expression::This, self.range_since(start));
-                self.tree.set_main_range(expression, keyword_range);
+                self.set_main_range(expression, keyword_range);
 
                 Ok(expression)
             }
@@ -351,7 +351,7 @@ impl Parser {
                 let keyword_range = self.peek_token().range();
                 self.bump();
                 let expression = self.insert_node(Expression::Super, self.range_since(start));
-                self.tree.set_main_range(expression, keyword_range);
+                self.set_main_range(expression, keyword_range);
 
                 Ok(expression)
             }
@@ -613,7 +613,7 @@ impl Parser {
         name_range: ByteRange,
     ) -> LocalNodeId<Expression> {
         let expression = self.insert_node(Expression::Identifier { name }, self.range_since(start));
-        self.tree.set_main_range(expression, name_range);
+        self.set_main_range(expression, name_range);
 
         expression
     }
@@ -625,10 +625,10 @@ impl Parser {
     ) -> LocalNodeId<Expression> {
         let expression = self.insert_node(Expression::Type { value }, self.tree.get_range(value));
         if let Some(range) = self.tree.get_main_range(value) {
-            self.tree.set_main_range(expression, range);
+            self.set_main_range(expression, range);
         }
         if let Some(range) = self.tree.get_head_range(value) {
-            self.tree.set_head_range(expression, range);
+            self.set_head_range(expression, range);
         }
 
         expression

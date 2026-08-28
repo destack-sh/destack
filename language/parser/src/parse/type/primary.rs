@@ -249,7 +249,7 @@ impl Parser {
             end: target_range.end,
         };
         let ty = self.insert_node(ty, source_range);
-        self.tree.set_main_range(ty, operator_range);
+        self.set_main_range(ty, operator_range);
 
         ty
     }
@@ -261,7 +261,7 @@ impl Parser {
         self.bump();
 
         let lifetime = self.insert_node(TypeExpression::Lifetime { name }, range);
-        self.tree.set_main_range(lifetime, range);
+        self.set_main_range(lifetime, range);
 
         lifetime
     }
@@ -376,9 +376,8 @@ impl Parser {
             TypeExpression::Intersection { elements }
         };
         let ty = self.insert_node(ty, source_range);
-        self.tree
-            .set_head_range(ty, self.type_expression_head_range(first));
-        self.tree.set_side_range(
+        self.set_head_range(ty, self.type_expression_head_range(first));
+        self.set_side_range(
             ty,
             NodeSpanType::Boundary(NodeSpanBoundary::Leading),
             ByteRange {
@@ -386,7 +385,7 @@ impl Parser {
                 end: first_range.start,
             },
         );
-        self.tree.set_side_range(
+        self.set_side_range(
             ty,
             NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
             operator_range,
@@ -426,7 +425,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(ty, operator_range);
+        self.set_main_range(ty, operator_range);
 
         Ok(ty)
     }

@@ -3,11 +3,11 @@ use core::fmt::{self, Debug};
 use destack_core::{LocalStringPool, StringId, ensure_sufficient_stack};
 use destack_dir::{
     BlockContext, BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token,
-    TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
+    TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeMark, TreeStore,
 };
 use destack_source::{
     ByteRange, Diagnostic, DiagnosticCollection, File, FileId, LanguageType, NodeSpanBoundary,
-    NodeSpanRegion, NodeSpanType, Span,
+    NodeSpanRegion, NodeSpanType, ProvenanceBuilder, ProvenanceMark, ProvenanceTable, Span,
 };
 use std::sync::Arc;
 
@@ -46,6 +46,8 @@ pub struct Parse {
     pub roots: Vec<LocalNodeId<Expression>>,
     /// The completed DIR tree.
     pub tree: Tree,
+    /// The provenance table for parsed nodes and source ranges.
+    pub provenance: ProvenanceTable,
 
     /// The strings interned while parsing.
     pub strings: LocalStringPool,
@@ -101,6 +103,8 @@ pub struct Parser {
     pub(super) next_documentation_comment: usize,
     /// The current nested recursive descent depth.
     recursive_descent_depth: u16,
+    /// The first node allocated for this source file.
+    first_node: u32,
     /// The parsed source form.
     form: SourceForm,
     /// The active interpretation of function-sensitive keywords.
@@ -108,6 +112,8 @@ pub struct Parser {
 
     /// The DIR tree.
     pub tree: Tree,
+    /// The provenance entries built for parsed nodes and source ranges.
+    pub(crate) provenance: ProvenanceBuilder,
     /// The strings interned locally during this parse.
     pub strings: LocalStringPool,
     /// Whether the source is an ambient declaration file.
@@ -210,6 +216,7 @@ impl Parser {
         file: Arc<File>,
         language_type: LanguageType,
         mut tree: Tree,
+        provenance: ProvenanceTable,
         options: ParseOptions,
     ) -> Self {
         // lex the source and reserve the expected node storage
@@ -218,6 +225,7 @@ impl Parser {
 
         // initialize source-local parser state
         let file_id = file.id;
+        let first_node = tree.next_global_id();
         tree.begin_source_file(file_id);
         Self {
             file,
@@ -225,10 +233,12 @@ impl Parser {
             cursor,
             next_documentation_comment: 0,
             recursive_descent_depth: 0,
+            first_node,
             form: options.form,
             keywords: FunctionKeywords::default(),
             is_ambient: language_type.is_declaration(),
             tree,
+            provenance: provenance.extend(),
             strings: LocalStringPool::new(),
             errors: Vec::new(),
         }
@@ -542,11 +552,13 @@ impl Parser {
         self.finalize_comments();
         let tokens = self.cursor.take_tokens();
         let comments = self.cursor.take_comments();
+        self.finalize_provenance();
 
         Parse {
             file: self.file,
             roots,
             tree: self.tree,
+            provenance: self.provenance.finish(),
 
             strings: self.strings,
             tokens,
@@ -561,8 +573,19 @@ impl Parser {
     pub(crate) fn parse_in_place(&mut self) -> Vec<LocalNodeId<Expression>> {
         let roots = self.parse_roots();
         self.finalize_comments();
+        self.finalize_provenance();
 
         roots
+    }
+
+    /// Write final source spans to authored node locations.
+    fn finalize_provenance(&mut self) {
+        for node_id in self.first_node..self.tree.next_global_id() {
+            let provenance = self.tree.provenance(node_id);
+            let enclosing = self.tree.source_index.get(node_id);
+            let main = self.tree.source_index.get_main(node_id);
+            self.provenance.set_authored(provenance, enclosing, main);
+        }
     }
 
     /// Finalize retained comments after contextual tokenization.
@@ -619,7 +642,83 @@ impl Parser {
         T: Node,
         Tree: TreeStore<T>,
     {
-        self.tree.insert_parsed(node, range)
+        let span = Span::new(self.file_id, range.start, range.end);
+        let provenance = self.provenance.insert_authored(span);
+
+        self.tree.insert_parsed(node, range, provenance)
+    }
+
+    /// Insert one authored node with the complete source ranges of another node.
+    pub(crate) fn insert_from<T, U>(&mut self, node: T, source: LocalNodeId<U>) -> LocalNodeId<T>
+    where
+        T: Node,
+        U: Node,
+        Tree: TreeStore<T>,
+    {
+        let span = self.tree.get_span(source);
+        let provenance = self.provenance.insert_authored(span);
+
+        self.tree.insert_from(node, source, provenance)
+    }
+
+    /// Mark DIR and provenance allocations for a possible restore.
+    pub(crate) fn mark_nodes(&self) -> NodeMark {
+        NodeMark {
+            tree: self.tree.mark(),
+            provenance: self.provenance.mark(),
+        }
+    }
+
+    /// Restore DIR and provenance allocations to one prior mark.
+    pub(crate) fn restore_nodes(&mut self, mark: NodeMark) {
+        self.tree.restore_to_mark(mark.tree);
+        self.provenance.restore(mark.provenance);
+    }
+
+    /// Set one node's exact main source range.
+    pub(crate) fn set_main_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
+    where
+        T: Node,
+    {
+        self.set_side_range(node_id, NodeSpanType::Main, range);
+    }
+
+    /// Set one node's exact head source range.
+    pub(crate) fn set_head_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
+    where
+        T: Node,
+    {
+        self.set_side_range(node_id, NodeSpanType::Head, range);
+    }
+
+    /// Set one exact source range on a node.
+    pub(crate) fn set_side_range<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+        range: ByteRange,
+    ) where
+        T: Node,
+    {
+        self.set_side_range_by_id(node_id.id, span_type, range);
+    }
+
+    /// Set one exact source range on a node id.
+    pub(crate) fn set_side_range_by_id(
+        &mut self,
+        node_id: u32,
+        span_type: NodeSpanType,
+        range: ByteRange,
+    ) {
+        let previous_range = self.tree.source_index.get_side_range(node_id, span_type);
+        if previous_range == Some(range) {
+            return;
+        }
+
+        let span = Span::new(self.file_id, range.start, range.end);
+        let provenance = self.provenance.insert_authored(span);
+        self.tree
+            .set_side_range_by_id(node_id, span_type, range, provenance);
     }
 
     /// Record one node's defining keyword as its main and keyword ranges.
@@ -627,8 +726,8 @@ impl Parser {
     where
         T: Node,
     {
-        self.tree.set_main_range(node_id, range);
-        self.tree.set_side_range(
+        self.set_main_range(node_id, range);
+        self.set_side_range(
             node_id,
             NodeSpanType::Region(NodeSpanRegion::Keyword),
             range,
@@ -649,7 +748,7 @@ impl Parser {
             start: boundary_start,
             end: node_range.start,
         };
-        self.tree.set_side_range(
+        self.set_side_range(
             node_id,
             NodeSpanType::Boundary(NodeSpanBoundary::Leading),
             leading_range,
@@ -670,7 +769,7 @@ impl Parser {
             start: node_range.end,
             end: boundary_end,
         };
-        self.tree.set_side_range(
+        self.set_side_range(
             node_id,
             NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
             trailing_range,
@@ -696,7 +795,7 @@ impl Parser {
                 end: existing.end.max(range.end),
             });
 
-        self.tree.set_side_range_by_id(node_id, span_type, range);
+        self.set_side_range_by_id(node_id, span_type, range);
     }
 
     /// Record written parentheses around one canonical node.
@@ -710,7 +809,7 @@ impl Parser {
             end: node_range.start,
         };
         if leading_range.start < leading_range.end {
-            self.tree.set_side_range(
+            self.set_side_range(
                 node_id,
                 NodeSpanType::Boundary(NodeSpanBoundary::Leading),
                 leading_range,
@@ -905,6 +1004,15 @@ impl Parser {
 pub struct ParseStart {
     /// The current token range at parse start time.
     range: ByteRange,
+}
+
+/// One restorable parser node allocation position.
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct NodeMark {
+    /// The DIR tree position.
+    tree: TreeMark,
+    /// The provenance append position.
+    provenance: ProvenanceMark,
 }
 
 impl ParseStart {

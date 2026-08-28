@@ -63,7 +63,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(id, name_range);
+        self.set_main_range(id, name_range);
 
         id
     }
@@ -85,7 +85,7 @@ impl Parser {
             let keyword_range = self.peek_token().range();
             self.bump();
             let ty = self.insert_node(TypeExpression::This, self.range_since(start));
-            self.tree.set_main_range(ty, keyword_range);
+            self.set_main_range(ty, keyword_range);
 
             return Ok(Some(ty));
         }
@@ -209,7 +209,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(id, segment_range);
+        self.set_main_range(id, segment_range);
 
         Ok(id)
     }
@@ -249,7 +249,7 @@ impl Parser {
                 let keyword_range = self.peek_token().range();
                 self.bump();
                 let ty = self.insert_node(TypeExpression::This, self.range_since(start));
-                self.tree.set_main_range(ty, keyword_range);
+                self.set_main_range(ty, keyword_range);
 
                 Some(ty)
             }
@@ -397,21 +397,21 @@ impl Parser {
         segment_ranges: &[ByteRange],
     ) -> ParserResult<()> {
         if let Some(last) = segment_ranges.last().copied() {
-            self.tree.set_main_range(type_expression_id, last);
+            self.set_main_range(type_expression_id, last);
         }
         if segment_ranges.len() <= 1 {
             return Ok(());
         }
 
         if let Some(first) = segment_ranges.first().copied() {
-            self.tree.set_head_range(type_expression_id, first);
+            self.set_head_range(type_expression_id, first);
         }
 
         for (index, range) in segment_ranges.iter().copied().enumerate() {
             let Ok(index) = u16::try_from(index) else {
                 return Err(ParserError::unexpected(range));
             };
-            self.tree.set_side_range(
+            self.set_side_range(
                 type_expression_id,
                 NodeSpanType::ListItem(NodeSpanList::Segment, index),
                 range,

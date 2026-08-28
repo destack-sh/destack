@@ -2,7 +2,9 @@ use criterion::profiler::Profiler;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use destack_dir::{Expression, Tree, TypeExpression};
 use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri, glob};
+use destack_source::{
+    File, FileId, FileType, LanguageType, ModuleId, PackageId, ProvenanceTable, Uri, glob,
+};
 use pprof::ProfilerGuard;
 use pprof::flamegraph::Options as FlamegraphOptions;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
@@ -137,6 +139,7 @@ fn prepare_parser(file: Arc<File>, comment_retention: CommentRetention) -> Parse
         file,
         language_type,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention,
             ..ParseOptions::default()

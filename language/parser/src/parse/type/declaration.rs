@@ -122,9 +122,9 @@ impl Parser {
             value: value_id,
         });
         let declaration_id = self.insert_node(declaration, self.range_since(start));
-        self.tree.set_main_range(declaration_id, name_range);
+        self.set_main_range(declaration_id, name_range);
         if let Some(range) = generic_parameter_container_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 declaration_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                 range,
@@ -158,7 +158,7 @@ impl Parser {
             TypeExpression::Readonly { target_type: right },
             self.range_since(start),
         );
-        self.tree.set_main_range(expression_id, keyword_range);
+        self.set_main_range(expression_id, keyword_range);
 
         Ok(expression_id)
     }

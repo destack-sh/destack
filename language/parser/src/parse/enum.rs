@@ -92,10 +92,10 @@ impl Parser {
 
         // set the name identifier as the main source range
         if let Some(range) = name_range {
-            self.tree.set_main_range(enum_id, range);
+            self.set_main_range(enum_id, range);
         }
         if let Some(range) = generic_parameter_container_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 enum_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                 range,
@@ -218,7 +218,7 @@ impl Parser {
         let field_id = self.insert_node(EnumField { name, value }, self.range_since(&start));
 
         // set the main source range to the name identifier
-        self.tree.set_main_range(field_id, name_range);
+        self.set_main_range(field_id, name_range);
         Ok(field_id)
     }
 

@@ -86,7 +86,7 @@ impl Parser {
             && let Some(first_span_expression_id) = spans.first()
         {
             let head_span = self.type_expression_head_range(*first_span_expression_id);
-            self.tree.set_head_range(expression_id, head_span);
+            self.set_head_range(expression_id, head_span);
         }
 
         Ok(expression_id)

@@ -50,9 +50,8 @@ impl Parser {
         let ty = self.insert_node(ty, source_range);
 
         // retain operator and left-head source regions
-        self.tree.set_main_range(ty, operator_range);
-        self.tree
-            .set_head_range(ty, self.type_expression_head_range(left));
+        self.set_main_range(ty, operator_range);
+        self.set_head_range(ty, self.type_expression_head_range(left));
 
         Ok(ty)
     }

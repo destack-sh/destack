@@ -5,7 +5,9 @@ use destack_dir::{
 use std::sync::Arc;
 
 use destack_core::StringId;
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{
+    File, FileId, FileType, LanguageType, ModuleId, PackageId, ProvenanceTable, Uri,
+};
 
 use crate::{CommentRetention, ParseOptions, Parser, SourceForm};
 
@@ -76,7 +78,13 @@ impl TestParser {
         let module_id = ModuleId::new(PackageId::new(0), self.file.id.0);
         let tree = Tree::new(module_id);
 
-        Parser::new(self.file.clone(), self.language, tree, options)
+        Parser::new(
+            self.file.clone(),
+            self.language,
+            tree,
+            ProvenanceTable::new(),
+            options,
+        )
     }
 
     /// Parse one complete source file without parser errors.

@@ -263,12 +263,12 @@ impl Parser {
 
         // name
         if let Some(range) = name_range {
-            self.tree.set_main_range(function_id, range);
+            self.set_main_range(function_id, range);
         }
 
         // return type
         if let Some(range) = function.return_type_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 range,
@@ -277,7 +277,7 @@ impl Parser {
 
         // generic parameters
         if let Some(range) = function.generic_parameter_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                 range,
@@ -286,7 +286,7 @@ impl Parser {
 
         // parameters
         if let Some(range) = function.parameter_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Parameters),
                 range,
@@ -295,7 +295,7 @@ impl Parser {
 
         // body
         if let Some(range) = function.body_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Body),
                 range,
@@ -337,7 +337,7 @@ impl Parser {
 
         // return type
         if let Some(range) = function.return_type_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 type_expression_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 range,
@@ -346,7 +346,7 @@ impl Parser {
 
         // generic parameters
         if let Some(range) = function.generic_parameter_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 type_expression_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                 range,
@@ -355,7 +355,7 @@ impl Parser {
 
         // parameters
         if let Some(range) = function.parameter_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 type_expression_id,
                 NodeSpanType::Region(NodeSpanRegion::Parameters),
                 range,

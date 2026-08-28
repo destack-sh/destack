@@ -157,8 +157,8 @@ impl Parser {
         );
 
         // record spans
-        self.tree.set_main_range(clause, left_range);
-        self.tree.set_side_range(
+        self.set_main_range(clause, left_range);
+        self.set_side_range(
             clause,
             NodeSpanType::Region(NodeSpanRegion::Type),
             self.range_since(&type_start),

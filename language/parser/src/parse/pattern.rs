@@ -223,7 +223,7 @@ impl Parser {
                     },
                     self.range_since(&start),
                 );
-                self.tree.set_main_range(pattern_id, name_range);
+                self.set_main_range(pattern_id, name_range);
                 pattern_id
             }
             // path or identifier
@@ -310,7 +310,7 @@ impl Parser {
                         },
                         self.range_since(&start),
                     );
-                    self.tree.set_main_range(pattern_id, last_range);
+                    self.set_main_range(pattern_id, last_range);
                     pattern_id
                 }
             }
@@ -488,7 +488,7 @@ impl Parser {
                 self.parse_pattern_field(separator, terminator, is_object_pattern, field_start)?;
             let pattern_field_id = self.insert_node(pattern_field, self.range_since(&field_start));
             if let Some(name_range) = name_range {
-                self.tree.set_main_range(pattern_field_id, name_range);
+                self.set_main_range(pattern_field_id, name_range);
             }
             self.attach_documentation(pattern_field_id, documentation);
             fields.push(pattern_field_id);

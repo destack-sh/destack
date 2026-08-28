@@ -106,11 +106,11 @@ impl Parser {
             },
             self.range_since(&head.start),
         );
-        self.tree.set_main_range(if_id, head.keyword_range);
+        self.set_main_range(if_id, head.keyword_range);
 
         // attach the else clause span
         if let Some(clause) = else_clause {
-            self.tree.set_side_range(
+            self.set_side_range(
                 if_id,
                 NodeSpanType::Region(NodeSpanRegion::Else),
                 clause.range,

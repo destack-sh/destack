@@ -47,7 +47,7 @@ impl Parser {
                 },
                 range,
             );
-            self.tree.set_main_range(index_id, operator_range);
+            self.set_main_range(index_id, operator_range);
 
             return Ok(index_id);
         }
@@ -77,7 +77,7 @@ impl Parser {
             end: index_range.end,
         };
         let index_id = self.insert_node(index_expression, range);
-        self.tree.set_main_range(index_id, operator_range);
+        self.set_main_range(index_id, operator_range);
 
         Ok(index_id)
     }
@@ -125,8 +125,7 @@ impl Parser {
         let call_id = self.insert_node(expression, self.range_since(&start));
         if let Some(arguments_range) = arguments_range {
             let span_type = NodeSpanType::Region(NodeSpanRegion::Arguments);
-            self.tree
-                .set_side_range(call_id, span_type, arguments_range);
+            self.set_side_range(call_id, span_type, arguments_range);
         }
 
         Ok(call_id)
@@ -175,8 +174,7 @@ impl Parser {
             },
         );
         let span_type = NodeSpanType::Region(NodeSpanRegion::Arguments);
-        self.tree
-            .set_side_range(call_id, span_type, arguments_range);
+        self.set_side_range(call_id, span_type, arguments_range);
 
         Ok(call_id)
     }

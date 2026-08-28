@@ -345,7 +345,7 @@ impl Parser {
             },
             source_range,
         );
-        self.tree.set_main_range(ty, operator_range);
+        self.set_main_range(ty, operator_range);
 
         ty
     }
@@ -381,13 +381,13 @@ impl Parser {
             },
             source_range,
         );
-        self.tree.set_main_range(ty, extends_range);
-        self.tree.set_side_range(
+        self.set_main_range(ty, extends_range);
+        self.set_side_range(
             ty,
             NodeSpanType::Boundary(NodeSpanBoundary::LeadingOperator),
             question_range,
         );
-        self.tree.set_side_range(
+        self.set_side_range(
             ty,
             NodeSpanType::Region(NodeSpanRegion::Alternate),
             colon_range,

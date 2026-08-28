@@ -32,7 +32,7 @@ impl Parser {
             expressions,
         });
         let global_id = self.insert_node(global, self.range_since(start));
-        self.tree.set_main_range(global_id, main_range);
+        self.set_main_range(global_id, main_range);
 
         Ok(global_id)
     }

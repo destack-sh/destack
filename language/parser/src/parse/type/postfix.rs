@@ -109,9 +109,9 @@ impl Parser {
         &mut self,
         ty: LocalNodeId<TypeExpression>,
     ) -> Option<TypeValueHead> {
-        let mark = self.tree.mark();
+        let mark = self.mark_nodes();
         let Some(head) = self.build_type_value_head(ty) else {
-            self.tree.restore_to_mark(mark);
+            self.restore_nodes(mark);
 
             return None;
         };
@@ -159,7 +159,7 @@ impl Parser {
                     range,
                 );
                 let main_range = self.tree.get_main_range(ty)?;
-                self.tree.set_main_range(expression, main_range);
+                self.set_main_range(expression, main_range);
 
                 expression
             }
@@ -200,7 +200,7 @@ impl Parser {
         let first = path.segments.first().copied()?;
         let mut value = self.insert_node(Expression::Identifier { name: first }, range);
         let first_range = self.type_path_segment_range(ty, path, 0)?;
-        self.tree.set_main_range(value, first_range);
+        self.set_main_range(value, first_range);
 
         for (index, segment) in path.segments.iter().copied().enumerate().skip(1) {
             value = self.insert_node(
@@ -212,7 +212,7 @@ impl Parser {
                 range,
             );
             let segment_range = self.type_path_segment_range(ty, path, index)?;
-            self.tree.set_main_range(value, segment_range);
+            self.set_main_range(value, segment_range);
         }
 
         Some(value)
@@ -247,7 +247,7 @@ impl Parser {
             TypeExpression::Must { target_type: left },
             self.range_since(start),
         );
-        self.tree.set_main_range(ty, operator_range);
+        self.set_main_range(ty, operator_range);
 
         ty
     }
@@ -283,10 +283,10 @@ impl Parser {
         };
         let ty = self.insert_node(ty, self.range_since(start));
         if let Some(range) = previous_head_range {
-            self.tree.set_head_range(ty, range);
+            self.set_head_range(ty, range);
         }
         if let Some(range) = previous_main_range {
-            self.tree.set_main_range(ty, range);
+            self.set_main_range(ty, range);
         }
 
         Ok(Some(ty))
@@ -313,7 +313,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(ty, name_range);
+        self.set_main_range(ty, name_range);
 
         Ok(ty)
     }

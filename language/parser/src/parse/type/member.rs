@@ -189,7 +189,7 @@ impl Parser {
             is_override: modifiers.is_override,
         };
         let member_id = self.insert_node(member, self.range_since(start));
-        self.tree.set_main_range(member_id, name_range);
+        self.set_main_range(member_id, name_range);
 
         Ok(Some(member_id))
     }
@@ -252,7 +252,7 @@ impl Parser {
             is_override: modifiers.is_override,
         };
         let member_id = self.insert_node(member, self.range_since(start));
-        self.tree.set_main_range(member_id, name_range);
+        self.set_main_range(member_id, name_range);
 
         Ok(Some(member_id))
     }
@@ -411,17 +411,16 @@ impl Parser {
             };
             let member_id = self.insert_node(member, self.range_since(&start));
 
-            self.tree.set_main_range(member_id, name_range);
-            self.tree
-                .set_head_range(member_id, self.range_since(&key_start));
-            self.tree.set_side_range(
+            self.set_main_range(member_id, name_range);
+            self.set_head_range(member_id, self.range_since(&key_start));
+            self.set_side_range(
                 member_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 self.range_since(&type_start),
             );
 
             if let Some(range) = optional_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     member_id,
                     NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
                     range,
@@ -515,33 +514,29 @@ impl Parser {
             let member_id = self.insert_node(member, self.range_since(&start));
 
             if let Some(range) = name_range.or(role_range) {
-                self.tree.set_main_range(member_id, range);
+                self.set_main_range(member_id, range);
             }
 
             if let Some(range) = return_type_range {
-                self.tree.set_side_range(
-                    member_id,
-                    NodeSpanType::Region(NodeSpanRegion::Type),
-                    range,
-                );
+                self.set_side_range(member_id, NodeSpanType::Region(NodeSpanRegion::Type), range);
             }
 
             if let Some(range) = generic_parameter_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     member_id,
                     NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                     range,
                 );
             }
 
-            self.tree.set_side_range(
+            self.set_side_range(
                 member_id,
                 NodeSpanType::Region(NodeSpanRegion::Parameters),
                 parameter_range,
             );
 
             if let Some(range) = optional_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     member_id,
                     NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
                     range,
@@ -586,11 +581,11 @@ impl Parser {
         let member_id = self.insert_node(member, self.range_since(&start));
 
         if let Some(range) = name_range {
-            self.tree.set_main_range(member_id, range);
+            self.set_main_range(member_id, range);
         }
 
         if declared_type.is_some() {
-            self.tree.set_side_range(
+            self.set_side_range(
                 member_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 self.range_since(&type_start),
@@ -598,7 +593,7 @@ impl Parser {
         }
 
         if let Some(range) = optional_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 member_id,
                 NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
                 range,
@@ -649,15 +644,15 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(member_id, name_range);
-        self.tree.set_side_range(
+        self.set_main_range(member_id, name_range);
+        self.set_side_range(
             member_id,
             NodeSpanType::Region(NodeSpanRegion::Type),
             self.range_since(&type_start),
         );
 
         if let Some(range) = optional_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 member_id,
                 NodeSpanType::Boundary(NodeSpanBoundary::Trailing),
                 range,

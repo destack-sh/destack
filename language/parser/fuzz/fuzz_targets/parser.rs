@@ -4,7 +4,9 @@ use std::sync::Arc;
 
 use destack_dir::Tree;
 use destack_parser::{ParseOptions, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{
+    File, FileId, FileType, LanguageType, ModuleId, PackageId, ProvenanceTable, Uri,
+};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -31,6 +33,7 @@ fuzz_target!(|data: &[u8]| {
         file,
         language,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions::default(),
     );
     let _ = parser.parse();

@@ -265,10 +265,12 @@ fn test_keep_comments_source_local() {
     assert_eq!(comment_text(&first_parser, first_comment), "first");
 
     let second_test = TestParser::new("// second\nsecond");
+    let provenance = first_parser.provenance.finish();
     let mut second_parser = Parser::new(
         second_test.file.clone(),
         second_test.language,
         first_parser.tree,
+        provenance,
         ParseOptions {
             comment_retention: CommentRetention::All,
             ..ParseOptions::default()

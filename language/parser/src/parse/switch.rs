@@ -25,7 +25,7 @@ impl Parser {
             Expression::Switch { value, cases },
             self.range_since(&start),
         );
-        self.tree.set_main_range(expression, keyword_range);
+        self.set_main_range(expression, keyword_range);
 
         Ok(expression)
     }
@@ -142,7 +142,7 @@ impl Parser {
 
         // retain the complete case and its selector
         let case = self.insert_node(SwitchCase { selector, body }, self.range_since(&start));
-        self.tree.set_main_range(case, selector_range);
+        self.set_main_range(case, selector_range);
 
         // attach case documentation and decorators
         self.attach_documentation(case, documentation);

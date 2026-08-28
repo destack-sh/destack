@@ -71,8 +71,7 @@ impl Parser {
             let item_start = self.mark_parse_start();
             let item = self.parse_type_or_recover_missing(position, stop, NodeType::Declaration)?;
             let item_range = self.range_since(&item_start);
-            self.tree
-                .set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), item_range);
+            self.set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), item_range);
 
             items.push(item);
             expects_item = false;

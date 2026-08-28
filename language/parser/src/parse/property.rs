@@ -57,7 +57,7 @@ impl Parser {
         );
 
         if let Some(assign_operator_range) = assign_operator_range {
-            self.tree.set_main_range(assign_id, assign_operator_range);
+            self.set_main_range(assign_id, assign_operator_range);
         }
 
         assign_id
@@ -243,8 +243,8 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(property_id, name_range);
-        self.tree.set_side_range(
+        self.set_main_range(property_id, name_range);
+        self.set_side_range(
             property_id,
             NodeSpanType::Region(NodeSpanRegion::Type),
             self.range_since(&type_start),
@@ -275,7 +275,7 @@ impl Parser {
         self.bump();
         let default = self.parse_simple_object_field_value()?;
         let value = self.insert_node(Expression::Identifier { name: identifier }, name_range);
-        self.tree.set_main_range(value, name_range);
+        self.set_main_range(value, name_range);
         let value = self.insert_property_default_expression(
             value,
             default,
@@ -289,7 +289,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(property_id, name_range);
+        self.set_main_range(property_id, name_range);
 
         Ok(property_id)
     }
@@ -313,7 +313,7 @@ impl Parser {
         };
 
         let value = self.insert_node(Expression::Identifier { name: identifier }, name_range);
-        self.tree.set_main_range(value, name_range);
+        self.set_main_range(value, name_range);
         let property_id = self.insert_node(
             Property::Field {
                 name,
@@ -322,7 +322,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(property_id, name_range);
+        self.set_main_range(property_id, name_range);
 
         Ok(property_id)
     }
@@ -478,12 +478,12 @@ impl Parser {
 
             // set the main source range to the name
             if let Some(range) = name_range {
-                self.tree.set_main_range(property_id, range);
+                self.set_main_range(property_id, range);
             }
 
             // set the type source range for return type annotation
             if let Some(range) = return_type_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     property_id,
                     NodeSpanType::Region(NodeSpanRegion::Type),
                     range,
@@ -559,7 +559,7 @@ impl Parser {
 
                     let value =
                         self.insert_node(Expression::Identifier { name: identifier }, name_range);
-                    self.tree.set_main_range(value, name_range);
+                    self.set_main_range(value, name_range);
 
                     Some(self.insert_property_default_expression(
                         value,
@@ -587,7 +587,7 @@ impl Parser {
                         };
                         let value = self
                             .insert_node(Expression::Identifier { name: identifier }, name_range);
-                        self.tree.set_main_range(value, name_range);
+                        self.set_main_range(value, name_range);
 
                         Some(value)
                     }
@@ -629,12 +629,12 @@ impl Parser {
 
             // set the main source range to the name
             if let Some(range) = name_range {
-                self.tree.set_main_range(property_id, range);
+                self.set_main_range(property_id, range);
             }
 
             // set the type source range for field type annotation
             if let Some(range) = type_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     property_id,
                     NodeSpanType::Region(NodeSpanRegion::Type),
                     range,

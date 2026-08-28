@@ -88,7 +88,7 @@ impl Parser {
 
         // insert the root identifier
         let mut node = self.insert_node(Expression::Identifier { name: root }, root_range);
-        self.tree.set_main_range(node, root_range);
+        self.set_main_range(node, root_range);
 
         // extend the chain through every member
         for (name, range) in segments[1..].iter().zip(&segment_ranges[1..]) {
@@ -104,7 +104,7 @@ impl Parser {
                 },
                 combined,
             );
-            self.tree.set_main_range(node, *range);
+            self.set_main_range(node, *range);
         }
 
         Ok(node)

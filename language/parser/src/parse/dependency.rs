@@ -75,7 +75,7 @@ impl Parser {
         );
 
         // set the main source range to the import target string
-        self.tree.set_main_range(import_id, target_range);
+        self.set_main_range(import_id, target_range);
 
         // set import attribute source ranges
         if let Some(import_clause) = import_clause {
@@ -201,7 +201,7 @@ impl Parser {
             };
             let item_id = self.insert_node(item, self.range_since(&item_start));
             if let Some(alias_range) = alias_range {
-                self.tree.set_main_range(item_id, alias_range);
+                self.set_main_range(item_id, alias_range);
             }
 
             // export declaration
@@ -215,7 +215,7 @@ impl Parser {
             );
 
             // set the main source range to the export target string
-            self.tree.set_main_range(export, target_range);
+            self.set_main_range(export, target_range);
 
             // set import attribute source ranges
             if let Some(import_clause) = import_clause {
@@ -285,7 +285,7 @@ impl Parser {
 
         // set the export target string as the main source range
         if let Some(target_range) = target_range {
-            self.tree.set_main_range(export_id, target_range);
+            self.set_main_range(export_id, target_range);
         }
 
         // set import attribute source ranges
@@ -344,7 +344,7 @@ impl Parser {
         node_id: LocalNodeId<Expression>,
         import_clause: &ImportClause,
     ) -> ParserResult<()> {
-        self.tree.set_side_range(
+        self.set_side_range(
             node_id,
             NodeSpanType::Region(NodeSpanRegion::Attributes),
             import_clause.range,
@@ -354,7 +354,7 @@ impl Parser {
             let Ok(segment) = u16::try_from(index) else {
                 return Err(ParserError::unexpected(*attribute_range));
             };
-            self.tree.set_side_range(
+            self.set_side_range(
                 node_id,
                 NodeSpanType::ListItem(NodeSpanList::Entry, segment),
                 *attribute_range,
@@ -515,7 +515,7 @@ impl Parser {
                 value: None,
             };
             let item_id = self.insert_node(item, self.range_since(&start));
-            self.tree.set_main_range(item_id, alias_range);
+            self.set_main_range(item_id, alias_range);
             self.attach_documentation(item_id, documentation);
             items.push(item_id);
         }
@@ -538,7 +538,7 @@ impl Parser {
                 value: None,
             };
             let item_id = self.insert_node(item, self.range_since(&start));
-            self.tree.set_main_range(item_id, alias_range);
+            self.set_main_range(item_id, alias_range);
             self.attach_documentation(item_id, documentation);
             items.push(item_id);
         }
@@ -654,7 +654,7 @@ impl Parser {
                 self.range_since(&start),
             );
             if let Some(alias_range) = alias_range {
-                self.tree.set_main_range(item, alias_range);
+                self.set_main_range(item, alias_range);
             }
             Ok(item)
         }
@@ -685,10 +685,9 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree
-                .set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), name_range);
+            self.set_side_range(item, NodeSpanType::Region(NodeSpanRegion::Type), name_range);
             let main_range = alias_range.unwrap_or(name_range);
-            self.tree.set_main_range(item, main_range);
+            self.set_main_range(item, main_range);
             Ok(item)
         }
     }

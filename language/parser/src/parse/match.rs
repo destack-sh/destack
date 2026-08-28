@@ -32,7 +32,7 @@ impl Parser {
         // retain the complete match and its keyword
         let expression =
             self.insert_node(Expression::Match { value, arms }, self.range_since(&start));
-        self.tree.set_main_range(expression, keyword_range);
+        self.set_main_range(expression, keyword_range);
 
         Ok(expression)
     }
@@ -115,7 +115,7 @@ impl Parser {
 
         // retain the optional guard clause, documentation and decorators
         if let Some(guard_range) = guard_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 arm,
                 NodeSpanType::Region(NodeSpanRegion::Guard),
                 guard_range,

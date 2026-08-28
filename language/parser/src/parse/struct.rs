@@ -138,10 +138,10 @@ impl Parser {
 
         // set the name identifier as the main source range
         if let Some(range) = name_range {
-            self.tree.set_main_range(declaration_id, range);
+            self.set_main_range(declaration_id, range);
         }
         if let Some(range) = generic_parameter_container_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 declaration_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                 range,

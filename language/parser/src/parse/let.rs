@@ -235,8 +235,8 @@ impl Parser {
                 },
                 self.range_since(start),
             );
-            self.tree.set_main_range(let_else_id, keyword_range);
-            self.tree.set_side_range(
+            self.set_main_range(let_else_id, keyword_range);
+            self.set_side_range(
                 let_else_id,
                 NodeSpanType::Region(NodeSpanRegion::Else),
                 else_range,
@@ -273,7 +273,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(let_id, keyword_range);
+        self.set_main_range(let_id, keyword_range);
 
         Ok(let_id)
     }
@@ -375,7 +375,7 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
-            self.tree.set_main_range(pattern_id, name_range);
+            self.set_main_range(pattern_id, name_range);
 
             pattern_id
         } else {
@@ -437,7 +437,7 @@ impl Parser {
 
         // set the type source range for the type annotation
         if let Some(range) = type_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 declarator_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 range,
@@ -446,7 +446,7 @@ impl Parser {
 
         // value operator
         if let Some(range) = value_operator_range {
-            self.tree.set_main_range(declarator_id, range);
+            self.set_main_range(declarator_id, range);
         }
 
         self.attach_documentation(declarator_id, documentation);

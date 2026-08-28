@@ -486,7 +486,7 @@ impl Parser {
             is_override: modifiers.is_override,
         };
         let member_id = self.insert_node(member, self.range_since(start));
-        self.tree.set_main_range(member_id, name_range);
+        self.set_main_range(member_id, name_range);
 
         Ok(Some(member_id))
     }
@@ -648,27 +648,23 @@ impl Parser {
 
             // set the main source range to the declared name or role
             if let Some(range) = name_range.or(role_range) {
-                self.tree.set_main_range(member_id, range);
+                self.set_main_range(member_id, range);
             }
 
             // set the type source range for return type annotation
             if let Some(range) = return_type_range {
-                self.tree.set_side_range(
-                    member_id,
-                    NodeSpanType::Region(NodeSpanRegion::Type),
-                    range,
-                );
+                self.set_side_range(member_id, NodeSpanType::Region(NodeSpanRegion::Type), range);
             }
 
             if let Some(range) = generic_parameter_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     member_id,
                     NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                     range,
                 );
             }
 
-            self.tree.set_side_range(
+            self.set_side_range(
                 member_id,
                 NodeSpanType::Region(NodeSpanRegion::Parameters),
                 parameter_range,
@@ -766,16 +762,12 @@ impl Parser {
 
             // set the main source range to the name
             if let Some(range) = name_range {
-                self.tree.set_main_range(member_id, range);
+                self.set_main_range(member_id, range);
             }
 
             // set the type source range for field type annotation
             if let Some(range) = type_range {
-                self.tree.set_side_range(
-                    member_id,
-                    NodeSpanType::Region(NodeSpanRegion::Type),
-                    range,
-                );
+                self.set_side_range(member_id, NodeSpanType::Region(NodeSpanRegion::Type), range);
             }
 
             Ok(member_id)

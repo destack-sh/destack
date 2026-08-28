@@ -192,7 +192,7 @@ impl Parser {
             Expression::Must { position, left }
         };
         let expression = self.insert_node(node, self.range_since(start));
-        self.tree.set_main_range(expression, operator_range);
+        self.set_main_range(expression, operator_range);
 
         expression
     }
@@ -213,7 +213,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(expression, operator_range);
+        self.set_main_range(expression, operator_range);
 
         expression
     }
@@ -377,7 +377,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(expression, name_range);
+        self.set_main_range(expression, name_range);
 
         Ok(expression)
     }
@@ -387,9 +387,9 @@ impl Parser {
         &mut self,
         expression: LocalNodeId<Expression>,
     ) -> ParserResult<Option<LocalNodeId<TypeExpression>>> {
-        let mark = self.tree.mark();
+        let mark = self.mark_nodes();
         let Some(ty) = self.build_static_type_head(expression)? else {
-            self.tree.restore_to_mark(mark);
+            self.restore_nodes(mark);
 
             return Ok(None);
         };
@@ -431,7 +431,7 @@ impl Parser {
 
         // promote the complete head into type space
         let ty = match head {
-            StaticTypeHead::Identifier(name) => self.tree.insert_from(
+            StaticTypeHead::Identifier(name) => self.insert_from(
                 TypeExpression::Reference {
                     path: Path {
                         segments: smallvec![name],
@@ -465,7 +465,7 @@ impl Parser {
                         };
                         let mut path = path.clone();
                         path.segments.push(name);
-                        let ty = self.tree.insert_from(
+                        let ty = self.insert_from(
                             TypeExpression::Reference {
                                 path,
                                 generic_arguments: Vec::new(),
@@ -476,8 +476,8 @@ impl Parser {
 
                         // promote the former main range into the first path segment
                         if let Some(root_range) = root_range {
-                            self.tree.set_head_range(ty, root_range);
-                            self.tree.set_side_range(
+                            self.set_head_range(ty, root_range);
+                            self.set_side_range(
                                 ty,
                                 NodeSpanType::ListItem(NodeSpanList::Segment, 0),
                                 root_range,
@@ -487,8 +487,8 @@ impl Parser {
                         // append the newly authored path segment
                         let index =
                             u16::try_from(length).map_err(|_| ParserError::unexpected(range))?;
-                        self.tree.set_main_range(ty, main_range);
-                        self.tree.set_side_range(
+                        self.set_main_range(ty, main_range);
+                        self.set_side_range(
                             ty,
                             NodeSpanType::ListItem(NodeSpanList::Segment, index),
                             main_range,
@@ -496,7 +496,7 @@ impl Parser {
 
                         ty
                     }
-                    _ => self.tree.insert_from(
+                    _ => self.insert_from(
                         TypeExpression::Member {
                             left,
                             name,
@@ -552,7 +552,7 @@ impl Parser {
             },
             _ => return Ok(None),
         };
-        let result = self.tree.insert_from(node, ty);
+        let result = self.insert_from(node, ty);
         self.tree.set_range(result, range);
 
         Ok(Some(result))

@@ -48,7 +48,7 @@ impl Parser {
         )?;
 
         // record the full type source range for the target type
-        self.tree.set_side_range(
+        self.set_side_range(
             target_type,
             NodeSpanType::Region(NodeSpanRegion::Type),
             self.range_since(&target_start),
@@ -84,10 +84,10 @@ impl Parser {
         // select the declared name or the anonymous extension target
         let selection_range = name_range.or_else(|| self.tree.get_main_range(target_type));
         if let Some(range) = selection_range {
-            self.tree.set_main_range(extension_id, range);
+            self.set_main_range(extension_id, range);
         }
         if let Some(range) = generic_parameter_container_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 extension_id,
                 NodeSpanType::Region(NodeSpanRegion::GenericParameters),
                 range,

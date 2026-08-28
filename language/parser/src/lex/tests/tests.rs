@@ -3,7 +3,9 @@ use std::sync::Arc;
 use crate::{CommentRetention, Lexer, ParseOptions, Parser, Tokenizer};
 pub(in crate::lex) use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
 use destack_dir::{Tree, render_tokens};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Span, Uri};
+use destack_source::{
+    File, FileId, FileType, LanguageType, ModuleId, PackageId, ProvenanceTable, Span, Uri,
+};
 
 /// The lexer entry point used by a roundtrip assertion.
 #[derive(Debug, Clone, Copy)]
@@ -185,6 +187,7 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
         file.clone(),
         LanguageType::Destack,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention: CommentRetention::All,
             ..ParseOptions::default()

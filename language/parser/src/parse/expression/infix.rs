@@ -68,7 +68,7 @@ impl Parser {
         let expression = self.insert_node(expression, source_range);
 
         // retain the operator as the main source region
-        self.tree.set_main_range(expression, operator_range);
+        self.set_main_range(expression, operator_range);
 
         Ok(expression)
     }
@@ -121,9 +121,8 @@ impl Parser {
         } else {
             operator_range
         };
-        self.tree.set_main_range(expression, main_range);
-        self.tree
-            .set_head_range(expression, self.expression_head_range(left));
+        self.set_main_range(expression, main_range);
+        self.set_head_range(expression, self.expression_head_range(left));
 
         Ok(expression)
     }
@@ -148,7 +147,7 @@ impl Parser {
             },
             source_range,
         );
-        self.tree.set_main_range(expression, operator_range);
+        self.set_main_range(expression, operator_range);
 
         expression
     }

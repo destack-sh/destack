@@ -272,12 +272,12 @@ impl Parser {
 
         // set the name identifier as the main source range
         if let Some(range) = name_range {
-            self.tree.set_main_range(parameter_id, range);
+            self.set_main_range(parameter_id, range);
         }
 
         // set the type annotation source range
         if let Some(range) = ty_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 parameter_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 range,
@@ -315,7 +315,7 @@ impl Parser {
             },
             self.range_since(start),
         );
-        self.tree.set_main_range(parameter_id, name_range);
+        self.set_main_range(parameter_id, name_range);
 
         Ok(Some(parameter_id))
     }

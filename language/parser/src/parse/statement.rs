@@ -80,7 +80,7 @@ impl Parser {
         let expression =
             self.insert_node(Expression::Break { label, value }, self.range_since(&start));
         if let Some(label_range) = label_range {
-            self.tree.set_main_range(expression, label_range);
+            self.set_main_range(expression, label_range);
         }
 
         Ok(expression)
@@ -119,7 +119,7 @@ impl Parser {
         // record the label as the operation's main source range
         let expression = self.insert_node(Expression::Continue { label }, self.range_since(&start));
         if let Some(label_range) = label_range {
-            self.tree.set_main_range(expression, label_range);
+            self.set_main_range(expression, label_range);
         }
 
         Ok(expression)

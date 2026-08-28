@@ -26,7 +26,7 @@ impl Parser {
 
         let declaration = Declaration::Module(ModuleDeclaration { expressions });
         let declaration_id = self.insert_node(declaration, self.range_since(start));
-        self.tree.set_main_range(declaration_id, main_range);
+        self.set_main_range(declaration_id, main_range);
 
         Ok(declaration_id)
     }

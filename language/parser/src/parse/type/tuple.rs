@@ -141,7 +141,7 @@ impl Parser {
             self.range_since(start),
         );
         if let Some(label) = label {
-            self.tree.set_main_range(element, label.range);
+            self.set_main_range(element, label.range);
         }
 
         Ok(element)
@@ -183,7 +183,7 @@ impl Parser {
             self.range_since(start),
         );
         if let Some(label) = label {
-            self.tree.set_main_range(element, label.range);
+            self.set_main_range(element, label.range);
         }
 
         Ok(element)

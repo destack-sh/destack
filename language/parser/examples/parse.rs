@@ -9,7 +9,9 @@ use std::time::{Duration, Instant};
 
 use destack_dir::Tree;
 use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
+use destack_source::{
+    File, FileId, FileType, LanguageType, ModuleId, PackageId, ProvenanceTable, Uri,
+};
 use pprof::ProfilerGuardBuilder;
 use pprof::flamegraph::Options as FlamegraphOptions;
 
@@ -105,6 +107,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     file.clone(),
                     language,
                     Tree::new(module_id),
+                    ProvenanceTable::new(),
                     ParseOptions {
                         comment_retention,
                         ..ParseOptions::default()
@@ -158,6 +161,7 @@ fn parse_file(
         file,
         language,
         Tree::new(module_id),
+        ProvenanceTable::new(),
         ParseOptions {
             comment_retention,
             ..ParseOptions::default()

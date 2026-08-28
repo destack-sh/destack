@@ -172,7 +172,7 @@ impl Parser {
             );
             self.set_node_keyword_range(for_id, keyword_range);
             if let Some(binding_keyword_range) = binding_keyword_range {
-                self.tree.set_side_range(
+                self.set_side_range(
                     for_id,
                     NodeSpanType::Region(NodeSpanRegion::BindingKeyword),
                     binding_keyword_range,

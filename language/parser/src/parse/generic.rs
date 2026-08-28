@@ -247,7 +247,7 @@ impl Parser {
             let name = self.intern_range(range);
             self.bump();
             let parameter_id = self.insert_node(GenericParameter::Lifetime { name }, range);
-            self.tree.set_main_range(parameter_id, range);
+            self.set_main_range(parameter_id, range);
             self.attach_documentation(parameter_id, documentation);
 
             return Ok(parameter_id);
@@ -341,10 +341,10 @@ impl Parser {
         };
 
         let parameter_id = self.insert_node(parameter, self.range_since(&start));
-        self.tree.set_main_range(parameter_id, name_range);
+        self.set_main_range(parameter_id, name_range);
 
         if let Some(range) = declared_type_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 parameter_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 range,

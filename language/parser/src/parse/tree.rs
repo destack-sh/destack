@@ -778,13 +778,13 @@ impl Parser {
             children,
         };
         let expression_id = self.insert_node(expression, self.range_since(&start));
-        self.tree.set_side_range(
+        self.set_side_range(
             expression_id,
             NodeSpanType::Region(NodeSpanRegion::Opening),
             opening_range,
         );
         if let Some(body_range) = body_range {
-            self.tree.set_side_range(
+            self.set_side_range(
                 expression_id,
                 NodeSpanType::Region(NodeSpanRegion::Body),
                 body_range,
