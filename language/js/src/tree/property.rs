@@ -2,28 +2,38 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, ClassElementName, Expression, FunctionRole, FunctionSignature, Identifier, LocalNodeId,
-    MemberModifier, Node, NodeType, Parameter, PropertyName,
+    Block, ClassElementName, Expression, FunctionSignature, Identifier, LocalNodeId, Node,
+    NodeType, Parameter, Pattern, PropertyName,
 };
 
 /// One object literal property.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Property {
-    /// Named field such as `x: value`.
+    /// Named field like `x: value`.
     Field {
         key: PropertyName,
         value: LocalNodeId<Expression>,
     },
-    /// One shorthand identifier field such as `x`.
+    /// Shorthand field like `x`.
     Shorthand { value: Identifier },
-    /// Named method such as `foo()`.
+    /// Ordinary method like `method()`.
     Method {
         key: PropertyName,
-        role: Option<FunctionRole>,
         signature: FunctionSignature,
         body: LocalNodeId<Block>,
     },
-    /// Spread property (like `...a`).
+    /// Getter method like `get value()`.
+    Getter {
+        key: PropertyName,
+        body: LocalNodeId<Block>,
+    },
+    /// Setter method like `set value(next)`.
+    Setter {
+        key: PropertyName,
+        parameter: LocalNodeId<Parameter>,
+        body: LocalNodeId<Block>,
+    },
+    /// Spread property like `...value`.
     Spread { value: LocalNodeId<Expression> },
 }
 
@@ -34,26 +44,39 @@ impl Node for Property {
 /// One class member.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Member {
-    /// Named field such as `x = value`.
+    /// Named field like `x = value`.
     Field {
-        modifiers: MemberModifier,
         key: ClassElementName,
         default: Option<LocalNodeId<Expression>>,
+        is_static: bool,
     },
-    /// Named method.
+    /// Ordinary method.
     Method {
-        modifiers: MemberModifier,
         key: ClassElementName,
-        role: Option<FunctionRole>,
         signature: FunctionSignature,
         body: LocalNodeId<Block>,
+        is_static: bool,
+    },
+    /// Getter method.
+    Getter {
+        key: ClassElementName,
+        body: LocalNodeId<Block>,
+        is_static: bool,
+    },
+    /// Setter method.
+    Setter {
+        key: ClassElementName,
+        parameter: LocalNodeId<Parameter>,
+        body: LocalNodeId<Block>,
+        is_static: bool,
     },
     /// Constructor method.
     Constructor {
         parameters: Vec<LocalNodeId<Parameter>>,
+        rest: Option<LocalNodeId<Pattern>>,
         body: LocalNodeId<Block>,
     },
-    /// Static initialization block (like `static { ... }`).
+    /// Static initialization block like `static { ... }`.
     StaticBlock { body: LocalNodeId<Block> },
 }
 

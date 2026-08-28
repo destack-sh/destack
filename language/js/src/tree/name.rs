@@ -1,9 +1,10 @@
-use crate::{Expression, Identifier, IdentifierName, LocalNodeId, StringLiteral};
-
 use destack_core::StringId;
 use destack_serde::Reflect;
 use destack_source::ProvenanceId;
 use serde::{Deserialize, Serialize};
+
+use crate::{Expression, Identifier, IdentifierName, LocalNodeId, StringLiteral};
+
 /// One ECMAScript property name.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PropertyName {

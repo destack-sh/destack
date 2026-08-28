@@ -1,4 +1,5 @@
-use crate::{Declarator, FormatNode, Formatter};
+use crate::format::expression::format_expression_id_with_precedence;
+use crate::{Declarator, FormatNode, Formatter, Precedence};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
@@ -15,7 +16,7 @@ impl<'ast> FormatNode<'ast> for Declarator {
             write!(f, [space()])?;
             write!(f, [token("=")])?;
             write!(f, [space()])?;
-            write!(f, [value])?;
+            format_expression_id_with_precedence(*value, Precedence::Assignment, f)?;
         }
 
         Ok(())

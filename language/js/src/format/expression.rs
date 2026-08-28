@@ -1,37 +1,60 @@
-use crate::tree::Precedence;
-use crate::{
-    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, LocalNodeId,
-    UnaryOperator, format_attributed,
-};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use crate::format::argument::delimited;
 use crate::format::function::format_function_parameters;
+use crate::format::list::delimited;
 use crate::format::literal::{format_scalar_literal, format_template_literal};
-use crate::{FormatNode, Formatter};
-
-impl<'ast> FormatNode<'ast> for ArrayElement {
-    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
-        match self {
-            ArrayElement::Expression { value } => {
-                write!(f, [value])?;
-            }
-            ArrayElement::Spread { value } => {
-                write!(f, [token("..."), value])?;
-            }
-            ArrayElement::Elision => {}
-        }
-
-        Ok(())
-    }
-}
+use crate::{
+    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, FormatNode, Formatter,
+    Keyword, LocalNodeId, Precedence, UnaryOperator, UpdatePosition, format_attributed,
+};
 
 impl<'ast> FormatNode<'ast> for Expression {
     fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         format_expression_with_precedence(self, Precedence::Lowest, f)
     }
+}
+
+/// Format one expression in statement position.
+pub(crate) fn format_expression_statement<'ast>(
+    id: LocalNodeId<Expression>,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(id);
+    let needs_parentheses = expression.needs_statement_parentheses(f.context().tree);
+
+    if needs_parentheses {
+        write!(f, [token("(")])?;
+    }
+    format_expression_id_with_precedence(id, Precedence::Lowest, f)?;
+    if needs_parentheses {
+        write!(f, [token(")")])?;
+    }
+
+    Ok(())
+}
+
+/// Format one expression in an ECMAScript `NoIn` context.
+pub(crate) fn format_expression_without_in<'ast>(
+    id: LocalNodeId<Expression>,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let needs_parentheses = f
+        .context()
+        .tree
+        .get(id)
+        .needs_no_in_parentheses(f.context().tree);
+
+    if needs_parentheses {
+        write!(f, [token("(")])?;
+    }
+    format_expression_id_with_precedence(id, Precedence::Lowest, f)?;
+    if needs_parentheses {
+        write!(f, [token(")")])?;
+    }
+
+    Ok(())
 }
 
 /// Format one expression with one required parent precedence.
@@ -55,6 +78,7 @@ fn format_expression_with_precedence<'ast>(
         Expression::ArrowFunction {
             asynchrony,
             parameters,
+            rest,
             body,
         } => {
             // asynchrony
@@ -63,13 +87,22 @@ fn format_expression_with_precedence<'ast>(
             }
 
             // parameters
-            format_function_parameters(parameters, f)?;
+            format_function_parameters(parameters, *rest, f)?;
 
             // body
             write!(f, [space(), token("=>"), space()])?;
             match body {
                 ArrowFunctionBody::Expression(body) => {
+                    let body_expression = f.context().tree.get(*body);
+                    let needs_parentheses =
+                        body_expression.needs_arrow_parentheses(f.context().tree);
+                    if needs_parentheses {
+                        write!(f, [token("(")])?;
+                    }
                     format_expression_id_with_precedence(*body, Precedence::Assignment, f)?;
+                    if needs_parentheses {
+                        write!(f, [token(")")])?;
+                    }
                 }
                 ArrowFunctionBody::Block(body) => {
                     write!(f, [body])?;
@@ -88,9 +121,6 @@ fn format_expression_with_precedence<'ast>(
         Expression::Super => {
             write!(f, [Keyword::Super])?;
         }
-        Expression::PrivateIdentifier { identifier } => {
-            write!(f, [token("#"), identifier])?;
-        }
         Expression::Literal { value } => {
             format_scalar_literal(value, f)?;
         }
@@ -98,7 +128,14 @@ fn format_expression_with_precedence<'ast>(
             format_template_literal(value, f)?;
         }
         Expression::ArrayLiteral { elements } => {
-            write!(f, [delimited("[", "]", ",", elements)])?;
+            let ends_in_elision = elements.last().is_some_and(|element| {
+                matches!(f.context().tree.get(*element), ArrayElement::Elision)
+            });
+            let mut elements = delimited("[", "]", ",", elements);
+            if ends_in_elision {
+                elements.with_trailing_separator();
+            }
+            write!(f, [elements])?;
         }
         Expression::SequenceExpression { expressions } => {
             for (index, expression_id) in expressions.iter().enumerate() {
@@ -119,11 +156,6 @@ fn format_expression_with_precedence<'ast>(
             format_expression_id_with_precedence(*expression, Precedence::Lowest, f)?;
             write!(f, [token(")")])?;
         }
-        Expression::InstanceOf { value, target } => {
-            format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
-            write!(f, [space(), Keyword::InstanceOf, space()])?;
-            format_expression_id_with_precedence(*target, Precedence::Compare.tighter(), f)?;
-        }
         Expression::Await { value } => {
             write!(f, [Keyword::Await, space()])?;
             format_expression_id_with_precedence(*value, Precedence::Prefix, f)?;
@@ -142,22 +174,22 @@ fn format_expression_with_precedence<'ast>(
             }
         }
         Expression::Unary { operator, right } => {
-            // operator
-            if operator.is_prefix() {
-                let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
-
-                if needs_space {
-                    write!(f, [operator, space()])?;
-                } else {
-                    write!(f, [operator])?;
-                }
-
-                format_expression_id_with_precedence(*right, Precedence::Prefix, f)?;
+            let needs_space = matches!(operator, UnaryOperator::Typeof | UnaryOperator::Void);
+            if needs_space {
+                write!(f, [operator, space()])?;
             } else {
-                format_expression_id_with_precedence(*right, Precedence::Prefix, f)?;
                 write!(f, [operator])?;
             }
+            format_expression_id_with_precedence(*right, Precedence::Prefix, f)?;
         }
+        Expression::Update {
+            place,
+            operator,
+            position,
+        } => match position {
+            UpdatePosition::Prefix => write!(f, [operator, place])?,
+            UpdatePosition::Postfix => write!(f, [place, operator])?,
+        },
         Expression::Binary {
             left,
             operator,
@@ -165,7 +197,7 @@ fn format_expression_with_precedence<'ast>(
         } => {
             let precedence = operator.precedence();
             let left_precedence = if *operator == BinaryOperator::Exponent {
-                precedence.tighter()
+                Precedence::Postfix
             } else {
                 precedence
             };
@@ -175,13 +207,13 @@ fn format_expression_with_precedence<'ast>(
                 precedence.tighter()
             };
 
-            format_expression_id_with_precedence(*left, left_precedence, f)?;
+            format_coalesce_operand(*left, *operator, left_precedence, f)?;
             write!(f, [space(), operator, space()])?;
-            format_expression_id_with_precedence(*right, right_precedence, f)?;
+            format_coalesce_operand(*right, *operator, right_precedence, f)?;
         }
         Expression::Assign { left, right } => {
             write!(f, [left])?;
-            write!(f, [token("=")])?;
+            write!(f, [space(), token("="), space()])?;
             format_expression_id_with_precedence(*right, Precedence::Assignment, f)?;
         }
         Expression::AssignBinary {
@@ -189,21 +221,31 @@ fn format_expression_with_precedence<'ast>(
             operator,
             right,
         } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-            write!(f, [operator])?;
+            write!(f, [left])?;
+            write!(f, [space(), operator, space()])?;
             format_expression_id_with_precedence(*right, Precedence::Assignment, f)?;
+        }
+        Expression::PrivateIn { identifier, object } => {
+            write!(f, [token("#"), identifier, space(), Keyword::In, space()])?;
+            format_expression_id_with_precedence(*object, Precedence::Compare.tighter(), f)?;
         }
         Expression::Member {
             object,
             property,
             is_optional,
         } => {
-            format_expression_id_with_precedence(*object, Precedence::Postfix, f)?;
+            let needs_extra_dot = format_member_object(*object, *is_optional, f)?;
+            if needs_extra_dot {
+                write!(f, [token(".")])?;
+            }
             write!(f, [token(if *is_optional { "?." } else { "." })])?;
             write!(f, [property])?;
         }
         Expression::PrivateMember { object, property } => {
-            format_expression_id_with_precedence(*object, Precedence::Postfix, f)?;
+            let needs_extra_dot = format_member_object(*object, false, f)?;
+            if needs_extra_dot {
+                write!(f, [token(".")])?;
+            }
             write!(f, [token("."), token("#"), property])?;
         }
         Expression::Index {
@@ -211,7 +253,7 @@ fn format_expression_with_precedence<'ast>(
             right,
             is_optional,
         } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
+            format_expression_id_with_precedence(*left, Precedence::Call, f)?;
             write!(f, [token(if *is_optional { "?.[" } else { "[" })])?;
             format_expression_id_with_precedence(*right, Precedence::Lowest, f)?;
             write!(f, [token("]")])?;
@@ -221,28 +263,35 @@ fn format_expression_with_precedence<'ast>(
             arguments,
             is_optional,
         } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
+            format_expression_id_with_precedence(*left, Precedence::Call, f)?;
             let open = if *is_optional { "?.(" } else { "(" };
             let mut arguments = delimited(open, ")", ",", arguments);
             arguments.without_trailing_separator();
             write!(f, [arguments])?;
         }
-        Expression::ImportCall { target, arguments } => {
+        Expression::ImportCall { specifier, options } => {
             write!(f, [token("import"), token("(")])?;
-            format_expression_id_with_precedence(*target, Precedence::Lowest, f)?;
-
-            if !arguments.is_empty() {
+            format_expression_id_with_precedence(*specifier, Precedence::Assignment, f)?;
+            if let Some(options) = options {
                 write!(f, [token(","), space()])?;
-                let mut arguments = delimited("", "", ",", arguments);
-                arguments.without_trailing_separator();
-                write!(f, [arguments])?;
+                format_expression_id_with_precedence(*options, Precedence::Assignment, f)?;
             }
-
             write!(f, [token(")")])?;
         }
         Expression::New { left, arguments } => {
             write!(f, [token("new"), space()])?;
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
+            let needs_parentheses = f
+                .context()
+                .tree
+                .get(*left)
+                .is_optional_chain(f.context().tree);
+            if needs_parentheses {
+                write!(f, [token("(")])?;
+            }
+            format_expression_id_with_precedence(*left, Precedence::Member, f)?;
+            if needs_parentheses {
+                write!(f, [token(")")])?;
+            }
 
             let mut arguments = delimited("(", ")", ",", arguments);
             arguments.without_trailing_separator();
@@ -253,10 +302,10 @@ fn format_expression_with_precedence<'ast>(
             then_expression,
             else_expression,
         } => {
-            format_expression_id_with_precedence(*condition, Precedence::Conditional, f)?;
-            write!(f, [token("?")])?;
+            format_expression_id_with_precedence(*condition, Precedence::Conditional.tighter(), f)?;
+            write!(f, [space(), token("?"), space()])?;
             format_expression_id_with_precedence(*then_expression, Precedence::Assignment, f)?;
-            write!(f, [token(":")])?;
+            write!(f, [space(), token(":"), space()])?;
 
             format_expression_id_with_precedence(*else_expression, Precedence::Assignment, f)?;
         }
@@ -283,4 +332,46 @@ pub(crate) fn format_expression_id_with_precedence<'ast>(
     format_attributed(provenance, None, f, |f| {
         format_expression_with_precedence(expression, parent_precedence, f)
     })
+}
+
+/// Format one operand under the nullish coalescing grammar restriction.
+fn format_coalesce_operand<'ast>(
+    id: LocalNodeId<Expression>,
+    parent: BinaryOperator,
+    precedence: Precedence,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let expression = f.context().tree.get(id);
+    let needs_parentheses = parent == BinaryOperator::Coalesce
+        && matches!(
+            expression,
+            Expression::Binary {
+                operator: BinaryOperator::And | BinaryOperator::Or,
+                ..
+            }
+        );
+
+    if needs_parentheses {
+        write!(f, [token("(")])?;
+    }
+    format_expression_id_with_precedence(id, precedence, f)?;
+    if needs_parentheses {
+        write!(f, [token(")")])?;
+    }
+
+    Ok(())
+}
+
+/// Format one member object and report whether a decimal member needs another dot.
+fn format_member_object<'ast>(
+    id: LocalNodeId<Expression>,
+    is_optional: bool,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<bool> {
+    let expression = f.context().tree.get(id);
+    format_expression_id_with_precedence(id, Precedence::Call, f)?;
+
+    let needs_extra_dot = expression.needs_decimal_member_dot(is_optional);
+
+    Ok(needs_extra_dot)
 }

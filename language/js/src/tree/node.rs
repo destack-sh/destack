@@ -10,45 +10,51 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum NodeType {
     /// Block.
-    Block,
+    Block = 1,
     /// Catch clause.
-    CatchClause,
+    CatchClause = 2,
     /// Statement.
-    Statement,
+    Statement = 3,
     /// Expression.
-    Expression,
+    Expression = 4,
     /// Array element.
-    ArrayElement,
+    ArrayElement = 5,
     /// Declaration.
-    Declaration,
+    Declaration = 6,
     /// Declarator.
-    Declarator,
+    Declarator = 7,
     /// Object property.
-    Property,
+    Property = 8,
     /// Class member.
-    Member,
+    Member = 9,
     /// Import specifier.
-    ImportSpecifier,
+    ImportSpecifier = 10,
     /// Export specifier.
-    ExportSpecifier,
+    ExportSpecifier = 11,
     /// Re-export specifier.
-    ReExportSpecifier,
+    ReExportSpecifier = 12,
     /// Import attribute.
-    ImportAttribute,
+    ImportAttribute = 13,
     /// Switch case.
-    SwitchCase,
+    SwitchCase = 14,
     /// Binding pattern.
-    Pattern,
-    /// Binding pattern field.
-    PatternField,
+    Pattern = 15,
+    /// Array binding pattern field.
+    ArrayPatternField = 16,
+    /// Object binding pattern field.
+    ObjectPatternField = 17,
+    /// Writable place.
+    Place = 18,
     /// Assignment pattern.
-    AssignPattern,
-    /// Assignment pattern field.
-    AssignPatternField,
+    AssignPattern = 19,
+    /// Array assignment pattern field.
+    ArrayAssignPatternField = 20,
+    /// Object assignment pattern field.
+    ObjectAssignPatternField = 21,
     /// Function parameter.
-    Parameter,
+    Parameter = 22,
     /// Call argument.
-    Argument,
+    Argument = 23,
 }
 
 /// One untyped tree-local node identifier.
@@ -153,12 +159,12 @@ pub trait Node: Sized {
     const TYPE: NodeType;
 }
 
-/// The asynchrony of a function.
+/// The asynchrony of a function or resource binding.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Asynchrony {
-    /// Synchronous function.
+    /// Synchronous operation.
     Sync,
-    /// Asynchronous function.
+    /// Asynchronous operation.
     Async,
 }
 

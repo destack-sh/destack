@@ -1,76 +1,119 @@
-use crate::{Expression, Identifier, LocalNodeId, Node, NodeType, PropertyName};
-
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
+use crate::{
+    Expression, Identifier, IdentifierName, LocalNodeId, Node, NodeType, PropertyName, Tree,
+};
+
+/// One writable JavaScript place.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum Place {
+    /// Identifier place like `value`.
+    Identifier { identifier: Identifier },
+    /// Member place like `object.value`.
+    Member {
+        object: LocalNodeId<Expression>,
+        property: IdentifierName,
+    },
+    /// Private member place like `object.#value`.
+    PrivateMember {
+        object: LocalNodeId<Expression>,
+        property: Identifier,
+    },
+    /// Index place like `object[key]`.
+    Index {
+        object: LocalNodeId<Expression>,
+        key: LocalNodeId<Expression>,
+    },
+}
+
+impl Node for Place {
+    const TYPE: NodeType = NodeType::Place;
+}
+
+impl Place {
+    /// Return whether this place requires parentheses in statement position.
+    pub(crate) fn needs_statement_parentheses(&self, tree: &Tree) -> bool {
+        match self {
+            Self::Member { object, .. }
+            | Self::PrivateMember { object, .. }
+            | Self::Index { object, .. } => tree.get(*object).needs_statement_parentheses(tree),
+            Self::Identifier { .. } => false,
+        }
+    }
+}
 
 /// One JavaScript binding pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Pattern {
-    /// Binding pattern (like `x`).
+    /// Binding pattern like `x`.
     Binding { identifier: Identifier },
-    /// Assignment pattern (like `x = 1`).
-    Assign {
-        pattern: LocalNodeId<Pattern>,
-        value: LocalNodeId<Expression>,
-    },
     /// Array pattern like `[a, , ...rest]`.
     Array {
-        fields: Vec<LocalNodeId<PatternField>>,
+        fields: Vec<LocalNodeId<ArrayPatternField>>,
+        rest: Option<LocalNodeId<Pattern>>,
     },
     /// Object pattern like `{ a, b: value, ...rest }`.
     Object {
-        fields: Vec<LocalNodeId<PatternField>>,
+        fields: Vec<LocalNodeId<ObjectPatternField>>,
+        rest: Option<Identifier>,
     },
-    /// Hole pattern (like the empty in `, ,`).
-    Hole,
 }
 
 impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;
 }
 
-/// One field in a binding pattern.
+/// One array binding field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum PatternField {
-    /// Named pattern field like `x: y`.
-    Named {
-        name: PropertyName,
+pub enum ArrayPatternField {
+    /// Positional field like `value` or `value = default`.
+    Positional {
         pattern: LocalNodeId<Pattern>,
+        default: Option<LocalNodeId<Expression>>,
     },
-    /// Shorthand pattern field like `x` or `x = 4`.
-    Shorthand {
-        identifier: Identifier,
-        value: Option<LocalNodeId<Expression>>,
-    },
-    /// Positional field with a pattern (like `4` or `x = 1`).
-    Positional { pattern: LocalNodeId<Pattern> },
-    /// Spread field like `...x` or `...[a, b]`.
-    Spread { pattern: LocalNodeId<Pattern> },
-    /// Elision (hole) in an array pattern (like `[,a]`).
+    /// Elided array slot.
     Elision,
 }
 
-impl Node for PatternField {
-    const TYPE: NodeType = NodeType::PatternField;
+impl Node for ArrayPatternField {
+    const TYPE: NodeType = NodeType::ArrayPatternField;
+}
+
+/// One object binding field.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum ObjectPatternField {
+    /// Named field like `name: value` or `name: value = default`.
+    Named {
+        name: PropertyName,
+        pattern: LocalNodeId<Pattern>,
+        default: Option<LocalNodeId<Expression>>,
+    },
+    /// Shorthand field like `value` or `value = default`.
+    Shorthand {
+        identifier: Identifier,
+        default: Option<LocalNodeId<Expression>>,
+    },
+}
+
+impl Node for ObjectPatternField {
+    const TYPE: NodeType = NodeType::ObjectPatternField;
 }
 
 /// One destructuring assignment target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPattern {
-    /// Expression target like `x`, `obj.x`, or `obj[key]`.
-    Expression { value: LocalNodeId<Expression> },
-    /// Defaulted destructuring target like `x = 1`.
-    Assign {
-        pattern: LocalNodeId<AssignPattern>,
-        value: LocalNodeId<Expression>,
-    },
+    /// Writable place like `value`, `object.value`, or `object[key]`.
+    Place { place: LocalNodeId<Place> },
     /// Array destructuring target like `[a, , ...rest]`.
     Array {
-        fields: Vec<LocalNodeId<AssignPatternField>>,
+        fields: Vec<LocalNodeId<ArrayAssignPatternField>>,
+        rest: Option<LocalNodeId<AssignPattern>>,
     },
-    /// Object destructuring target like `{ x, y: z }`.
+    /// Object destructuring target like `{ x, y: z, ...rest }`.
     Object {
-        fields: Vec<LocalNodeId<AssignPatternField>>,
+        fields: Vec<LocalNodeId<ObjectAssignPatternField>>,
+        rest: Option<LocalNodeId<Place>>,
     },
 }
 
@@ -78,27 +121,49 @@ impl Node for AssignPattern {
     const TYPE: NodeType = NodeType::AssignPattern;
 }
 
-/// One field in a destructuring assignment target.
+impl AssignPattern {
+    /// Return whether this target requires parentheses in statement position.
+    pub(crate) fn needs_statement_parentheses(&self, tree: &Tree) -> bool {
+        match self {
+            Self::Object { .. } => true,
+            Self::Place { place } => tree.get(*place).needs_statement_parentheses(tree),
+            Self::Array { .. } => false,
+        }
+    }
+}
+
+/// One array assignment field.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum AssignPatternField {
-    /// Named field like `{ x: y }`.
-    Named {
-        name: PropertyName,
+pub enum ArrayAssignPatternField {
+    /// Positional field like `value` or `value = default`.
+    Positional {
         pattern: LocalNodeId<AssignPattern>,
+        default: Option<LocalNodeId<Expression>>,
     },
-    /// Shorthand field like `{ x }` or `{ x = 4 }`.
-    Shorthand {
-        identifier: Identifier,
-        value: Option<LocalNodeId<Expression>>,
-    },
-    /// Positional field like `[value]`.
-    Positional { pattern: LocalNodeId<AssignPattern> },
-    /// Spread field like `{ ...rest }` or `[...rest]`.
-    Spread { pattern: LocalNodeId<AssignPattern> },
-    /// Elision like `[, value]`.
+    /// Elided array slot.
     Elision,
 }
 
-impl Node for AssignPatternField {
-    const TYPE: NodeType = NodeType::AssignPatternField;
+impl Node for ArrayAssignPatternField {
+    const TYPE: NodeType = NodeType::ArrayAssignPatternField;
+}
+
+/// One object assignment field.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum ObjectAssignPatternField {
+    /// Named field like `name: value` or `name: value = default`.
+    Named {
+        name: PropertyName,
+        pattern: LocalNodeId<AssignPattern>,
+        default: Option<LocalNodeId<Expression>>,
+    },
+    /// Shorthand field like `value` or `value = default`.
+    Shorthand {
+        identifier: Identifier,
+        default: Option<LocalNodeId<Expression>>,
+    },
+}
+
+impl Node for ObjectAssignPatternField {
+    const TYPE: NodeType = NodeType::ObjectAssignPatternField;
 }

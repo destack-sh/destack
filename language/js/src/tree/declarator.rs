@@ -2,13 +2,13 @@ use crate::{Expression, LocalNodeId, Node, NodeType, Pattern};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
 /// One variable declarator.
-/// For example, in `let a: T1 = v1, b: T2 = v2`, there are two declarators.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Declarator {
-    /// The pattern to bind (can be a simple identifier or destructuring pattern).
+    /// The bound pattern.
     pub pattern: LocalNodeId<Pattern>,
-    /// Optional value expression.
+    /// The initial value when one exists.
     pub value: Option<LocalNodeId<Expression>>,
 }
 

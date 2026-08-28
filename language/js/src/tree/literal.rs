@@ -1,4 +1,4 @@
-use crate::{Expression, LocalNodeId, StringId};
+use crate::{Expression, LocalNodeId, Precedence, StringId};
 
 use destack_serde::Reflect;
 use destack_source::ProvenanceId;
@@ -34,6 +34,19 @@ pub enum Literal {
         content: StringId,
         flags: Option<StringId>,
     },
+}
+
+impl Literal {
+    /// Return the precedence of this literal's emitted ECMAScript expression.
+    pub(crate) fn precedence(&self) -> Precedence {
+        match self {
+            Self::Number(value) if !value.is_finite() => Precedence::Multiply,
+            Self::Number(value) if value.is_sign_negative() => Precedence::Prefix,
+            Self::Bigint(value) if value.is_negative() => Precedence::Prefix,
+            Self::Undefined => Precedence::Prefix,
+            _ => Precedence::Primary,
+        }
+    }
 }
 
 /// One JavaScript template element.

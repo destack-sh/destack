@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, ExportKind,
+    AssignPattern, Asynchrony, Block, CatchClause, Declaration, Declarator, ExportKind,
     ExportSpecifier, Expression, Identifier, ImportAttribute, ImportClause, LocalNodeId,
     ModuleExportName, Mutability, Node, NodeType, Pattern, ReExportSpecifier, StringLiteral,
     SwitchCase,
@@ -65,14 +65,7 @@ pub enum Statement {
     /// Using binding.
     Using {
         asynchrony: Asynchrony,
-        is_exported: bool,
         declarators: Vec<LocalNodeId<Declarator>>,
-    },
-    /// Assignment operation.
-    Assign {
-        left: LocalNodeId<Expression>,
-        operator: AssignOperator,
-        right: LocalNodeId<Expression>,
     },
     /// Expression statement.
     Expression { expression: LocalNodeId<Expression> },
@@ -102,16 +95,14 @@ pub enum Statement {
     },
     /// For in statement.
     ForIn {
-        keyword: Option<BindingKeyword>,
-        pattern: LocalNodeId<Pattern>,
+        target: IterationTarget,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
     },
     /// For of statement.
     ForOf {
         asynchrony: Asynchrony,
-        keyword: Option<BindingKeyword>,
-        pattern: LocalNodeId<Pattern>,
+        target: IterationTarget,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
     },
@@ -156,6 +147,23 @@ pub enum BindingKeyword {
     Const,
 }
 
+/// The target of one iteration statement.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum IterationTarget {
+    /// One declared binding.
+    Binding {
+        keyword: BindingKeyword,
+        pattern: LocalNodeId<Pattern>,
+    },
+    /// One assignment target.
+    Assignment { pattern: LocalNodeId<AssignPattern> },
+    /// One `for of` resource binding.
+    Using {
+        asynchrony: Asynchrony,
+        pattern: LocalNodeId<Pattern>,
+    },
+}
+
 /// The initializer of one for statement.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum ForInitialization {
@@ -195,7 +203,6 @@ impl Statement {
             | Statement::Let { .. }
             | Statement::Var { .. }
             | Statement::Using { .. }
-            | Statement::Assign { .. }
             | Statement::Expression { .. }
             | Statement::DoWhile { .. }
             | Statement::Throw { .. }

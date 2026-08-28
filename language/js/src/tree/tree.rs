@@ -6,10 +6,11 @@ use destack_source::{ProvenanceId, ProvenanceJournal};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause, Declaration,
-    Declarator, ExportSpecifier, Expression, ImportAttribute, ImportSpecifier, LocalNodeId,
-    LocalNodeIdAny, Member, Node, NodeType, Parameter, Pattern, PatternField, Property,
-    ReExportSpecifier, Statement, SwitchCase,
+    Argument, ArrayAssignPatternField, ArrayElement, ArrayPatternField, AssignPattern, Block,
+    CatchClause, Declaration, Declarator, ExportSpecifier, Expression, ImportAttribute,
+    ImportSpecifier, LocalNodeId, LocalNodeIdAny, Member, Node, NodeType, ObjectAssignPatternField,
+    ObjectPatternField, Parameter, Pattern, Place, Property, ReExportSpecifier, Statement,
+    SwitchCase,
 };
 
 /// Dense metadata for one JS node id.
@@ -32,7 +33,7 @@ impl NodeIndexEntry {
         );
 
         Self {
-            packed: local_id | (Self::node_type_tag(node_type) << Self::NODE_TYPE_SHIFT),
+            packed: local_id | ((node_type as u32) << Self::NODE_TYPE_SHIFT),
         }
     }
 
@@ -46,54 +47,30 @@ impl NodeIndexEntry {
     #[inline]
     pub(crate) fn node_type(self) -> NodeType {
         match (self.packed >> Self::NODE_TYPE_SHIFT) as u8 {
-            0 => NodeType::Block,
-            1 => NodeType::CatchClause,
-            2 => NodeType::Statement,
-            3 => NodeType::Expression,
-            4 => NodeType::ArrayElement,
-            5 => NodeType::Declaration,
-            6 => NodeType::Declarator,
-            7 => NodeType::Property,
-            8 => NodeType::Member,
-            9 => NodeType::ImportSpecifier,
-            10 => NodeType::ExportSpecifier,
-            11 => NodeType::ReExportSpecifier,
-            12 => NodeType::ImportAttribute,
-            13 => NodeType::SwitchCase,
-            14 => NodeType::Pattern,
-            15 => NodeType::PatternField,
-            16 => NodeType::AssignPattern,
-            17 => NodeType::AssignPatternField,
-            18 => NodeType::Parameter,
-            19 => NodeType::Argument,
+            1 => NodeType::Block,
+            2 => NodeType::CatchClause,
+            3 => NodeType::Statement,
+            4 => NodeType::Expression,
+            5 => NodeType::ArrayElement,
+            6 => NodeType::Declaration,
+            7 => NodeType::Declarator,
+            8 => NodeType::Property,
+            9 => NodeType::Member,
+            10 => NodeType::ImportSpecifier,
+            11 => NodeType::ExportSpecifier,
+            12 => NodeType::ReExportSpecifier,
+            13 => NodeType::ImportAttribute,
+            14 => NodeType::SwitchCase,
+            15 => NodeType::Pattern,
+            16 => NodeType::ArrayPatternField,
+            17 => NodeType::ObjectPatternField,
+            18 => NodeType::Place,
+            19 => NodeType::AssignPattern,
+            20 => NodeType::ArrayAssignPatternField,
+            21 => NodeType::ObjectAssignPatternField,
+            22 => NodeType::Parameter,
+            23 => NodeType::Argument,
             _ => unreachable!("invalid JS node type tag in packed node index"),
-        }
-    }
-
-    /// Return the stable packed tag for one node type.
-    #[inline]
-    fn node_type_tag(node_type: NodeType) -> u32 {
-        match node_type {
-            NodeType::Block => 0,
-            NodeType::CatchClause => 1,
-            NodeType::Statement => 2,
-            NodeType::Expression => 3,
-            NodeType::ArrayElement => 4,
-            NodeType::Declaration => 5,
-            NodeType::Declarator => 6,
-            NodeType::Property => 7,
-            NodeType::Member => 8,
-            NodeType::ImportSpecifier => 9,
-            NodeType::ExportSpecifier => 10,
-            NodeType::ReExportSpecifier => 11,
-            NodeType::ImportAttribute => 12,
-            NodeType::SwitchCase => 13,
-            NodeType::Pattern => 14,
-            NodeType::PatternField => 15,
-            NodeType::AssignPattern => 16,
-            NodeType::AssignPatternField => 17,
-            NodeType::Parameter => 18,
-            NodeType::Argument => 19,
         }
     }
 }
@@ -124,9 +101,12 @@ pub struct Tree {
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
     pub(crate) patterns: Arena<Pattern>,
-    pub(crate) pattern_fields: Arena<PatternField>,
+    pub(crate) array_pattern_fields: Arena<ArrayPatternField>,
+    pub(crate) object_pattern_fields: Arena<ObjectPatternField>,
+    pub(crate) places: Arena<Place>,
     pub(crate) assign_patterns: Arena<AssignPattern>,
-    pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
+    pub(crate) array_assign_pattern_fields: Arena<ArrayAssignPatternField>,
+    pub(crate) object_assign_pattern_fields: Arena<ObjectAssignPatternField>,
 }
 
 impl Debug for Tree {
@@ -172,9 +152,12 @@ impl Tree {
             parameters: Arena::new(),
             arguments: Arena::new(),
             patterns: Arena::new(),
-            pattern_fields: Arena::new(),
+            array_pattern_fields: Arena::new(),
+            object_pattern_fields: Arena::new(),
+            places: Arena::new(),
             assign_patterns: Arena::new(),
-            assign_pattern_fields: Arena::new(),
+            array_assign_pattern_fields: Arena::new(),
+            object_assign_pattern_fields: Arena::new(),
         }
     }
 
@@ -364,7 +347,10 @@ impl_tree_stores! {
     Parameter => parameters,
     Argument => arguments,
     Pattern => patterns,
-    PatternField => pattern_fields,
+    ArrayPatternField => array_pattern_fields,
+    ObjectPatternField => object_pattern_fields,
+    Place => places,
     AssignPattern => assign_patterns,
-    AssignPatternField => assign_pattern_fields,
+    ArrayAssignPatternField => array_assign_pattern_fields,
+    ObjectAssignPatternField => object_assign_pattern_fields,
 }

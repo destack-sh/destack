@@ -1,10 +1,11 @@
 use crate::{
-    Argument, ArrayElement, ArrowFunctionBody, AssignPattern, AssignPatternField, Block,
-    CatchClause, ClassDeclaration, ClassElementName, Declaration, Declarator, ExportSpecifier,
-    Expression, ForInitialization, FunctionDeclaration, FunctionSignature, ImportAttribute,
-    ImportClause, ImportSpecifier, LocalNodeId, Member, NodeType, NodeVisitor, Parameter, Pattern,
-    PatternField, Property, PropertyName, ReExportSpecifier, Statement, SwitchCase,
-    TemplateLiteral, Tree,
+    Argument, ArrayAssignPatternField, ArrayElement, ArrayPatternField, ArrowFunctionBody,
+    AssignPattern, Block, CatchClause, ClassDeclaration, ClassElementName, Declaration, Declarator,
+    ExportSpecifier, Expression, ForInitialization, FunctionDeclaration, FunctionSignature,
+    ImportAttribute, ImportAttributeName, ImportClause, ImportSpecifier, IterationTarget,
+    LocalNodeId, Member, ModuleExportName, NodeType, NodeVisitor, ObjectAssignPatternField,
+    ObjectPatternField, Parameter, Pattern, Place, Property, PropertyName, ReExportSpecifier,
+    Statement, SwitchCase, TemplateLiteral, Tree,
 };
 
 /// Walk one root through visitor entry points.
@@ -54,10 +55,8 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
         Statement::Import {
             clause, attributes, ..
         } => {
-            if let Some(ImportClause::Named { specifiers, .. }) = clause {
-                for specifier in specifiers {
-                    visit_import_specifier(visitor, tree, *specifier);
-                }
+            if let Some(clause) = clause {
+                walk_import_clause(visitor, tree, clause);
             }
             if let Some(attributes) = attributes {
                 for attribute in attributes {
@@ -84,7 +83,14 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 }
             }
         }
-        Statement::ExportAll { attributes, .. } => {
+        Statement::ExportAll {
+            exported,
+            attributes,
+            ..
+        } => {
+            if let Some(exported) = exported {
+                walk_module_export_name(visitor, exported);
+            }
             if let Some(attributes) = attributes {
                 for attribute in attributes {
                     visit_import_attribute(visitor, tree, *attribute);
@@ -96,17 +102,16 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             visit_declaration(visitor, tree, *declaration);
         }
         Statement::Block { block } => visit_block(visitor, tree, *block),
-        Statement::Labelled { body, .. } => visit_statement(visitor, tree, *body),
+        Statement::Labelled { label, body } => {
+            visitor.visit_identifier(*label);
+            visit_statement(visitor, tree, *body);
+        }
         Statement::Let { declarators, .. }
         | Statement::Var { declarators, .. }
         | Statement::Using { declarators, .. } => {
             for declarator in declarators {
                 visit_declarator(visitor, tree, *declarator);
             }
-        }
-        Statement::Assign { left, right, .. } => {
-            visit_expression(visitor, tree, *left);
-            visit_expression(visitor, tree, *right);
         }
         Statement::Expression { expression } => visit_expression(visitor, tree, *expression),
         Statement::If {
@@ -142,18 +147,17 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             visit_block(visitor, tree, *body);
         }
         Statement::ForIn {
-            pattern,
+            target,
             iterator,
             body,
-            ..
         }
         | Statement::ForOf {
-            pattern,
+            target,
             iterator,
             body,
             ..
         } => {
-            visit_pattern(visitor, tree, *pattern);
+            walk_iteration_target(visitor, tree, target);
             visit_expression(visitor, tree, *iterator);
             visit_block(visitor, tree, *body);
         }
@@ -182,7 +186,12 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
                 visit_expression(visitor, tree, *value);
             }
         }
-        Statement::Continue { .. } | Statement::Break { .. } | Statement::Debugger => {}
+        Statement::Continue { label } | Statement::Break { label } => {
+            if let Some(label) = label {
+                visitor.visit_identifier(*label);
+            }
+        }
+        Statement::Debugger => {}
     }
 }
 
@@ -213,21 +222,27 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visit_property(visitor, tree, *property);
             }
         }
-        Expression::Parenthesized { expression }
-        | Expression::Await { value: expression }
-        | Expression::Member {
-            object: expression, ..
+        Expression::Parenthesized { expression } | Expression::Await { value: expression } => {
+            visit_expression(visitor, tree, *expression);
         }
-        | Expression::PrivateMember {
-            object: expression, ..
-        } => visit_expression(visitor, tree, *expression),
-        Expression::InstanceOf { value, target } => {
-            visit_expression(visitor, tree, *value);
-            visit_expression(visitor, tree, *target);
+        Expression::Member {
+            object, property, ..
+        } => {
+            visit_expression(visitor, tree, *object);
+            visitor.visit_identifier_name(*property);
+        }
+        Expression::PrivateMember { object, property } => {
+            visit_expression(visitor, tree, *object);
+            visitor.visit_identifier(*property);
         }
         Expression::Unary { right, .. } => visit_expression(visitor, tree, *right),
-        Expression::Binary { left, right, .. } | Expression::AssignBinary { left, right, .. } => {
+        Expression::Update { place, .. } => visit_place(visitor, tree, *place),
+        Expression::Binary { left, right, .. } => {
             visit_expression(visitor, tree, *left);
+            visit_expression(visitor, tree, *right);
+        }
+        Expression::AssignBinary { left, right, .. } => {
+            visit_place(visitor, tree, *left);
             visit_expression(visitor, tree, *right);
         }
         Expression::Assign { left, right } => {
@@ -249,12 +264,10 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
                 visit_argument(visitor, tree, *argument);
             }
         }
-        Expression::ImportCall {
-            target, arguments, ..
-        } => {
-            visit_expression(visitor, tree, *target);
-            for argument in arguments {
-                visit_argument(visitor, tree, *argument);
+        Expression::ImportCall { specifier, options } => {
+            visit_expression(visitor, tree, *specifier);
+            if let Some(options) = options {
+                visit_expression(visitor, tree, *options);
             }
         }
         Expression::Yield { value, .. } => {
@@ -263,10 +276,16 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             }
         }
         Expression::ArrowFunction {
-            parameters, body, ..
+            parameters,
+            rest,
+            body,
+            ..
         } => {
             for parameter in parameters {
                 visit_parameter(visitor, tree, *parameter);
+            }
+            if let Some(rest) = rest {
+                visit_pattern(visitor, tree, *rest);
             }
             match body {
                 ArrowFunctionBody::Expression(expression) => {
@@ -284,11 +303,14 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
             visit_expression(visitor, tree, *then_expression);
             visit_expression(visitor, tree, *else_expression);
         }
-        Expression::Identifier { .. }
-        | Expression::ImportMeta
+        Expression::Identifier { identifier } => visitor.visit_identifier(*identifier),
+        Expression::PrivateIn { identifier, object } => {
+            visitor.visit_identifier(*identifier);
+            visit_expression(visitor, tree, *object);
+        }
+        Expression::ImportMeta
         | Expression::This
         | Expression::Super
-        | Expression::PrivateIdentifier { .. }
         | Expression::Literal { .. } => {}
     }
 }
@@ -304,10 +326,13 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
 
     match declaration {
         Declaration::Class(ClassDeclaration {
+            name,
             extends_expression,
             members,
-            ..
         }) => {
+            if let Some(name) = name {
+                visitor.visit_identifier(*name);
+            }
             if let Some(extends) = extends_expression {
                 visit_expression(visitor, tree, *extends);
             }
@@ -316,8 +341,13 @@ pub fn walk_declaration<V: NodeVisitor + ?Sized>(
             }
         }
         Declaration::Function(FunctionDeclaration {
-            signature, body, ..
+            name,
+            signature,
+            body,
         }) => {
+            if let Some(name) = name {
+                visitor.visit_identifier(*name);
+            }
             walk_signature(visitor, tree, signature);
             visit_block(visitor, tree, *body);
         }
@@ -362,7 +392,20 @@ pub fn walk_property<V: NodeVisitor + ?Sized>(
             walk_signature(visitor, tree, signature);
             visit_block(visitor, tree, *body);
         }
-        Property::Shorthand { .. } => {}
+        Property::Getter { key, body } => {
+            walk_property_name(visitor, tree, key);
+            visit_block(visitor, tree, *body);
+        }
+        Property::Setter {
+            key,
+            parameter,
+            body,
+        } => {
+            walk_property_name(visitor, tree, key);
+            visit_parameter(visitor, tree, *parameter);
+            visit_block(visitor, tree, *body);
+        }
+        Property::Shorthand { value } => visitor.visit_identifier(*value),
         Property::Spread { value } => visit_expression(visitor, tree, *value),
     }
 }
@@ -393,9 +436,30 @@ pub fn walk_member<V: NodeVisitor + ?Sized>(
             walk_signature(visitor, tree, signature);
             visit_block(visitor, tree, *body);
         }
-        Member::Constructor { parameters, body } => {
+        Member::Getter { key, body, .. } => {
+            walk_class_element_name(visitor, tree, key);
+            visit_block(visitor, tree, *body);
+        }
+        Member::Setter {
+            key,
+            parameter,
+            body,
+            ..
+        } => {
+            walk_class_element_name(visitor, tree, key);
+            visit_parameter(visitor, tree, *parameter);
+            visit_block(visitor, tree, *body);
+        }
+        Member::Constructor {
+            parameters,
+            rest,
+            body,
+        } => {
             for parameter in parameters {
                 visit_parameter(visitor, tree, *parameter);
+            }
+            if let Some(rest) = rest {
+                visit_pattern(visitor, tree, *rest);
             }
             visit_block(visitor, tree, *body);
         }
@@ -408,9 +472,11 @@ pub fn walk_import_specifier<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<ImportSpecifier>,
-    _specifier: &ImportSpecifier,
+    specifier: &ImportSpecifier,
 ) {
     visitor.visit_any(tree, NodeType::ImportSpecifier, id.id);
+    walk_module_export_name(visitor, &specifier.imported);
+    visitor.visit_identifier(specifier.local);
 }
 
 /// Walk one export specifier.
@@ -418,9 +484,11 @@ pub fn walk_export_specifier<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<ExportSpecifier>,
-    _specifier: &ExportSpecifier,
+    specifier: &ExportSpecifier,
 ) {
     visitor.visit_any(tree, NodeType::ExportSpecifier, id.id);
+    visitor.visit_identifier(specifier.local);
+    walk_module_export_name(visitor, &specifier.exported);
 }
 
 /// Walk one re-export specifier.
@@ -428,9 +496,11 @@ pub fn walk_re_export_specifier<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<ReExportSpecifier>,
-    _specifier: &ReExportSpecifier,
+    specifier: &ReExportSpecifier,
 ) {
     visitor.visit_any(tree, NodeType::ReExportSpecifier, id.id);
+    walk_module_export_name(visitor, &specifier.imported);
+    walk_module_export_name(visitor, &specifier.exported);
 }
 
 /// Walk one switch case.
@@ -454,9 +524,12 @@ pub fn walk_import_attribute<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
     id: LocalNodeId<ImportAttribute>,
-    _attribute: &ImportAttribute,
+    attribute: &ImportAttribute,
 ) {
     visitor.visit_any(tree, NodeType::ImportAttribute, id.id);
+    if let ImportAttributeName::Identifier(name) = attribute.name {
+        visitor.visit_identifier_name(name);
+    }
 }
 
 /// Walk one catch clause.
@@ -483,7 +556,8 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Parameter, id.id);
 
     match parameter {
-        Parameter::Named { default, .. } => {
+        Parameter::Named { name, default } => {
+            visitor.visit_identifier(*name);
             if let Some(default) = default {
                 visit_expression(visitor, tree, *default);
             }
@@ -494,8 +568,6 @@ pub fn walk_parameter<V: NodeVisitor + ?Sized>(
                 visit_expression(visitor, tree, *default);
             }
         }
-        Parameter::VariadicNamed { .. } => {}
-        Parameter::VariadicPattern { pattern } => visit_pattern(visitor, tree, *pattern),
     }
 }
 
@@ -539,43 +611,104 @@ pub fn walk_pattern<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Pattern, id.id);
 
     match pattern {
-        Pattern::Assign { pattern, value } => {
-            visit_pattern(visitor, tree, *pattern);
-            visit_expression(visitor, tree, *value);
-        }
-        Pattern::Array { fields } | Pattern::Object { fields } => {
+        Pattern::Array { fields, rest } => {
             for field in fields {
-                visit_pattern_field(visitor, tree, *field);
+                visit_array_pattern_field(visitor, tree, *field);
+            }
+            if let Some(rest) = rest {
+                visit_pattern(visitor, tree, *rest);
             }
         }
-        Pattern::Binding { .. } | Pattern::Hole => {}
+        Pattern::Object { fields, rest } => {
+            for field in fields {
+                visit_object_pattern_field(visitor, tree, *field);
+            }
+            if let Some(rest) = rest {
+                visitor.visit_identifier(*rest);
+            }
+        }
+        Pattern::Binding { identifier } => visitor.visit_identifier(*identifier),
     }
 }
 
-/// Walk one binding pattern field.
-pub fn walk_pattern_field<V: NodeVisitor + ?Sized>(
+/// Walk one array binding field.
+pub fn walk_array_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
-    id: LocalNodeId<PatternField>,
-    field: &PatternField,
+    id: LocalNodeId<ArrayPatternField>,
+    field: &ArrayPatternField,
 ) {
-    visitor.visit_any(tree, NodeType::PatternField, id.id);
+    visitor.visit_any(tree, NodeType::ArrayPatternField, id.id);
 
     match field {
-        PatternField::Named { name, pattern } => {
-            walk_property_name(visitor, tree, name);
+        ArrayPatternField::Positional { pattern, default } => {
             visit_pattern(visitor, tree, *pattern);
-        }
-        PatternField::Spread { pattern } => {
-            visit_pattern(visitor, tree, *pattern);
-        }
-        PatternField::Shorthand { value, .. } => {
-            if let Some(value) = value {
-                visit_expression(visitor, tree, *value);
+            if let Some(default) = default {
+                visit_expression(visitor, tree, *default);
             }
         }
-        PatternField::Positional { pattern } => visit_pattern(visitor, tree, *pattern),
-        PatternField::Elision => {}
+        ArrayPatternField::Elision => {}
+    }
+}
+
+/// Walk one object binding field.
+pub fn walk_object_pattern_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<ObjectPatternField>,
+    field: &ObjectPatternField,
+) {
+    visitor.visit_any(tree, NodeType::ObjectPatternField, id.id);
+
+    match field {
+        ObjectPatternField::Named {
+            name,
+            pattern,
+            default,
+        } => {
+            walk_property_name(visitor, tree, name);
+            visit_pattern(visitor, tree, *pattern);
+            if let Some(default) = default {
+                visit_expression(visitor, tree, *default);
+            }
+        }
+        ObjectPatternField::Shorthand {
+            identifier,
+            default,
+        } => {
+            visitor.visit_identifier(*identifier);
+            if let Some(default) = default {
+                visit_expression(visitor, tree, *default);
+            }
+        }
+    }
+}
+
+/// Walk one writable place.
+pub fn walk_place<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<Place>,
+    place: &Place,
+) {
+    visitor.visit_any(tree, NodeType::Place, id.id);
+
+    match place {
+        Place::Identifier { identifier } => visitor.visit_identifier(*identifier),
+        Place::Member {
+            object, property, ..
+        } => {
+            visit_expression(visitor, tree, *object);
+            visitor.visit_identifier_name(*property);
+        }
+        Place::PrivateMember { object, property } => {
+            visit_expression(visitor, tree, *object);
+            visitor.visit_identifier(*property);
+        }
+        Place::Index { object, key } => {
+            visit_expression(visitor, tree, *object);
+            visit_expression(visitor, tree, *key);
+        }
     }
 }
 
@@ -589,52 +722,85 @@ pub fn walk_assign_pattern<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::AssignPattern, id.id);
 
     match pattern {
-        AssignPattern::Expression { value } => visit_expression(visitor, tree, *value),
-        AssignPattern::Assign { pattern, value } => {
-            visit_assign_pattern(visitor, tree, *pattern);
-            visit_expression(visitor, tree, *value);
-        }
-        AssignPattern::Array { fields } | AssignPattern::Object { fields } => {
+        AssignPattern::Place { place } => visit_place(visitor, tree, *place),
+        AssignPattern::Array { fields, rest } => {
             for field in fields {
-                visit_assign_pattern_field(visitor, tree, *field);
+                visit_array_assign_pattern_field(visitor, tree, *field);
+            }
+            if let Some(rest) = rest {
+                visit_assign_pattern(visitor, tree, *rest);
+            }
+        }
+        AssignPattern::Object { fields, rest } => {
+            for field in fields {
+                visit_object_assign_pattern_field(visitor, tree, *field);
+            }
+            if let Some(rest) = rest {
+                visit_place(visitor, tree, *rest);
             }
         }
     }
 }
 
-/// Walk one assignment pattern field.
-pub fn walk_assign_pattern_field<V: NodeVisitor + ?Sized>(
+/// Walk one array assignment field.
+pub fn walk_array_assign_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
-    id: LocalNodeId<AssignPatternField>,
-    field: &AssignPatternField,
+    id: LocalNodeId<ArrayAssignPatternField>,
+    field: &ArrayAssignPatternField,
 ) {
-    visitor.visit_any(tree, NodeType::AssignPatternField, id.id);
+    visitor.visit_any(tree, NodeType::ArrayAssignPatternField, id.id);
 
     match field {
-        AssignPatternField::Named { name, pattern } => {
-            walk_property_name(visitor, tree, name);
+        ArrayAssignPatternField::Positional { pattern, default } => {
             visit_assign_pattern(visitor, tree, *pattern);
-        }
-        AssignPatternField::Spread { pattern } => {
-            visit_assign_pattern(visitor, tree, *pattern);
-        }
-        AssignPatternField::Shorthand { value, .. } => {
-            if let Some(value) = value {
-                visit_expression(visitor, tree, *value);
+            if let Some(default) = default {
+                visit_expression(visitor, tree, *default);
             }
         }
-        AssignPatternField::Positional { pattern } => {
+        ArrayAssignPatternField::Elision => {}
+    }
+}
+
+/// Walk one object assignment field.
+pub fn walk_object_assign_pattern_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<ObjectAssignPatternField>,
+    field: &ObjectAssignPatternField,
+) {
+    visitor.visit_any(tree, NodeType::ObjectAssignPatternField, id.id);
+
+    match field {
+        ObjectAssignPatternField::Named {
+            name,
+            pattern,
+            default,
+        } => {
+            walk_property_name(visitor, tree, name);
             visit_assign_pattern(visitor, tree, *pattern);
+            if let Some(default) = default {
+                visit_expression(visitor, tree, *default);
+            }
         }
-        AssignPatternField::Elision => {}
+        ObjectAssignPatternField::Shorthand {
+            identifier,
+            default,
+        } => {
+            visitor.visit_identifier(*identifier);
+            if let Some(default) = default {
+                visit_expression(visitor, tree, *default);
+            }
+        }
     }
 }
 
 /// Walk one property name.
 fn walk_property_name<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, name: &PropertyName) {
-    if let PropertyName::Computed(expression) = name {
-        visit_expression(visitor, tree, *expression);
+    match name {
+        PropertyName::Identifier(name) => visitor.visit_identifier_name(*name),
+        PropertyName::Computed(expression) => visit_expression(visitor, tree, *expression),
+        PropertyName::String(_) => {}
     }
 }
 
@@ -644,8 +810,44 @@ fn walk_class_element_name<V: NodeVisitor + ?Sized>(
     tree: &Tree,
     name: &ClassElementName,
 ) {
-    if let ClassElementName::Public(name) = name {
-        walk_property_name(visitor, tree, name);
+    match name {
+        ClassElementName::Public(name) => walk_property_name(visitor, tree, name),
+        ClassElementName::Private(identifier) => visitor.visit_identifier(*identifier),
+    }
+}
+
+/// Walk one module export name.
+fn walk_module_export_name<V: NodeVisitor + ?Sized>(visitor: &mut V, name: &ModuleExportName) {
+    if let ModuleExportName::Identifier(name) = name {
+        visitor.visit_identifier_name(*name);
+    }
+}
+
+/// Walk one import clause.
+fn walk_import_clause<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    clause: &ImportClause,
+) {
+    match clause {
+        ImportClause::Default { local } => visitor.visit_identifier(*local),
+        ImportClause::Namespace { default, local } => {
+            if let Some(default) = default {
+                visitor.visit_identifier(*default);
+            }
+            visitor.visit_identifier(*local);
+        }
+        ImportClause::Named {
+            default,
+            specifiers,
+        } => {
+            if let Some(default) = default {
+                visitor.visit_identifier(*default);
+            }
+            for specifier in specifiers {
+                visit_import_specifier(visitor, tree, *specifier);
+            }
+        }
     }
 }
 
@@ -657,6 +859,9 @@ fn walk_signature<V: NodeVisitor + ?Sized>(
 ) {
     for parameter in &signature.parameters {
         visit_parameter(visitor, tree, *parameter);
+    }
+    if let Some(rest) = signature.rest {
+        visit_pattern(visitor, tree, rest);
     }
 }
 
@@ -683,6 +888,19 @@ fn walk_for_initialization<V: NodeVisitor + ?Sized>(
                 visit_declarator(visitor, tree, *declarator);
             }
         }
+    }
+}
+
+/// Walk one `for in` or `for of` target.
+fn walk_iteration_target<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    target: &IterationTarget,
+) {
+    match target {
+        IterationTarget::Binding { pattern, .. } => visit_pattern(visitor, tree, *pattern),
+        IterationTarget::Assignment { pattern } => visit_assign_pattern(visitor, tree, *pattern),
+        IterationTarget::Using { pattern, .. } => visit_pattern(visitor, tree, *pattern),
     }
 }
 
@@ -810,12 +1028,24 @@ fn visit_pattern<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: Loca
     visitor.visit_pattern(tree, id, tree.get(id));
 }
 
-fn visit_pattern_field<V: NodeVisitor + ?Sized>(
+fn visit_array_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
-    id: LocalNodeId<PatternField>,
+    id: LocalNodeId<ArrayPatternField>,
 ) {
-    visitor.visit_pattern_field(tree, id, tree.get(id));
+    visitor.visit_array_pattern_field(tree, id, tree.get(id));
+}
+
+fn visit_object_pattern_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<ObjectPatternField>,
+) {
+    visitor.visit_object_pattern_field(tree, id, tree.get(id));
+}
+
+fn visit_place<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: LocalNodeId<Place>) {
+    visitor.visit_place(tree, id, tree.get(id));
 }
 
 fn visit_assign_pattern<V: NodeVisitor + ?Sized>(
@@ -826,10 +1056,18 @@ fn visit_assign_pattern<V: NodeVisitor + ?Sized>(
     visitor.visit_assign_pattern(tree, id, tree.get(id));
 }
 
-fn visit_assign_pattern_field<V: NodeVisitor + ?Sized>(
+fn visit_array_assign_pattern_field<V: NodeVisitor + ?Sized>(
     visitor: &mut V,
     tree: &Tree,
-    id: LocalNodeId<AssignPatternField>,
+    id: LocalNodeId<ArrayAssignPatternField>,
 ) {
-    visitor.visit_assign_pattern_field(tree, id, tree.get(id));
+    visitor.visit_array_assign_pattern_field(tree, id, tree.get(id));
+}
+
+fn visit_object_assign_pattern_field<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    id: LocalNodeId<ObjectAssignPatternField>,
+) {
+    visitor.visit_object_assign_pattern_field(tree, id, tree.get(id));
 }

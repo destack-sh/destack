@@ -1,17 +1,21 @@
-use crate::format::argument::delimited;
 use crate::format::dependency::{format_export, format_import, format_re_export};
+use crate::format::expression::{
+    format_expression_id_with_precedence, format_expression_statement, format_expression_without_in,
+};
+use crate::format::list::delimited;
 use crate::{
-    Asynchrony, BindingKeyword, CatchClause, Declarator, ExportKind, ForInitialization, FormatNode,
-    Formatter, ImportAttribute, Keyword, LocalNodeId, Mutability, Statement,
+    Asynchrony, BindingKeyword, Declarator, ExportKind, ForInitialization, FormatNode, Formatter,
+    ImportAttribute, IterationTarget, Keyword, LocalNodeId, Mutability, Precedence, Statement,
+    format_attributed,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-/// Format root-level statements with semicolons and trailing newline.
-pub fn format_roots<'a>(
-    f: &mut Formatter<'a, '_>,
+/// Format root statements and terminate nonempty output with a newline.
+pub(crate) fn format_roots<'a>(
     roots: &[LocalNodeId<Statement>],
+    f: &mut Formatter<'a, '_>,
 ) -> FormatResult<()> {
     // emit each root with the pretty statement separator
     let mut printed_any = false;
@@ -32,9 +36,10 @@ pub fn format_roots<'a>(
     Ok(())
 }
 
+/// Format one comma-separated declarator sequence.
 fn format_variable_declarators<'ast>(
-    f: &mut Formatter<'ast, '_>,
     declarators: &[LocalNodeId<Declarator>],
+    f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     for (index, declarator) in declarators.iter().enumerate() {
         if index == 0 {
@@ -49,9 +54,10 @@ fn format_variable_declarators<'ast>(
     Ok(())
 }
 
+/// Format one binding keyword and its following space.
 fn format_binding_keyword<'ast>(
-    f: &mut Formatter<'ast, '_>,
     keyword: BindingKeyword,
+    f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     let declaration_keyword = match keyword {
         BindingKeyword::Var => Keyword::Var,
@@ -62,9 +68,34 @@ fn format_binding_keyword<'ast>(
     write!(f, [declaration_keyword, space()])
 }
 
-fn format_import_attributes<'ast>(
+/// Format one iteration target.
+fn format_iteration_target<'ast>(
+    target: &IterationTarget,
     f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    match target {
+        IterationTarget::Binding { keyword, pattern } => {
+            format_binding_keyword(*keyword, f)?;
+            write!(f, [pattern])
+        }
+        IterationTarget::Assignment { pattern } => write!(f, [pattern]),
+        IterationTarget::Using {
+            asynchrony,
+            pattern,
+        } => {
+            if *asynchrony == Asynchrony::Async {
+                write!(f, [Keyword::Await, space()])?;
+            }
+
+            write!(f, [Keyword::Using, space(), pattern])
+        }
+    }
+}
+
+/// Format one import attribute clause.
+fn format_import_attributes<'ast>(
     attributes: &[LocalNodeId<ImportAttribute>],
+    f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -88,7 +119,7 @@ impl<'ast> FormatNode<'ast> for Statement {
                 write!(f, [Keyword::Import, space()])?;
                 format_import(*source, clause.as_ref(), f)?;
                 if let Some(attributes) = attributes {
-                    format_import_attributes(f, attributes)?;
+                    format_import_attributes(attributes, f)?;
                 }
             }
             Statement::Export { specifiers } => {
@@ -103,7 +134,7 @@ impl<'ast> FormatNode<'ast> for Statement {
                 write!(f, [Keyword::Export, space()])?;
                 format_re_export(*source, specifiers, f)?;
                 if let Some(attributes) = attributes {
-                    format_import_attributes(f, attributes)?;
+                    format_import_attributes(attributes, f)?;
                 }
             }
             Statement::ExportAll {
@@ -117,12 +148,12 @@ impl<'ast> FormatNode<'ast> for Statement {
                 }
                 write!(f, [space(), Keyword::From, space(), source])?;
                 if let Some(attributes) = attributes {
-                    format_import_attributes(f, attributes)?;
+                    format_import_attributes(attributes, f)?;
                 }
             }
             Statement::ExportDefault { value } => {
                 write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
-                write!(f, [value])?;
+                format_expression_id_with_precedence(*value, Precedence::Assignment, f)?;
             }
             Statement::Declaration {
                 export,
@@ -162,7 +193,7 @@ impl<'ast> FormatNode<'ast> for Statement {
                 }
 
                 // declarators
-                format_variable_declarators(f, declarators)?;
+                format_variable_declarators(declarators, f)?;
             }
             Statement::Var {
                 is_exported,
@@ -177,43 +208,24 @@ impl<'ast> FormatNode<'ast> for Statement {
                 write!(f, [Keyword::Var])?;
 
                 // declarators
-                format_variable_declarators(f, declarators)?;
+                format_variable_declarators(declarators, f)?;
             }
             Statement::Using {
                 asynchrony,
-                is_exported,
                 declarators,
             } => {
-                // export
-                if *is_exported {
-                    write!(f, [Keyword::Export, space()])?;
-                }
-
                 // keyword
                 if *asynchrony == Asynchrony::Async {
                     write!(f, [Keyword::Await, space()])?;
                 }
+
                 write!(f, [Keyword::Using])?;
 
                 // declarators
-                for (i, declarator) in declarators.iter().enumerate() {
-                    if i == 0 {
-                        write!(f, [space()])?;
-                    } else {
-                        write!(f, [token(","), space()])?;
-                    }
-                    write!(f, [declarator])?;
-                }
-            }
-            Statement::Assign {
-                left,
-                operator,
-                right,
-            } => {
-                write!(f, [left, operator, right])?;
+                format_variable_declarators(declarators, f)?;
             }
             Statement::Expression { expression } => {
-                write!(f, [expression])?;
+                format_expression_statement(*expression, f)?;
             }
 
             Statement::If {
@@ -221,7 +233,7 @@ impl<'ast> FormatNode<'ast> for Statement {
                 then_block,
                 else_block,
             } => {
-                write!(f, [Keyword::If, token("("), condition, token(")")])?;
+                write!(f, [Keyword::If, space(), token("("), condition, token(")")])?;
                 write!(f, [space()])?;
                 write!(f, [then_block])?;
                 if let Some(else_block) = else_block {
@@ -229,13 +241,19 @@ impl<'ast> FormatNode<'ast> for Statement {
                 }
             }
             Statement::While { condition, body } => {
-                write!(f, [Keyword::While, token("("), condition, token(")")])?;
+                write!(
+                    f,
+                    [Keyword::While, space(), token("("), condition, token(")")]
+                )?;
                 write!(f, [space()])?;
                 write!(f, [body])?;
             }
             Statement::DoWhile { body, condition } => {
                 write!(f, [Keyword::Do, space(), body, space()])?;
-                write!(f, [Keyword::While, token("("), condition, token(")")])?;
+                write!(
+                    f,
+                    [Keyword::While, space(), token("("), condition, token(")")]
+                )?;
             }
             Statement::For {
                 initialization,
@@ -243,25 +261,26 @@ impl<'ast> FormatNode<'ast> for Statement {
                 increment,
                 body,
             } => {
-                write!(f, [Keyword::For, token("(")])?;
+                write!(f, [Keyword::For, space(), token("(")])?;
 
                 // initialization
                 if let Some(initialization) = initialization {
                     match initialization {
                         ForInitialization::Expression(initialization) => {
-                            write!(f, [initialization, token(";"), space()])?;
+                            format_expression_without_in(*initialization, f)?;
+                            write!(f, [token(";"), space()])?;
                         }
                         ForInitialization::Declaration {
                             keyword,
                             declarators,
                         } => {
-                            format_binding_keyword(f, *keyword)?;
+                            format_binding_keyword(*keyword, f)?;
                             for (index, declarator) in declarators.iter().enumerate() {
                                 if index > 0 {
                                     write!(f, [token(","), space()])?;
                                 }
 
-                                write!(f, [declarator])?;
+                                format_declarator_without_in(*declarator, f)?;
                             }
 
                             write!(f, [token(";"), space()])?;
@@ -285,27 +304,19 @@ impl<'ast> FormatNode<'ast> for Statement {
                 write!(f, [token(")"), space(), body])?;
             }
             Statement::ForIn {
-                keyword,
-                pattern,
+                target,
                 iterator,
                 body,
             } => {
-                write!(f, [Keyword::For, token("(")])?;
+                write!(f, [Keyword::For, space(), token("(")])?;
 
-                if let Some(keyword) = keyword {
-                    format_binding_keyword(f, *keyword)?;
-                }
-
-                write!(
-                    f,
-                    [pattern, space(), token("in"), space(), iterator, token(")")]
-                )?;
+                format_iteration_target(target, f)?;
+                write!(f, [space(), token("in"), space(), iterator, token(")")])?;
                 write!(f, [space(), body])?;
             }
             Statement::ForOf {
                 asynchrony,
-                keyword,
-                pattern,
+                target,
                 iterator,
                 body,
             } => {
@@ -317,34 +328,44 @@ impl<'ast> FormatNode<'ast> for Statement {
 
                 write!(f, [token("(")])?;
 
-                if let Some(keyword) = keyword {
-                    format_binding_keyword(f, *keyword)?;
-                }
-
-                write!(
-                    f,
-                    [pattern, space(), token("of"), space(), iterator, token(")")]
-                )?;
+                format_iteration_target(target, f)?;
+                write!(f, [space(), token("of"), space()])?;
+                format_expression_id_with_precedence(*iterator, Precedence::Assignment, f)?;
+                write!(f, [token(")")])?;
                 write!(f, [space(), body])?;
             }
             Statement::Switch { value, cases } => {
-                write!(f, [Keyword::Switch, token("("), value, token(")"), space()])?;
-                write!(f, [token("{"), hard_line_break()])?;
                 write!(
                     f,
-                    [block_indent(&format_with(|f| {
-                        for (index, switch_case) in cases.iter().enumerate() {
-                            if index > 0 {
-                                write!(f, [hard_line_break()])?;
+                    [
+                        Keyword::Switch,
+                        space(),
+                        token("("),
+                        value,
+                        token(")"),
+                        space()
+                    ]
+                )?;
+                if cases.is_empty() {
+                    write!(f, [token("{"), token("}")])?;
+                } else {
+                    write!(f, [token("{"), hard_line_break()])?;
+                    write!(
+                        f,
+                        [block_indent(&format_with(|f| {
+                            for (index, switch_case) in cases.iter().enumerate() {
+                                if index > 0 {
+                                    write!(f, [hard_line_break()])?;
+                                }
+
+                                write!(f, [*switch_case])?;
                             }
 
-                            write!(f, [*switch_case])?;
-                        }
-
-                        Ok(())
-                    }))]
-                )?;
-                write!(f, [hard_line_break(), token("}")])?;
+                            Ok(())
+                        }))]
+                    )?;
+                    write!(f, [hard_line_break(), token("}")])?;
+                }
             }
 
             Statement::Try {
@@ -395,14 +416,21 @@ impl<'ast> FormatNode<'ast> for Statement {
     }
 }
 
-impl<'ast> FormatNode<'ast> for CatchClause {
-    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
-        write!(f, [Keyword::Catch])?;
+/// Format one variable declarator in an ECMAScript `NoIn` context.
+fn format_declarator_without_in<'ast>(
+    id: LocalNodeId<Declarator>,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let declarator = f.context().tree.get(id);
+    let provenance = f.context().tree.provenance(id);
 
-        if let Some(pattern) = self.pattern {
-            write!(f, [token("("), pattern, token(")")])?;
+    format_attributed(provenance, None, f, |f| {
+        write!(f, [declarator.pattern])?;
+        if let Some(value) = declarator.value {
+            write!(f, [space(), token("="), space()])?;
+            format_expression_without_in(value, f)?;
         }
 
-        write!(f, [space(), self.body])
-    }
+        Ok(())
+    })
 }

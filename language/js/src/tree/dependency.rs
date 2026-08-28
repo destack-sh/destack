@@ -1,9 +1,9 @@
+use destack_serde::Reflect;
+use serde::{Deserialize, Serialize};
+
 use crate::{
     Identifier, IdentifierName, LocalNodeId, ModuleExportName, Node, NodeType, StringLiteral,
 };
-
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
 
 /// How one declaration is exported.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]

@@ -3,15 +3,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Expression, Identifier, LocalNodeId, Node, NodeType, Pattern};
 
-/// Runtime modifiers of one class member.
-#[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize, Reflect)]
-pub struct MemberModifier {
-    /// Whether the member belongs to the class itself.
-    pub is_static: bool,
-    /// Whether the field uses JavaScript auto-accessor semantics.
-    pub is_accessor: bool,
-}
-
 /// One JavaScript function parameter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Parameter {
@@ -25,22 +16,33 @@ pub enum Parameter {
         pattern: LocalNodeId<Pattern>,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Variadic parameter with a named binding (like `...args: int32[]`).
-    VariadicNamed { name: Identifier },
-    /// Variadic parameter with a pattern binding (like `...[a, b]`).
-    VariadicPattern { pattern: LocalNodeId<Pattern> },
 }
 
 impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
+/// One element in an array literal.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum ArrayElement {
+    /// One positional array element.
+    Expression { value: LocalNodeId<Expression> },
+    /// One spread array element.
+    Spread { value: LocalNodeId<Expression> },
+    /// One elided array slot.
+    Elision,
+}
+
+impl Node for ArrayElement {
+    const TYPE: NodeType = NodeType::ArrayElement;
+}
+
 /// One JavaScript call argument.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Argument {
-    /// Positional argument (like `1` or `foo()`).
+    /// Positional argument like `1` or `foo()`.
     Positional { value: LocalNodeId<Expression> },
-    /// Spread argument (like `...args`).
+    /// Spread argument like `...values`.
     Spread { value: LocalNodeId<Expression> },
 }
 

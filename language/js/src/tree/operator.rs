@@ -1,16 +1,11 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+
+use crate::Precedence;
+
 /// Unary operator.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum UnaryOperator {
-    /// `++`
-    PostIncrement,
-    /// `--`
-    PostDecrement,
-    /// `++`
-    PreIncrement,
-    /// `--`
-    PreDecrement,
     /// `+`
     Plus,
     /// `-`
@@ -26,27 +21,50 @@ pub enum UnaryOperator {
 }
 
 impl UnaryOperator {
-    /// Whether the unary operator is a prefix operator.
-    #[inline]
-    pub fn is_prefix(&self) -> bool {
-        matches!(
-            self,
-            Self::PreIncrement
-                | Self::PreDecrement
-                | Self::Not
-                | Self::Plus
-                | Self::Negate
-                | Self::ElementwiseNot
-                | Self::Typeof
-                | Self::Void
-        )
+    /// Return the ECMAScript token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Plus => "+",
+            Self::Negate => "-",
+            Self::ElementwiseNot => "~",
+            Self::Not => "!",
+            Self::Typeof => "typeof",
+            Self::Void => "void",
+        }
     }
 
-    /// Whether the unary operator is a postfix operator.
-    #[inline]
-    pub fn is_postfix(&self) -> bool {
-        !self.is_prefix()
+    /// Return whether the operator uses a keyword token.
+    pub const fn is_keyword(self) -> bool {
+        matches!(self, Self::Typeof | Self::Void)
     }
+}
+
+/// One update operator.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum UpdateOperator {
+    /// `++`
+    Increment,
+    /// `--`
+    Decrement,
+}
+
+impl UpdateOperator {
+    /// Return the ECMAScript token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Increment => "++",
+            Self::Decrement => "--",
+        }
+    }
+}
+
+/// The position of an update operator.
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum UpdatePosition {
+    /// Prefix update like `++value`.
+    Prefix,
+    /// Postfix update like `value++`.
+    Postfix,
 }
 
 /// Binary operator.
@@ -117,6 +135,69 @@ pub enum BinaryOperator {
     InstanceOf,
 }
 
+impl BinaryOperator {
+    /// Return the ECMAScript token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Multiply => "*",
+            Self::Exponent => "**",
+            Self::Divide => "/",
+            Self::Remainder => "%",
+            Self::Add => "+",
+            Self::Subtract => "-",
+            Self::ShiftLeft => "<<",
+            Self::ShiftRight => ">>",
+            Self::UnsignedShiftRight => ">>>",
+            Self::ElementwiseAnd => "&",
+            Self::ElementwiseXor => "^",
+            Self::ElementwiseOr => "|",
+            Self::Equal => "==",
+            Self::NotEqual => "!=",
+            Self::EqualStrict => "===",
+            Self::NotEqualStrict => "!==",
+            Self::LessThan => "<",
+            Self::LessThanOrEqual => "<=",
+            Self::GreaterThan => ">",
+            Self::GreaterThanOrEqual => ">=",
+            Self::And => "&&",
+            Self::Or => "||",
+            Self::Coalesce => "??",
+            Self::In => "in",
+            Self::InstanceOf => "instanceof",
+        }
+    }
+
+    /// Return whether the operator uses a keyword token.
+    pub const fn is_keyword(self) -> bool {
+        matches!(self, Self::In | Self::InstanceOf)
+    }
+
+    /// Return the local precedence for this binary operator.
+    pub(crate) fn precedence(self) -> Precedence {
+        match self {
+            Self::Multiply | Self::Divide | Self::Remainder => Precedence::Multiply,
+            Self::Exponent => Precedence::Exponent,
+            Self::Add | Self::Subtract => Precedence::Add,
+            Self::ShiftLeft | Self::ShiftRight | Self::UnsignedShiftRight => Precedence::Shift,
+            Self::ElementwiseAnd => Precedence::BitwiseAnd,
+            Self::ElementwiseXor => Precedence::BitwiseXor,
+            Self::ElementwiseOr => Precedence::BitwiseOr,
+            Self::Equal | Self::NotEqual | Self::EqualStrict | Self::NotEqualStrict => {
+                Precedence::Equality
+            }
+            Self::LessThan
+            | Self::LessThanOrEqual
+            | Self::GreaterThan
+            | Self::GreaterThanOrEqual
+            | Self::In
+            | Self::InstanceOf => Precedence::Compare,
+            Self::And => Precedence::LogicalAnd,
+            Self::Or => Precedence::LogicalOr,
+            Self::Coalesce => Precedence::Coalesce,
+        }
+    }
+}
+
 /// One assignment operator.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignOperator {
@@ -153,4 +234,27 @@ pub enum AssignOperator {
     OrAssign,
     /// `??=`
     CoalesceAssign,
+}
+
+impl AssignOperator {
+    /// Return the ECMAScript token.
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::AddAssign => "+=",
+            Self::SubtractAssign => "-=",
+            Self::MultiplyAssign => "*=",
+            Self::DivideAssign => "/=",
+            Self::RemainderAssign => "%=",
+            Self::ExponentAssign => "**=",
+            Self::ShiftLeftAssign => "<<=",
+            Self::ShiftRightAssign => ">>=",
+            Self::UnsignedShiftRightAssign => ">>>=",
+            Self::ElementwiseAndAssign => "&=",
+            Self::ElementwiseXorAssign => "^=",
+            Self::ElementwiseOrAssign => "|=",
+            Self::AndAssign => "&&=",
+            Self::OrAssign => "||=",
+            Self::CoalesceAssign => "??=",
+        }
+    }
 }

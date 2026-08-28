@@ -7,13 +7,14 @@ mod dependency;
 mod expression;
 mod function;
 mod identifier;
-mod key;
+mod list;
 mod literal;
+mod module;
+mod name;
 mod operator;
 mod pattern;
 mod property;
 mod statement;
-mod switch;
 
 pub use context::*;
-pub use statement::format_roots;
+pub(crate) use statement::format_roots;

@@ -1,15 +1,26 @@
+use destack_fir::format::{Format, FormatResult};
+use destack_fir::prelude::*;
+use destack_fir::write;
+
 use crate::{
     ExportSpecifier, FormatNode, Formatter, Identifier, ImportAttribute, ImportAttributeName,
     ImportClause, ImportSpecifier, Keyword, LocalNodeId, ModuleExportName, ReExportSpecifier,
     StringLiteral, Tree, TreeStore, format_attributed,
 };
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
 
 impl<'ast> FormatNode<'ast> for ImportSpecifier {
     fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         format_named_import(self.imported, self.local, f)
+    }
+}
+
+impl<'ast> FormatNode<'ast> for ImportAttribute {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+        match self.name {
+            ImportAttributeName::Identifier(name) => write!(f, [name])?,
+            ImportAttributeName::String(name) => write!(f, [name])?,
+        }
+        write!(f, [token(":"), space(), self.value])
     }
 }
 
@@ -44,16 +55,6 @@ impl<'ast> FormatNode<'ast> for ReExportSpecifier {
                 [self.imported, space(), Keyword::As, space(), self.exported]
             )
         }
-    }
-}
-
-impl<'ast> FormatNode<'ast> for ImportAttribute {
-    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
-        match self.name {
-            ImportAttributeName::Identifier(name) => write!(f, [name])?,
-            ImportAttributeName::String(name) => write!(f, [name])?,
-        }
-        write!(f, [token(":"), space(), self.value])
     }
 }
 
@@ -119,7 +120,23 @@ pub(crate) fn format_re_export<'ast>(
     write!(f, [space(), Keyword::From, space(), source])
 }
 
-/// Format one braced sequence of import or export specifiers.
+/// Format one named import, expanding aliases after symbol renaming.
+fn format_named_import<'ast>(
+    imported: ModuleExportName,
+    local: Identifier,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let local_name = local.emitted_name(f.context().symbols);
+    let is_shorthand = imported.value() == local_name;
+
+    if is_shorthand {
+        format_attributed(imported.provenance(), None, f, |f| local.format(f))
+    } else {
+        write!(f, [imported, space(), Keyword::As, space(), local])
+    }
+}
+
+/// Format one braced sequence of module specifiers.
 fn format_specifiers<'ast, T>(
     specifiers: &[LocalNodeId<T>],
     f: &mut Formatter<'ast, '_>,
@@ -144,20 +161,4 @@ where
         write!(f, [space()])?;
     }
     write!(f, [token("}")])
-}
-
-/// Format one named import, expanding aliases after symbol renaming.
-fn format_named_import<'ast>(
-    imported: ModuleExportName,
-    local: Identifier,
-    f: &mut Formatter<'ast, '_>,
-) -> FormatResult<()> {
-    let local_name = local.emitted_name(f.context().symbols);
-    let is_shorthand = imported.value() == local_name;
-
-    if is_shorthand {
-        format_attributed(imported.provenance(), None, f, |f| local.format(f))
-    } else {
-        write!(f, [imported, space(), Keyword::As, space(), local])
-    }
 }

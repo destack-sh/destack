@@ -45,7 +45,6 @@ keywords! {
     Protected => "protected", true;
     Private => "private", true;
     Static => "static", true;
-    Accessor => "accessor", false;
 
     This => "this", true;
     Super => "super", true;

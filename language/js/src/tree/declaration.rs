@@ -10,7 +10,7 @@ use crate::{
 pub struct ClassDeclaration {
     /// The declared name.
     pub name: Option<Identifier>,
-    /// The optional extended class expression.
+    /// The superclass expression when one exists.
     pub extends_expression: Option<LocalNodeId<Expression>>,
     /// The class members.
     pub members: Vec<LocalNodeId<Member>>,
