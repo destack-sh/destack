@@ -241,6 +241,12 @@ impl<'state, 'a, Context> Formatter<'state, 'a, Context> {
         use FormatTag::*;
 
         match tag {
+            StartProvenance { provenance, name } => self.write_operand(
+                Opcode::StartProvenance,
+                u64::from(provenance.index()),
+                name.map_or(0, |name| u64::from(name.index()) + 1),
+            ),
+            EndProvenance => self.write_opcode(Opcode::EndProvenance, 0),
             StartIndent => self.write_opcode(Opcode::StartIndent, 0),
             EndIndent => self.write_opcode(Opcode::EndIndent, 0),
             StartAlign(width) => {

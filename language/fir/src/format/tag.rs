@@ -1,8 +1,19 @@
+use destack_source::{ProvenanceId, TextNameId};
+
 use super::group::{ConditionalGroup, Group, GroupId, GroupMode};
 
 /// One structural delimiter written by a formatting builder.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum FormatTag {
+    /// Start one provenance scope.
+    StartProvenance {
+        /// The provenance attributed to the emitted text.
+        provenance: ProvenanceId,
+        /// The authored identifier name represented by the emitted text.
+        name: Option<TextNameId>,
+    },
+    /// End one provenance scope.
+    EndProvenance,
     /// Start one indentation scope.
     StartIndent,
     /// End one indentation scope.
@@ -65,7 +76,8 @@ impl FormatTag {
     pub const fn is_start(self) -> bool {
         matches!(
             self,
-            Self::StartIndent
+            Self::StartProvenance { .. }
+                | Self::StartIndent
                 | Self::StartAlign(_)
                 | Self::StartDedent(_)
                 | Self::StartGroup(_)
@@ -89,6 +101,7 @@ impl FormatTag {
     /// Return this tag's structural kind.
     pub const fn kind(self) -> FormatTagKind {
         match self {
+            Self::StartProvenance { .. } | Self::EndProvenance => FormatTagKind::Provenance,
             Self::StartIndent | Self::EndIndent => FormatTagKind::Indent,
             Self::StartAlign(_) | Self::EndAlign => FormatTagKind::Align,
             Self::StartDedent(_) | Self::EndDedent(_) => FormatTagKind::Dedent,
@@ -117,6 +130,8 @@ impl FormatTag {
 /// The structural kind shared by one matching tag pair.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FormatTagKind {
+    /// One provenance scope.
+    Provenance,
     /// One indentation scope.
     Indent,
     /// One alignment scope.

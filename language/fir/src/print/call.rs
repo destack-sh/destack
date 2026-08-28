@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+use destack_source::{ProvenanceId, TextNameId};
+
 use crate::format::{
     FormatTagKind, IndentStyle, Indentation, InvalidDocumentError, PrintError, PrintMode,
     PrintResult,
@@ -25,13 +27,17 @@ pub(crate) struct StackFrame {
     args: PrintArgs,
 }
 
-/// The print and measurement modes active in one structural scope.
+/// The print arguments active in one structural scope.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub(crate) struct PrintArgs {
     /// The active print mode.
     mode: PrintMode,
     /// The active measurement mode.
     measure_mode: MeasureMode,
+    /// The active provenance.
+    provenance: Option<ProvenanceId>,
+    /// The active authored identifier name.
+    name: Option<TextNameId>,
 }
 
 impl PrintArgs {
@@ -50,6 +56,11 @@ impl PrintArgs {
         self.measure_mode
     }
 
+    /// Return the active provenance and authored identifier name.
+    pub(crate) fn provenance(self) -> Option<(ProvenanceId, Option<TextNameId>)> {
+        self.provenance.map(|provenance| (provenance, self.name))
+    }
+
     /// Return these arguments with a new print mode.
     pub(crate) fn with_print_mode(mut self, mode: PrintMode) -> Self {
         self.mode = mode;
@@ -61,6 +72,17 @@ impl PrintArgs {
         self.measure_mode = mode;
         self
     }
+
+    /// Return these arguments with new provenance.
+    pub(crate) fn with_provenance(
+        mut self,
+        provenance: ProvenanceId,
+        name: Option<TextNameId>,
+    ) -> Self {
+        self.provenance = Some(provenance);
+        self.name = name;
+        self
+    }
 }
 
 impl Default for PrintArgs {
@@ -68,6 +90,8 @@ impl Default for PrintArgs {
         Self {
             mode: PrintMode::Expanded,
             measure_mode: MeasureMode::FirstLine,
+            provenance: None,
+            name: None,
         }
     }
 }

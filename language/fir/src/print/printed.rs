@@ -1,28 +1,36 @@
-use destack_source::{FileId, Span};
+use destack_source::{FileId, Span, TextExtent};
 
 use crate::format::FileMarker;
 
 /// The result of printing with the printer.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Printed {
+    /// The emitted text.
     code: String,
+    /// The formatted source range, or the complete file when absent.
     range: Option<Span>,
+    /// The formatter source markers.
     sourcemap: Vec<FileMarker>,
+    /// The emitted provenance extents.
+    extents: Vec<TextExtent>,
+    /// The emitted ranges copied verbatim from source.
     verbatim_ranges: Vec<Span>,
 }
 
 impl Printed {
-    /// Create a new Printed result with the given code, range, sourcemap, and verbatim ranges.
+    /// Create one printed result.
     pub fn new(
         code: String,
         range: Option<Span>,
         sourcemap: Vec<FileMarker>,
+        extents: Vec<TextExtent>,
         verbatim_source: Vec<Span>,
     ) -> Self {
         Self {
             code,
             range,
             sourcemap,
+            extents,
             verbatim_ranges: verbatim_source,
         }
     }
@@ -33,6 +41,7 @@ impl Printed {
             code: String::new(),
             range: None,
             sourcemap: Vec::new(),
+            extents: Vec::new(),
             verbatim_ranges: Vec::new(),
         }
     }
@@ -57,6 +66,16 @@ impl Printed {
     /// Take the list of FileMarkers mapping byte positions in the output string to the input source code.
     pub fn take_sourcemap(&mut self) -> Vec<FileMarker> {
         std::mem::take(&mut self.sourcemap)
+    }
+
+    /// Return the provenance extents for the emitted text.
+    pub fn extents(&self) -> &[TextExtent] {
+        &self.extents
+    }
+
+    /// Take the provenance extents for the emitted text.
+    pub fn take_extents(&mut self) -> Vec<TextExtent> {
+        std::mem::take(&mut self.extents)
     }
 
     /// Get the resulting code as a string slice.

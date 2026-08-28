@@ -1,6 +1,6 @@
 use crate::print::{PrintOptions, Printed};
 
-use destack_source::{File, Span};
+use destack_source::{ByteRange, File, ProvenanceId, Span, TextExtent, TextNameId};
 use destack_unicode::UnicodeWidthChar;
 
 use crate::format::{
@@ -70,13 +70,20 @@ impl<'a> Printer<'a> {
             }
         }
 
+        // reject an unclosed structural scope
+        if let Some(kind) = stack.top_kind() {
+            return missing_end_tag(kind);
+        }
+
         // push any pending marker
+        self.state.provenance = None;
         self.push_marker();
 
         Ok(Printed::new(
             self.state.buffer,
             None,
             self.state.source_markers,
+            self.state.extents,
             self.state.verbatim_markers,
         ))
     }
@@ -93,6 +100,7 @@ impl<'a> Printer<'a> {
         use InstructionTag::*;
 
         let args = stack.top();
+        self.state.provenance = args.provenance();
 
         match instruction.decode() {
             DecodedInstruction::Space => self.print_text(Text::Token(" "))?,
@@ -129,14 +137,12 @@ impl<'a> Printer<'a> {
                 } else {
                     // only print a newline if the current line isn't already empty
                     if self.state.buffer.len() > self.state.line_start {
-                        self.push_marker();
-                        self.print_char('\n')?;
+                        self.print_newline()?;
                     }
 
                     // print a second line break if this is an empty line
                     if line_mode == LineMode::Empty {
-                        self.push_marker();
-                        self.print_char('\n')?;
+                        self.print_newline()?;
                     }
 
                     self.state.pending_indent = indent_stack.indentation();
@@ -162,6 +168,17 @@ impl<'a> Printer<'a> {
 
             DecodedInstruction::Slice(content) => {
                 queue.push_slice(content);
+            }
+
+            DecodedInstruction::Tag(StartProvenance { provenance, name }) => {
+                stack.push(
+                    FormatTagKind::Provenance,
+                    args.with_provenance(provenance, name),
+                );
+            }
+
+            DecodedInstruction::Tag(EndProvenance) => {
+                stack.pop(FormatTagKind::Provenance)?;
             }
 
             DecodedInstruction::Tag(StartGroup(index, _)) => {
@@ -475,6 +492,10 @@ impl<'a> Printer<'a> {
 
     /// Print one static or borrowed text value.
     fn print_text(&mut self, text: Text<'_>) -> PrintResult<()> {
+        if text.is_empty() {
+            return Ok(());
+        }
+
         self.write_pending_indent()?;
 
         self.push_marker();
@@ -597,18 +618,48 @@ impl<'a> Printer<'a> {
     }
 
     fn push_marker(&mut self) {
-        let Some(source_position) = self.state.pending_source_position.take() else {
-            return;
-        };
+        let generated = self.state.buffer.len() as u32;
 
-        let marker = FileMarker {
-            source: source_position,
-            dest: self.state.buffer.len() as u32,
-        };
+        // record one pending formatter source position
+        if let Some(source) = self.state.pending_source_position.take() {
+            let marker = FileMarker {
+                source,
+                dest: generated,
+            };
 
-        if self.state.source_markers.last() != Some(&marker) {
-            self.state.source_markers.push(marker);
+            if self.state.source_markers.last() != Some(&marker) {
+                self.state.source_markers.push(marker);
+            }
         }
+
+        // retain the current extent while its attribution remains active
+        let previous = self
+            .state
+            .extent
+            .map(|(provenance, name, _)| (provenance, name));
+        if previous == self.state.provenance {
+            return;
+        }
+
+        // close the previous emitted extent
+        if let Some((provenance, name, start)) = self.state.extent.take()
+            && start < generated
+        {
+            self.state.extents.push(TextExtent {
+                generated: ByteRange {
+                    start,
+                    end: generated,
+                },
+                provenance,
+                name,
+            });
+        }
+
+        // open the active provenance at the next emitted byte
+        self.state.extent = self
+            .state
+            .provenance
+            .map(|(provenance, name)| (provenance, name, generated));
     }
 
     /// Queue pending line suffixes and return whether any were queued.
@@ -1004,6 +1055,7 @@ impl<'a> Printer<'a> {
             self.trim_trailing_line_whitespace();
         }
 
+        self.push_marker();
         self.state.push_str(self.options.line_ending.as_str())?;
 
         self.state.line_width = 0;
@@ -1040,6 +1092,15 @@ struct PrinterState<'a> {
 
     /// The source markers that map source positions to formatted positions.
     source_markers: Vec<FileMarker>,
+
+    /// The active provenance.
+    provenance: Option<(ProvenanceId, Option<TextNameId>)>,
+
+    /// The provenance extent currently receiving emitted text.
+    extent: Option<(ProvenanceId, Option<TextNameId>, u32)>,
+
+    /// Completed provenance extents.
+    extents: Vec<TextExtent>,
 
     /// The next source position that should be flushed when writing the next text.
     pending_source_position: Option<u32>,
@@ -1521,12 +1582,20 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 }
             }
 
+            DecodedInstruction::Tag(StartProvenance { provenance, name }) => {
+                self.stack.push(
+                    FormatTagKind::Provenance,
+                    args.with_provenance(provenance, name),
+                );
+            }
+
             DecodedInstruction::Tag(tag @ (StartFill | StartVerbatim(_) | StartEntry)) => {
                 self.stack.push(tag.kind(), args);
             }
 
             DecodedInstruction::Tag(
-                tag @ (EndFill
+                tag @ (EndProvenance
+                | EndFill
                 | EndVerbatim
                 | EndEntry
                 | EndGroup
@@ -1870,6 +1939,15 @@ enum Text<'a> {
         text: &'a str,
         text_width: TextWidth,
     },
+}
+
+impl Text<'_> {
+    /// Return whether this text emits no bytes.
+    fn is_empty(self) -> bool {
+        match self {
+            Self::Token(text) | Self::Text { text, .. } => text.is_empty(),
+        }
+    }
 }
 
 #[cfg(test)]

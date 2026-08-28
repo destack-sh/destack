@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_source::ByteRange;
+use destack_source::{ByteRange, ProvenanceId, TextNameId};
 
 use crate::format::{
     Allocator, ArenaVec, BestFittingMode, BestFittingVariants, FitsExpandedIndex, FormatTag,
@@ -443,6 +443,15 @@ impl Debug for InstructionTape<'_> {
 /// One decoded structural formatting instruction.
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub(crate) enum InstructionTag {
+    /// Start one provenance scope.
+    StartProvenance {
+        /// The provenance attributed to the emitted text.
+        provenance: ProvenanceId,
+        /// The authored identifier name represented by the emitted text.
+        name: Option<TextNameId>,
+    },
+    /// End one provenance scope.
+    EndProvenance,
     /// Start one indentation scope.
     StartIndent,
     /// End one indentation scope.
@@ -502,7 +511,8 @@ impl InstructionTag {
     pub(crate) const fn is_start(self) -> bool {
         matches!(
             self,
-            Self::StartIndent
+            Self::StartProvenance { .. }
+                | Self::StartIndent
                 | Self::StartAlign(_)
                 | Self::StartDedent(_)
                 | Self::StartGroup(_, _)
@@ -521,6 +531,7 @@ impl InstructionTag {
     /// Return the structural tag kind.
     pub(crate) const fn kind(self) -> FormatTagKind {
         match self {
+            Self::StartProvenance { .. } | Self::EndProvenance => FormatTagKind::Provenance,
             Self::StartIndent | Self::EndIndent => FormatTagKind::Indent,
             Self::StartAlign(_) | Self::EndAlign => FormatTagKind::Align,
             Self::StartDedent(_) | Self::EndDedent(_) => FormatTagKind::Dedent,
@@ -684,6 +695,8 @@ pub(crate) enum Opcode {
     Slice,
     BestFittingFirstLine,
     BestFittingAllLines,
+    StartProvenance,
+    EndProvenance,
     StartIndent,
     EndIndent,
     StartAlign,
@@ -875,6 +888,20 @@ impl<'a> Instruction<'a> {
 
         let payload = self.payload();
         let tag = match self.opcode() {
+            Opcode::StartProvenance => {
+                let raw_name = self.operand() as u32;
+                let name = if raw_name == 0 {
+                    None
+                } else {
+                    Some(TextNameId::new(raw_name - 1))
+                };
+
+                InstructionTag::StartProvenance {
+                    provenance: ProvenanceId::new(payload as u32),
+                    name,
+                }
+            }
+            Opcode::EndProvenance => InstructionTag::EndProvenance,
             Opcode::StartIndent => InstructionTag::StartIndent,
             Opcode::EndIndent => InstructionTag::EndIndent,
             Opcode::StartAlign => InstructionTag::StartAlign(payload as u8),
@@ -948,6 +975,7 @@ impl<'a> Instruction<'a> {
     /// Return this instruction's tag kind when present.
     pub(crate) fn tag_kind(self) -> Option<FormatTagKind> {
         match self.opcode() {
+            Opcode::StartProvenance | Opcode::EndProvenance => Some(FormatTagKind::Provenance),
             Opcode::StartIndent | Opcode::EndIndent => Some(FormatTagKind::Indent),
             Opcode::StartAlign | Opcode::EndAlign => Some(FormatTagKind::Align),
             Opcode::StartDedentLevel
