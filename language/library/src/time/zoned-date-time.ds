@@ -1,20 +1,21 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
+import { TimeError } from "./error.ds";
 import { Instant } from "./instant.ds";
 import {
-    ArithmeticOptions,
-    DateTimeFormatOptions,
     DifferenceOptions,
+    OverflowOptions,
     RoundTo,
-    ZonedDateTimeAssignmentOptions,
+    ZonedDateTimeFromOptions,
     ZonedDateTimeToStringOptions,
 } from "./option.ds";
-import { PlainDateTime, PlainDateTimeLike } from "./plain-date-time.ds";
+import { PlainDateTime, PlainDateTimeFields, PlainDateTimeInput } from "./plain-date-time.ds";
 import { CalendarLike, PlainDate } from "./plain-date.ds";
 import { PlainTime, PlainTimeLike } from "./plain-time.ds";
-import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { ComparisonResult } from "./unit.ds";
 
 /// Temporal time-zone-like value.
 export type TimeZoneLike = string | ZonedDateTime;
@@ -28,37 +29,53 @@ export type TransitionDirection =
           direction: "next" | "previous";
       };
 
-/// Temporal zoned date-time field bag.
-export type ZonedDateTimeLike = PlainDateTimeLike & {
+/// Temporal zoned date-time fields.
+export type ZonedDateTimeFields = PlainDateTimeFields & {
+    /// Time-zone offset string.
+    offset?: string;
+};
+
+/// Temporal zoned date-time fields used for conversion.
+export type ZonedDateTimeInput = PlainDateTimeInput & {
     /// Time-zone offset string.
     offset?: string;
     /// Time zone.
-    timeZone?: TimeZoneLike;
-    /// Calendar.
-    calendar?: CalendarLike;
+    timeZone: TimeZoneLike;
 };
+
+/// Value convertible to a Temporal zoned date-time.
+export type ZonedDateTimeLike = ZonedDateTime | ZonedDateTimeInput | string;
 
 /// Temporal zoned date-time.
 @languageItem("time.ZonedDateTime")
 export class ZonedDateTime {
+    /// Create a zoned date-time from epoch nanoseconds.
+    static create(
+        epochNanoseconds: bigint,
+        timeZone: string,
+        calendar?: string,
+    ): Result<ZonedDateTime, RangeError> {
+        todo("ZonedDateTime.create")
+    }
+
     /// Create a zoned date-time.
     static from(
-        item: ZonedDateTime | ZonedDateTimeLike | string,
-        options?: ZonedDateTimeAssignmentOptions,
-    ): ZonedDateTime {
+        item: ZonedDateTimeLike,
+        options?: ZonedDateTimeFromOptions,
+    ): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.from")
     }
 
     /// Compare two zoned date-times.
     static compare(
-        one: ZonedDateTime | ZonedDateTimeLike | string,
-        two: ZonedDateTime | ZonedDateTimeLike | string,
-    ): ComparisonResult {
+        one: ZonedDateTimeLike,
+        two: ZonedDateTimeLike,
+    ): Result<ComparisonResult, TimeError> {
         todo("ZonedDateTime.compare")
     }
 
-    /// Create a zoned date-time.
-    constructor(epochNanoseconds: bigint, timeZone: string, calendar?: string) {
+    /// Construct a validated zoned date-time internally.
+    private constructor() {
         todo("ZonedDateTime.constructor");
     }
 
@@ -203,52 +220,54 @@ export class ZonedDateTime {
     }
 
     /// Return true when this zoned date-time equals `other`.
-    equals(other: ZonedDateTime | ZonedDateTimeLike | string): boolean {
+    equals(other: ZonedDateTime): boolean {
+        todo("ZonedDateTime.equalsZonedDateTime")
+    }
+
+    /// Convert `other` and return whether it equals this zoned date-time.
+    equals(other: ZonedDateTimeLike): Result<boolean, TimeError> {
         todo("ZonedDateTime.equals")
     }
 
     /// Return this zoned date-time with updated fields.
     with(
-        zonedDateTimeLike: ZonedDateTimeLike,
-        options?: ZonedDateTimeAssignmentOptions,
-    ): ZonedDateTime {
+        zonedDateTimeLike: ZonedDateTimeFields,
+        options?: ZonedDateTimeFromOptions,
+    ): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.with")
     }
 
     /// Return this zoned date-time with another time.
-    withPlainTime(time?: PlainTime | PlainTimeLike | string): ZonedDateTime {
+    withPlainTime(time?: PlainTimeLike): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.withPlainTime")
     }
 
     /// Return this zoned date-time in another calendar.
-    withCalendar(calendar: CalendarLike): ZonedDateTime {
+    withCalendar(calendar: CalendarLike): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.withCalendar")
     }
 
     /// Return this zoned date-time in another time zone.
-    withTimeZone(timeZone: TimeZoneLike): ZonedDateTime {
+    withTimeZone(timeZone: TimeZoneLike): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.withTimeZone")
     }
 
     /// Add a duration.
-    add(
-        durationLike: Duration | DurationLike | string,
-        options?: ArithmeticOptions,
-    ): ZonedDateTime {
+    add(durationLike: DurationLike, options?: OverflowOptions): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.add")
     }
 
     /// Subtract a duration.
     subtract(
-        durationLike: Duration | DurationLike | string,
-        options?: ArithmeticOptions,
-    ): ZonedDateTime {
+        durationLike: DurationLike,
+        options?: OverflowOptions,
+    ): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.subtract")
     }
 
     /// Return the duration until `other`.
     until(
-        other: ZonedDateTime | ZonedDateTimeLike | string,
+        other: ZonedDateTimeLike,
         options?: DifferenceOptions<
             | "year"
             | "month"
@@ -261,13 +280,13 @@ export class ZonedDateTime {
             | "microsecond"
             | "nanosecond"
         >,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("ZonedDateTime.until")
     }
 
     /// Return the duration since `other`.
     since(
-        other: ZonedDateTime | ZonedDateTimeLike | string,
+        other: ZonedDateTimeLike,
         options?: DifferenceOptions<
             | "year"
             | "month"
@@ -280,7 +299,7 @@ export class ZonedDateTime {
             | "microsecond"
             | "nanosecond"
         >,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("ZonedDateTime.since")
     }
 
@@ -289,7 +308,7 @@ export class ZonedDateTime {
         roundTo: RoundTo<
             "day" | "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): ZonedDateTime {
+    ): Result<ZonedDateTime, TimeError> {
         todo("ZonedDateTime.round")
     }
 
@@ -324,7 +343,15 @@ export class ZonedDateTime {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("ZonedDateTime.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DateTimeFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("ZonedDateTime.toLocaleString")
     }
 
@@ -334,7 +361,12 @@ export class ZonedDateTime {
     }
 
     /// Return an ISO string.
-    toString(options?: ZonedDateTimeToStringOptions): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("ZonedDateTime.toString")
+    }
+
+    /// Return an ISO string with explicit rendering options.
+    toString(options: ZonedDateTimeToStringOptions): MaybeOwned<string> {
         todo("ZonedDateTime.toString")
     }
 

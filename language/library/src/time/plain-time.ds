@@ -1,19 +1,16 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
-import {
-    ArithmeticOptions,
-    AssignmentOptions,
-    DateTimeFormatOptions,
-    DifferenceOptions,
-    RoundTo,
-    ToStringPrecisionOptions,
-} from "./option.ds";
-import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { TimeError } from "./error.ds";
+import { DifferenceOptions, OverflowOptions, RoundTo, TimeToStringOptions } from "./option.ds";
+import { PlainDateTime } from "./plain-date-time.ds";
+import { ComparisonResult } from "./unit.ds";
+import { ZonedDateTime } from "./zoned-date-time.ds";
 
-/// Temporal plain time field bag.
-export type PlainTimeLike = {
+/// Temporal plain time fields.
+export type PlainTimeFields = {
     /// Hour.
     hour?: number;
     /// Minute.
@@ -28,31 +25,41 @@ export type PlainTimeLike = {
     nanosecond?: number;
 };
 
+/// Value convertible to a Temporal plain time.
+export type PlainTimeLike = PlainTime | PlainDateTime | ZonedDateTime | PlainTimeFields | string;
+
 /// Temporal plain time.
 @languageItem("time.PlainTime")
 export class PlainTime {
-    /// Create a plain time.
-    static from(item: PlainTime | PlainTimeLike | string, options?: AssignmentOptions): PlainTime {
-        todo("PlainTime.from")
+    /// Create midnight.
+    static create(): PlainTime {
+        todo("PlainTime.createDefault")
     }
 
-    /// Compare two plain times.
-    static compare(
-        one: PlainTime | PlainTimeLike | string,
-        two: PlainTime | PlainTimeLike | string,
-    ): ComparisonResult {
-        todo("PlainTime.compare")
-    }
-
-    /// Create a plain time.
-    constructor(
+    /// Create a plain time from positional fields.
+    static create(
         hour?: number,
         minute?: number,
         second?: number,
         millisecond?: number,
         microsecond?: number,
         nanosecond?: number,
-    ) {
+    ): Result<PlainTime, RangeError> {
+        todo("PlainTime.create")
+    }
+
+    /// Create a plain time.
+    static from(item: PlainTimeLike, options?: OverflowOptions): Result<PlainTime, TimeError> {
+        todo("PlainTime.from")
+    }
+
+    /// Compare two plain times.
+    static compare(one: PlainTimeLike, two: PlainTimeLike): Result<ComparisonResult, TimeError> {
+        todo("PlainTime.compare")
+    }
+
+    /// Construct a validated plain time internally.
+    private constructor() {
         todo("PlainTime.constructor");
     }
 
@@ -87,45 +94,50 @@ export class PlainTime {
     }
 
     /// Return true when this time equals `other`.
-    equals(other: PlainTime | PlainTimeLike | string): boolean {
+    equals(other: PlainTime): boolean {
+        todo("PlainTime.equalsPlainTime")
+    }
+
+    /// Convert `other` and return whether it equals this time.
+    equals(other: PlainTimeLike): Result<boolean, TimeError> {
         todo("PlainTime.equals")
     }
 
     /// Return this time with updated fields.
-    with(timeLike: PlainTime | PlainTimeLike, options?: AssignmentOptions): PlainTime {
+    with(
+        timeLike: PlainTime | PlainTimeFields,
+        options?: OverflowOptions,
+    ): Result<PlainTime, TimeError> {
         todo("PlainTime.with")
     }
 
     /// Add a duration.
-    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainTime {
+    add(durationLike: DurationLike): Result<PlainTime, TimeError> {
         todo("PlainTime.add")
     }
 
     /// Subtract a duration.
-    subtract(
-        durationLike: Duration | DurationLike | string,
-        options?: ArithmeticOptions,
-    ): PlainTime {
+    subtract(durationLike: DurationLike): Result<PlainTime, TimeError> {
         todo("PlainTime.subtract")
     }
 
     /// Return the duration until `other`.
     until(
-        other: PlainTime | PlainTimeLike | string,
+        other: PlainTimeLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("PlainTime.until")
     }
 
     /// Return the duration since `other`.
     since(
-        other: PlainTime | PlainTimeLike | string,
+        other: PlainTimeLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("PlainTime.since")
     }
 
@@ -134,12 +146,20 @@ export class PlainTime {
         roundTo: RoundTo<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): PlainTime {
+    ): Result<PlainTime, TimeError> {
         todo("PlainTime.round")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("PlainTime.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DateTimeFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("PlainTime.toLocaleString")
     }
 
@@ -149,7 +169,12 @@ export class PlainTime {
     }
 
     /// Return an ISO string.
-    toString(options?: ToStringPrecisionOptions): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("PlainTime.toString")
+    }
+
+    /// Return an ISO string with explicit precision options.
+    toString(options: TimeToStringOptions): MaybeOwned<string> {
         todo("PlainTime.toString")
     }
 

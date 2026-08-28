@@ -1,42 +1,46 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
-import { Omit } from "destack:types";
 
 import { Duration, DurationLike } from "./duration.ds";
-import {
-    DateTimeFormatOptions,
-    DifferenceOptions,
-    InstantToStringOptions,
-    RoundTo,
-} from "./option.ds";
-import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { TimeError } from "./error.ds";
+import { DifferenceOptions, InstantToStringOptions, RoundTo } from "./option.ds";
+import { ComparisonResult } from "./unit.ds";
 import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
+
+/// Value convertible to a Temporal instant.
+export type InstantLike = Instant | ZonedDateTime | string;
 
 /// Temporal instant.
 @languageItem("time.Instant")
 export class Instant {
+    /// Create an instant from epoch nanoseconds.
+    static create(epochNanoseconds: bigint): Result<Instant, RangeError> {
+        todo("Instant.create")
+    }
+
     /// Create an instant from epoch milliseconds.
-    static fromEpochMilliseconds(epochMilliseconds: number): Instant {
+    static fromEpochMilliseconds(epochMilliseconds: number): Result<Instant, RangeError> {
         todo("Instant.fromEpochMilliseconds")
     }
 
     /// Create an instant from epoch nanoseconds.
-    static fromEpochNanoseconds(epochNanoseconds: bigint): Instant {
+    static fromEpochNanoseconds(epochNanoseconds: bigint): Result<Instant, RangeError> {
         todo("Instant.fromEpochNanoseconds")
     }
 
     /// Create an instant from another instant or string.
-    static from(item: Instant | string): Instant {
+    static from(item: InstantLike): Result<Instant, TimeError> {
         todo("Instant.from")
     }
 
     /// Compare two instants.
-    static compare(one: Instant | string, two: Instant | string): ComparisonResult {
+    static compare(one: InstantLike, two: InstantLike): Result<ComparisonResult, TimeError> {
         todo("Instant.compare")
     }
 
-    /// Create an instant.
-    constructor(epochNanoseconds: bigint) {
+    /// Construct a validated instant internally.
+    private constructor() {
         todo("Instant.constructor");
     }
 
@@ -51,41 +55,42 @@ export class Instant {
     }
 
     /// Return true when this instant equals `other`.
-    equals(other: Instant | string): boolean {
+    equals(other: Instant): boolean {
+        todo("Instant.equalsInstant")
+    }
+
+    /// Parse `other` and return whether it equals this instant.
+    equals(other: InstantLike): Result<boolean, TimeError> {
         todo("Instant.equals")
     }
 
     /// Add a time duration.
-    add(
-        durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string,
-    ): Instant {
+    add(durationLike: DurationLike): Result<Instant, TimeError> {
         todo("Instant.add")
     }
 
     /// Subtract a time duration.
-    subtract(
-        durationLike: Omit<Duration | DurationLike, "years" | "months" | "weeks" | "days"> | string,
-    ): Instant {
+    subtract(durationLike: DurationLike): Result<Instant, TimeError> {
         todo("Instant.subtract")
     }
 
     /// Return the duration until `other`.
     until(
-        other: Instant | string,
+        other: InstantLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("Instant.until")
     }
 
     /// Return the duration since `other`.
     since(
-        other: Instant | string,
+        other: InstantLike,
         options?: DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("Instant.since")
     }
 
@@ -94,17 +99,25 @@ export class Instant {
         roundTo: RoundTo<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
-    ): Instant {
+    ): Result<Instant, TimeError> {
         todo("Instant.round")
     }
 
     /// Convert this instant into an ISO zoned date-time.
-    toZonedDateTimeISO(timeZone: TimeZoneLike): ZonedDateTime {
+    toZonedDateTimeISO(timeZone: TimeZoneLike): Result<ZonedDateTime, TimeError> {
         todo("Instant.toZonedDateTimeISO")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("Instant.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DateTimeFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("Instant.toLocaleString")
     }
 
@@ -114,7 +127,12 @@ export class Instant {
     }
 
     /// Return an ISO string.
-    toString(options?: InstantToStringOptions): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("Instant.toString")
+    }
+
+    /// Return an ISO string with explicit rendering options.
+    toString(options: InstantToStringOptions): Result<MaybeOwned<string>, TimeError> {
         todo("Instant.toString")
     }
 

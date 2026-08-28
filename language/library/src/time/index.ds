@@ -1,5 +1,6 @@
 export { TimeBinding, time } from "./binding/time.ds";
 export * from "./duration.ds";
+export * from "./error.ds";
 export * from "./instant.ds";
 export * from "./option.ds";
 export * from "./plain-date.ds";

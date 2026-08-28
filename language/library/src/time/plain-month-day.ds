@@ -1,12 +1,13 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
-import { AssignmentOptions, DateTimeFormatOptions, ShowCalendarOption } from "./option.ds";
-import { CalendarLike, PlainDate } from "./plain-date.ds";
-import { LocalesArgument } from "./unit.ds";
+import { TimeError } from "./error.ds";
+import { OverflowOptions, PlainDateToStringOptions } from "./option.ds";
+import { PlainDate } from "./plain-date.ds";
 
-/// Temporal plain month-day field bag.
-export type PlainMonthDayLike = {
+/// Temporal plain month-day fields.
+export type PlainMonthDayFields = {
     /// Calendar era.
     era?: string;
     /// Calendar era year.
@@ -19,23 +20,55 @@ export type PlainMonthDayLike = {
     monthCode?: string;
     /// Calendar day.
     day?: number;
+};
+
+/// Temporal plain month-day fields used for conversion.
+export type PlainMonthDayInput = PlainMonthDayFields & {
+    /// Calendar day.
+    day: number;
+
     /// Calendar.
-    calendar?: CalendarLike;
+    calendar?: string;
+};
+
+/// Value convertible to a Temporal plain month-day.
+export type PlainMonthDayLike = PlainMonthDay | PlainMonthDayInput | string;
+
+/// Fields used to create a plain date from a month-day.
+export type PlainMonthDayToPlainDateOptions = {
+    /// Calendar era.
+    era?: string;
+
+    /// Calendar era year.
+    eraYear?: number;
+
+    /// Calendar year.
+    year?: number;
 };
 
 /// Temporal plain month-day.
 @languageItem("time.PlainMonthDay")
 export class PlainMonthDay {
-    /// Create a plain month-day.
-    static from(
-        item: PlainMonthDay | PlainMonthDayLike | string,
-        options?: AssignmentOptions,
-    ): PlainMonthDay {
-        todo("PlainMonthDay.from")
+    /// Create an ISO plain month-day.
+    static create(
+        isoMonth: number,
+        isoDay: number,
+        calendar?: string,
+        referenceISOYear?: number,
+    ): Result<PlainMonthDay, RangeError> {
+        todo("PlainMonthDay.create")
     }
 
     /// Create a plain month-day.
-    constructor(isoMonth: number, isoDay: number, calendar?: string, referenceISOYear?: number) {
+    static from(
+        item: PlainMonthDayLike,
+        options?: OverflowOptions,
+    ): Result<PlainMonthDay, TimeError> {
+        todo("PlainMonthDay.from")
+    }
+
+    /// Construct a validated plain month-day internally.
+    private constructor() {
         todo("PlainMonthDay.constructor");
     }
 
@@ -55,22 +88,38 @@ export class PlainMonthDay {
     }
 
     /// Return true when this month-day equals `other`.
-    equals(other: PlainMonthDay | PlainMonthDayLike | string): boolean {
+    equals(other: PlainMonthDay): boolean {
+        todo("PlainMonthDay.equalsPlainMonthDay")
+    }
+
+    /// Convert `other` and return whether it equals this month-day.
+    equals(other: PlainMonthDayLike): Result<boolean, TimeError> {
         todo("PlainMonthDay.equals")
     }
 
     /// Return this month-day with updated fields.
-    with(monthDayLike: PlainMonthDayLike, options?: AssignmentOptions): PlainMonthDay {
+    with(
+        monthDayLike: PlainMonthDayFields,
+        options?: OverflowOptions,
+    ): Result<PlainMonthDay, TimeError> {
         todo("PlainMonthDay.with")
     }
 
     /// Convert this month-day into a plain date.
-    toPlainDate(year: { year: number }): PlainDate {
+    toPlainDate(options: PlainMonthDayToPlainDateOptions): Result<PlainDate, TimeError> {
         todo("PlainMonthDay.toPlainDate")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("PlainMonthDay.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DateTimeFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("PlainMonthDay.toLocaleString")
     }
 
@@ -80,7 +129,12 @@ export class PlainMonthDay {
     }
 
     /// Return an ISO string.
-    toString(options?: ShowCalendarOption): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("PlainMonthDay.toString")
+    }
+
+    /// Return an ISO string with explicit calendar options.
+    toString(options: PlainDateToStringOptions): MaybeOwned<string> {
         todo("PlainMonthDay.toString")
     }
 

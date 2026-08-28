@@ -1,9 +1,6 @@
 /// Temporal comparison result.
 export type ComparisonResult = -1 | 0 | 1;
 
-/// Temporal locale argument.
-export type LocalesArgument = string | string[];
-
 /// Temporal rounding mode.
 export type RoundingMode =
     | "ceil"
@@ -53,6 +50,3 @@ export type LargestUnit<T: DateTimeUnit> = "auto" | T | PluralUnit<T>;
 
 /// Temporal smallest unit.
 export type SmallestUnit<T: DateTimeUnit> = T | PluralUnit<T>;
-
-/// Temporal total unit.
-export type TotalUnit<T: DateTimeUnit> = T | PluralUnit<T>;

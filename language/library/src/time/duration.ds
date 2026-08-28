@@ -1,17 +1,18 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DurationFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
+import { TimeError } from "./error.ds";
 import {
-    DurationArithmeticOptions,
-    DurationFormatOptions,
+    DurationRelativeToOptions,
     DurationRoundTo,
+    DurationToStringOptions,
     DurationTotalOf,
-    ToStringPrecisionOptions,
 } from "./option.ds";
-import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { ComparisonResult } from "./unit.ds";
 
-/// Temporal duration field bag.
-export type DurationLike = {
+/// Temporal duration fields.
+export type DurationFields = {
     /// Year count.
     years?: number;
     /// Month count.
@@ -34,25 +35,19 @@ export type DurationLike = {
     nanoseconds?: number;
 };
 
+/// Value convertible to a Temporal duration.
+export type DurationLike = Duration | DurationFields | string;
+
 /// Temporal duration.
 @languageItem("time.Duration")
 export class Duration {
-    /// Create a duration from another duration, a field bag, or a string.
-    static from(item: Duration | DurationLike | string): Duration {
-        todo("Duration.from")
+    /// Create a zero duration.
+    static create(): Duration {
+        todo("Duration.createDefault")
     }
 
-    /// Compare two durations.
-    static compare(
-        one: Duration | DurationLike | string,
-        two: Duration | DurationLike | string,
-        options?: DurationArithmeticOptions,
-    ): ComparisonResult {
-        todo("Duration.compare")
-    }
-
-    /// Create a duration.
-    constructor(
+    /// Create a duration from positional fields.
+    static create(
         years?: number,
         months?: number,
         weeks?: number,
@@ -63,7 +58,26 @@ export class Duration {
         milliseconds?: number,
         microseconds?: number,
         nanoseconds?: number,
-    ) {
+    ): Result<Duration, RangeError> {
+        todo("Duration.create")
+    }
+
+    /// Create a duration from another duration, fields, or a string.
+    static from(item: DurationLike): Result<Duration, TimeError> {
+        todo("Duration.from")
+    }
+
+    /// Compare two durations.
+    static compare(
+        one: DurationLike,
+        two: DurationLike,
+        options?: DurationRelativeToOptions,
+    ): Result<ComparisonResult, TimeError> {
+        todo("Duration.compare")
+    }
+
+    /// Construct a validated duration internally.
+    private constructor() {
         todo("Duration.constructor");
     }
 
@@ -138,32 +152,40 @@ export class Duration {
     }
 
     /// Return a duration with updated fields.
-    with(durationLike: DurationLike): Duration {
+    with(durationLike: Duration | DurationFields): Result<Duration, TimeError> {
         todo("Duration.with")
     }
 
     /// Add another duration.
-    add(other: Duration | DurationLike | string): Duration {
+    add(other: DurationLike): Result<Duration, TimeError> {
         todo("Duration.add")
     }
 
     /// Subtract another duration.
-    subtract(other: Duration | DurationLike | string): Duration {
+    subtract(other: DurationLike): Result<Duration, TimeError> {
         todo("Duration.subtract")
     }
 
     /// Round this duration.
-    round(roundTo: DurationRoundTo): Duration {
+    round(roundTo: DurationRoundTo): Result<Duration, TimeError> {
         todo("Duration.round")
     }
 
     /// Return this duration totalled in one unit.
-    total(totalOf: DurationTotalOf): number {
+    total(totalOf: DurationTotalOf): Result<number, TimeError> {
         todo("Duration.total")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DurationFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("Duration.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DurationFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("Duration.toLocaleString")
     }
 
@@ -173,7 +195,12 @@ export class Duration {
     }
 
     /// Return an ISO string.
-    toString(options?: ToStringPrecisionOptions): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("Duration.toString")
+    }
+
+    /// Return an ISO string with explicit precision options.
+    toString(options: DurationToStringOptions): MaybeOwned<string> {
         todo("Duration.toString")
     }
 

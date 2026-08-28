@@ -1,0 +1,13 @@
+import { Error, RangeError, TypeError } from "destack:error";
+import { MaybeOwned } from "destack:memory";
+
+/// Date, time, calendar, or time-zone failure.
+@languageItem("time.TimeError")
+export newtype TimeError = RangeError | TypeError;
+
+export extension of TimeError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        MaybeOwned.borrowed(this.message)
+    }
+}

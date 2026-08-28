@@ -1,19 +1,15 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
-import {
-    ArithmeticOptions,
-    AssignmentOptions,
-    DateTimeFormatOptions,
-    DifferenceOptions,
-    ShowCalendarOption,
-} from "./option.ds";
+import { TimeError } from "./error.ds";
+import { DifferenceOptions, OverflowOptions, PlainDateToStringOptions } from "./option.ds";
 import { PlainDateTime } from "./plain-date-time.ds";
 import { PlainMonthDay } from "./plain-month-day.ds";
-import { PlainTime, PlainTimeLike } from "./plain-time.ds";
+import { PlainTimeLike } from "./plain-time.ds";
 import { PlainYearMonth } from "./plain-year-month.ds";
-import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { ComparisonResult } from "./unit.ds";
 import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.ds";
 
 /// Temporal calendar-like value.
@@ -25,8 +21,8 @@ export type CalendarLike =
     | PlainYearMonth
     | PlainMonthDay;
 
-/// Temporal plain date field bag.
-export type PlainDateLike = {
+/// Temporal plain date fields.
+export type PlainDateFields = {
     /// Calendar era.
     era?: string;
     /// Calendar era year.
@@ -39,28 +35,45 @@ export type PlainDateLike = {
     monthCode?: string;
     /// Calendar day.
     day?: number;
-    /// Calendar.
-    calendar?: CalendarLike;
 };
+
+/// Temporal plain date fields used for conversion.
+export type PlainDateInput = PlainDateFields & {
+    /// Calendar day.
+    day: number;
+
+    /// Calendar.
+    calendar?: string;
+};
+
+/// Value convertible to a Temporal plain date.
+export type PlainDateLike = PlainDate | ZonedDateTime | PlainDateTime | PlainDateInput | string;
 
 /// Temporal plain date.
 @languageItem("time.PlainDate")
 export class PlainDate {
+    /// Create an ISO plain date.
+    static create(
+        isoYear: number,
+        isoMonth: number,
+        isoDay: number,
+        calendar?: string,
+    ): Result<PlainDate, RangeError> {
+        todo("PlainDate.create")
+    }
+
     /// Create a plain date.
-    static from(item: PlainDate | PlainDateLike | string, options?: AssignmentOptions): PlainDate {
+    static from(item: PlainDateLike, options?: OverflowOptions): Result<PlainDate, TimeError> {
         todo("PlainDate.from")
     }
 
     /// Compare two plain dates.
-    static compare(
-        one: PlainDate | PlainDateLike | string,
-        two: PlainDate | PlainDateLike | string,
-    ): ComparisonResult {
+    static compare(one: PlainDateLike, two: PlainDateLike): Result<ComparisonResult, TimeError> {
         todo("PlainDate.compare")
     }
 
-    /// Create a plain date.
-    constructor(isoYear: number, isoMonth: number, isoDay: number, calendar?: string) {
+    /// Construct a validated plain date internally.
+    private constructor() {
         todo("PlainDate.constructor");
     }
 
@@ -145,60 +158,60 @@ export class PlainDate {
     }
 
     /// Return true when this date equals `other`.
-    equals(other: PlainDate | PlainDateLike | string): boolean {
+    equals(other: PlainDate): boolean {
+        todo("PlainDate.equalsPlainDate")
+    }
+
+    /// Convert `other` and return whether it equals this date.
+    equals(other: PlainDateLike): Result<boolean, TimeError> {
         todo("PlainDate.equals")
     }
 
     /// Return this date with updated fields.
-    with(dateLike: PlainDateLike, options?: AssignmentOptions): PlainDate {
+    with(dateLike: PlainDateFields, options?: OverflowOptions): Result<PlainDate, TimeError> {
         todo("PlainDate.with")
     }
 
     /// Return this date in another calendar.
-    withCalendar(calendar: CalendarLike): PlainDate {
+    withCalendar(calendar: CalendarLike): Result<PlainDate, TimeError> {
         todo("PlainDate.withCalendar")
     }
 
     /// Add a duration.
-    add(durationLike: Duration | DurationLike | string, options?: ArithmeticOptions): PlainDate {
+    add(durationLike: DurationLike, options?: OverflowOptions): Result<PlainDate, TimeError> {
         todo("PlainDate.add")
     }
 
     /// Subtract a duration.
-    subtract(
-        durationLike: Duration | DurationLike | string,
-        options?: ArithmeticOptions,
-    ): PlainDate {
+    subtract(durationLike: DurationLike, options?: OverflowOptions): Result<PlainDate, TimeError> {
         todo("PlainDate.subtract")
     }
 
     /// Return the duration until `other`.
     until(
-        other: PlainDate | PlainDateLike | string,
+        other: PlainDateLike,
         options?: DifferenceOptions<"year" | "month" | "week" | "day">,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("PlainDate.until")
     }
 
     /// Return the duration since `other`.
     since(
-        other: PlainDate | PlainDateLike | string,
+        other: PlainDateLike,
         options?: DifferenceOptions<"year" | "month" | "week" | "day">,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("PlainDate.since")
     }
 
     /// Combine this date with a time.
-    toPlainDateTime(time?: PlainTime | PlainTimeLike | string): PlainDateTime {
+    toPlainDateTime(time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
         todo("PlainDate.toPlainDateTime")
     }
 
     /// Convert this date into a zoned date-time.
     toZonedDateTime(
-        options:
-            | string
-            | { timeZone: TimeZoneLike; plainTime?: PlainTime | PlainTimeLike | string },
-    ): ZonedDateTime {
+        options: TimeZoneLike | { timeZone: TimeZoneLike; plainTime?: PlainTimeLike },
+    ): Result<ZonedDateTime, TimeError> {
         todo("PlainDate.toZonedDateTime")
     }
 
@@ -213,7 +226,15 @@ export class PlainDate {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("PlainDate.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DateTimeFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("PlainDate.toLocaleString")
     }
 
@@ -223,7 +244,12 @@ export class PlainDate {
     }
 
     /// Return an ISO string.
-    toString(options?: ShowCalendarOption): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("PlainDate.toString")
+    }
+
+    /// Return an ISO string with explicit calendar options.
+    toString(options: PlainDateToStringOptions): MaybeOwned<string> {
         todo("PlainDate.toString")
     }
 

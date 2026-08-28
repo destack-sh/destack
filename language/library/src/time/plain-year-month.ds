@@ -1,19 +1,15 @@
-import { todo } from "destack:error";
+import { RangeError, Result, todo } from "destack:error";
+import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
-import {
-    ArithmeticOptions,
-    AssignmentOptions,
-    DateTimeFormatOptions,
-    DifferenceOptions,
-    ShowCalendarOption,
-} from "./option.ds";
-import { CalendarLike, PlainDate } from "./plain-date.ds";
-import { ComparisonResult, LocalesArgument } from "./unit.ds";
+import { TimeError } from "./error.ds";
+import { DifferenceOptions, OverflowOptions, PlainDateToStringOptions } from "./option.ds";
+import { PlainDate } from "./plain-date.ds";
+import { ComparisonResult } from "./unit.ds";
 
-/// Temporal plain year-month field bag.
-export type PlainYearMonthLike = {
+/// Temporal plain year-month fields.
+export type PlainYearMonthFields = {
     /// Calendar era.
     era?: string;
     /// Calendar era year.
@@ -24,31 +20,48 @@ export type PlainYearMonthLike = {
     month?: number;
     /// Calendar month code.
     monthCode?: string;
-    /// Calendar.
-    calendar?: CalendarLike;
 };
+
+/// Temporal plain year-month fields used for conversion.
+export type PlainYearMonthInput = PlainYearMonthFields & {
+    /// Calendar.
+    calendar?: string;
+};
+
+/// Value convertible to a Temporal plain year-month.
+export type PlainYearMonthLike = PlainYearMonth | PlainYearMonthInput | string;
 
 /// Temporal plain year-month.
 @languageItem("time.PlainYearMonth")
 export class PlainYearMonth {
+    /// Create an ISO plain year-month.
+    static create(
+        isoYear: number,
+        isoMonth: number,
+        calendar?: string,
+        referenceISODay?: number,
+    ): Result<PlainYearMonth, RangeError> {
+        todo("PlainYearMonth.create")
+    }
+
     /// Create a plain year-month.
     static from(
-        item: PlainYearMonth | PlainYearMonthLike | string,
-        options?: AssignmentOptions,
-    ): PlainYearMonth {
+        item: PlainYearMonthLike,
+        options?: OverflowOptions,
+    ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.from")
     }
 
     /// Compare two plain year-months.
     static compare(
-        one: PlainYearMonth | PlainYearMonthLike | string,
-        two: PlainYearMonth | PlainYearMonthLike | string,
-    ): ComparisonResult {
+        one: PlainYearMonthLike,
+        two: PlainYearMonthLike,
+    ): Result<ComparisonResult, TimeError> {
         todo("PlainYearMonth.compare")
     }
 
-    /// Create a plain year-month.
-    constructor(isoYear: number, isoMonth: number, calendar?: string, referenceISODay?: number) {
+    /// Construct a validated plain year-month internally.
+    private constructor() {
         todo("PlainYearMonth.constructor");
     }
 
@@ -103,54 +116,67 @@ export class PlainYearMonth {
     }
 
     /// Return true when this year-month equals `other`.
-    equals(other: PlainYearMonth | PlainYearMonthLike | string): boolean {
+    equals(other: PlainYearMonth): boolean {
+        todo("PlainYearMonth.equalsPlainYearMonth")
+    }
+
+    /// Convert `other` and return whether it equals this year-month.
+    equals(other: PlainYearMonthLike): Result<boolean, TimeError> {
         todo("PlainYearMonth.equals")
     }
 
     /// Return this year-month with updated fields.
-    with(yearMonthLike: PlainYearMonthLike, options?: AssignmentOptions): PlainYearMonth {
+    with(
+        yearMonthLike: PlainYearMonthFields,
+        options?: OverflowOptions,
+    ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.with")
     }
 
     /// Add a duration.
-    add(
-        durationLike: Duration | DurationLike | string,
-        options?: ArithmeticOptions,
-    ): PlainYearMonth {
+    add(durationLike: DurationLike, options?: OverflowOptions): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.add")
     }
 
     /// Subtract a duration.
     subtract(
-        durationLike: Duration | DurationLike | string,
-        options?: ArithmeticOptions,
-    ): PlainYearMonth {
+        durationLike: DurationLike,
+        options?: OverflowOptions,
+    ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.subtract")
     }
 
     /// Return the duration until `other`.
     until(
-        other: PlainYearMonth | PlainYearMonthLike | string,
+        other: PlainYearMonthLike,
         options?: DifferenceOptions<"year" | "month">,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("PlainYearMonth.until")
     }
 
     /// Return the duration since `other`.
     since(
-        other: PlainYearMonth | PlainYearMonthLike | string,
+        other: PlainYearMonthLike,
         options?: DifferenceOptions<"year" | "month">,
-    ): Duration {
+    ): Result<Duration, TimeError> {
         todo("PlainYearMonth.since")
     }
 
     /// Convert this year-month into a plain date.
-    toPlainDate(day: { day: number }): PlainDate {
+    toPlainDate(day: { day: number }): Result<PlainDate, TimeError> {
         todo("PlainYearMonth.toPlainDate")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(locales?: LocalesArgument, options?: DateTimeFormatOptions): MaybeOwned<string> {
+    toLocaleString(): MaybeOwned<string> {
+        todo("PlainYearMonth.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        locales?: Locales,
+        options?: DateTimeFormatOptions,
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("PlainYearMonth.toLocaleString")
     }
 
@@ -160,7 +186,12 @@ export class PlainYearMonth {
     }
 
     /// Return an ISO string.
-    toString(options?: ShowCalendarOption): MaybeOwned<string> {
+    toString(): MaybeOwned<string> {
+        todo("PlainYearMonth.toString")
+    }
+
+    /// Return an ISO string with explicit calendar options.
+    toString(options: PlainDateToStringOptions): MaybeOwned<string> {
         todo("PlainYearMonth.toString")
     }
 
