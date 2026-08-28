@@ -2,7 +2,7 @@ use destack_bytecode as bytecode;
 use destack_mir as mir;
 use destack_native as native;
 use destack_serde::Reflect;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceTable};
 use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +18,8 @@ pub struct Object {
     pub(super) dependencies: Vec<ModuleId>,
     /// Target layout shared by every emitted code form.
     pub(super) target: mir::TargetLayout,
+    /// Object-local compilation provenance.
+    pub(super) provenance: ProvenanceTable,
 
     /// Object-local type declarations in ascending MIR id order.
     pub(super) types: Vec<Type>,
@@ -67,6 +69,11 @@ impl Object {
     /// Return the target layout shared by every code form.
     pub const fn target(&self) -> mir::TargetLayout {
         self.target
+    }
+
+    /// Return object-local compilation provenance.
+    pub const fn provenance(&self) -> &ProvenanceTable {
+        &self.provenance
     }
 
     /// Return object-local type declarations.

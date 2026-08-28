@@ -16,9 +16,9 @@ use super::Program;
 use crate::{
     BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
     FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
-    GlobalTableBuilder, LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable,
-    SiteTableBuilder, StaticBytes, StaticImage, StringEntry, StringTable, TypeTable,
-    TypeTableBuilder,
+    GlobalTableBuilder, LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder,
+    ProvenanceTable, SiteTable, SiteTableBuilder, StaticBytes, StaticImage, StringEntry,
+    StringTable, TypeTable, TypeTableBuilder,
 };
 
 /// Program image load failure.
@@ -106,6 +106,8 @@ pub struct ProgramBuilder {
     globals: GlobalTableBuilder,
     /// Optional program reflection.
     info: Option<ProgramInfoBuilder>,
+    /// Compilation provenance for every executable representation.
+    provenance: destack_source::ProvenanceTable,
 
     /// Immutable constant bytes.
     constants: StaticBytes,
@@ -164,6 +166,8 @@ struct ProgramHeader {
     globals: GlobalTable,
     /// Optional reflection table.
     info: Optional<ProgramInfo>,
+    /// Compilation provenance table.
+    provenance: ProvenanceTable,
 
     /// Immutable constant storage.
     constants: StaticImage,
@@ -184,7 +188,7 @@ impl ProgramHeader {
     /// Stable Program image marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSPG");
     /// Stable Program image format version.
-    const VERSION: u16 = 16;
+    const VERSION: u16 = 19;
 
     /// Create one empty Program header for a target layout.
     fn new(target_layout: TargetLayout) -> Self {
@@ -207,6 +211,7 @@ impl ProgramHeader {
             traces: TraceTable::default(),
             globals: GlobalTable::default(),
             info: Optional::none(),
+            provenance: ProvenanceTable::default(),
             constants: StaticImage::default(),
             shared_statics: StaticImage::default(),
             local_statics: StaticImage::default(),
@@ -238,8 +243,8 @@ impl ProgramHeader {
             return Err(ProgramLoadError::InvalidAlignment);
         }
 
-        // reject any relative range outside its owning sibling column
-        if !self.ranges_fit(sections) {
+        // reject unresolved or malformed Program references
+        if !self.references_fit(sections) {
             return Err(ProgramLoadError::InvalidRange);
         }
 
@@ -258,8 +263,27 @@ impl ProgramHeader {
         Ok(alignment)
     }
 
-    /// Return whether every compact table range fits its sibling column.
-    fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Return whether every Program reference resolves to a valid entry.
+    fn references_fit(&self, sections: SectionImage<'_>) -> bool {
+        // collect cross-table provenance references
+        let transform_names = self
+            .provenance
+            .transforms(sections)
+            .iter()
+            .map(|transform| transform.name);
+        let bytecode_provenance = self
+            .bytecode
+            .operation_provenance_column(sections)
+            .iter()
+            .chain(self.bytecode.mapping_provenance_column(sections))
+            .copied();
+        let native_provenance = self
+            .native
+            .get()
+            .into_iter()
+            .flat_map(|code| code.map().extents(sections))
+            .map(|extent| extent.provenance);
+
         self.types.ranges_fit(sections)
             && self.layouts.ranges_fit(sections)
             && self.frames.ranges_fit(sections)
@@ -268,6 +292,10 @@ impl ProgramHeader {
             && self.dispatch.ranges_fit(sections)
             && self.traces.ranges_fit(sections)
             && self.info.get().is_none_or(|info| info.ranges_fit(sections))
+            && self.provenance.ranges_fit(sections)
+            && self.strings.contains_all(sections, transform_names)
+            && self.provenance.contains_all(sections, bytecode_provenance)
+            && self.provenance.contains_all(sections, native_provenance)
             && self.bytecode.ranges_fit(sections)
             && self
                 .native
@@ -305,7 +333,7 @@ impl ProgramHeader {
 
 impl ProgramBuilder {
     /// Create one Program image builder.
-    pub fn new(target_layout: TargetLayout) -> Self {
+    pub fn new(target_layout: TargetLayout, provenance: destack_source::ProvenanceTable) -> Self {
         Self {
             target_layout,
             string_entries: Vec::new(),
@@ -321,6 +349,7 @@ impl ProgramBuilder {
             traces: mir::TraceTable::default(),
             globals: GlobalTableBuilder::default(),
             info: None,
+            provenance,
             constants: StaticBytes::default(),
             shared_statics: StaticBytes::default(),
             local_statics: StaticBytes::default(),
@@ -344,6 +373,7 @@ impl ProgramBuilder {
         ids: impl IntoIterator<Item = StringId>,
     ) -> Self {
         let mut ids = ids.into_iter().collect::<Vec<_>>();
+        ids.extend(self.provenance.names().iter().into_iter().map(|(id, _)| id));
         ids.sort_unstable();
         ids.dedup();
 
@@ -352,7 +382,16 @@ impl ProgramBuilder {
         self.string_bytes.clear();
         self.string_entries.reserve(ids.len());
         for id in ids {
-            let text = strings.get(id);
+            let text = match self.provenance.names().get_maybe(id) {
+                Some(text) => {
+                    if let Some(existing) = strings.get_maybe(id) {
+                        assert_eq!(existing, text, "string id collision for {id}");
+                    }
+
+                    text
+                }
+                None => strings.get(id),
+            };
             let offset = self.string_bytes.len() as u32;
             let byte_len = text.len() as u32;
             self.string_bytes.extend_from_slice(text.as_bytes());
@@ -499,6 +538,7 @@ impl ProgramBuilder {
         if let Some(info) = self.info {
             header.info = Optional::some(info.build(&mut sections));
         }
+        header.provenance = ProvenanceTable::pack(&self.provenance, &mut sections);
 
         // pack immutable storage in canonical order
         header.constants = StaticImage::pack(&mut sections, self.constants);
@@ -577,6 +617,7 @@ impl Program {
             traces: header.traces,
             globals: header.globals,
             info: header.info.get(),
+            provenance: header.provenance,
             constants: header.constants,
             shared_statics: header.shared_statics,
             local_statics: header.local_statics,

@@ -1,7 +1,7 @@
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 use destack_native as native;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceTable};
 use destack_webassembly as wasm;
 
 use super::{
@@ -210,11 +210,12 @@ impl ObjectBuilder {
         self
     }
 
-    /// Build the relocatable object.
-    pub fn build(self) -> Object {
+    /// Build the relocatable object with its complete compilation provenance.
+    pub fn build(self, provenance: ProvenanceTable) -> Object {
         Object {
             dependencies: self.dependencies,
             target: self.target,
+            provenance,
             types: self.types,
             layouts: self.layouts,
             drops: self.drops,

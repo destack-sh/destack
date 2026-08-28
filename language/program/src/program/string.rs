@@ -44,6 +44,15 @@ impl StringTable {
         sections.entries(self.entries).is_empty()
     }
 
+    /// Return whether this table contains every given string id.
+    pub(super) fn contains_all(
+        &self,
+        sections: SectionImage<'_>,
+        ids: impl IntoIterator<Item = StringId>,
+    ) -> bool {
+        ids.into_iter().all(|id| self.entry(sections, id).is_some())
+    }
+
     /// Return whether every entry names valid UTF-8 inside the byte column.
     pub(super) fn entries_fit(&self, sections: SectionImage<'_>) -> bool {
         let bytes = sections.entries(self.bytes);

@@ -19,10 +19,10 @@ use crate::{
     DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout,
     FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable, Function,
     FunctionId, FunctionTable, Global, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField,
-    LayoutId, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue,
-    ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace,
-    StringTable, Symbol, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout,
-    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
+    LayoutId, LayoutTable, ProgramInfo, ProgramPoint, ProvenanceTable, Result, SampleKey,
+    SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable,
+    StaticImage, StaticSpace, StringTable, Symbol, TypeFingerprint, TypeId, TypeTable, Value,
+    VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
 };
 
 /// Linked program.
@@ -55,6 +55,8 @@ pub struct Program {
     pub(crate) globals: GlobalTable,
     /// Optional source reflection table.
     pub(crate) info: Option<ProgramInfo>,
+    /// Compilation provenance for every executable representation.
+    pub(crate) provenance: ProvenanceTable,
 
     /// Immutable constant storage owned by this program.
     pub(crate) constants: StaticImage,
@@ -157,6 +159,11 @@ impl Program {
     pub fn sections(&self) -> SectionImage<'_> {
         // SAFETY: Program construction builds or validates every absolute section in its header.
         unsafe { SectionImage::new(&self.storage) }
+    }
+
+    /// Return compilation provenance for every executable representation.
+    pub const fn provenance(&self) -> &ProvenanceTable {
+        &self.provenance
     }
 
     /// Return one program function entry.
