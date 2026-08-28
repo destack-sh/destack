@@ -3,12 +3,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
-    Literal, LocalNodeId, Node, NodeType, Parameter, Path, Property, StringId, TemplateLiteral,
-    Tree, UnaryOperator,
+    Identifier, IdentifierName, Literal, LocalNodeId, Node, NodeType, Parameter, Property,
+    TemplateLiteral, UnaryOperator,
 };
-use destack_source::ModuleId;
 
-/// An Expression is value-producing JS form.
+/// One value-producing JavaScript expression.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Expression {
     /// Declaration expression.
@@ -16,8 +15,8 @@ pub enum Expression {
         declaration: LocalNodeId<Declaration>,
     },
 
-    /// Path.
-    Path { path: Path },
+    /// Identifier reference.
+    Identifier { identifier: Identifier },
     /// Import meta expression.
     ImportMeta,
     /// This intrinsic value.
@@ -25,7 +24,7 @@ pub enum Expression {
     /// Super intrinsic value.
     Super,
     /// Private identifier.
-    PrivateIdentifier { name: StringId },
+    PrivateIdentifier { identifier: Identifier },
     /// Scalar literal.
     Literal { value: Literal },
     /// Template literal.
@@ -77,14 +76,14 @@ pub enum Expression {
 
     /// Member access.
     Member {
-        left: LocalNodeId<Expression>,
-        name: StringId,
+        object: LocalNodeId<Expression>,
+        property: IdentifierName,
         is_optional: bool,
     },
     /// Private member access.
     PrivateMember {
-        left: LocalNodeId<Expression>,
-        name: StringId,
+        object: LocalNodeId<Expression>,
+        property: Identifier,
     },
     /// Index.
     Index {
@@ -101,7 +100,6 @@ pub enum Expression {
     /// Dynamic import call.
     ImportCall {
         target: LocalNodeId<Expression>,
-        target_module: Option<ModuleId>,
         arguments: Vec<LocalNodeId<Argument>>,
     },
     /// Await expression.
@@ -128,9 +126,6 @@ pub enum Expression {
         then_expression: LocalNodeId<Expression>,
         else_expression: LocalNodeId<Expression>,
     },
-
-    /// Error placeholder.
-    Error,
 }
 
 impl Node for Expression {
@@ -229,20 +224,6 @@ impl Precedence {
 }
 
 impl Expression {
-    /// Return this expression without redundant explicit parentheses.
-    pub(crate) fn without_parentheses<'a>(tree: &'a Tree, expression: &'a Self) -> &'a Self {
-        let mut expression = expression;
-
-        while let Self::Parenthesized {
-            expression: inner_expression_id,
-        } = expression
-        {
-            expression = tree.get(*inner_expression_id);
-        }
-
-        expression
-    }
-
     /// Return the local precedence for this expression.
     pub(crate) fn precedence(&self) -> Precedence {
         match self {
@@ -261,7 +242,7 @@ impl Expression {
             | Self::New { .. } => Precedence::Postfix,
             Self::ArrowFunction { .. } => Precedence::Conditional,
             Self::Declaration { .. }
-            | Self::Path { .. }
+            | Self::Identifier { .. }
             | Self::ImportMeta
             | Self::This
             | Self::Super
@@ -270,8 +251,7 @@ impl Expression {
             | Self::TemplateLiteral { .. }
             | Self::ArrayLiteral { .. }
             | Self::ObjectLiteral { .. }
-            | Self::Parenthesized { .. }
-            | Self::Error => Precedence::Primary,
+            | Self::Parenthesized { .. } => Precedence::Primary,
         }
     }
 }

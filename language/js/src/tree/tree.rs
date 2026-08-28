@@ -1,21 +1,16 @@
-use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
 use destack_core::Arena;
-use destack_dir as dir;
-use destack_dir::GlobalSymbolId;
 use destack_serde::Reflect;
-use destack_source::ModuleId;
+use destack_source::{ProvenanceId, ProvenanceJournal};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
-    Declaration, Declarator, DependencyItem, Expression, LocalNodeId, Member, Node, NodeType,
-    Parameter, Pattern, PatternField, Property, Statement, SwitchCase,
+    Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause, Declaration,
+    Declarator, ExportSpecifier, Expression, ImportAttribute, ImportSpecifier, LocalNodeId,
+    LocalNodeIdAny, Member, Node, NodeType, Parameter, Pattern, PatternField, Property,
+    ReExportSpecifier, Statement, SwitchCase,
 };
-
-/// The local binding base name for one synthetic non-code module default.
-pub const MODULE_DEFAULT_NAME: &str = "_default";
 
 /// Dense metadata for one JS node id.
 #[derive(Debug, Copy, Clone, Serialize, Deserialize, Reflect)]
@@ -60,15 +55,17 @@ impl NodeIndexEntry {
             6 => NodeType::Declarator,
             7 => NodeType::Property,
             8 => NodeType::Member,
-            9 => NodeType::DependencyItem,
-            10 => NodeType::SwitchCase,
-            11 => NodeType::Pattern,
-            12 => NodeType::PatternField,
-            13 => NodeType::AssignPattern,
-            14 => NodeType::AssignPatternField,
-            15 => NodeType::Parameter,
-            16 => NodeType::Argument,
-            17 => NodeType::Annotation,
+            9 => NodeType::ImportSpecifier,
+            10 => NodeType::ExportSpecifier,
+            11 => NodeType::ReExportSpecifier,
+            12 => NodeType::ImportAttribute,
+            13 => NodeType::SwitchCase,
+            14 => NodeType::Pattern,
+            15 => NodeType::PatternField,
+            16 => NodeType::AssignPattern,
+            17 => NodeType::AssignPatternField,
+            18 => NodeType::Parameter,
+            19 => NodeType::Argument,
             _ => unreachable!("invalid JS node type tag in packed node index"),
         }
     }
@@ -86,55 +83,28 @@ impl NodeIndexEntry {
             NodeType::Declarator => 6,
             NodeType::Property => 7,
             NodeType::Member => 8,
-            NodeType::DependencyItem => 9,
-            NodeType::SwitchCase => 10,
-            NodeType::Pattern => 11,
-            NodeType::PatternField => 12,
-            NodeType::AssignPattern => 13,
-            NodeType::AssignPatternField => 14,
-            NodeType::Parameter => 15,
-            NodeType::Argument => 16,
-            NodeType::Annotation => 17,
+            NodeType::ImportSpecifier => 9,
+            NodeType::ExportSpecifier => 10,
+            NodeType::ReExportSpecifier => 11,
+            NodeType::ImportAttribute => 12,
+            NodeType::SwitchCase => 13,
+            NodeType::Pattern => 14,
+            NodeType::PatternField => 15,
+            NodeType::AssignPattern => 16,
+            NodeType::AssignPatternField => 17,
+            NodeType::Parameter => 18,
+            NodeType::Argument => 19,
         }
     }
 }
 
-/// One stable symbol identity in lowered script output.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ScriptSymbolId {
-    /// One symbol lowered directly from source DIR.
-    Source(GlobalSymbolId),
-    /// One generated default binding for one non-code script module.
-    ModuleDefault(ModuleId),
-}
-
-/// One DIR node that produced a JS node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub struct NodeOrigin {
-    /// The origin module.
-    pub module_id: ModuleId,
-    /// The origin DIR node id.
-    pub node_id: u32,
-}
-
-/// Mutable AST tree for a single source unit. NOT THREAD-SAFE.
+/// One mutable JavaScript tree.
 #[derive(Clone, Serialize, Deserialize, Reflect)]
 pub struct Tree {
-    /// The next id to allocate.
-    pub(crate) next_global_id: u32,
     /// Dense local id and node type metadata by node id.
-    pub(crate) node_index_by_node_id: Vec<NodeIndexEntry>,
-    /// The annotations attached to nodes.
-    pub(crate) annotations_by_node_id: HashMap<u32, Vec<LocalNodeId<Annotation>>>,
-
-    /// The origin node for each JS node.
-    pub(crate) origin_by_node_id: Vec<Option<NodeOrigin>>,
-    /// The alias node id by DIR node id.
-    pub(crate) alias_node_id_by_dir_id: HashMap<u32, u32>,
-    /// The alias node id by JS AST node id.
-    pub(crate) alias_node_id_by_node_id: HashMap<u32, u32>,
-    /// The symbol identity by JS AST node id.
-    pub(crate) symbol_id_by_node_id: Vec<Option<ScriptSymbolId>>,
+    pub(crate) node_index: Vec<NodeIndexEntry>,
+    /// The provenance of each JS node.
+    pub(crate) provenance: Vec<ProvenanceId>,
 
     // node arenas
     pub(crate) blocks: Arena<Block>,
@@ -146,7 +116,10 @@ pub struct Tree {
     pub(crate) declarators: Arena<Declarator>,
     pub(crate) properties: Arena<Property>,
     pub(crate) members: Arena<Member>,
-    pub(crate) dependency_items: Arena<DependencyItem>,
+    pub(crate) import_specifiers: Arena<ImportSpecifier>,
+    pub(crate) export_specifiers: Arena<ExportSpecifier>,
+    pub(crate) re_export_specifiers: Arena<ReExportSpecifier>,
+    pub(crate) import_attributes: Arena<ImportAttribute>,
     pub(crate) switch_cases: Arena<SwitchCase>,
     pub(crate) parameters: Arena<Parameter>,
     pub(crate) arguments: Arena<Argument>,
@@ -154,14 +127,12 @@ pub struct Tree {
     pub(crate) pattern_fields: Arena<PatternField>,
     pub(crate) assign_patterns: Arena<AssignPattern>,
     pub(crate) assign_pattern_fields: Arena<AssignPatternField>,
-    pub(crate) annotations: Arena<Annotation>,
 }
 
 impl Debug for Tree {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Tree")
-            .field("next_global_id", &self.next_global_id)
-            .field("node_count", &self.node_index_by_node_id.len())
+            .field("node_count", &self.node_index.len())
             .finish()
     }
 }
@@ -181,13 +152,8 @@ impl Tree {
     /// Create a new Tree with the given capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            next_global_id: 0,
-            node_index_by_node_id: Vec::with_capacity(capacity),
-            annotations_by_node_id: HashMap::new(),
-            origin_by_node_id: Vec::with_capacity(capacity),
-            alias_node_id_by_dir_id: HashMap::new(),
-            alias_node_id_by_node_id: HashMap::new(),
-            symbol_id_by_node_id: Vec::with_capacity(capacity),
+            node_index: Vec::with_capacity(capacity),
+            provenance: Vec::with_capacity(capacity),
             // node arenas
             blocks: Arena::new(),
             catch_clauses: Arena::new(),
@@ -198,7 +164,10 @@ impl Tree {
             declarators: Arena::new(),
             properties: Arena::new(),
             members: Arena::new(),
-            dependency_items: Arena::new(),
+            import_specifiers: Arena::new(),
+            export_specifiers: Arena::new(),
+            re_export_specifiers: Arena::new(),
+            import_attributes: Arena::new(),
             switch_cases: Arena::new(),
             parameters: Arena::new(),
             arguments: Arena::new(),
@@ -206,238 +175,166 @@ impl Tree {
             pattern_fields: Arena::new(),
             assign_patterns: Arena::new(),
             assign_pattern_fields: Arena::new(),
-            annotations: Arena::new(),
         }
     }
 
-    /// Allocate a new node in the JS AST tree.
-    fn insert<T>(&mut self, node: T, origin: Option<NodeOrigin>) -> LocalNodeId<T>
+    /// Allocate one JS node with an explicit provenance.
+    pub fn insert<T>(&mut self, node: T, provenance: ProvenanceId) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
-        let global_id = self.next_global_id;
-        self.next_global_id = global_id + 1;
-        let local_id = <Self as TreeImpl<T>>::allocate(self, node);
-        self.node_index_by_node_id
-            .push(NodeIndexEntry::new(local_id, T::TYPE));
-        self.origin_by_node_id.push(origin);
-        self.symbol_id_by_node_id.push(None);
-        LocalNodeId::new(global_id)
+        let node_id = self.node_index.len() as u32;
+        let local_id = <Self as TreeStore<T>>::allocate(self, node);
+        self.node_index.push(NodeIndexEntry::new(local_id, T::TYPE));
+        self.provenance.push(provenance);
+        LocalNodeId::new(node_id)
     }
 
-    /// Allocate a generated node in the JS AST tree.
-    pub fn insert_generated<T>(&mut self, node: T) -> LocalNodeId<T>
-    where
-        T: Node,
-        Self: TreeImpl<T>,
-    {
-        self.insert(node, None)
-    }
-
-    /// Allocate a new node in the JS AST tree derived from another JS AST node.
-    pub fn insert_from_source<T, U>(
+    /// Allocate one JS node derived from another.
+    pub fn insert_from<T, U>(
         &mut self,
         node: T,
-        module_id: ModuleId,
-        dir_node_id: dir::LocalNodeId<U>,
+        source_id: LocalNodeId<U>,
+        provenance: &mut ProvenanceJournal<'_>,
     ) -> LocalNodeId<T>
     where
         T: Node,
-        Self: TreeImpl<T>,
-        U: dir::Node,
-        dir::Tree: dir::TreeStore<U>,
-    {
-        self.insert(
-            node,
-            Some(NodeOrigin {
-                module_id,
-                node_id: dir_node_id.id,
-            }),
-        )
-    }
-
-    /// Allocate a new node in the JS AST tree derived from a DIR node.
-    pub fn insert_from_source_any<T>(
-        &mut self,
-        node: T,
-        module_id: ModuleId,
-        dir_node_id: dir::LocalNodeIdAny,
-    ) -> LocalNodeId<T>
-    where
-        T: Node,
-        Self: TreeImpl<T>,
-    {
-        self.insert(
-            node,
-            Some(NodeOrigin {
-                module_id,
-                node_id: dir_node_id.id,
-            }),
-        )
-    }
-
-    /// Allocate a new node in the JS AST tree derived from another DIR node.
-    pub fn insert_from<T, U>(&mut self, node: T, dir_node_id: LocalNodeId<U>) -> LocalNodeId<T>
-    where
-        T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
         U: Node,
     {
-        let origin = self.origin_by_node_id[dir_node_id.id as usize];
-        let node_id = self.insert(node, origin);
-
-        if let Some(symbol_id) = self.symbol_by_id(dir_node_id.id) {
-            self.symbol_id_by_node_id[node_id.id as usize] = Some(symbol_id);
-        }
-
-        self.alias_node_id_by_dir_id
-            .insert(dir_node_id.id, node_id.id);
-        node_id
+        let source = self.provenance(source_id);
+        self.insert(node, provenance.derive(source))
     }
 
-    /// Alias a node in the JS AST tree from a DIR node.
-    pub fn alias_from_source<T>(&mut self, dir_id: u32, alias: LocalNodeId<T>)
+    /// Replace one JS node and record the transformation that produced it.
+    pub fn rewrite<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        replacement: T,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) where
+        T: Node,
+        Self: TreeStore<T>,
+    {
+        let node_index = node_id.id as usize;
+        let source = self.provenance(node_id);
+        *self.get_mut(node_id) = replacement;
+        self.provenance[node_index] = provenance.derive(source);
+    }
+
+    /// Return one mutable JS node and record its transformation.
+    pub fn edit<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> &mut T
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
-        self.alias_node_id_by_dir_id.insert(dir_id, alias.id);
+        let node_index = node_id.id as usize;
+        let source = self.provenance(node_id);
+        self.provenance[node_index] = provenance.derive(source);
+
+        self.get_mut(node_id)
     }
 
-    /// Alias a node in the JS AST tree from a JS AST node.
-    pub fn alias_from<T>(&mut self, node_id: u32, alias: LocalNodeId<T>)
+    /// Record one JS node as removed by the active transform.
+    pub fn record_removal<T>(&self, node_id: LocalNodeId<T>, provenance: &mut ProvenanceJournal<'_>)
     where
         T: Node,
-        Self: TreeImpl<T>,
     {
-        self.alias_node_id_by_node_id.insert(node_id, alias.id);
+        provenance.remove(&[self.provenance(node_id)]);
     }
 
-    /// Get the next id.
+    /// Return the type of one untyped node id.
     #[inline]
-    pub fn next_id(&self) -> u32 {
-        self.next_global_id
+    pub fn node_type(&self, id: LocalNodeIdAny) -> NodeType {
+        self.node_index[id.id as usize].node_type()
     }
 
-    /// Get the type of an untyped node id.
-    #[inline]
-    pub fn get_node_type(&self, id: u32) -> NodeType {
-        self.node_index_by_node_id[id as usize].node_type()
-    }
-
-    /// Get an immutable reference to the node with the given NodeId.
+    /// Return one immutable node.
     #[inline]
     pub fn get<T>(&self, id: LocalNodeId<T>) -> &T
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
-        let local_id = self.local_id_for_node_id(id.id);
-        <Self as TreeImpl<T>>::get(self, local_id)
+        let entry = self.node_index[id.id as usize];
+        debug_assert_eq!(entry.node_type(), T::TYPE);
+        let local_id = entry.local_id();
+
+        <Self as TreeStore<T>>::get(self, local_id)
     }
 
-    /// Get a mutable reference to the node with the given NodeId.
+    /// Return one mutable node.
     #[inline]
-    pub fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
+    fn get_mut<T>(&mut self, id: LocalNodeId<T>) -> &mut T
     where
         T: Node,
-        Self: TreeImpl<T>,
+        Self: TreeStore<T>,
     {
-        let local_id = self.local_id_for_node_id(id.id);
-        <Self as TreeImpl<T>>::get_mut(self, local_id)
+        let entry = self.node_index[id.id as usize];
+        debug_assert_eq!(entry.node_type(), T::TYPE);
+        let local_id = entry.local_id();
+
+        <Self as TreeStore<T>>::get_mut(self, local_id)
     }
 
-    /// Get the nodes for all nodes of a given type.
+    /// Return every node of one type.
     #[inline]
-    pub fn get_nodes<T>(&self) -> Vec<LocalNodeId<T>>
+    pub fn nodes<T>(&self) -> impl Iterator<Item = LocalNodeId<T>> + '_
     where
         T: Node,
     {
-        let mut nodes = Vec::new();
-        for (idx, entry) in self.node_index_by_node_id.iter().enumerate() {
-            if entry.node_type() == T::TYPE {
-                nodes.push(LocalNodeId::new(idx as u32));
-            }
-        }
-        nodes
+        self.node_index
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| entry.node_type() == T::TYPE)
+            .map(|(index, _)| LocalNodeId::new(index as u32))
     }
 
     /// Return the number of nodes stored in this tree.
     #[inline]
     pub fn node_count(&self) -> usize {
-        self.node_index_by_node_id.len()
+        self.node_index.len()
     }
 
-    /// Return the local arena id for one untyped node id.
-    #[inline]
-    pub(crate) fn local_id_for_node_id(&self, id: u32) -> u32 {
-        self.node_index_by_node_id[id as usize].local_id()
-    }
+    /// Return the provenance of one JS node.
+    pub fn provenance(&self, node: impl Into<LocalNodeIdAny>) -> ProvenanceId {
+        let node = node.into();
 
-    /// Return the origin node for one JS node when it has one.
-    pub fn get_origin(&self, node_id: u32) -> Option<NodeOrigin> {
-        self.origin_by_node_id[node_id as usize]
-    }
-
-    /// Store one symbol identity for one JS AST node.
-    pub fn set_symbol<T>(&mut self, node_id: LocalNodeId<T>, symbol_id: ScriptSymbolId)
-    where
-        T: Node,
-        Self: TreeImpl<T>,
-    {
-        self.symbol_id_by_node_id[node_id.id as usize] = Some(symbol_id);
-    }
-
-    /// Return the symbol identity for one JS AST node when one exists.
-    pub fn symbol<T>(&self, node_id: LocalNodeId<T>) -> Option<ScriptSymbolId>
-    where
-        T: Node,
-        Self: TreeImpl<T>,
-    {
-        self.symbol_id_by_node_id[node_id.id as usize]
-    }
-
-    /// Return the symbol identity for one untyped node id when one exists.
-    pub fn symbol_by_id(&self, node_id: u32) -> Option<ScriptSymbolId> {
-        self.symbol_id_by_node_id[node_id as usize]
-    }
-
-    /// Get the annotations for a node.
-    pub fn get_annotations(&self, node_id: u32) -> Vec<LocalNodeId<Annotation>> {
-        self.annotations_by_node_id
-            .get(&node_id)
-            .cloned()
-            .unwrap_or_else(Vec::new)
+        self.provenance[node.id as usize]
     }
 }
 
 /// Map node types to arenas.
-pub trait TreeImpl<T: Node> {
+pub trait TreeStore<T: Node> {
     /// Allocate a node into the relevant arena.
     fn allocate(tree: &mut Tree, node: T) -> u32;
-    /// Get a node from the relevant arena.
-    fn get(tree: &Tree, idx: u32) -> &T;
-    /// Get a mutable node from the relevant arena.
-    fn get_mut(tree: &mut Tree, idx: u32) -> &mut T;
+    /// Return a node from the relevant arena.
+    fn get(tree: &Tree, index: u32) -> &T;
+    /// Return a mutable node from the relevant arena.
+    fn get_mut(tree: &mut Tree, index: u32) -> &mut T;
 }
 
 macro_rules! impl_tree_store {
     ($ty:ty, $field:ident) => {
-        impl TreeImpl<$ty> for Tree {
+        impl TreeStore<$ty> for Tree {
             #[inline]
             fn allocate(tree: &mut Tree, node: $ty) -> u32 {
                 tree.$field.allocate(node)
             }
 
             #[inline]
-            fn get(tree: &Tree, idx: u32) -> &$ty {
-                tree.$field.get(idx)
+            fn get(tree: &Tree, index: u32) -> &$ty {
+                tree.$field.get(index)
             }
 
             #[inline]
-            fn get_mut(tree: &mut Tree, idx: u32) -> &mut $ty {
-                tree.$field.get_mut(idx)
+            fn get_mut(tree: &mut Tree, index: u32) -> &mut $ty {
+                tree.$field.get_mut(index)
             }
         }
     };
@@ -459,7 +356,10 @@ impl_tree_stores! {
     Declarator => declarators,
     Property => properties,
     Member => members,
-    DependencyItem => dependency_items,
+    ImportSpecifier => import_specifiers,
+    ExportSpecifier => export_specifiers,
+    ReExportSpecifier => re_export_specifiers,
+    ImportAttribute => import_attributes,
     SwitchCase => switch_cases,
     Parameter => parameters,
     Argument => arguments,
@@ -467,5 +367,4 @@ impl_tree_stores! {
     PatternField => pattern_fields,
     AssignPattern => assign_patterns,
     AssignPatternField => assign_pattern_fields,
-    Annotation => annotations,
 }

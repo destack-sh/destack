@@ -1,190 +1,163 @@
-use crate::{DependencyBinding, DependencyItem, Keyword, LocalNodeId, Name};
-use destack_core::StringId;
-use destack_fir::format::FormatResult;
+use crate::{
+    ExportSpecifier, FormatNode, Formatter, Identifier, ImportAttribute, ImportAttributeName,
+    ImportClause, ImportSpecifier, Keyword, LocalNodeId, ModuleExportName, ReExportSpecifier,
+    StringLiteral, Tree, TreeStore, format_attributed,
+};
+use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
-use crate::format::argument::list_like;
-use crate::format::literal::format_string_literal_with_source_span;
-use crate::{FormatNode, Formatter};
-
-/// Format a dependency item name.
-fn format_dependency_item_name<'ast>(
-    f: &mut Formatter<'ast, '_>,
-    name: Name,
-    source_span: Option<Span>,
-) -> FormatResult<()> {
-    match name {
-        Name::Identifier(name) => {
-            if let Some(source_span) = source_span {
-                source_position(source_span.start).format(f)?;
-            }
-
-            write!(f, [name])?;
-
-            if let Some(source_span) = source_span {
-                source_position(source_span.end).format(f)?;
-            }
-        }
-        Name::String(name) => {
-            format_string_literal_with_source_span(name, source_span, f)?;
-        }
-    }
-
-    Ok(())
-}
-
-/// Format a dependency item alias.
-fn format_dependency_item_alias<'ast>(
-    f: &mut Formatter<'ast, '_>,
-    alias: destack_core::StringId,
-    source_span: Option<Span>,
-) -> FormatResult<()> {
-    if let Some(source_span) = source_span {
-        source_position(source_span.start).format(f)?;
-    }
-
-    write!(f, [alias])?;
-
-    if let Some(source_span) = source_span {
-        source_position(source_span.end).format(f)?;
-    }
-
-    Ok(())
-}
-
-impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
-    fn format_node(
-        &self,
-        node_id: LocalNodeId<DependencyItem>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        let name_span = f
-            .context()
-            .source_part_span(node_id.id, NodeSpanType::Region(NodeSpanRegion::Type));
-        let alias_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
-
-        // default binding
-        if self.binding == DependencyBinding::Default {
-            write!(f, [Keyword::Default])?;
-            if let Some(alias) = self.alias {
-                write!(f, [space(), Keyword::As, space()])?;
-                format_dependency_item_alias(f, alias, alias_span)?;
-            }
-        }
-        // named binding
-        else {
-            if let Some(name) = self.name {
-                format_dependency_item_name(f, name, name_span)?;
-            }
-            if let Some(alias) = self.alias {
-                write!(f, [space(), Keyword::As, space()])?;
-                format_dependency_item_alias(f, alias, alias_span)?;
-            }
-        }
-
-        Ok(())
+impl<'ast> FormatNode<'ast> for ImportSpecifier {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+        format_named_import(self.imported, self.local, f)
     }
 }
 
-/// Format an import binding (like `"foo"` or `{ bar, baz } from "foo"` or `* as foo from "foo"`).
-pub(crate) fn format_import_binding<'ast>(
-    f: &mut Formatter<'ast, '_>,
-    target: StringId,
-    items: &[LocalNodeId<DependencyItem>],
-    target_span: Option<Span>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let first_item = items.first().map(|item| tree.get(*item));
+impl<'ast> FormatNode<'ast> for ExportSpecifier {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+        let local_name = self.local.emitted_name(f.context().symbols);
+        let is_shorthand = self.exported.value() == local_name;
 
-    // namespace (like `import * as foo from "bar"`)
-    if items.len() == 1
-        && let Some(first_item) = first_item
-        && first_item.binding == DependencyBinding::Namespace
-    {
-        write!(f, [token("*"), space(), Keyword::As, space()])?;
-
-        if let Some(item_id) = items.first()
-            && let Some(alias) = first_item.alias
-        {
-            let alias_span = f.context().source_part_span(item_id.id, NodeSpanType::Main);
-            format_dependency_item_alias(f, alias, alias_span)?;
+        if is_shorthand {
+            format_attributed(self.exported.provenance(), None, f, |f| {
+                self.local.format(f)
+            })
+        } else {
+            write!(
+                f,
+                [self.local, space(), Keyword::As, space(), self.exported]
+            )
         }
     }
-    // items
-    else {
-        // default (like `import foo, { bar } from "baz"`)
-        if let Some(first_item) = first_item
-            && first_item.binding == DependencyBinding::Default
-        {
-            if let Some(item_id) = items.first()
-                && let Some(alias) = first_item.alias
-            {
-                let alias_span = f.context().source_part_span(item_id.id, NodeSpanType::Main);
-                format_dependency_item_alias(f, alias, alias_span)?;
-            }
-
-            let rest_items: Vec<LocalNodeId<DependencyItem>> =
-                items.iter().skip(1).copied().collect();
-            if !rest_items.is_empty() {
-                write!(f, [token(","), space()])?;
-                write!(f, [list_like("{", "}", ",", &rest_items).include_space()])?;
-            }
-        }
-        // named items
-        else if !items.is_empty() {
-            let items_vec: Vec<LocalNodeId<DependencyItem>> = items.to_vec();
-            write!(f, [list_like("{", "}", ",", &items_vec).include_space()])?;
-        }
-    }
-
-    // from target
-    if !items.is_empty() {
-        write!(f, [space(), Keyword::From, space()])?;
-    }
-
-    format_string_literal_with_source_span(target, target_span, f)?;
-
-    Ok(())
 }
 
-/// Format an export binding (like `{ bar, baz }` or `{ bar } from "foo"` or `* from "foo"`).
-pub(crate) fn format_export_binding<'ast>(
-    f: &mut Formatter<'ast, '_>,
-    target: Option<StringId>,
-    items: &[LocalNodeId<DependencyItem>],
-    target_span: Option<Span>,
-) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let first_item = items.first().map(|item| tree.get(*item));
-
-    // namespace (like `export * from "foo"` or `export * as bar from "foo"`)
-    if items.len() == 1
-        && let Some(first_item) = first_item
-        && first_item.binding == DependencyBinding::Namespace
-    {
-        write!(f, [token("*")])?;
-        if let Some(item_id) = items.first()
-            && let Some(alias) = first_item.alias
-        {
-            let alias_span = f.context().source_part_span(item_id.id, NodeSpanType::Main);
-            write!(f, [space(), Keyword::As, space()])?;
-            format_dependency_item_alias(f, alias, alias_span)?;
+impl<'ast> FormatNode<'ast> for ReExportSpecifier {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+        let is_shorthand = self.imported.value() == self.exported.value();
+        if is_shorthand {
+            format_attributed(self.exported.provenance(), None, f, |f| {
+                self.imported.format(f)
+            })
+        } else {
+            write!(
+                f,
+                [self.imported, space(), Keyword::As, space(), self.exported]
+            )
         }
     }
-    // items (like `export { foo, bar }`)
-    else if !items.is_empty() {
-        let items_vec: Vec<LocalNodeId<DependencyItem>> = items.to_vec();
-        write!(f, [list_like("{", "}", ",", &items_vec).include_space()])?;
+}
+
+impl<'ast> FormatNode<'ast> for ImportAttribute {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+        match self.name {
+            ImportAttributeName::Identifier(name) => write!(f, [name])?,
+            ImportAttributeName::String(name) => write!(f, [name])?,
+        }
+        write!(f, [token(":"), space(), self.value])
+    }
+}
+
+/// Format one import clause and its module source.
+pub(crate) fn format_import<'ast>(
+    source: StringLiteral,
+    clause: Option<&ImportClause>,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    match clause {
+        None => source.format(f),
+        Some(ImportClause::Default { local }) => {
+            write!(f, [local, space(), Keyword::From, space(), source])
+        }
+        Some(ImportClause::Namespace { default, local }) => {
+            if let Some(default) = default {
+                write!(f, [default, token(","), space()])?;
+            }
+            write!(
+                f,
+                [
+                    token("*"),
+                    space(),
+                    Keyword::As,
+                    space(),
+                    local,
+                    space(),
+                    Keyword::From,
+                    space(),
+                    source
+                ]
+            )
+        }
+        Some(ImportClause::Named {
+            default,
+            specifiers,
+        }) => {
+            if let Some(default) = default {
+                write!(f, [default, token(","), space()])?;
+            }
+            format_specifiers(specifiers, f)?;
+            write!(f, [space(), Keyword::From, space(), source])
+        }
+    }
+}
+
+/// Format one local export clause.
+pub(crate) fn format_export<'ast>(
+    specifiers: &[LocalNodeId<ExportSpecifier>],
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    format_specifiers(specifiers, f)
+}
+
+/// Format one re-export clause and its module source.
+pub(crate) fn format_re_export<'ast>(
+    source: StringLiteral,
+    specifiers: &[LocalNodeId<ReExportSpecifier>],
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    format_specifiers(specifiers, f)?;
+
+    write!(f, [space(), Keyword::From, space(), source])
+}
+
+/// Format one braced sequence of import or export specifiers.
+fn format_specifiers<'ast, T>(
+    specifiers: &[LocalNodeId<T>],
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()>
+where
+    T: FormatNode<'ast>,
+    Tree: TreeStore<T>,
+{
+    write!(f, [token("{")])?;
+    if !specifiers.is_empty() {
+        write!(f, [space()])?;
     }
 
-    // from target
-    if let Some(target) = target {
-        write!(f, [space(), Keyword::From, space()])?;
-
-        format_string_literal_with_source_span(target, target_span, f)?;
+    for (index, specifier) in specifiers.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        write!(f, [specifier])?;
     }
 
-    Ok(())
+    if !specifiers.is_empty() {
+        write!(f, [space()])?;
+    }
+    write!(f, [token("}")])
+}
+
+/// Format one named import, expanding aliases after symbol renaming.
+fn format_named_import<'ast>(
+    imported: ModuleExportName,
+    local: Identifier,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let local_name = local.emitted_name(f.context().symbols);
+    let is_shorthand = imported.value() == local_name;
+
+    if is_shorthand {
+        format_attributed(imported.provenance(), None, f, |f| local.format(f))
+    } else {
+        write!(f, [imported, space(), Keyword::As, space(), local])
+    }
 }

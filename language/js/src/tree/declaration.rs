@@ -2,36 +2,32 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, ExportKind, Expression, FunctionSignature, LocalNodeId, Member, Name, Node, NodeType,
+    Block, Expression, FunctionSignature, Identifier, LocalNodeId, Member, Node, NodeType,
 };
 
-/// A class declaration.
+/// One class declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ClassDeclaration {
     /// The declared name.
-    pub name: Option<Name>,
-    /// The export binding of the declaration.
-    pub export: Option<ExportKind>,
+    pub name: Option<Identifier>,
     /// The optional extended class expression.
     pub extends_expression: Option<LocalNodeId<Expression>>,
     /// The class members.
     pub members: Vec<LocalNodeId<Member>>,
 }
 
-/// A function declaration.
+/// One function declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct FunctionDeclaration {
     /// The declared name.
-    pub name: Option<Name>,
-    /// The export binding of the declaration.
-    pub export: Option<ExportKind>,
+    pub name: Option<Identifier>,
     /// The function signature.
     pub signature: FunctionSignature,
     /// The function body.
     pub body: LocalNodeId<Block>,
 }
 
-/// A declaration item.
+/// One class or function declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Declaration {
     /// Class declaration.

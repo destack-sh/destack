@@ -1,43 +1,41 @@
 use std::marker::PhantomData;
 
-use crate::{Argument, LocalNodeId, Node, Parameter, Tree, TreeImpl};
-use destack_fir::format::{BestFittingMode, FormatResult};
+use crate::{Argument, Parameter};
+use destack_fir::format::{BestFittingMode, Format, FormatResult};
 
 use crate::{Context, FormatNode, Formatter};
 
 use destack_fir::prelude::*;
 use destack_fir::{best_fitting, format_args, write};
 
-/// One JavaScript delimited list formatter.
+/// One delimited JavaScript list.
 #[derive(Debug, Clone, PartialEq)]
-pub(crate) struct ListLike<'ast, 'e, T>
+pub(crate) struct DelimitedList<'ast, 'e, T>
 where
-    T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    T: Format<'ast, Context<'ast>>,
 {
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
     include_space: bool,
-    trailing_separator: TrailingSeparatorMode,
-    elements: &'e [LocalNodeId<T>],
+    trailing_separator: TrailingSeparator,
+    elements: &'e [T],
 
     _phantom: PhantomData<&'ast ()>,
 }
 
-/// The trailing separator policy for one list-like formatter.
+/// The trailing separator policy for one delimited list.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TrailingSeparatorMode {
+pub(crate) enum TrailingSeparator {
     /// Never emit one trailing separator.
     Never,
     /// Emit one trailing separator only when the group breaks.
-    Break,
+    IfBreaks,
 }
 
-impl<'ast, 'e, T> ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> DelimitedList<'ast, 'e, T>
 where
-    T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    T: Format<'ast, Context<'ast>>,
 {
     /// Include spaces inside the delimiters when the list stays inline.
     pub(crate) fn include_space(&mut self) -> &mut Self {
@@ -47,21 +45,20 @@ where
 
     /// Never emit a trailing separator.
     pub(crate) fn without_trailing_separator(&mut self) -> &mut Self {
-        self.trailing_separator = TrailingSeparatorMode::Never;
+        self.trailing_separator = TrailingSeparator::Never;
         self
     }
 }
 
-impl<'ast, 'e, T> Format<'ast, Context<'ast>> for ListLike<'ast, 'e, T>
+impl<'ast, 'e, T> Format<'ast, Context<'ast>> for DelimitedList<'ast, 'e, T>
 where
-    T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    T: Format<'ast, Context<'ast>>,
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         let body = &format_with(|f| {
             // leading space
-            if self.include_space {
+            if self.include_space && !self.elements.is_empty() {
                 write!(f, [if_group_fits_on_line(&space())])?;
             }
 
@@ -75,8 +72,8 @@ where
 
             // trailing separator
             match self.trailing_separator {
-                TrailingSeparatorMode::Never => {}
-                TrailingSeparatorMode::Break => {
+                TrailingSeparator::Never => {}
+                TrailingSeparator::IfBreaks => {
                     write!(f, [if_group_breaks(&token(self.separator))])?;
                 }
             }
@@ -102,7 +99,7 @@ where
             .should_expand(true)
             .format(f)
         });
-        // if overall better fit, expand without indenting the
+        // otherwise expand the body without adding indentation
         let format_inline_expanded = format_with(|f| {
             write!(
                 f,
@@ -122,37 +119,29 @@ where
     }
 }
 
-/// List like group for `elements`:
-///  - beginning with `start_token`
-///  - ending with `end_token`
-///  - separated by `separator`
-pub(crate) fn list_like<'ast, 'e, T>(
+/// Format elements between tokens with one separator.
+pub(crate) fn delimited<'ast, 'e, T>(
     start_token: &'static str,
     end_token: &'static str,
     separator: &'static str,
-    elements: &'e [LocalNodeId<T>],
-) -> ListLike<'ast, 'e, T>
+    elements: &'e [T],
+) -> DelimitedList<'ast, 'e, T>
 where
-    T: Node + Clone + FormatNode<'ast, T>,
-    Tree: TreeImpl<T>,
+    T: Format<'ast, Context<'ast>>,
 {
-    ListLike {
+    DelimitedList {
         start_token,
         end_token,
         separator,
         include_space: false,
-        trailing_separator: TrailingSeparatorMode::Break,
+        trailing_separator: TrailingSeparator::IfBreaks,
         elements,
         _phantom: PhantomData,
     }
 }
 
-impl<'ast> FormatNode<'ast, Parameter> for Parameter {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Parameter>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Parameter {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Parameter::Named { name, default } => {
                 write!(f, [name])?;
@@ -182,12 +171,8 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     }
 }
 
-impl<'ast> FormatNode<'ast, Argument> for Argument {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Argument>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Argument {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Argument::Positional { value } => {
                 write!(f, [value])?;

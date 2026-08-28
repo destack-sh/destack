@@ -1,14 +1,10 @@
-use crate::{Declarator, FormatNode, Formatter, LocalNodeId};
+use crate::{Declarator, FormatNode, Formatter};
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-impl<'ast> FormatNode<'ast, Declarator> for Declarator {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Declarator>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Declarator {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         let Declarator { pattern, value } = self;
 
         // pattern

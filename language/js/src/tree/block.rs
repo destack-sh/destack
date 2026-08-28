@@ -14,7 +14,7 @@ impl Node for Block {
     const TYPE: NodeType = NodeType::Block;
 }
 
-/// A catch clause.
+/// One catch clause.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct CatchClause {
     /// The optional catch pattern.
@@ -27,13 +27,13 @@ impl Node for CatchClause {
     const TYPE: NodeType = NodeType::CatchClause;
 }
 
-/// A switch case.
+/// One switch case.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct SwitchCase {
     /// The optional case selector.
     pub value: Option<LocalNodeId<Expression>>,
-    /// The body of the case.
-    pub body: LocalNodeId<Block>,
+    /// The statements selected by the case.
+    pub body: Vec<LocalNodeId<Statement>>,
 }
 
 impl Node for SwitchCase {

@@ -1,24 +1,52 @@
-use crate::{Expression, LocalNodeId};
-use destack_core::StringId;
+use crate::{Expression, Identifier, IdentifierName, LocalNodeId, StringLiteral};
 
+use destack_core::StringId;
 use destack_serde::Reflect;
+use destack_source::ProvenanceId;
 use serde::{Deserialize, Serialize};
-/// A Name is a regular or string identifier.
+/// One ECMAScript property name.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Name {
-    /// A regular identifier (regular `x` or `someThing`).
-    Identifier(StringId),
-    /// A string identifier (like `["Content-Type"]`, only in certain contexts).
-    String(StringId),
+pub enum PropertyName {
+    /// One fixed identifier name.
+    Identifier(IdentifierName),
+    /// One string literal name.
+    String(StringLiteral),
+    /// One computed property name.
+    Computed(LocalNodeId<Expression>),
 }
 
-/// A Key is a name or a dynamic key.
+/// One ECMAScript class element name.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
-pub enum Key {
-    /// Name (like `x` or `someThing`).
-    Name(Name),
-    /// Private name (like `#x`).
-    Private(StringId),
-    /// Dynamic key (like `["Content-Type"]`).
-    Expression(LocalNodeId<Expression>),
+pub enum ClassElementName {
+    /// One public property name.
+    Public(PropertyName),
+    /// One private identifier.
+    Private(Identifier),
+}
+
+/// One ECMAScript module export name.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
+pub enum ModuleExportName {
+    /// One identifier name.
+    Identifier(IdentifierName),
+    /// One string literal name.
+    String(StringLiteral),
+}
+
+impl ModuleExportName {
+    /// Return the ECMAScript string value of this name.
+    pub const fn value(self) -> StringId {
+        match self {
+            Self::Identifier(name) => name.text,
+            Self::String(name) => name.value,
+        }
+    }
+
+    /// Return the provenance of this name.
+    pub const fn provenance(self) -> ProvenanceId {
+        match self {
+            Self::Identifier(name) => name.provenance,
+            Self::String(name) => name.provenance,
+        }
+    }
 }

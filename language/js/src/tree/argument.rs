@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Expression, LocalNodeId, Node, NodeType, Pattern, StringId};
+use crate::{Expression, Identifier, LocalNodeId, Node, NodeType, Pattern};
 
 /// Runtime modifiers of one class member.
 #[derive(Debug, Copy, Clone, PartialEq, Default, Serialize, Deserialize, Reflect)]
@@ -12,21 +12,21 @@ pub struct MemberModifier {
     pub is_accessor: bool,
 }
 
-/// Named or positional parameter to some construct.
+/// One JavaScript function parameter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Parameter {
-    /// Named parameter (like `x: int32` or `Validate: boolean = true`).
+    /// Named parameter like `value` or `validate = true`.
     Named {
-        name: StringId,
+        name: Identifier,
         default: Option<LocalNodeId<Expression>>,
     },
-    /// Pattern parameter (like `_` or `{ x }` or `{ x, ..rest }: MyType = Foo`).
+    /// Pattern parameter like `{ value, ...rest } = source`.
     Pattern {
         pattern: LocalNodeId<Pattern>,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Variadic parameter with a named binding (like `...args: int32[]`).
-    VariadicNamed { name: StringId },
+    VariadicNamed { name: Identifier },
     /// Variadic parameter with a pattern binding (like `...[a, b]`).
     VariadicPattern { pattern: LocalNodeId<Pattern> },
 }
@@ -35,7 +35,7 @@ impl Node for Parameter {
     const TYPE: NodeType = NodeType::Parameter;
 }
 
-/// Positional argument to some construct.
+/// One JavaScript call argument.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Argument {
     /// Positional argument (like `1` or `foo()`).

@@ -1,28 +1,21 @@
 use crate::format::function::{format_function_parameters, format_function_signature_parameters};
+use crate::format::identifier::format_shorthand;
 use crate::{
-    Asynchrony, FormatNode, Formatter, FunctionRole, FunctionSignature, Key, Keyword, LocalNodeId,
-    Member, MemberModifier, Property,
+    Asynchrony, Context, FormatNode, Formatter, FunctionRole, FunctionSignature, Keyword, Member,
+    MemberModifier, Property,
 };
-use destack_fir::format::FormatResult;
+use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-impl<'ast> FormatNode<'ast, Property> for Property {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Property>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Property {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
-            Self::Field {
-                key,
-                value,
-                is_shorthand,
-            } => {
-                write!(f, [key])?;
-                if !is_shorthand {
-                    write!(f, [token(":"), space(), value])?;
-                }
+            Self::Field { key, value } => {
+                write!(f, [key, token(":"), space(), value])?;
+            }
+            Self::Shorthand { value } => {
+                format_shorthand(*value, f)?;
             }
             Self::Method {
                 key,
@@ -30,7 +23,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
                 signature,
                 body,
             } => {
-                format_method(None, *key, *role, signature, f)?;
+                format_method(None, key, *role, signature, f)?;
                 write!(f, [space(), body])?;
             }
             Self::Spread { value } => {
@@ -42,12 +35,8 @@ impl<'ast> FormatNode<'ast, Property> for Property {
     }
 }
 
-impl<'ast> FormatNode<'ast, Member> for Member {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Member>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Member {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Self::Field {
                 modifiers,
@@ -67,7 +56,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
                 signature,
                 body,
             } => {
-                format_method(Some(*modifiers), *key, *role, signature, f)?;
+                format_method(Some(*modifiers), key, *role, signature, f)?;
                 write!(f, [space(), body])?;
             }
             Self::Constructor { parameters, body } => {
@@ -85,13 +74,16 @@ impl<'ast> FormatNode<'ast, Member> for Member {
 }
 
 /// Format one method header.
-fn format_method<'ast>(
+fn format_method<'ast, T>(
     modifiers: Option<MemberModifier>,
-    key: Key,
+    key: &T,
     role: Option<FunctionRole>,
     signature: &FunctionSignature,
     f: &mut Formatter<'ast, '_>,
-) -> FormatResult<()> {
+) -> FormatResult<()>
+where
+    T: Format<'ast, Context<'ast>>,
+{
     if let Some(modifiers) = modifiers {
         format_member_modifiers(modifiers, f)?;
     }
@@ -104,7 +96,7 @@ fn format_method<'ast>(
     if signature.is_generator {
         write!(f, [token("*")])?;
     }
-    write!(f, [key])?;
+    key.format(f)?;
 
     format_function_signature_parameters(signature, f)
 }

@@ -12,31 +12,20 @@ pub(crate) fn format_block_of_statements<'ast>(
     let mut printed_any = false;
 
     // emit each statement with the pretty block separator
-    for statement_id in statements.iter().copied() {
-        let statement = f.context().tree.get(statement_id);
-
+    for statement_id in statements {
         if printed_any {
             write!(f, [hard_line_break()])?;
         }
 
         write!(f, [statement_id])?;
         printed_any = true;
-
-        // terminate statements that require semicolons
-        if statement.needs_semicolon() {
-            write!(f, [token(";")])?;
-        }
     }
 
     Ok(())
 }
 
-impl<'ast> FormatNode<'ast, Block> for Block {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<Block>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Block {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         // preserve multiline block layout
         write!(
             f,

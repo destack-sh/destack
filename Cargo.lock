@@ -1096,13 +1096,11 @@ name = "destack_js"
 version = "2026.8.3"
 dependencies = [
  "destack_core",
- "destack_dir",
  "destack_fir",
  "destack_serde",
  "destack_source",
  "serde",
  "serde_json",
- "smallvec",
 ]
 
 [[package]]

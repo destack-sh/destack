@@ -1,4 +1,4 @@
-use crate::format::argument::list_like;
+use crate::format::argument::delimited;
 use crate::{Formatter, FunctionSignature, LocalNodeId, Parameter};
 use destack_fir::format::FormatResult;
 use destack_fir::write;
@@ -16,5 +16,5 @@ pub(crate) fn format_function_parameters<'ast>(
     parameters: &[LocalNodeId<Parameter>],
     f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
-    write!(f, [list_like("(", ")", ",", parameters)])
+    write!(f, [delimited("(", ")", ",", parameters)])
 }

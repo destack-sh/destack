@@ -69,7 +69,6 @@ keywords! {
 
     Extends => "extends", true;
     Implements => "implements", true;
-    Assert => "assert", false;
     InstanceOf => "instanceof", true;
     Typeof => "typeof", true;
     In => "in", true;

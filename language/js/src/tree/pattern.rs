@@ -1,23 +1,23 @@
-use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
+use crate::{Expression, Identifier, LocalNodeId, Node, NodeType, PropertyName};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// A Pattern is a pattern to match something and unwrap it.
+/// One JavaScript binding pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Pattern {
     /// Binding pattern (like `x`).
-    Binding { name: StringId },
+    Binding { identifier: Identifier },
     /// Assignment pattern (like `x = 1`).
     Assign {
         pattern: LocalNodeId<Pattern>,
         value: LocalNodeId<Expression>,
     },
-    /// Array pattern (like `[1, 2, .., x, 3]`).
+    /// Array pattern like `[a, , ...rest]`.
     Array {
         fields: Vec<LocalNodeId<PatternField>>,
     },
-    /// Object pattern (like `{ a: 1, b: 2, ..., x: 3 }`).
+    /// Object pattern like `{ a, b: value, ...rest }`.
     Object {
         fields: Vec<LocalNodeId<PatternField>>,
     },
@@ -29,23 +29,18 @@ impl Node for Pattern {
     const TYPE: NodeType = NodeType::Pattern;
 }
 
-/// A PatternField is a field in a pattern (object, array, etc.).
+/// One field in a binding pattern.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum PatternField {
     /// Named pattern field like `x: y`.
     Named {
-        name: StringId,
+        name: PropertyName,
         pattern: LocalNodeId<Pattern>,
     },
     /// Shorthand pattern field like `x` or `x = 4`.
     Shorthand {
-        name: StringId,
+        identifier: Identifier,
         value: Option<LocalNodeId<Expression>>,
-    },
-    /// Computed pattern field (like `[key]: value`).
-    Computed {
-        key: LocalNodeId<Expression>,
-        pattern: LocalNodeId<Pattern>,
     },
     /// Positional field with a pattern (like `4` or `x = 1`).
     Positional { pattern: LocalNodeId<Pattern> },
@@ -59,7 +54,7 @@ impl Node for PatternField {
     const TYPE: NodeType = NodeType::PatternField;
 }
 
-/// An AssignPattern is one assignment left hand side.
+/// One destructuring assignment target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPattern {
     /// Expression target like `x`, `obj.x`, or `obj[key]`.
@@ -83,23 +78,18 @@ impl Node for AssignPattern {
     const TYPE: NodeType = NodeType::AssignPattern;
 }
 
-/// An AssignPatternField is one field in a destructuring assignment target.
+/// One field in a destructuring assignment target.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignPatternField {
     /// Named field like `{ x: y }`.
     Named {
-        name: Name,
+        name: PropertyName,
         pattern: LocalNodeId<AssignPattern>,
     },
     /// Shorthand field like `{ x }` or `{ x = 4 }`.
     Shorthand {
-        name: Name,
+        identifier: Identifier,
         value: Option<LocalNodeId<Expression>>,
-    },
-    /// Computed field like `{ [key]: value }`.
-    Computed {
-        key: LocalNodeId<Expression>,
-        pattern: LocalNodeId<AssignPattern>,
     },
     /// Positional field like `[value]`.
     Positional { pattern: LocalNodeId<AssignPattern> },

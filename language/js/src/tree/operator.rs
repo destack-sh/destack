@@ -117,7 +117,7 @@ pub enum BinaryOperator {
     InstanceOf,
 }
 
-/// Assignment operator.
+/// One assignment operator.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AssignOperator {
     /// `+=`

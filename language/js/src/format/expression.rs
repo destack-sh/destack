@@ -1,26 +1,19 @@
 use crate::tree::Precedence;
 use crate::{
-    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, Literal,
-    LocalNodeId, UnaryOperator,
+    ArrayElement, ArrowFunctionBody, Asynchrony, BinaryOperator, Expression, Keyword, LocalNodeId,
+    UnaryOperator, format_attributed,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::NodeSpanType;
 
-use crate::format::argument::list_like;
+use crate::format::argument::delimited;
 use crate::format::function::format_function_parameters;
-use crate::format::literal::{
-    format_scalar_literal, format_string_literal_with_source_span, format_template_literal,
-};
+use crate::format::literal::{format_scalar_literal, format_template_literal};
 use crate::{FormatNode, Formatter};
 
-impl<'ast> FormatNode<'ast, ArrayElement> for ArrayElement {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<ArrayElement>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for ArrayElement {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             ArrayElement::Expression { value } => {
                 write!(f, [value])?;
@@ -35,24 +28,18 @@ impl<'ast> FormatNode<'ast, ArrayElement> for ArrayElement {
     }
 }
 
-impl<'ast> FormatNode<'ast, Expression> for Expression {
-    fn format_node(
-        &self,
-        node_id: LocalNodeId<Expression>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
-        format_expression_with_precedence(node_id, self, Precedence::Lowest, f)
+impl<'ast> FormatNode<'ast> for Expression {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+        format_expression_with_precedence(self, Precedence::Lowest, f)
     }
 }
 
 /// Format one expression with one required parent precedence.
 fn format_expression_with_precedence<'ast>(
-    node_id: LocalNodeId<Expression>,
     expression: &Expression,
     parent_precedence: Precedence,
     f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
-    let expression = Expression::without_parentheses(f.context().tree, expression);
     let current_precedence = expression.precedence();
     let needs_wrap = current_precedence < parent_precedence;
 
@@ -89,8 +76,8 @@ fn format_expression_with_precedence<'ast>(
                 }
             }
         }
-        Expression::Path { path } => {
-            write!(f, [path])?;
+        Expression::Identifier { identifier } => {
+            write!(f, [identifier])?;
         }
         Expression::ImportMeta => {
             write!(f, [token("import"), token("."), token("meta")])?;
@@ -101,8 +88,8 @@ fn format_expression_with_precedence<'ast>(
         Expression::Super => {
             write!(f, [Keyword::Super])?;
         }
-        Expression::PrivateIdentifier { name } => {
-            write!(f, [token("#"), *name])?;
+        Expression::PrivateIdentifier { identifier } => {
+            write!(f, [token("#"), identifier])?;
         }
         Expression::Literal { value } => {
             format_scalar_literal(value, f)?;
@@ -111,7 +98,7 @@ fn format_expression_with_precedence<'ast>(
             format_template_literal(value, f)?;
         }
         Expression::ArrayLiteral { elements } => {
-            write!(f, [list_like("[", "]", ",", elements)])?;
+            write!(f, [delimited("[", "]", ",", elements)])?;
         }
         Expression::SequenceExpression { expressions } => {
             for (index, expression_id) in expressions.iter().enumerate() {
@@ -123,12 +110,14 @@ fn format_expression_with_precedence<'ast>(
             }
         }
         Expression::ObjectLiteral { properties } => {
-            let mut properties = list_like("{", "}", ",", properties);
+            let mut properties = delimited("{", "}", ",", properties);
             properties.include_space();
             write!(f, [properties])?;
         }
-        Expression::Parenthesized { .. } => {
-            unreachable!("parenthesized expressions are unwrapped")
+        Expression::Parenthesized { expression } => {
+            write!(f, [token("(")])?;
+            format_expression_id_with_precedence(*expression, Precedence::Lowest, f)?;
+            write!(f, [token(")")])?;
         }
         Expression::InstanceOf { value, target } => {
             format_expression_id_with_precedence(*value, Precedence::Compare, f)?;
@@ -205,16 +194,17 @@ fn format_expression_with_precedence<'ast>(
             format_expression_id_with_precedence(*right, Precedence::Assignment, f)?;
         }
         Expression::Member {
-            left,
-            name,
+            object,
+            property,
             is_optional,
         } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-            write!(f, [token(if *is_optional { "?." } else { "." }), *name])?;
+            format_expression_id_with_precedence(*object, Precedence::Postfix, f)?;
+            write!(f, [token(if *is_optional { "?." } else { "." })])?;
+            write!(f, [property])?;
         }
-        Expression::PrivateMember { left, name } => {
-            format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
-            write!(f, [token("."), token("#"), *name])?;
+        Expression::PrivateMember { object, property } => {
+            format_expression_id_with_precedence(*object, Precedence::Postfix, f)?;
+            write!(f, [token("."), token("#"), property])?;
         }
         Expression::Index {
             left,
@@ -233,33 +223,17 @@ fn format_expression_with_precedence<'ast>(
         } => {
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
             let open = if *is_optional { "?.(" } else { "(" };
-            let mut arguments = list_like(open, ")", ",", arguments);
+            let mut arguments = delimited(open, ")", ",", arguments);
             arguments.without_trailing_separator();
             write!(f, [arguments])?;
         }
-        Expression::ImportCall {
-            target,
-            target_module: _,
-            arguments,
-        } => {
-            let target_expression = f.context().tree.get(*target);
-            let target_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
-
+        Expression::ImportCall { target, arguments } => {
             write!(f, [token("import"), token("(")])?;
-
-            // exact target literal span
-            if let Expression::Literal {
-                value: Literal::String(value),
-            } = target_expression
-            {
-                format_string_literal_with_source_span(*value, target_span, f)?;
-            } else {
-                format_expression_id_with_precedence(*target, Precedence::Lowest, f)?;
-            }
+            format_expression_id_with_precedence(*target, Precedence::Lowest, f)?;
 
             if !arguments.is_empty() {
                 write!(f, [token(","), space()])?;
-                let mut arguments = list_like("", "", ",", arguments);
+                let mut arguments = delimited("", "", ",", arguments);
                 arguments.without_trailing_separator();
                 write!(f, [arguments])?;
             }
@@ -270,7 +244,7 @@ fn format_expression_with_precedence<'ast>(
             write!(f, [token("new"), space()])?;
             format_expression_id_with_precedence(*left, Precedence::Postfix, f)?;
 
-            let mut arguments = list_like("(", ")", ",", arguments);
+            let mut arguments = delimited("(", ")", ",", arguments);
             arguments.without_trailing_separator();
             write!(f, [arguments])?;
         }
@@ -286,9 +260,6 @@ fn format_expression_with_precedence<'ast>(
 
             format_expression_id_with_precedence(*else_expression, Precedence::Assignment, f)?;
         }
-        Expression::Error => {
-            write!(f, [token("/* ERROR */")])?;
-        }
     }
 
     // outer wrap
@@ -300,12 +271,16 @@ fn format_expression_with_precedence<'ast>(
 }
 
 /// Format one expression id with one required parent precedence.
-fn format_expression_id_with_precedence<'ast>(
+pub(crate) fn format_expression_id_with_precedence<'ast>(
     expression_id: LocalNodeId<Expression>,
     parent_precedence: Precedence,
     f: &mut Formatter<'ast, '_>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
 
-    format_expression_with_precedence(expression_id, expression, parent_precedence, f)
+    let provenance = f.context().tree.provenance(expression_id);
+
+    format_attributed(provenance, None, f, |f| {
+        format_expression_with_precedence(expression, parent_precedence, f)
+    })
 }

@@ -2,58 +2,52 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyItem,
-    Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, Property, StringId, SwitchCase,
+    AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, ExportKind,
+    ExportSpecifier, Expression, Identifier, ImportAttribute, ImportClause, LocalNodeId,
+    ModuleExportName, Mutability, Node, NodeType, Pattern, ReExportSpecifier, StringLiteral,
+    SwitchCase,
 };
-use destack_source::ModuleId;
 
-/// The kind of one dependency attribute clause.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum DependencyAttributeClauseKind {
-    /// The standard `with` attribute clause keyword.
-    With,
-    /// The legacy `assert` attribute clause keyword.
-    Assert,
-}
-
-/// One dependency attribute clause.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct DependencyAttributeClause {
-    /// The clause introducer.
-    pub kind: DependencyAttributeClauseKind,
-    /// The attribute entries inside the clause body.
-    pub properties: Vec<LocalNodeId<Property>>,
-}
-
-/// A JavaScript statement in some container or block.
+/// One JavaScript statement.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Statement {
     /// Import items.
     Import {
-        target: StringId,
-        target_module: Option<ModuleId>,
-        items: Option<Vec<LocalNodeId<DependencyItem>>>,
-        attributes: Option<DependencyAttributeClause>,
+        source: StringLiteral,
+        clause: Option<ImportClause>,
+        attributes: Option<Vec<LocalNodeId<ImportAttribute>>>,
     },
-    /// Export items.
+    /// Export local bindings.
     Export {
-        target: Option<StringId>,
-        target_module: Option<ModuleId>,
-        items: Vec<LocalNodeId<DependencyItem>>,
-        attributes: Option<DependencyAttributeClause>,
+        specifiers: Vec<LocalNodeId<ExportSpecifier>>,
+    },
+    /// Re-export bindings from another module.
+    ReExport {
+        source: StringLiteral,
+        specifiers: Vec<LocalNodeId<ReExportSpecifier>>,
+        attributes: Option<Vec<LocalNodeId<ImportAttribute>>>,
+    },
+    /// Re-export every binding from another module.
+    ExportAll {
+        exported: Option<ModuleExportName>,
+        source: StringLiteral,
+        attributes: Option<Vec<LocalNodeId<ImportAttribute>>>,
     },
     /// Default export.
     ExportDefault { value: LocalNodeId<Expression> },
 
     /// Declaration statement.
     Declaration {
+        /// The declaration export.
+        export: Option<ExportKind>,
+        /// The declared class or function.
         declaration: LocalNodeId<Declaration>,
     },
     /// Block of statements.
     Block { block: LocalNodeId<Block> },
     /// Labelled statement (like `label: stmt`).
     Labelled {
-        label: StringId,
+        label: Identifier,
         body: LocalNodeId<Statement>,
     },
 
@@ -136,9 +130,9 @@ pub enum Statement {
     /// Throw statement.
     Throw { value: LocalNodeId<Expression> },
     /// Continue statement.
-    Continue { label: Option<StringId> },
+    Continue { label: Option<Identifier> },
     /// Break statement.
-    Break { label: Option<StringId> },
+    Break { label: Option<Identifier> },
     /// Return statement.
     Return {
         value: Option<LocalNodeId<Expression>>,
@@ -175,10 +169,10 @@ pub enum ForInitialization {
 }
 
 impl Statement {
-    /// Returns true if this statement needs a trailing semicolon.
-    pub fn needs_semicolon(&self) -> bool {
+    /// Return whether this statement needs a trailing semicolon.
+    pub(crate) fn needs_semicolon(&self) -> bool {
         match self {
-            // block-based statements don't need semicolons
+            // statements ending in blocks
             Statement::If { .. }
             | Statement::While { .. }
             | Statement::For { .. }
@@ -189,12 +183,14 @@ impl Statement {
             | Statement::Block { .. }
             | Statement::Labelled { .. } => false,
 
-            // declarations (function, class, etc.) typically don't need semicolons
+            // declarations
             Statement::Declaration { .. } => false,
 
-            // all other statements need semicolons
+            // statements ending in semicolons
             Statement::Import { .. }
             | Statement::Export { .. }
+            | Statement::ReExport { .. }
+            | Statement::ExportAll { .. }
             | Statement::ExportDefault { .. }
             | Statement::Let { .. }
             | Statement::Var { .. }

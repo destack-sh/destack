@@ -1,4 +1,3 @@
-mod annotation;
 mod argument;
 mod block;
 mod context;
@@ -11,7 +10,6 @@ mod identifier;
 mod key;
 mod literal;
 mod operator;
-mod path;
 mod pattern;
 mod property;
 mod statement;

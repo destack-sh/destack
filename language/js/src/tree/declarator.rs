@@ -2,7 +2,7 @@ use crate::{Expression, LocalNodeId, Node, NodeType, Pattern};
 
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
-/// A Declarator is an individual variable declaration within a let/const/var statement.
+/// One variable declarator.
 /// For example, in `let a: T1 = v1, b: T2 = v2`, there are two declarators.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Declarator {

@@ -2,22 +2,23 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Block, Expression, FunctionRole, FunctionSignature, Key, LocalNodeId, MemberModifier, Node,
-    NodeType, Parameter,
+    Block, ClassElementName, Expression, FunctionRole, FunctionSignature, Identifier, LocalNodeId,
+    MemberModifier, Node, NodeType, Parameter, PropertyName,
 };
 
-/// A Property is a property of an object literal (may be a field, method, or spread).
+/// One object literal property.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Property {
     /// Named field such as `x: value`.
     Field {
-        key: Key,
+        key: PropertyName,
         value: LocalNodeId<Expression>,
-        is_shorthand: bool,
     },
+    /// One shorthand identifier field such as `x`.
+    Shorthand { value: Identifier },
     /// Named method such as `foo()`.
     Method {
-        key: Key,
+        key: PropertyName,
         role: Option<FunctionRole>,
         signature: FunctionSignature,
         body: LocalNodeId<Block>,
@@ -36,13 +37,13 @@ pub enum Member {
     /// Named field such as `x = value`.
     Field {
         modifiers: MemberModifier,
-        key: Key,
+        key: ClassElementName,
         default: Option<LocalNodeId<Expression>>,
     },
     /// Named method.
     Method {
         modifiers: MemberModifier,
-        key: Key,
+        key: ClassElementName,
         role: Option<FunctionRole>,
         signature: FunctionSignature,
         body: LocalNodeId<Block>,

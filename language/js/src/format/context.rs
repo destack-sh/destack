@@ -1,14 +1,10 @@
-use crate::{
-    Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
-    Declaration, Declarator, DependencyItem, Expression, LocalNodeId, LocalNodeIdAny, Member, Node,
-    NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Tree, TreeImpl,
-};
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_fir::format::{self, Format, FormatResult};
-use destack_fir::prelude::{hard_line_break, source_position};
+use std::collections::HashMap;
+
+use crate::{Identifier, LocalNodeId, Node, SymbolId, SymbolTable, Tree, TreeStore};
+use destack_core::{StringId, StringPool};
+use destack_fir::format::{self, Format, FormatElement, FormatResult, FormatTag};
 use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
-use destack_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
+use destack_source::{File, IndentStyle, LineEnding, ProvenanceId, TextNameId};
 
 /// The formatter for one JavaScript formatting pass.
 pub type Formatter<'context, 'state> = format::Formatter<'state, 'context, Context<'context>>;
@@ -125,49 +121,81 @@ pub struct Context<'a> {
     pub file: &'a File,
     /// The JavaScript tree.
     pub tree: &'a Tree,
-    /// Root nodes to format.
-    pub roots: &'a [LocalNodeIdAny],
     /// The string pool.
     pub strings: &'a StringPool,
-    /// The originating DIR tree when source markers are requested.
-    pub source: Option<&'a dir::Tree>,
+    /// The module symbols.
+    pub symbols: &'a SymbolTable,
+    /// Output name ids keyed by interned JavaScript names.
+    pub text_names: &'a HashMap<StringId, TextNameId>,
 }
 
-impl Context<'_> {
-    /// Return the source id for one lowered node when one exists.
-    fn source_id(&self, node_id: u32) -> Option<u32> {
-        let source = self.source?;
-        let origin = self.tree.get_origin(node_id)?;
+/// Format content under one provenance attribution.
+pub(crate) fn format_attributed<'ast>(
+    provenance: ProvenanceId,
+    name: Option<TextNameId>,
+    f: &mut Formatter<'ast, '_>,
+    content: impl FnOnce(&mut Formatter<'ast, '_>) -> FormatResult<()>,
+) -> FormatResult<()> {
+    f.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+        provenance,
+        name,
+    }));
+    content(f)?;
+    f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
 
-        // ignore nodes originating outside this source tree
-        if origin.module_id != source.module_id || !source.has_node_id(origin.node_id) {
-            return None;
+    Ok(())
+}
+
+/// Format one identifier with its occurrence and symbol provenance.
+pub(crate) fn format_identifier<'ast>(
+    identifier: Identifier,
+    f: &mut Formatter<'ast, '_>,
+) -> FormatResult<()> {
+    let text_name = text_name(identifier.original_name, f.context())?;
+
+    format_attributed(identifier.provenance, Some(text_name), f, |f| {
+        format_symbol(identifier.symbol, f)
+    })
+}
+
+/// Return the output name id for one interned JavaScript name.
+pub(crate) fn text_name(name: StringId, context: &Context<'_>) -> FormatResult<TextNameId> {
+    let Some(name) = context.text_names.get(&name).copied() else {
+        return Err(format::FormatError::SyntaxError {
+            message: "JavaScript name is absent from the output name table",
+        });
+    };
+
+    Ok(name)
+}
+
+/// Format one symbol through its complete link chain.
+fn format_symbol<'ast>(mut id: SymbolId, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
+    let mut depth = 0;
+
+    // open every symbol attribution from the occurrence symbol to its canonical symbol
+    loop {
+        let symbol = f.context().symbols.get(id);
+        f.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+            provenance: symbol.provenance,
+            name: None,
+        }));
+        depth += 1;
+
+        if symbol.link == id {
+            symbol.name.format(f)?;
+            break;
         }
 
-        Some(source.get_source(origin.node_id))
+        id = symbol.link;
     }
 
-    /// Return one source span for one lowered node when one exists.
-    #[inline]
-    pub fn source_span(&self, node_id: u32) -> Option<Span> {
-        let source = self.source?;
-        let source_id = self.source_id(node_id)?;
-
-        source.get_span_by_id(source_id)
+    // close the nested symbol attributions
+    for _ in 0..depth {
+        f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
     }
 
-    /// Return one source part span when one exists.
-    #[inline]
-    pub fn source_part_span(&self, node_id: u32, span_type: NodeSpanType) -> Option<Span> {
-        let source = self.source?;
-        let source_id = self.source_id(node_id)?;
-
-        match span_type {
-            NodeSpanType::Enclosing => source.get_span_by_id(source_id),
-            NodeSpanType::Main => source.get_main_span_by_id(source_id),
-            other => source.get_side_span_by_id(source_id, other),
-        }
-    }
+    Ok(())
 }
 
 impl<'a> format::FormatContext for Context<'a> {
@@ -185,75 +213,25 @@ impl<'a> format::FormatContext for Context<'a> {
 }
 
 /// Format one node with extra tree context.
-pub(crate) trait FormatNode<'a, T: Node>
+pub(crate) trait FormatNode<'a>: Node
 where
     Context<'a>: format::FormatContext,
 {
     /// Format one node.
-    fn format_node(&self, node_id: LocalNodeId<T>, f: &mut Formatter<'a, '_>) -> FormatResult<()>;
+    fn format_node(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()>;
 }
 
-impl<'a, T: Node> Format<'a, Context<'a>> for LocalNodeId<T>
+impl<'a, T> Format<'a, Context<'a>> for LocalNodeId<T>
 where
-    T: Node + Clone,
-    Tree: TreeImpl<T>,
-    T: FormatNode<'a, T>,
+    T: FormatNode<'a>,
+    Tree: TreeStore<T>,
 {
     #[inline]
     fn format(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()> {
-        let context = f.context();
-        let source_span = context.source_span(self.id);
-        let node = context.tree.get(*self);
+        let node = f.context().tree.get(*self);
 
-        // carry source markers when one caller has attached them
-        if let Some(source_span) = source_span {
-            source_position(source_span.start).format(f)?;
-        }
+        let provenance = f.context().tree.provenance(*self);
 
-        node.format_node(*self, f)?;
-
-        if let Some(source_span) = source_span {
-            source_position(source_span.end).format(f)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl<'a> Format<'a, Context<'a>> for LocalNodeIdAny {
-    #[inline]
-    fn format(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()> {
-        match self.ty {
-            NodeType::Block => LocalNodeId::<Block>::new(self.id).format(f),
-            NodeType::CatchClause => LocalNodeId::<CatchClause>::new(self.id).format(f),
-            NodeType::Statement => LocalNodeId::<Statement>::new(self.id).format(f),
-            NodeType::Expression => LocalNodeId::<Expression>::new(self.id).format(f),
-            NodeType::ArrayElement => LocalNodeId::<ArrayElement>::new(self.id).format(f),
-            NodeType::Declaration => LocalNodeId::<Declaration>::new(self.id).format(f),
-            NodeType::Property => LocalNodeId::<Property>::new(self.id).format(f),
-            NodeType::Member => LocalNodeId::<Member>::new(self.id).format(f),
-            NodeType::DependencyItem => LocalNodeId::<DependencyItem>::new(self.id).format(f),
-            NodeType::SwitchCase => LocalNodeId::<SwitchCase>::new(self.id).format(f),
-            NodeType::Pattern => LocalNodeId::<Pattern>::new(self.id).format(f),
-            NodeType::PatternField => LocalNodeId::<PatternField>::new(self.id).format(f),
-            NodeType::AssignPattern => LocalNodeId::<AssignPattern>::new(self.id).format(f),
-            NodeType::AssignPatternField => {
-                LocalNodeId::<AssignPatternField>::new(self.id).format(f)
-            }
-            NodeType::Parameter => LocalNodeId::<Parameter>::new(self.id).format(f),
-            NodeType::Argument => LocalNodeId::<Argument>::new(self.id).format(f),
-            NodeType::Annotation => LocalNodeId::<Annotation>::new(self.id).format(f),
-            NodeType::Declarator => LocalNodeId::<Declarator>::new(self.id).format(f),
-        }
-    }
-}
-
-impl<'a> Format<'a, Context<'a>> for Context<'a> {
-    #[inline]
-    fn format(&self, f: &mut Formatter<'a, '_>) -> FormatResult<()> {
-        f.join_with(hard_line_break())
-            .entries(self.roots)
-            .finish()?;
-        Ok(())
+        format_attributed(provenance, None, f, |f| node.format_node(f))
     }
 }

@@ -1,4 +1,6 @@
+use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 use destack_serde::Reflect;
@@ -25,8 +27,14 @@ pub enum NodeType {
     Property,
     /// Class member.
     Member,
-    /// Dependency item.
-    DependencyItem,
+    /// Import specifier.
+    ImportSpecifier,
+    /// Export specifier.
+    ExportSpecifier,
+    /// Re-export specifier.
+    ReExportSpecifier,
+    /// Import attribute.
+    ImportAttribute,
     /// Switch case.
     SwitchCase,
     /// Binding pattern.
@@ -41,59 +49,25 @@ pub enum NodeType {
     Parameter,
     /// Call argument.
     Argument,
-    /// Annotation.
-    Annotation,
 }
 
-impl NodeType {
-    /// Get the name of the node type.
-    #[inline]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::Block => "block",
-            Self::CatchClause => "catch clause",
-            Self::Statement => "statement",
-            Self::Expression => "expression",
-            Self::ArrayElement => "array element",
-            Self::Declaration => "declaration",
-            Self::Declarator => "declarator",
-            Self::Property => "property",
-            Self::Member => "member",
-            Self::DependencyItem => "dependency item",
-            Self::SwitchCase => "switch case",
-            Self::Pattern => "pattern",
-            Self::PatternField => "pattern field",
-            Self::AssignPattern => "assign pattern",
-            Self::AssignPatternField => "assignment pattern field",
-            Self::Parameter => "parameter",
-            Self::Argument => "argument",
-            Self::Annotation => "annotation",
-        }
-    }
-}
-
-/// Unique identifier for nodes with dynamic type.
+/// One untyped tree-local node identifier.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct LocalNodeIdAny {
     /// The tree node id.
     pub id: u32,
-    /// The node type.
-    pub ty: NodeType,
 }
 
 impl LocalNodeIdAny {
     /// Create an untyped node id.
-    pub fn new(id: u32, ty: NodeType) -> Self {
-        Self { id, ty }
+    pub fn new(id: u32) -> Self {
+        Self { id }
     }
 }
 
 impl<T: Node> From<LocalNodeId<T>> for LocalNodeIdAny {
     fn from(id: LocalNodeId<T>) -> Self {
-        Self {
-            id: id.id,
-            ty: T::TYPE,
-        }
+        Self { id: id.id }
     }
 }
 
@@ -101,33 +75,13 @@ impl Debug for LocalNodeIdAny {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LocalNodeIdAny")
             .field("id", &self.id)
-            .field("type", &self.ty)
             .finish()
     }
 }
 
-impl<T: Node> TryFrom<LocalNodeIdAny> for LocalNodeId<T> {
-    type Error = String;
-
-    fn try_from(id: LocalNodeIdAny) -> Result<Self, Self::Error> {
-        if id.ty != T::TYPE {
-            return Err(format!(
-                "expected {}, got {} for {:?}",
-                T::TYPE.name(),
-                id.ty.name(),
-                id
-            ));
-        }
-        Ok(Self {
-            id: id.id,
-            _ty: PhantomData,
-        })
-    }
-}
-
-/// Unique identifier for nodes in a local arena, parameterized by node type.
+/// One tree-local node identifier parameterized by node type.
 #[repr(transparent)]
-#[derive(Clone, Eq, PartialEq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]
+#[derive(Serialize, Deserialize, Reflect)]
 #[serde(bound = "")]
 pub struct LocalNodeId<T: Node> {
     /// The tree node id.
@@ -149,10 +103,41 @@ impl<T: Node> LocalNodeId<T> {
     /// Erase the node type.
     #[inline]
     pub fn into_any(self) -> LocalNodeIdAny {
-        LocalNodeIdAny {
-            id: self.id,
-            ty: T::TYPE,
-        }
+        LocalNodeIdAny { id: self.id }
+    }
+}
+
+impl<T: Node> Clone for LocalNodeId<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<T: Node> Copy for LocalNodeId<T> {}
+
+impl<T: Node> PartialEq for LocalNodeId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.id == other.id
+    }
+}
+
+impl<T: Node> Eq for LocalNodeId<T> {}
+
+impl<T: Node> PartialOrd for LocalNodeId<T> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<T: Node> Ord for LocalNodeId<T> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.id.cmp(&other.id)
+    }
+}
+
+impl<T: Node> Hash for LocalNodeId<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.id.hash(state);
     }
 }
 
@@ -162,10 +147,7 @@ impl<T: Node> Debug for LocalNodeId<T> {
     }
 }
 
-/// Manually mark as Copy since PhantomData over T breaks Copy otherwise.
-impl<T: Clone + Node> Copy for LocalNodeId<T> {}
-
-/// A Node.
+/// One JavaScript tree node.
 pub trait Node: Sized {
     /// The concrete node type.
     const TYPE: NodeType;

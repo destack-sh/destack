@@ -1,36 +1,27 @@
-use crate::format::argument::list_like;
-use crate::format::dependency::{format_export_binding, format_import_binding};
+use crate::format::argument::delimited;
+use crate::format::dependency::{format_export, format_import, format_re_export};
 use crate::{
-    Asynchrony, BindingKeyword, CatchClause, Declarator, DependencyAttributeClause,
-    DependencyAttributeClauseKind, ForInitialization, FormatNode, Formatter, Keyword, LocalNodeId,
-    LocalNodeIdAny, Mutability, NodeType, Statement,
+    Asynchrony, BindingKeyword, CatchClause, Declarator, ExportKind, ForInitialization, FormatNode,
+    Formatter, ImportAttribute, Keyword, LocalNodeId, Mutability, Statement,
 };
 use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
-use destack_source::NodeSpanType;
 
 /// Format root-level statements with semicolons and trailing newline.
-pub fn format_roots<'a>(f: &mut Formatter<'a, '_>, roots: &[LocalNodeIdAny]) -> FormatResult<()> {
+pub fn format_roots<'a>(
+    f: &mut Formatter<'a, '_>,
+    roots: &[LocalNodeId<Statement>],
+) -> FormatResult<()> {
     // emit each root with the pretty statement separator
     let mut printed_any = false;
-    for root in roots.iter().copied() {
+    for root in roots {
         if printed_any {
             write!(f, [hard_line_break()])?;
         }
 
         write!(f, [root])?;
         printed_any = true;
-
-        // terminate statements that require semicolons
-        if root.ty == NodeType::Statement {
-            let statement_id = LocalNodeId::<Statement>::new(root.id);
-            let statement = f.context().tree.get(statement_id);
-
-            if statement.needs_semicolon() {
-                write!(f, [token(";")])?;
-            }
-        }
     }
 
     // keep text outputs newline terminated
@@ -58,7 +49,7 @@ fn format_variable_declarators<'ast>(
     Ok(())
 }
 
-fn format_for_each_binding_keyword<'ast>(
+fn format_binding_keyword<'ast>(
     f: &mut Formatter<'ast, '_>,
     keyword: BindingKeyword,
 ) -> FormatResult<()> {
@@ -71,67 +62,80 @@ fn format_for_each_binding_keyword<'ast>(
     write!(f, [declaration_keyword, space()])
 }
 
-fn format_dependency_attributes<'ast>(
+fn format_import_attributes<'ast>(
     f: &mut Formatter<'ast, '_>,
-    attributes: &DependencyAttributeClause,
+    attributes: &[LocalNodeId<ImportAttribute>],
 ) -> FormatResult<()> {
-    let keyword = match attributes.kind {
-        DependencyAttributeClauseKind::With => Keyword::With,
-        DependencyAttributeClauseKind::Assert => Keyword::Assert,
-    };
-
     write!(
         f,
         [
             space(),
-            keyword,
+            Keyword::With,
             space(),
-            list_like("{", "}", ",", &attributes.properties).include_space()
+            delimited("{", "}", ",", attributes).include_space()
         ]
     )
 }
 
-impl<'ast> FormatNode<'ast, Statement> for Statement {
-    fn format_node(
-        &self,
-        node_id: LocalNodeId<Statement>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for Statement {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Statement::Import {
-                target,
-                target_module: _,
-                items,
+                source,
+                clause,
                 attributes,
             } => {
-                let target_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
-                let items = items.as_deref().unwrap_or(&[]);
-
                 write!(f, [Keyword::Import, space()])?;
-                format_import_binding(f, *target, items, target_span)?;
+                format_import(*source, clause.as_ref(), f)?;
                 if let Some(attributes) = attributes {
-                    format_dependency_attributes(f, attributes)?;
+                    format_import_attributes(f, attributes)?;
                 }
             }
-            Statement::Export {
-                target,
-                target_module: _,
-                items,
+            Statement::Export { specifiers } => {
+                write!(f, [Keyword::Export, space()])?;
+                format_export(specifiers, f)?;
+            }
+            Statement::ReExport {
+                source,
+                specifiers,
                 attributes,
             } => {
-                let target_span = f.context().source_part_span(node_id.id, NodeSpanType::Main);
-
                 write!(f, [Keyword::Export, space()])?;
-                format_export_binding(f, *target, items, target_span)?;
+                format_re_export(*source, specifiers, f)?;
                 if let Some(attributes) = attributes {
-                    format_dependency_attributes(f, attributes)?;
+                    format_import_attributes(f, attributes)?;
+                }
+            }
+            Statement::ExportAll {
+                exported,
+                source,
+                attributes,
+            } => {
+                write!(f, [Keyword::Export, space(), token("*")])?;
+                if let Some(exported) = exported {
+                    write!(f, [space(), Keyword::As, space(), exported])?;
+                }
+                write!(f, [space(), Keyword::From, space(), source])?;
+                if let Some(attributes) = attributes {
+                    format_import_attributes(f, attributes)?;
                 }
             }
             Statement::ExportDefault { value } => {
                 write!(f, [Keyword::Export, space(), Keyword::Default, space()])?;
                 write!(f, [value])?;
             }
-            Statement::Declaration { declaration } => {
+            Statement::Declaration {
+                export,
+                declaration,
+            } => {
+                if let Some(export) = export {
+                    match export {
+                        ExportKind::Named => write!(f, [Keyword::Export, space()])?,
+                        ExportKind::Default => {
+                            write!(f, [Keyword::Export, space(), Keyword::Default, space()])?
+                        }
+                    }
+                }
                 write!(f, [declaration])?;
             }
             Statement::Block { block } => {
@@ -251,7 +255,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                             keyword,
                             declarators,
                         } => {
-                            format_for_each_binding_keyword(f, *keyword)?;
+                            format_binding_keyword(f, *keyword)?;
                             for (index, declarator) in declarators.iter().enumerate() {
                                 if index > 0 {
                                     write!(f, [token(","), space()])?;
@@ -289,7 +293,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 write!(f, [Keyword::For, token("(")])?;
 
                 if let Some(keyword) = keyword {
-                    format_for_each_binding_keyword(f, *keyword)?;
+                    format_binding_keyword(f, *keyword)?;
                 }
 
                 write!(
@@ -314,7 +318,7 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 write!(f, [token("(")])?;
 
                 if let Some(keyword) = keyword {
-                    format_for_each_binding_keyword(f, *keyword)?;
+                    format_binding_keyword(f, *keyword)?;
                 }
 
                 write!(
@@ -382,16 +386,17 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
             }
         }
 
+        // terminate the complete statement under its provenance
+        if self.needs_semicolon() {
+            write!(f, [token(";")])?;
+        }
+
         Ok(())
     }
 }
 
-impl<'ast> FormatNode<'ast, CatchClause> for CatchClause {
-    fn format_node(
-        &self,
-        _node_id: LocalNodeId<CatchClause>,
-        f: &mut Formatter<'ast, '_>,
-    ) -> FormatResult<()> {
+impl<'ast> FormatNode<'ast> for CatchClause {
+    fn format_node(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [Keyword::Catch])?;
 
         if let Some(pattern) = self.pattern {

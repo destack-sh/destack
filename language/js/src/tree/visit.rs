@@ -1,14 +1,15 @@
 use crate::{
-    Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,
-    Declaration, Declarator, DependencyItem, Expression, LocalNodeId, Member, NodeType, Parameter,
-    Pattern, PatternField, Property, Statement, SwitchCase, Tree, walk_annotation, walk_argument,
-    walk_array_element, walk_assign_pattern, walk_assign_pattern_field, walk_block,
-    walk_catch_clause, walk_declaration, walk_declarator, walk_dependency_item, walk_expression,
-    walk_member, walk_parameter, walk_pattern, walk_pattern_field, walk_property, walk_statement,
+    Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause, Declaration,
+    Declarator, ExportSpecifier, Expression, ImportAttribute, ImportSpecifier, LocalNodeId, Member,
+    NodeType, Parameter, Pattern, PatternField, Property, ReExportSpecifier, Statement, SwitchCase,
+    Tree, walk_argument, walk_array_element, walk_assign_pattern, walk_assign_pattern_field,
+    walk_block, walk_catch_clause, walk_declaration, walk_declarator, walk_export_specifier,
+    walk_expression, walk_import_attribute, walk_import_specifier, walk_member, walk_parameter,
+    walk_pattern, walk_pattern_field, walk_property, walk_re_export_specifier, walk_statement,
     walk_switch_case,
 };
 
-/// A visitor over one JavaScript tree.
+/// One visitor over a JavaScript tree.
 pub trait NodeVisitor {
     /// Visit one dynamically typed node.
     fn visit_any(&mut self, tree: &Tree, node_type: NodeType, id: u32) {
@@ -87,14 +88,44 @@ pub trait NodeVisitor {
         walk_member(self, tree, id, member);
     }
 
-    /// Visit one dependency item.
-    fn visit_dependency_item(
+    /// Visit one import specifier.
+    fn visit_import_specifier(
         &mut self,
         tree: &Tree,
-        id: LocalNodeId<DependencyItem>,
-        item: &DependencyItem,
+        id: LocalNodeId<ImportSpecifier>,
+        specifier: &ImportSpecifier,
     ) {
-        walk_dependency_item(self, tree, id, item);
+        walk_import_specifier(self, tree, id, specifier);
+    }
+
+    /// Visit one export specifier.
+    fn visit_export_specifier(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<ExportSpecifier>,
+        specifier: &ExportSpecifier,
+    ) {
+        walk_export_specifier(self, tree, id, specifier);
+    }
+
+    /// Visit one re-export specifier.
+    fn visit_re_export_specifier(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<ReExportSpecifier>,
+        specifier: &ReExportSpecifier,
+    ) {
+        walk_re_export_specifier(self, tree, id, specifier);
+    }
+
+    /// Visit one import attribute.
+    fn visit_import_attribute(
+        &mut self,
+        tree: &Tree,
+        id: LocalNodeId<ImportAttribute>,
+        attribute: &ImportAttribute,
+    ) {
+        walk_import_attribute(self, tree, id, attribute);
     }
 
     /// Visit one switch case.
@@ -145,15 +176,5 @@ pub trait NodeVisitor {
         field: &AssignPatternField,
     ) {
         walk_assign_pattern_field(self, tree, id, field);
-    }
-
-    /// Visit one annotation.
-    fn visit_annotation(
-        &mut self,
-        tree: &Tree,
-        id: LocalNodeId<Annotation>,
-        annotation: &Annotation,
-    ) {
-        walk_annotation(self, tree, id, annotation);
     }
 }
