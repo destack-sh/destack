@@ -211,7 +211,8 @@ mod tests {
     };
     use destack_dir::{ExportTable, GlobalTable};
     use destack_source::{
-        FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId, TargetId, Uri,
+        FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId, ProvenanceTable,
+        TargetId, TextMap, Uri,
     };
 
     use crate::repository::{Edit, Repository, Revision};
@@ -313,7 +314,7 @@ mod tests {
         let package = PackageId::new(1);
         let target = TargetId::new(package, "browser");
         let key = ArtifactKey::bundle(package, target);
-        let output = Bundle::new(BundleMode::SingleFile, Vec::new());
+        let output = Bundle::new(BundleMode::SingleFile, Vec::new(), ProvenanceTable::new());
         first
             .complete_artifact(
                 first_revision,
@@ -476,7 +477,9 @@ mod tests {
                 FileType::JavaScript,
                 output_blob,
                 None,
+                TextMap::default(),
             )],
+            ProvenanceTable::new(),
         );
         let key = ArtifactKey::bundle(package, target);
         let first_version = ArtifactVersion::new(
