@@ -667,21 +667,29 @@ impl Tree {
 
     /// Set the main source span for one DIR node.
     #[inline]
-    pub fn set_main_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
-    where
+    pub fn set_main_span<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        span: Span,
+        provenance: ProvenanceId,
+    ) where
         T: Node,
     {
-        self.source_index.set_main(node_id.id, span);
+        self.source_index.set_main(node_id.id, span, provenance);
     }
 
     /// Set the file-local main source range for one DIR node.
     #[inline]
-    pub fn set_main_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
-    where
+    pub fn set_main_range<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        range: ByteRange,
+        provenance: ProvenanceId,
+    ) where
         T: Node,
     {
         self.source_index
-            .set_side_range(node_id.id, NodeSpanType::Main, range);
+            .set_side_range(node_id.id, NodeSpanType::Main, range, provenance);
     }
 
     /// Return the head source span for one DIR node.
@@ -711,31 +719,45 @@ impl Tree {
 
     /// Set the head source span for one DIR node.
     #[inline]
-    pub fn set_head_span<T>(&mut self, node_id: LocalNodeId<T>, span: Span)
-    where
+    pub fn set_head_span<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        span: Span,
+        provenance: ProvenanceId,
+    ) where
         T: Node,
     {
         self.source_index
-            .set_side(node_id.id, NodeSpanType::Head, span);
+            .set_side(node_id.id, NodeSpanType::Head, span, provenance);
     }
 
     /// Set the file-local head source range for one DIR node.
     #[inline]
-    pub fn set_head_range<T>(&mut self, node_id: LocalNodeId<T>, range: ByteRange)
-    where
+    pub fn set_head_range<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        range: ByteRange,
+        provenance: ProvenanceId,
+    ) where
         T: Node,
     {
         self.source_index
-            .set_side_range(node_id.id, NodeSpanType::Head, range);
+            .set_side_range(node_id.id, NodeSpanType::Head, range, provenance);
     }
 
     /// Set one side source span for one DIR node.
     #[inline]
-    pub fn set_side_span<T>(&mut self, node_id: LocalNodeId<T>, span_type: NodeSpanType, span: Span)
-    where
+    pub fn set_side_span<T>(
+        &mut self,
+        node_id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+        span: Span,
+        provenance: ProvenanceId,
+    ) where
         T: Node,
     {
-        self.source_index.set_side(node_id.id, span_type, span);
+        self.source_index
+            .set_side(node_id.id, span_type, span, provenance);
     }
 
     /// Set one file-local side source range for one DIR node.
@@ -745,11 +767,12 @@ impl Tree {
         node_id: LocalNodeId<T>,
         span_type: NodeSpanType,
         range: ByteRange,
+        provenance: ProvenanceId,
     ) where
         T: Node,
     {
         self.source_index
-            .set_side_range(node_id.id, span_type, range);
+            .set_side_range(node_id.id, span_type, range, provenance);
     }
 
     /// Return one side source span for one DIR node.
@@ -788,8 +811,15 @@ impl Tree {
 
     /// Set one side source span for one DIR node id.
     #[inline]
-    pub fn set_side_span_by_id(&mut self, node_id: u32, span_type: NodeSpanType, span: Span) {
-        self.source_index.set_side(node_id, span_type, span);
+    pub fn set_side_span_by_id(
+        &mut self,
+        node_id: u32,
+        span_type: NodeSpanType,
+        span: Span,
+        provenance: ProvenanceId,
+    ) {
+        self.source_index
+            .set_side(node_id, span_type, span, provenance);
     }
 
     /// Set one file-local side source range for one DIR node id.
@@ -799,8 +829,10 @@ impl Tree {
         node_id: u32,
         span_type: NodeSpanType,
         range: ByteRange,
+        provenance: ProvenanceId,
     ) {
-        self.source_index.set_side_range(node_id, span_type, range);
+        self.source_index
+            .set_side_range(node_id, span_type, range, provenance);
     }
 
     /// Return the spans for all nodes of a given type.
