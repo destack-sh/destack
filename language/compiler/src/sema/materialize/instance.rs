@@ -1,8 +1,9 @@
 use std::collections::VecDeque;
+use std::slice::from_ref;
 
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId};
 
 use crate::sema::{CheckState, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
@@ -237,6 +238,52 @@ impl CheckState<'_> {
         Ok(false)
     }
 
+    /// Return one visible DIR node's provenance in the materialization table.
+    fn provenance(&self, node: dir::GlobalNodeIdAny) -> CompilerResult<ProvenanceId> {
+        if self.is_own_module(node.module_id) {
+            return Ok(self.module.view().provenance_any(node.local_id));
+        }
+
+        // remap the external node's provenance into the materialization table
+        let external =
+            self.external_modules
+                .get(&node.module_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("DIR node {node:?} belongs to an unloaded module"),
+                })?;
+        let view =
+            dir::View::with_patches(&external.parsed.tree, from_ref(&external.expanded.patch));
+        let source = view.provenance_any(node.local_id);
+        let remap =
+            self.provenance_remaps
+                .get(&node.module_id)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("module {:?} provenance was not imported", node.module_id),
+                })?;
+
+        remap.get(source).ok_or_else(|| CompilerError::Internal {
+            message: format!("DIR node {node:?} provenance was not imported"),
+        })
+    }
+
+    /// Record one closed generic instance from source provenance and its closing site.
+    fn record_instance_provenance(
+        &mut self,
+        source: ProvenanceId,
+        site: ProvenanceId,
+    ) -> ProvenanceId {
+        let mut journal = self.provenance.record("materialize-instances");
+
+        // derive an instance already anchored at its closing site
+        if source == site {
+            journal.derive(source)
+        }
+        // otherwise expand the source at its closing site
+        else {
+            journal.expand(source, site)
+        }
+    }
+
     /// Intern one instantiation as an instance, deduplicating structurally.
     fn intern_instance(
         &mut self,
@@ -333,14 +380,29 @@ impl CheckState<'_> {
                 && let Some(row) = self.module.generics_tail.get_local_instance(admitted)
                 && row.origin == dir::InstanceOrigin::Application
             {
+                let prior = row.provenance;
+                let site = self.provenance(source)?;
+                let provenance = self.record_instance_provenance(prior, site);
                 self.module
                     .generics_tail
-                    .set_instance_origin(admitted, introduced);
+                    .promote_instance(admitted, source, provenance);
                 worklist.queue.push_back((admitted, depth));
             }
 
             return Ok(());
         }
+
+        // derive the concrete instance from its declaration and closing source
+        let declaration = self
+            .binding_table(template.module_id)
+            .get_symbol(template.local_id)
+            .declaration
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("instance template {template:?} has no declaration node"),
+            })?;
+        let declaration = self.provenance(declaration)?;
+        let site = self.provenance(source)?;
+        let provenance = self.record_instance_provenance(declaration, site);
 
         // allocate and queue the new instance
         let instance = self.module.generics_tail.push_instance(dir::Instance {
@@ -348,6 +410,7 @@ impl CheckState<'_> {
             key: dir::InstanceKey::new(template, arguments).with_receiver(receiver),
             source,
             origin: introduced,
+            provenance,
         });
         worklist.seen.insert(key, instance);
         worklist.queue.push_back((instance, depth));

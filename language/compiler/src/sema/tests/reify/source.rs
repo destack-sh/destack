@@ -214,7 +214,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
         generics: dir::GenericTable<'static>,
     ) -> Self {
         let tree = state.parsed.tree.clone();
-        let types = TypeReifier::new(check, tree, check.strings());
+        let provenance = tree.provenance(state.parsed.anchor_expression.id);
+        let types = TypeReifier::new(check, tree, check.strings(), provenance);
 
         Self {
             check,
@@ -778,7 +779,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             .tree
             .source_index
             .get_main_or_enclosing(site.id);
-        self.types.anchor(span);
+        let provenance = self.state.parsed.tree.provenance(site.id);
+        self.types.anchor(span, provenance);
     }
 
     /// Reify implicit coercions as explicit cast expressions.
@@ -808,7 +810,8 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             // wrap the coerced value in an explicit cast
             let id = dir::LocalNodeId::<dir::Expression>::new(node.local_id.id);
             let original = self.types.tree.get(id).clone();
-            let expression = self.types.tree.insert_from(original, id);
+            let provenance = self.types.tree.provenance(id.id);
+            let expression = self.types.tree.insert_from(original, id, provenance);
             *self.types.tree.get_mut(id) = dir::Expression::As {
                 expression,
                 target_type,

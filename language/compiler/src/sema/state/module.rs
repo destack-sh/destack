@@ -376,25 +376,19 @@ impl CheckModuleState {
 
     /// Return the full source span of one visible node's authored origin.
     pub(in crate::sema) fn source_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
-        let source = self.view().get_source_any(node);
+        let occurrence = self.view().provenance_any(node);
 
-        self.parsed.tree.get_span_by_id(source)
+        self.expanded.provenance.span(occurrence)
     }
 
     /// Return the authored diagnostic span of one visible node.
     pub(in crate::sema) fn diagnostic_span(&self, node: dir::LocalNodeIdAny) -> Option<Span> {
-        let view = self.view();
-        let source = view.get_source_any(node);
+        let occurrence = self.view().provenance_any(node);
 
-        // prefer the authored node that produced the visible node
-        if let Some(span) = self.parsed.tree.get_main_span_by_id(source) {
-            return Some(span);
-        }
-        if let Some(span) = self.parsed.tree.get_span_by_id(source) {
-            return Some(span);
-        }
-
-        view.get_span_by_id(node.id)
+        self.expanded
+            .provenance
+            .primary_span(occurrence)
+            .or_else(|| self.expanded.provenance.span(occurrence))
     }
 
     /// Return the member membership stored for one subject, reading the pass tail over the base.

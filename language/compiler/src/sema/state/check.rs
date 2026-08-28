@@ -5,7 +5,9 @@ use destack_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_dir as dir;
 use destack_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
-use destack_source::{ModuleId, PackageId, ProfileId, StringId};
+use destack_source::{
+    ModuleId, PackageId, ProfileId, ProvenanceBuilder, ProvenanceRemap, StringId,
+};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 
@@ -73,6 +75,10 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) external_modules: ExternalModuleTable,
     /// Resolved import targets of external modules read for alias hops.
     pub(in crate::sema) external_resolutions: FxIndexMap<ModuleId, Arc<DirResolved>>,
+    /// Provenance written by this pass.
+    pub(in crate::sema) provenance: ProvenanceBuilder,
+    /// External provenance remaps keyed by module.
+    pub(in crate::sema) provenance_remaps: FxIndexMap<ModuleId, ProvenanceRemap>,
 
     // solver
     /// The module's transient inference state.
@@ -218,6 +224,7 @@ impl<'a> CheckState<'a> {
         records_events: bool,
     ) -> Self {
         let module_id = module.module.id;
+        let provenance = module.expanded.provenance.extend();
 
         Self {
             // context
@@ -234,6 +241,8 @@ impl<'a> CheckState<'a> {
             module,
             external_modules: ExternalModuleTable::default(),
             external_resolutions: FxIndexMap::default(),
+            provenance,
+            provenance_remaps: FxIndexMap::default(),
             // solver
             infer: InferContext::new(),
             fulfill: Fulfillment::new(),

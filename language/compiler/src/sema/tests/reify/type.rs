@@ -1,6 +1,6 @@
 use destack_core::StringPool;
 use destack_dir as dir;
-use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, ProvenanceId, Span};
 
 use crate::CompilerResult;
 use crate::sema::CheckState;
@@ -18,22 +18,31 @@ pub(super) struct TypeReifier<'a, 'b> {
     strings: &'a StringPool,
     /// The anchor span stamped on synthesized nodes.
     span: Span,
+    /// The provenance assigned to synthesized nodes.
+    provenance: ProvenanceId,
 }
 
 impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Create a type reifier for one cloned module tree.
-    pub(super) fn new(check: &'a CheckState<'b>, tree: dir::Tree, strings: &'a StringPool) -> Self {
+    pub(super) fn new(
+        check: &'a CheckState<'b>,
+        tree: dir::Tree,
+        strings: &'a StringPool,
+        provenance: ProvenanceId,
+    ) -> Self {
         Self {
             check,
             tree,
             strings,
             span: Span::empty(FileId::new(0)),
+            provenance,
         }
     }
 
-    /// Anchor synthesized nodes at one source position.
-    pub(super) fn anchor(&mut self, span: Span) {
+    /// Anchor synthesized nodes at one source location.
+    pub(super) fn anchor(&mut self, span: Span, provenance: ProvenanceId) {
         self.span = Span::new(span.file, span.end, span.end);
+        self.provenance = provenance;
     }
 
     /// Return the current synthesized-node span.
@@ -156,6 +165,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 parameter,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 self.span(),
+                self.provenance,
             );
         }
 
@@ -1253,7 +1263,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         T: dir::Node,
         dir::Tree: dir::TreeStore<T>,
     {
-        self.tree.insert(node, self.span)
+        self.tree.insert(node, self.span, self.provenance)
     }
 
     /// Reify one symbol as a value expression.

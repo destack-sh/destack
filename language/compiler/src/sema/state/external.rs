@@ -16,6 +16,8 @@ use crate::{CompilerError, CompilerResult};
 pub(in crate::sema) struct CheckExternalModuleState {
     /// The parsed module tree.
     pub(in crate::sema) parsed: Arc<DirParsed>,
+    /// The expanded module artifact.
+    pub(in crate::sema) expanded: Arc<DirExpanded>,
     /// The resolved external module holding the import alias targets.
     pub(in crate::sema) resolved: Arc<DirResolved>,
     /// The committed binding table.
@@ -131,6 +133,10 @@ impl CheckState<'_> {
         // load each external module once
         if !self.external_modules.contains_key(&module) {
             let external = self.import_external_module_state(module)?;
+            if self.pass == Pass::Materialize {
+                let remap = self.provenance.import(&external.expanded.provenance);
+                self.provenance_remaps.insert(module, remap);
+            }
             self.external_modules.insert(module, external);
         }
 
@@ -391,6 +397,7 @@ impl CheckState<'_> {
             references: declared.references.clone(),
             resolved,
             parsed,
+            expanded,
         }
     }
 
@@ -430,6 +437,7 @@ impl CheckState<'_> {
             references,
             resolved,
             parsed,
+            expanded,
         }
     }
 
@@ -470,6 +478,7 @@ impl CheckState<'_> {
             references,
             resolved,
             parsed,
+            expanded,
         }
     }
 }
