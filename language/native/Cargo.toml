@@ -15,6 +15,7 @@ doctest = false
 destack_core = { workspace = true }
 destack_mir = { workspace = true }
 destack_serde = { workspace = true }
+destack_source = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [lints]

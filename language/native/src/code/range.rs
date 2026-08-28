@@ -2,13 +2,13 @@ use destack_core::SectionEntry;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-/// One byte range inside a linked native code image.
+/// One byte range inside native code.
 #[repr(C)]
 #[derive(
     Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
 )]
 pub struct CodeRange {
-    /// Byte offset from the start of the code image.
+    /// Byte offset from the start of the containing code.
     pub offset: u32,
     /// Number of bytes in the range.
     pub byte_len: u32,
@@ -25,14 +25,26 @@ impl CodeRange {
         self.offset + self.byte_len
     }
 
-    /// Return whether this range fits one code image.
+    /// Return the exclusive byte end when representable.
+    pub(super) const fn checked_end(self) -> Option<u32> {
+        self.offset.checked_add(self.byte_len)
+    }
+
+    /// Return whether this range ends before another range begins.
+    pub(super) const fn precedes(self, other: Self) -> bool {
+        match self.checked_end() {
+            Some(end) => end <= other.offset,
+            None => false,
+        }
+    }
+
+    /// Return whether this range fits one byte region.
     pub fn fits(self, byte_len: usize) -> bool {
-        self.offset
-            .checked_add(self.byte_len)
+        self.checked_end()
             .is_some_and(|end| end as usize <= byte_len)
     }
 
-    /// Borrow this range from one code image.
+    /// Borrow this range from its containing code.
     pub fn bytes(self, code: &[u8]) -> &[u8] {
         &code[self.offset as usize..self.end() as usize]
     }

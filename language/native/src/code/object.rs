@@ -125,7 +125,7 @@ impl ObjectHeader {
     /// Stable native object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSNO");
     /// Stable native object format version.
-    const VERSION: u16 = 6;
+    const VERSION: u16 = 7;
 
     /// Create one empty native object header.
     fn new(target_layout: TargetLayout) -> Self {
@@ -208,16 +208,6 @@ impl ObjectHeader {
                 .get()
                 .is_none_or(|definition| definition.ranges_fit(blocks.len(), resumes))
         });
-        let frames_fit = header.map.frames(sections).iter().all(|frame| {
-            blocks
-                .get(frame.block.index())
-                .is_some_and(|block| frame.return_offset <= block.byte_len())
-        });
-        let traps = header.map.traps(sections);
-        let traps_fit = traps.iter().all(|trap| trap.fits(blocks));
-        let traps_sorted = traps
-            .windows(2)
-            .all(|traps| (traps[0].block, traps[0].offset) < (traps[1].block, traps[1].offset));
         let unwind_fits = header
             .unwind
             .get()
@@ -225,11 +215,8 @@ impl ObjectHeader {
         if !symbols_fit
             || !blocks_fit
             || !definitions_fit
-            || !frames_fit
-            || !traps_fit
-            || !traps_sorted
             || !unwind_fits
-            || !header.map.ranges_fit(sections)
+            || !header.map.ranges_fit(sections, blocks)
         {
             return Err(ObjectLoadError::InvalidRange);
         }
@@ -360,7 +347,11 @@ impl<'de> Deserialize<'de> for Object {
 
 impl ObjectBuilder {
     /// Create one relocatable native object builder.
-    pub fn new(target: impl Into<String>, target_layout: TargetLayout) -> Self {
+    pub fn new(
+        target: impl Into<String>,
+        target_layout: TargetLayout,
+        map: ObjectMapBuilder,
+    ) -> Self {
         Self {
             target: target.into(),
             target_layout,
@@ -369,7 +360,7 @@ impl ObjectBuilder {
             definitions: Vec::new(),
             blocks: Vec::new(),
             unwind: None,
-            map: ObjectMapBuilder::new(),
+            map,
         }
     }
 
@@ -409,13 +400,6 @@ impl ObjectBuilder {
     /// Set target-native unwind tables.
     pub fn unwind(mut self, unwind: ObjectUnwindBuilder) -> Self {
         self.unwind = Some(unwind);
-
-        self
-    }
-
-    /// Set physical native frame maps.
-    pub fn map(mut self, map: ObjectMapBuilder) -> Self {
-        self.map = map;
 
         self
     }

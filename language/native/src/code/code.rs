@@ -89,21 +89,7 @@ impl Code {
             return false;
         }
 
-        // check the sorted physical frame map
-        let frames = self.map.frames(sections);
-        let frames_fit = frames
-            .iter()
-            .all(|frame| (frame.return_offset as usize) <= bytes.len());
-        let frames_sorted = frames
-            .windows(2)
-            .all(|frames| frames[0].return_offset < frames[1].return_offset);
-        let traps = self.map.traps(sections);
-        let traps_fit = traps.iter().all(|trap| trap.fits(bytes.len()));
-        let traps_sorted = traps
-            .windows(2)
-            .all(|traps| traps[0].offset < traps[1].offset);
-
-        frames_fit && frames_sorted && traps_fit && traps_sorted && self.map.ranges_fit(sections)
+        self.map.ranges_fit(sections, bytes.len())
     }
 
     /// Return sorted target CPU features.
@@ -160,7 +146,7 @@ impl Code {
 
 impl CodeBuilder {
     /// Create one native code builder.
-    pub fn new(target: StringId) -> Self {
+    pub fn new(target: StringId, map: CodeMapBuilder) -> Self {
         Self {
             target,
             alignment: Alignment::ONE,
@@ -170,7 +156,7 @@ impl CodeBuilder {
             resumes: Vec::new(),
             imports: Vec::new(),
             unwind: None,
-            map: CodeMapBuilder::new(),
+            map,
         }
     }
 
@@ -215,13 +201,6 @@ impl CodeBuilder {
     /// Set fully linked target-native unwind tables.
     pub fn unwind(mut self, unwind: UnwindBuilder) -> Self {
         self.unwind = Some(unwind);
-
-        self
-    }
-
-    /// Set the native code map.
-    pub fn map(mut self, map: CodeMapBuilder) -> Self {
-        self.map = map;
 
         self
     }
