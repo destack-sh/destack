@@ -1,3 +1,5 @@
+use destack_source::{ProvenanceBuilder, Span};
+
 use crate::{
     CastOperation, Label, Opcode, Operand, ParseError, ParseResult, Parser, RegisterSpan, Scalar,
     Token, TokenType,
@@ -7,11 +9,30 @@ use super::function::FunctionParser;
 
 impl Parser<'_> {
     /// Parse and append one complete bytecode instruction.
-    pub(super) fn parse_instruction(&mut self, function: &mut FunctionParser) -> ParseResult<()> {
+    pub(super) fn parse_instruction(
+        &mut self,
+        function: &mut FunctionParser,
+        provenance: &mut ProvenanceBuilder,
+    ) -> ParseResult<()> {
         // parse and dispatch the operation name
+        let offset = function.builder.code_offset();
         let operation = self.eat_token(TokenType::Identifier)?;
         let name = self.text(operation).to_string();
-        self.parse_operation(&name, operation, function)
+        self.parse_operation(&name, operation, function)?;
+
+        // attribute the complete parsed instruction
+        let span = Span::new(
+            operation.span.file,
+            operation.span.start,
+            self.previous().span.end,
+        );
+        let operation_provenance = provenance.insert_authored(span);
+        provenance.set_authored(operation_provenance, span, Some(operation.span));
+        function
+            .builder
+            .record_operation(offset, operation_provenance);
+
+        Ok(())
     }
 
     /// Parse one operation after its result declaration.

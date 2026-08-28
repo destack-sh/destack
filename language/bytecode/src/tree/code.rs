@@ -1,5 +1,6 @@
 use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice};
 use destack_serde::Reflect;
+use destack_source::ProvenanceId;
 use serde::{Deserialize, Serialize};
 
 use crate::{Error, FrameMap, Function, Instruction, Instructions, RegisterSpan};
@@ -18,24 +19,37 @@ pub struct Code {
     registers: SectionSlice<RegisterSpan>,
     /// Function-relative byte offsets of logical operations.
     operations: SectionSlice<CodeOffset>,
+    /// Provenance parallel to logical operation offsets.
+    operation_provenances: SectionSlice<ProvenanceId>,
+    /// Explicit physical mappings.
+    mappings: SectionSlice<Mapping>,
     /// Contiguous linked instruction bytes.
     code: SectionSlice<u8>,
 }
 
 impl Code {
-    /// Validate every linked bytecode range.
+    /// Validate every linked bytecode range and parallel column.
     pub fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let functions = self.functions(sections);
+        let frames = self.frames(sections);
         let operations = self.operations(sections);
+        let operation_provenances = self.operation_provenances(sections);
+        let mappings = self.mappings(sections);
         let bytes = self.bytes(sections);
         let registers = self.registers(sections);
 
+        // validate parallel provenance columns
+        if operations.len() != operation_provenances.len() {
+            return Err(SectionImageError::InvalidRange);
+        }
+
         // validate each function's flattened ranges
-        for function in self.functions(sections) {
-            function.validate(operations, bytes.len())?;
+        for function in functions {
+            function.validate(operations, mappings, bytes.len())?;
         }
 
         // validate each frame's retained register range
-        for frame in self.frames(sections) {
+        for frame in frames {
             frame.validate(registers.len())?;
         }
 
@@ -78,6 +92,16 @@ impl Code {
     /// Return function-relative byte offsets of logical operations.
     pub fn operations<'a>(&self, sections: SectionImage<'a>) -> &'a [CodeOffset] {
         sections.entries(self.operations)
+    }
+
+    /// Return provenance parallel to logical operation offsets.
+    pub fn operation_provenances<'a>(&self, sections: SectionImage<'a>) -> &'a [ProvenanceId] {
+        sections.entries(self.operation_provenances)
+    }
+
+    /// Return explicit physical mappings.
+    pub fn mappings<'a>(&self, sections: SectionImage<'a>) -> &'a [Mapping] {
+        sections.entries(self.mappings)
     }
 
     /// Return contiguous linked instruction bytes.
@@ -146,7 +170,19 @@ impl Code {
         function.operation(self.operations(sections), operation)
     }
 
-    /// Return the logical operation beginning at one function-relative byte offset.
+    /// Return one logical operation's provenance.
+    pub fn operation_provenance(
+        &self,
+        sections: SectionImage<'_>,
+        function_index: usize,
+        operation: u32,
+    ) -> Option<ProvenanceId> {
+        let function = self.function(sections, function_index)?;
+
+        function.operation_provenance(self.operation_provenances(sections), operation)
+    }
+
+    /// Return the logical operation containing one function-relative byte offset.
     pub fn operation_at(
         &self,
         sections: SectionImage<'_>,
@@ -154,10 +190,32 @@ impl Code {
         offset: CodeOffset,
     ) -> Option<u32> {
         let function = self.function(sections, function_index)?;
-        let operations = function.operations(self.operations(sections));
-        let operation = operations.binary_search(&offset).ok()?;
+        let code = function.code()?;
+        if offset.0 >= code.byte_len {
+            return None;
+        }
 
-        Some(operation as u32)
+        function.operation_at(self.operations(sections), self.mappings(sections), offset)
+    }
+
+    /// Return the provenance containing one function-relative byte offset.
+    pub fn provenance_at(
+        &self,
+        sections: SectionImage<'_>,
+        function_index: usize,
+        offset: CodeOffset,
+    ) -> Option<ProvenanceId> {
+        let function = self.function(sections, function_index)?;
+        let code = function.code()?;
+        if offset.0 >= code.byte_len {
+            return None;
+        }
+        function.provenance_at(
+            self.operations(sections),
+            self.operation_provenances(sections),
+            self.mappings(sections),
+            offset,
+        )
     }
 }
 
@@ -172,6 +230,10 @@ pub struct CodeBuilder {
     registers: Vec<RegisterSpan>,
     /// Function-relative byte offsets of logical operations.
     operations: Vec<CodeOffset>,
+    /// Provenance parallel to logical operation offsets.
+    operation_provenances: Vec<ProvenanceId>,
+    /// Explicit physical mappings.
+    mappings: Vec<Mapping>,
     /// Contiguous linked instruction bytes.
     code: Vec<u8>,
 }
@@ -203,9 +265,19 @@ impl CodeBuilder {
         self
     }
 
-    /// Set function-relative byte offsets of logical operations.
-    pub fn operations(mut self, operations: impl IntoIterator<Item = CodeOffset>) -> Self {
-        self.operations = operations.into_iter().collect();
+    /// Set logical operation offsets.
+    pub fn operations(
+        mut self,
+        operations: impl IntoIterator<Item = (CodeOffset, ProvenanceId)>,
+    ) -> Self {
+        (self.operations, self.operation_provenances) = operations.into_iter().unzip();
+
+        self
+    }
+
+    /// Set explicit physical mappings.
+    pub fn mappings(mut self, mappings: impl IntoIterator<Item = Mapping>) -> Self {
+        self.mappings = mappings.into_iter().collect();
 
         self
     }
@@ -224,6 +296,8 @@ impl CodeBuilder {
             frames: sections.insert(self.frames),
             registers: sections.insert(self.registers),
             operations: sections.insert(self.operations),
+            operation_provenances: sections.insert(self.operation_provenances),
+            mappings: sections.insert(self.mappings),
             code: sections.insert(self.code),
         }
     }
@@ -237,6 +311,29 @@ pub struct CodeRange {
     pub byte_offset: u32,
     /// The function byte length.
     pub byte_len: u32,
+}
+
+/// One physical bytecode position mapped to a logical operation and provenance.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
+pub struct Mapping {
+    /// The generated function-relative byte offset.
+    pub offset: CodeOffset,
+    /// The mapped logical operation index.
+    pub operation: u32,
+    /// The mapped provenance.
+    pub provenance: ProvenanceId,
+}
+
+impl Mapping {
+    /// Create one physical bytecode mapping.
+    pub const fn new(offset: CodeOffset, operation: u32, provenance: ProvenanceId) -> Self {
+        Self {
+            offset,
+            operation,
+            provenance,
+        }
+    }
 }
 
 impl CodeRange {
@@ -302,6 +399,7 @@ impl CodeOffset {
     }
 }
 
-const _: () = assert!(size_of::<Code>() == 80);
+const _: () = assert!(size_of::<Code>() == 112);
 const _: () = assert!(size_of::<CodeRange>() == 8);
+const _: () = assert!(size_of::<Mapping>() == 12);
 const _: () = assert!(size_of::<CodeOffset>() == 4);

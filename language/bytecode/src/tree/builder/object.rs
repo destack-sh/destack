@@ -1,7 +1,8 @@
 use destack_core::{EntryRange, SectionBuilder};
+use destack_source::ProvenanceId;
 
 use crate::tree::object::Header;
-use crate::{CodeOffset, CodeRange, FrameMap, Function, Object, RegisterSpan, Relocation};
+use crate::{CodeOffset, CodeRange, FrameMap, Function, Mapping, Object, RegisterSpan, Relocation};
 
 /// Bytecode object under construction.
 #[derive(Debug, Default)]
@@ -14,6 +15,10 @@ pub struct ObjectBuilder {
     registers: Vec<RegisterSpan>,
     /// Function-relative byte offsets of logical operations.
     operations: Vec<CodeOffset>,
+    /// Provenance parallel to logical operation offsets.
+    operation_provenances: Vec<ProvenanceId>,
+    /// Explicit physical mappings.
+    mappings: Vec<Mapping>,
     /// Relocatable identity operands in function code.
     relocations: Vec<Relocation>,
     /// Contiguous instruction bytes for every defined function.
@@ -47,9 +52,19 @@ impl ObjectBuilder {
         self
     }
 
-    /// Set function-relative byte offsets of logical operations.
-    pub fn operations(mut self, operations: impl IntoIterator<Item = CodeOffset>) -> Self {
-        self.operations = operations.into_iter().collect();
+    /// Set logical operation offsets.
+    pub fn operations(
+        mut self,
+        operations: impl IntoIterator<Item = (CodeOffset, ProvenanceId)>,
+    ) -> Self {
+        (self.operations, self.operation_provenances) = operations.into_iter().unzip();
+
+        self
+    }
+
+    /// Set explicit physical mappings.
+    pub fn mappings(mut self, mappings: impl IntoIterator<Item = Mapping>) -> Self {
+        self.mappings = mappings.into_iter().collect();
 
         self
     }
@@ -71,12 +86,26 @@ impl ObjectBuilder {
     /// Append logical operation offsets and return their object-local range.
     pub(crate) fn push_operations(
         &mut self,
-        operations: impl IntoIterator<Item = CodeOffset>,
+        operations: impl IntoIterator<Item = (CodeOffset, ProvenanceId)>,
     ) -> EntryRange<CodeOffset> {
         let start = self.operations.len();
-        self.operations.extend(operations);
+        for (offset, provenance) in operations {
+            self.operations.push(offset);
+            self.operation_provenances.push(provenance);
+        }
 
         EntryRange::new(start as u32, (self.operations.len() - start) as u32)
+    }
+
+    /// Append explicit physical mappings and return their object-local range.
+    pub(crate) fn push_mappings(
+        &mut self,
+        mappings: impl IntoIterator<Item = Mapping>,
+    ) -> EntryRange<Mapping> {
+        let start = self.mappings.len();
+        self.mappings.extend(mappings);
+
+        EntryRange::new(start as u32, (self.mappings.len() - start) as u32)
     }
 
     /// Append one encoded function body and return its code range.
@@ -111,6 +140,8 @@ impl ObjectBuilder {
         header.frames = sections.insert(self.frames);
         header.registers = sections.insert(self.registers);
         header.operations = sections.insert(self.operations);
+        header.operation_provenances = sections.insert(self.operation_provenances);
+        header.mappings = sections.insert(self.mappings);
 
         // pack relocations and executable bytes
         header.relocations = sections.insert(self.relocations);

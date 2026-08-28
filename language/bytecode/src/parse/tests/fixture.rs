@@ -1,4 +1,4 @@
-use destack_source::FileId;
+use destack_source::{FileId, ProvenanceTable};
 
 use crate::{FunctionId, Object, Opcode, Parser};
 
@@ -17,8 +17,9 @@ impl<'a> TestParser<'a> {
     /// Parse one bytecode object and require valid source.
     pub(crate) fn parse(self) -> Object {
         let mut parser = Parser::new(FileId::new(0), self.source);
+        let mut provenance = ProvenanceTable::build();
 
-        parser.parse().expect("parse bytecode")
+        parser.parse(&mut provenance).expect("parse bytecode")
     }
 
     /// Parse one bytecode object and return one function's opcode sequence.

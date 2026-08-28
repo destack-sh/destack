@@ -1,11 +1,12 @@
-use destack_source::FileId;
+use destack_source::{FileId, ProvenanceTable};
 
 use crate::{BytecodeFormatOptions, Parser, format_bytecode};
 
 /// Format one bytecode fixture.
 pub(crate) fn format_fixture(source: &str) -> String {
     let mut parser = Parser::new(FileId::new(0), source);
-    let object = parser.parse().expect("parse bytecode");
+    let mut provenance = ProvenanceTable::build();
+    let object = parser.parse(&mut provenance).expect("parse bytecode");
     let formatted = format_bytecode(
         &object,
         parser.function_names(),

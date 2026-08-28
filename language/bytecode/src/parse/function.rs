@@ -1,9 +1,10 @@
+use destack_core::Optional;
+use destack_source::{ProvenanceBuilder, Span};
+
 use crate::{
     Function, FunctionBuilder, FunctionId, InstructionBuilder, Label, Opcode, ParseError,
     ParseResult, Parser, RegisterId, RegisterSpan, RelocationTag, Token, TokenType,
 };
-use destack_core::Optional;
-use destack_source::Span;
 
 /// Parser state for one physical bytecode function.
 #[derive(Debug)]
@@ -27,7 +28,6 @@ impl FunctionParser {
         results: &[RegisterSpan],
         span: Span,
     ) -> ParseResult<()> {
-        self.builder.begin_operation();
         self.builder
             .emit(instruction, results)
             .map_err(|error| ParseError::new(error.to_string(), span))?;
@@ -45,7 +45,7 @@ impl FunctionParser {
 
 impl Parser<'_> {
     /// Parse one physical bytecode function declaration or definition.
-    pub(super) fn parse_function(&mut self) -> ParseResult<()> {
+    pub(super) fn parse_function(&mut self, provenance: &mut ProvenanceBuilder) -> ParseResult<()> {
         let is_external = self.eat_name_if("external");
         self.eat_name("function")?;
         let token = self.eat_token(TokenType::Identifier)?;
@@ -74,7 +74,7 @@ impl Parser<'_> {
                 self.eat_token(TokenType::Colon)?;
                 function.define(label, token.span)?;
             } else {
-                self.parse_instruction(&mut function)?;
+                self.parse_instruction(&mut function, provenance)?;
             }
         }
 
@@ -85,8 +85,14 @@ impl Parser<'_> {
 
         // append function-owned sections and publish the physical entry
         let operations = self.object.push_operations(body.operations);
+        let mappings = self.object.push_mappings(body.mappings);
         let code = self.object.push_code(&body.code, body.relocations);
-        let function = Function::new(Optional::some(code), operations, body.register_count);
+        let function = Function::new(
+            Optional::some(code),
+            operations,
+            mappings,
+            body.register_count,
+        );
         self.functions[function_id.index()] = function;
 
         Ok(())

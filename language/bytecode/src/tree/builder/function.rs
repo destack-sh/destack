@@ -1,6 +1,8 @@
+use destack_source::ProvenanceId;
+
 use crate::{
-    CodeOffset, Error, Instruction, InstructionBuilder, Label, Opcode, Operand, RegisterId,
-    RegisterSpan, Relocation, Result,
+    CodeOffset, Error, Instruction, InstructionBuilder, Label, Mapping, Opcode, Operand,
+    RegisterId, RegisterSpan, Relocation, Result,
 };
 
 /// One bytecode function body under construction.
@@ -8,8 +10,10 @@ use crate::{
 pub struct FunctionBuilder {
     /// The encoded instruction bytes.
     code: Vec<u8>,
-    /// The byte offset of each logical operation.
-    operations: Vec<CodeOffset>,
+    /// The byte offset and provenance of each logical operation.
+    operations: Vec<(CodeOffset, ProvenanceId)>,
+    /// Explicit physical mappings in byte order.
+    mappings: Vec<Mapping>,
     /// The label byte offsets.
     labels: Vec<CodeOffset>,
     /// The branch operands awaiting label resolution.
@@ -25,8 +29,10 @@ pub struct FunctionBuilder {
 pub struct FunctionBody {
     /// The encoded instruction bytes.
     pub code: Vec<u8>,
-    /// The byte offset of each logical operation.
-    pub operations: Vec<CodeOffset>,
+    /// The byte offset and provenance of each logical operation.
+    pub operations: Vec<(CodeOffset, ProvenanceId)>,
+    /// Explicit physical mappings.
+    pub mappings: Vec<Mapping>,
     /// The identity operands awaiting object linking.
     pub relocations: Vec<Relocation>,
     /// The number of 64-bit words in the register file.
@@ -103,11 +109,71 @@ impl FunctionBuilder {
     }
 
     /// Begin one logical operation at the current byte offset.
-    pub fn begin_operation(&mut self) -> u32 {
+    pub fn begin_operation(&mut self, provenance: ProvenanceId) -> u32 {
+        let offset = CodeOffset(self.code.len() as u32);
+
+        self.record_operation(offset, provenance)
+    }
+
+    /// Return the mapping assigned to subsequent instructions.
+    pub fn mapping(&self) -> Result<(u32, ProvenanceId)> {
+        let operation = self
+            .operations
+            .len()
+            .checked_sub(1)
+            .ok_or(Error::MissingOperation)?;
+        let (offset, provenance) = self.operations[operation];
+
+        // prefer a later explicit mapping
+        if let Some(mapping) = self.mappings.last()
+            && mapping.offset >= offset
+        {
+            return Ok((mapping.operation, mapping.provenance));
+        }
+
+        Ok((operation as u32, provenance))
+    }
+
+    /// Map subsequent instructions to one logical operation and provenance.
+    pub fn set_mapping(&mut self, operation: u32, provenance: ProvenanceId) -> Result<()> {
+        if operation as usize >= self.operations.len() {
+            return Err(Error::InvalidOperation(operation));
+        }
+        let offset = CodeOffset(self.code.len() as u32);
+
+        self.record_mapping(offset, operation, provenance);
+
+        Ok(())
+    }
+
+    /// Record one logical operation at an explicit byte offset.
+    pub(crate) fn record_operation(&mut self, offset: CodeOffset, provenance: ProvenanceId) -> u32 {
         let operation = self.operations.len() as u32;
-        self.operations.push(CodeOffset(self.code.len() as u32));
+        self.operations.push((offset, provenance));
+
+        // let the new logical operation supersede a change at the same offset
+        if self
+            .mappings
+            .last()
+            .is_some_and(|mapping| mapping.offset == offset)
+        {
+            self.mappings.pop();
+        }
 
         operation
+    }
+
+    /// Record one explicit physical mapping.
+    fn record_mapping(&mut self, offset: CodeOffset, operation: u32, provenance: ProvenanceId) {
+        let mapping = Mapping::new(offset, operation, provenance);
+
+        match self
+            .mappings
+            .binary_search_by_key(&offset, |mapping| mapping.offset)
+        {
+            Ok(index) => self.mappings[index] = mapping,
+            Err(index) => self.mappings.insert(index, mapping),
+        }
     }
 
     /// Return the current instruction byte offset.
@@ -117,8 +183,19 @@ impl FunctionBuilder {
 
     /// Anchor the current logical operation at the current byte offset.
     pub fn anchor_operation(&mut self) -> Result<()> {
-        let operation = self.operations.last_mut().ok_or(Error::MissingOperation)?;
-        *operation = CodeOffset(self.code.len() as u32);
+        let operation = self
+            .operations
+            .len()
+            .checked_sub(1)
+            .ok_or(Error::MissingOperation)?;
+        let (offset, provenance) = self.operations[operation];
+        let anchor = CodeOffset(self.code.len() as u32);
+
+        // map instructions emitted before the anchor
+        if offset < anchor {
+            self.record_mapping(offset, operation as u32, provenance);
+        }
+        self.operations[operation].0 = anchor;
 
         Ok(())
     }
@@ -127,9 +204,23 @@ impl FunctionBuilder {
     pub fn build(mut self) -> Result<FunctionBody> {
         self.resolve_branches()?;
 
+        // require complete mapping for nonempty code
+        let is_mapped = self
+            .operations
+            .first()
+            .is_some_and(|(offset, _)| *offset == CodeOffset(0))
+            || self
+                .mappings
+                .first()
+                .is_some_and(|mapping| mapping.offset == CodeOffset(0));
+        if !self.code.is_empty() && !is_mapped {
+            return Err(Error::MissingOperation);
+        }
+
         Ok(FunctionBody {
             code: self.code,
             operations: self.operations,
+            mappings: self.mappings,
             relocations: self.relocations,
             register_count: self.register_count,
         })

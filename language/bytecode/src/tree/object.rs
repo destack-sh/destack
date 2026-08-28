@@ -4,10 +4,11 @@ use destack_core::{
     SectionEntry, SectionImage, SectionImageError, SectionLoader, SectionSlice, SectionStorage,
 };
 use destack_serde::Reflect;
+use destack_source::ProvenanceId;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use crate::{
-    CodeOffset, FrameMap, Function, FunctionId, Instruction, Instructions, RegisterSpan,
+    CodeOffset, FrameMap, Function, FunctionId, Instruction, Instructions, Mapping, RegisterSpan,
     Relocation, Result,
 };
 
@@ -74,6 +75,10 @@ pub(super) struct Header {
     pub(super) registers: SectionSlice<RegisterSpan>,
     /// Function-relative byte offsets of logical operations.
     pub(super) operations: SectionSlice<CodeOffset>,
+    /// Provenance parallel to logical operation offsets.
+    pub(super) operation_provenances: SectionSlice<ProvenanceId>,
+    /// Explicit physical mappings.
+    pub(super) mappings: SectionSlice<Mapping>,
     /// Relocatable identity operands in function code.
     pub(super) relocations: SectionSlice<Relocation>,
     /// Contiguous instruction bytes for every defined function.
@@ -84,7 +89,7 @@ impl Header {
     /// The stable bytecode object marker.
     const MAGIC: u32 = u32::from_le_bytes(*b"DSBC");
     /// The stable bytecode object format version.
-    const VERSION: u16 = 3;
+    const VERSION: u16 = 4;
 
     /// Create one empty bytecode object header.
     pub(super) fn new() -> Self {
@@ -97,6 +102,8 @@ impl Header {
             frames: SectionSlice::empty(),
             registers: SectionSlice::empty(),
             operations: SectionSlice::empty(),
+            operation_provenances: SectionSlice::empty(),
+            mappings: SectionSlice::empty(),
             relocations: SectionSlice::empty(),
             code: SectionSlice::empty(),
         }
@@ -125,12 +132,19 @@ impl Header {
         let frames = sections.entries(header.frames);
         let registers = sections.entries(header.registers);
         let operations = sections.entries(header.operations);
+        let operation_provenances = sections.entries(header.operation_provenances);
+        let mappings = sections.entries(header.mappings);
         let relocations = sections.entries(header.relocations);
         let code = sections.entries(header.code);
 
+        // validate parallel provenance columns
+        if operations.len() != operation_provenances.len() {
+            return Err(SectionImageError::InvalidRange.into());
+        }
+
         // validate every function range
         for function in functions {
-            function.validate(operations, code.len())?;
+            function.validate(operations, mappings, code.len())?;
         }
 
         // validate every frame range
@@ -201,6 +215,16 @@ impl Object {
         self.sections().entries(self.header().operations)
     }
 
+    /// Return provenance parallel to logical operation offsets.
+    pub fn operation_provenances(&self) -> &[ProvenanceId] {
+        self.sections().entries(self.header().operation_provenances)
+    }
+
+    /// Return explicit physical mappings.
+    pub fn mappings(&self) -> &[Mapping] {
+        self.sections().entries(self.header().mappings)
+    }
+
     /// Return relocatable identity operands in function code.
     pub fn relocations(&self) -> &[Relocation] {
         self.sections().entries(self.header().relocations)
@@ -250,6 +274,49 @@ impl Object {
         self.instruction(function, offset)
     }
 
+    /// Return one logical operation's function-relative byte offset.
+    pub fn operation_offset(&self, function: FunctionId, operation: u32) -> Option<CodeOffset> {
+        self.function(function)?
+            .operation(self.operations(), operation)
+    }
+
+    /// Return one logical operation's provenance.
+    pub fn operation_provenance(
+        &self,
+        function: FunctionId,
+        operation: u32,
+    ) -> Option<ProvenanceId> {
+        self.function(function)?
+            .operation_provenance(self.operation_provenances(), operation)
+    }
+
+    /// Return the logical operation containing one function-relative byte offset.
+    pub fn operation_at(&self, function: FunctionId, offset: CodeOffset) -> Option<u32> {
+        let function = self.function(function)?;
+        let code = function.code()?;
+        if offset.0 >= code.byte_len {
+            return None;
+        }
+
+        function.operation_at(self.operations(), self.mappings(), offset)
+    }
+
+    /// Return the provenance containing one function-relative byte offset.
+    pub fn provenance_at(&self, function: FunctionId, offset: CodeOffset) -> Option<ProvenanceId> {
+        let function = self.function(function)?;
+        let code = function.code()?;
+        if offset.0 >= code.byte_len {
+            return None;
+        }
+
+        function.provenance_at(
+            self.operations(),
+            self.operation_provenances(),
+            self.mappings(),
+            offset,
+        )
+    }
+
     /// Return the fixed header at the start of this object image.
     fn header(&self) -> &Header {
         // SAFETY: Object constructors require a valid aligned header in retained storage.
@@ -280,4 +347,4 @@ impl<'de> Deserialize<'de> for Object {
 }
 
 const _: () = assert!(align_of::<Header>() == 16);
-const _: () = assert!(size_of::<Header>() == 112);
+const _: () = assert!(size_of::<Header>() == 144);

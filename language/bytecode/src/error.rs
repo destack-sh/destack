@@ -11,6 +11,8 @@ pub enum Error {
     NoncontiguousResults,
     /// No logical operation is available to mark.
     MissingOperation,
+    /// A logical operation id does not exist in this function.
+    InvalidOperation(u32),
     /// A branch label is not defined in dense declaration order.
     InvalidLabel(u32),
     /// A branch references an undefined label.
@@ -49,6 +51,9 @@ impl fmt::Display for Error {
                 formatter.write_str("instruction results are not contiguous")
             }
             Self::MissingOperation => formatter.write_str("no bytecode operation is active"),
+            Self::InvalidOperation(operation) => {
+                write!(formatter, "invalid bytecode operation {operation}")
+            }
             Self::InvalidLabel(label) => {
                 write!(
                     formatter,
