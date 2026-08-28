@@ -2,8 +2,16 @@ import { Err, Ok, Result } from "destack:error";
 import { Copy, Default } from "destack:memory";
 import { FromResidual } from "destack:ops";
 
+import { Poll } from "./poll.ds";
 import { Promise } from "./promise.ds";
 import { Task } from "./task.ds";
+
+export extension PollResult<T, E> of Poll<Result<T, E>> implements FromResidual<E> {
+    /// Create an available failed result from a propagated residual.
+    static fromResidual(residual: E): Poll<Result<T, E>> {
+        Poll.ready(Result.err(residual))
+    }
+}
 
 export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<E> {
     /// Create a failed result task from a propagated residual.

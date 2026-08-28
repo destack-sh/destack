@@ -4,6 +4,7 @@ export * from "./iterator.ds";
 export * from "./mutex.ds";
 export * from "./notify.ds";
 export * from "./once.ds";
+export * from "./poll.ds";
 export * from "./promise.ds";
 export * from "./reader.ds";
 export * from "./result.ds";
