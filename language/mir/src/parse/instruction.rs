@@ -879,12 +879,12 @@ impl Parser {
 
         // focal span
         if let Some(main_span) = main_span.or_else(|| segment_spans.first().copied()) {
-            self.tree.set_main_span(instruction_id, main_span);
+            self.set_main_span(instruction_id, main_span);
         }
 
         // destination type
         if let Some(type_span) = type_span {
-            self.tree.set_side_span(
+            self.set_side_span(
                 instruction_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 type_span,

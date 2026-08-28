@@ -493,9 +493,8 @@ impl Parser {
         );
         self.tree.set_span(id, text_span);
         self.tree.set_keyword_span(id, keyword_span);
-        self.tree.set_main_span(id, name_span);
-        self.tree
-            .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
+        self.set_main_span(id, name_span);
+        self.set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
         self.tree.set_type_lifetimes(type_id, lifetimes);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_type_field_spans(id, field_spans);
@@ -631,9 +630,8 @@ impl Parser {
         let id = self.insert_node(global, text_span);
         self.tree.set_span(id, text_span);
         self.tree.set_keyword_span(id, keyword_span);
-        self.tree.set_main_span(id, name_span);
-        self.tree
-            .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
+        self.set_main_span(id, name_span);
+        self.set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.global_map.insert(name, id);
 

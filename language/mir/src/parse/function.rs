@@ -224,8 +224,8 @@ impl Parser {
             self.tree
                 .set_span(function_id, self.span_from_parse_start(item_start));
             self.tree.set_keyword_span(function_id, header.keyword_span);
-            self.tree.set_main_span(function_id, header.name_span);
-            self.tree.set_side_span(
+            self.set_main_span(function_id, header.name_span);
+            self.set_side_span(
                 function_id,
                 NodeSpanType::Region(NodeSpanRegion::Type),
                 header.signature_span,
@@ -265,8 +265,8 @@ impl Parser {
         self.tree
             .set_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, header.keyword_span);
-        self.tree.set_main_span(id, header.name_span);
-        self.tree.set_side_span(
+        self.set_main_span(id, header.name_span);
+        self.set_side_span(
             id,
             NodeSpanType::Region(NodeSpanRegion::Type),
             header.signature_span,
@@ -563,8 +563,8 @@ impl Parser {
         self.local_name_map
             .insert(local_name_text.clone(), local_id);
         self.tree.set_span(local_id, text_span);
-        self.tree.set_main_span(local_id, local_span);
-        self.tree.set_side_span(
+        self.set_main_span(local_id, local_span);
+        self.set_side_span(
             local_id,
             NodeSpanType::Region(NodeSpanRegion::Type),
             type_span,
@@ -701,14 +701,14 @@ impl Parser {
         *self.tree.get_mut(block_id) = block;
         self.tree
             .set_span(block_id, self.span_from_parse_start(block_start));
-        self.tree.set_main_span(block_id, block_span);
+        self.set_main_span(block_id, block_span);
 
         if let Some(terminator_span) = terminator_span {
             self.tree.set_span(terminator_id, terminator_span);
         }
 
         if let Some(terminator_main_span) = terminator_main_span {
-            self.tree.set_main_span(terminator_id, terminator_main_span);
+            self.set_main_span(terminator_id, terminator_main_span);
         }
 
         Ok(block_id)

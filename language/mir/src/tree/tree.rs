@@ -1039,12 +1039,12 @@ impl Tree {
 
     /// Set the main source span for a MIR node.
     #[inline]
-    pub fn set_main_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
+    pub fn set_main_span<T>(&mut self, id: LocalNodeId<T>, span: Span, provenance: ProvenanceId)
     where
         T: Node,
     {
         self.node_index(id.id);
-        self.document_mut().index.set_main(id.id, span);
+        self.document_mut().index.set_main(id.id, span, provenance);
     }
 
     /// Get one side span for a MIR node when present.
@@ -1069,12 +1069,19 @@ impl Tree {
 
     /// Set one side span for a MIR node.
     #[inline]
-    pub fn set_side_span<T>(&mut self, id: LocalNodeId<T>, span_type: NodeSpanType, span: Span)
-    where
+    pub fn set_side_span<T>(
+        &mut self,
+        id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+        span: Span,
+        provenance: ProvenanceId,
+    ) where
         T: Node,
     {
         self.node_index(id.id);
-        self.document_mut().index.set_side(id.id, span_type, span);
+        self.document_mut()
+            .index
+            .set_side(id.id, span_type, span, provenance);
     }
 
     /// Return the leading comments for one node.

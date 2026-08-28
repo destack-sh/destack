@@ -222,7 +222,7 @@ impl Parser {
         // attach source comments after the node graph exists
         parser.attach_comment_ownership();
 
-        // seal final source spans into authored provenance roots
+        // write final spans to authored MIR node locations
         for node_id in 0..parser.tree.node_count() as u32 {
             let provenance = parser.tree.provenance(node_id);
             let enclosing = parser
@@ -261,6 +261,27 @@ impl Parser {
         id
     }
 
+    /// Set one parsed MIR node's exact main source span.
+    pub(super) fn set_main_span<T>(&mut self, id: LocalNodeId<T>, span: Span)
+    where
+        T: Node,
+    {
+        self.set_side_span(id, NodeSpanType::Main, span);
+    }
+
+    /// Set one parsed MIR node's exact typed source span.
+    pub(super) fn set_side_span<T>(
+        &mut self,
+        id: LocalNodeId<T>,
+        span_type: NodeSpanType,
+        span: Span,
+    ) where
+        T: Node,
+    {
+        let provenance = self.provenance.insert_authored(span);
+        self.tree.set_side_span(id, span_type, span, provenance);
+    }
+
     /// Apply one ordered segment span list to one MIR node.
     pub(super) fn set_segment_spans<T>(
         &mut self,
@@ -278,7 +299,7 @@ impl Parser {
                     self.pos(),
                 )
             })?;
-            self.tree.set_side_span(
+            self.set_side_span(
                 id,
                 NodeSpanType::ListItem(NodeSpanList::Segment, segment_index),
                 span,
