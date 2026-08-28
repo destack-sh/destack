@@ -26,7 +26,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
     ) {
         // run the user hook before destroying owned children
         if let Some(hook) = self.drops.hook(ty, storage) {
-            self.call_hook(pointer, hook);
+            self.call(pointer, hook);
         }
 
         self.drop_storage(ty, pointer, storage);
@@ -34,12 +34,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
 
     /// Emit drop for one inline value at its storage address.
     fn drop_inline(&mut self, ty: mir::TypeId, pointer: mir::Value, storage: mir::Storage) {
-        match self.builder.tree().get(ty).clone() {
+        match self.builder.tree().ty(ty).clone() {
             // type Pair { left: File; right: File; }
             mir::Type::Struct { fields, .. } => {
                 // drop fields in reverse declaration order
                 for (index, field) in fields.iter().enumerate().rev() {
-                    let field_ty = self.builder.tree().get(*field).ty;
+                    let field_ty = field.ty;
                     let field_pointer_type = self.intern_pointer(field_ty, storage);
                     let field_pointer =
                         self.builder
@@ -218,7 +218,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
 
     /// Emit drop for one value at its storage address.
     pub(super) fn drop_at(&mut self, ty: mir::TypeId, pointer: mir::Value, storage: mir::Storage) {
-        // call canonical drop glue for nontrivial stored values
+        // call the generated destructor for nontrivial stored values
         if let Some(function) = self.drops.destructor(ty, storage) {
             self.call(pointer, function);
 
@@ -230,7 +230,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
 
     /// Emit drop for one value stored at an address.
     fn drop_storage(&mut self, ty: mir::TypeId, pointer: mir::Value, storage: mir::Storage) {
-        match self.builder.tree().get(ty).clone() {
+        match self.builder.tree().ty(ty).clone() {
             // ref<File, unique, mutable>
             mir::Type::Reference {
                 kind: mir::ReferenceKind::Unique,
@@ -239,7 +239,9 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 ..
             } => {
                 let value = self.builder.load(pointer, ty);
-                self.drop_unique(value, pointee, storage);
+                if let Some(function) = self.drops.destructor(pointee, storage) {
+                    self.call(value, function);
+                }
                 self.builder.free(value);
             }
             // slice<File, unique, mutable>
@@ -274,34 +276,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         }
     }
 
-    /// Call one user-authored drop hook with the storage reference.
-    fn call_hook(&mut self, pointer: mir::Value, function: mir::FunctionId) {
-        let (parameter, signature) = {
-            let function = self.builder.tree().get(function);
-            let [parameter] = function.parameters.as_slice() else {
-                unreachable!("drop hook must accept one storage reference");
-            };
-
-            (parameter.ty, function.signature())
-        };
-        let pointer_type = self.builder.value_type(pointer);
-        let receiver = if pointer_type == Some(parameter) {
-            pointer
-        } else {
-            self.builder.bitcast(pointer, parameter)
-        };
-        let signature = self.builder.tree_mut().intern_type(signature);
-
-        self.builder
-            .call(mir::Callee::Direct { function }, signature, vec![receiver]);
-    }
-
-    /// Call one generated destructor.
+    /// Call one destructor or user drop hook.
     fn call(&mut self, pointer: mir::Value, function: mir::FunctionId) {
         let (parameter, signature) = {
             let function = self.builder.tree().get(function);
             let [parameter] = function.parameters.as_slice() else {
-                unreachable!("generated destructor must accept one storage reference");
+                unreachable!("drop function must accept one storage reference");
             };
 
             (parameter.ty, function.signature())
@@ -350,26 +330,6 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         self.builder.tree_mut().intern_type(reference)
     }
 
-    /// Emit drop for one unique reference's pointee.
-    fn drop_unique(&mut self, value: mir::Value, pointee: mir::TypeId, storage: mir::Storage) {
-        let Some(function) = self.drops.destructor(pointee, storage) else {
-            return;
-        };
-        let (parameter, signature) = {
-            let function = self.builder.tree().get(function);
-            let [parameter] = function.parameters.as_slice() else {
-                unreachable!("generated destructor must accept one storage reference");
-            };
-
-            (parameter.ty, function.signature())
-        };
-        let pointer = self.builder.bitcast(value, parameter);
-        let signature = self.builder.tree_mut().intern_type(signature);
-
-        self.builder
-            .call(mir::Callee::Direct { function }, signature, vec![pointer]);
-    }
-
     /// Return whether dropping a value of this type emits MIR.
     pub(super) fn emits(
         drops: &mir::DropTable,
@@ -377,6 +337,6 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         ty: mir::TypeId,
         storage: mir::Storage,
     ) -> bool {
-        drops.destructor(ty, storage).is_some() || tree.get(ty).is_unique_storage()
+        drops.destructor(ty, storage).is_some() || tree.ty(ty).is_unique_storage()
     }
 }

@@ -22,6 +22,7 @@ impl TestProgram {
             .expect("elaboration layouts should build");
         let elaborated = state.finish();
         self.lowered.tree = elaborated.tree;
+        self.lowered.provenance = elaborated.provenance;
         self.lowered.layouts = elaborated.layouts;
         self.lowered.drops = elaborated.drops;
         self.lowered.effects = elaborated.effects;

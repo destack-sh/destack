@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
 use std::sync::Arc;
 
+use destack_core::FxIndexMap;
 use destack_mir as mir;
 
 /// Planned destruction for one function.
@@ -15,8 +15,8 @@ pub(in crate::elaborate) struct DropPlan {
     pub(super) edge_drops: Vec<EdgeDrop>,
 }
 
-/// Ownership analyses used to build one drop plan.
-struct DropAnalysis<'a> {
+/// Planner for destruction within one function.
+struct DropPlanner<'a> {
     /// The function being planned.
     function: &'a mir::Function,
     /// The MIR tree.
@@ -38,7 +38,7 @@ struct DropAnalysis<'a> {
     edge_drops: Vec<EdgeDrop>,
 }
 
-/// Destruction planned at one instruction boundary.
+/// Destruction planned at one block instruction index.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct BlockDrop {
     /// Instruction index where destruction is inserted.
@@ -64,27 +64,11 @@ impl DropPlan {
         tree: &mir::Tree,
         retention: &mir::RetentionTable,
     ) -> Self {
-        DropAnalysis::build(function_id, function, tree, retention)
-    }
-
-    /// Return the stored types reached by this plan.
-    pub(in crate::elaborate) fn roots(&self) -> impl Iterator<Item = mir::TypeId> + '_ {
-        let blocks = self
-            .block_drops
-            .values()
-            .flatten()
-            .map(|drop| self.paths.get(drop.path).ty);
-        let edges = self
-            .edge_drops
-            .iter()
-            .flat_map(|drop| &drop.paths)
-            .map(|path| self.paths.get(*path).ty);
-
-        blocks.chain(edges)
+        DropPlanner::build(function_id, function, tree, retention)
     }
 }
 
-impl<'a> DropAnalysis<'a> {
+impl<'a> DropPlanner<'a> {
     /// Build planned destruction for one function.
     fn build(
         function_id: mir::FunctionId,
@@ -98,7 +82,7 @@ impl<'a> DropAnalysis<'a> {
         let places = analyses.place(function, tree);
         let paths = analyses.moves(function, tree);
         let initialization = analyses.initialization(function, tree);
-        let mut analysis = Self {
+        let mut planner = Self {
             function,
             tree,
             liveness,
@@ -111,15 +95,15 @@ impl<'a> DropAnalysis<'a> {
         };
 
         // plan block-local and edge-specific destruction
-        let exits = analysis.plan_block_drops();
-        analysis.plan_edge_drops(&exits);
-        analysis.merge_common_edge_drops();
+        let exits = planner.plan_block_drops();
+        planner.plan_edge_drops(&exits);
+        planner.merge_common_edge_drops();
 
         DropPlan {
             function: function_id,
-            paths: analysis.paths,
-            block_drops: analysis.block_drops,
-            edge_drops: analysis.edge_drops,
+            paths: planner.paths,
+            block_drops: planner.block_drops,
+            edge_drops: planner.edge_drops,
         }
     }
 

@@ -1,15 +1,20 @@
 use destack_artifact::{MirElaborated, MirLowered};
 use destack_core::StringPool;
 use destack_mir as mir;
+use destack_source::ProvenanceBuilder;
 
 use crate::{CompilerError, CompilerResult};
 
 use super::drop::{DestructorBuilder, DropInserter, DropPlan};
 
+const INSERT_DROPS: &str = "insert-drops";
+
 /// State for one MIR elaboration.
 pub(crate) struct ElaborateState<'a> {
     /// The MIR tree being elaborated.
     pub(in crate::elaborate) tree: mir::Tree,
+    /// The provenance transformations produced by elaboration.
+    pub(in crate::elaborate) provenance: ProvenanceBuilder,
     /// Target ABI layout.
     pub(in crate::elaborate) target: mir::TargetLayout,
     /// Canonical MIR layout table.
@@ -28,6 +33,7 @@ impl<'a> ElaborateState<'a> {
     pub(in crate::elaborate) fn new(lowered: &MirLowered, strings: &'a StringPool) -> Self {
         Self {
             tree: lowered.tree.clone(),
+            provenance: lowered.provenance.extend(),
             target: lowered.target,
             layouts: lowered.layouts.clone(),
             drops: lowered.drops.clone(),
@@ -53,21 +59,21 @@ impl<'a> ElaborateState<'a> {
             .into_iter()
             .map(|id| DropPlan::build(id, self.tree.get(id), &self.tree, retention))
             .collect::<Vec<_>>();
-        let frame_roots = plans.iter().flat_map(DropPlan::roots).collect::<Vec<_>>();
 
-        // build storage destructors required by managed allocations
+        // build every storage destructor required by the complete drop plan
         let mut destructors = DestructorBuilder::new(
             &mut self.tree,
+            &mut self.provenance,
             self.target,
             &mut self.drops,
             &mut self.effects,
             self.strings,
         );
-        destructors.build_allocations();
-        destructors.build_frames(frame_roots);
+        destructors.build(&plans);
 
         // insert verified destruction into each source function
-        DropInserter::new(&mut self.tree, &self.drops).insert(plans);
+        let mut provenance = self.provenance.record(INSERT_DROPS);
+        DropInserter::new(&mut self.tree, &mut provenance, &self.drops).insert(plans);
 
         // complete layouts for types introduced by elaboration
         let mut layouts = mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.target);
@@ -84,6 +90,7 @@ impl<'a> ElaborateState<'a> {
     pub(in crate::elaborate) fn finish(self) -> MirElaborated {
         MirElaborated {
             tree: self.tree,
+            provenance: self.provenance.finish(),
             layouts: self.layouts,
             drops: self.drops,
             effects: self.effects,

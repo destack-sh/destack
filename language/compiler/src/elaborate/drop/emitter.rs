@@ -1,13 +1,13 @@
 use destack_mir as mir;
 
 /// MIR instruction emitter for one planned drop.
-pub(super) struct DropEmitter<'a> {
+pub(super) struct DropEmitter<'a, 'f> {
     /// The MIR tree receiving generated values and types.
     tree: &'a mut mir::Tree,
     /// Canonical MIR drop table.
     drops: &'a mir::DropTable,
     /// Function receiving the instructions.
-    function: mir::LocalNodeId<mir::Function>,
+    function: &'f mut mir::Function,
     /// Block where the instructions execute.
     block: mir::LocalNodeId<mir::Block>,
     /// Move paths planned against the original function.
@@ -16,12 +16,12 @@ pub(super) struct DropEmitter<'a> {
     instructions: Vec<mir::Instruction>,
 }
 
-impl<'a> DropEmitter<'a> {
+impl<'a, 'f> DropEmitter<'a, 'f> {
     /// Create an emitter at one function block.
     pub(super) fn new(
         tree: &'a mut mir::Tree,
         drops: &'a mir::DropTable,
-        function: mir::LocalNodeId<mir::Function>,
+        function: &'f mut mir::Function,
         block: mir::LocalNodeId<mir::Block>,
         paths: &'a mir::MoveTable,
     ) -> Self {
@@ -211,26 +211,23 @@ impl<'a> DropEmitter<'a> {
         let requires_destructor =
             self.drops
                 .requires_destructor(ty, mir::Storage::Frame, self.tree);
-        self.emit_contents(value, ty);
+        self.emit_contents(value, ty, requires_destructor);
 
         // release trivial unique storage after its contents
-        if self.tree.get(ty).is_unique_storage() && !requires_destructor {
+        if self.tree.ty(ty).is_unique_storage() && !requires_destructor {
             self.instructions.push(mir::Instruction::Free { value });
         }
     }
 
     /// Emit destruction for one value's contents.
-    fn emit_contents(&mut self, value: mir::Value, ty: mir::TypeId) {
-        if self
-            .drops
-            .requires_destructor(ty, mir::Storage::Frame, self.tree)
-        {
+    fn emit_contents(&mut self, value: mir::Value, ty: mir::TypeId, requires_destructor: bool) {
+        if requires_destructor {
             self.instructions.push(mir::Instruction::Drop { value });
 
             return;
         }
 
-        match self.tree.get(ty).clone() {
+        match self.tree.ty(ty).clone() {
             // dispatch erased payload and closure environment destruction at runtime
             mir::Type::Dynamic {
                 kind: mir::ReferenceKind::Unique,
@@ -266,7 +263,7 @@ impl<'a> DropEmitter<'a> {
         };
 
         // enter the storage-specific destructor at the allocation address
-        let value_type = self.tree.get(self.function).expect_value_type(value);
+        let value_type = self.function.expect_value_type(value);
         let pointer = if value_type == parameter {
             value
         } else {
@@ -302,6 +299,6 @@ impl<'a> DropEmitter<'a> {
 
     /// Allocate one typed SSA value in the rewritten function.
     fn allocate_value(&mut self, ty: mir::TypeId) -> mir::Value {
-        self.tree.get_mut(self.function).next_typed_value(ty)
+        self.function.next_typed_value(ty)
     }
 }
