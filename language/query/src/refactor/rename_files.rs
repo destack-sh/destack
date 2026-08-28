@@ -6,7 +6,7 @@ use destack_artifact::{ArtifactKey, DirExpanded, DirImported, DirParsed};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Repository, Revision};
 use destack_serde::Reflect;
-use destack_source::{FileId, FilePatch, Patch, PatchSet, PathExt};
+use destack_source::{FileId, FilePatch, NodeSpanType, Patch, PatchSet, PathExt};
 use serde::{Deserialize, Serialize};
 
 use super::specifier::{rename_specifier, renamed_target_path, workspace_path};
@@ -94,7 +94,6 @@ pub fn rename_files(
         let imported = artifacts.read::<DirImported>((module_id, selected.profile_id))?;
         let expanded = artifacts.read::<DirExpanded>((module_id, selected.profile_id))?;
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let source_index = &parsed.tree.source_index;
         let module_table = expanded.module_table(&imported);
 
         // resolve file content for literal edits
@@ -139,15 +138,17 @@ pub fn rename_files(
             let target_path = workspace_path(&workspace_root, target_path);
 
             // require every resolved authored specifier to retain its source span
-            let source_id = view.get_source(expression_id);
-            if source_index.try_get(source_id).is_none() {
+            let provenance = view.provenance(expression_id);
+            if expanded.provenance.span(provenance).is_none() {
                 continue;
             }
-            let span = source_index.get_main(source_id).ok_or_else(|| {
-                QueryError::invalid(format!(
-                    "resolved module specifier {source:?} has no authored main span"
-                ))
-            })?;
+            let span = view
+                .get_side_span(expression_id, NodeSpanType::Main)
+                .ok_or_else(|| {
+                    QueryError::invalid(format!(
+                        "resolved module specifier {source:?} has no authored main span"
+                    ))
+                })?;
             let text = repository.string_pool().get(text);
 
             // resolve source and target movement independently

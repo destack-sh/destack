@@ -60,9 +60,7 @@ impl ModuleQueryContext<'_> {
         let position = request.position;
 
         // use only the exact callable key at a call head
-        if let Some(key) =
-            self.selected_callable_at_offset(position.file_id, position.offset)?
-        {
+        if let Some(key) = self.selected_callable_at_offset(position.file_id, position.offset)? {
             let item = CallItem::from_selection(program, key)?;
 
             return Ok(CallItemResponse { item });
@@ -279,7 +277,7 @@ impl ModuleQueryContext<'_> {
             if !main.owns_cursor(offset) {
                 continue;
             }
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             if let Some(key) = self.selected_callable_at_node(view, node_id)? {
@@ -345,9 +343,7 @@ impl CallableSelection<'_> {
         }
 
         // otherwise require the ordinary call key
-        let resolution = call.ok_or(QueryError::missing(format!(
-            "call item key: {node_id:?}"
-        )))?;
+        let resolution = call.ok_or(QueryError::missing(format!("call item key: {node_id:?}")))?;
 
         // represent only one singular declaration as an item
         match resolution.target_symbols().as_slice() {
@@ -377,10 +373,7 @@ impl CallableSelection<'_> {
     /// Return the callable represented by one construction.
     fn from_resolution(resolution: &dir::ConstructDecision) -> QueryResult<CallableSelection<'_>> {
         match &resolution.target {
-            dir::ConstructTarget::Class {
-                key,
-                constructor,
-            } => match constructor.call_symbol() {
+            dir::ConstructTarget::Class { key, constructor } => match constructor.call_symbol() {
                 Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
                 None => Ok(CallableSelection::Symbol(key.symbol)),
             },
@@ -649,7 +642,7 @@ impl ModuleQueryContext<'_> {
         let view = self.view()?;
         let range = self.node_span(view, source)?;
         let key = self
-            .node_selection_span(view, source)?
+            .node_selection_span(view, source)
             .ok_or(QueryError::missing(format!(
                 "call item span: {:?}",
                 source.into_global(self.module_id())

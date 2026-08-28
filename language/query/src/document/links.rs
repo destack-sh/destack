@@ -69,7 +69,7 @@ impl ModuleQueryContext<'_> {
                     module: target_module_id,
                 })?;
             let span = self
-                .node_selection_span(view, expression_id.into())?
+                .node_selection_span(view, expression_id.into())
                 .ok_or(QueryError::missing(format!("link span: {node_id:?}")))?;
             if span.file != file_id {
                 continue;

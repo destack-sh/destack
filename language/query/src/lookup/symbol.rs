@@ -198,7 +198,7 @@ impl ModuleQueryContext<'_> {
 
         if let Some(declaration) = declaration {
             let span = self
-                .node_selection_span(self.view()?, declaration.local_id)?
+                .node_selection_span(self.view()?, declaration.local_id)
                 .ok_or(QueryError::missing(format!(
                     "symbol definition: {symbol_id:?}"
                 )))?;
@@ -210,7 +210,7 @@ impl ModuleQueryContext<'_> {
         if let Some((_, _, member)) = self.definition_member(program, symbol_id)? {
             let source = member.source();
             let span = self
-                .node_selection_span(self.view()?, source.local_id)?
+                .node_selection_span(self.view()?, source.local_id)
                 .ok_or(QueryError::missing(format!(
                     "member definition: {symbol_id:?}"
                 )))?;

@@ -541,7 +541,7 @@ impl ModuleQueryContext<'_> {
 
         // check enclosing expressions that are known type expressions
         for enclosing_span in &enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Expression {
@@ -569,7 +569,7 @@ impl ModuleQueryContext<'_> {
 
         // accept only identifier expressions that own the cursor
         for enclosing in self.enclosing_spans_at_cursor(file_id, offset)? {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Expression {
@@ -620,7 +620,7 @@ impl ModuleQueryContext<'_> {
 
         // scan enclosing declarations for type and value declarations
         for enclosing_span in enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Declaration {

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::Span;
+use destack_source::{NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -125,11 +125,9 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            let source_node_id = view.get_source(declarator.pattern);
             let binding = declarator.pattern.into_global_any(self.module_id());
-            let name_span = self
-                .source_index()?
-                .get_main(source_node_id)
+            let name_span = view
+                .get_side_span(declarator.pattern, NodeSpanType::Main)
                 .ok_or(QueryError::missing(format!("inlay hint span: {binding:?}")))?;
             if !Self::span_overlaps_range(name_span, range) {
                 continue;

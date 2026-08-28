@@ -317,10 +317,9 @@ impl ModuleQueryContext<'_> {
             NodeSpanRegion::TreeContainer,
         ];
         for node_id in view.iter_node_ids() {
-            let source_id = view.get_source_any(node_id);
             for region in regions {
                 let span_type = NodeSpanType::Region(region);
-                let Some(span) = self.source_index()?.get_side(source_id, span_type) else {
+                let Some(span) = view.get_side_span_by_id(node_id.id, span_type) else {
                     continue;
                 };
                 if span.file == file_id {

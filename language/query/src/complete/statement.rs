@@ -13,7 +13,7 @@ impl ModuleQueryContext<'_> {
         let view = self.view()?;
 
         // only block spans can expose statement positions
-        let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
+        let Some(node_id) = view.resolve_node(enclosing.source_id) else {
             return Ok(false);
         };
         if node_id.ty != dir::NodeType::Block {
@@ -42,7 +42,7 @@ impl ModuleQueryContext<'_> {
                 }
 
                 return Ok(self
-                    .node_selection_span(view, expression_id.into())?
+                    .node_selection_span(view, expression_id.into())
                     .is_some_and(|main_span| main_span.owns_cursor(offset)));
             }
 

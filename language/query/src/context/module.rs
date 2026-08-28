@@ -252,6 +252,17 @@ impl<'a> ModuleQueryContext<'a> {
         Ok(&self.parsed()?.tree.source_index)
     }
 
+    /// Return whether one visible node traces to authored source.
+    pub(crate) fn is_authored(
+        &self,
+        view: dir::View<'_>,
+        node_id: dir::LocalNodeIdAny,
+    ) -> QueryResult<bool> {
+        let provenance = view.provenance_any(node_id);
+
+        Ok(self.expanded()?.provenance.span(provenance).is_some())
+    }
+
     /// Iterate semantic tokens for one source file.
     pub(crate) fn tokens(
         &self,

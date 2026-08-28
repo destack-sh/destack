@@ -169,7 +169,7 @@ impl ExtractionTarget {
 
         let view = module.view()?;
         for enclosing in enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Expression {

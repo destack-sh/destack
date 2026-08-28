@@ -196,7 +196,7 @@ impl ModuleQueryContext<'_> {
                 return Err(QueryError::invalid(format!("highlight write: {target:?}")));
             }
             let span = self
-                .node_selection_span(self.view()?, target.local_id)?
+                .node_selection_span(self.view()?, target.local_id)
                 .ok_or(QueryError::missing(format!("highlight span: {target:?}")))?;
             if span.file == file_id {
                 spans.insert(span);

@@ -24,7 +24,7 @@ impl ModuleQueryContext<'_> {
         // select the innermost source owner with documentation
         let view = self.view()?;
         for enclosing in self.enclosing_spans_at_cursor(file_id, offset)? {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing.source_id) else {
                 continue;
             };
             let Some(documentation) = view.get_documentation_any(node_id) else {

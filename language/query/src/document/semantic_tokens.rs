@@ -618,11 +618,9 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         }
 
         // map the checked node through the visible tree to its authored span
-        let source_id = self.module.view()?.get_source_any(source.local_id);
-        let span = self
-            .module
-            .source_index()?
-            .get_main(source_id)
+        let view = self.module.view()?;
+        let span = view
+            .get_side_span_by_id(source.local_id.id, NodeSpanType::Main)
             .ok_or(QueryError::missing(format!(
                 "semantic token span: {source:?}"
             )))?;
@@ -1178,8 +1176,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
         // visit authored names owned by type reference nodes
         for (type_id, type_expression) in view.iter_nodes::<dir::TypeExpression>() {
-            let source_id = view.get_source(type_id);
-            if self.module.source_index()?.try_get(source_id).is_none() {
+            if !self.module.is_authored(view, type_id.into_any())? {
                 continue;
             }
 
@@ -1193,13 +1190,11 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                             QueryError::invalid(format!("semantic token path: {node:?}"))
                         })?;
                         let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index);
-                        let span = self
-                            .module
-                            .source_index()?
-                            .get_side(source_id, span_type)
-                            .ok_or(QueryError::missing(format!(
-                                "semantic token span: {node:?}"
-                            )))?;
+                        let span =
+                            view.get_side_span(type_id, span_type)
+                                .ok_or(QueryError::missing(format!(
+                                    "semantic token span: {node:?}"
+                                )))?;
                         spans.push(span);
                     }
                 }
@@ -1363,7 +1358,6 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 continue;
             }
 
-            let source_node_id = view.get_source(item_id);
             let Some(main_span) = self.main_span(item_id.into_any())? else {
                 continue;
             };
@@ -1406,10 +1400,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
             // emit the imported name independently from its local alias
             let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
-            if let Some(imported_span) = self
-                .module
-                .source_index()?
-                .get_side(source_node_id, imported_name)
+            if let Some(imported_span) = view.get_side_span(item_id, imported_name)
                 && imported_span != main_span
             {
                 self.tokens.push(SemanticToken::new(
@@ -1431,24 +1422,17 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
     /// Return the authored main span for one DIR node.
     fn main_span(&self, node_id: dir::LocalNodeIdAny) -> QueryResult<Option<Span>> {
-        let source_node_id = self.module.view()?.get_source_any(node_id);
-        if self
-            .module
-            .source_index()?
-            .try_get(source_node_id)
-            .is_none()
-        {
+        let view = self.module.view()?;
+        if !self.module.is_authored(view, node_id)? {
             return Ok(None);
         }
 
-        let node_id = node_id.into_global(self.module.module_id());
-        let span =
-            self.module
-                .source_index()?
-                .get_main(source_node_id)
-                .ok_or(QueryError::missing(format!(
-                    "semantic token main span: {node_id:?}, source={source_node_id}"
-                )))?;
+        let node = node_id.into_global(self.module.module_id());
+        let span = view
+            .get_side_span_by_id(node_id.id, NodeSpanType::Main)
+            .ok_or(QueryError::missing(format!(
+                "semantic token main span: {node:?}"
+            )))?;
 
         Ok(Some(span))
     }

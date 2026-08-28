@@ -325,7 +325,7 @@ impl RenameShorthandIndex {
             };
             let node = property_id.into_global_any(module.module_id());
             let span = module
-                .node_selection_span(view, property_id.into())?
+                .node_selection_span(view, property_id.into())
                 .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
             let name = module.strings().get(*name).to_string();
             shorthand_names.insert(span, name);
@@ -343,7 +343,7 @@ impl RenameShorthandIndex {
             };
             let node = field_id.into_global_any(module.module_id());
             let span = module
-                .node_selection_span(view, field_id.into())?
+                .node_selection_span(view, field_id.into())
                 .ok_or(QueryError::missing(format!("rename shorthand: {node:?}")))?;
             let name = module.strings().get(*name).to_string();
             shorthand_names.insert(span, name);

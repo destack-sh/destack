@@ -132,7 +132,7 @@ impl ModuleQueryContext<'_> {
         let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
         let view = self.view()?;
         for enclosing_span in enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             let main_span = self
@@ -178,18 +178,16 @@ impl ModuleQueryContext<'_> {
             return Ok(main_span.owns_cursor(offset).then_some(main_span));
         }
 
-        let source_id = view.get_source(type_id);
         let node = node_id.into_global(self.module_id());
         for (index, _) in path.segments.iter().enumerate() {
             let index = u16::try_from(index)
                 .map_err(|_| QueryError::invalid(format!("type reference path: {node:?}")))?;
             let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index);
-            let span =
-                self.source_index()?
-                    .get_side(source_id, span_type)
-                    .ok_or(QueryError::missing(format!(
-                        "type reference span: {node:?}, {index:?}"
-                    )))?;
+            let span = view
+                .get_side_span(type_id, span_type)
+                .ok_or(QueryError::missing(format!(
+                    "type reference span: {node:?}, {index:?}"
+                )))?;
             if span.owns_cursor(offset) {
                 return Ok(Some(span));
             }
@@ -344,13 +342,11 @@ impl ModuleQueryContext<'_> {
             return Ok(selected_span);
         }
 
-        let source_id = view.get_source(type_id);
         let root = NodeSpanType::ListItem(NodeSpanList::Segment, 0);
 
         let node = node_id.into_global(self.module_id());
-        let span = self
-            .source_index()?
-            .get_side(source_id, root)
+        let span = view
+            .get_side_span(type_id, root)
             .ok_or(QueryError::missing(format!(
                 "type reference span: {:?}, {:?}",
                 node, 0
@@ -529,19 +525,17 @@ impl ModuleQueryContext<'_> {
             return Ok(None);
         }
 
-        let source_id = view.get_source(type_id);
         let node = node_id.into_global(self.module_id());
         let mut selected = None;
         for (index, _) in path.segments.iter().enumerate() {
             let index_id = u16::try_from(index)
                 .map_err(|_| QueryError::invalid(format!("type reference path: {node:?}")))?;
             let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, index_id);
-            let span =
-                self.source_index()?
-                    .get_side(source_id, span_type)
-                    .ok_or(QueryError::missing(format!(
-                        "type reference span: {node:?}, {index_id:?}"
-                    )))?;
+            let span = view
+                .get_side_span(type_id, span_type)
+                .ok_or(QueryError::missing(format!(
+                    "type reference span: {node:?}, {index_id:?}"
+                )))?;
             if span == selected_span {
                 selected = Some(index);
                 break;
@@ -746,11 +740,10 @@ impl ModuleQueryContext<'_> {
         offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
         let node_id = item_id.into_global(self.module_id()).into_any();
-        let source_id = view.get_source(item_id);
         let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
 
         // imported names use the resolved dependency target
-        if let Some(span) = self.source_index()?.get_side(source_id, imported_name)
+        if let Some(span) = view.get_side_span(item_id, imported_name)
             && span.owns_cursor(offset)
         {
             let symbols = self.dependency_declaration_symbols(item_id)?;
@@ -766,7 +759,7 @@ impl ModuleQueryContext<'_> {
         }
 
         // local names use the recorded dependency binding
-        let Some(span) = self.source_index()?.get_main(source_id) else {
+        let Some(span) = view.get_side_span(item_id, NodeSpanType::Main) else {
             return Ok(None);
         };
         if !span.owns_cursor(offset) {

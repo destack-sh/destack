@@ -1,7 +1,7 @@
 use destack_artifact::PackageDependency;
 use destack_core::StringId;
 use destack_dir as dir;
-use destack_source::{FileId, ModuleId, Patch, Span};
+use destack_source::{FileId, ModuleId, NodeSpanType, Patch, Span};
 
 use crate::source::{builtin_specifier, package_specifier, relative_module_specifier};
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
@@ -292,11 +292,11 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
 
-            // ignore generated imports because they have no editable authored source
-            let source_id = view.get_source(node_id);
-            let Some(span) = self.source_index()?.try_get(source_id) else {
+            // select imports with editable authored source
+            if !self.is_authored(view, node_id.into_any())? {
                 continue;
-            };
+            }
+            let span = view.get_span(node_id);
             let path = self.strings().get(*target).to_string();
             if span.file != file_id {
                 continue;
@@ -324,11 +324,7 @@ impl ModuleQueryContext<'_> {
             for item_id in items {
                 let item = view.get(*item_id);
                 let node = item_id.into_global_any(self.module_id());
-                let source_id = view.get_source(*item_id);
-                let span = self
-                    .source_index()?
-                    .try_get(source_id)
-                    .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
+                let span = view.get_span(*item_id);
                 match item.binding() {
                     Some(dir::DependencyBinding::Default) => {
                         let name = item
@@ -348,16 +344,11 @@ impl ModuleQueryContext<'_> {
                     None => {}
                 }
             }
-            let target_span = self.source_index()?.get_main(source_id);
+            let target_span = view.get_side_span(node_id, NodeSpanType::Main);
             let bounds = self.import_clause_bounds(span, target_span)?;
             let named_offset = bounds.map(|bounds| bounds.open_brace.end);
             let default_offset = if let Some(item_id) = namespace_item {
-                let source_id = view.get_source(item_id);
-                let node = item_id.into_global_any(self.module_id());
-                let span = self
-                    .source_index()?
-                    .try_get(source_id)
-                    .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
+                let span = view.get_span(item_id);
 
                 Some(span.start)
             } else {

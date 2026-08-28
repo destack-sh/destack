@@ -5,8 +5,8 @@ use destack_core::Blob;
 use destack_dir as dir;
 use destack_serde::Reflect;
 use destack_source::{
-    Applicability, Diagnostic, DiagnosticReference, DiagnosticTarget, FilePatch, Patch, PatchSet,
-    Span,
+    Applicability, Diagnostic, DiagnosticReference, DiagnosticTarget, FilePatch, NodeSpanType,
+    Patch, PatchSet, Span,
 };
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
@@ -332,8 +332,7 @@ impl ModuleQueryContext<'_> {
         // match the diagnostic span against the retained unresolved paths
         let view = self.view()?;
         for (node, path) in self.resolutions()?.unresolved_entries() {
-            let source_node_id = view.get_source_any(node.local_id);
-            let Some(span) = self.source_index()?.get_main(source_node_id) else {
+            let Some(span) = view.get_side_span_by_id(node.local_id.id, NodeSpanType::Main) else {
                 continue;
             };
             if !diagnostic.primary.target.matches_range(span) {

@@ -71,7 +71,7 @@ impl ModuleQueryContext<'_> {
             };
             let declaration = declaration_id.into_global_any(self.module_id());
             let span = self
-                .node_selection_span(view, declaration_id.into())?
+                .node_selection_span(view, declaration_id.into())
                 .ok_or(QueryError::missing(format!(
                     "code lens span: {declaration:?}"
                 )))?;

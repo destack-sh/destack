@@ -65,7 +65,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             }
 
-            let Some(dir_node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(dir_node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             let Some(receiver) =
@@ -93,7 +93,7 @@ impl ModuleQueryContext<'_> {
 
         // scan for the nearest enclosing expression
         for enclosing_span in &enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             let Some(receiver) = CompletionReceiver::resolve_member(node_id, None, self)? else {

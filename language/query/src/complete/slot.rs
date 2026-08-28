@@ -259,7 +259,7 @@ impl ModuleQueryContext<'_> {
         let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
         let node_id = enclosing
             .into_iter()
-            .find_map(|span| view.get_node_id_by_source_id(span.source_id));
+            .find_map(|span| view.resolve_node(span.source_id));
         let Some(node_id) = node_id else {
             return Ok(None);
         };

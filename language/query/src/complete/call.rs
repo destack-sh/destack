@@ -95,7 +95,7 @@ impl CallSnippet {
 impl<'a> CallExpression<'a> {
     /// Resolve one call expression from an enclosing span.
     fn from_span(view: dir::View<'a>, span: &EnclosingSpan) -> Option<Self> {
-        let node_id = view.get_node_id_by_source_id(span.source_id)?;
+        let node_id = view.resolve_node(span.source_id)?;
         if node_id.ty != dir::NodeType::Expression {
             return None;
         }
@@ -193,7 +193,7 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<CompletionContext>> {
         // only expression spans can own one `new` constructor region
         let view = self.view()?;
-        let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+        let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
             return Ok(None);
         };
         if node_id.ty != dir::NodeType::Expression {

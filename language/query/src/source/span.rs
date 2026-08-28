@@ -1,5 +1,5 @@
 use destack_dir as dir;
-use destack_source::{EnclosingSpan, FileId, Span};
+use destack_source::{EnclosingSpan, FileId, NodeSpanType, Span};
 
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
@@ -91,10 +91,8 @@ impl ModuleQueryContext<'_> {
         &self,
         view: dir::View<'_>,
         node_id: dir::LocalNodeIdAny,
-    ) -> QueryResult<Option<Span>> {
-        let source_id = view.get_source_any(node_id);
-
-        Ok(self.source_index()?.get_main(source_id))
+    ) -> Option<Span> {
+        view.get_side_span_by_id(node_id.id, NodeSpanType::Main)
     }
 
     /// Collect enclosing spans and sort from innermost to outermost.

@@ -67,7 +67,7 @@ impl ModuleQueryContext<'_> {
 
         // select the innermost call with one recorded resolution
         for enclosing in enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Expression {
@@ -371,10 +371,9 @@ impl ModuleQueryContext<'_> {
         resolution: &dir::ConstructDecision,
     ) -> QueryResult<Vec<SignatureItem>> {
         let item = match &resolution.target {
-            dir::ConstructTarget::Class {
-                key,
-                constructor,
-            } => self.class_signature_item(program, key, constructor, resolution)?,
+            dir::ConstructTarget::Class { key, constructor } => {
+                self.class_signature_item(program, key, constructor, resolution)?
+            }
             dir::ConstructTarget::Dynamic { function, .. } => self.signature_node_item(
                 program,
                 function,

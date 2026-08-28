@@ -41,7 +41,7 @@ impl ModuleQueryContext<'_> {
 
         // select the innermost object expression by its complete source span
         for enclosing_span in &enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Expression {
@@ -91,7 +91,7 @@ impl ObjectLiteralSpans<'_> {
         for property_id in self.properties {
             if let Some(span) = self
                 .module
-                .node_selection_span(self.view, (*property_id).into())?
+                .node_selection_span(self.view, (*property_id).into())
                 && span.owns_cursor(offset)
             {
                 return Ok(true);
@@ -157,7 +157,7 @@ impl ObjectLiteralSpans<'_> {
             let node = property_id.into_global_any(self.module.module_id());
             let key_span = self
                 .module
-                .node_selection_span(self.view, (*property_id).into())?
+                .node_selection_span(self.view, (*property_id).into())
                 .ok_or(QueryError::missing(format!(
                     "object property span: {node:?}"
                 )))?;

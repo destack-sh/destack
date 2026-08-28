@@ -62,7 +62,7 @@ impl ModuleQueryContext<'_> {
 
         // scan enclosing expressions for import nodes under the cursor
         for enclosing_span in &enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+            let Some(node_id) = view.resolve_node(enclosing_span.source_id) else {
                 continue;
             };
             if node_id.ty != dir::NodeType::Expression {
@@ -194,12 +194,7 @@ impl ModuleQueryContext<'_> {
 
         for item_id in items {
             let item = view.get(*item_id);
-            let source_id = view.get_source(*item_id);
-            let node = item_id.into_global_any(self.module_id());
-            let span = self
-                .source_index()?
-                .try_get(source_id)
-                .ok_or(QueryError::missing(format!("import item span: {node:?}")))?;
+            let span = view.get_span(*item_id);
 
             let (item_name, item_alias) = match item {
                 dir::DependencyItem::Binding { name, alias, .. } => (*name, *alias),
