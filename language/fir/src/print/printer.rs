@@ -11,7 +11,7 @@ use crate::format::{
 };
 use crate::print::call::{
     CallStack, FitsCallStack, FitsIndentStack, IndentStack, PrintArgs, PrintCallStack,
-    PrintIndentStack, StackFrame, SuffixStack,
+    PrintIndentStack, ProvenanceFrameId, StackFrame, SuffixStack,
 };
 use crate::print::line::{LineSuffixEntry, LineSuffixes};
 use crate::print::mode::MeasureMode;
@@ -171,10 +171,8 @@ impl<'a> Printer<'a> {
             }
 
             DecodedInstruction::Tag(StartProvenance { provenance, name }) => {
-                stack.push(
-                    FormatTagKind::Provenance,
-                    args.with_provenance(provenance, name),
-                );
+                let frame = self.state.push_frame(args.provenance(), provenance, name);
+                stack.push(FormatTagKind::Provenance, args.with_provenance(frame));
             }
 
             DecodedInstruction::Tag(EndProvenance) => {
@@ -632,34 +630,7 @@ impl<'a> Printer<'a> {
             }
         }
 
-        // retain the current extent while its attribution remains active
-        let previous = self
-            .state
-            .extent
-            .map(|(provenance, name, _)| (provenance, name));
-        if previous == self.state.provenance {
-            return;
-        }
-
-        // close the previous emitted extent
-        if let Some((provenance, name, start)) = self.state.extent.take()
-            && start < generated
-        {
-            self.state.extents.push(TextExtent {
-                generated: ByteRange {
-                    start,
-                    end: generated,
-                },
-                provenance,
-                name,
-            });
-        }
-
-        // open the active provenance at the next emitted byte
-        self.state.extent = self
-            .state
-            .provenance
-            .map(|(provenance, name)| (provenance, name, generated));
+        self.state.update_extents(generated);
     }
 
     /// Queue pending line suffixes and return whether any were queued.
@@ -1081,6 +1052,26 @@ enum FillPairLayout {
     ItemMaybeFlat,
 }
 
+/// One provenance frame allocated during printing.
+#[derive(Debug, Clone, Copy)]
+struct ProvenanceFrame {
+    /// The enclosing frame.
+    parent: Option<ProvenanceFrameId>,
+    /// The attributed provenance.
+    provenance: ProvenanceId,
+    /// The attributed authored name.
+    name: Option<TextNameId>,
+}
+
+/// One provenance extent currently receiving text.
+#[derive(Debug, Clone, Copy)]
+struct OpenExtent {
+    /// The provenance frame.
+    frame: ProvenanceFrameId,
+    /// The first attributed byte.
+    start: u32,
+}
+
 /// Mutable output and reusable measurement state for one print call.
 #[derive(Default, Debug)]
 struct PrinterState<'a> {
@@ -1094,10 +1085,16 @@ struct PrinterState<'a> {
     source_markers: Vec<FileMarker>,
 
     /// The active provenance.
-    provenance: Option<(ProvenanceId, Option<TextNameId>)>,
+    provenance: Option<ProvenanceFrameId>,
 
-    /// The provenance extent currently receiving emitted text.
-    extent: Option<(ProvenanceId, Option<TextNameId>, u32)>,
+    /// Provenance frames allocated during this print.
+    provenance_frames: Vec<ProvenanceFrame>,
+
+    /// Provenance extents currently receiving emitted text.
+    open_extents: Vec<OpenExtent>,
+
+    /// Reusable storage for one desired provenance frame chain.
+    provenance_path: Vec<ProvenanceFrameId>,
 
     /// Completed provenance extents.
     extents: Vec<TextExtent>,
@@ -1142,6 +1139,82 @@ impl PrinterState<'_> {
             buffer: String::with_capacity(capacity.min(max_output_capacity)),
             max_output_bytes,
             ..Self::default()
+        }
+    }
+
+    /// Push one nested provenance frame.
+    fn push_frame(
+        &mut self,
+        parent: Option<ProvenanceFrameId>,
+        provenance: ProvenanceId,
+        name: Option<TextNameId>,
+    ) -> ProvenanceFrameId {
+        if let Some(parent) = parent {
+            let frame = self.provenance_frames[parent.index()];
+            if frame.provenance == provenance && frame.name == name {
+                return parent;
+            }
+        }
+
+        let id = ProvenanceFrameId::new(self.provenance_frames.len());
+        self.provenance_frames.push(ProvenanceFrame {
+            parent,
+            provenance,
+            name,
+        });
+
+        id
+    }
+
+    /// Open and close provenance extents at one emitted byte.
+    fn update_extents(&mut self, generated: u32) {
+        let current = self.open_extents.last().map(|extent| extent.frame);
+        if current == self.provenance {
+            return;
+        }
+
+        // collect the desired frame chain from root to leaf
+        self.provenance_path.clear();
+        let mut provenance = self.provenance;
+        while let Some(id) = provenance {
+            self.provenance_path.push(id);
+            provenance = self.provenance_frames[id.index()].parent;
+        }
+        self.provenance_path.reverse();
+
+        // retain the shared prefix of the current and desired chains
+        let shared = self
+            .open_extents
+            .iter()
+            .zip(&self.provenance_path)
+            .take_while(|(open, desired)| open.frame == **desired)
+            .count();
+
+        // close frames left by the previous attribution
+        while self.open_extents.len() > shared {
+            let open = self.open_extents.pop();
+            debug_assert!(open.is_some());
+            // safety: the loop condition proves that one extent remains
+            let open = unsafe { open.unwrap_unchecked() };
+            let frame = self.provenance_frames[open.frame.index()];
+            if open.start < generated {
+                self.extents.push(TextExtent {
+                    generated: ByteRange {
+                        start: open.start,
+                        end: generated,
+                    },
+                    provenance: frame.provenance,
+                    name: frame.name,
+                });
+            }
+        }
+
+        // open frames entered by the desired attribution
+        for id in self.provenance_path[shared..].iter().copied() {
+            self.open_extents.push(OpenExtent {
+                frame: id,
+                start: generated,
+            });
         }
     }
 
@@ -1582,11 +1655,8 @@ impl<'a, 'print> FitsMeasurer<'a, 'print> {
                 }
             }
 
-            DecodedInstruction::Tag(StartProvenance { provenance, name }) => {
-                self.stack.push(
-                    FormatTagKind::Provenance,
-                    args.with_provenance(provenance, name),
-                );
+            DecodedInstruction::Tag(StartProvenance { .. }) => {
+                self.stack.push(FormatTagKind::Provenance, args);
             }
 
             DecodedInstruction::Tag(tag @ (StartFill | StartVerbatim(_) | StartEntry)) => {

@@ -1,6 +1,5 @@
 use std::fmt::Debug;
-
-use destack_source::{ProvenanceId, TextNameId};
+use std::num::NonZeroU32;
 
 use crate::format::{
     FormatTagKind, IndentStyle, Indentation, InvalidDocumentError, PrintError, PrintMode,
@@ -8,6 +7,30 @@ use crate::format::{
 };
 use crate::print::mode::MeasureMode;
 use crate::print::stack::{Stack, StackedStack};
+
+/// One active provenance frame in the printer.
+#[repr(transparent)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub(crate) struct ProvenanceFrameId(NonZeroU32);
+
+impl ProvenanceFrameId {
+    /// Create an id from its zero based frame index.
+    pub(crate) fn new(index: usize) -> Self {
+        assert!(
+            index < u32::MAX as usize,
+            "FIR provenance frame count exceeds the supported range"
+        );
+        let raw = index as u32 + 1;
+
+        // safety: the capacity check keeps the one based id nonzero
+        Self(unsafe { NonZeroU32::new_unchecked(raw) })
+    }
+
+    /// Return the zero based frame index.
+    pub(crate) fn index(self) -> usize {
+        (self.0.get() - 1) as usize
+    }
+}
 
 /// The structural scope represented by one print stack frame.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -35,9 +58,7 @@ pub(crate) struct PrintArgs {
     /// The active measurement mode.
     measure_mode: MeasureMode,
     /// The active provenance.
-    provenance: Option<ProvenanceId>,
-    /// The active authored identifier name.
-    name: Option<TextNameId>,
+    provenance: Option<ProvenanceFrameId>,
 }
 
 impl PrintArgs {
@@ -56,9 +77,9 @@ impl PrintArgs {
         self.measure_mode
     }
 
-    /// Return the active provenance and authored identifier name.
-    pub(crate) fn provenance(self) -> Option<(ProvenanceId, Option<TextNameId>)> {
-        self.provenance.map(|provenance| (provenance, self.name))
+    /// Return the active provenance frame.
+    pub(crate) fn provenance(self) -> Option<ProvenanceFrameId> {
+        self.provenance
     }
 
     /// Return these arguments with a new print mode.
@@ -73,14 +94,9 @@ impl PrintArgs {
         self
     }
 
-    /// Return these arguments with new provenance.
-    pub(crate) fn with_provenance(
-        mut self,
-        provenance: ProvenanceId,
-        name: Option<TextNameId>,
-    ) -> Self {
+    /// Return these arguments with one active provenance frame.
+    pub(crate) fn with_provenance(mut self, provenance: ProvenanceFrameId) -> Self {
         self.provenance = Some(provenance);
-        self.name = name;
         self
     }
 }
@@ -91,7 +107,6 @@ impl Default for PrintArgs {
             mode: PrintMode::Expanded,
             measure_mode: MeasureMode::FirstLine,
             provenance: None,
-            name: None,
         }
     }
 }
