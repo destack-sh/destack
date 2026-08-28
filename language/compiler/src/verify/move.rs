@@ -194,7 +194,7 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
     fn is_move_only(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).copy(self.tree).is_no()
+        self.tree.ty(ty).copy(self.tree).is_no()
     }
 
     /// Return whether one value has a user drop hook.
@@ -208,16 +208,16 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
     fn is_pointer(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).is_pointer()
+        self.tree.ty(ty).is_pointer()
     }
 
     /// Return whether one reference addresses uninitialized storage.
     fn points_to_uninitialized(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
-        let Type::Reference { pointee, .. } = self.tree.get(ty) else {
+        let Type::Reference { pointee, .. } = self.tree.ty(ty) else {
             return false;
         };
 
-        matches!(self.tree.get(*pointee), Type::Uninit { .. })
+        matches!(self.tree.ty(*pointee), Type::Uninit { .. })
     }
 }

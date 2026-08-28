@@ -92,13 +92,13 @@ impl<'a, 'b> InitializationChecker<'a, 'b> {
     fn uninitialized_receiver(&self) -> Option<(Value, usize)> {
         // read the struct behind the first parameter's uninitialized pointee
         let receiver = self.function.parameters.first()?;
-        let Type::Reference { pointee, .. } = self.tree.get(receiver.ty) else {
+        let Type::Reference { pointee, .. } = self.tree.ty(receiver.ty) else {
             return None;
         };
-        let Type::Uninit { value } = self.tree.get(*pointee) else {
+        let Type::Uninit { value } = self.tree.ty(*pointee) else {
             return None;
         };
-        let Type::Struct { fields, .. } = self.tree.get(*value) else {
+        let Type::Struct { fields, .. } = self.tree.ty(*value) else {
             return None;
         };
 

@@ -310,7 +310,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             } => {
                 let (result_type, lifetimes) = self.tree.split_lifetime_application(*result_type);
                 let lifetimes = lifetimes.to_vec();
-                let Type::Variant { cases, .. } = self.tree.get(result_type) else {
+                let Type::Variant { cases, .. } = self.tree.ty(result_type) else {
                     unreachable!("variant.new result has no variant type")
                 };
                 let ty = cases
@@ -677,7 +677,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         let pointer_type = self.function.expect_value_type(pointer);
         let (pointer_type, lifetimes) = self.tree.split_lifetime_application(pointer_type);
         let lifetimes = lifetimes.to_vec();
-        let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
+        let Type::Reference { pointee, .. } = self.tree.ty(pointer_type) else {
             unreachable!("safe store pointer has no reference type")
         };
 
@@ -691,14 +691,14 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         arguments: &[Value],
         anchor: LocalNodeIdAny,
     ) -> Vec<LoanId> {
-        let Some((_, parameters, _)) = self.tree.get(*signature).function_signature_parts() else {
+        let Some((_, parameters, _)) = self.tree.ty(*signature).function_signature_parts() else {
             unreachable!("call has no function signature")
         };
         let mut loans = Vec::new();
 
         // create loans that remain active for the duration of the call
         for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
-            let Some(access) = self.tree.get(parameter.ty).reference_access() else {
+            let Some(access) = self.tree.ty(parameter.ty).reference_access() else {
                 continue;
             };
             let Some(argument_access) = self.reference_access(argument) else {
@@ -836,8 +836,8 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         let (ty, lifetimes) = self.tree.split_lifetime_application(ty);
         let field = self
             .tree
-            .get(ty)
-            .field_type(field, self.tree)
+            .ty(ty)
+            .field_type(field)
             .unwrap_or_else(|| unreachable!("aggregate has no field {field}"));
 
         (field, lifetimes.to_vec())
@@ -847,7 +847,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     fn element_type(&self, aggregate: Value) -> (TypeId, Vec<Lifetime>) {
         let ty = self.function.expect_value_type(aggregate);
         let (ty, lifetimes) = self.tree.split_lifetime_application(ty);
-        let Type::FixedArray { element, .. } = self.tree.get(ty) else {
+        let Type::FixedArray { element, .. } = self.tree.ty(ty) else {
             unreachable!("element.set aggregate has no fixed-array type")
         };
 
@@ -858,9 +858,9 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     fn slot_type(&self, aggregate: Value, index: usize) -> (TypeId, Vec<Lifetime>) {
         let ty = self.function.expect_value_type(aggregate);
         let (ty, lifetimes) = self.tree.split_lifetime_application(ty);
-        let aggregate = self.tree.get(ty);
+        let aggregate = self.tree.ty(ty);
         let slot = match aggregate {
-            Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
+            Type::Struct { fields, .. } => fields.get(index).map(|field| field.ty),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
             Type::FixedArray { element, .. } => Some(*element),
             Type::Newtype { inner, .. } if index == 0 => Some(*inner),
@@ -1007,7 +1007,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             return false;
         };
         let ty = self.function.expect_value_type(value);
-        let definition = self.tree.get(ty);
+        let definition = self.tree.ty(ty);
 
         // treat a managed reference without declared storage as local
         definition.reference_kind() == Some(ReferenceKind::Managed)
@@ -1053,7 +1053,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         arguments: &[Value],
         anchor: LocalNodeIdAny,
     ) {
-        let Some((lifetimes, parameters, _)) = self.tree.get(*signature).function_signature_parts()
+        let Some((lifetimes, parameters, _)) = self.tree.ty(*signature).function_signature_parts()
         else {
             unreachable!("call has no function signature")
         };
@@ -1157,28 +1157,28 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     fn is_move_only(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).copy(self.tree).is_no()
+        self.tree.ty(ty).copy(self.tree).is_no()
     }
 
     /// Return whether one value has a variant type.
     fn is_variant_value(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        matches!(self.tree.get(ty), Type::Variant { .. })
+        matches!(self.tree.ty(ty), Type::Variant { .. })
     }
 
     /// Return access for one reference-like value.
     fn reference_access(&self, value: Value) -> Option<Access> {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).reference_access()
+        self.tree.ty(ty).reference_access()
     }
 
     /// Return whether one value has an unchecked pointer type.
     fn is_pointer(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).is_pointer()
+        self.tree.ty(ty).is_pointer()
     }
 
     /// Return the moved place for one projected move.

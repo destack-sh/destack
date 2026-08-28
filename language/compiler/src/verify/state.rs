@@ -6,6 +6,7 @@ use destack_mir::{
     AccessTable, AnalysisCache, AnalysisOptions, DropTable, EffectTable, Function, FunctionCache,
     LocalNodeIdAny, ResolutionTable, RetentionTable, TargetLayout, Tree,
 };
+use destack_source::ProvenanceTable;
 
 use crate::DiagnosticAnchor;
 use crate::verify::{BorrowChecker, DropChecker, InitializationChecker, MoveChecker, VerifyError};
@@ -14,6 +15,8 @@ use crate::verify::{BorrowChecker, DropChecker, InitializationChecker, MoveCheck
 pub(crate) struct VerifyState<'a> {
     /// The MIR tree being verified.
     pub(in crate::verify) tree: &'a Tree,
+    /// Source attribution for MIR nodes.
+    provenance: &'a ProvenanceTable,
     /// MIR drop definitions.
     pub(in crate::verify) drops: &'a DropTable,
     /// Explicit MIR memory accesses.
@@ -46,6 +49,7 @@ impl<'a> VerifyState<'a> {
 
         Self {
             tree: &lowered.tree,
+            provenance: &lowered.provenance,
             drops: &lowered.drops,
             accesses: &lowered.accesses,
             target: lowered.target,
@@ -88,9 +92,12 @@ impl<'a> VerifyState<'a> {
 
     /// Create a source anchor for one MIR node.
     pub(crate) fn anchor(&self, node: LocalNodeIdAny) -> DiagnosticAnchor {
-        let Some(span) = self.tree.source_span_by_id(node.id) else {
-            unreachable!("verified MIR node {node:?} has no source span");
-        };
+        let provenance = self.tree.provenance(node);
+        let span = self
+            .provenance
+            .primary_span(provenance)
+            .or_else(|| self.provenance.span(provenance))
+            .unwrap_or_else(|| unreachable!("verified MIR node {node:?} has no source span"));
 
         DiagnosticAnchor::Span(span)
     }
