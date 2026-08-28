@@ -11,8 +11,8 @@ use crate::source::{Document, Token, TokenType};
 use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldId, FieldSpan,
     FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
-    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
-    Nullability, Path, Projection, ReferenceKind, Static, StaticId, Storage, SwitchCase,
+    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, LocalNodeIdAny, Node, NodeIndexEntry,
+    NodeType, Nullability, Path, Projection, ReferenceKind, Static, StaticId, Storage, SwitchCase,
     SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
     TypedValueSpan, Value, ValueSlice, VariantCase, VariantCaseId,
 };
@@ -599,7 +599,7 @@ impl Tree {
         U: Node,
         Self: TreeMut<T>,
     {
-        let source = self.provenance(source.id);
+        let source = self.provenance(source);
         let output = provenance.derive(source);
 
         self.insert(node, output)
@@ -622,8 +622,14 @@ impl Tree {
 
     /// Return the provenance of one MIR node.
     #[inline]
-    pub fn provenance(&self, id: u32) -> ProvenanceId {
-        self.provenance[self.node_index(id)]
+    pub fn provenance(&self, node: impl Into<LocalNodeIdAny>) -> ProvenanceId {
+        self.provenance_by_id(node.into().id)
+    }
+
+    /// Return the provenance of one MIR node by its raw id.
+    #[inline]
+    pub(crate) fn provenance_by_id(&self, node_id: u32) -> ProvenanceId {
+        self.provenance[self.node_index(node_id)]
     }
 
     /// Return lifetime parameters declared by one type.
@@ -1469,7 +1475,7 @@ impl Tree {
         T: Node,
         Self: TreeMut<T>,
     {
-        let source = self.provenance(id.id);
+        let source = self.provenance(id);
         let output = provenance.derive(source);
 
         self.replace(id, replacement, output);
@@ -1495,7 +1501,7 @@ impl Tree {
     where
         T: Node,
     {
-        let source = self.provenance(id.id);
+        let source = self.provenance(id);
         provenance.remove(&[source]);
     }
 }

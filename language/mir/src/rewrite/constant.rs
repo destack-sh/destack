@@ -169,16 +169,15 @@ pub fn apply_constant_parameters(
         let destination = body.next_typed_value(parameter.ty);
         let parameter_value = parameter.value;
         substitutions.insert(parameter_value, destination);
-        new_instructions.push((destination, constant.clone()));
+        new_instructions.push((destination, constant.clone(), param.provenance));
     }
 
     // insert constant instructions before the entry block body
     if !new_instructions.is_empty() {
         let mut new_instruction_ids = Vec::new();
 
-        for (destination, constant) in &new_instructions {
-            let source = tree.provenance(function_id.id);
-            let instruction_provenance = provenance.derive(source);
+        for (destination, constant, parameter_provenance) in &new_instructions {
+            let instruction_provenance = provenance.derive(*parameter_provenance);
             let instruction_id = tree.insert(
                 mir::Instruction::Const {
                     destination: (*destination),

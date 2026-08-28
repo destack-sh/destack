@@ -372,7 +372,7 @@ fn clone_loop_blocks_internal(
         }
 
         // create an independent terminator slot for the cloned block
-        let terminator_source = tree.provenance(original.terminator.id);
+        let terminator_source = tree.provenance(original.terminator);
         let terminator_provenance = provenance.derive(terminator_source);
         let new_terminator =
             tree.insert(tree.get(original.terminator).clone(), terminator_provenance);
@@ -381,7 +381,7 @@ fn clone_loop_blocks_internal(
             instructions: Vec::new(),
             terminator: new_terminator,
         };
-        let block_source = tree.provenance(block_id.id);
+        let block_source = tree.provenance(*block_id);
         let block_provenance = provenance.derive(block_source);
         let new_block_id = tree.insert(new_block, block_provenance);
         block_map.insert(*block_id, new_block_id);
@@ -395,7 +395,7 @@ fn clone_loop_blocks_internal(
         for instruction_id in instruction_ids {
             let original_instruction = tree.get(instruction_id).clone();
             let new_instruction = instruction_map(&original_instruction, &value_map, tree);
-            let instruction_source = tree.provenance(instruction_id.id);
+            let instruction_source = tree.provenance(instruction_id);
             let instruction_provenance = provenance.derive(instruction_source);
             let new_instruction_id = tree.insert(new_instruction, instruction_provenance);
             accesses.clone_instruction(instruction_id, new_instruction_id, &value_map);
@@ -403,8 +403,13 @@ fn clone_loop_blocks_internal(
             new_instructions.push(new_instruction_id);
         }
 
-        function.replace_block_instructions(new_block_id, new_instructions, tree, provenance);
+        let mut new_block = tree.get(new_block_id).clone();
+        new_block.instructions = new_instructions;
+        tree.set_payload(new_block_id, new_block);
     }
+
+    // index the completed cloned blocks
+    function.rebuild_instruction_index(tree);
 
     (block_map, value_map, instruction_id_map)
 }

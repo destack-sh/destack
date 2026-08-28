@@ -238,7 +238,7 @@ where
     Tree: TreeImpl<T>,
 {
     fn format(&self, writer: &mut Writer<'a, '_>) -> FormatResult<()> {
-        let provenance = writer.context().tree.provenance(self.id);
+        let provenance = writer.context().tree.provenance(*self);
         let node = writer.context().tree.get(*self);
 
         writer.write_element(FormatElement::Tag(FormatTag::StartProvenance {

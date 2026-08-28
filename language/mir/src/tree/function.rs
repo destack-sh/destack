@@ -3,8 +3,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId,
-    Node, NodeType, ReferenceKind, StaticId, Storage, Symbol, Tree, Type, TypeId, Value,
+    AccessTable, Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local,
+    LocalNodeId, Node, NodeType, ReferenceKind, StaticId, Storage, Symbol, Tree, Type, TypeId,
+    Value,
 };
 use destack_source::ProvenanceJournal;
 
@@ -266,18 +267,19 @@ impl FunctionBody {
         self.rebuild_instruction_index(tree);
     }
 
-    /// Insert one block after a predecessor, or append it when the predecessor is absent.
+    /// Insert one block after a predecessor.
     pub fn insert_block_after(
         &mut self,
         predecessor: LocalNodeId<Block>,
         block: LocalNodeId<Block>,
         tree: &Tree,
     ) {
-        if let Some(index) = self.blocks.iter().position(|id| *id == predecessor) {
-            self.blocks.insert(index + 1, block);
-        } else {
-            self.blocks.push(block);
-        }
+        let index = self
+            .blocks
+            .iter()
+            .position(|id| *id == predecessor)
+            .unwrap_or_else(|| unreachable!("predecessor block is absent from the function"));
+        self.blocks.insert(index + 1, block);
 
         self.rebuild_instruction_index(tree);
     }
@@ -794,20 +796,21 @@ impl Function {
         &mut self,
         mut retain: impl FnMut(LocalNodeId<Block>) -> bool,
         tree: &Tree,
+        accesses: &mut AccessTable,
         provenance: &mut ProvenanceJournal<'_>,
     ) {
         let Some(body) = self.body.as_mut() else {
             unreachable!("cannot retain blocks on a function without a body");
         };
 
-        // record eliminated block occurrences
+        // record eliminated block provenance
         let mut removed = Vec::new();
         body.blocks.retain(|block_id| {
             let is_retained = retain(*block_id);
             if !is_retained {
                 let block = tree.get(*block_id);
-                removed.push(tree.provenance(block_id.id));
-                removed.push(tree.provenance(block.terminator.id));
+                removed.push(tree.provenance(*block_id));
+                removed.push(tree.provenance(block.terminator));
                 removed.extend(
                     block
                         .parameters
@@ -818,8 +821,11 @@ impl Function {
                     block
                         .instructions
                         .iter()
-                        .map(|instruction| tree.provenance(instruction.id)),
+                        .map(|instruction| tree.provenance(*instruction)),
                 );
+                for instruction in &block.instructions {
+                    accesses.remove(*instruction);
+                }
             }
 
             is_retained
@@ -870,6 +876,31 @@ impl Function {
     ) {
         self.replace_block_instruction_index(block, &replacement.instructions);
         tree.rewrite(block, replacement, provenance);
+    }
+
+    /// Split one block into a prefix and continuation.
+    pub fn split_block(
+        &mut self,
+        block: LocalNodeId<Block>,
+        prefix: Block,
+        continuation: Block,
+        tree: &mut Tree,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> LocalNodeId<Block> {
+        if !self.blocks().contains(&block) {
+            unreachable!("cannot split a block outside the function");
+        }
+
+        // record one physical block becoming two blocks
+        let source = tree.provenance(block);
+        let [prefix_provenance, continuation_provenance] = provenance.split(source);
+        tree.replace(block, prefix, prefix_provenance);
+        let continuation = tree.insert(continuation, continuation_provenance);
+
+        // place the continuation and rebuild instruction locations
+        self.insert_block_after(block, continuation, tree);
+
+        continuation
     }
 
     /// Replace one block's instruction index entries.

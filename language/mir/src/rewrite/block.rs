@@ -100,118 +100,58 @@ pub fn compute_dominance_frontiers(
     frontiers
 }
 
-/// Edge splitting policy for inserting edge blocks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum EdgeSplitPolicy {
-    /// Split only critical edges.
-    CriticalOnly,
-    /// Split when the predecessor has multiple successors.
-    PredecessorMultiSuccessor,
-}
+impl mir::Edge {
+    /// Redirect this exact edge.
+    pub fn redirect(
+        self,
+        target: mir::BlockTarget,
+        tree: &mut mir::Tree,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) {
+        let terminator_id = tree.get(self.source).terminator;
+        let terminator = tree.get(terminator_id);
+        let is_present = terminator
+            .edges(tree, self.source)
+            .into_iter()
+            .any(|(edge, _)| edge == self);
+        if !is_present {
+            unreachable!("control-flow edge is absent from its terminator");
+        }
 
-/// Append extra arguments to edges that target a successor block.
-pub fn append_edge_arguments(
-    tree: &mut mir::Tree,
-    provenance: &mut ProvenanceJournal<'_>,
-    block_id: mir::LocalNodeId<mir::Block>,
-    successor: mir::LocalNodeId<mir::Block>,
-    extra_args: &[mir::Value],
-) {
-    // rewrite every matching edge
-    let terminator_id = tree.get(block_id).terminator;
-    let mut terminator = tree.get(terminator_id).clone();
-    let is_changed = terminator.rewrite_successor(
-        successor,
-        |target, tree| block_target_with_arguments(tree, target, extra_args),
-        tree,
-    );
-
-    // write back only when arguments changed
-    if is_changed {
+        let mut terminator = terminator.clone();
+        if !terminator.replace_edge(self.successor, target, tree) {
+            unreachable!("control-flow edge cannot be replaced in its terminator");
+        }
         tree.rewrite(terminator_id, terminator, provenance);
     }
-}
 
-/// Ensure insertions happen on the correct edge when needed.
-// allow many arguments to keep the call sites explicit
-#[allow(clippy::too_many_arguments)]
-pub fn ensure_edge_block(
-    predecessor: mir::LocalNodeId<mir::Block>,
-    successor: mir::LocalNodeId<mir::Block>,
-    function: &mut mir::Function,
-    tree: &mut mir::Tree,
-    provenance: &mut ProvenanceJournal<'_>,
-    cfg: &ControlTable,
-    edge_blocks: &mut FxIndexMap<
-        (mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>),
-        mir::LocalNodeId<mir::Block>,
-    >,
-    policy: EdgeSplitPolicy,
-    changed: &mut bool,
-) -> mir::LocalNodeId<mir::Block> {
-    // skip edges that do not require splitting
-    let pred_block = tree.get(predecessor);
-    let pred_terminator_id = pred_block.terminator;
-    let pred_terminator = tree.get(pred_terminator_id);
-    let pred_multi = successor_count(tree, pred_terminator) > 1;
-    let succ_multi = cfg.predecessors(successor).len() > 1;
-    let should_split = match policy {
-        EdgeSplitPolicy::CriticalOnly => pred_multi && succ_multi,
-        EdgeSplitPolicy::PredecessorMultiSuccessor => pred_multi,
-    };
-    if !should_split {
-        return predecessor;
+    /// Append arguments to this exact edge.
+    pub fn append_arguments(
+        self,
+        arguments: &[mir::Value],
+        tree: &mut mir::Tree,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) {
+        // find the selected target before mutating the terminator
+        let terminator_id = tree.get(self.source).terminator;
+        let terminator = tree.get(terminator_id);
+        let target = terminator
+            .targets(tree, self.source)
+            .into_iter()
+            .find_map(|(edge, target)| (edge == self).then_some(target.clone()))
+            .unwrap_or_else(|| unreachable!("control-flow edge is absent from its terminator"));
+        let target = block_target_with_arguments(tree, &target, arguments);
+
+        self.redirect(target, tree, provenance);
     }
 
-    // reuse existing edge blocks when already split
-    if let Some(existing) = edge_blocks.get(&(predecessor, successor)) {
-        return *existing;
-    }
-
-    // extract the successor arguments for this edge
-    let args = match pred_terminator.successor_arguments(tree, successor) {
-        mir::EdgeArguments::Found(args) => args.to_vec(),
-        _ => return predecessor,
-    };
-
-    // build the new edge block
-    let edge_arguments = tree.add_values(&args);
-    let source = tree.provenance(pred_terminator_id.id);
-    let [terminator_provenance, block_provenance] = provenance.split(source);
-    let edge_terminator = tree.insert(
-        mir::Terminator::Jump {
-            target: mir::BlockTarget::new(successor, edge_arguments),
-        },
-        terminator_provenance,
-    );
-    let edge_block = mir::Block::new(edge_terminator);
-    let edge_block_id = tree.insert(edge_block, block_provenance);
-    insert_block_after(function, predecessor, edge_block_id, tree);
-
-    // redirect the predecessor to the edge block
-    if redirect_successor_to_edge(predecessor, successor, edge_block_id, tree, provenance) {
-        edge_blocks.insert((predecessor, successor), edge_block_id);
-        *changed = true;
-        edge_block_id
-    } else {
-        predecessor
-    }
-}
-
-impl mir::Edge {
-    /// Split this exact edge and return its insertion block.
+    /// Split this exact edge and return the edge leaving the inserted block.
     pub fn split(
         self,
         function: &mut mir::Function,
         tree: &mut mir::Tree,
         provenance: &mut ProvenanceJournal<'_>,
-        edge_blocks: &mut FxIndexMap<mir::Edge, mir::LocalNodeId<mir::Block>>,
-        changed: &mut bool,
-    ) -> mir::LocalNodeId<mir::Block> {
-        if let Some(existing) = edge_blocks.get(&self) {
-            return *existing;
-        }
-
+    ) -> mir::Edge {
         // capture the exact edge before mutating its terminator
         let terminator_id = tree.get(self.source).terminator;
         let terminator = tree.get(terminator_id);
@@ -240,8 +180,8 @@ impl mir::Edge {
 
         // forward the complete edge state into the original destination
         let forwarded = tree.add_values(&forwarded);
-        let source = tree.provenance(terminator_id.id);
-        let [terminator_provenance, block_provenance] = provenance.split(source);
+        let sources = [tree.provenance(terminator_id), tree.provenance(self.target)];
+        let [terminator_provenance, block_provenance] = provenance.generate_many(&sources);
         let terminator = tree.insert(
             mir::Terminator::Jump {
                 target: mir::BlockTarget::new(self.target, forwarded),
@@ -254,71 +194,13 @@ impl mir::Edge {
         );
 
         // redirect the selected edge with its original explicit arguments
-        let mut terminator = tree.get(terminator_id).clone();
         let arguments = tree.add_values(&arguments);
         let target = mir::BlockTarget::new(block, arguments);
-        if !terminator.replace_edge(self.successor, target, tree) {
-            unreachable!("control-flow edge cannot be replaced in its terminator");
-        }
-        tree.rewrite(terminator_id, terminator, provenance);
-        insert_block_after(function, self.source, block, tree);
+        self.redirect(target, tree, provenance);
+        function.insert_block_after(self.source, block, tree);
 
-        edge_blocks.insert(self, block);
-        *changed = true;
-
-        block
+        mir::Edge::new(block, mir::Successor::Jump, self.target)
     }
-}
-
-/// Count the unique successors for a terminator.
-fn successor_count(tree: &mir::Tree, terminator: &mir::Terminator) -> usize {
-    // track unique successors
-    let mut unique = FxIndexSet::default();
-    for successor in terminator.successors(tree) {
-        unique.insert(successor);
-    }
-
-    // return the unique count
-    unique.len()
-}
-
-/// Insert a block immediately after the predecessor.
-fn insert_block_after(
-    function: &mut mir::Function,
-    predecessor: mir::LocalNodeId<mir::Block>,
-    block: mir::LocalNodeId<mir::Block>,
-    tree: &mir::Tree,
-) {
-    let Some(body) = function.body_mut() else {
-        unreachable!("cannot insert a block into a function without a body");
-    };
-
-    body.insert_block_after(predecessor, block, tree);
-}
-
-/// Redirect a successor edge to a new edge block.
-fn redirect_successor_to_edge(
-    block_id: mir::LocalNodeId<mir::Block>,
-    successor: mir::LocalNodeId<mir::Block>,
-    edge_block: mir::LocalNodeId<mir::Block>,
-    tree: &mut mir::Tree,
-    provenance: &mut ProvenanceJournal<'_>,
-) -> bool {
-    // redirect every matching edge
-    let terminator_id = tree.get(block_id).terminator;
-    let mut terminator = tree.get(terminator_id).clone();
-    let is_changed = terminator.rewrite_successor(
-        successor,
-        |_target, _tree| mir::BlockTarget::new(edge_block, mir::ValueSlice::default()),
-        tree,
-    );
-
-    // update the terminator
-    if is_changed {
-        tree.rewrite(terminator_id, terminator, provenance);
-    }
-
-    is_changed
 }
 
 /// Forwarding information for block parameters.
@@ -555,8 +437,7 @@ pub fn block_uses_available_in_predecessor(
 /// Resolve a block parameter value for a predecessor edge when needed.
 pub fn resolve_edge_value(
     value: mir::Value,
-    block_id: mir::LocalNodeId<mir::Block>,
-    predecessor: &mir::Block,
+    edge: mir::Edge,
     tree: &mir::Tree,
     param_indices: &FxIndexMap<mir::Value, usize>,
 ) -> Option<mir::Value> {
@@ -565,15 +446,24 @@ pub fn resolve_edge_value(
         return Some(value);
     };
 
-    // read arguments for the predecessor edge
-    let predecessor_terminator = tree.get(predecessor.terminator);
-    let args = match predecessor_terminator.successor_arguments(tree, block_id) {
-        mir::EdgeArguments::Found(args) => args,
-        _ => return None,
-    };
+    // read arguments from the exact edge
+    let terminator_id = tree.get(edge.source).terminator;
+    let terminator = tree.get(terminator_id);
+    let target = terminator
+        .targets(tree, edge.source)
+        .into_iter()
+        .find_map(|(candidate, target)| (candidate == edge).then_some(target))
+        .unwrap_or_else(|| unreachable!("control-flow edge is absent from its terminator"));
+    let result_count = terminator.target_result_count(tree, edge.successor);
+    let argument_index = param_index.checked_sub(result_count)?;
+    let arguments = target.arguments(tree);
 
     // return the argument at the parameter index
-    args.get(param_index).copied()
+    Some(
+        *arguments
+            .get(argument_index)
+            .unwrap_or_else(|| unreachable!("control-flow edge argument is absent")),
+    )
 }
 
 /// Return true when a value is available in a block.

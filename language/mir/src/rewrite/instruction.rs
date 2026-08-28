@@ -1198,6 +1198,7 @@ pub fn apply_substitutions_in_function(
             // skip instructions slated for removal
             if to_remove.is_some_and(|set| set.contains(&instruction_id)) {
                 tree.record_removal(instruction_id, provenance);
+                accesses.remove(instruction_id);
                 changed = true;
                 continue;
             }
@@ -1224,9 +1225,14 @@ pub fn apply_substitutions_in_function(
             terminator.clone()
         };
 
-        // update block when instructions or terminator changed
-        if new_instructions.len() != block.instructions.len() || new_terminator != terminator {
+        // update the block after instruction removal
+        if new_instructions.len() != block.instructions.len() {
             function.replace_block_instructions(block_id, new_instructions, tree, provenance);
+            changed = true;
+        }
+
+        // update the terminator after operand substitution
+        if new_terminator != terminator {
             tree.rewrite(terminator_id, new_terminator, provenance);
             changed = true;
         }

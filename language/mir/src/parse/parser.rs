@@ -224,7 +224,7 @@ impl Parser {
 
         // write final spans to authored MIR node locations
         for node_id in 0..parser.tree.node_count() as u32 {
-            let provenance = parser.tree.provenance(node_id);
+            let provenance = parser.tree.provenance_by_id(node_id);
             let enclosing = parser
                 .tree
                 .get_span_by_id(node_id)

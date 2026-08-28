@@ -157,7 +157,7 @@ impl<'a> FunctionBuilder<'a> {
             Function::parameter_state(&function.parameters)
         };
 
-        let source = tree.provenance(function_id.id);
+        let source = tree.provenance(function_id);
 
         Ok(Self {
             tree,
