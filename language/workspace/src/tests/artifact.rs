@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{ArtifactKey, ArtifactPayload, ArtifactReference};
 use destack_program::ProgramBuilder;
-use destack_source::{PackageId, TargetId};
+use destack_source::{PackageId, ProvenanceTable, TargetId};
 
 use crate::tests::harness::TestWorkspace;
 
@@ -10,7 +10,7 @@ use crate::tests::harness::TestWorkspace;
 #[test]
 fn test_publish_program_artifact_as_blob() {
     let test = TestWorkspace::new("build-program-blob");
-    let program = ProgramBuilder::new(Default::default())
+    let program = ProgramBuilder::new(Default::default(), ProvenanceTable::new())
         .bytecode(Default::default())
         .build()
         .expect("Program should build");
