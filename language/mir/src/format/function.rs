@@ -398,9 +398,10 @@ fn format_function_parameter<'a>(
     is_import: bool,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    f.write_element(FormatElement::Tag(FormatTag::StartProvenance(
-        parameter.provenance,
-    )));
+    f.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+        provenance: parameter.provenance,
+        name: None,
+    }));
     if is_import {
         write!(f, [parameter.ty])?;
     } else {

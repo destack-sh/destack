@@ -25,9 +25,10 @@ impl FormatNode for Block {
                     write!(f, [token(","), space()])?;
                 }
 
-                f.write_element(FormatElement::Tag(FormatTag::StartProvenance(
-                    parameter.provenance,
-                )));
+                f.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+                    provenance: parameter.provenance,
+                    name: None,
+                }));
                 write!(f, [&parameter.value, token(":"), space(), parameter.ty])?;
                 f.write_element(FormatElement::Tag(FormatTag::EndProvenance));
             }

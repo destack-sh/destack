@@ -241,7 +241,10 @@ where
         let provenance = writer.context().tree.provenance(self.id);
         let node = writer.context().tree.get(*self);
 
-        writer.write_element(FormatElement::Tag(FormatTag::StartProvenance(provenance)));
+        writer.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+            provenance,
+            name: None,
+        }));
         node.format_node(*self, writer)?;
         writer.write_element(FormatElement::Tag(FormatTag::EndProvenance));
 

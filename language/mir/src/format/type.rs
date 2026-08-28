@@ -286,7 +286,10 @@ fn format_struct_field_entry<'a>(
 
     // map the complete declared field
     if let Some(provenance) = provenance {
-        f.write_element(FormatElement::Tag(FormatTag::StartProvenance(provenance)));
+        f.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+            provenance,
+            name: None,
+        }));
     }
 
     // field attributes
@@ -553,7 +556,10 @@ fn format_variant_type<'a>(
             f.context().tree.variant_case_provenance(id)
         });
         if let Some(provenance) = provenance {
-            f.write_element(FormatElement::Tag(FormatTag::StartProvenance(provenance)));
+            f.write_element(FormatElement::Tag(FormatTag::StartProvenance {
+                provenance,
+                name: None,
+            }));
         }
 
         write!(
