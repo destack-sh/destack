@@ -11,3 +11,37 @@ export newtype interface Error {
         undefined
     }
 }
+
+/// Runtime range failure used by web-compatible APIs.
+@languageItem("error.RangeError")
+export newtype RangeError = {
+    /// The ECMAScript error name.
+    name: "RangeError";
+
+    /// The failure message.
+    message: string;
+};
+
+export extension of RangeError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        MaybeOwned.borrowed(this.message)
+    }
+}
+
+/// Runtime type failure used by web-compatible APIs.
+@languageItem("error.TypeError")
+export newtype TypeError = {
+    /// The ECMAScript error name.
+    name: "TypeError";
+
+    /// The failure message.
+    message: string;
+};
+
+export extension of TypeError implements Error {
+    /// Format this error for users.
+    display(): MaybeOwned<string> {
+        MaybeOwned.borrowed(this.message)
+    }
+}
