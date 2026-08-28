@@ -65,6 +65,9 @@
     "./iter": {
       "path": "./src/iter/index.ds"
     },
+    "./intl": {
+      "path": "./src/intl/index.ds"
+    },
     "./json": {
       "path": "./src/json/index.ds"
     },

@@ -1,5 +1,6 @@
 import { Slice } from "destack:collections";
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
+import { IntlError, Locales, NumberFormatOptions } from "destack:intl";
 import { MaybeOwned, MaybeUninit } from "destack:memory";
 import {
     Add,
@@ -20,8 +21,6 @@ import {
     Subtract,
     Xor,
 } from "destack:ops";
-
-import { NumberFormatOptions } from "./number.ds";
 
 /// Arbitrary-precision integer.
 @languageItem("math.BigInt")
@@ -135,11 +134,16 @@ export extension of bigint
     }
 
     /// Return this integer as a locale-aware string.
+    toLocaleString(&readonly this): MaybeOwned<string> {
+        todo("BigInt.toLocaleStringDefault")
+    }
+
+    /// Return this integer as a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: string | string[],
+        locales?: Locales,
         options?: NumberFormatOptions,
-    ): MaybeOwned<string> {
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("BigInt.toLocaleString")
     }
 

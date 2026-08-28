@@ -1,4 +1,5 @@
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
+import { IntlError, Locales, NumberFormatOptions } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 /// The positive float infinity.
@@ -8,96 +9,6 @@ export const Infinity: number = 1.0 / 0.0;
 /// The float not-a-number value.
 @languageItem("math.NaN")
 export const NaN: number = 0.0 / 0.0;
-
-/// Number locale formatting options.
-export type NumberFormatOptions = {
-    /// Locale matching algorithm.
-    localeMatcher?: "lookup" | "best fit";
-
-    /// Formatting style.
-    style?: "decimal" | "percent" | "currency" | "unit";
-
-    /// Numbering system.
-    numberingSystem?: string;
-
-    /// Currency code.
-    currency?: string;
-
-    /// Currency display style.
-    currencyDisplay?: "code" | "symbol" | "narrowSymbol" | "name";
-
-    /// Currency sign style.
-    currencySign?: "standard" | "accounting";
-
-    /// Unit identifier.
-    unit?: string;
-
-    /// Unit display style.
-    unitDisplay?: "short" | "long" | "narrow";
-
-    /// Whether to use grouping separators.
-    useGrouping?: boolean | "true" | "false" | "min2" | "auto" | "always";
-
-    /// Minimum integer digit count.
-    minimumIntegerDigits?: number;
-
-    /// Minimum fraction digit count.
-    minimumFractionDigits?: number;
-
-    /// Maximum fraction digit count.
-    maximumFractionDigits?: number;
-
-    /// Minimum significant digit count.
-    minimumSignificantDigits?: number;
-
-    /// Maximum significant digit count.
-    maximumSignificantDigits?: number;
-
-    /// Number notation.
-    notation?: "standard" | "scientific" | "engineering" | "compact";
-
-    /// Compact notation display style.
-    compactDisplay?: "short" | "long";
-
-    /// Sign display style.
-    signDisplay?: "auto" | "never" | "always" | "exceptZero" | "negative";
-
-    /// Rounding priority.
-    roundingPriority?: "auto" | "morePrecision" | "lessPrecision";
-
-    /// Rounding increment.
-    roundingIncrement?:
-        | 1
-        | 2
-        | 5
-        | 10
-        | 20
-        | 25
-        | 50
-        | 100
-        | 200
-        | 250
-        | 500
-        | 1000
-        | 2000
-        | 2500
-        | 5000;
-
-    /// Rounding mode.
-    roundingMode?:
-        | "ceil"
-        | "floor"
-        | "expand"
-        | "trunc"
-        | "halfCeil"
-        | "halfFloor"
-        | "halfExpand"
-        | "halfTrunc"
-        | "halfEven";
-
-    /// Trailing zero display style.
-    trailingZeroDisplay?: "auto" | "stripIfInteger";
-};
 
 /// Number constants and parsing functions.
 @languageItem("math.Number")
@@ -150,11 +61,16 @@ export class Number {
     }
 
     /// Return this number as a locale-aware string.
+    toLocaleString(&readonly this): MaybeOwned<string> {
+        todo("Number.toLocaleStringDefault")
+    }
+
+    /// Return this number as a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: string | string[],
+        locales?: Locales,
         options?: NumberFormatOptions,
-    ): MaybeOwned<string> {
+    ): Result<MaybeOwned<string>, IntlError> {
         todo("Number.toLocaleString")
     }
 

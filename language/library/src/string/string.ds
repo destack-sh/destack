@@ -1,6 +1,7 @@
 import { Array, Slice } from "destack:collections";
 import { As, Borrow, From } from "destack:convert";
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
+import { CollatorOptions, IntlError, Locales } from "destack:intl";
 import { Iterator } from "destack:iter";
 import { Default } from "destack:memory";
 import { Add, Equal, Hash, Hasher, Ordering } from "destack:ops";
@@ -127,11 +128,17 @@ export extension of string implements Add<string>, Equal<string>, Equal<StringSl
     }
 
     /// Compare with `other` using locale ordering.
+    localeCompare(&readonly this, other: &readonly string): Ordering {
+        todo("String.localeCompareDefault")
+    }
+
+    /// Compare with `other` using explicit locale ordering.
     localeCompare(
         &readonly this,
         other: &readonly string,
-        locales?: &readonly string | (&readonly string)[],
-    ): Ordering {
+        locales?: Locales,
+        options?: CollatorOptions,
+    ): Result<Ordering, IntlError> {
         todo("String.localeCompare")
     }
 
@@ -214,7 +221,12 @@ export extension of string implements Add<string>, Equal<string>, Equal<StringSl
     }
 
     /// Convert to lowercase using locale rules.
-    toLocaleLowerCase(&readonly this, locales?: &readonly string | (&readonly string)[]): ^string {
+    toLocaleLowerCase(&readonly this): ^string {
+        todo("String.toLocaleLowerCaseDefault")
+    }
+
+    /// Convert to lowercase using explicit locale rules.
+    toLocaleLowerCase(&readonly this, locales?: Locales): Result<^string, IntlError> {
         todo("String.toLocaleLowerCase")
     }
 
@@ -224,7 +236,12 @@ export extension of string implements Add<string>, Equal<string>, Equal<StringSl
     }
 
     /// Convert to uppercase using locale rules.
-    toLocaleUpperCase(&readonly this, locales?: &readonly string | (&readonly string)[]): ^string {
+    toLocaleUpperCase(&readonly this): ^string {
+        todo("String.toLocaleUpperCaseDefault")
+    }
+
+    /// Convert to uppercase using explicit locale rules.
+    toLocaleUpperCase(&readonly this, locales?: Locales): Result<^string, IntlError> {
         todo("String.toLocaleUpperCase")
     }
 

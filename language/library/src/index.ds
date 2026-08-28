@@ -28,6 +28,7 @@ export * as convert from "./convert";
 export * as debug from "./debug";
 export * as fs from "./fs";
 export * as hint from "./hint";
+export * as intl from "./intl";
 export * as json from "./json";
 export * as net from "./net";
 export * as profile from "./profile";
