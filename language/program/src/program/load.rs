@@ -245,15 +245,20 @@ impl ProgramHeader {
         self.shared_statics.validate(sections)?;
         self.local_statics.validate(sections)?;
 
-        // validate linked bytecode and its provenance columns
+        // validate linked bytecode provenance
         self.bytecode.validate(sections)?;
-        let bytecode_provenance = self
+        let operation_provenance = self
             .bytecode
-            .operation_provenance_column(sections)
+            .operation_provenances(sections)
             .iter()
-            .chain(self.bytecode.mapping_provenance_column(sections));
-        if bytecode_provenance
-            .copied()
+            .copied();
+        let mapping_provenance = self
+            .bytecode
+            .mappings(sections)
+            .iter()
+            .map(|mapping| mapping.provenance);
+        if operation_provenance
+            .chain(mapping_provenance)
             .any(|id| !self.provenance.contains(sections, id))
         {
             return Err(SectionImageError::InvalidReference.into());
