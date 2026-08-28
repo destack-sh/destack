@@ -34,10 +34,6 @@ pub enum ProgramLoadError {
     UnsupportedNativeAbi(u32),
     /// The recorded image length does not match the supplied storage.
     InvalidLength,
-    /// One relative range lies outside its sibling column.
-    InvalidRange,
-    /// One stored program string is not valid UTF-8.
-    InvalidString,
     /// One static image violates its recorded alignment.
     InvalidAlignment,
     /// The program carries no linked bytecode.
@@ -58,8 +54,6 @@ impl fmt::Display for ProgramLoadError {
                 write!(formatter, "unsupported native ABI version {version}")
             }
             Self::InvalidLength => formatter.write_str("invalid program image length"),
-            Self::InvalidRange => formatter.write_str("invalid program image range"),
-            Self::InvalidString => formatter.write_str("invalid program image string"),
             Self::InvalidAlignment => formatter.write_str("invalid program image alignment"),
         }
     }
@@ -223,29 +217,95 @@ impl ProgramHeader {
 
     /// Validate every relationship required by infallible Program navigation.
     fn validate(&self, sections: SectionImage<'_>) -> Result<(), ProgramLoadError> {
-        // reject native code built for a different runtime ABI
-        if let Some(native) = self.native.get()
-            && native.abi_version != native::abi::VERSION
+        // validate indexed program tables
+        self.strings.validate(sections)?;
+        self.types.validate(sections)?;
+        self.layouts.validate(sections)?;
+        self.frames.validate(sections)?;
+        self.functions.validate(sections)?;
+
+        // validate runtime relation tables
+        self.bindings.validate(sections)?;
+        self.dispatch.validate(sections)?;
+        self.sites.validate(sections)?;
+        self.traces.validate(sections)?;
+        self.globals.validate(
+            sections,
+            &self.constants,
+            &self.shared_statics,
+            &self.local_statics,
+        )?;
+        if let Some(info) = self.info.get() {
+            info.validate(sections)?;
+        }
+
+        // validate provenance and static images
+        self.provenance.validate(sections, &self.strings)?;
+        self.constants.validate(sections)?;
+        self.shared_statics.validate(sections)?;
+        self.local_statics.validate(sections)?;
+
+        // validate linked bytecode and its provenance columns
+        self.bytecode.validate(sections)?;
+        let bytecode_provenance = self
+            .bytecode
+            .operation_provenance_column(sections)
+            .iter()
+            .chain(self.bytecode.mapping_provenance_column(sections));
+        if bytecode_provenance
+            .copied()
+            .any(|id| !self.provenance.contains(sections, id))
         {
-            return Err(ProgramLoadError::UnsupportedNativeAbi(native.abi_version));
+            return Err(SectionImageError::InvalidReference.into());
         }
 
-        // reject strings that cannot be borrowed without repeated decoding
-        if !self.strings.entries_fit(sections) {
-            return Err(ProgramLoadError::InvalidString);
+        // validate linked native code and its Program projections
+        if let Some(code) = self.native.get() {
+            if code.abi_version != native::abi::VERSION {
+                return Err(ProgramLoadError::UnsupportedNativeAbi(code.abi_version));
+            }
+            code.validate(sections)?;
+
+            let function_count = self.functions.entries(sections).len();
+            let frame_count = self.frames.states(sections).len();
+            if code.functions(sections).len() != function_count
+                || code.resumes(sections).len() != frame_count
+            {
+                return Err(SectionImageError::InvalidRange.into());
+            }
+
+            // validate native target strings
+            let features = code.features(sections);
+            if !self.strings.contains(sections, code.target)
+                || features
+                    .iter()
+                    .any(|feature| !self.strings.contains(sections, *feature))
+            {
+                return Err(SectionImageError::InvalidReference.into());
+            }
+            if !features.windows(2).all(|pair| pair[0] < pair[1]) {
+                return Err(SectionImageError::InvalidOrder.into());
+            }
+
+            // validate native frame and provenance references
+            if code
+                .map()
+                .frames(sections)
+                .iter()
+                .any(|frame| frame.state as usize >= frame_count)
+                || code
+                    .map()
+                    .extents(sections)
+                    .iter()
+                    .any(|extent| !self.provenance.contains(sections, extent.provenance))
+            {
+                return Err(SectionImageError::InvalidReference.into());
+            }
         }
 
-        // require every static region to satisfy its recorded physical alignment
-        if !self.constants.is_aligned(sections)
-            || !self.shared_statics.is_aligned(sections)
-            || !self.local_statics.is_aligned(sections)
-        {
-            return Err(ProgramLoadError::InvalidAlignment);
-        }
-
-        // reject unresolved or malformed Program references
-        if !self.references_fit(sections) {
-            return Err(ProgramLoadError::InvalidRange);
+        // validate optional WebAssembly frame ranges
+        if let Some(code) = self.wasm.get() {
+            code.validate(sections)?;
         }
 
         Ok(())
@@ -261,73 +321,6 @@ impl ProgramHeader {
         }
 
         Ok(alignment)
-    }
-
-    /// Return whether every Program reference resolves to a valid entry.
-    fn references_fit(&self, sections: SectionImage<'_>) -> bool {
-        // collect cross-table provenance references
-        let transform_names = self
-            .provenance
-            .transforms(sections)
-            .iter()
-            .map(|transform| transform.name);
-        let bytecode_provenance = self
-            .bytecode
-            .operation_provenance_column(sections)
-            .iter()
-            .chain(self.bytecode.mapping_provenance_column(sections))
-            .copied();
-        let native_provenance = self
-            .native
-            .get()
-            .into_iter()
-            .flat_map(|code| code.map().extents(sections))
-            .map(|extent| extent.provenance);
-
-        self.types.ranges_fit(sections)
-            && self.layouts.ranges_fit(sections)
-            && self.frames.ranges_fit(sections)
-            && self.functions.ranges_fit(sections)
-            && self.bindings.ranges_fit(sections)
-            && self.dispatch.ranges_fit(sections)
-            && self.traces.ranges_fit(sections)
-            && self.info.get().is_none_or(|info| info.ranges_fit(sections))
-            && self.provenance.ranges_fit(sections)
-            && self.strings.contains_all(sections, transform_names)
-            && self.provenance.contains_all(sections, bytecode_provenance)
-            && self.provenance.contains_all(sections, native_provenance)
-            && self.bytecode.ranges_fit(sections)
-            && self
-                .native
-                .get()
-                .is_none_or(|code| self.native_fits(sections, code))
-            && self.wasm.get().is_none_or(|code| code.ranges_fit(sections))
-    }
-
-    /// Return whether linked native code agrees with the authoritative Program tables.
-    fn native_fits(&self, sections: SectionImage<'_>, code: native::Code) -> bool {
-        if !code.ranges_fit(sections) {
-            return false;
-        }
-
-        let functions = self.functions.entries(sections).len();
-        let frames = self.frames.states(sections).len();
-        let frame_maps = code.map().frames(sections);
-
-        // require dense physical entry columns and resolvable native strings
-        let target_fits = self.strings.string(sections, code.target).is_some();
-        let features = code.features(sections);
-        let features_fit = features.windows(2).all(|pair| pair[0] < pair[1])
-            && features
-                .iter()
-                .all(|feature| self.strings.string(sections, *feature).is_some());
-        let frame_maps_fit = frame_maps
-            .iter()
-            .all(|frame| (frame.state as usize) < frames);
-        let columns_fit =
-            code.functions(sections).len() == functions && code.resumes(sections).len() == frames;
-
-        columns_fit && target_fits && features_fit && frame_maps_fit
     }
 }
 

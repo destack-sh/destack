@@ -1,7 +1,11 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{
+    Optional, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice,
+};
 use destack_serde::Reflect;
 use destack_source::{Location, LocationId, ProvenanceId, Span, Transform, TransformId};
 use serde::{Deserialize, Serialize};
+
+use super::StringTable;
 
 /// Compilation provenance stored in one Program image.
 #[repr(C)]
@@ -88,8 +92,12 @@ impl ProvenanceTable {
         }
     }
 
-    /// Return whether every graph reference and packed range is valid.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate every provenance graph reference and packed range.
+    pub(super) fn validate(
+        &self,
+        sections: SectionImage<'_>,
+        strings: &StringTable,
+    ) -> Result<(), SectionImageError> {
         let locations = self.locations(sections);
         let fused_locations = self.fused_locations(sections);
         let attributions = self.attributions(sections);
@@ -98,31 +106,71 @@ impl ProvenanceTable {
         let inputs = self.input_entries(sections);
         let outputs = self.output_entries(sections);
 
-        // validate location references and direct attribution
-        if attributions.len() != producers.len()
-            || !Self::locations_fit(locations, fused_locations)
-            || attributions
-                .iter()
-                .any(|location| location.0 as usize >= locations.len())
+        // validate parallel provenance columns
+        if attributions.len() != producers.len() {
+            return Err(SectionImageError::InvalidRange);
+        }
+        if attributions
+            .iter()
+            .any(|location| location.0 as usize >= locations.len())
         {
-            return false;
+            return Err(SectionImageError::InvalidReference);
+        }
+
+        // validate location references in allocation order
+        for (index, location) in locations.iter().copied().enumerate() {
+            let precedes = |id: LocationId| id.0 < index as u32;
+
+            match location {
+                Location::Authored { span, primary } => {
+                    if span.start > span.end
+                        || primary
+                            .get()
+                            .is_some_and(|primary| !span.contains_span(primary))
+                    {
+                        return Err(SectionImageError::InvalidRange);
+                    }
+                }
+                Location::Expanded { source, site } if !precedes(source) || !precedes(site) => {
+                    return Err(SectionImageError::InvalidReference);
+                }
+                Location::Fused(range) => {
+                    if range.is_empty() {
+                        return Err(SectionImageError::InvalidRange);
+                    }
+                    range.validate(fused_locations.len())?;
+                    if range
+                        .slice(fused_locations)
+                        .iter()
+                        .copied()
+                        .any(|location| !precedes(location))
+                    {
+                        return Err(SectionImageError::InvalidReference);
+                    }
+                }
+                Location::Expanded { .. } | Location::Generated => {}
+            }
+        }
+
+        // validate transform names
+        for transform in transforms {
+            if !strings.contains(sections, transform.name) {
+                return Err(SectionImageError::InvalidReference);
+            }
         }
 
         // rebuild both derived graph columns from the transform lists
-        let Some((expected_producers, expected_offsets, expected_consumers)) =
-            Self::graph_columns(attributions.len(), transforms, inputs, outputs)
-        else {
-            return false;
-        };
+        let (expected_producers, expected_offsets, expected_consumers) =
+            Self::graph_columns(attributions.len(), transforms, inputs, outputs)?;
         if producers != expected_producers
             || self.consumer_offsets(sections) != expected_offsets
             || self.consumer_entries(sections) != expected_consumers
         {
-            return false;
+            return Err(SectionImageError::InvalidReference);
         }
 
-        // require every root provenance to refer directly to authored text
-        attributions
+        // validate every root provenance against authored text
+        if !attributions
             .iter()
             .copied()
             .zip(producers)
@@ -130,6 +178,11 @@ impl ProvenanceTable {
                 producer.get().is_some()
                     || matches!(locations[location.0 as usize], Location::Authored { .. })
             })
+        {
+            return Err(SectionImageError::InvalidReference);
+        }
+
+        Ok(())
     }
 
     /// Return locations in allocation order.
@@ -157,15 +210,11 @@ impl ProvenanceTable {
         sections.entries(self.transforms)
     }
 
-    /// Return whether this table contains every given provenance id.
-    pub(super) fn contains_all(
-        &self,
-        sections: SectionImage<'_>,
-        ids: impl IntoIterator<Item = ProvenanceId>,
-    ) -> bool {
+    /// Return whether this table contains one provenance id.
+    pub(super) fn contains(&self, sections: SectionImage<'_>, id: ProvenanceId) -> bool {
         let count = self.attributions(sections).len();
 
-        ids.into_iter().all(|id| (id.index() as usize) < count)
+        (id.index() as usize) < count
     }
 
     /// Return the locations represented by one fused location.
@@ -360,65 +409,48 @@ impl ProvenanceTable {
         common
     }
 
-    /// Return whether every location references a valid preceding location.
-    fn locations_fit(locations: &[Location], fused_locations: &[LocationId]) -> bool {
-        locations.iter().enumerate().all(|(index, location)| {
-            let precedes = |id: LocationId| id.0 < index as u32;
-
-            match *location {
-                Location::Authored { span, primary } => {
-                    span.start <= span.end
-                        && primary
-                            .get()
-                            .is_none_or(|primary| span.contains_span(primary))
-                }
-                Location::Expanded { source, site } => precedes(source) && precedes(site),
-                Location::Fused(range) => {
-                    !range.is_empty()
-                        && range.fits(fused_locations.len())
-                        && range.slice(fused_locations).iter().copied().all(precedes)
-                }
-                Location::Generated => true,
-            }
-        })
-    }
-
     /// Rebuild the producer and consumer columns from packed transforms.
     fn graph_columns(
         provenance_count: usize,
         transforms: &[Transform],
         inputs: &[ProvenanceId],
         outputs: &[ProvenanceId],
-    ) -> Option<(Vec<Optional<TransformId>>, Vec<u32>, Vec<TransformId>)> {
+    ) -> Result<(Vec<Optional<TransformId>>, Vec<u32>, Vec<TransformId>), SectionImageError> {
         let mut producers = vec![Optional::none(); provenance_count];
         let mut consumer_counts = vec![0u32; provenance_count];
 
         // assign each output once and count each input use
         for (index, transform) in transforms.iter().enumerate() {
-            if !transform.inputs.fits(inputs.len())
-                || !transform.outputs.fits(outputs.len())
-                || transform.inputs.is_empty() && transform.outputs.is_empty()
-            {
-                return None;
+            transform.inputs.validate(inputs.len())?;
+            transform.outputs.validate(outputs.len())?;
+            if transform.inputs.is_empty() && transform.outputs.is_empty() {
+                return Err(SectionImageError::InvalidRange);
             }
             let id = TransformId(index as u32);
             let transform_inputs = transform.inputs.slice(inputs);
             let transform_outputs = transform.outputs.slice(outputs);
 
             for input in transform_inputs {
-                let count = consumer_counts.get_mut(input.index() as usize)?;
-                *count = count.checked_add(1)?;
+                let Some(count) = consumer_counts.get_mut(input.index() as usize) else {
+                    return Err(SectionImageError::InvalidReference);
+                };
+                let Some(next) = count.checked_add(1) else {
+                    return Err(SectionImageError::InvalidRange);
+                };
+                *count = next;
             }
             for output in transform_outputs {
                 if transform_inputs
                     .iter()
                     .any(|input| input.index() >= output.index())
                 {
-                    return None;
+                    return Err(SectionImageError::InvalidOrder);
                 }
-                let producer = producers.get_mut(output.index() as usize)?;
+                let Some(producer) = producers.get_mut(output.index() as usize) else {
+                    return Err(SectionImageError::InvalidReference);
+                };
                 if producer.get().is_some() {
-                    return None;
+                    return Err(SectionImageError::InvalidReference);
                 }
                 *producer = Optional::some(id);
             }
@@ -428,11 +460,16 @@ impl ProvenanceTable {
         let mut consumer_offsets = Vec::with_capacity(provenance_count + 1);
         consumer_offsets.push(0u32);
         for count in consumer_counts {
-            let offset = consumer_offsets.last()?.checked_add(count)?;
+            let Some(offset) = consumer_offsets
+                .last()
+                .and_then(|offset| offset.checked_add(count))
+            else {
+                return Err(SectionImageError::InvalidRange);
+            };
             consumer_offsets.push(offset);
         }
-        if consumer_offsets.last().copied()? as usize != inputs.len() {
-            return None;
+        if consumer_offsets[provenance_count] as usize != inputs.len() {
+            return Err(SectionImageError::InvalidRange);
         }
 
         // group consumer transforms by their input provenance
@@ -441,13 +478,18 @@ impl ProvenanceTable {
         for (index, transform) in transforms.iter().enumerate() {
             let id = TransformId(index as u32);
             for input in transform.inputs.slice(inputs) {
-                let cursor = cursors.get_mut(input.index() as usize)?;
-                *consumers.get_mut(*cursor as usize)? = id;
+                let Some(cursor) = cursors.get_mut(input.index() as usize) else {
+                    return Err(SectionImageError::InvalidReference);
+                };
+                let Some(consumer) = consumers.get_mut(*cursor as usize) else {
+                    return Err(SectionImageError::InvalidReference);
+                };
+                *consumer = id;
                 *cursor += 1;
             }
         }
 
-        Some((producers, consumer_offsets, consumers))
+        Ok((producers, consumer_offsets, consumers))
     }
 
     /// Index consumer transforms for one trusted source provenance table.

@@ -29,8 +29,6 @@ pub enum ObjectLoadError {
     UnsupportedVersion(u16),
     /// The header length does not match the byte region.
     InvalidLength,
-    /// One function or frame range is outside its containing section.
-    InvalidRange,
 }
 
 impl fmt::Display for ObjectLoadError {
@@ -43,7 +41,6 @@ impl fmt::Display for ObjectLoadError {
                 write!(formatter, "unsupported bytecode object version {version}")
             }
             Self::InvalidLength => formatter.write_str("invalid bytecode object length"),
-            Self::InvalidRange => formatter.write_str("invalid bytecode object range"),
         }
     }
 }
@@ -115,6 +112,9 @@ impl Header {
         if header.version != Self::VERSION {
             return Err(ObjectLoadError::UnsupportedVersion(header.version));
         }
+        if header.reserved != 0 {
+            return Err(SectionImageError::InvalidEntry.into());
+        }
         if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
             return Err(ObjectLoadError::InvalidLength);
         }
@@ -125,21 +125,22 @@ impl Header {
         let frames = sections.entries(header.frames);
         let registers = sections.entries(header.registers);
         let operations = sections.entries(header.operations);
+        let relocations = sections.entries(header.relocations);
         let code = sections.entries(header.code);
 
-        // require every subordinate range used by infallible navigation
+        // validate every function range
         for function in functions {
-            if !function.operations.fits(operations.len()) {
-                return Err(ObjectLoadError::InvalidRange);
-            }
-            if function.code().is_some_and(|range| !range.fits(code.len())) {
-                return Err(ObjectLoadError::InvalidRange);
-            }
+            function.validate(operations, code.len())?;
         }
+
+        // validate every frame range
         for frame in frames {
-            if !frame.registers.fits(registers.len()) {
-                return Err(ObjectLoadError::InvalidRange);
-            }
+            frame.validate(registers.len())?;
+        }
+
+        // validate every relocation
+        for relocation in relocations {
+            relocation.validate(code.len())?;
         }
 
         Ok(header)

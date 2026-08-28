@@ -1,4 +1,4 @@
-use destack_core::{EntryRange, EntryStore, SectionEntry};
+use destack_core::{EntryRange, EntryStore, SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -43,15 +43,25 @@ impl Definition {
         self.resumes.slice(resumes)
     }
 
-    /// Return whether every referenced block and resume exists.
-    pub(super) fn ranges_fit(self, blocks: usize, resumes: &[Resume]) -> bool {
-        self.body.index() < blocks
-            && self.entry.index() < blocks
-            && self.resumes.fits(resumes.len())
-            && self
-                .resumes(resumes)
-                .iter()
-                .all(|resume| resume.block.index() < blocks)
+    /// Validate every referenced block and resume.
+    pub(super) fn validate(
+        self,
+        blocks: usize,
+        resumes: &[Resume],
+    ) -> Result<(), SectionImageError> {
+        if self.body.index() >= blocks || self.entry.index() >= blocks {
+            return Err(SectionImageError::InvalidReference);
+        }
+        self.resumes.validate(resumes.len())?;
+        if self
+            .resumes(resumes)
+            .iter()
+            .any(|resume| resume.block.index() >= blocks)
+        {
+            return Err(SectionImageError::InvalidReference);
+        }
+
+        Ok(())
     }
 }
 

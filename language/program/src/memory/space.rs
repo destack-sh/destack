@@ -1,7 +1,7 @@
 use std::mem::size_of;
 use std::sync::Arc;
 
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice};
 use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
 use destack_native::abi;
 use destack_serde::Reflect;
@@ -160,16 +160,35 @@ impl StaticImage {
         self.alignment as usize
     }
 
-    /// Return whether the stored bytes satisfy their declared alignment.
-    pub(crate) fn is_aligned(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate this static image and its relocation entries.
+    pub(crate) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let alignment = self.alignment();
-        if !alignment.is_power_of_two() {
-            return false;
+        let bytes = sections.entries(self.bytes);
+        let relocations = self.relocations(sections);
+        if self.reserved != 0
+            || !alignment.is_power_of_two()
+            || (!bytes.is_empty() && !(bytes.as_ptr() as usize).is_multiple_of(alignment))
+        {
+            return Err(SectionImageError::InvalidEntry);
         }
 
-        // accept empty images without inspecting their synthetic slice pointer
-        let bytes = sections.entries(self.bytes);
-        bytes.is_empty() || (bytes.as_ptr() as usize).is_multiple_of(alignment)
+        // validate relocation words inside the static bytes
+        for relocation in relocations {
+            if relocation.reserved != 0 {
+                return Err(SectionImageError::InvalidEntry);
+            }
+            let Ok(start) = usize::try_from(relocation.byte_offset) else {
+                return Err(SectionImageError::InvalidRange);
+            };
+            let Some(end) = start.checked_add(GlobalAddress::BYTE_LEN) else {
+                return Err(SectionImageError::InvalidRange);
+            };
+            if end > bytes.len() {
+                return Err(SectionImageError::InvalidRange);
+            }
+        }
+
+        Ok(())
     }
 }
 

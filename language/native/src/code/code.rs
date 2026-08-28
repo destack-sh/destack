@@ -1,4 +1,6 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use destack_core::{
+    Optional, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice, StringId,
+};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -58,38 +60,34 @@ pub struct CodeBuilder {
 }
 
 impl Code {
-    /// Return whether every relative range fits its sibling column.
-    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate every native code entry against its owning column.
+    pub fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let bytes = self.bytes(sections);
         let functions = self.functions(sections);
         let resumes = self.resumes(sections);
         let imports = self.imports(sections);
         let alignment = self.alignment.bytes() as usize;
 
-        // require the linked image to satisfy its executable base alignment
+        // validate the executable image alignment
         if !self.alignment.is_valid() || !(bytes.as_ptr() as usize).is_multiple_of(alignment) {
-            return false;
+            return Err(SectionImageError::InvalidEntry);
         }
 
-        // check every physical function and coroutine entry
-        let functions_fit = functions
-            .iter()
-            .filter_map(|function| function.get())
-            .all(|function| function.ranges_fit(bytes.len()));
-        let resumes_fit = resumes
-            .iter()
-            .filter_map(|resume| resume.get())
-            .all(|resume| resume.ranges_fit(bytes.len()));
-        let unwind_fits = self
-            .unwind
-            .get()
-            .is_none_or(|unwind| unwind.ranges_fit(sections, bytes.len()));
-        let imports_fit = imports.iter().all(|import| import.is_within(bytes.len()));
-        if !functions_fit || !resumes_fit || !imports_fit || !unwind_fits {
-            return false;
+        // validate every physical function and coroutine entry
+        for function in functions.iter().filter_map(|function| function.get()) {
+            function.validate(bytes.len())?;
+        }
+        for resume in resumes.iter().filter_map(|resume| resume.get()) {
+            resume.validate(bytes.len())?;
+        }
+        for import in imports {
+            import.validate(bytes.len())?;
+        }
+        if let Some(unwind) = self.unwind.get() {
+            unwind.validate(sections, bytes.len())?;
         }
 
-        self.map.ranges_fit(sections, bytes.len())
+        self.map.validate(sections, bytes.len())
     }
 
     /// Return sorted target CPU features.

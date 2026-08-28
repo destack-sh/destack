@@ -1,8 +1,8 @@
 use std::mem::size_of;
 
 use destack_core::{
-    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId,
-    fnv1a_128,
+    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionImageError,
+    SectionSlice, StringId, fnv1a_128,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -128,24 +128,46 @@ impl BindingTable {
         binding.hosts.slice(sections.entries(self.strings))
     }
 
-    /// Return whether every binding range fits the string column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate binding lookup columns and flattened string ranges.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let bindings = sections.entries(self.bindings);
         let indices = sections.entries(self.id_index);
-        let strings = sections.entries(self.strings).len();
+        let string_ids = sections.entries(self.strings);
 
-        // check the dense identity indirection before BindingTable::get indexes through it
-        let indices_fit = indices
-            .iter()
-            .all(|index| (*index as usize) < bindings.len());
-        let strings_fit = bindings.iter().all(|binding| {
-            binding.requires.fits(strings)
-                && binding.platforms.fits(strings)
-                && binding.families.fits(strings)
-                && binding.hosts.fits(strings)
-        });
+        // validate function lookup order and the identity index
+        if !bindings
+            .windows(2)
+            .all(|pair| pair[0].function < pair[1].function)
+        {
+            return Err(SectionImageError::InvalidOrder);
+        }
+        if indices.len() != bindings.len() {
+            return Err(SectionImageError::InvalidRange);
+        }
+        let mut previous = None;
+        for index in indices.iter().copied() {
+            let Some(binding) = bindings.get(index as usize) else {
+                return Err(SectionImageError::InvalidReference);
+            };
+            if previous.is_some_and(|id| id >= binding.id) {
+                return Err(SectionImageError::InvalidOrder);
+            }
+            previous = Some(binding.id);
+        }
 
-        indices_fit && strings_fit
+        // validate each binding's flattened string lists
+        for binding in bindings {
+            for range in [
+                binding.requires,
+                binding.platforms,
+                binding.families,
+                binding.hosts,
+            ] {
+                range.validate(string_ids.len())?;
+            }
+        }
+
+        Ok(())
     }
 }
 

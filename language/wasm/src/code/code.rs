@@ -1,5 +1,6 @@
 use destack_core::{
-    EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
+    EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionImageError,
+    SectionSlice,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -25,15 +26,17 @@ pub struct Code {
 }
 
 impl Code {
-    /// Return whether every frame range fits the flattened slot column.
-    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let slots = sections.entries(self.slots);
+    /// Validate every flattened WebAssembly frame range.
+    pub fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let frame_maps = sections.entries(self.frames);
 
-        sections
-            .entries(self.frames)
-            .iter()
-            .filter_map(|frame| frame.get())
-            .all(|frame| frame.slots.fits(slots.len()))
+        // validate flattened frame slots
+        let slots = sections.entries(self.slots);
+        for frame in frame_maps.iter().filter_map(|frame| frame.get()) {
+            frame.slots.validate(slots.len())?;
+        }
+
+        Ok(())
     }
 
     /// Return one exported WebAssembly entry.

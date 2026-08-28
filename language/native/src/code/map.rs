@@ -1,11 +1,13 @@
-use destack_core::{EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{
+    EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice,
+};
 use destack_serde::Reflect;
 use destack_source::ProvenanceId;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Block, BlockId, CodeRange, CodeTrap, FrameLocation, FrameMap, FrameMapBuilder, FrameSource,
-    FrameValue, ObjectFrameMap, ObjectFrameMapBuilder, ObjectTrap,
+    Block, BlockId, CodeRange, CodeTrap, FrameLocation, FrameMap, FrameMapBuilder, FrameValue,
+    ObjectFrameMap, ObjectFrameMapBuilder, ObjectTrap,
 };
 
 /// One object-local machine code extent.
@@ -31,12 +33,16 @@ pub struct CodeExtent {
 }
 
 impl ObjectCodeExtent {
-    /// Return whether this extent fits its object block.
-    fn fits(self, blocks: &[Block]) -> bool {
-        self.range.byte_len != 0
-            && blocks
-                .get(self.block.index())
-                .is_some_and(|block| self.range.fits(block.byte_len() as usize))
+    /// Validate this extent against its object block.
+    fn validate(self, blocks: &[Block]) -> Result<(), SectionImageError> {
+        if self.range.byte_len == 0 {
+            return Err(SectionImageError::InvalidRange);
+        }
+        let Some(block) = blocks.get(self.block.index()) else {
+            return Err(SectionImageError::InvalidReference);
+        };
+
+        self.range.validate(block.byte_len() as usize)
     }
 
     /// Return whether this extent precedes another extent.
@@ -50,9 +56,13 @@ impl ObjectCodeExtent {
 }
 
 impl CodeExtent {
-    /// Return whether this extent fits its linked code image.
-    fn fits(self, byte_len: usize) -> bool {
-        self.range.byte_len != 0 && self.range.fits(byte_len)
+    /// Validate this extent against its linked code image.
+    fn validate(self, byte_len: usize) -> Result<(), SectionImageError> {
+        if self.range.byte_len == 0 {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        self.range.validate(byte_len)
     }
 
     /// Return whether this extent precedes another extent.
@@ -133,40 +143,59 @@ impl ObjectMap {
         Self::default()
     }
 
-    /// Return whether every object map entry fits its owning block or shared column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>, blocks: &[Block]) -> bool {
+    /// Validate every object map entry against its owning block or shared column.
+    pub(super) fn validate(
+        &self,
+        sections: SectionImage<'_>,
+        blocks: &[Block],
+    ) -> Result<(), SectionImageError> {
         // validate physical frame sites
         let frames = self.frames(sections);
-        let frames_fit = frames.iter().all(|frame| {
-            blocks
-                .get(frame.block.index())
-                .is_some_and(|block| frame.return_offset <= block.byte_len())
-        });
+        for frame in frames {
+            let Some(block) = blocks.get(frame.block.index()) else {
+                return Err(SectionImageError::InvalidReference);
+            };
+            if frame.return_offset > block.byte_len() {
+                return Err(SectionImageError::InvalidRange);
+            }
+        }
 
         // validate sorted trap sites
         let traps = self.traps(sections);
-        let traps_fit = traps.iter().all(|trap| trap.fits(blocks))
-            && traps
-                .windows(2)
-                .all(|pair| (pair[0].block, pair[0].offset) < (pair[1].block, pair[1].offset));
+        for trap in traps {
+            trap.validate(blocks)?;
+        }
+        if !traps
+            .windows(2)
+            .all(|pair| (pair[0].block, pair[0].offset) < (pair[1].block, pair[1].offset))
+        {
+            return Err(SectionImageError::InvalidOrder);
+        }
 
         // validate sorted provenance extents
         let extents = self.extents(sections);
-        let extents_fit = extents.iter().all(|extent| extent.fits(blocks))
-            && extents.windows(2).all(|pair| pair[0].precedes(pair[1]));
+        for extent in extents {
+            extent.validate(blocks)?;
+        }
+        if !extents.windows(2).all(|pair| pair[0].precedes(pair[1])) {
+            return Err(SectionImageError::InvalidOrder);
+        }
 
         // validate flattened frame columns
-        frames_fit
-            && traps_fit
-            && extents_fit
-            && frame_ranges_fit(
-                sections,
-                frames,
-                self.values,
-                self.locations,
-                self.constants,
-                ObjectFrameMap::values_fit,
-            )
+        let values = sections.entries(self.values);
+        let locations = sections.entries(self.locations);
+        let constants = sections.entries(self.constants);
+        for frame in frames {
+            frame.validate(values.len())?;
+        }
+        for value in values {
+            value.validate(locations.len())?;
+        }
+        for location in locations {
+            location.validate(constants.len())?;
+        }
+
+        Ok(())
     }
 
     /// Return object-local machine code extents in block and byte order.
@@ -240,39 +269,60 @@ impl CodeMap {
         Self::default()
     }
 
-    /// Return whether every linked map entry fits the code or its shared column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>, byte_len: usize) -> bool {
+    /// Validate every linked map entry against the code or its shared column.
+    pub(super) fn validate(
+        &self,
+        sections: SectionImage<'_>,
+        byte_len: usize,
+    ) -> Result<(), SectionImageError> {
         // validate sorted physical frame sites
         let frames = self.frames(sections);
-        let frames_fit = frames
+        if frames
             .iter()
-            .all(|frame| frame.return_offset as usize <= byte_len)
-            && frames
-                .windows(2)
-                .all(|pair| pair[0].return_offset < pair[1].return_offset);
+            .any(|frame| frame.return_offset as usize > byte_len)
+        {
+            return Err(SectionImageError::InvalidRange);
+        }
+        if !frames
+            .windows(2)
+            .all(|pair| pair[0].return_offset < pair[1].return_offset)
+        {
+            return Err(SectionImageError::InvalidOrder);
+        }
 
         // validate sorted trap sites
         let traps = self.traps(sections);
-        let traps_fit = traps.iter().all(|trap| trap.fits(byte_len))
-            && traps.windows(2).all(|pair| pair[0].offset < pair[1].offset);
+        for trap in traps {
+            trap.validate(byte_len)?;
+        }
+        if !traps.windows(2).all(|pair| pair[0].offset < pair[1].offset) {
+            return Err(SectionImageError::InvalidOrder);
+        }
 
         // validate sorted provenance extents
         let extents = self.extents(sections);
-        let extents_fit = extents.iter().all(|extent| extent.fits(byte_len))
-            && extents.windows(2).all(|pair| pair[0].precedes(pair[1]));
+        for extent in extents {
+            extent.validate(byte_len)?;
+        }
+        if !extents.windows(2).all(|pair| pair[0].precedes(pair[1])) {
+            return Err(SectionImageError::InvalidOrder);
+        }
 
         // validate flattened frame columns
-        frames_fit
-            && traps_fit
-            && extents_fit
-            && frame_ranges_fit(
-                sections,
-                frames,
-                self.values,
-                self.locations,
-                self.constants,
-                FrameMap::values_fit,
-            )
+        let values = sections.entries(self.values);
+        let locations = sections.entries(self.locations);
+        let constants = sections.entries(self.constants);
+        for frame in frames {
+            frame.validate(values.len())?;
+        }
+        for value in values {
+            value.validate(locations.len())?;
+        }
+        for location in locations {
+            location.validate(constants.len())?;
+        }
+
+        Ok(())
     }
 
     /// Return linked machine code extents in byte order.
@@ -480,45 +530,4 @@ impl FrameBuilder for FrameMapBuilder {
     ) -> Self::Frame {
         self.build(values, locations)
     }
-}
-
-/// Return whether one frame-map family and its flattened columns are valid.
-fn frame_ranges_fit<F: Copy>(
-    sections: SectionImage<'_>,
-    frames: &[F],
-    values: SectionSlice<FrameValue>,
-    locations: SectionSlice<FrameLocation>,
-    constants: SectionSlice<u8>,
-    values_fit: impl Fn(F, usize) -> bool,
-) -> bool {
-    let values = sections.entries(values);
-    let locations = sections.entries(locations);
-    let constants = sections.entries(constants);
-
-    // require every frame and value to fit its flattened column
-    let frames_fit = frames
-        .iter()
-        .copied()
-        .all(|frame| values_fit(frame, values.len()));
-    let values_fit = values
-        .iter()
-        .all(|value| value.locations_fit(locations.len()));
-    if !frames_fit || !values_fit {
-        return false;
-    }
-
-    // require constant locations to fit the mapped constant section
-    locations.iter().all(|location| {
-        if location.source != FrameSource::Constant {
-            return true;
-        }
-
-        let Ok(start) = usize::try_from(location.source_offset) else {
-            return false;
-        };
-
-        start
-            .checked_add(location.byte_len as usize)
-            .is_some_and(|end| end <= constants.len())
-    })
 }

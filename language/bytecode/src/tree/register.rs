@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use destack_core::{EntryRange, SectionEntry};
+use destack_core::{EntryRange, SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +16,11 @@ impl FrameMap {
     /// Create one physical frame map.
     pub const fn new(registers: EntryRange<RegisterSpan>) -> Self {
         Self { registers }
+    }
+
+    /// Validate this frame map against the shared register column.
+    pub(crate) fn validate(self, registers: usize) -> Result<(), SectionImageError> {
+        self.registers.validate(registers)
     }
 
     /// Return the physical register spans retained by this map.

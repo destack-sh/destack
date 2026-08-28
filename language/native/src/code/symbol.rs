@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -111,14 +111,27 @@ impl SymbolId {
 }
 
 impl Symbol {
-    /// Return whether this symbol fits its owning object tables.
-    pub(super) fn fits(self, functions: usize, blocks: &[Block]) -> bool {
+    /// Validate this symbol against its owning object tables.
+    pub(super) fn validate(
+        self,
+        functions: usize,
+        blocks: &[Block],
+    ) -> Result<(), SectionImageError> {
         match self {
-            Self::Block { block, offset } => blocks
-                .get(block.index())
-                .is_some_and(|block| offset <= block.byte_len()),
-            Self::Function { function } => (function as usize) < functions,
-            Self::Import(_) | Self::Index(_) => true,
+            Self::Block { block, offset } => {
+                let Some(block) = blocks.get(block.index()) else {
+                    return Err(SectionImageError::InvalidReference);
+                };
+                if offset > block.byte_len() {
+                    return Err(SectionImageError::InvalidRange);
+                }
+            }
+            Self::Function { function } if function as usize >= functions => {
+                return Err(SectionImageError::InvalidReference);
+            }
+            Self::Function { .. } | Self::Import(_) | Self::Index(_) => {}
         }
+
+        Ok(())
     }
 }

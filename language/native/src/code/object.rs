@@ -31,10 +31,6 @@ pub enum ObjectLoadError {
     UnsupportedVersion(u16),
     /// The header length does not match the byte region.
     InvalidLength,
-    /// One object string is empty or not valid UTF-8.
-    InvalidString,
-    /// One relative object range escapes its owning column.
-    InvalidRange,
 }
 
 /// Fixed header stored at byte zero of every native object.
@@ -106,8 +102,6 @@ impl fmt::Display for ObjectLoadError {
                 write!(formatter, "unsupported native object version {version}")
             }
             Self::InvalidLength => formatter.write_str("invalid native object length"),
-            Self::InvalidString => formatter.write_str("invalid native object string"),
-            Self::InvalidRange => formatter.write_str("invalid native object range"),
         }
     }
 }
@@ -159,6 +153,9 @@ impl ObjectHeader {
         if header.version != Self::VERSION {
             return Err(ObjectLoadError::UnsupportedVersion(header.version));
         }
+        if header.reserved != 0 {
+            return Err(SectionImageError::InvalidEntry.into());
+        }
         if usize::try_from(header.byte_len).ok() != Some(loader.bytes().len()) {
             return Err(ObjectLoadError::InvalidLength);
         }
@@ -175,51 +172,42 @@ impl ObjectHeader {
         let resumes = sections.entries(header.resumes);
         let definitions = sections.entries(header.definitions);
 
-        // require every borrowed target name to be valid UTF-8
-        let feature = |range: EntryRange<u8>| {
-            range
-                .fits(feature_bytes.len())
-                .then(|| range.slice(feature_bytes))
-                .and_then(|bytes| std::str::from_utf8(bytes).ok())
-        };
-        let features_fit = features
-            .iter()
-            .all(|range| feature(*range).is_some_and(|feature| !feature.is_empty()));
-        let features_sorted = features.windows(2).all(|ranges| {
-            matches!(
-                (feature(ranges[0]), feature(ranges[1])),
-                (Some(first), Some(second)) if first < second
-            )
-        });
-        let target_fits = std::str::from_utf8(target).is_ok_and(|target| !target.is_empty());
-        if !target_fits || !features_fit || !features_sorted {
-            return Err(ObjectLoadError::InvalidString);
+        // validate the target triple
+        if target.is_empty() || std::str::from_utf8(target).is_err() {
+            return Err(SectionImageError::InvalidString.into());
         }
 
-        // require every infallibly navigated relative range
-        let symbols_fit = symbols
-            .iter()
-            .all(|symbol| symbol.fits(definitions.len(), blocks));
-        let blocks_fit = blocks
-            .iter()
-            .all(|block| block.ranges_fit(symbols.len(), code.len(), relocations));
-        let definitions_fit = definitions.iter().all(|definition| {
-            definition
-                .get()
-                .is_none_or(|definition| definition.ranges_fit(blocks.len(), resumes))
-        });
-        let unwind_fits = header
-            .unwind
-            .get()
-            .is_none_or(|unwind| unwind.ranges_fit(sections, symbols.len()));
-        if !symbols_fit
-            || !blocks_fit
-            || !definitions_fit
-            || !unwind_fits
-            || !header.map.ranges_fit(sections, blocks)
-        {
-            return Err(ObjectLoadError::InvalidRange);
+        // validate sorted target features
+        let mut previous = None;
+        for range in features {
+            range.validate(feature_bytes.len())?;
+            let bytes = range.slice(feature_bytes);
+            let Ok(feature) = std::str::from_utf8(bytes) else {
+                return Err(SectionImageError::InvalidString.into());
+            };
+            if feature.is_empty() {
+                return Err(SectionImageError::InvalidString.into());
+            }
+            if previous.is_some_and(|previous| previous >= feature) {
+                return Err(SectionImageError::InvalidOrder.into());
+            }
+            previous = Some(feature);
         }
+
+        // validate object references and relative ranges
+        for symbol in symbols {
+            symbol.validate(definitions.len(), blocks)?;
+        }
+        for block in blocks {
+            block.validate(symbols.len(), code.len(), relocations)?;
+        }
+        for definition in definitions.iter().filter_map(|definition| definition.get()) {
+            definition.validate(blocks.len(), resumes)?;
+        }
+        if let Some(unwind) = header.unwind.get() {
+            unwind.validate(sections, symbols.len())?;
+        }
+        header.map.validate(sections, blocks)?;
 
         Ok(header)
     }

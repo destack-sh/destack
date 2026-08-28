@@ -1,4 +1,6 @@
-use destack_core::{EntryRange, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{
+    EntryRange, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice,
+};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -131,18 +133,24 @@ pub struct UnwindSectionBuilder {
 }
 
 impl ObjectUnwind {
-    /// Return whether every object unwind range and relocation is valid.
-    pub(super) fn ranges_fit(self, sections: SectionImage<'_>, symbols: usize) -> bool {
+    /// Validate every object unwind section and relocation.
+    pub(super) fn validate(
+        self,
+        sections: SectionImage<'_>,
+        symbols: usize,
+    ) -> Result<(), SectionImageError> {
         let entries = self.sections(sections);
         let bytes = self.bytes(sections);
-        if !sections_fit(entries, bytes.len()) {
-            return false;
+        for section in entries {
+            section.validate(bytes.len())?;
         }
 
-        // require every relocation source and target to fit
-        self.relocations(sections)
-            .iter()
-            .all(|relocation| relocation.fits(entries, symbols))
+        // validate every relocation source and target
+        for relocation in self.relocations(sections) {
+            relocation.validate(entries, symbols)?;
+        }
+
+        Ok(())
     }
 
     /// Return target unwind sections.
@@ -162,11 +170,17 @@ impl ObjectUnwind {
 }
 
 impl Unwind {
-    /// Return whether every linked unwind range fits its load image.
-    pub(super) fn ranges_fit(self, sections: SectionImage<'_>, image_len: usize) -> bool {
-        let entries = self.sections(sections);
+    /// Validate every linked unwind section against its load image.
+    pub(super) fn validate(
+        self,
+        sections: SectionImage<'_>,
+        image_len: usize,
+    ) -> Result<(), SectionImageError> {
+        for section in self.sections(sections) {
+            section.validate(image_len)?;
+        }
 
-        sections_fit(entries, image_len)
+        Ok(())
     }
 
     /// Return target unwind sections.
@@ -176,6 +190,18 @@ impl Unwind {
 }
 
 impl UnwindSection {
+    /// Validate this section against its owning native image.
+    fn validate(self, bytes: usize) -> Result<(), SectionImageError> {
+        if !self.alignment.is_valid() {
+            return Err(SectionImageError::InvalidEntry);
+        }
+        if !self.bytes.start.is_multiple_of(self.alignment.bytes()) {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        self.bytes.validate(bytes)
+    }
+
     /// Return this section's byte offset inside its native image.
     pub const fn byte_offset(self) -> u32 {
         self.bytes.start
@@ -210,19 +236,35 @@ impl UnwindRelocation {
         }
     }
 
-    /// Return whether this relocation fits its source and target.
-    fn fits(self, sections: &[UnwindSection], symbols: usize) -> bool {
-        if !relocation_source_fits(self.section, self.offset, self.kind, sections) {
-            return false;
+    /// Validate this relocation against its source section and target table.
+    fn validate(self, sections: &[UnwindSection], symbols: usize) -> Result<(), SectionImageError> {
+        let Some(source) = sections.get(self.section as usize) else {
+            return Err(SectionImageError::InvalidReference);
+        };
+        let Some(end) = self.offset.checked_add(self.kind.byte_len()) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end > source.byte_len() {
+            return Err(SectionImageError::InvalidRange);
         }
 
+        // validate the relocation target
         match self.target {
-            UnwindTarget::Symbol(symbol) => symbol.index() < symbols,
-            UnwindTarget::Section { section, offset } => sections
-                .get(section as usize)
-                .is_some_and(|section| offset <= section.byte_len()),
-            UnwindTarget::Import(_) => true,
+            UnwindTarget::Symbol(symbol) if symbol.index() >= symbols => {
+                return Err(SectionImageError::InvalidReference);
+            }
+            UnwindTarget::Section { section, .. } if section as usize >= sections.len() => {
+                return Err(SectionImageError::InvalidReference);
+            }
+            UnwindTarget::Section { section, offset }
+                if offset > sections[section as usize].byte_len() =>
+            {
+                return Err(SectionImageError::InvalidRange);
+            }
+            UnwindTarget::Symbol(_) | UnwindTarget::Section { .. } | UnwindTarget::Import(_) => {}
         }
+
+        Ok(())
     }
 }
 
@@ -252,7 +294,17 @@ impl ObjectUnwindBuilder {
 
     /// Build object-local target unwind tables.
     pub(super) fn build(self, sections: &mut SectionBuilder) -> ObjectUnwind {
-        let (entries, bytes, alignment) = build_sections(self.sections);
+        let alignment = self
+            .sections
+            .iter()
+            .map(|section| section.alignment.bytes())
+            .fold(1, u32::max) as usize;
+        let mut bytes = Vec::new();
+        let entries = self
+            .sections
+            .into_iter()
+            .map(|section| section.build(&mut bytes))
+            .collect::<Vec<_>>();
 
         ObjectUnwind {
             format: self.format,
@@ -331,40 +383,4 @@ impl UnwindSectionBuilder {
             alignment: self.alignment,
         }
     }
-}
-
-/// Return whether target unwind sections fit their owning native image.
-fn sections_fit(sections: &[UnwindSection], bytes: usize) -> bool {
-    sections
-        .iter()
-        .all(|section| section.alignment.is_valid() && section.bytes.fits(bytes))
-}
-
-/// Return whether one relocation source fits its unwind section.
-fn relocation_source_fits(
-    section: u32,
-    offset: u32,
-    kind: RelocationKind,
-    sections: &[UnwindSection],
-) -> bool {
-    sections.get(section as usize).is_some_and(|section| {
-        offset
-            .checked_add(kind.byte_len())
-            .is_some_and(|end| end <= section.byte_len())
-    })
-}
-
-/// Flatten independently aligned target unwind sections.
-fn build_sections(sections: Vec<UnwindSectionBuilder>) -> (Vec<UnwindSection>, Vec<u8>, usize) {
-    let alignment = sections
-        .iter()
-        .map(|section| section.alignment.bytes())
-        .fold(1, u32::max) as usize;
-    let mut bytes = Vec::new();
-    let sections = sections
-        .into_iter()
-        .map(|section| section.build(&mut bytes))
-        .collect();
-
-    (sections, bytes, alignment)
 }

@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -38,11 +38,16 @@ impl ObjectTrap {
         }
     }
 
-    /// Return whether this trap belongs to one byte inside its code block.
-    pub(super) fn fits(self, blocks: &[Block]) -> bool {
-        blocks
-            .get(self.block.index())
-            .is_some_and(|block| self.offset < block.byte_len())
+    /// Validate this trap against its code block.
+    pub(super) fn validate(self, blocks: &[Block]) -> Result<(), SectionImageError> {
+        let Some(block) = blocks.get(self.block.index()) else {
+            return Err(SectionImageError::InvalidReference);
+        };
+        if self.offset >= block.byte_len() {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        Ok(())
     }
 }
 
@@ -52,8 +57,12 @@ impl CodeTrap {
         Self { offset, trap }
     }
 
-    /// Return whether this trap belongs to one byte inside linked code.
-    pub(super) fn fits(self, byte_len: usize) -> bool {
-        (self.offset as usize) < byte_len
+    /// Validate this trap against linked code.
+    pub(super) fn validate(self, byte_len: usize) -> Result<(), SectionImageError> {
+        if self.offset as usize >= byte_len {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        Ok(())
     }
 }

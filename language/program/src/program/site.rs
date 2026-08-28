@@ -1,4 +1,6 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{
+    Optional, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice,
+};
 use destack_mir::{Space, Storage};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -173,6 +175,35 @@ impl SiteTable {
     /// Return all sample sites.
     pub fn samples<'a>(&self, sections: SectionImage<'a>) -> &'a [SampleSite] {
         sections.entries(self.samples)
+    }
+
+    /// Validate the ordering used by direct and range lookup.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let allocations = self.allocations(sections);
+        let memory = self.memory_sites(sections);
+        let calls = self.calls(sections);
+        let edges = self.edges(sections);
+        let counters = self.counters(sections);
+        let samples = self.samples(sections);
+
+        // preserve the order required by direct and range lookup
+        if !allocations
+            .windows(2)
+            .all(|pair| pair[0].point < pair[1].point)
+            || !memory.windows(2).all(|pair| pair[0].point <= pair[1].point)
+            || !calls.windows(2).all(|pair| pair[0].point < pair[1].point)
+            || !edges
+                .windows(2)
+                .all(|pair| (pair[0].source, pair[0].target) < (pair[1].source, pair[1].target))
+            || !counters
+                .windows(2)
+                .all(|pair| pair[0].point < pair[1].point)
+            || !samples.windows(2).all(|pair| pair[0].point < pair[1].point)
+        {
+            return Err(SectionImageError::InvalidOrder);
+        }
+
+        Ok(())
     }
 }
 

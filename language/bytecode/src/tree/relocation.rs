@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +53,35 @@ impl Relocation {
     /// Rebase this relocation into its containing code section.
     pub const fn rebase(self, byte_offset: u32) -> Self {
         Self::new(self.byte_offset + byte_offset, self.tag)
+    }
+
+    /// Validate this relocation against the encoded bytecode.
+    pub(crate) fn validate(self, code_byte_len: usize) -> Result<(), SectionImageError> {
+        if self.reserved != [0; 3] {
+            return Err(SectionImageError::InvalidEntry);
+        }
+        if !matches!(
+            self.tag,
+            RelocationTag::TYPE
+                | RelocationTag::LAYOUT
+                | RelocationTag::FUNCTION
+                | RelocationTag::GLOBAL
+                | RelocationTag::DYNAMIC
+                | RelocationTag::ALLOCATION
+                | RelocationTag::COUNTER
+                | RelocationTag::SAMPLER
+        ) {
+            return Err(SectionImageError::InvalidEntry);
+        }
+
+        let byte_len = size_of::<u32>() as u32;
+        let Some(end) = self.byte_offset.checked_add(byte_len) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end as usize > code_byte_len {
+            return Err(SectionImageError::InvalidRange);
+        }
+        Ok(())
     }
 }
 

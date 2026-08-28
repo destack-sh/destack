@@ -1,8 +1,8 @@
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Symbol, TypeId};
+use crate::{StaticImage, Symbol, TypeId};
 
 /// Dense program global id.
 #[repr(transparent)]
@@ -145,6 +145,44 @@ impl GlobalTable {
             .filter_map(move |(index, global)| {
                 (global.location == location).then_some((GlobalId(index as u32), global))
             })
+    }
+
+    /// Validate the parallel global columns and backing byte ranges.
+    pub(crate) fn validate(
+        &self,
+        sections: SectionImage<'_>,
+        constants: &StaticImage,
+        shared: &StaticImage,
+        local: &StaticImage,
+    ) -> Result<(), SectionImageError> {
+        let symbols = sections.entries(self.symbols);
+        let globals = sections.entries(self.globals);
+        if symbols.len() != globals.len() {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        // validate every global against its backing image
+        for global in globals {
+            let image = match global.location {
+                GlobalLocation::Constant => constants,
+                GlobalLocation::SharedStatic => shared,
+                GlobalLocation::LocalStatic => local,
+            };
+            let Ok(offset) = usize::try_from(global.offset) else {
+                return Err(SectionImageError::InvalidRange);
+            };
+            let Ok(byte_len) = usize::try_from(global.byte_len) else {
+                return Err(SectionImageError::InvalidRange);
+            };
+            let Some(end) = offset.checked_add(byte_len) else {
+                return Err(SectionImageError::InvalidRange);
+            };
+            if end > image.byte_len(sections) {
+                return Err(SectionImageError::InvalidRange);
+            }
+        }
+
+        Ok(())
     }
 }
 

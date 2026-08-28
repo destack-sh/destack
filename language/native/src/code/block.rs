@@ -1,4 +1,4 @@
-use destack_core::{EntryRange, EntryStore, SectionEntry};
+use destack_core::{EntryRange, EntryStore, SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -68,26 +68,29 @@ impl Block {
         self.relocations.slice(relocations)
     }
 
-    /// Return whether every block range fits its owning column.
-    pub(super) fn ranges_fit(
+    /// Validate every block range and relocation.
+    pub(super) fn validate(
         self,
         symbols: usize,
         bytes: usize,
         relocations: &[Relocation],
-    ) -> bool {
-        if !self.alignment.is_valid()
-            || !self.bytes.fits(bytes)
-            || !self.relocations.fits(relocations.len())
-        {
-            return false;
+    ) -> Result<(), SectionImageError> {
+        if !self.alignment.is_valid() {
+            return Err(SectionImageError::InvalidEntry);
+        }
+        if !self.bytes.start.is_multiple_of(self.alignment.bytes()) {
+            return Err(SectionImageError::InvalidRange);
+        }
+        self.bytes.validate(bytes)?;
+        self.relocations.validate(relocations.len())?;
+
+        // validate every relocation relative to this block
+        let byte_len = self.bytes.len as usize;
+        for relocation in self.relocations(relocations) {
+            relocation.validate(byte_len, symbols)?;
         }
 
-        // check every relocation relative to this block
-        let byte_len = self.bytes.len as usize;
-
-        self.relocations(relocations)
-            .iter()
-            .all(|relocation| relocation.fits(byte_len, symbols))
+        Ok(())
     }
 }
 

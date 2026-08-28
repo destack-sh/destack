@@ -1,7 +1,8 @@
 use std::mem::size_of;
 
 use destack_core::{
-    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
+    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionImageError,
+    SectionSlice,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -82,14 +83,23 @@ impl FrameTable {
         }
     }
 
-    /// Return whether every frame layout range fits the slot column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let slots = sections.entries(self.slots).len();
+    /// Validate frame lookup order and flattened slot ranges.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let states = self.states(sections);
+        let frame_layouts = self.layouts(sections);
+        let slots = sections.entries(self.slots);
 
-        sections
-            .entries(self.layouts)
-            .iter()
-            .all(|layout| layout.slots.fits(slots))
+        // validate state lookup order
+        if !states.windows(2).all(|pair| pair[0].point < pair[1].point) {
+            return Err(SectionImageError::InvalidOrder);
+        }
+
+        // validate each layout's slot range
+        for frame in frame_layouts {
+            frame.slots.validate(slots.len())?;
+        }
+
+        Ok(())
     }
 }
 

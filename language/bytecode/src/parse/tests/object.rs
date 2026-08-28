@@ -54,5 +54,8 @@ function f0 {
     invalid_range[operations_offset..operations_offset + size_of::<u32>()]
         .copy_from_slice(&u32::MAX.to_ne_bytes());
     let error = Object::from_bytes(&invalid_range).expect_err("reject invalid operation range");
-    assert_eq!(error, ObjectLoadError::InvalidRange);
+    assert_eq!(
+        error,
+        ObjectLoadError::Image(SectionImageError::InvalidRange)
+    );
 }

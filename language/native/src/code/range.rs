@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -38,10 +38,16 @@ impl CodeRange {
         }
     }
 
-    /// Return whether this range fits one byte region.
-    pub fn fits(self, byte_len: usize) -> bool {
-        self.checked_end()
-            .is_some_and(|end| end as usize <= byte_len)
+    /// Validate this range against one byte region.
+    pub fn validate(self, byte_len: usize) -> Result<(), SectionImageError> {
+        let Some(end) = self.checked_end() else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end as usize > byte_len {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        Ok(())
     }
 
     /// Borrow this range from its containing code.

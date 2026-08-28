@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -29,15 +29,19 @@ impl Relocation {
         }
     }
 
-    /// Return whether this relocation fits its block and symbol tables.
-    pub(super) fn fits(self, byte_len: usize, symbols: usize) -> bool {
-        let target_fits = self.target.index() < symbols;
-        let bytes_fit = self
-            .offset
-            .checked_add(self.kind.byte_len())
-            .is_some_and(|end| end as usize <= byte_len);
+    /// Validate this relocation against its block and symbol tables.
+    pub(super) fn validate(self, byte_len: usize, symbols: usize) -> Result<(), SectionImageError> {
+        if self.target.index() >= symbols {
+            return Err(SectionImageError::InvalidReference);
+        }
+        let Some(end) = self.offset.checked_add(self.kind.byte_len()) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end as usize > byte_len {
+            return Err(SectionImageError::InvalidRange);
+        }
 
-        target_fits && bytes_fit
+        Ok(())
     }
 }
 

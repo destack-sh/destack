@@ -1,4 +1,4 @@
-use destack_core::{EntryRange, Optional, SectionEntry};
+use destack_core::{EntryRange, Optional, SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -46,6 +46,42 @@ impl Function {
     /// Return the register file word count.
     pub const fn register_count(&self) -> usize {
         self.register_count as usize
+    }
+
+    /// Validate this function against its flattened columns.
+    pub(crate) fn validate(
+        &self,
+        operations: &[CodeOffset],
+        code_byte_len: usize,
+    ) -> Result<(), SectionImageError> {
+        if self.padding != [0; 2] {
+            return Err(SectionImageError::InvalidEntry);
+        }
+        self.operations.validate(operations.len())?;
+
+        let operations = self.operations(operations);
+        if !operations.windows(2).all(|pair| pair[0] <= pair[1]) {
+            return Err(SectionImageError::InvalidOrder);
+        }
+
+        // validate offsets against the optional function body
+        match self.code() {
+            Some(code) => {
+                code.validate(code_byte_len)?;
+                if operations
+                    .last()
+                    .is_some_and(|offset| offset.0 >= code.byte_len)
+                {
+                    return Err(SectionImageError::InvalidRange);
+                }
+            }
+            None if !operations.is_empty() => {
+                return Err(SectionImageError::InvalidRange);
+            }
+            None => {}
+        }
+
+        Ok(())
     }
 
     /// Return this function's logical operation offsets.

@@ -1,4 +1,4 @@
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -23,25 +23,23 @@ pub struct Code {
 }
 
 impl Code {
-    /// Return whether every function and frame range fits its sibling column.
-    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate every linked bytecode range.
+    pub fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let operations = self.operations(sections);
         let bytes = self.bytes(sections);
         let registers = self.registers(sections);
 
-        // check each function's operation and byte ranges
-        let functions_fit = self.functions(sections).iter().all(|function| {
-            function.operations.fits(operations.len())
-                && function.code().is_none_or(|code| code.fits(bytes.len()))
-        });
-        if !functions_fit {
-            return false;
+        // validate each function's flattened ranges
+        for function in self.functions(sections) {
+            function.validate(operations, bytes.len())?;
         }
 
-        // check each frame's retained register range
-        self.frames(sections)
-            .iter()
-            .all(|frame| frame.registers.fits(registers.len()))
+        // validate each frame's retained register range
+        for frame in self.frames(sections) {
+            frame.validate(registers.len())?;
+        }
+
+        Ok(())
     }
 
     /// Return all linked bytecode functions.
@@ -242,13 +240,16 @@ pub struct CodeRange {
 }
 
 impl CodeRange {
-    /// Return whether this byte range fits its containing code section.
-    pub fn fits(self, byte_len: usize) -> bool {
-        let start = self.byte_offset as usize;
+    /// Validate this byte range against its containing code section.
+    pub fn validate(self, byte_len: usize) -> Result<(), SectionImageError> {
+        let Some(end) = self.byte_offset.checked_add(self.byte_len) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end as usize > byte_len {
+            return Err(SectionImageError::InvalidRange);
+        }
 
-        start
-            .checked_add(self.byte_len as usize)
-            .is_some_and(|end| end <= byte_len)
+        Ok(())
     }
 
     /// Borrow this range from its containing code section.

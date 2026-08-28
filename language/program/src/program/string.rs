@@ -1,4 +1,6 @@
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use destack_core::{
+    SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionSlice, StringId,
+};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -44,40 +46,38 @@ impl StringTable {
         sections.entries(self.entries).is_empty()
     }
 
-    /// Return whether this table contains every given string id.
-    pub(super) fn contains_all(
-        &self,
-        sections: SectionImage<'_>,
-        ids: impl IntoIterator<Item = StringId>,
-    ) -> bool {
-        ids.into_iter().all(|id| self.entry(sections, id).is_some())
+    /// Return whether this table contains one string id.
+    pub(super) fn contains(&self, sections: SectionImage<'_>, id: StringId) -> bool {
+        self.entry(sections, id).is_some()
     }
 
-    /// Return whether every entry names valid UTF-8 inside the byte column.
-    pub(super) fn entries_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate every string entry and its byte range.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let bytes = sections.entries(self.bytes);
         let entries = sections.entries(self.entries);
 
-        // require strict identity order for binary search
+        // validate strict identity order for binary search
         if !entries
             .windows(2)
             .all(|entries| entries[0].id < entries[1].id)
         {
-            return false;
+            return Err(SectionImageError::InvalidOrder);
         }
 
-        // check every byte range before normal lookup becomes infallible
-        entries.iter().all(|entry| {
-            let start = entry.offset as usize;
-            let Some(end) = start.checked_add(entry.byte_len as usize) else {
-                return false;
+        // validate each UTF-8 byte range
+        for entry in entries {
+            let Some(end) = entry.offset.checked_add(entry.byte_len) else {
+                return Err(SectionImageError::InvalidRange);
             };
-            let Some(text) = bytes.get(start..end) else {
-                return false;
+            let Some(text) = bytes.get(entry.offset as usize..end as usize) else {
+                return Err(SectionImageError::InvalidRange);
             };
+            if std::str::from_utf8(text).is_err() {
+                return Err(SectionImageError::InvalidString);
+            }
+        }
 
-            std::str::from_utf8(text).is_ok()
-        })
+        Ok(())
     }
 
     /// Return one string entry by stable id.

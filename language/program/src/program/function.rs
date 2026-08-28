@@ -1,6 +1,6 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-    StringId,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage,
+    SectionImageError, SectionSlice, StringId,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -199,14 +199,22 @@ impl FunctionTable {
             .slice(sections.entries(self.parameters))
     }
 
-    /// Return whether every signature range fits the parameter column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let parameters = sections.entries(self.parameters).len();
+    /// Validate the parallel function columns and signature ranges.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let symbols = sections.entries(self.symbols);
+        let signatures = sections.entries(self.signatures);
+        let functions = self.entries(sections);
+        let parameters = sections.entries(self.parameters);
+        if symbols.len() != functions.len() {
+            return Err(SectionImageError::InvalidRange);
+        }
 
-        sections
-            .entries(self.signatures)
-            .iter()
-            .all(|signature| signature.parameters.fits(parameters))
+        // validate each signature's parameter range
+        for signature in signatures {
+            signature.parameters.validate(parameters.len())?;
+        }
+
+        Ok(())
     }
 }
 

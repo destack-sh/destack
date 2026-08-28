@@ -1,4 +1,4 @@
-use destack_core::{EntryRange, EntryStore, SectionEntry};
+use destack_core::{EntryRange, EntryStore, SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -21,9 +21,9 @@ pub struct ObjectFrameMap {
 }
 
 impl ObjectFrameMap {
-    /// Return whether this frame's value range fits its shared column.
-    pub(super) fn values_fit(self, values: usize) -> bool {
-        self.values.fits(values)
+    /// Validate this frame against the shared value column.
+    pub(super) fn validate(self, values: usize) -> Result<(), SectionImageError> {
+        self.values.validate(values)
     }
 
     /// Return canonical values in Program frame slot order.
@@ -121,9 +121,9 @@ pub struct FrameMapBuilder {
 }
 
 impl FrameMap {
-    /// Return whether this frame's value range fits its shared column.
-    pub(super) fn values_fit(self, values: usize) -> bool {
-        self.values.fits(values)
+    /// Validate this frame against the shared value column.
+    pub(super) fn validate(self, values: usize) -> Result<(), SectionImageError> {
+        self.values.validate(values)
     }
 
     /// Return canonical values in Program frame slot order.
@@ -180,9 +180,9 @@ pub struct FrameValue {
 }
 
 impl FrameValue {
-    /// Return whether this value's location range fits its shared column.
-    pub(super) fn locations_fit(self, locations: usize) -> bool {
-        self.locations.fits(locations)
+    /// Validate this value against the shared location column.
+    pub(super) fn validate(self, locations: usize) -> Result<(), SectionImageError> {
+        self.locations.validate(locations)
     }
 
     /// Return physical pieces in canonical byte order.
@@ -247,6 +247,25 @@ impl FrameLocation {
             value_offset,
             byte_len,
         }
+    }
+
+    /// Validate this location against the constant byte column.
+    pub(super) fn validate(self, constants: usize) -> Result<(), SectionImageError> {
+        if self.source != FrameSource::Constant {
+            return Ok(());
+        }
+
+        let Ok(offset) = usize::try_from(self.source_offset) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        let Some(end) = offset.checked_add(self.byte_len as usize) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end > constants {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        Ok(())
     }
 }
 

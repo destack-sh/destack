@@ -1,6 +1,6 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-    StringId,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage,
+    SectionImageError, SectionSlice, StringId,
 };
 use destack_mir::{Access, FloatType, Space};
 use destack_serde::Reflect;
@@ -278,8 +278,8 @@ impl ProgramInfo {
         frame.slots.slice(sections.entries(self.frame_slots))
     }
 
-    /// Return whether every reflected payload range fits its flattened column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate every flattened reflection range.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let type_operands = sections.entries(self.type_operands).len();
         let fields = sections.entries(self.fields).len();
         let elements = sections.entries(self.tuple_elements).len();
@@ -289,32 +289,27 @@ impl ProgramInfo {
         let cases = sections.entries(self.variant_cases).len();
         let frame_slots = sections.entries(self.frame_slots).len();
 
-        // check every variable type payload
-        let types_fit = sections.entries(self.types).iter().all(|ty| {
+        // validate variable type payloads
+        for ty in sections.entries(self.types) {
             let payload = ty.payload;
-
-            payload.type_operands.fits(type_operands)
-                && payload.fields.fits(fields)
-                && payload.elements.fits(elements)
-                && payload.members.fits(members.len())
-                && payload.index_signatures.fits(index_signatures)
-                && payload.function_parameters.fits(parameters)
-                && payload.variant_cases.fits(cases)
-        });
-        if !types_fit {
-            return false;
+            payload.type_operands.validate(type_operands)?;
+            payload.fields.validate(fields)?;
+            payload.elements.validate(elements)?;
+            payload.members.validate(members.len())?;
+            payload.index_signatures.validate(index_signatures)?;
+            payload.function_parameters.validate(parameters)?;
+            payload.variant_cases.validate(cases)?;
         }
 
-        // check ranges nested inside reflected member and frame entries
-        let members_fit = members
-            .iter()
-            .all(|member| member.arguments.fits(type_operands));
-        let frames_fit = sections
-            .entries(self.frames)
-            .iter()
-            .all(|frame| frame.slots.fits(frame_slots));
+        // validate nested reflected ranges
+        for member in members {
+            member.arguments.validate(type_operands)?;
+        }
+        for frame in sections.entries(self.frames) {
+            frame.slots.validate(frame_slots)?;
+        }
 
-        members_fit && frames_fit
+        Ok(())
     }
 }
 

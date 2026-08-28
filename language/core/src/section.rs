@@ -28,6 +28,14 @@ pub enum SectionImageError {
     InvalidSection,
     /// One typed section contains an invalid entry representation.
     InvalidEntry,
+    /// One relative range lies outside its containing section.
+    InvalidRange,
+    /// One stored reference does not resolve to its referenced entry.
+    InvalidReference,
+    /// Entries required in canonical order are unordered or overlap.
+    InvalidOrder,
+    /// One stored string is not valid UTF-8.
+    InvalidString,
 }
 
 impl fmt::Display for SectionImageError {
@@ -44,6 +52,10 @@ impl fmt::Display for SectionImageError {
             ),
             Self::InvalidSection => formatter.write_str("invalid image section"),
             Self::InvalidEntry => formatter.write_str("invalid image entry"),
+            Self::InvalidRange => formatter.write_str("invalid image range"),
+            Self::InvalidReference => formatter.write_str("invalid image reference"),
+            Self::InvalidOrder => formatter.write_str("invalid image entry order"),
+            Self::InvalidString => formatter.write_str("invalid image string"),
         }
     }
 }
@@ -196,12 +208,17 @@ impl<T> EntryRange<T> {
         self.len == 0
     }
 
-    /// Return whether this range fits one sibling entry slice.
+    /// Validate this range against one sibling entry slice.
     #[inline]
-    pub fn fits(self, entries: usize) -> bool {
-        self.start
-            .checked_add(self.len)
-            .is_some_and(|end| end as usize <= entries)
+    pub fn validate(self, entries: usize) -> Result<(), SectionImageError> {
+        let Some(end) = self.start.checked_add(self.len) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end as usize > entries {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        Ok(())
     }
 
     /// Borrow this entry range from one entry slice.
@@ -342,7 +359,7 @@ unsafe impl<T: SectionEntry, const N: usize> SectionEntry for [T; N] {
     const NEEDS_VALIDATION: bool = T::NEEDS_VALIDATION;
 
     fn validate(bytes: &[u8], loader: SectionLoader<'_>) -> Result<(), SectionImageError> {
-        validate_entries::<T>(bytes, N, loader)
+        loader.validate_entries::<T>(bytes, N)
     }
 }
 
@@ -366,6 +383,9 @@ unsafe impl<T: SectionEntry> SectionEntry for SectionSlice<T> {
 
         // SAFETY: SectionSlice contains only integer fields and a zero-sized marker.
         let section = unsafe { bytes.as_ptr().cast::<Self>().read_unaligned() };
+        if section.reserved != 0 {
+            return Err(SectionImageError::InvalidEntry);
+        }
         loader.entries(section)?;
 
         Ok(())
@@ -1063,7 +1083,7 @@ impl<'a> SectionLoader<'a> {
 
         if T::NEEDS_VALIDATION {
             let bytes = &self.bytes[byte_offset..byte_end];
-            validate_entries::<T>(bytes, section.len(), *self)?;
+            self.validate_entries::<T>(bytes, section.len())?;
         }
 
         // SAFETY: bounds, alignment, and every entry representation were checked above.
@@ -1077,6 +1097,26 @@ impl<'a> SectionLoader<'a> {
     pub const fn bytes(self) -> &'a [u8] {
         self.bytes
     }
+
+    /// Validate one contiguous sequence of section entries.
+    fn validate_entries<T: SectionEntry>(
+        self,
+        bytes: &[u8],
+        entry_len: usize,
+    ) -> Result<(), SectionImageError> {
+        let Some(byte_len) = entry_len.checked_mul(mem::size_of::<T>()) else {
+            return Err(SectionImageError::InvalidSection);
+        };
+        if bytes.len() != byte_len {
+            return Err(SectionImageError::InvalidSection);
+        }
+
+        for entry in bytes.chunks_exact(mem::size_of::<T>()) {
+            T::validate(entry, self)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl PartialEq for SectionImage<'_> {
@@ -1087,26 +1127,6 @@ impl PartialEq for SectionImage<'_> {
 }
 
 impl Eq for SectionImage<'_> {}
-
-/// Validate one contiguous sequence of section entries.
-fn validate_entries<T: SectionEntry>(
-    bytes: &[u8],
-    entry_len: usize,
-    loader: SectionLoader<'_>,
-) -> Result<(), SectionImageError> {
-    let Some(byte_len) = entry_len.checked_mul(mem::size_of::<T>()) else {
-        return Err(SectionImageError::InvalidSection);
-    };
-    if bytes.len() != byte_len {
-        return Err(SectionImageError::InvalidSection);
-    }
-
-    for entry in bytes.chunks_exact(mem::size_of::<T>()) {
-        T::validate(entry, loader)?;
-    }
-
-    Ok(())
-}
 
 fn align_usize(value: usize, alignment: usize) -> usize {
     let mask = alignment - 1;

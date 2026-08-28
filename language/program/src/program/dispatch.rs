@@ -1,6 +1,6 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-    StringId,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage,
+    SectionImageError, SectionSlice, StringId,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -158,27 +158,33 @@ impl DispatchTable {
         shape.slots.slice(sections.entries(self.dynamic_slots))
     }
 
-    /// Return whether every dispatch range fits its flattened column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let methods = sections.entries(self.virtual_methods).len();
-        let entries = sections.entries(self.dynamic_entries).len();
-        let slots = sections.entries(self.dynamic_slots).len();
+    /// Validate every variable dispatch payload range.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let virtual_tables = self.virtual_tables(sections);
+        let virtual_methods = sections.entries(self.virtual_methods);
+        let dynamic_tables = self.dynamic_tables(sections);
+        let dynamic_entries = sections.entries(self.dynamic_entries);
+        let dynamic_names = sections.entries(self.dynamic_names);
+        let dynamic_shapes = self.dynamic_shapes(sections);
+        let dynamic_slots = sections.entries(self.dynamic_slots);
 
-        // check each dispatch table family independently
-        let virtual_tables = sections
-            .entries(self.virtual_tables)
-            .iter()
-            .all(|table| table.methods.fits(methods));
-        let dynamic_tables = sections
-            .entries(self.dynamic_tables)
-            .iter()
-            .all(|table| table.entries.fits(entries));
-        let dynamic_shapes = sections
-            .entries(self.dynamic_shapes)
-            .iter()
-            .all(|shape| shape.slots.fits(slots));
+        // validate virtual table payloads
+        for table in virtual_tables {
+            table.methods.validate(virtual_methods.len())?;
+        }
 
-        virtual_tables && dynamic_tables && dynamic_shapes
+        // validate dynamic table payloads
+        for table in dynamic_tables {
+            table.entries.validate(dynamic_entries.len())?;
+            table.names.validate(dynamic_names.len())?;
+        }
+
+        // validate dynamic shape payloads
+        for shape in dynamic_shapes {
+            shape.slots.validate(dynamic_slots.len())?;
+        }
+
+        Ok(())
     }
 }
 

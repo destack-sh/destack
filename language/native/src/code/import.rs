@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -138,10 +138,15 @@ impl ImportRelocation {
         Self { offset, import }
     }
 
-    /// Return whether the target pointer lies inside its native image.
-    pub fn is_within(self, byte_len: usize) -> bool {
-        self.offset
-            .checked_add(size_of::<usize>() as u32)
-            .is_some_and(|end| end as usize <= byte_len)
+    /// Validate the target pointer against its native image.
+    pub(super) fn validate(self, byte_len: usize) -> Result<(), SectionImageError> {
+        let Some(end) = self.offset.checked_add(size_of::<usize>() as u32) else {
+            return Err(SectionImageError::InvalidRange);
+        };
+        if end as usize > byte_len {
+            return Err(SectionImageError::InvalidRange);
+        }
+
+        Ok(())
     }
 }

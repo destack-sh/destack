@@ -1,4 +1,4 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionEntry, SectionImageError};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -28,9 +28,9 @@ impl Entry {
         Self { bytes }
     }
 
-    /// Return whether this entry fits its linked columns.
-    pub(super) fn ranges_fit(self, bytes: usize) -> bool {
-        self.bytes.fits(bytes)
+    /// Validate this entry against linked code.
+    pub(super) fn validate(self, bytes: usize) -> Result<(), SectionImageError> {
+        self.bytes.validate(bytes)
     }
 }
 
@@ -40,8 +40,9 @@ impl Function {
         Self { body, entry }
     }
 
-    /// Return whether this function fits its linked columns.
-    pub(super) fn ranges_fit(self, bytes: usize) -> bool {
-        self.body.ranges_fit(bytes) && self.entry.ranges_fit(bytes)
+    /// Validate this function against linked code.
+    pub(super) fn validate(self, bytes: usize) -> Result<(), SectionImageError> {
+        self.body.validate(bytes)?;
+        self.entry.validate(bytes)
     }
 }

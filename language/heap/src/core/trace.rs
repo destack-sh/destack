@@ -2,7 +2,8 @@ use std::fmt;
 use std::marker::PhantomData;
 
 use destack_core::{
-    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
+    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionImageError,
+    SectionSlice,
 };
 use destack_mir as mir;
 use destack_mir::{
@@ -80,31 +81,26 @@ impl TraceTable {
         }
     }
 
-    /// Return whether every compact payload range fits its sibling column.
-    pub fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
+    /// Validate every variable trace payload range.
+    pub fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
         let view = self.view(sections);
 
-        // check fixed reference offset ranges
-        let fixed_fit = view.fixed.iter().all(|fixed| {
-            fixed.local_offsets.fits(view.offsets.len())
-                && fixed.shared_offsets.fits(view.offsets.len())
-                && fixed.frame_offsets.fits(view.offsets.len())
-        });
-        if !fixed_fit {
-            return false;
+        // validate fixed reference offset ranges
+        for fixed in view.fixed {
+            fixed.local_offsets.validate(view.offsets.len())?;
+            fixed.shared_offsets.validate(view.offsets.len())?;
+            fixed.frame_offsets.validate(view.offsets.len())?;
         }
 
-        // check composite and variant payload ranges
-        let composites_fit = view
-            .composite
-            .iter()
-            .all(|composite| composite.children.fits(view.children.len()));
-        let variants_fit = view
-            .variants
-            .iter()
-            .all(|variant| variant.cases.fits(view.cases.len()));
+        // validate composite and variant payload ranges
+        for composite in view.composite {
+            composite.children.validate(view.children.len())?;
+        }
+        for variant in view.variants {
+            variant.cases.validate(view.cases.len())?;
+        }
 
-        composites_fit && variants_fit
+        Ok(())
     }
 }
 

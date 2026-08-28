@@ -2,8 +2,8 @@ use std::num::NonZeroU32;
 
 use destack_bytecode as bytecode;
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-    StringId,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage,
+    SectionImageError, SectionSlice, StringId,
 };
 use destack_mir::{
     Access, Discriminant, FloatType, Nullability, ReferenceKind, Space, Storage, TraceId,
@@ -95,21 +95,28 @@ impl LayoutTable {
         layout.cases.slice(sections.entries(self.cases))
     }
 
-    /// Return whether every layout payload range fits its flattened column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let fields = sections.entries(self.fields).len();
-        let cases = sections.entries(self.cases).len();
+    /// Validate every variable layout payload range.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let fields = sections.entries(self.fields);
+        let cases = sections.entries(self.cases);
 
-        // check each variable layout payload against its owning column
-        sections
-            .entries(self.layouts)
-            .iter()
-            .all(|layout| match layout.shape {
-                LayoutShape::Struct(range) | LayoutShape::Tuple(range) => range.fits(fields),
-                LayoutShape::Variant(variant) => variant.cases.fits(cases),
-                LayoutShape::Object(object) => object.fields.fits(fields),
-                _ => true,
-            })
+        // validate each shape against its flattened column
+        for layout in sections.entries(self.layouts) {
+            match layout.shape {
+                LayoutShape::Struct(range) | LayoutShape::Tuple(range) => {
+                    range.validate(fields.len())?;
+                }
+                LayoutShape::Variant(variant) => {
+                    variant.cases.validate(cases.len())?;
+                }
+                LayoutShape::Object(object) => {
+                    object.fields.validate(fields.len())?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
     }
 }
 

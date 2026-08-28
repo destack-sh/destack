@@ -1,5 +1,6 @@
 use destack_core::{
-    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
+    EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage,
+    SectionImageError, SectionSlice,
 };
 use destack_heap::DropId;
 use destack_serde::Reflect;
@@ -152,14 +153,21 @@ impl TypeTable {
             .slice(sections.entries(self.supertypes))
     }
 
-    /// Return whether every descriptor range fits the supertype column.
-    pub(super) fn ranges_fit(&self, sections: SectionImage<'_>) -> bool {
-        let supertypes = sections.entries(self.supertypes).len();
+    /// Validate the parallel type columns and supertype ranges.
+    pub(super) fn validate(&self, sections: SectionImage<'_>) -> Result<(), SectionImageError> {
+        let fingerprints = sections.entries(self.fingerprints);
+        let descriptors = sections.entries(self.descriptors);
+        let supertypes = sections.entries(self.supertypes);
+        if fingerprints.len() != descriptors.len() {
+            return Err(SectionImageError::InvalidRange);
+        }
 
-        sections
-            .entries(self.descriptors)
-            .iter()
-            .all(|descriptor| descriptor.supertypes.fits(supertypes))
+        // validate each descriptor's supertype range
+        for descriptor in descriptors {
+            descriptor.supertypes.validate(supertypes.len())?;
+        }
+
+        Ok(())
     }
 }
 
