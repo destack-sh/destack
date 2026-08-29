@@ -343,7 +343,7 @@ impl<'a> DirModule<'a> {
         coercion
             .adjustments
             .iter()
-            .all(|adjustment| matches!(adjustment, dir::CoercionAdjustment::Widen { .. }))
+            .all(|adjustment| matches!(adjustment, dir::CoercionAdjustment::Materialize { .. }))
     }
 
     /// Return one node's type id after its selected adjustments.
