@@ -111,17 +111,6 @@ impl<'a> TypeTable<'a> {
         None
     }
 
-    /// Get the contextual expected type id for a node.
-    pub fn get_expected_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
-        for segment in self.segments.iter().rev() {
-            if let Some(type_id) = segment.get_expected_type_id(node_id) {
-                return Some(type_id);
-            }
-        }
-
-        None
-    }
-
     /// Get the solved type id for a symbol.
     pub fn get_symbol_type_id(&self, symbol_id: GlobalSymbolId) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
@@ -286,8 +275,6 @@ impl<'a> TypeTable<'a> {
         match ty {
             // leaves without child types
             Type::Variable(_)
-            | Type::Hole(_)
-            | Type::Rigid(_)
             | Type::Error
             | Type::Never
             | Type::Unknown
@@ -586,39 +573,8 @@ pub struct TypeSegment {
 
     /// Effective checked type by node.
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
-    /// Contextual expected type by node when different from the effective type.
-    pub(crate) expected_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
-}
-
-/// Mark of one type segment for speculative rollback.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TypeMark {
-    /// The owned type count at the mark.
-    types: u32,
-    /// The type id list count at the mark.
-    type_ids: u32,
-    /// The tuple element element count at the mark.
-    elements: u32,
-    /// The shape property element count at the mark.
-    properties: u32,
-    /// The function parameter element count at the mark.
-    parameters: u32,
-    /// The index signature element count at the mark.
-    index_signatures: u32,
-    /// The string element count at the mark.
-    strings: u32,
-    /// The owned operation count at the mark.
-    operations: u32,
-    /// The owned signature count at the mark.
-    signatures: u32,
-    /// The owned member count at the mark.
-    members: u32,
-    /// The owned refined count at the mark.
-    refinements: u32,
-    /// The owned borrow count at the mark.
-    borrows: u32,
 }
 
 impl TypeSegment {
@@ -655,11 +611,6 @@ impl TypeSegment {
             node.hash(&mut hasher);
             ty.hash(&mut hasher);
         }
-        self.expected_types.len().hash(&mut hasher);
-        for (node, ty) in &self.expected_types {
-            node.hash(&mut hasher);
-            ty.hash(&mut hasher);
-        }
         self.symbol_types.len().hash(&mut hasher);
         for (symbol, ty) in &self.symbol_types {
             symbol.hash(&mut hasher);
@@ -688,7 +639,6 @@ impl TypeSegment {
             refinements: ValuePool::new(0),
             borrows: ValuePool::new(0),
             node_types: IndexMap::default(),
-            expected_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
         }
     }
@@ -712,7 +662,6 @@ impl TypeSegment {
             refinements: ValuePool::new(base.refinements.count()),
             borrows: ValuePool::new(base.borrows.count()),
             node_types: IndexMap::default(),
-            expected_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
         }
     }
@@ -784,13 +733,6 @@ impl TypeSegment {
             .map(|(node_id, type_id)| (*node_id, *type_id))
     }
 
-    /// Iterate contextual expected types keyed by DIR node.
-    pub fn expected_types(&self) -> impl Iterator<Item = (GlobalNodeIdAny, GlobalTypeId)> + '_ {
-        self.expected_types
-            .iter()
-            .map(|(node_id, type_id)| (*node_id, *type_id))
-    }
-
     /// Iterate solved symbol types.
     pub fn symbol_types(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalTypeId)> + '_ {
         self.symbol_types
@@ -806,16 +748,6 @@ impl TypeSegment {
     /// Get the effective checked type id for a node.
     pub fn get_node_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
         self.node_types.get(&node_id).copied()
-    }
-
-    /// Set the contextual expected type for a node.
-    pub fn set_expected_type(&mut self, node_id: GlobalNodeIdAny, type_id: GlobalTypeId) {
-        self.expected_types.insert(node_id, type_id);
-    }
-
-    /// Get the contextual expected type id for a node.
-    pub fn get_expected_type_id(&self, node_id: GlobalNodeIdAny) -> Option<GlobalTypeId> {
-        self.expected_types.get(&node_id).copied()
     }
 
     /// Set the solved type for a symbol.
@@ -902,24 +834,6 @@ impl TypeSegment {
         self.first_type_id + self.types.len() as u32
     }
 
-    /// Mark this segment for speculative rollback.
-    pub fn mark(&self) -> TypeMark {
-        TypeMark {
-            types: self.type_count(),
-            type_ids: self.type_ids.element_count(),
-            elements: self.elements.element_count(),
-            properties: self.properties.element_count(),
-            parameters: self.parameters.element_count(),
-            index_signatures: self.index_signatures.element_count(),
-            strings: self.strings.element_count(),
-            operations: self.operations.count(),
-            signatures: self.signatures.count(),
-            members: self.members.count(),
-            refinements: self.refinements.count(),
-            borrows: self.borrows.count(),
-        }
-    }
-
     /// Return the number of entries in this table.
     pub fn len(&self) -> u32 {
         self.type_count()
@@ -927,10 +841,7 @@ impl TypeSegment {
 
     /// Return true when this table has no entries.
     pub fn is_empty(&self) -> bool {
-        self.types.is_empty()
-            && self.node_types.is_empty()
-            && self.expected_types.is_empty()
-            && self.symbol_types.is_empty()
+        self.types.is_empty() && self.node_types.is_empty() && self.symbol_types.is_empty()
     }
 
     /// Return whether this segment contains the given type id.
@@ -1068,26 +979,6 @@ impl ListInterner {
         self.log.push((hash, list));
 
         list
-    }
-
-    /// Drop every list interned after one cumulative count.
-    fn truncate<T>(&mut self, pool: &mut ListPool<T>, count: u32) {
-        // unindex the dropped lists
-        while let Some((hash, list)) = self.log.last().copied() {
-            if list.start < count {
-                break;
-            }
-            if let Some(lists) = self.index.get_mut(&hash) {
-                lists.retain(|entry| *entry != list);
-            }
-            self.log.pop();
-        }
-
-        // drop the elements and their recorded lists
-        let keep = count.saturating_sub(pool.first) as usize;
-        pool.elements.truncate(keep);
-        let retained = pool.lists.partition_point(|list| list.start < count);
-        pool.lists.truncate(retained);
     }
 }
 
@@ -1361,48 +1252,6 @@ impl TypeTail {
             |base| &base.strings,
             values,
         )
-    }
-
-    /// Drop every type and list interned after one mark.
-    pub fn truncate_to(&mut self, mark: TypeMark) {
-        // unindex the dropped type slots
-        let keep = mark.types.saturating_sub(self.segment.first_type_id) as usize;
-        for slot in keep..self.segment.types.len() {
-            let hash = self.hashes[slot];
-            let type_id = LocalTypeId::new(self.segment.first_type_id + slot as u32);
-            if let Some(slots) = self.index.get_mut(&hash) {
-                slots.retain(|entry| *entry != type_id);
-            }
-        }
-
-        // drop the type slots and their lists
-        self.segment.types.truncate(keep);
-        self.segment.flags.truncate(keep);
-        self.hashes.truncate(keep);
-        self.type_ids
-            .truncate(&mut self.segment.type_ids, mark.type_ids);
-        self.elements
-            .truncate(&mut self.segment.elements, mark.elements);
-        self.properties
-            .truncate(&mut self.segment.properties, mark.properties);
-        self.parameters
-            .truncate(&mut self.segment.parameters, mark.parameters);
-        self.index_signatures
-            .truncate(&mut self.segment.index_signatures, mark.index_signatures);
-        self.strings
-            .truncate(&mut self.segment.strings, mark.strings);
-
-        // drop the payload slots
-        self.operations
-            .truncate(&mut self.segment.operations, mark.operations);
-        self.signatures
-            .truncate(&mut self.segment.signatures, mark.signatures);
-        self.members
-            .truncate(&mut self.segment.members, mark.members);
-        self.refinements
-            .truncate(&mut self.segment.refinements, mark.refinements);
-        self.borrows
-            .truncate(&mut self.segment.borrows, mark.borrows);
     }
 }
 

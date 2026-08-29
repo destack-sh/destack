@@ -281,13 +281,6 @@ pub struct AccessOccurrence {
     pub uses: BindingUse,
 }
 
-/// One rollback position in a flow segment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct FlowMark {
-    /// The per-collection lengths at the mark.
-    lengths: [usize; 5],
-}
-
 impl FlowSegment {
     /// Create an empty flow segment.
     pub fn new(module_id: ModuleId) -> Self {
@@ -336,34 +329,5 @@ impl FlowSegment {
     pub fn commit_access_use(&mut self, node: LocalNodeIdAny, path: AccessPath, uses: BindingUse) {
         self.access_occurrences
             .insert(AccessOccurrence { node, path, uses });
-    }
-
-    /// Return a rollback position for this segment.
-    pub fn mark(&self) -> FlowMark {
-        FlowMark {
-            lengths: [
-                self.unreachable.len(),
-                self.diverging.len(),
-                self.single_pass.len(),
-                self.binding_occurrences.len(),
-                self.access_occurrences.len(),
-            ],
-        }
-    }
-
-    /// Truncate this segment to a previous rollback position.
-    pub fn truncate_to(&mut self, mark: FlowMark) {
-        let [
-            unreachable,
-            diverging,
-            single_pass,
-            binding_occurrences,
-            access_occurrences,
-        ] = mark.lengths;
-        self.unreachable.truncate(unreachable);
-        self.diverging.truncate(diverging);
-        self.single_pass.truncate(single_pass);
-        self.binding_occurrences.truncate(binding_occurrences);
-        self.access_occurrences.truncate(access_occurrences);
     }
 }

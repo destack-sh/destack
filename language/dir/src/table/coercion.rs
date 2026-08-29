@@ -138,9 +138,9 @@ pub enum CoercionAdjustment {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
     },
-    /// Materialize one const scalar at its selected representation, like `42` into `int32`.
-    Widen {
-        /// The scalar type after this adjustment.
+    /// Materialize one fresh literal.
+    Materialize {
+        /// The representation after this adjustment.
         target: GlobalTypeId,
     },
     /// Convert one tuple value into another tuple type.
@@ -228,7 +228,7 @@ impl CoercionAdjustment {
             | Self::Union { target, .. }
             | Self::Erase { target }
             | Self::Scalar { target }
-            | Self::Widen { target }
+            | Self::Materialize { target }
             | Self::Tuple { target }
             | Self::Manage { target }
             | Self::Representation { target }
@@ -244,7 +244,7 @@ impl CoercionAdjustment {
             Self::Union { .. } => "union",
             Self::Erase { .. } => "erase",
             Self::Scalar { .. } => "scalar",
-            Self::Widen { .. } => "widen",
+            Self::Materialize { .. } => "materialize",
             Self::Tuple { .. } => "tuple",
             Self::Manage { .. } => "manage",
             Self::Representation { .. } => "representation",
@@ -289,7 +289,7 @@ impl CoercionAdjustment {
             && matches!(target, Type::Primitive(_))
             && literal.widens_to(target)
         {
-            return Some(Self::Widen { target: target_id });
+            return Some(Self::Materialize { target: target_id });
         }
 
         // distinct scalar representations convert their stored values

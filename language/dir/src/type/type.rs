@@ -18,10 +18,6 @@ use super::{FloatType, IntegerType, PrimitiveType};
 pub enum Type {
     /// One open inference variable.
     Variable(TypeVariableId),
-    /// One canonical goal hole, numbered in first-visit order.
-    Hole(HoleIndex),
-    /// One canonical rigid parameter, numbered in first-visit order.
-    Rigid(RigidIndex),
 
     /// Placeholder type for an already-reported error.
     Error,
@@ -154,8 +150,6 @@ impl Type {
     pub fn variant_name(&self) -> &'static str {
         match self {
             Self::Variable(_) => "Variable",
-            Self::Hole(_) => "Hole",
-            Self::Rigid(_) => "Rigid",
             Self::Error => "Error",
             Self::Never => "Never",
             Self::Unknown => "Unknown",
@@ -340,8 +334,6 @@ impl Type {
         match self {
             // symbolic leaves, one bit each
             Self::Variable(_) => TypeFlags::HAS_VARIABLE,
-            Self::Hole(_) => TypeFlags::HAS_HOLE,
-            Self::Rigid(_) => TypeFlags::HAS_PARAMETER,
             Self::Error => TypeFlags::HAS_ERROR,
             Self::Parameter(_) => TypeFlags::HAS_PARAMETER,
             Self::Erased(_) => TypeFlags::HAS_PARAMETER,
@@ -387,7 +379,6 @@ impl Type {
     pub fn referenced_modules(&self, collect: &mut impl FnMut(ModuleId)) {
         match self {
             // canonical hole and rigid leaves
-            Self::Hole(_) | Self::Rigid(_) => {}
             // parameter and symbol heads
             Self::Erased(parameter) | Self::Parameter(parameter) => collect(parameter.module_id),
             Self::Reference(reference) => collect(reference.symbol.module_id),
@@ -488,8 +479,6 @@ impl TypeFlags {
     pub const HAS_OPERATION: Self = Self(1 << 6);
     /// The graph contains a conditional infer binding.
     pub const HAS_INFER: Self = Self(1 << 7);
-    /// The graph contains a canonical goal hole.
-    pub const HAS_HOLE: Self = Self(1 << 8);
     /// The graph contains an application of a type alias.
     pub const HAS_ALIAS: Self = Self(1 << 9);
 
@@ -506,8 +495,7 @@ impl TypeFlags {
             | Self::HAS_REFERENCE
             | Self::HAS_MEMBER
             | Self::HAS_OPERATION
-            | Self::HAS_INFER
-            | Self::HAS_HOLE;
+            | Self::HAS_INFER;
 
         !self.contains_any(symbolic)
     }
@@ -525,11 +513,6 @@ impl TypeFlags {
     /// Return whether the graph contains an application of a type alias.
     pub fn has_alias(self) -> bool {
         self.contains(Self::HAS_ALIAS)
-    }
-
-    /// Return whether the graph contains a canonical goal hole.
-    pub fn has_hole(self) -> bool {
-        self.contains(Self::HAS_HOLE)
     }
 
     /// Return whether the graph contains a generic parameter.
@@ -712,32 +695,6 @@ impl LocalTypeId {
             module_id,
             local_id: self,
         }
-    }
-}
-
-/// One canonical hole number, assigned in first-visit order.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
-)]
-pub struct HoleIndex(pub u16);
-
-impl std::fmt::Display for HoleIndex {
-    /// Render the bare hole number.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
-    }
-}
-
-/// One canonical rigid-parameter number, assigned in first-visit order.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
-)]
-pub struct RigidIndex(pub u16);
-
-impl std::fmt::Display for RigidIndex {
-    /// Render the bare rigid number.
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(formatter)
     }
 }
 

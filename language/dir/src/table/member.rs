@@ -148,13 +148,6 @@ pub struct MemberSegment {
     memberships: IndexMap<MemberSubject, Membership>,
 }
 
-/// One rollback position in a member segment.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct MemberMark {
-    /// The recorded site count.
-    subjects: usize,
-}
-
 impl MemberSegment {
     /// Create an empty member segment.
     pub fn new(module_id: ModuleId) -> Self {
@@ -215,18 +208,6 @@ impl MemberSegment {
         self.subjects
             .iter()
             .map(|(site, subject)| (*site, *subject))
-    }
-
-    /// Return a rollback position for this segment.
-    pub fn mark(&self) -> MemberMark {
-        MemberMark {
-            subjects: self.subjects.len(),
-        }
-    }
-
-    /// Truncate this segment to a previous rollback position.
-    pub fn truncate_to(&mut self, mark: MemberMark) {
-        self.subjects.truncate(mark.subjects);
     }
 
     /// Return the lookup subject selected at one source site.

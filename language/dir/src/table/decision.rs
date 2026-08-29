@@ -1,5 +1,4 @@
 use destack_serde::Reflect;
-use std::hash::Hash;
 use std::slice;
 use std::sync::Arc;
 
@@ -452,13 +451,6 @@ pub struct DecisionSegment {
     places: IndexMap<GlobalNodeIdAny, PlaceResolution>,
 }
 
-/// Per-map decision counts marking one segment position.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DecisionMark {
-    /// The per-map lengths at the mark.
-    lengths: [usize; 3],
-}
-
 impl DecisionSegment {
     /// Create an empty decision segment.
     pub fn new(module_id: ModuleId) -> Self {
@@ -626,28 +618,6 @@ impl DecisionSegment {
             .retain(|node, resolution| sealed.accesses.get(node) != Some(resolution));
         self.places
             .retain(|node, resolution| sealed.places.get(node) != Some(resolution));
-    }
-
-    /// Mark the current segment position for later truncation.
-    pub fn mark(&self) -> DecisionMark {
-        DecisionMark {
-            lengths: [self.decisions.len(), self.accesses.len(), self.places.len()],
-        }
-    }
-
-    /// Truncate decisions back to one mark, newest first.
-    pub fn truncate_to(&mut self, mark: DecisionMark) {
-        let [decisions, accesses, places] = mark.lengths;
-        Self::truncate_map(&mut self.decisions, decisions);
-        Self::truncate_map(&mut self.accesses, accesses);
-        Self::truncate_map(&mut self.places, places);
-    }
-
-    /// Drop map entries added past one length.
-    fn truncate_map<K: Hash + Eq, T>(map: &mut IndexMap<K, T>, length: usize) {
-        while map.len() > length {
-            map.pop();
-        }
     }
 
     /// Return whether this segment has no decisions.
