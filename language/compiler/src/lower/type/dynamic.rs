@@ -9,7 +9,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_dynamic(
         &mut self,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let constraint = self.lower_dynamic_constraint(constraint)?;
 
         Ok(self.tree.intern_type(mir::Type::Dynamic {
@@ -26,7 +26,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_dynamic_constraint(
         &mut self,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // read the properties the constraint declares
         let (properties, is_keyed) = match self.lowerer.ty(constraint)? {
             dir::Type::Object(shape) => {
@@ -71,15 +71,12 @@ impl TypeLowerer<'_, '_> {
             };
 
             let ty = self.lower_property_representation(property)?;
-            let field = self.tree.intern_field(
-                mir::Field {
-                    name: Some(name),
-                    ty: mir::TypeId::from(ty),
-                },
-                Vec::new(),
-            );
-            fields.push(field);
-            slots.push(mir::DynamicSlot::Field { field, name });
+            fields.push(mir::Field {
+                name: Some(name),
+                ty,
+                attributes: Vec::new(),
+            });
+            slots.push(mir::DynamicSlot::Field { name });
         }
 
         // intern the constraint's fields as one non-copy struct

@@ -1,3 +1,4 @@
+use std::slice;
 use std::sync::Arc;
 
 use destack_dir as dir;
@@ -162,6 +163,11 @@ pub struct DirExpanded {
 }
 
 impl DirExpanded {
+    /// Return the expanded structural view.
+    pub fn view<'a>(&'a self, parsed: &'a DirParsed) -> dir::View<'a> {
+        dir::View::with_patches(&parsed.tree, slice::from_ref(&self.patch))
+    }
+
     /// Return the cumulative binding table for expanded DIR.
     pub fn binding_table(&self, bound: &DirBound) -> dir::BindingTable<'static> {
         dir::BindingTable::from_segments(vec![bound.bindings.clone(), self.bindings.clone()])

@@ -23,7 +23,7 @@ pub(in crate::lower) struct PlaceProjection {
     /// The field index within its aggregate.
     pub(in crate::lower) field: u32,
     /// The projected value type.
-    pub(in crate::lower) ty: mir::LocalNodeId<mir::Type>,
+    pub(in crate::lower) ty: mir::TypeId,
 }
 
 /// One resolved place: a base with its projection path.
@@ -221,14 +221,14 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         reference: mir::Value,
         index: u32,
-        field: mir::LocalNodeId<mir::Type>,
+        field: mir::TypeId,
         access: mir::Access,
     ) -> mir::Value {
         // interior addresses inherit the base reference's storage
         let mut pointee = field;
         let mut storage = mir::Storage::LocalHeap;
         if let Some(ty) = self.builder.value_type(reference)
-            && let Some(base) = self.builder.tree().get(ty).reference_storage()
+            && let Some(base) = self.builder.tree().ty(ty).reference_storage()
         {
             storage = base;
         }
@@ -237,11 +237,8 @@ impl FunctionLowerer<'_, '_, '_> {
         if let Some(ty) = self.builder.value_type(reference)
             && let mir::Type::Reference {
                 pointee: aggregate, ..
-            } = self.builder.tree().get(ty)
-            && matches!(
-                self.builder.tree().get(*aggregate),
-                mir::Type::Uninit { .. }
-            )
+            } = self.builder.tree().ty(ty)
+            && matches!(self.builder.tree().ty(*aggregate), mir::Type::Uninit { .. })
         {
             pointee = self
                 .builder
@@ -315,7 +312,7 @@ impl FunctionLowerer<'_, '_, '_> {
         reference: mir::Value,
         access: mir::Access,
         path: &[PlaceProjection],
-    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::Value, mir::TypeId)> {
         let Some((first, remaining)) = path.split_first() else {
             return Err(CompilerError::Internal {
                 message: "a reference place addressed without a field".to_string(),

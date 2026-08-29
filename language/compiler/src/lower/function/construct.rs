@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_source::ModuleId;
 
 use crate::lower::{
     FunctionLowerer, NominalField, constructor_receiver_type, nominal_receiver_storage,
@@ -188,7 +189,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // decide where the instance stores from the return form
         let is_reference = matches!(
-            self.builder.tree().get(representation),
+            self.builder.tree().ty(representation),
             mir::Type::Reference { .. }
         );
 
@@ -279,7 +280,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn constructed_receiver(
         &mut self,
         storage: mir::Value,
-        pointee: mir::LocalNodeId<mir::Type>,
+        pointee: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         // read the receiver type the constructor declares
         let representation = self.value_representation(storage)?;
@@ -315,9 +316,9 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // detect singleton newtypes storing no runtime value
-        let is_payload_void = match self.builder.tree().get(ty) {
+        let is_payload_void = match self.builder.tree().ty(ty) {
             mir::Type::Newtype { inner, .. } => {
-                matches!(self.builder.tree().get(*inner), mir::Type::Void)
+                matches!(self.builder.tree().ty(*inner), mir::Type::Void)
             }
             _ => false,
         };
@@ -373,7 +374,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // collect the field storage types behind the nominal, peeling lifetime applications
         let (storage, _) = self.builder.tree().split_lifetime_application(ty);
-        let storage_fields = match self.builder.tree().get(storage) {
+        let storage_fields = match self.builder.tree().ty(storage) {
             mir::Type::Struct { fields, .. } => fields.clone(),
             _ => {
                 return Err(CompilerError::Internal {
@@ -412,11 +413,9 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             // skip singleton literal fields storing no runtime value
-            let field_storage = storage_fields
-                .get(index)
-                .map(|field| self.builder.tree().get(*field).ty);
+            let field_storage = storage_fields.get(index).map(|field| field.ty);
             let is_void = field_storage
-                .is_some_and(|ty| matches!(self.builder.tree().get(ty), mir::Type::Void));
+                .is_some_and(|ty| matches!(self.builder.tree().ty(ty), mir::Type::Void));
             let is_literal = matches!(
                 self.source().tree().get(*value),
                 dir::Expression::Literal(_)
@@ -448,7 +447,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // offset own initializers past the base's chained fields
         let total = self.lowerer.nominal_fields(owner)?.len();
-        let own = self.lowerer.instance_fields(definition.members());
+        let own = definition.instance_fields().cloned().collect::<Vec<_>>();
         let inherited = total
             .checked_sub(own.len())
             .ok_or_else(|| CompilerError::Internal {
@@ -468,9 +467,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let this = self.read_binding(this);
         let reference = self.value_representation(this)?;
-        let mir::Type::Reference { pointee, .. } =
-            self.builder.tree().get(mir::TypeId::from(reference))
-        else {
+        let mir::Type::Reference { pointee, .. } = self.builder.tree().ty(reference) else {
             return Err(CompilerError::Internal {
                 message: "a constructor receiver outside a reference".to_string(),
             });
@@ -497,29 +494,34 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // skip singleton literal initializers storing no runtime value
             let representation = self.property_representation(concrete, index)?;
-            let is_void = matches!(self.builder.tree().get(representation), mir::Type::Void);
+            let is_void = matches!(self.builder.tree().ty(representation), mir::Type::Void);
             if is_void && self.is_literal_initializer(self.source, expression)? {
                 continue;
             }
 
             // evaluate the initializer outside the constructor's bindings, keeping this live
-            let values = std::mem::take(&mut self.values);
-            let frames = std::mem::take(&mut self.frames);
-            let value = self.lower_expression(expression);
-            self.values = values;
-            self.frames = frames;
-            let value = value?;
+            self.lower_anchored(expression, |lower| {
+                let values = std::mem::take(&mut lower.values);
+                let frames = std::mem::take(&mut lower.frames);
+                let value = lower.lower_expression(expression);
+                lower.values = values;
+                lower.frames = frames;
+                let value = value?;
 
-            // drop the evaluated value at a void representation
-            if is_void {
-                continue;
-            }
+                // store values with runtime representations
+                if !is_void {
+                    let value = lower.adapt_to_representation(value, representation)?;
+                    let address = lower.emit_field_address(
+                        this,
+                        index as u32,
+                        representation,
+                        mir::Access::Exclusive,
+                    );
+                    lower.builder.store(address, value);
+                }
 
-            // store the initialized value at its declared representation
-            let value = self.adapt_to_representation(value, representation)?;
-            let address =
-                self.emit_field_address(this, index as u32, representation, mir::Access::Exclusive);
-            self.builder.store(address, value);
+                Ok(())
+            })?;
         }
 
         Ok(())
@@ -528,7 +530,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return whether one initializer is a scalar literal computing nothing.
     fn is_literal_initializer(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
         // read the initializer out of its declaring module
@@ -548,7 +550,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_omitted_field(
         &mut self,
         application: dir::GlobalTypeId,
-        storage: mir::LocalNodeId<mir::Type>,
+        storage: mir::TypeId,
         index: usize,
         field: &NominalField,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -565,7 +567,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // skip singleton literal initializers storing no runtime value
         let representation = self.property_representation(storage, index)?;
-        let is_void = matches!(self.builder.tree().get(representation), mir::Type::Void);
+        let is_void = matches!(self.builder.tree().ty(representation), mir::Type::Void);
         if is_void && self.is_literal_initializer(initializer.module_id, expression)? {
             return Ok(None);
         }
@@ -692,7 +694,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .builder
             .tree()
             .split_lifetime_application(representation);
-        let (concrete, reference) = match self.builder.tree().get(base) {
+        let (concrete, reference) = match self.builder.tree().ty(base) {
             mir::Type::Reference { pointee, .. } => (*pointee, Some(representation)),
             mir::Type::Struct { .. } => (base, None),
             _ => {
@@ -710,8 +712,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Some((_, value)) => {
                     // skip singleton literal properties storing no runtime value
                     let representation = self.property_representation(concrete, index)?;
-                    let is_void =
-                        matches!(self.builder.tree().get(representation), mir::Type::Void);
+                    let is_void = matches!(self.builder.tree().ty(representation), mir::Type::Void);
                     let is_literal = matches!(
                         self.source().tree().get(*value),
                         dir::Expression::Literal(_)
@@ -813,7 +814,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn adapt_to_representation(
         &mut self,
         value: mir::Value,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         // store a value already at its representation type directly
         let value_type = self.value_representation(value)?;
@@ -832,18 +833,16 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // pass distinct identities sharing one structure unchanged
-        if self.builder.tree().types_equal(
-            mir::TypeId::from(value_base),
-            mir::TypeId::from(representation_base),
-        ) {
+        if self
+            .builder
+            .tree()
+            .types_equal(value_base, representation_base)
+        {
             return Ok(value);
         }
 
         // store no value in erased zero-sized representations such as variant tags
-        if matches!(
-            self.builder.tree().get(representation_base),
-            mir::Type::Void
-        ) {
+        if matches!(self.builder.tree().ty(representation_base), mir::Type::Void) {
             return Ok(self
                 .builder
                 .constant(mir::Constant::Undefined, representation_base));
@@ -853,15 +852,15 @@ impl FunctionLowerer<'_, '_, '_> {
         if self
             .builder
             .tree()
-            .get(representation_base)
+            .ty(representation_base)
             .is_reference_representation()
         {
             // pass values whose heads match under erased lifetimes
-            let source = self.builder.tree().get(value_base).erased_lifetime();
+            let source = self.builder.tree().ty(value_base).erased_lifetime();
             let target = self
                 .builder
                 .tree()
-                .get(representation_base)
+                .ty(representation_base)
                 .erased_lifetime();
             if source == target {
                 return Ok(value);
@@ -873,21 +872,17 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // select the representation case the value type declares
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(representation_base) else {
+        let mir::Type::Variant { cases, .. } = self.builder.tree().ty(representation_base) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "an adapted value at '{:?}' misses its declared '{:?}' representation",
-                    self.builder.tree().get(value_type),
-                    self.builder.tree().get(representation)
+                    self.builder.tree().ty(value_type),
+                    self.builder.tree().ty(representation)
                 ),
             });
         };
         let Some(case) = cases.iter().position(|case| {
-            case.ty == mir::TypeId::from(value_base)
-                || self
-                    .builder
-                    .tree()
-                    .types_equal(case.ty, mir::TypeId::from(value_type))
+            case.ty == value_base || self.builder.tree().types_equal(case.ty, value_type)
         }) else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -904,7 +899,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Materialize the undefined case of one absent optional property.
     fn lower_absent_property(
         &mut self,
-        concrete: mir::LocalNodeId<mir::Type>,
+        concrete: mir::TypeId,
         index: usize,
     ) -> CompilerResult<mir::Value> {
         let representation = self.property_representation(concrete, index)?;
@@ -915,7 +910,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Materialize the undefined case of one optional representation.
     pub(in crate::lower) fn absent_representation_value(
         &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         match self.builder.tree().undefined_case(representation) {
             // select the void case of a variant representation
@@ -936,7 +931,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the value one omitted argument passes at its representation.
     pub(in crate::lower) fn absent_argument_value(
         &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
     ) -> mir::Value {
         match self.builder.tree().undefined_case(representation) {
             // select the void case of a variant representation
@@ -953,24 +948,24 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the declared representation type of one concrete class property.
     fn property_representation(
         &self,
-        concrete: mir::LocalNodeId<mir::Type>,
+        concrete: mir::TypeId,
         index: usize,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let tree = self.builder.tree();
 
         // unwrap uninitialized storage to the layout its value holds
         let mut concrete = concrete;
-        while let mir::Type::Uninit { value } = tree.get(concrete) {
+        while let mir::Type::Uninit { value } = tree.ty(concrete) {
             concrete = *value;
         }
 
         // read the field representation out of the struct layout
-        let mir::Type::Struct { fields, .. } = tree.get(concrete) else {
+        let mir::Type::Struct { fields, .. } = tree.ty(concrete) else {
             return Err(CompilerError::Internal {
                 message: "dynamic constraint lowered outside a struct".to_string(),
             });
         };
 
-        Ok(tree.get(fields[index]).ty)
+        Ok(fields[index].ty)
     }
 }

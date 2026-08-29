@@ -13,7 +13,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if self
             .builder
             .tree()
-            .get(representation)
+            .ty(representation)
             .is_reference_representation()
         {
             return Ok(Binding::Value(value));
@@ -69,7 +69,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     let value_type = self.value_representation(value)?;
 
                     // retain the address form of stored receivers
-                    match self.builder.tree().get(value_type) {
+                    match self.builder.tree().ty(value_type) {
                         mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
                             let target = self.lower_type(*ty)?;
 
@@ -91,7 +91,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     let value_type = self.value_representation(value)?;
 
                     // retain the address form of stored receivers
-                    match self.builder.tree().get(value_type) {
+                    match self.builder.tree().ty(value_type) {
                         mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
                             let target = self.lower_type(adjustment.ty())?;
 
@@ -111,7 +111,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn spill_borrow(
         &mut self,
         value: mir::Value,
-        target: mir::LocalNodeId<mir::Type>,
+        target: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         let ty = self.value_representation(value)?;
         let local = self.builder.local(ty, mir::Mutability::Immutable);

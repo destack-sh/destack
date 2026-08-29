@@ -33,7 +33,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // walk the coercion path from the classified source to its target
             let target = coercion.target();
-            let source = lower.lowerer.instance_type(lower.instance, coercion.source)?;
+            let source = lower
+                .lowerer
+                .instance_type(lower.instance, coercion.source)?;
             let value = lower.coercion_source(expression, source)?;
             let value = lower.lower_adjustments(value, source, &coercion.adjustments)?;
 
@@ -66,16 +68,14 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
-        // skip the expressions already folded into their committed type
-        if self.is_folded_expression(expression)? {
-            return Ok(());
-        }
-
-        // evaluate every remaining const value as an ordinary expression
-        // NOTE: value lowering avoids re-entering the coercion path that called here
-        self.lower_expression_value(expression)?;
-
-        Ok(())
+        self.lower_anchored(expression, |lower| {
+            match lower.is_folded_expression(expression)? {
+                // values folded into their committed type emit nothing
+                true => Ok(()),
+                // value lowering avoids re-entering the coercion path that called here
+                false => lower.lower_expression_value(expression).map(|_| ()),
+            }
+        })
     }
 
     /// Return whether one expression's computation folded into its committed type.
@@ -174,12 +174,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.materialize_coercion_value(value, source)?;
                 let source = self.value_representation(value)?;
                 let target = self.lower_type(*target)?;
-                let value = if self.builder.tree().get(source) == self.builder.tree().get(target) {
+                let value = if self.builder.tree().ty(source) == self.builder.tree().ty(target) {
                     value
                 } else {
                     let operator = self.cast_operator(
-                        self.builder.tree().get(source),
-                        self.builder.tree().get(target),
+                        self.builder.tree().ty(source),
+                        self.builder.tree().ty(target),
                     )?;
 
                     self.builder.cast(operator, value, target)
@@ -234,7 +234,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_borrowed_place(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        target: mir::LocalNodeId<mir::Type>,
+        target: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         // borrow reference sources as a kind change
         let source = self.node_type_id(expression)?;
@@ -292,7 +292,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let representation = self.lower_type(target)?;
 
         // preserve the source case correspondence for indexed variants
-        if let mir::Type::Variant { .. } = self.builder.tree().get(representation) {
+        if let mir::Type::Variant { .. } = self.builder.tree().ty(representation) {
             return self.lower_variant_adjustment(value, source, target, representation, cases);
         }
 
@@ -326,15 +326,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // reach the representation transparent newtypes wrap
         let mut stored = representation;
-        while let mir::Type::Newtype { inner, .. } = self.builder.tree().get(stored) {
+        while let mir::Type::Newtype { inner, .. } = self.builder.tree().ty(stored) {
             stored = *inner;
         }
-        if self
-            .builder
-            .tree()
-            .get(stored)
-            .is_reference_representation()
-        {
+        if self.builder.tree().ty(stored).is_reference_representation() {
             return self.adapt_to_representation(value, representation);
         }
 
@@ -347,7 +342,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: CoercionValue,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
         // read the members the target union declares
@@ -363,7 +358,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let value = self.materialize_coercion_value(value, source)?;
             let value_type = self.value_representation(value)?;
             if matches!(
-                self.builder.tree().get(value_type),
+                self.builder.tree().ty(value_type),
                 mir::Type::Variant { .. }
             ) {
                 return self.lower_variant_conversion(
@@ -422,7 +417,7 @@ impl FunctionLowerer<'_, '_, '_> {
         source_members: Vec<dir::GlobalTypeId>,
         target_members: Vec<dir::GlobalTypeId>,
         value: mir::Value,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
         mappings: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
         // require one mapping per source member
@@ -473,7 +468,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: CoercionValue,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
         // require a union source
@@ -506,7 +501,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // dispatch indexed representations and convert each payload independently
         if matches!(
-            self.builder.tree().get(value_type),
+            self.builder.tree().ty(value_type),
             mir::Type::Variant { .. }
         ) {
             // dispatch once over the source discriminant
@@ -656,7 +651,7 @@ impl FunctionLowerer<'_, '_, '_> {
             CoercionValue::Runtime(value) => Ok(value),
             CoercionValue::Literal(literal) => {
                 let target = self.lower_type(target)?;
-                let target = self.builder.tree().get(target).clone();
+                let target = self.builder.tree().ty(target).clone();
 
                 self.lower_constant(literal, target)
             }
@@ -957,7 +952,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 // yield the unique inhabitant of a zero sized result
                 let result_type = self.lower_type(ty)?;
-                if matches!(self.builder.tree().get(result_type), mir::Type::Void) {
+                if matches!(self.builder.tree().ty(result_type), mir::Type::Void) {
                     return Ok(self.builder.constant(mir::Constant::Undefined, result_type));
                 }
 

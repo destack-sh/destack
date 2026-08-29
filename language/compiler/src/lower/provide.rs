@@ -6,7 +6,7 @@ use destack_artifact::{
 };
 use destack_core::FxIndexMap;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
-use destack_source::{ModuleId, TargetId};
+use destack_source::{ModuleId, ProvenanceTable, TargetId};
 
 use crate::lower::{LowerModuleState, ModuleLowerer};
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
@@ -149,8 +149,27 @@ impl Compiler {
         let roots = self.lowering_roots(module, profile, context)?;
         let reachable = graph.reachable(&roots)?;
 
-        // load the state of every other reachable module
+        // load this module first to preserve its provenance ids
+        let mut provenance = ProvenanceTable::build();
         let mut modules = FxIndexMap::default();
+        let path = self.module_symbol_path(context, module)?;
+        let provenance_remap = provenance.import(&materialized.provenance);
+        modules.insert(
+            module,
+            LowerModuleState::new(
+                parsed,
+                &bound,
+                expanded,
+                &declared,
+                &elaborated,
+                &checked,
+                &materialized,
+                provenance_remap,
+                path,
+            ),
+        );
+
+        // load the state of every other reachable module
         for reachable in reachable {
             if reachable == module {
                 continue;
@@ -179,16 +198,18 @@ impl Compiler {
                 .read::<DirMaterialized>((reachable, profile))
                 .map_err(CompilerError::from)?;
             let path = self.module_symbol_path(context, reachable)?;
+            let provenance_remap = provenance.import(&materialized.provenance);
             modules.insert(
                 reachable,
                 LowerModuleState::new(
                     parsed,
                     &bound,
-                    &expanded,
+                    expanded,
                     &declared,
                     &elaborated,
                     &checked,
                     &materialized,
+                    provenance_remap,
                     path,
                 ),
             );
@@ -196,22 +217,9 @@ impl Compiler {
 
         // lower the module against the repository string pool
         let strings = self.repository.string_pool();
-        let path = self.module_symbol_path(context, module)?;
-        modules.insert(
-            module,
-            LowerModuleState::new(
-                parsed,
-                &bound,
-                &expanded,
-                &declared,
-                &elaborated,
-                &checked,
-                &materialized,
-                path,
-            ),
-        );
-        let mut lowerer = ModuleLowerer::new(module, strings, modules);
-        let (lowered, mut errors) = lowerer.lower(target_layout)?;
+        let provenance = provenance.finish();
+        let lowerer = ModuleLowerer::new(module, strings, modules);
+        let (lowered, mut errors) = lowerer.lower(target_layout, provenance)?;
 
         // emit every lowering diagnostic and fail the artifact when any occurred
         let Some(last) = errors.pop() else {

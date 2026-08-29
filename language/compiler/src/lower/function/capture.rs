@@ -157,7 +157,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // allocate zeroed managed storage for the frame activation
         let frame_type = self.lower_type(ty)?;
-        let mir::Type::Reference { pointee, .. } = self.builder.tree().get(frame_type) else {
+        let mir::Type::Reference { pointee, .. } = self.builder.tree().ty(frame_type) else {
             return Err(CompilerError::Internal {
                 message: "a capture frame outside a managed reference".to_string(),
             });
@@ -170,26 +170,22 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the stored field type at one index of a lifted frame.
-    fn frame_field_type(
-        &self,
-        frame_type: mir::LocalNodeId<mir::Type>,
-        field: u32,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn frame_field_type(&self, frame_type: mir::TypeId, field: u32) -> CompilerResult<mir::TypeId> {
         // peel the managed reference down to its struct storage
         let tree = self.builder.tree();
-        let mir::Type::Reference { pointee, .. } = tree.get(frame_type) else {
+        let mir::Type::Reference { pointee, .. } = tree.ty(frame_type) else {
             return Err(CompilerError::Internal {
                 message: "a capture frame outside a managed reference".to_string(),
             });
         };
 
         // read the captured bindings out of the frame's struct storage
-        let mir::Type::Struct { fields, .. } = tree.get(*pointee) else {
+        let mir::Type::Struct { fields, .. } = tree.ty(*pointee) else {
             return Err(CompilerError::Internal {
                 message: "a capture frame outside struct storage".to_string(),
             });
         };
 
-        Ok(tree.get(fields[field as usize]).ty)
+        Ok(fields[field as usize].ty)
     }
 }

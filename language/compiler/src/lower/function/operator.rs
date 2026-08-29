@@ -70,7 +70,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // narrow variant representations through their undefined case
         if matches!(
-            self.builder.tree().get(representation),
+            self.builder.tree().ty(representation),
             mir::Type::Variant { .. }
         ) {
             let value = self.lower_expression(left)?;
@@ -84,17 +84,12 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // a never-absent operand keeps its own value
-        let Some(nullability) = self.builder.tree().get(representation).nullability() else {
+        let Some(nullability) = self.builder.tree().ty(representation).nullability() else {
             let value = self.lower_expression(left)?;
 
             return self.adapt_to_representation(value, result);
         };
-        if !self
-            .builder
-            .tree()
-            .get(result)
-            .is_reference_representation()
-        {
+        if !self.builder.tree().ty(result).is_reference_representation() {
             return Err(CompilerError::Internal {
                 message: "a coalesce joining reference and value representations".to_string(),
             });
@@ -159,7 +154,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_coalesce_fallback(
         &mut self,
         right: dir::LocalNodeId<dir::Expression>,
-        result: mir::LocalNodeId<mir::Type>,
+        result: mir::TypeId,
     ) -> CompilerResult<Option<mir::Value>> {
         // never-typed fallbacks end their block without a value
         if matches!(self.node_type(right)?, dir::Type::Never) {
@@ -246,7 +241,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .ok_or_else(|| CompilerError::Internal {
                 message: "the lowered update operand has no type".to_string(),
             })?;
-        let one_type = self.builder.tree().get(one_type).clone();
+        let one_type = self.builder.tree().ty(one_type).clone();
         let one = self.lower_constant(dir::Literal::Integer(1), one_type)?;
         let operator = match operator {
             dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PreIncrement => {

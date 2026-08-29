@@ -136,7 +136,7 @@ impl FunctionLowerer<'_, '_, '_> {
         if !matches!(self.lowerer.ty(ty)?, dir::Type::Literal(_)) {
             let representation = self.lower_type(ty)?;
 
-            return Ok(self.builder.tree().get(representation).clone());
+            return Ok(self.builder.tree().ty(representation).clone());
         }
 
         match literal {

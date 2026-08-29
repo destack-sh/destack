@@ -118,12 +118,12 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Emit one function value of one lowered callable type.
     fn bind_function_value(
         &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         key: &GenericInstanceKey,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
         // emit by the callable representation
-        match self.builder.tree().get(ty) {
+        match self.builder.tree().ty(ty) {
             // pair fat function values with an empty environment
             mir::Type::Function {
                 kind,

@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
-use destack_core::StringId;
+use destack_core::{FxIndexSet, StringId};
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_source::ProvenanceId;
 
 use crate::lower::{LifetimeParameters, ModuleLowerer, NominalInstance};
 use crate::{CompilerError, CompilerResult};
@@ -12,16 +13,17 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn declare_string_literals(
         &mut self,
         builder: &mut mir::ModuleBuilder,
-        strings: impl IntoIterator<Item = StringId>,
+        strings: impl IntoIterator<Item = (StringId, FxIndexSet<ProvenanceId>)>,
     ) -> CompilerResult<()> {
-        for string in strings {
+        for (string, occurrences) in strings {
             // declare each distinct content once
             if self.string_literals.contains_key(&string) {
                 continue;
             }
 
             // record declaration failures for the first reading body
-            match self.declare_string_literal(builder, string) {
+            let sources = occurrences.into_iter().collect::<Vec<_>>();
+            match self.declare_string_literal(builder, string, &sources) {
                 Ok(declared) => {
                     self.string_literals.insert(string, Ok(declared));
                 }
@@ -40,16 +42,17 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn declare_bigint_literals(
         &mut self,
         builder: &mut mir::ModuleBuilder,
-        bigints: impl IntoIterator<Item = i64>,
+        bigints: impl IntoIterator<Item = (i64, FxIndexSet<ProvenanceId>)>,
     ) -> CompilerResult<()> {
-        for bigint in bigints {
+        for (bigint, occurrences) in bigints {
             // declare each distinct value once
             if self.bigint_literals.contains_key(&bigint) {
                 continue;
             }
 
             // record declaration failures for the first reading body
-            match self.declare_bigint_literal(builder, bigint) {
+            let sources = occurrences.into_iter().collect::<Vec<_>>();
+            match self.declare_bigint_literal(builder, bigint, &sources) {
                 Ok(declared) => {
                     self.bigint_literals.insert(bigint, Ok(declared));
                 }
@@ -69,7 +72,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         string: StringId,
-    ) -> CompilerResult<(mir::GlobalId, mir::LocalNodeId<mir::Type>)> {
+        sources: &[ProvenanceId],
+    ) -> CompilerResult<(mir::GlobalId, mir::TypeId)> {
         // lower the String representation named by its language item
         let nominal = self.lower_literal_nominal(builder, dir::LanguageItem::String)?;
 
@@ -85,7 +89,7 @@ impl ModuleLowerer<'_> {
             mir::GlobalInitializer::String(string),
         );
         global.symbol = mir::Symbol::named(symbol);
-        let object = builder.tree_mut().insert(global);
+        let object = builder.insert(global, sources);
 
         Ok((object, nominal.value))
     }
@@ -95,7 +99,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         bigint: i64,
-    ) -> CompilerResult<(mir::GlobalId, mir::LocalNodeId<mir::Type>)> {
+        sources: &[ProvenanceId],
+    ) -> CompilerResult<(mir::GlobalId, mir::TypeId)> {
         // lower the BigInt representation named by its language item
         let nominal = self.lower_literal_nominal(builder, dir::LanguageItem::BigInt)?;
 
@@ -111,7 +116,7 @@ impl ModuleLowerer<'_> {
             mir::GlobalInitializer::BigInt(bigint),
         );
         global.symbol = mir::Symbol::named(symbol);
-        let object = builder.tree_mut().insert(global);
+        let object = builder.insert(global, sources);
 
         Ok((object, nominal.value))
     }
@@ -120,7 +125,7 @@ impl ModuleLowerer<'_> {
     fn forward_literal_nominal(
         &self,
         builder: &mut mir::ModuleBuilder,
-        storage: mir::LocalNodeId<mir::Type>,
+        storage: mir::TypeId,
         item: dir::LanguageItem,
     ) {
         let Some(declaration) = builder.tree().type_declaration(storage) else {
@@ -160,7 +165,7 @@ impl ModuleLowerer<'_> {
         let lifetime_parameters = LifetimeParameters::default();
         let pointer_bytes = builder.pointer_bytes();
         let mut lowerer =
-            self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
+            self.type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters);
         let nominal = lowerer.lower_nominal(source)?;
         self.forward_literal_nominal(builder, nominal.storage, item);
 

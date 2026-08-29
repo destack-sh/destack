@@ -1,7 +1,7 @@
 use destack_artifact::DiagnosticLike;
 use destack_dir as dir;
 use destack_mir as mir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId};
 
 use crate::lower::{
     CallableImplementation, FunctionDefinition, LifetimeParameters, ModuleLowerer, Reachable,
@@ -219,7 +219,7 @@ impl ModuleLowerer<'_> {
         let pointer_bytes = builder.pointer_bytes();
         let lifetime_parameters = LifetimeParameters::default();
         let key = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+            .type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .generic_instance_key(symbol, receiver, &arguments)?;
 
@@ -308,6 +308,7 @@ impl ModuleLowerer<'_> {
         let parameter_nodes = function.signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
+        let mut parameter_provenance = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
             defaults.push(
                 self.state(symbol.module_id)?
@@ -316,6 +317,7 @@ impl ModuleLowerer<'_> {
                     .default_value(),
             );
             let node = parameter.into_global_any(symbol.module_id);
+            parameter_provenance.push(self.node_provenance(node)?);
             let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "missing a symbol for one parameter".to_string(),
@@ -333,12 +335,15 @@ impl ModuleLowerer<'_> {
                 message: "instance parameters disagree with the declared signature".to_string(),
             });
         }
+        let source = self.node_provenance(declaration.into_global_any(symbol.module_id))?;
 
         self.declare_instance_function(
             builder,
             key,
             specialization,
+            source,
             parameters,
+            parameter_provenance,
             result,
             symbols,
             false,
@@ -376,18 +381,26 @@ impl ModuleLowerer<'_> {
         };
         let is_static = *is_static;
         let body = *body;
+        let this_parameter = signature.this_parameter;
         let parameter_nodes = signature.parameters.to_vec();
 
         // synthesize the builtin implementation behind a bodiless requirement
         let Some(expression) = body else {
             return self
-                .declare_builtin_member_instance(builder, key, specialization, lifetime_parameters)
+                .declare_builtin_member_instance(
+                    builder,
+                    key,
+                    specialization,
+                    lifetime_parameters,
+                    member,
+                )
                 .map(|()| None);
         };
 
         // collect each parameter's default expression and declared symbol
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
+        let mut parameter_provenance = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
             defaults.push(
                 self.state(symbol.module_id)?
@@ -396,6 +409,7 @@ impl ModuleLowerer<'_> {
                     .default_value(),
             );
             let node = parameter.into_global_any(symbol.module_id);
+            parameter_provenance.push(self.node_provenance(node)?);
             let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "missing a symbol for one parameter".to_string(),
@@ -416,6 +430,7 @@ impl ModuleLowerer<'_> {
 
         // prepend the declared receiver of instance members
         let has_this = !is_static;
+        let source = self.node_provenance(member.into_global_any(symbol.module_id))?;
         if has_this {
             let this = self.declared_receiver_type(
                 builder,
@@ -424,13 +439,22 @@ impl ModuleLowerer<'_> {
                 lifetime_parameters,
             )?;
             parameters.insert(0, this);
+            let source = match this_parameter {
+                Some(parameter) => {
+                    self.node_provenance(parameter.into_global_any(symbol.module_id))?
+                }
+                None => source,
+            };
+            parameter_provenance.insert(0, source);
         }
 
         self.declare_instance_function(
             builder,
             key,
             specialization,
+            source,
             parameters,
+            parameter_provenance,
             result,
             symbols,
             has_this,
@@ -449,12 +473,13 @@ impl ModuleLowerer<'_> {
         key: &GenericInstanceKey,
         specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         lifetime_parameters: &LifetimeParameters,
+        member: dir::LocalNodeId<dir::TypeMember>,
     ) -> CompilerResult<()> {
         let symbol = key.symbol;
 
         // recognize the canonical member the requirement declares
-        let member = self.declared_language_member(symbol)?;
-        if member != Some(dir::LanguageItem::Clone.member("clone")) {
+        let language_member = self.declared_language_member(symbol)?;
+        if language_member != Some(dir::LanguageItem::Clone.member("clone")) {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: "an instantiated bodiless interface member".to_string(),
@@ -470,7 +495,33 @@ impl ModuleLowerer<'_> {
             self.declared_receiver_type(builder, declared, specialization, lifetime_parameters)?;
         parameters.insert(0, this);
 
-        // declare the header under its instantiated symbol
+        // collect the receiver and parameter occurrences
+        let (this_parameter, parameter_nodes) = {
+            let state = self.state(symbol.module_id)?;
+            let dir::TypeMember::Method { signature, .. } = state.tree().get(member) else {
+                return Err(CompilerError::Internal {
+                    message: "a builtin implementation attached to a non-method member".to_string(),
+                });
+            };
+
+            (signature.this_parameter, signature.parameters.to_vec())
+        };
+        if parameters.len() != parameter_nodes.len() + 1 {
+            return Err(CompilerError::Internal {
+                message: "builtin parameters disagree with the declared signature".to_string(),
+            });
+        }
+        let receiver_provenance = match this_parameter {
+            Some(parameter) => self.node_provenance(parameter.into_global_any(symbol.module_id))?,
+            None => self.node_provenance(member.into_global_any(symbol.module_id))?,
+        };
+        let mut parameter_provenance = parameter_nodes
+            .into_iter()
+            .map(|parameter| self.node_provenance(parameter.into_global_any(symbol.module_id)))
+            .collect::<CompilerResult<Vec<_>>>()?;
+        parameter_provenance.insert(0, receiver_provenance);
+
+        // name the specialized clone instance
         let name = self.symbol_path(symbol)?;
         let mut display = match specialization {
             Some((module, instance)) => {
@@ -482,6 +533,17 @@ impl ModuleLowerer<'_> {
         if let Some(receiver) = key.receiver {
             display.insert(0, receiver);
         }
+        let mut source = self.node_provenance(member.into_global_any(symbol.module_id))?;
+        if let Some(specialization) = specialization {
+            let site = self.instance_provenance(specialization)?;
+            let (_, mut provenance) = builder.split_mut();
+            source = provenance.expand(source, site);
+            for parameter in &mut parameter_provenance {
+                *parameter = provenance.expand(*parameter, site);
+            }
+        }
+
+        // declare the header under its instantiated symbol
         let base = mir::Symbol::declared(builder.intern(&name), Self::symbol_identity(symbol));
         let instance = base.instantiate(&display, builder.tree());
         let header = builder
@@ -489,8 +551,9 @@ impl ModuleLowerer<'_> {
             .arguments(display)
             .symbol(instance);
         let header = lifetime_parameters.declare(header);
+        let parameters = parameters.into_iter().zip(parameter_provenance);
         let header = header.parameters(parameters).result(result);
-        let function = builder.declare_function(header);
+        let function = builder.declare_function(header, &[source]);
         self.index_language_declaration(function, symbol)?;
         self.functions
             .insert(key.clone(), FunctionDeclaration::Declared(function));
@@ -521,7 +584,7 @@ impl ModuleLowerer<'_> {
         };
         let pointer_bytes = builder.pointer_bytes();
         let this = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+            .type_lowerer(builder.split_mut(), pointer_bytes, lifetime_parameters)
             .with_instance(specialization)
             .lower(this_type)?;
 
@@ -581,9 +644,11 @@ impl ModuleLowerer<'_> {
 
         // collect each parameter's default expression and declared symbol
         let role = signature.role;
+        let this_parameter = signature.this_parameter;
         let parameter_nodes = signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
+        let mut parameter_provenance = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
             defaults.push(
                 self.state(symbol.module_id)?
@@ -592,6 +657,7 @@ impl ModuleLowerer<'_> {
                     .default_value(),
             );
             let node = parameter.into_global_any(symbol.module_id);
+            parameter_provenance.push(self.node_provenance(node)?);
             let Some(parameter_symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "missing a symbol for one parameter".to_string(),
@@ -619,7 +685,7 @@ impl ModuleLowerer<'_> {
             Some(dir::FunctionRole::Constructor) => {
                 let owner = self.symbol_type(owner)?;
                 let nominal = self
-                    .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                    .type_lowerer(builder.split_mut(), pointer_bytes, lifetime_parameters)
                     .with_instance(specialization)
                     .lower_nominal(owner)?;
 
@@ -644,8 +710,16 @@ impl ModuleLowerer<'_> {
             )?),
         };
         let has_this = this.is_some();
+        let source = self.node_provenance(member.into_global_any(symbol.module_id))?;
         if let Some(this) = this {
             parameters.insert(0, this);
+            let source = match this_parameter {
+                Some(parameter) => {
+                    self.node_provenance(parameter.into_global_any(symbol.module_id))?
+                }
+                None => source,
+            };
+            parameter_provenance.insert(0, source);
         }
 
         // give constructors a void result
@@ -657,7 +731,9 @@ impl ModuleLowerer<'_> {
             builder,
             key,
             specialization,
+            source,
             parameters,
+            parameter_provenance,
             result,
             symbols,
             has_this,
@@ -674,7 +750,9 @@ impl ModuleLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
         key: &GenericInstanceKey,
         specialization: Option<(ModuleId, dir::LocalInstanceId)>,
+        mut source: ProvenanceId,
         parameters: Vec<mir::TypeId>,
+        mut parameter_provenance: Vec<ProvenanceId>,
         result: mir::TypeId,
         symbols: Vec<dir::LocalSymbolId>,
         has_this: bool,
@@ -698,6 +776,16 @@ impl ModuleLowerer<'_> {
             display.insert(0, receiver);
         }
 
+        // derive the instantiated function and parameters at the selected instance
+        if let Some(specialization) = specialization {
+            let site = self.instance_provenance(specialization)?;
+            let (_, mut provenance) = builder.split_mut();
+            source = provenance.expand(source, site);
+            for parameter in &mut parameter_provenance {
+                *parameter = provenance.expand(*parameter, site);
+            }
+        }
+
         // declare the header under its instantiated symbol
         let base = mir::Symbol::declared(builder.intern(&name), Self::symbol_identity(symbol));
         let instance = base.instantiate(&display, builder.tree());
@@ -706,8 +794,9 @@ impl ModuleLowerer<'_> {
             .arguments(display)
             .symbol(instance);
         let header = lifetime_parameters.declare(header);
+        let parameters = parameters.into_iter().zip(parameter_provenance);
         let header = header.parameters(parameters).result(result);
-        let function = builder.declare_function(header);
+        let function = builder.declare_function(header, &[source]);
         self.index_language_declaration(function, symbol)?;
         self.functions
             .insert(key.clone(), FunctionDeclaration::Declared(function));
@@ -736,9 +825,10 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Vec<mir::StaticId>> {
         // pair every selected parameter with its bound argument
         let pairs = {
-            let row = self.state(module)?.generics.get_instance(instance);
+            let instance = self.state(module)?.generics.get_instance(instance);
 
-            row.key
+            instance
+                .key
                 .arguments
                 .iter()
                 .map(|binding| (binding.parameter, binding.argument))
@@ -855,7 +945,7 @@ impl ModuleLowerer<'_> {
         let pointer_bytes = builder.pointer_bytes();
         let lifetime_parameters = LifetimeParameters::default();
         let key = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+            .type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .generic_instance_key(class, None, &arguments)?;
 
@@ -867,19 +957,26 @@ impl ModuleLowerer<'_> {
         // receive an exclusive borrow of the constructed storage
         let source = self.symbol_type(class)?;
         let nominal = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+            .type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters)
             .with_instance(specialization)
             .lower_nominal(source)?;
         let receiver_storage = nominal_receiver_storage(builder.tree(), nominal.value);
         let this = constructor_receiver_type(builder.tree_mut(), nominal.storage, receiver_storage);
         let void = builder.tree_mut().intern_type(mir::Type::Void);
         let name = format!("{}.constructor", self.symbol_path(class)?);
+        let declaration = self.declaration(class)?;
+        let mut source = self.node_provenance(declaration)?;
+        if let Some(specialization) = specialization {
+            let site = self.instance_provenance(specialization)?;
+            let (_, mut provenance) = builder.split_mut();
+            source = provenance.expand(source, site);
+        }
 
         // import the constructor a foreign class defines beside itself
         if class.module_id != self.module && arguments.is_empty() {
             let header = lifetime_parameters.declare(builder.function_header(&name));
-            let header = header.parameters(vec![this]).result(void);
-            let function = builder.external_function(header);
+            let header = header.parameter(this, source).result(void);
+            let function = builder.external_function(header, &[source]);
             self.functions
                 .insert(key, FunctionDeclaration::Declared(function));
 
@@ -894,8 +991,8 @@ impl ModuleLowerer<'_> {
             .arguments(key.arguments.iter().cloned())
             .symbol(instance);
         let header = lifetime_parameters.declare(header);
-        let header = header.parameters(vec![this]).result(void);
-        let function = builder.declare_function(header);
+        let header = header.parameter(this, source).result(void);
+        let function = builder.declare_function(header, &[source]);
         self.functions
             .insert(key, FunctionDeclaration::Declared(function));
         self.synthesized_constructors
@@ -908,9 +1005,9 @@ impl ModuleLowerer<'_> {
 /// Intern one constructor receiver: an exclusive borrow of the uninitialized constructed storage.
 pub(in crate::lower) fn constructor_receiver_type(
     tree: &mut mir::Tree,
-    storage: mir::LocalNodeId<mir::Type>,
+    storage: mir::TypeId,
     receiver_storage: mir::Storage,
-) -> mir::LocalNodeId<mir::Type> {
+) -> mir::TypeId {
     let pointee = tree.intern_type(mir::Type::Uninit { value: storage });
 
     insert_reference_type(
@@ -928,9 +1025,9 @@ pub(in crate::lower) fn constructor_receiver_type(
 /// nominals construct in place inside a frame.
 pub(in crate::lower) fn nominal_receiver_storage(
     tree: &mir::Tree,
-    value: mir::LocalNodeId<mir::Type>,
+    value: mir::TypeId,
 ) -> mir::Storage {
-    tree.get(value)
+    tree.ty(value)
         .reference_storage()
         .unwrap_or(mir::Storage::Frame)
 }

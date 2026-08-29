@@ -126,8 +126,8 @@ impl ModuleLowerer<'_> {
 
         // a constructor induces one place parameter, so the first place-kinded
         //  argument names the elected space
-        let row = self.state(module)?.generics.get_instance(instance);
-        for binding in &row.key.arguments {
+        let instance = self.state(module)?.generics.get_instance(instance);
+        for binding in &instance.key.arguments {
             if let Some(space) = self.place_space(binding.argument)? {
                 return Ok(Some(space));
             }

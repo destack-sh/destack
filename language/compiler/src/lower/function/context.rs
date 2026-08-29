@@ -81,7 +81,7 @@ impl FunctionLowerer<'_, '_, '_> {
         context: mir::Value,
         variable: mir::Value,
         value: mir::Value,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let parent = self.value_type(context, "context")?;
         let variable = self.value_type(variable, "context variable")?;
         let value = self.value_type(value, "context value")?;
@@ -91,13 +91,11 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut fields = Vec::with_capacity(slots.len());
         for (name, ty) in slots {
             let name = self.lowerer.strings.intern(name);
-            let field = self.builder.tree_mut().intern_field(
-                mir::Field {
-                    name: Some(name),
-                    ty: mir::TypeId::from(ty),
-                },
-                Vec::new(),
-            );
+            let field = mir::Field {
+                name: Some(name),
+                ty,
+                attributes: Vec::new(),
+            };
             fields.push(field);
         }
 
@@ -109,11 +107,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the defined type of one lowered value.
-    fn value_type(
-        &self,
-        value: mir::Value,
-        role: &str,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn value_type(&self, value: mir::Value, role: &str) -> CompilerResult<mir::TypeId> {
         self.builder
             .value_type(value)
             .ok_or_else(|| CompilerError::Internal {

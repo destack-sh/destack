@@ -42,7 +42,6 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one intrinsic call through the callable's declared name.
     pub(in crate::lower) fn lower_intrinsic_call(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
         name: Option<String>,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -59,7 +58,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_operation_intrinsic(operation, resolution);
         }
         if let Some(instruction) = IntrinsicInstruction::from_name(&name) {
-            return self.lower_instruction_intrinsic(expression, instruction, resolution);
+            return self.lower_instruction_intrinsic(instruction, resolution);
         }
         if let Some(terminator) = IntrinsicTerminator::from_name(&name) {
             return self.lower_terminator_intrinsic(terminator, resolution);
@@ -102,7 +101,6 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one instruction intrinsic.
     fn lower_instruction_intrinsic(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
         instruction: IntrinsicInstruction,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -131,11 +129,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             IntrinsicInstruction::Drop => {
                 let value = self.argument_value(resolution, 0)?;
-                let dropped = self.builder.drop_value(value);
-
-                // anchor the authored drop call at its written extent
-                let span = self.source().tree().get_source_extent(expression);
-                self.builder.tree_mut().set_span(dropped, span);
+                self.builder.drop_value(value);
 
                 Ok(None)
             }
@@ -356,14 +350,14 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         slice: mir::Value,
         index: mir::Value,
-        element: mir::LocalNodeId<mir::Type>,
+        element: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         // take the element representation from the slice's own storage
         let representation = self.value_representation(slice)?;
         let Some(storage) = self
             .builder
             .tree_mut()
-            .get(representation)
+            .ty(representation)
             .reference_storage()
         else {
             return Err(CompilerError::Internal {
@@ -474,7 +468,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the pointee type behind one lowered pointer value.
     fn pointee_type(&mut self, pointer: mir::Value) -> CompilerResult<mir::TypeId> {
         let pointer_type = self.value_representation(pointer)?;
-        let pointee = match self.builder.tree().get(pointer_type) {
+        let pointee = match self.builder.tree().ty(pointer_type) {
             mir::Type::Pointer { pointee, .. } | mir::Type::Reference { pointee, .. } => pointee,
             _ => {
                 return Err(CompilerError::Internal {

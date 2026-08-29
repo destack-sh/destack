@@ -14,7 +14,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // narrowing back out of an erased representation stays unbuilt
         let dynamic = self.lower_type(target)?;
-        let mir::Type::Dynamic { .. } = *self.builder.tree().get(dynamic) else {
+        let mir::Type::Dynamic { .. } = *self.builder.tree().ty(dynamic) else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: "narrowing an erased value to its payload".to_string(),
@@ -25,7 +25,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // bind object types behind their managed reference representation
         if let dir::Type::Object(_) = self.lowerer.ty(source)? {
             let reference = self.lower_type(source)?;
-            let concrete = match self.builder.tree().get(reference) {
+            let concrete = match self.builder.tree().ty(reference) {
                 mir::Type::Reference { pointee, .. } => *pointee,
                 _ => {
                     return Err(CompilerError::Internal {
@@ -106,16 +106,16 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // call the selected slot at its declared signature
-        let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
+        let parameters = self.signature_parameters(signature)?;
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self.builder.call(
             mir::Callee::Dynamic {
                 receiver,
-                constraint: mir::TypeId::from(constraint),
+                constraint,
                 slot: mir::DispatchSlot(slot as u32),
             },
-            mir::TypeId::from(signature),
+            signature,
             values,
         ))
     }
@@ -173,10 +173,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.builder.call(
                     mir::Callee::Dynamic {
                         receiver,
-                        constraint: mir::TypeId::from(constraint),
+                        constraint,
                         slot: mir::DispatchSlot(slot as u32),
                     },
-                    mir::TypeId::from(signature),
+                    signature,
                     Vec::new(),
                 );
 

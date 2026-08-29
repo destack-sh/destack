@@ -1,10 +1,10 @@
 use std::slice;
 
-use destack_core::{FxIndexSet, StringId};
+use destack_core::{FxIndexMap, FxIndexSet, StringId};
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId};
 
-use crate::lower::{CallableImplementation, LowerModuleState, ModuleLowerer, NominalField};
+use crate::lower::{CallableImplementation, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
 /// Everything reachable from the bodies that lowering must declare.
@@ -20,10 +20,10 @@ pub(in crate::lower) struct Reachable {
     pub(in crate::lower) constants: FxIndexSet<dir::GlobalSymbolId>,
     /// Concrete and constraint pairs whose implementing methods to declare.
     pub(in crate::lower) implementers: FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
-    /// String literal contents to declare as constant String objects.
-    pub(in crate::lower) strings: FxIndexSet<StringId>,
-    /// Bigint literal values to declare as constant BigInt objects.
-    pub(in crate::lower) bigints: FxIndexSet<i64>,
+    /// String literal occurrences grouped by content.
+    pub(in crate::lower) strings: FxIndexMap<StringId, FxIndexSet<ProvenanceId>>,
+    /// Bigint literal occurrences grouped by value.
+    pub(in crate::lower) bigints: FxIndexMap<i64, FxIndexSet<ProvenanceId>>,
     /// Closure declarations to declare as module callables, in discovery order.
     pub(in crate::lower) closures: Vec<(
         dir::LocalNodeId<dir::Declaration>,
@@ -39,37 +39,6 @@ pub(in crate::lower) struct Reachable {
         FxIndexSet<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>,
 }
 
-/// Visitor collecting every node in one body subtree.
-struct NodeCollector {
-    /// Every collected node, of any kind.
-    nodes: Vec<dir::LocalNodeIdAny>,
-}
-
-impl NodeCollector {
-    /// Collect every node in one body subtree.
-    fn collect(
-        state: &LowerModuleState,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Vec<dir::LocalNodeIdAny> {
-        // walk the subtree, recording every node the visitor reaches
-        let mut collector = NodeCollector { nodes: Vec::new() };
-        dir::NodeVisitor::visit_expression(
-            &mut collector,
-            state.tree(),
-            expression,
-            state.tree().get(expression),
-        );
-
-        collector.nodes
-    }
-}
-
-impl dir::NodeVisitor for NodeCollector {
-    fn visit_any(&mut self, _tree: &dir::Tree, ty: dir::NodeType, id: u32) {
-        self.nodes.push(dir::LocalNodeIdAny::new(id, ty));
-    }
-}
-
 impl ModuleLowerer<'_> {
     /// Collect everything one body reaches under one substitution.
     pub(super) fn collect_body(
@@ -79,9 +48,15 @@ impl ModuleLowerer<'_> {
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
-        // walk the body subtree collecting every node
+        // collect every visible node in the body subtree
         let state = self.state(module)?;
-        let nodes = NodeCollector::collect(state, expression);
+        let root = expression.into_any();
+        let nodes = state
+            .tree()
+            .subtree(root)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("function body node {root:?} is not visible"),
+            })?;
 
         // collect what each node in the body reaches
         for id in nodes {
@@ -118,10 +93,20 @@ impl ModuleLowerer<'_> {
                 match literal {
                     _ if !is_runtime => {}
                     dir::Literal::String(string) => {
-                        reachable.strings.insert(*string);
+                        let provenance = self.node_provenance(node)?;
+                        reachable
+                            .strings
+                            .entry(*string)
+                            .or_default()
+                            .insert(provenance);
                     }
                     dir::Literal::Bigint(bigint) => {
-                        reachable.bigints.insert(*bigint);
+                        let provenance = self.node_provenance(node)?;
+                        reachable
+                            .bigints
+                            .entry(*bigint)
+                            .or_default()
+                            .insert(provenance);
                     }
                     _ => {}
                 }
@@ -198,7 +183,7 @@ impl ModuleLowerer<'_> {
 
             // collect the implementing methods required by erasing coercions
             if let Some(coercion) = state.coercions.coercion(node) {
-                self.collect_coercion(coercion, instance, reachable)?;
+                self.collect_coercion(node, coercion, instance, reachable)?;
             }
 
             // collect instances behind value-position callable references
@@ -261,9 +246,8 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        Ok(self
-            .instance_fields(definition.members())
-            .iter()
+        Ok(definition
+            .instance_fields()
             .any(|field| field.initializer.is_some()))
     }
 
@@ -278,8 +262,8 @@ impl ModuleLowerer<'_> {
             return Ok(());
         };
 
-        for field in self.instance_fields(definition.members()) {
-            self.collect_field_initializer(&field, instance, reachable)?;
+        for field in definition.instance_fields() {
+            self.collect_field_initializer(field, instance, reachable)?;
         }
 
         Ok(())
@@ -288,7 +272,7 @@ impl ModuleLowerer<'_> {
     /// Collect one field's initializer body under its constructed instance.
     fn collect_field_initializer(
         &self,
-        field: &NominalField,
+        field: &dir::FieldDefinition,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
@@ -331,8 +315,6 @@ impl ModuleLowerer<'_> {
         let Some(definition) = self.definition(instance.symbol)? else {
             return Ok(());
         };
-        let fields = self.instance_fields(definition.members());
-
         // gather the field keys the construction writes
         let mut written = Vec::with_capacity(properties.len());
         for property in properties {
@@ -347,11 +329,11 @@ impl ModuleLowerer<'_> {
             .type_ids(instance.arguments)
             .to_vec();
         let specialization = self.specialization_of(instance.symbol, None, &arguments)?;
-        for field in fields {
+        for field in definition.instance_fields() {
             if written.contains(&field.key) {
                 continue;
             }
-            self.collect_field_initializer(&field, specialization, reachable)?;
+            self.collect_field_initializer(field, specialization, reachable)?;
         }
 
         Ok(())
@@ -547,13 +529,14 @@ impl ModuleLowerer<'_> {
     /// Collect the implementing methods one erasing coercion requires.
     fn collect_coercion(
         &self,
+        node: dir::GlobalNodeIdAny,
         coercion: &dir::Coercion,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         // materialize widened const literals as constant objects
         let resolved_source = self.instance_type(instance, coercion.source)?;
-        self.collect_literals(resolved_source, reachable)?;
+        self.collect_literals(node, resolved_source, reachable)?;
 
         // walk the adjustment chain, collecting each erasing step
         let mut source = coercion.source;
@@ -570,20 +553,31 @@ impl ModuleLowerer<'_> {
     /// Collect string and bigint values a coercion may materialize at runtime.
     fn collect_literals(
         &self,
+        node: dir::GlobalNodeIdAny,
         source: dir::GlobalTypeId,
         reachable: &mut Reachable,
     ) -> CompilerResult<()> {
         match self.ty(source)? {
             dir::Type::Literal(dir::Literal::String(string)) => {
-                reachable.strings.insert(string);
+                let provenance = self.node_provenance(node)?;
+                reachable
+                    .strings
+                    .entry(string)
+                    .or_default()
+                    .insert(provenance);
             }
             dir::Type::Literal(dir::Literal::Bigint(bigint)) => {
-                reachable.bigints.insert(bigint);
+                let provenance = self.node_provenance(node)?;
+                reachable
+                    .bigints
+                    .entry(bigint)
+                    .or_default()
+                    .insert(provenance);
             }
             dir::Type::Union(union) => {
                 let members = self.types(source.module_id)?.type_ids(union.elements);
                 for member in members {
-                    self.collect_literals(*member, reachable)?;
+                    self.collect_literals(node, *member, reachable)?;
                 }
             }
             _ => {}

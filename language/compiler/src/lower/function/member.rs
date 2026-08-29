@@ -381,7 +381,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     self.builder.constant(mir::Constant::Undefined, result_type)
                 }
                 None => {
-                    let result_type = self.builder.tree().get(result_type).clone();
+                    let result_type = self.builder.tree().ty(result_type).clone();
 
                     self.lower_constant(literal, result_type)?
                 }
@@ -409,7 +409,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // stored unions expose their tag through their address
         if matches!(
-            self.builder.tree().get(receiver_type),
+            self.builder.tree().ty(receiver_type),
             mir::Type::Reference { .. } | mir::Type::Pointer { .. }
         ) {
             let union = self.lower_type(union)?;

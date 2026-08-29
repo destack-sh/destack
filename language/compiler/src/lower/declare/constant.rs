@@ -33,6 +33,7 @@ impl ModuleLowerer<'_> {
                 .into());
             };
             let term = self.module_constant(symbol)?.filter(Self::is_constant_term);
+            let source = self.node_provenance(node)?;
 
             // declare a mutable global for bindings the module initializer stores
             let Some(term) = term else {
@@ -44,6 +45,7 @@ impl ModuleLowerer<'_> {
                     ty,
                     mir::Mutability::Mutable,
                     mir::GlobalInitializer::zero(),
+                    source,
                 );
                 self.index_language_declaration(global, symbol)?;
                 self.globals.insert(symbol, Ok(global));
@@ -61,7 +63,7 @@ impl ModuleLowerer<'_> {
             let initializer = self.constant_initializer(builder, &term, declared)?;
             let ty = self.constant_type(builder, declared)?;
             let name = self.constant_name(symbol)?;
-            let global = builder.constant(&name, ty, initializer);
+            let global = builder.constant(&name, ty, initializer, source);
             self.index_language_declaration(global, symbol)?;
             self.globals.insert(symbol, Ok(global));
         }
@@ -79,13 +81,22 @@ impl ModuleLowerer<'_> {
             return Ok(None);
         }
 
-        // declare the initializer under its module-qualified name
+        // collect each runtime initializer's provenance
+        let initializer_provenance = self
+            .initializers
+            .iter()
+            .map(|(_, expression)| self.node_provenance(expression.into_global_any(self.module)))
+            .collect::<CompilerResult<Vec<_>>>()?;
         let initializers = std::mem::take(&mut self.initializers);
+
+        // declare the initializer under its module-qualified name
         let void = builder.tree_mut().intern_type(mir::Type::Void);
         let path = &self.state(self.module)?.path;
         let name = format!("{path}.@init");
         let header = builder.function_header(&name).result(void);
-        let function = builder.declare_function(header);
+        let function = builder.declare_function(header, &initializer_provenance);
+
+        // lower each initializer into the function body
         FunctionLowerer::lower_initializer(self, builder, function, initializers)?;
 
         Ok(Some(function))
@@ -156,7 +167,7 @@ impl ModuleLowerer<'_> {
             dir::StaticTerm::Literal { value } => {
                 let pointer_bytes = builder.pointer_bytes();
                 let representation = self.constant_type(builder, ty)?;
-                let representation = builder.tree_mut().get(representation).clone();
+                let representation = builder.tree_mut().ty(representation).clone();
                 let constant = self.scalar_constant(*value, &representation, pointer_bytes)?;
 
                 Ok(mir::GlobalInitializer::Scalar(constant))
@@ -218,12 +229,12 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // lower the type outside any lifetime parameters
         let pointer_bytes = builder.pointer_bytes();
         let lifetime_parameters = LifetimeParameters::default();
 
-        self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+        self.type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters)
             .lower(ty)
     }
 

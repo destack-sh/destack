@@ -5,7 +5,7 @@ use destack_artifact::{DiagnosticLike, MirLowered};
 use destack_core::{FxIndexMap, StringId, StringPool};
 use destack_dir as dir;
 use destack_mir as mir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId, ProvenanceTable};
 
 use crate::lower::{
     FunctionDeclaration, FunctionLowerer, GenericInstanceKey, Implementer, LowerModuleState,
@@ -45,11 +45,9 @@ pub(crate) struct ModuleLowerer<'a> {
 
     // memos
     /// The MIR representation behind each type the bodies read.
-    pub(in crate::lower) representations:
-        FxIndexMap<dir::GlobalTypeId, Lowered<mir::LocalNodeId<mir::Type>>>,
+    pub(in crate::lower) representations: FxIndexMap<dir::GlobalTypeId, Lowered<mir::TypeId>>,
     /// The dispatch shape behind each constraint the bodies read.
-    pub(in crate::lower) constraints:
-        FxIndexMap<dir::GlobalTypeId, Lowered<mir::LocalNodeId<mir::Type>>>,
+    pub(in crate::lower) constraints: FxIndexMap<dir::GlobalTypeId, Lowered<mir::TypeId>>,
     /// The nominal instance behind each application type the bodies read.
     pub(in crate::lower) stored_nominals: FxIndexMap<dir::GlobalTypeId, Lowered<NominalInstance>>,
     /// The state of each nominal representation being lowered or already lowered.
@@ -69,10 +67,9 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) synthesized_clones: Vec<(mir::FunctionId, mir::TypeId)>,
     /// The constant String object and value type per collected literal content.
     pub(in crate::lower) string_literals:
-        FxIndexMap<StringId, Lowered<(mir::GlobalId, mir::LocalNodeId<mir::Type>)>>,
+        FxIndexMap<StringId, Lowered<(mir::GlobalId, mir::TypeId)>>,
     /// The constant BigInt object and value type per collected literal value.
-    pub(in crate::lower) bigint_literals:
-        FxIndexMap<i64, Lowered<(mir::GlobalId, mir::LocalNodeId<mir::Type>)>>,
+    pub(in crate::lower) bigint_literals: FxIndexMap<i64, Lowered<(mir::GlobalId, mir::TypeId)>>,
 
     // outputs
     /// The declaration outcome for each callable instance key.
@@ -83,10 +80,9 @@ pub(crate) struct ModuleLowerer<'a> {
         dir::LocalNodeId<dir::Expression>,
     )>,
     /// The dispatch shape registered for each lowered constraint.
-    pub(in crate::lower) dynamic_shapes: FxIndexMap<mir::LocalNodeId<mir::Type>, mir::DynamicShape>,
+    pub(in crate::lower) dynamic_shapes: FxIndexMap<mir::TypeId, mir::DynamicShape>,
     /// The implementer registered for each erased concrete type and constraint.
-    pub(in crate::lower) implementers:
-        FxIndexMap<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>), Implementer>,
+    pub(in crate::lower) implementers: FxIndexMap<(mir::TypeId, mir::TypeId), Implementer>,
 }
 
 impl<'a> ModuleLowerer<'a> {
@@ -123,6 +119,20 @@ impl<'a> ModuleLowerer<'a> {
             dynamic_shapes: FxIndexMap::default(),
             implementers: FxIndexMap::default(),
         }
+    }
+
+    /// Return one visible DIR node's provenance in the joined table.
+    pub(in crate::lower) fn node_provenance(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<ProvenanceId> {
+        let state = self.state(node.module_id)?;
+
+        state
+            .node_provenance(node.local_id)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("DIR node {node:?} provenance was not imported"),
+            })
     }
 
     /// Index the instances sema closed by their fingerprinted selection.
@@ -327,6 +337,22 @@ impl<'a> ModuleLowerer<'a> {
         }
     }
 
+    /// Return one sema instance's provenance in the joined table.
+    pub(in crate::lower) fn instance_provenance(
+        &self,
+        instance: (ModuleId, dir::LocalInstanceId),
+    ) -> CompilerResult<ProvenanceId> {
+        let (module, instance) = instance;
+        let state = self.state(module)?;
+        let source = state.generics.get_instance(instance).provenance;
+
+        state
+            .map_provenance(source)
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("DIR instance {instance:?} provenance was not imported"),
+            })
+    }
+
     /// Return whether sema committed one auto conformance for a closed nominal type.
     pub(in crate::lower) fn nominal_conformance(
         &self,
@@ -470,8 +496,8 @@ impl<'a> ModuleLowerer<'a> {
                 continue;
             };
             let (storage, value) = match state {
-                NominalState::Declared { storage, value } => (*storage, *value),
-                NominalState::Lowered(nominal) => (nominal.storage, nominal.value),
+                NominalState::Reserved { storage, value } => (*storage, *value),
+                NominalState::Defined(nominal) => (nominal.storage, nominal.value),
             };
 
             let hook = GenericInstanceKey {
@@ -536,10 +562,11 @@ impl<'a> ModuleLowerer<'a> {
 
     /// Lower the module, returning the artifact and its diagnostics.
     pub(crate) fn lower(
-        &mut self,
+        mut self,
         target_layout: mir::TargetLayout,
+        provenance: ProvenanceTable,
     ) -> CompilerResult<(MirLowered, Vec<Box<dyn DiagnosticLike>>)> {
-        let mut builder = mir::ModuleBuilder::new();
+        let mut builder = mir::ModuleBuilder::new(provenance, "mir.lower");
         builder.set_target_layout(target_layout);
 
         self.index_language_items()?;
@@ -553,7 +580,7 @@ impl<'a> ModuleLowerer<'a> {
 
         // lower every declared body, keeping failures isolated per function
         for body in bodies {
-            match FunctionLowerer::lower(self, &mut builder, body) {
+            match FunctionLowerer::lower(&mut self, &mut builder, body) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
@@ -564,7 +591,7 @@ impl<'a> ModuleLowerer<'a> {
         let synthesized = std::mem::take(&mut self.synthesized_constructors);
         for (class, specialization, function) in synthesized {
             match FunctionLowerer::lower_default_constructor(
-                self,
+                &mut self,
                 &mut builder,
                 class,
                 specialization,
@@ -579,7 +606,7 @@ impl<'a> ModuleLowerer<'a> {
         // lower the synthesized builtin clones to receiver copies
         let synthesized = std::mem::take(&mut self.synthesized_clones);
         for (function, result) in synthesized {
-            match FunctionLowerer::lower_builtin_clone(self, &mut builder, function, result) {
+            match FunctionLowerer::lower_builtin_clone(&mut self, &mut builder, function, result) {
                 Ok(()) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
                 Err(error) => return Err(error),
@@ -613,13 +640,24 @@ impl<'a> ModuleLowerer<'a> {
         self.build_dispatch_tables(&mut builder, &mut errors)?;
 
         // publish the lowered names into the shared pool
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings) =
-            builder.finish();
+        let (
+            tree,
+            provenance,
+            target,
+            layouts,
+            dispatch,
+            drops,
+            accesses,
+            effects,
+            profile,
+            strings,
+        ) = builder.finish();
         self.strings.ensure_all_from(&strings);
 
         // assemble the lowered module artifact
         let lowered = MirLowered {
             tree,
+            provenance,
             target,
             layouts,
             language: std::mem::take(&mut self.language),

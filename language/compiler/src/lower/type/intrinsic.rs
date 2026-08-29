@@ -9,7 +9,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_intrinsic(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<()> {
         // dispatch on the language item the newtype names
@@ -83,7 +83,7 @@ impl TypeLowerer<'_, '_> {
                     });
                 };
                 let payload = self.lower(*payload)?;
-                let representation = self.tree.get(payload).clone();
+                let representation = self.tree.ty(payload).clone();
                 self.tree.define_type(ty, representation);
 
                 Ok(())
@@ -96,7 +96,7 @@ impl TypeLowerer<'_, '_> {
                     });
                 };
                 let value = self.lower(*value)?;
-                let representation = self.tree.get(value).clone();
+                let representation = self.tree.ty(value).clone();
                 self.tree.define_type(ty, representation);
 
                 Ok(())
@@ -123,13 +123,11 @@ impl TypeLowerer<'_, '_> {
                     .tuple_element_types(parameters.module_id, &tuple)?;
                 let mut lowered = Vec::with_capacity(elements.len());
                 for element in elements {
-                    lowered.push(mir::SignatureParameter::new(mir::TypeId::from(
-                        self.lower(element)?,
-                    )));
+                    lowered.push(mir::SignatureParameter::new(self.lower(element)?));
                 }
 
                 // intern the signature the callable answers at
-                let result = mir::TypeId::from(self.lower(*result)?);
+                let result = self.lower(*result)?;
                 let signature = self.tree.intern_type(mir::Type::FunctionSignature {
                     lifetimes: Vec::new(),
                     parameters: lowered,
@@ -146,7 +144,7 @@ impl TypeLowerer<'_, '_> {
                         multiplicity,
                         kind: mir::ReferenceKind::Managed,
                         lifetime: mir::Lifetime::empty(),
-                        signature: mir::TypeId::from(signature),
+                        signature,
                         storage: mir::Storage::LocalHeap,
                         access: mir::Access::Mutable,
                         nullability: mir::Nullability::None,

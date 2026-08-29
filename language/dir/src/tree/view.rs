@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use destack_core::FxIndexSet as IndexSet;
-use destack_source::{FileId, NodeSpanType, ProvenanceId, Span};
+use destack_source::{FileId, NodeSpanKey, NodeSpanType, ProvenanceId, Span};
 use smallvec::SmallVec;
 
 use crate::{
@@ -207,6 +207,25 @@ impl<'a> View<'a> {
         Some(children)
     }
 
+    /// Return one visible subtree in structural order.
+    pub fn subtree(&self, root: LocalNodeIdAny) -> Option<Vec<LocalNodeIdAny>> {
+        if !self.is_visible(root) {
+            return None;
+        }
+
+        // visit parents before children in structural order
+        let mut nodes = Vec::new();
+        let mut pending = vec![root];
+        while let Some(node) = pending.pop() {
+            nodes.push(node);
+
+            let children = self.direct_children(node)?;
+            pending.extend(children.into_iter().rev());
+        }
+
+        Some(nodes)
+    }
+
     /// Return whether one node sits inside another's subtree.
     pub fn is_inside(&self, node: LocalNodeIdAny, ancestor: LocalNodeIdAny) -> bool {
         // climb parents until the ancestor or the root
@@ -320,6 +339,18 @@ impl<'a> View<'a> {
             .unwrap_or_else(|| panic!("DIR node {node_id:?} is not visible"));
 
         tree.provenance(node_id.id)
+    }
+
+    /// Return the provenance of one visible node span.
+    pub fn provenance_at(
+        &self,
+        node_id: LocalNodeIdAny,
+        span_type: NodeSpanType,
+    ) -> Option<ProvenanceId> {
+        let (tree, node_id) = self.visible_node(node_id)?;
+        let key = NodeSpanKey::new(node_id.id, span_type);
+
+        tree.source_index.provenance(key)
     }
 
     /// Return the static path a visible reference expression spells.

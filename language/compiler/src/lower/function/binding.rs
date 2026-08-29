@@ -206,8 +206,10 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // unwrap the present value or evaluate the default
-            let resolved = self.lower_absent_fallback(incoming, exact, |lowerer| {
-                lowerer.lower_expression(default).map(Some)
+            let resolved = self.lower_anchored(default, |lower| {
+                lower.lower_absent_fallback(incoming, exact, |lower| {
+                    lower.lower_expression(default).map(Some)
+                })
             })?;
             self.values.insert(symbol, Binding::Value(resolved));
         }

@@ -2,11 +2,28 @@ use std::hash::Hasher;
 
 use destack_core::StableHasher;
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::lower::{LowerError, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
+    /// Return the source declaration of one symbol.
+    pub(in crate::lower) fn declaration(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalNodeIdAny> {
+        let binding = self
+            .state(symbol.module_id)?
+            .bindings
+            .get_symbol(symbol.local_id);
+        let declaration = binding.declaration.ok_or_else(|| CompilerError::Internal {
+            message: format!("symbol {symbol:?} has no declaration node"),
+        })?;
+
+        Ok(declaration)
+    }
+
     /// Return the type of one symbol.
     pub(in crate::lower) fn symbol_type(
         &self,
@@ -69,7 +86,7 @@ impl ModuleLowerer<'_> {
     /// Qualify one name under its module path, keeping standard library names bare.
     pub(in crate::lower) fn qualified_name(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         name: &str,
     ) -> CompilerResult<String> {
         let path = &self.state(module)?.path;
@@ -159,7 +176,7 @@ impl ModuleLowerer<'_> {
     /// Return whether one definition declares parameters beyond the memory kinds.
     pub(in crate::lower) fn definition_is_parameterized(
         &self,
-        module: destack_source::ModuleId,
+        module: ModuleId,
         definition: &dir::Definition,
     ) -> CompilerResult<bool> {
         let Some(template) = definition.template() else {

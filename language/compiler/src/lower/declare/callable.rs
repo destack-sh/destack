@@ -38,9 +38,11 @@ impl ModuleLowerer<'_> {
         let parameter_nodes = function.signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
+        let mut parameter_provenance = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
             defaults.push(self.local().tree().get(parameter).default_value());
             let node = parameter.into_global_any(module);
+            parameter_provenance.push(self.node_provenance(node)?);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "missing a symbol for one parameter".to_string(),
@@ -61,8 +63,10 @@ impl ModuleLowerer<'_> {
         // declare the header under the function's lexical path
         let name = self.symbol_path(symbol)?;
         let header = lifetime_parameters.declare(builder.function_header(&name));
+        let parameters = parameters.into_iter().zip(parameter_provenance);
         let header = header.parameters(parameters).result(result);
-        let function = builder.declare_function(header);
+        let source = self.node_provenance(node)?;
+        let function = builder.declare_function(header, &[source]);
         self.index_language_declaration(function, symbol)?;
 
         // record the declaration so later call sites resolve to it
@@ -208,7 +212,7 @@ impl ModuleLowerer<'_> {
             Some(dir::FunctionRole::Constructor) => {
                 let owner = self.symbol_type(owner)?;
                 let nominal = self
-                    .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+                    .type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters)
                     .lower_nominal(owner)?;
 
                 let receiver_storage = nominal_receiver_storage(builder.tree(), nominal.value);
@@ -227,7 +231,7 @@ impl ModuleLowerer<'_> {
                     });
                 };
                 Some(
-                    self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters)
+                    self.type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters)
                         .lower(this_type)?,
                 )
             }
@@ -241,12 +245,15 @@ impl ModuleLowerer<'_> {
         };
 
         // collect each parameter's default expression alongside its symbol
+        let this_parameter = signature.this_parameter;
         let parameter_nodes = signature.parameters.to_vec();
         let mut symbols = Vec::with_capacity(parameter_nodes.len());
         let mut defaults = Vec::with_capacity(parameter_nodes.len());
+        let mut parameter_provenance = Vec::with_capacity(parameter_nodes.len());
         for parameter in parameter_nodes {
             defaults.push(self.local().tree().get(parameter).default_value());
             let node = parameter.into_global_any(self.module);
+            parameter_provenance.push(self.node_provenance(node)?);
             let Some(symbol) = self.symbol_declared_at(node)? else {
                 return Err(CompilerError::Internal {
                     message: "missing a symbol for one parameter".to_string(),
@@ -266,6 +273,11 @@ impl ModuleLowerer<'_> {
 
         if let Some(this) = this {
             parameters.insert(0, this);
+            let source = match this_parameter {
+                Some(parameter) => self.node_provenance(parameter.into_global_any(self.module))?,
+                None => self.node_provenance(member.into_global_any(self.module))?,
+            };
+            parameter_provenance.insert(0, source);
         }
 
         // give constructors a void result
@@ -278,8 +290,10 @@ impl ModuleLowerer<'_> {
         let member_name = self.member_extern_name(symbol, owner, role)?;
         let name = self.qualified_name(self.module, &member_name)?;
         let header = lifetime_parameters.declare(builder.function_header(&name));
+        let parameters = parameters.into_iter().zip(parameter_provenance);
         let header = header.parameters(parameters).result(result);
-        let function = builder.declare_function(header);
+        let source = self.node_provenance(member.into_global_any(self.module))?;
+        let function = builder.declare_function(header, &[source]);
         self.index_language_declaration(function, symbol)?;
 
         // record the declaration so later call sites resolve to it

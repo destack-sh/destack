@@ -170,7 +170,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // load the pointee behind a dereferenced input
             dir::Projection::Dereference(_) => {
                 let representation = self.value_representation(value)?;
-                let mir::Type::Reference { pointee, .. } = self.builder.tree().get(representation)
+                let mir::Type::Reference { pointee, .. } = self.builder.tree().ty(representation)
                 else {
                     return Err(CompilerError::Internal {
                         message: "a dereferenced pattern input outside a reference".to_string(),
@@ -248,7 +248,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_absent_fallback(
         &mut self,
         value: mir::Value,
-        exact: mir::LocalNodeId<mir::Type>,
+        exact: mir::TypeId,
         fallback: impl FnOnce(&mut Self) -> CompilerResult<Option<mir::Value>>,
     ) -> CompilerResult<mir::Value> {
         let representation = self.value_representation(value)?;
@@ -257,7 +257,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // a statically absent input always takes the fallback
-        if matches!(self.builder.tree().get(representation), mir::Type::Void) {
+        if matches!(self.builder.tree().ty(representation), mir::Type::Void) {
             return match fallback(self)? {
                 Some(value) => Ok(value),
                 None => Err(CompilerError::Internal {
@@ -272,7 +272,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let absent_block = self.builder.block();
         let join = self.builder.block();
 
-        match self.builder.tree().get(representation).clone() {
+        match self.builder.tree().ty(representation).clone() {
             // split an optional variant on its undefined case
             mir::Type::Variant { cases, .. } => {
                 let Some(mir::NullishCase::Case(absent)) =
@@ -295,9 +295,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let present: Vec<_> = cases
                     .iter()
                     .enumerate()
-                    .filter(|(_, case)| {
-                        !matches!(self.builder.tree().get(case.ty), mir::Type::Void)
-                    })
+                    .filter(|(_, case)| !matches!(self.builder.tree().ty(case.ty), mir::Type::Void))
                     .map(|(index, _)| index)
                     .collect();
 
@@ -411,7 +409,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn pattern_representation(
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let node = pattern.into_global_any(self.source);
         let ty =
             self.source()

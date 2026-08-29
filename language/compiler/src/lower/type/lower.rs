@@ -1,7 +1,7 @@
 use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_mir as mir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceJournal};
 
 use crate::lower::{GenericInstanceKey, LifetimeParameters, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
@@ -12,16 +12,18 @@ pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     pub(in crate::lower) lowerer: &'lower mut ModuleLowerer<'module>,
     /// The tree receiving lowered types.
     pub(in crate::lower) tree: &'lower mut mir::Tree,
+    /// The provenance journal receiving type declarations.
+    pub(in crate::lower) provenance: ProvenanceJournal<'lower>,
     /// The target pointer width in bytes.
     pub(in crate::lower) pointer_bytes: u8,
     /// The polymorphic lifetime parameters available during lowering.
     pub(in crate::lower) lifetime_parameters: &'lower LifetimeParameters,
-    /// The sema instance whose materialized rows resolve read types.
+    /// The sema instance resolving materialized types.
     pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The heap space receiving reference layers, written by placed forms.
     pub(in crate::lower) space: mir::Space,
     /// The compound types being lowered, with reservations for revisits.
-    reservations: FxIndexMap<dir::GlobalTypeId, Option<mir::LocalNodeId<mir::Type>>>,
+    reservations: FxIndexMap<dir::GlobalTypeId, Option<mir::TypeId>>,
 }
 
 impl<'lower, 'module> TypeLowerer<'lower, 'module> {
@@ -29,12 +31,14 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     fn new(
         lowerer: &'lower mut ModuleLowerer<'module>,
         tree: &'lower mut mir::Tree,
+        provenance: ProvenanceJournal<'lower>,
         pointer_bytes: u8,
         lifetime_parameters: &'lower LifetimeParameters,
     ) -> Self {
         Self {
             lowerer,
             tree,
+            provenance,
             pointer_bytes,
             lifetime_parameters,
             instance: None,
@@ -43,7 +47,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         }
     }
 
-    /// Return this lowerer resolving reads through one instance's rows.
+    /// Return this lowerer resolving types through one instance.
     pub(in crate::lower) fn with_instance(
         mut self,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
@@ -53,7 +57,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         self
     }
 
-    /// Return a nested lowerer resolving through another instance's rows.
+    /// Return a nested lowerer resolving types through another instance.
     pub(in crate::lower) fn nested<'nested>(
         &'nested mut self,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
@@ -61,6 +65,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         TypeLowerer {
             lowerer: &mut *self.lowerer,
             tree: &mut *self.tree,
+            provenance: self.provenance.reborrow(),
             pointer_bytes: self.pointer_bytes,
             lifetime_parameters: self.lifetime_parameters,
             instance,
@@ -70,10 +75,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     }
 
     /// Lower one type.
-    pub(in crate::lower) fn lower(
-        &mut self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    pub(in crate::lower) fn lower(&mut self, id: dir::GlobalTypeId) -> CompilerResult<mir::TypeId> {
         // resolve the written id through its materialized types
         let id = self.lowerer.instance_type(self.instance, id)?;
 
@@ -153,7 +155,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             && let Some(reservation) = self.reservations.swap_remove(&id)
             && let (Ok(result), Some(reserved)) = (&lowered, reservation)
         {
-            let value = self.tree.get(*result).clone();
+            let value = self.tree.ty(*result).clone();
             self.tree.define_type(reserved, value);
 
             // give isomorphic cycles one shared node through the canonical registry
@@ -162,7 +164,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 Some(existing) => lowered = Ok(existing),
                 None => {
                     let canonical = *result;
-                    for (member, member_key) in self.tree.canonical_component(canonical) {
+                    for member in self.tree.cycle_members(canonical) {
+                        let member_key = self.tree.canonical_key(member);
                         self.tree.register_canonical(member_key, member);
                     }
                     self.tree.register_canonical(key, canonical);
@@ -175,10 +178,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     }
 
     /// Lower one type by its family.
-    pub(super) fn lower_family(
-        &mut self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    pub(super) fn lower_family(&mut self, id: dir::GlobalTypeId) -> CompilerResult<mir::TypeId> {
         match self.lowerer.ty(id)? {
             // lower nominal instances through their concrete representation
             dir::Type::Application(instance) => {
@@ -201,7 +201,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // lower variants through the union that owns them
             dir::Type::Variant(member) => self.lower(member.owner),
-            // reject parameters, which materialized rows resolve before lowering
+            // reject parameters, which materialization resolves before lowering
             dir::Type::Parameter(parameter) => {
                 let template = self
                     .lowerer
@@ -289,7 +289,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             dir::Type::FixedArray(fixed) => {
                 let element = self.lower(fixed.element)?;
                 let length = self.lowerer.fixed_array_length(fixed.count)?;
-                let copy = self.tree.get(element).copy(self.tree);
+                let copy = self.tree.ty(element).copy(self.tree);
 
                 Ok(self.tree.intern_type(mir::Type::FixedArray {
                     element,
@@ -373,7 +373,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
         place: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // enter the referent's heap space for the duration of the lowering
         let saved = self.space;
         if let Some(space) = self.lowerer.place_space(place)? {
@@ -444,11 +444,13 @@ impl<'module> ModuleLowerer<'module> {
     /// Return recursive type lowering over one tree.
     pub(in crate::lower) fn type_lowerer<'lower>(
         &'lower mut self,
-        tree: &'lower mut mir::Tree,
+        state: (&'lower mut mir::Tree, ProvenanceJournal<'lower>),
         pointer_bytes: u8,
         lifetime_parameters: &'lower LifetimeParameters,
     ) -> TypeLowerer<'lower, 'module> {
-        TypeLowerer::new(self, tree, pointer_bytes, lifetime_parameters)
+        let (tree, provenance) = state;
+
+        TypeLowerer::new(self, tree, provenance, pointer_bytes, lifetime_parameters)
     }
 
     /// Return the value argument when one instance applies a memory form item.
@@ -483,8 +485,8 @@ impl TypeLowerer<'_, '_> {
     fn insert_storage_form(
         &mut self,
         instance: &dir::GenericApplication,
-        value: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        value: mir::TypeId,
+    ) -> CompilerResult<mir::TypeId> {
         // select the memory form node the item names
         let ty = match self.lowerer.language_item(instance.symbol) {
             Some(dir::LanguageItem::MaybeUninit) => mir::Type::Uninit { value },
@@ -530,12 +532,12 @@ impl TypeLowerer<'_, '_> {
     /// Insert one indexed variant type with copy composed over its payloads.
     pub(in crate::lower) fn insert_union_variant(
         &mut self,
-        payloads: Vec<mir::LocalNodeId<mir::Type>>,
-    ) -> mir::LocalNodeId<mir::Type> {
+        payloads: Vec<mir::TypeId>,
+    ) -> mir::TypeId {
         // compose copy over the payloads
         let copy = payloads
             .iter()
-            .all(|payload| self.tree.get(*payload).copy(self.tree) == mir::Copy::Yes);
+            .all(|payload| self.tree.ty(*payload).copy(self.tree) == mir::Copy::Yes);
         let copy = match copy {
             true => mir::Copy::Yes,
             false => mir::Copy::No,
@@ -570,14 +572,11 @@ impl TypeLowerer<'_, '_> {
     }
 
     /// Insert one tuple type with copy composed over its elements.
-    pub(in crate::lower) fn insert_tuple(
-        &mut self,
-        elements: Vec<mir::LocalNodeId<mir::Type>>,
-    ) -> mir::LocalNodeId<mir::Type> {
+    pub(in crate::lower) fn insert_tuple(&mut self, elements: Vec<mir::TypeId>) -> mir::TypeId {
         // compose copy over the elements
         let copy = elements
             .iter()
-            .all(|element| self.tree.get(*element).copy(self.tree) == mir::Copy::Yes);
+            .all(|element| self.tree.ty(*element).copy(self.tree) == mir::Copy::Yes);
         let copy = match copy {
             true => mir::Copy::Yes,
             false => mir::Copy::No,

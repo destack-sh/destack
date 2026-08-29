@@ -67,7 +67,7 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<mir::TypeId> {
         let signature = self.lower_signature_type(declared)?;
 
-        Ok(mir::TypeId::from(signature))
+        Ok(signature)
     }
 }
 
@@ -99,7 +99,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
         let pointer_bytes = builder.pointer_bytes();
         let mut lowerer = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+            .type_lowerer(builder.split_mut(), pointer_bytes, lifetime_parameters)
             .with_instance(specialization);
 
         lowerer.lower_signature(declared, true)
@@ -113,7 +113,8 @@ impl ModuleLowerer<'_> {
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
         let pointer_bytes = builder.pointer_bytes();
-        let mut lowerer = self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters);
+        let mut lowerer =
+            self.type_lowerer(builder.split_mut(), pointer_bytes, lifetime_parameters);
 
         lowerer.lower_signature(declared, false)
     }
@@ -121,10 +122,7 @@ impl ModuleLowerer<'_> {
 
 impl TypeLowerer<'_, '_> {
     /// Lower one callable signature type closed over its own lifetimes.
-    fn lower_signature_type(
-        &mut self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn lower_signature_type(&mut self, id: dir::GlobalTypeId) -> CompilerResult<mir::TypeId> {
         let (_, owner) = self.lowerer.signature(id)?;
         let dir::Type::FunctionSignature(signature) = self.lowerer.ty(id)? else {
             return Err(CompilerError::Internal {
@@ -148,7 +146,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         signature: &dir::FunctionSignatureType,
         module: ModuleId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         if signature.asynchrony != dir::Asynchrony::Sync || signature.is_generator {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -168,7 +166,7 @@ impl TypeLowerer<'_, '_> {
             .parameters(signature.parameters)
             .to_vec();
 
-        // judge omission representations before borrowing the parameter scope
+        // determine omission representations before borrowing the parameter scope
         let mut widened = Vec::with_capacity(declared.len());
         for parameter in &declared {
             widened.push(self.widens_optional_parameter(parameter.ty, parameter.is_optional)?);
@@ -177,7 +175,11 @@ impl TypeLowerer<'_, '_> {
         // lower the parameters and result under the signature scope
         let mut types = self
             .lowerer
-            .type_lowerer(self.tree, self.pointer_bytes, &lifetime_parameters)
+            .type_lowerer(
+                (&mut *self.tree, self.provenance.reborrow()),
+                self.pointer_bytes,
+                &lifetime_parameters,
+            )
             .with_instance(self.instance);
         let mut parameters = Vec::with_capacity(declared.len());
         for (parameter, widen) in declared.into_iter().zip(widened) {

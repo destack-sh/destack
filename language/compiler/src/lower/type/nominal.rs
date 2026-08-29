@@ -1,5 +1,6 @@
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_source::ProvenanceId;
 
 use crate::lower::{AliasForm, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
@@ -7,50 +8,11 @@ use crate::{CompilerError, CompilerResult, LowerError};
 /// One lowered nominal declaration.
 pub(in crate::lower) struct NominalRepresentation {
     /// The declared type: the stored value or reference pointee.
-    pub(in crate::lower) storage: mir::LocalNodeId<mir::Type>,
+    pub(in crate::lower) storage: mir::TypeId,
     /// The value-position type: a managed reference for reference nominals.
-    pub(in crate::lower) value: mir::LocalNodeId<mir::Type>,
+    pub(in crate::lower) value: mir::TypeId,
     /// The instance fields in declaration order.
     pub(in crate::lower) fields: Vec<NominalField>,
-}
-
-/// The lowering state of one nominal representation.
-pub(in crate::lower) enum NominalState {
-    /// A nominal identity declared before its dependencies are lowered.
-    Declared {
-        /// The stored type available during recursive lowering.
-        storage: mir::LocalNodeId<mir::Type>,
-        /// The value type available during recursive lowering.
-        value: mir::LocalNodeId<mir::Type>,
-    },
-    /// A lowered nominal representation.
-    Lowered(NominalRepresentation),
-}
-
-impl NominalState {
-    /// Return the nominal's stored type.
-    fn storage(&self) -> mir::LocalNodeId<mir::Type> {
-        match self {
-            Self::Declared { storage, .. } => *storage,
-            Self::Lowered(nominal) => nominal.storage,
-        }
-    }
-
-    /// Return the nominal's value-position type.
-    fn value(&self) -> mir::LocalNodeId<mir::Type> {
-        match self {
-            Self::Declared { value, .. } => *value,
-            Self::Lowered(nominal) => nominal.value,
-        }
-    }
-
-    /// Return the completed nominal representation.
-    fn as_lowered(&self) -> Option<&NominalRepresentation> {
-        match self {
-            Self::Lowered(nominal) => Some(nominal),
-            Self::Declared { .. } => None,
-        }
-    }
 }
 
 /// One lowered nominal instance field.
@@ -64,6 +26,63 @@ pub(in crate::lower) struct NominalField {
     pub(in crate::lower) is_optional: bool,
     /// The declared initializer construction reads for omitted fields.
     pub(in crate::lower) initializer: Option<dir::GlobalNodeIdAny>,
+    /// The lowered field occurrence.
+    pub(in crate::lower) provenance: ProvenanceId,
+}
+
+impl NominalField {
+    /// Create one lowered field from its DIR definition and MIR occurrence.
+    pub(in crate::lower) fn new(
+        definition: &dir::FieldDefinition,
+        provenance: ProvenanceId,
+    ) -> Self {
+        Self {
+            key: definition.key,
+            symbol: definition.symbol,
+            is_optional: definition.is_optional,
+            initializer: definition.initializer,
+            provenance,
+        }
+    }
+}
+
+/// The lowering state of one nominal representation.
+pub(in crate::lower) enum NominalState {
+    /// A nominal identity reserved before its dependencies are lowered.
+    Reserved {
+        /// The stored type available during recursive lowering.
+        storage: mir::TypeId,
+        /// The value type available during recursive lowering.
+        value: mir::TypeId,
+    },
+    /// A defined nominal representation.
+    Defined(NominalRepresentation),
+}
+
+impl NominalState {
+    /// Return the nominal's stored type.
+    fn storage(&self) -> mir::TypeId {
+        match self {
+            Self::Reserved { storage, .. } => *storage,
+            Self::Defined(nominal) => nominal.storage,
+        }
+    }
+
+    /// Return the nominal's value-position type.
+    fn value(&self) -> mir::TypeId {
+        match self {
+            Self::Reserved { value, .. } => *value,
+            Self::Defined(nominal) => nominal.value,
+        }
+    }
+
+    /// Return the defined nominal representation.
+    fn as_defined(&self) -> Option<&NominalRepresentation> {
+        match self {
+            Self::Defined(nominal) => Some(nominal),
+            Self::Reserved { .. } => None,
+        }
+    }
 }
 
 /// The identity and types of one lowered nominal instance.
@@ -72,9 +91,9 @@ pub(in crate::lower) struct NominalInstance {
     /// The concrete representation identity.
     pub(in crate::lower) key: GenericInstanceKey,
     /// The stored value or reference pointee type.
-    pub(in crate::lower) storage: mir::LocalNodeId<mir::Type>,
+    pub(in crate::lower) storage: mir::TypeId,
     /// The value-position type.
-    pub(in crate::lower) value: mir::LocalNodeId<mir::Type>,
+    pub(in crate::lower) value: mir::TypeId,
 }
 
 /// Generic bindings and lifetime application for one nominal use.
@@ -120,7 +139,7 @@ impl ModuleLowerer<'_> {
         // lower each concrete representation and its field dependencies
         let pointer_bytes = builder.pointer_bytes();
         let lifetime_parameters = LifetimeParameters::default();
-        let mut types = self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
+        let mut types = self.type_lowerer(builder.split_mut(), pointer_bytes, &lifetime_parameters);
         for symbol in symbols {
             let source = types.lowerer.symbol_type(symbol)?;
             types.lower_nominal(source)?;
@@ -131,32 +150,50 @@ impl ModuleLowerer<'_> {
 }
 
 impl TypeLowerer<'_, '_> {
+    /// Return one source node's provenance under the active sema instance.
+    pub(in crate::lower) fn node_provenance(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<ProvenanceId> {
+        let source = self.lowerer.node_provenance(node)?;
+
+        match self.instance {
+            // expand generic sources through their closed instance
+            Some(instance) => {
+                let instance = self.lowerer.instance_provenance(instance)?;
+
+                Ok(self.provenance.expand(source, instance))
+            }
+            // derive concrete sources directly
+            None => Ok(self.provenance.derive(source)),
+        }
+    }
+
     /// Lower one recursive alias declaration into its reserved identity.
     pub(in crate::lower) fn lower_alias(
         &mut self,
         definition: &dir::TypeAliasDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<Vec<NominalField>> {
+        ty: mir::TypeId,
+    ) -> CompilerResult<()> {
         // resolve the written value through the alias instance's materialized types
         let value = self
             .lowerer
             .instance_type(self.instance, definition.value)?;
 
-        // define declared object types in place at the alias identity
-        if let dir::Type::Object(shape) = self.lowerer.ty(value)?
-            && !shape.declares_signatures()
-        {
-            self.define_object_struct(&shape, value.module_id, ty)?;
-
-            return Ok(Vec::new());
+        match self.lowerer.ty(value)? {
+            // define concrete objects in place at the reserved identity
+            dir::Type::Object(shape) if !shape.declares_signatures() => {
+                self.define_object_struct(&shape, value.module_id, ty)?;
+            }
+            // forward every other alias to its lowered value
+            _ => {
+                let value = self.lower_family(value)?;
+                let content = self.tree.ty(value).clone();
+                self.tree.define_type(ty, content);
+            }
         }
 
-        // forward transparent aliases to their lowered value
-        let value = self.lower_family(value)?;
-        let content = self.tree.get(value).clone();
-        self.tree.define_type(ty, content);
-
-        Ok(Vec::new())
+        Ok(())
     }
 
     /// Lower one nominal declaration and its representation dependencies.
@@ -253,7 +290,7 @@ impl TypeLowerer<'_, '_> {
             dir::Definition::Interface(_) => self.tree.intern_type(mir::Type::Dynamic {
                 kind: mir::ReferenceKind::Managed,
                 lifetime: mir::Lifetime::empty(),
-                constraint: mir::TypeId::from(ty),
+                constraint: ty,
                 storage: mir::Storage::heap(value_space),
                 access: mir::Access::Mutable,
                 nullability: mir::Nullability::None,
@@ -272,7 +309,7 @@ impl TypeLowerer<'_, '_> {
         self.space = saved;
         self.lowerer.nominal_states.insert(
             arguments.key.clone(),
-            NominalState::Declared { storage: ty, value },
+            NominalState::Reserved { storage: ty, value },
         );
 
         // adopt the Copy conformance sema committed for this closed instance
@@ -284,24 +321,37 @@ impl TypeLowerer<'_, '_> {
             false => mir::Copy::No,
         };
 
-        // fill the reserved representation through the nominal's own rows
-        let fields = {
-            let specialization =
-                self.lowerer
-                    .specialization_of(symbol, None, &arguments.type_arguments)?;
-            if specialization.is_none() && !arguments.type_arguments.is_empty() {
-                let path = self.lowerer.symbol_path(symbol)?;
-                self.lowerer.nominal_states.shift_remove(&arguments.key);
+        // select the materialized instance behind this representation
+        let specialization =
+            self.lowerer
+                .specialization_of(symbol, None, &arguments.type_arguments)?;
+        if specialization.is_none() && !arguments.type_arguments.is_empty() {
+            let path = self.lowerer.symbol_path(symbol)?;
+            self.lowerer.nominal_states.shift_remove(&arguments.key);
 
-                return Err(CompilerError::Internal {
-                    message: format!("an instance of '{path}' was never materialized"),
-                });
+            return Err(CompilerError::Internal {
+                message: format!("an instance of '{path}' was never materialized"),
+            });
+        }
+
+        // derive the declaration from its concrete source or closed instance
+        let source = match specialization {
+            Some(instance) => self.lowerer.instance_provenance(instance)?,
+            None => {
+                let declaration = self.lowerer.declaration(symbol)?;
+
+                self.lowerer.node_provenance(declaration)?
             }
+        };
+        let provenance = self.provenance.derive(source);
 
+        // lower the nominal members into the reserved representation
+        let mut fields = Vec::new();
+        let member_provenance = {
             let mut types = self
                 .lowerer
                 .type_lowerer(
-                    self.tree,
+                    (&mut *self.tree, self.provenance.reborrow()),
                     self.pointer_bytes,
                     &arguments.lifetime_parameters,
                 )
@@ -310,24 +360,47 @@ impl TypeLowerer<'_, '_> {
 
             match definition {
                 dir::Definition::Struct(definition) => {
-                    types.lower_struct(symbol, definition, ty, copy)
+                    fields = types.lower_struct(definition, ty, copy)?;
+
+                    Ok(fields.iter().map(|field| field.provenance).collect())
                 }
                 dir::Definition::Newtype(definition) => {
-                    types.lower_newtype(symbol, definition, ty, &arguments.type_arguments, copy)
+                    types.lower_newtype(symbol, definition, ty, &arguments.type_arguments, copy)?;
+
+                    Ok(Vec::new())
                 }
-                dir::Definition::Enum(definition) => types.lower_enum(symbol, definition, ty, copy),
-                dir::Definition::Class(definition) => types.lower_class(symbol, definition, ty),
-                dir::Definition::TypeAlias(definition) => types.lower_alias(&definition, ty),
-                dir::Definition::Interface(definition) => types.lower_interface(definition, ty),
+                dir::Definition::Enum(definition) => types.lower_enum(definition, ty, copy),
+                dir::Definition::Class(definition) => {
+                    fields = types.lower_class(definition, ty)?;
+
+                    Ok(fields.iter().map(|field| field.provenance).collect())
+                }
+                dir::Definition::TypeAlias(definition) => {
+                    types.lower_alias(&definition, ty)?;
+
+                    // FUGU #Broken: retain resolved alias member provenance in DIR
+                    let count = match types.tree.ty(ty) {
+                        mir::Type::Struct { fields, .. } => fields.len(),
+                        mir::Type::Variant { cases, .. } => cases.len(),
+                        _ => 0,
+                    };
+
+                    Ok(vec![provenance; count])
+                }
+                dir::Definition::Interface(definition) => {
+                    fields = types.lower_interface(definition, ty)?;
+
+                    Ok(fields.iter().map(|field| field.provenance).collect())
+                }
                 _ => Err(CompilerError::Internal {
                     message: "nominal lowering entered a non-nominal definition".to_string(),
                 }),
             }
         };
 
-        // release the reservation when the rows fail to lower
-        let fields = match fields {
-            Ok(fields) => fields,
+        // release the reservation when the members fail to lower
+        let member_provenance = match member_provenance {
+            Ok(member_provenance) => member_provenance,
             Err(error) => {
                 self.lowerer.nominal_states.shift_remove(&arguments.key);
 
@@ -335,7 +408,7 @@ impl TypeLowerer<'_, '_> {
             }
         };
 
-        // complete the reservation with the lowered rows
+        // complete the reservation with the lowered members
         let nominal = NominalRepresentation {
             storage: ty,
             value,
@@ -344,7 +417,7 @@ impl TypeLowerer<'_, '_> {
         let value = self.requalify_nominal_value(symbol, ty, value)?;
         self.lowerer
             .nominal_states
-            .insert(arguments.key.clone(), NominalState::Lowered(nominal));
+            .insert(arguments.key.clone(), NominalState::Defined(nominal));
 
         // declare the nominal under its canonical instance name
         let Some(name) = self.lowerer.symbol_name(symbol)? else {
@@ -372,6 +445,8 @@ impl TypeLowerer<'_, '_> {
             lifetimes,
             ty,
             mir::TypeHeritage::default(),
+            provenance,
+            member_provenance,
         );
         self.lowerer
             .index_language_declaration(declaration, symbol)?;
@@ -526,9 +601,9 @@ impl TypeLowerer<'_, '_> {
             return Ok(None);
         };
 
-        let row = self.lowerer.state(module)?.generics.get_instance(instance);
+        let instance = self.lowerer.state(module)?.generics.get_instance(instance);
 
-        Ok(row
+        Ok(instance
             .key
             .arguments
             .iter()
@@ -540,9 +615,9 @@ impl TypeLowerer<'_, '_> {
     fn requalify_nominal_value(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        storage: mir::LocalNodeId<mir::Type>,
-        value: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        storage: mir::TypeId,
+        value: mir::TypeId,
+    ) -> CompilerResult<mir::TypeId> {
         // keep the cached value canonical in the local ambient space
         if self.space == mir::Space::Local {
             return Ok(value);
@@ -609,35 +684,21 @@ impl TypeLowerer<'_, '_> {
 impl ModuleLowerer<'_> {
     /// Gather one definition's instance fields in declaration order.
     pub(in crate::lower) fn instance_fields(
-        &self,
         members: &[dir::DefinitionMember],
-    ) -> Vec<NominalField> {
-        let mut fields = Vec::new();
-        for member in members {
-            let dir::DefinitionMember::Field(field) = member else {
-                continue;
-            };
-
-            if field.space != dir::MemberSpace::Instance {
-                continue;
+    ) -> impl Iterator<Item = &dir::FieldDefinition> {
+        members.iter().filter_map(|member| match member {
+            dir::DefinitionMember::Field(field) if field.space == dir::MemberSpace::Instance => {
+                Some(field)
             }
-
-            fields.push(NominalField {
-                key: field.key,
-                symbol: field.symbol,
-                is_optional: field.is_optional,
-                initializer: field.initializer,
-            });
-        }
-
-        fields
+            _ => None,
+        })
     }
 
     /// Return one nominal declaration's instance fields in declaration order.
     pub(in crate::lower) fn nominal_fields(
         &self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Vec<NominalField>> {
+    ) -> CompilerResult<Vec<&dir::FieldDefinition>> {
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "missing a nominal definition".to_string(),
@@ -651,7 +712,7 @@ impl ModuleLowerer<'_> {
                     Some(heritage) => self.nominal_fields(self.heritage_symbol(heritage)?)?,
                     None => Vec::new(),
                 };
-                fields.extend(self.instance_fields(&definition.members));
+                fields.extend(Self::instance_fields(&definition.members));
 
                 return Ok(fields);
             }
@@ -665,7 +726,7 @@ impl ModuleLowerer<'_> {
             }
         };
 
-        Ok(self.instance_fields(members))
+        Ok(Self::instance_fields(members).collect())
     }
 
     /// Return whether one class declaration extends a base class.
@@ -702,7 +763,7 @@ impl ModuleLowerer<'_> {
         let Some(nominal) = self
             .nominal_states
             .get(key)
-            .and_then(NominalState::as_lowered)
+            .and_then(NominalState::as_defined)
         else {
             return Err(CompilerError::Internal {
                 message: "nominal lowering has not completed the declaration".to_string(),

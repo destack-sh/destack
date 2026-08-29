@@ -4,7 +4,7 @@ use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirMaterialized, DirParsed,
 };
 use destack_dir as dir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId, ProvenanceRemap};
 
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
@@ -13,6 +13,10 @@ use crate::{CompilerError, CompilerResult};
 pub(crate) struct LowerModuleState {
     /// The artifact holding the expression tree.
     parsed: Arc<DirParsed>,
+    /// The expanded structural tree.
+    expanded: Arc<DirExpanded>,
+    /// The module provenance mapped into the lowered artifact.
+    provenance_remap: ProvenanceRemap,
     /// The module roots.
     pub(in crate::lower) roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The type table.
@@ -44,33 +48,54 @@ impl LowerModuleState {
     pub(crate) fn new(
         parsed: Arc<DirParsed>,
         bound: &DirBound,
-        expanded: &DirExpanded,
+        expanded: Arc<DirExpanded>,
         declared: &DirDeclared,
         elaborated: &DirElaborated,
         checked: &DirChecked,
         materialized: &DirMaterialized,
+        provenance_remap: ProvenanceRemap,
         path: String,
     ) -> Self {
+        let bindings = checked.binding_table(bound, &expanded, declared, elaborated);
+        let types = materialized.type_table(bound, &expanded, declared, elaborated, checked);
+        let statics = checked.static_table(bound, &expanded, declared, elaborated);
+
         Self {
+            provenance_remap,
             roots: materialized.roots.to_vec(),
-            types: materialized.type_table(bound, expanded, declared, elaborated, checked),
+            types,
             resolutions: checked.resolution_table(declared, elaborated),
             decisions: materialized.decision_table(declared, elaborated, checked),
-            bindings: checked.binding_table(bound, expanded, declared, elaborated),
+            bindings,
             coercions: materialized.coercion_table(checked),
             definitions: materialized.definition_table(declared, elaborated, checked),
-            statics: checked.static_table(bound, expanded, declared, elaborated),
+            statics,
             generics: materialized.generic_table(declared, elaborated, checked),
             decorators: checked.decorator_table(elaborated),
             captures: checked.capture_table(),
             path,
             parsed,
+            expanded,
         }
     }
 
-    /// Return the expression tree.
-    pub(in crate::lower) fn tree(&self) -> &dir::Tree {
-        &self.parsed.tree
+    /// Return the expanded expression tree.
+    pub(in crate::lower) fn tree(&self) -> dir::View<'_> {
+        self.expanded.view(&self.parsed)
+    }
+
+    /// Return the provenance of one visible DIR node.
+    pub(in crate::lower) fn node_provenance(
+        &self,
+        node: dir::LocalNodeIdAny,
+    ) -> Option<ProvenanceId> {
+        let source = self.tree().provenance_any(node);
+        self.provenance_remap.get(source)
+    }
+
+    /// Return one source provenance id in the lowered artifact.
+    pub(in crate::lower) fn map_provenance(&self, source: ProvenanceId) -> Option<ProvenanceId> {
+        self.provenance_remap.get(source)
     }
 }
 

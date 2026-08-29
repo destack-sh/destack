@@ -43,7 +43,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let dispatch = match self.builder.value_type(matched) {
             Some(representation)
                 if matches!(
-                    self.builder.tree().get(representation),
+                    self.builder.tree().ty(representation),
                     mir::Type::Newtype { .. }
                 ) =>
             {
@@ -108,7 +108,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let representation = self.builder.value_type(dispatch);
             let is_variant = representation.is_some_and(|representation| {
                 matches!(
-                    self.builder.tree().get(representation),
+                    self.builder.tree().ty(representation),
                     mir::Type::Variant { .. }
                 )
             });

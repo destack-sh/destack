@@ -1,18 +1,18 @@
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_source::ProvenanceId;
 
-use crate::lower::{NominalField, TypeLowerer};
+use crate::lower::TypeLowerer;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl TypeLowerer<'_, '_> {
     /// Lower one value enum declaration to its variant type.
     pub(in crate::lower) fn lower_enum(
         &mut self,
-        _symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         copy: mir::Copy,
-    ) -> CompilerResult<Vec<NominalField>> {
+    ) -> CompilerResult<Vec<ProvenanceId>> {
         // require an integer representation
         let dir::EnumBackingType::Integer(integer) = definition.backing else {
             return Err(LowerError::Unsupported {
@@ -31,7 +31,7 @@ impl TypeLowerer<'_, '_> {
 
         // build the variant cases in declaration order
         let storage = self.tree.intern_type(mir::Type::Void);
-        let mut fields = Vec::new();
+        let mut provenance = Vec::new();
         let mut variants = Vec::new();
         for variant in definition.variants() {
             let dir::EnumVariantValue::Integer(value) = variant.value else {
@@ -41,12 +41,7 @@ impl TypeLowerer<'_, '_> {
             };
 
             // record the member beside the discriminant it carries
-            fields.push(NominalField {
-                key: variant.key,
-                symbol: variant.symbol,
-                is_optional: false,
-                initializer: None,
-            });
+            provenance.push(self.node_provenance(variant.source)?);
             let discriminant = match integer.is_signed() {
                 true => mir::Constant::Int {
                     value: i128::from(value),
@@ -73,6 +68,6 @@ impl TypeLowerer<'_, '_> {
             },
         );
 
-        Ok(fields)
+        Ok(provenance)
     }
 }

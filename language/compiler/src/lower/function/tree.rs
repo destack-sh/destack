@@ -101,7 +101,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let representation = self.lower_type(argument_type)?;
-        let representation = self.builder.tree().get(representation).clone();
+        let representation = self.builder.tree().ty(representation).clone();
 
         self.lower_constant(literal, representation)
     }
@@ -199,7 +199,7 @@ impl FunctionLowerer<'_, '_, '_> {
             None => dir::Literal::Boolean(true),
         };
         let representation = self.lower_type(attribute.ty)?;
-        let representation = self.builder.tree().get(representation).clone();
+        let representation = self.builder.tree().ty(representation).clone();
 
         self.lower_constant(literal, representation)
     }
@@ -216,7 +216,7 @@ impl FunctionLowerer<'_, '_, '_> {
             match child {
                 dir::TreeChildBinding::Text { value, ty } => {
                     let representation = self.lower_type(*ty)?;
-                    let representation = self.builder.tree().get(representation).clone();
+                    let representation = self.builder.tree().ty(representation).clone();
                     values.push(self.lower_constant(dir::Literal::String(*value), representation)?);
                 }
                 dir::TreeChildBinding::Expression { node, .. } => {

@@ -32,9 +32,9 @@ impl ModuleLowerer<'_> {
         let pointer_bytes = builder.pointer_bytes();
         let lifetimes = LifetimeParameters::default();
         let dynamic = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+            .type_lowerer(builder.split_mut(), pointer_bytes, &lifetimes)
             .lower(target)?;
-        let mir::Type::Dynamic { constraint, .. } = *builder.tree().get(dynamic) else {
+        let mir::Type::Dynamic { constraint, .. } = *builder.tree().ty(dynamic) else {
             return Err(CompilerError::Internal {
                 message: "a value erased outside a dynamic target".to_string(),
             });
@@ -43,9 +43,9 @@ impl ModuleLowerer<'_> {
         // register the concrete object's written property names
         if let dir::Type::Object(shape) = self.ty(source)? {
             let reference = self
-                .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+                .type_lowerer(builder.split_mut(), pointer_bytes, &lifetimes)
                 .lower(source)?;
-            let mir::Type::Reference { pointee, .. } = *builder.tree().get(reference) else {
+            let mir::Type::Reference { pointee, .. } = *builder.tree().ty(reference) else {
                 return Err(CompilerError::Internal {
                     message: "an object class without a reference representation".to_string(),
                 });
@@ -89,7 +89,7 @@ impl ModuleLowerer<'_> {
 
         // lower the applied class at its concrete arguments
         let concrete = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+            .type_lowerer(builder.split_mut(), pointer_bytes, &lifetimes)
             .lower_nominal(source)?
             .storage;
         self.implementers

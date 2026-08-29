@@ -2,15 +2,15 @@ use destack_core::{FxIndexMap, StringId};
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{NominalField, TypeLowerer};
+use crate::lower::{ModuleLowerer, NominalField, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One named member of a flattened interface.
 enum InterfaceMember {
     /// A stored property field.
     Field {
-        /// The lowered field node.
-        node: mir::LocalNodeId<mir::Field>,
+        /// The lowered field.
+        value: mir::Field,
         /// The field identity for member indexing.
         field: NominalField,
     },
@@ -26,7 +26,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_interface(
         &mut self,
         definition: dir::InterfaceDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
     ) -> CompilerResult<Vec<NominalField>> {
         // flatten the interface and its bases into one member list by name
         let mut entries = FxIndexMap::default();
@@ -39,10 +39,10 @@ impl TypeLowerer<'_, '_> {
         for (name, entry) in entries {
             match entry {
                 // store a property and dispatch it through its own slot
-                InterfaceMember::Field { node, field } => {
+                InterfaceMember::Field { value, field } => {
                     fields.push(field);
-                    field_nodes.push(node);
-                    slots.push(mir::DynamicSlot::Field { field: node, name });
+                    field_nodes.push(value);
+                    slots.push(mir::DynamicSlot::Field { name });
                 }
                 // dispatch a method through its slot alone
                 InterfaceMember::Method { slot } => slots.push(slot),
@@ -79,6 +79,7 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<()> {
         // flatten inherited members first so derived members override in place
         for heritage in &definition.extends {
+            let site = self.node_provenance(heritage.source)?;
             let base = heritage.ty;
             let dir::Type::Application(application) = self.lowerer.ty(base)? else {
                 return Err(LowerError::Unsupported {
@@ -98,37 +99,39 @@ impl TypeLowerer<'_, '_> {
                 }
             };
 
-            // flatten the base members through the applied base instance's rows
+            // flatten the base members under the applied base instance
             let arguments = self
                 .lowerer
                 .types(base.module_id)?
                 .type_ids(application.arguments)
                 .to_vec();
-            let base_instance = match arguments.is_empty() {
-                true => None,
-                false => {
-                    let specialization =
-                        self.lowerer
-                            .specialization_of(application.symbol, None, &arguments)?;
-                    if specialization.is_none() {
-                        let path = self.lowerer.symbol_path(application.symbol)?;
+            let base_instance =
+                self.lowerer
+                    .specialization_of(application.symbol, None, &arguments)?;
+            if base_instance.is_none() && !arguments.is_empty() {
+                let path = self.lowerer.symbol_path(application.symbol)?;
 
-                        return Err(CompilerError::Internal {
-                            message: format!("an instance of '{path}' was never materialized"),
-                        });
-                    }
-
-                    specialization
-                }
-            };
+                return Err(CompilerError::Internal {
+                    message: format!("an instance of '{path}' was never materialized"),
+                });
+            }
+            let mut inherited = FxIndexMap::default();
             self.nested(base_instance)
-                .collect_interface_members(&base_definition, entries)?;
+                .collect_interface_members(&base_definition, &mut inherited)?;
+
+            // expand inherited fields under the derived interface
+            for (name, mut member) in inherited {
+                if let InterfaceMember::Field { field, .. } = &mut member {
+                    field.provenance = self.provenance.expand(field.provenance, site);
+                }
+                entries.insert(name, member);
+            }
         }
 
         // lower each property into a field node and dispatch slot
-        let fields = self.lowerer.instance_fields(&definition.members);
-        for field in fields {
+        for field in ModuleLowerer::instance_fields(&definition.members) {
             // lower the declared property type and read its written name
+            let provenance = self.node_provenance(field.source)?;
             let declared = self.lowerer.symbol_type(field.symbol)?;
             let declared = self.lower(declared)?;
             let dir::StaticKey::Name(name) = field.key else {
@@ -140,14 +143,18 @@ impl TypeLowerer<'_, '_> {
             };
 
             // let a derived property override the inherited entry in place
-            let node = self.tree.intern_field(
-                mir::Field {
-                    name: Some(name),
-                    ty: declared,
+            let value = mir::Field {
+                name: Some(name),
+                ty: declared,
+                attributes: Vec::new(),
+            };
+            entries.insert(
+                name,
+                InterfaceMember::Field {
+                    value,
+                    field: NominalField::new(field, provenance),
                 },
-                Vec::new(),
             );
-            entries.insert(name, InterfaceMember::Field { node, field });
         }
 
         // lower each method into a function slot at its bare signature
@@ -199,7 +206,7 @@ impl TypeLowerer<'_, '_> {
                 InterfaceMember::Method {
                     slot: mir::DynamicSlot::Function {
                         name: Some(name),
-                        signature: mir::TypeId::from(signature),
+                        signature,
                     },
                 },
             );

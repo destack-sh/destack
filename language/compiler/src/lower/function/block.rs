@@ -87,118 +87,120 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         statement: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        self.lower_anchored(statement, |lower| match lower.source().tree().get(statement).clone() {
-            // return value
-            dir::Expression::Return { value } => {
-                let value = value
-                    .map(|value| lower.lower_expression(value))
-                    .transpose()?;
-                lower.builder.return_(value);
+        self.lower_anchored(statement, |lower| {
+            match lower.source().tree().get(statement).clone() {
+                // return value
+                dir::Expression::Return { value } => {
+                    let value = value
+                        .map(|value| lower.lower_expression(value))
+                        .transpose()?;
+                    lower.builder.return_(value);
 
-                Ok(true)
+                    Ok(true)
+                }
+
+                // let x = value
+                dir::Expression::Let {
+                    mutability,
+                    declarators,
+                    ..
+                } => {
+                    lower.lower_let(mutability, &declarators)?;
+
+                    Ok(false)
+                }
+
+                // x = value
+                dir::Expression::Assign {
+                    left,
+                    operator,
+                    right,
+                } => {
+                    lower.lower_assign(statement, left, operator, right)?;
+
+                    Ok(false)
+                }
+
+                // x++
+                dir::Expression::Unary {
+                    operator:
+                        dir::UnaryOperator::PostIncrement
+                        | dir::UnaryOperator::PostDecrement
+                        | dir::UnaryOperator::PreIncrement
+                        | dir::UnaryOperator::PreDecrement,
+                    right,
+                } => {
+                    lower.lower_update(statement, right)?;
+
+                    Ok(false)
+                }
+
+                // if (cond) { ... } else { ... }
+                dir::Expression::If {
+                    form: dir::IfForm::If,
+                    condition,
+                    then_expression,
+                    else_expression,
+                } => lower.lower_if(&condition, then_expression, else_expression),
+
+                // debugger
+                dir::Expression::Debugger => {
+                    lower.builder.breakpoint();
+
+                    Ok(false)
+                }
+
+                // switch (value) { ... }
+                dir::Expression::Switch { value, cases } => lower.lower_switch(value, &cases),
+
+                // while (cond) { ... }
+                dir::Expression::While {
+                    label,
+                    form,
+                    condition,
+                    body,
+                } => lower.lower_while(label, form, &condition, body),
+
+                // for (init; cond; step) { ... }
+                dir::Expression::For {
+                    label,
+                    initialization,
+                    condition,
+                    increment,
+                    body,
+                } => lower.lower_for(label, initialization, condition, increment, body),
+
+                // loop { ... }
+                dir::Expression::Loop { label, body } => lower.lower_loop(label, body),
+
+                // break label
+                dir::Expression::Break { label, value } => lower.lower_break(label, value),
+
+                // continue label
+                dir::Expression::Continue { label } => lower.lower_continue(label),
+
+                // Meters(5)
+                dir::Expression::Call { .. }
+                    if let Some(resolution) = lower.construct_decision(statement) =>
+                {
+                    lower.lower_construct(statement, &resolution)?;
+
+                    Ok(false)
+                }
+
+                // call(...)
+                dir::Expression::Call { .. } => {
+                    lower.lower_call(statement)?;
+
+                    Ok(false)
+                }
+
+                other => Err(LowerError::Unsupported {
+                    anchor: lower.lowerer.module.into(),
+                    construct: format!("'{}' statements", other.variant_name()),
+                }
+                .into()),
             }
-
-            // let x = value
-            dir::Expression::Let {
-                mutability,
-                declarators,
-                ..
-            } => {
-                lower.lower_let(mutability, &declarators)?;
-
-                Ok(false)
-            }
-
-            // x = value
-            dir::Expression::Assign {
-                left,
-                operator,
-                right,
-            } => {
-                lower.lower_assign(statement, left, operator, right)?;
-
-                Ok(false)
-            }
-
-            // x++
-            dir::Expression::Unary {
-                operator:
-                    dir::UnaryOperator::PostIncrement
-                    | dir::UnaryOperator::PostDecrement
-                    | dir::UnaryOperator::PreIncrement
-                    | dir::UnaryOperator::PreDecrement,
-                right,
-            } => {
-                lower.lower_update(statement, right)?;
-
-                Ok(false)
-            }
-
-            // if (cond) { ... } else { ... }
-            dir::Expression::If {
-                form: dir::IfForm::If,
-                condition,
-                then_expression,
-                else_expression,
-            } => lower.lower_if(&condition, then_expression, else_expression),
-
-            // debugger
-            dir::Expression::Debugger => {
-                lower.builder.breakpoint();
-
-                Ok(false)
-            }
-
-            // switch (value) { ... }
-            dir::Expression::Switch { value, cases } => lower.lower_switch(value, &cases),
-
-            // while (cond) { ... }
-            dir::Expression::While {
-                label,
-                form,
-                condition,
-                body,
-            } => lower.lower_while(label, form, &condition, body),
-
-            // for (init; cond; step) { ... }
-            dir::Expression::For {
-                label,
-                initialization,
-                condition,
-                increment,
-                body,
-            } => lower.lower_for(label, initialization, condition, increment, body),
-
-            // loop { ... }
-            dir::Expression::Loop { label, body } => lower.lower_loop(label, body),
-
-            // break label
-            dir::Expression::Break { label, value } => lower.lower_break(label, value),
-
-            // continue label
-            dir::Expression::Continue { label } => lower.lower_continue(label),
-
-            // Meters(5)
-            dir::Expression::Call { .. }
-                if let Some(resolution) = lower.construct_decision(statement) =>
-            {
-                lower.lower_construct(statement, &resolution)?;
-
-                Ok(false)
-            }
-
-            // call(...)
-            dir::Expression::Call { .. } => {
-                lower.lower_call(statement)?;
-
-                Ok(false)
-            }
-
-            other => Err(LowerError::Unsupported {
-                anchor: lower.lowerer.module.into(),
-                construct: format!("'{}' statements", other.variant_name()),
-            }
-            .into()),
         })
     }
 

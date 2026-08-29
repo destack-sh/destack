@@ -32,7 +32,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 // route intrinsic and binding callables before declared functions
                 match self.lowerer.callable_implementation(function.key.symbol)? {
                     Some(CallableImplementation::Intrinsic { name }) => {
-                        return self.lower_intrinsic_call(expression, name, call);
+                        return self.lower_intrinsic_call(name, call);
                     }
                     Some(CallableImplementation::Binding { .. }) => {
                         return self.lower_binding_call(function.key.symbol, call);
@@ -117,7 +117,7 @@ impl FunctionLowerer<'_, '_, '_> {
         signature: mir::TypeId,
     ) -> CompilerResult<Vec<mir::TypeId>> {
         // read each parameter representation the signature declares
-        match self.builder.tree().get(signature) {
+        match self.builder.tree().ty(signature) {
             mir::Type::FunctionSignature { parameters, .. } => {
                 Ok(parameters.iter().map(|parameter| parameter.ty).collect())
             }
@@ -170,7 +170,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         .into());
                     };
                     let representation = self.lower_type(argument)?;
-                    let representation = self.builder.tree().get(representation).clone();
+                    let representation = self.builder.tree().ty(representation).clone();
 
                     self.lower_constant(literal, representation)?
                 }
@@ -212,7 +212,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // store the aggregate in one frame slot
         let storage = self.builder.tree_mut().intern_type(mir::Type::FixedArray {
-            element: mir::TypeId::from(element),
+            element,
             length: values.len() as u64,
             copy: mir::Copy::No,
         });
@@ -231,7 +231,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let slice = self.builder.tree_mut().intern_type(mir::Type::Slice {
             kind: mir::ReferenceKind::Borrowed,
             lifetime: mir::Lifetime::empty(),
-            element: mir::TypeId::from(element),
+            element,
             storage: mir::Storage::Frame,
             access: mir::Access::Readonly,
             nullability: mir::Nullability::None,
@@ -461,7 +461,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // call through the value's declared signature
         let ty = self.value_representation(callee)?;
-        let signature = match self.builder.tree().get(ty) {
+        let signature = match self.builder.tree().ty(ty) {
             mir::Type::Function { signature, .. } | mir::Type::FunctionPointer { signature } => {
                 *signature
             }
@@ -471,7 +471,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             }
         };
-        let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
+        let parameters = self.signature_parameters(signature)?;
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
         Ok(self

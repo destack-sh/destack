@@ -19,7 +19,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         id: dir::GlobalTypeId,
         access: Option<mir::Access>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let dir::Type::Form(form) = self.lowerer.ty(id)? else {
             return Err(CompilerError::Internal {
                 message: "lowering entered the form algebra outside a form type".to_string(),
@@ -126,7 +126,7 @@ impl TypeLowerer<'_, '_> {
         lifetime: mir::Lifetime,
         access: mir::Access,
         payload: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // fuse dynamic payload references into the erased descriptor
         if let dir::Type::Dynamic(dynamic) = self.lowerer.ty(payload)? {
             let constraint = self.lower_dynamic_constraint(dynamic.constraint)?;
@@ -189,7 +189,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         payload: dir::GlobalTypeId,
         access: mir::Access,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let pointee = self.lower_pointee(payload)?;
 
         Ok(self.tree.intern_type(mir::Type::Pointer {
@@ -203,7 +203,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_pointee(
         &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let ty = self.lowerer.ty(id)?;
 
         // store reference primitives as their representation classes
@@ -243,7 +243,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         id: dir::GlobalTypeId,
         access: Option<mir::Access>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // reference families receive the access on their implicit managed layer
         if self.lowerer.has_indirect_representation(id)? {
             return self.lower_reference(
@@ -524,22 +524,21 @@ impl TypeLowerer<'_, '_> {
     /// Widen one lowered reference-like type with the nullish values it admits.
     pub(in crate::lower) fn insert_nullability(
         &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         nullability: mir::Nullability,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // widen through lifetime applications onto their base
-        if let mir::Type::Application { base, lifetimes } = self.tree.get(ty) {
+        if let mir::Type::Application { base, lifetimes } = self.tree.ty(ty) {
             let (base, lifetimes) = (*base, lifetimes.clone());
             let base = self.insert_nullability(base, nullability)?;
 
-            return Ok(self.tree.intern_type(mir::Type::Application {
-                base: mir::TypeId::from(base),
-                lifetimes,
-            }));
+            return Ok(self
+                .tree
+                .intern_type(mir::Type::Application { base, lifetimes }));
         }
 
         // widen the lowered type in place
-        let mut ty = self.tree.get(ty).clone();
+        let mut ty = self.tree.ty(ty).clone();
         if !ty.set_nullability(nullability) {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -556,8 +555,8 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         kind: mir::ReferenceKind,
         access: mir::Access,
-        pointee: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
+        pointee: mir::TypeId,
+    ) -> mir::TypeId {
         self.tree.intern_type(mir::Type::Reference {
             kind,
             lifetime: mir::Lifetime::empty(),
@@ -596,8 +595,8 @@ pub(in crate::lower) fn insert_reference_type(
     kind: mir::ReferenceKind,
     access: mir::Access,
     storage: mir::Storage,
-    pointee: mir::LocalNodeId<mir::Type>,
-) -> mir::LocalNodeId<mir::Type> {
+    pointee: mir::TypeId,
+) -> mir::TypeId {
     tree.intern_type(mir::Type::Reference {
         kind,
         lifetime: mir::Lifetime::empty(),

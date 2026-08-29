@@ -47,6 +47,42 @@ impl ModuleLowerer<'_> {
 
         // lead member callables with their receiver and qualify by owner
         let member = self.imported_member(symbol)?;
+        let state = self.state(symbol.module_id)?;
+        let source = state
+            .bindings
+            .get_symbol(symbol.local_id)
+            .declaration
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("function symbol {symbol:?} has no declaration node"),
+            })?;
+        let tree = state.tree();
+        let source_signature = match source.local_id.ty {
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::new(source.local_id.id);
+                match tree.get(declaration) {
+                    dir::Declaration::Function(function) => Some(&function.signature),
+                    _ => None,
+                }
+            }
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(source.local_id.id);
+                tree.get(member).signature()
+            }
+            dir::NodeType::TypeMember => {
+                let member = dir::LocalNodeId::<dir::TypeMember>::new(source.local_id.id);
+                tree.get(member).signature()
+            }
+            dir::NodeType::Property => {
+                let property = dir::LocalNodeId::<dir::Property>::new(source.local_id.id);
+                tree.get(property).signature()
+            }
+            _ => None,
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("function symbol {symbol:?} has no source signature"),
+        })?;
+        let this_parameter = source_signature.this_parameter;
+        let parameter_nodes = source_signature.parameters.to_vec();
         let (name, receiver) = match &member {
             Some(member) => {
                 let (name, receiver) = self.imported_member_header(
@@ -77,8 +113,24 @@ impl ModuleLowerer<'_> {
         // lower the signature, prepending the receiver of a method import
         let (mut parameters, result) =
             self.lower_signature(builder, declared, None, &lifetime_parameters)?;
+        if parameters.len() != parameter_nodes.len() {
+            return Err(CompilerError::Internal {
+                message: "import parameters disagree with the declared signature".to_string(),
+            });
+        }
+        let mut parameter_provenance = parameter_nodes
+            .into_iter()
+            .map(|parameter| self.node_provenance(parameter.into_global_any(symbol.module_id)))
+            .collect::<CompilerResult<Vec<_>>>()?;
         if let Some(receiver) = receiver {
             parameters.insert(0, receiver);
+            let source = match this_parameter {
+                Some(parameter) => {
+                    self.node_provenance(parameter.into_global_any(symbol.module_id))?
+                }
+                None => self.node_provenance(source)?,
+            };
+            parameter_provenance.insert(0, source);
         }
 
         // give constructors a void result
@@ -92,8 +144,10 @@ impl ModuleLowerer<'_> {
 
         // declare the header as an external function under the imported name
         let header = lifetime_parameters.declare(builder.function_header(&name));
+        let source = self.node_provenance(source)?;
+        let parameters = parameters.into_iter().zip(parameter_provenance);
         let header = header.parameters(parameters).result(result);
-        let function = builder.external_function(header);
+        let function = builder.external_function(header, &[source]);
         self.index_language_declaration(function, symbol)?;
         self.functions
             .insert(key, FunctionDeclaration::Declared(function));
@@ -116,10 +170,12 @@ impl ModuleLowerer<'_> {
         let lifetimes = LifetimeParameters::default();
         let declared = self.symbol_type(symbol)?;
         let ty = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+            .type_lowerer(builder.split_mut(), pointer_bytes, &lifetimes)
             .lower(declared)?;
         let name = self.constant_name(symbol)?;
-        let global = builder.external_global(&name, ty, mir::Mutability::Immutable);
+        let declaration = self.declaration(symbol)?;
+        let source = self.node_provenance(declaration)?;
+        let global = builder.external_global(&name, ty, mir::Mutability::Immutable, source);
         self.index_language_declaration(global, symbol)?;
         self.globals.insert(symbol, Ok(global));
 
@@ -166,11 +222,59 @@ impl ModuleLowerer<'_> {
         let (parameters, result) =
             self.lower_host_signature(builder, declared, &lifetime_parameters)?;
 
+        // read the written parameter occurrences
+        let state = self.state(symbol.module_id)?;
+        let source = state
+            .bindings
+            .get_symbol(symbol.local_id)
+            .declaration
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("function symbol {symbol:?} has no declaration node"),
+            })?;
+        let tree = state.tree();
+        let source_signature = match source.local_id.ty {
+            dir::NodeType::Declaration => {
+                let declaration = dir::LocalNodeId::new(source.local_id.id);
+                match tree.get(declaration) {
+                    dir::Declaration::Function(function) => Some(&function.signature),
+                    _ => None,
+                }
+            }
+            dir::NodeType::Member => {
+                let member = dir::LocalNodeId::<dir::Member>::new(source.local_id.id);
+                tree.get(member).signature()
+            }
+            dir::NodeType::TypeMember => {
+                let member = dir::LocalNodeId::<dir::TypeMember>::new(source.local_id.id);
+                tree.get(member).signature()
+            }
+            dir::NodeType::Property => {
+                let property = dir::LocalNodeId::<dir::Property>::new(source.local_id.id);
+                tree.get(property).signature()
+            }
+            _ => None,
+        }
+        .ok_or_else(|| CompilerError::Internal {
+            message: format!("function symbol {symbol:?} has no source signature"),
+        })?;
+        let parameter_nodes = source_signature.parameters.to_vec();
+        if parameters.len() != parameter_nodes.len() {
+            return Err(CompilerError::Internal {
+                message: "binding parameters disagree with the declared signature".to_string(),
+            });
+        }
+        let parameter_provenance = parameter_nodes
+            .into_iter()
+            .map(|parameter| self.node_provenance(parameter.into_global_any(symbol.module_id)))
+            .collect::<CompilerResult<Vec<_>>>()?;
+
         // declare the header as a host binding under the dotted extern name
         let name = self.strings.get(binding.name);
         let header = lifetime_parameters.declare(builder.function_header(name));
+        let source = self.node_provenance(source)?;
+        let parameters = parameters.into_iter().zip(parameter_provenance);
         let header = header.parameters(parameters).result(result);
-        let function = builder.binding_function(header, binding);
+        let function = builder.binding_function(header, binding, &[source]);
         self.index_language_declaration(function, symbol)?;
 
         // mark bindings as observing external state
@@ -186,8 +290,8 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
         key: &GenericInstanceKey,
-        storage: mir::LocalNodeId<mir::Type>,
-        value: mir::LocalNodeId<mir::Type>,
+        storage: mir::TypeId,
+        value: mir::TypeId,
     ) -> CompilerResult<()> {
         // mirror the owner's instantiated instance identity
         let symbol = key.symbol;
@@ -209,13 +313,27 @@ impl ModuleLowerer<'_> {
         // declare the extern at the hook's fixed drop shape
         let name = self.qualified_name(symbol.module_id, &path)?;
         let void = builder.tree_mut().intern_type(mir::Type::Void);
+        let declaration = self.declaration(symbol)?;
+        let mut source = self.node_provenance(declaration)?;
+
+        // expand generic hooks under the nominal instance
+        if !key.arguments.is_empty() {
+            let declaration = builder.tree().type_declaration(storage).ok_or_else(|| {
+                CompilerError::Internal {
+                    message: "a specialized drop hook without a nominal declaration".to_string(),
+                }
+            })?;
+            let site = builder.tree().provenance(declaration);
+            let (_, mut provenance) = builder.split_mut();
+            source = provenance.expand(source, site);
+        }
         let header = builder
             .function_header(&name)
             .arguments(key.arguments.iter().cloned())
             .symbol(instance)
-            .parameters(vec![mir::TypeId::from(receiver)])
+            .parameter(receiver, source)
             .result(void);
-        let function = builder.external_function(header);
+        let function = builder.external_function(header, &[source]);
         self.functions
             .insert(key.clone(), FunctionDeclaration::Declared(function));
 
@@ -231,14 +349,14 @@ impl ModuleLowerer<'_> {
         signature: dir::FunctionSignatureId,
         owner: ModuleId,
         lifetime_parameters: &LifetimeParameters,
-    ) -> CompilerResult<(String, Option<mir::LocalNodeId<mir::Type>>)> {
+    ) -> CompilerResult<(String, Option<mir::TypeId>)> {
         let pointer_bytes = builder.pointer_bytes();
         let receiver = match member.role {
             // pass an exclusive reference to uninitialized constructor storage
             Some(dir::FunctionRole::Constructor) => {
                 let owner = self.symbol_type(member.owner)?;
                 let value = self
-                    .type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                    .type_lowerer(builder.split_mut(), pointer_bytes, lifetime_parameters)
                     .lower_nominal(owner)?;
 
                 {
@@ -266,7 +384,7 @@ impl ModuleLowerer<'_> {
                 let specialization = self.specialization_of(symbol, None, &[])?;
 
                 Some(
-                    self.type_lowerer(builder.tree_mut(), pointer_bytes, lifetime_parameters)
+                    self.type_lowerer(builder.split_mut(), pointer_bytes, lifetime_parameters)
                         .with_instance(specialization)
                         .lower(declared)?,
                 )

@@ -52,7 +52,7 @@ pub(in crate::lower) enum Binding {
         /// The field index within the frame.
         field: u32,
         /// The stored field type.
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
     },
 }
 
@@ -81,7 +81,7 @@ pub(in crate::lower) struct FunctionDefinition {
     /// The polymorphic lifetime parameters of this definition.
     pub(in crate::lower) lifetime_parameters: LifetimeParameters,
     /// The module declaring this body.
-    pub(in crate::lower) source: destack_source::ModuleId,
+    pub(in crate::lower) source: ModuleId,
     /// The body expression.
     pub(in crate::lower) expression: dir::LocalNodeId<dir::Expression>,
     /// The class this constructor body initializes, when one exists.
@@ -308,8 +308,12 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
 
         // store each binding in declaration order
         for (global, expression) in initializers {
-            let value = function.lower_expression(expression)?;
-            function.builder.store_global(global, value);
+            function.lower_anchored(expression, |function| {
+                let value = function.lower_expression(expression)?;
+                function.builder.store_global(global, value);
+
+                Ok(())
+            })?;
         }
 
         // close the initializer with a void return
@@ -352,18 +356,23 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         value
     }
 
-    /// Lower one node through a step with its emitted MIR anchored at the node's source extent.
+    /// Lower one expression with its emitted MIR attributed to that occurrence.
     pub(in crate::lower) fn lower_anchored<R>(
         &mut self,
-        node: dir::LocalNodeId<dir::Expression>,
+        expression: dir::LocalNodeId<dir::Expression>,
         lower: impl FnOnce(&mut Self) -> CompilerResult<R>,
     ) -> CompilerResult<R> {
-        // keep the enclosing anchor over an extent-less synthesized node
-        let Some(span) = self.source().tree().get_source_extent_by_id(node.id) else {
-            return lower(self);
-        };
+        let node = expression.into_global_any(self.source);
+        let mut source = self.lowerer.node_provenance(node)?;
 
-        let previous = self.builder.replace_source(Some((node.id, span)));
+        // expand generic body occurrences through their closed instance
+        if let Some(instance) = self.instance {
+            let site = self.lowerer.instance_provenance(instance)?;
+            let (_, mut provenance) = self.builder.split_mut();
+            source = provenance.expand(source, site);
+        }
+
+        let previous = self.builder.replace_source(source);
         let result = lower(self);
         self.builder.replace_source(previous);
 
@@ -382,7 +391,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     pub(in crate::lower) fn value_representation(
         &self,
         value: mir::Value,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         self.builder
             .value_type(value)
             .ok_or_else(|| CompilerError::Internal {
@@ -405,7 +414,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     pub(in crate::lower) fn lower_type(
         &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // resolve the written id through its materialized types
         let id = self.lowerer.instance_type(self.instance, id)?;
 
@@ -415,7 +424,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             let outcome = self
                 .lowerer
                 .type_lowerer(
-                    self.builder.tree_mut(),
+                    self.builder.split_mut(),
                     pointer_bytes,
                     &self.lifetime_parameters,
                 )
@@ -435,7 +444,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     pub(in crate::lower) fn lower_constraint(
         &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // resolve the written id through its materialized types
         let id = self.lowerer.instance_type(self.instance, id)?;
 
@@ -445,7 +454,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             let outcome = self
                 .lowerer
                 .type_lowerer(
-                    self.builder.tree_mut(),
+                    self.builder.split_mut(),
                     pointer_bytes,
                     &self.lifetime_parameters,
                 )
@@ -470,8 +479,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     ) -> CompilerResult<GenericInstanceKey> {
         let receiver = match receiver {
             Some(ty) => {
-                let node = self.lower_type(ty)?;
-                let ty = mir::TypeId::from(node);
+                let ty = self.lower_type(ty)?;
                 Some(self.builder.tree_mut().intern_static(mir::Static::Type(ty)))
             }
             None => None,
@@ -497,11 +505,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
                 }
                 // every other argument binds a type
                 None => {
-                    let node = self.lower_type(*ty)?;
-                    let argument = self
-                        .builder
-                        .tree_mut()
-                        .intern_static(mir::Static::Type(mir::TypeId::from(node)));
+                    let ty = self.lower_type(*ty)?;
+                    let argument = self.builder.tree_mut().intern_static(mir::Static::Type(ty));
                     arguments.push(argument);
                 }
             }
@@ -539,7 +544,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             let outcome = self
                 .lowerer
                 .type_lowerer(
-                    self.builder.tree_mut(),
+                    self.builder.split_mut(),
                     pointer_bytes,
                     &self.lifetime_parameters,
                 )
@@ -583,8 +588,8 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         kind: mir::ReferenceKind,
         access: mir::Access,
         storage: mir::Storage,
-        pointee: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
+        pointee: mir::TypeId,
+    ) -> mir::TypeId {
         insert_reference_type(self.builder.tree_mut(), kind, access, storage, pointee)
     }
 }

@@ -214,7 +214,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // compare the tag with a constant of its exact integer representation
         let tag_type = self.value_representation(tag)?;
-        let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
+        let mir::Type::Int { width, is_signed } = *self.builder.tree().ty(tag_type) else {
             return Err(CompilerError::Internal {
                 message: "a lowered discriminant tag is not an integer".to_string(),
             });
@@ -309,7 +309,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // classify the operand by the representation it lowered to
         let ty = self.value_representation(value)?;
-        let ty = self.builder.tree().get(ty);
+        let ty = self.builder.tree().ty(ty);
 
         // preserve aggregate representations even when every case shares scalar behavior
         if matches!(ty, mir::Type::Variant { .. }) {
@@ -713,7 +713,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // compare the discriminant with the selected case index
         let tag = self.builder.variant_tag(value);
         let tag_type = self.value_representation(tag)?;
-        let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
+        let mir::Type::Int { width, is_signed } = *self.builder.tree().ty(tag_type) else {
             return Err(CompilerError::Internal {
                 message: "a lowered discriminant tag is not an integer".to_string(),
             });
