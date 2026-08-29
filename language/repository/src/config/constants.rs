@@ -10,6 +10,7 @@ pub(crate) const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
 pub(crate) const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
     "**/.destack/**",
     "**/.git/**",
+    "**/docs/**",
     "**/node_modules/**",
     "**/target/**",
     "**/vendor/**",
