@@ -182,7 +182,7 @@ impl FunctionEmitter<'_> {
     /// Return the variant addressed by one reference or pointer value.
     fn variant_pointee(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        let pointee = match self.optimized.tree.get(ty) {
+        let pointee = match self.optimized.tree.ty(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
             _ => return Err(self.invalid("stored native variant requires an address")),
         };

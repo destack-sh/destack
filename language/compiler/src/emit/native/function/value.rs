@@ -306,7 +306,7 @@ impl<'a> FunctionEmitter<'a> {
         }
 
         let ty = self.optimized.tree.storage_type(ty);
-        let definition = self.optimized.tree.get(ty);
+        let definition = self.optimized.tree.ty(ty);
         let is_signed = definition
             .int_info_with_pointer_width(self.types.layout.pointer_bits())
             .is_some_and(|(_, is_signed)| is_signed);
@@ -460,7 +460,7 @@ impl<'a> FunctionEmitter<'a> {
     /// Return the backing reference byte offset in one reference-like value.
     fn reference_offset(&self, value: mir::Value) -> Result<u32, EmitError> {
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        let offset = match self.optimized.tree.get(ty) {
+        let offset = match self.optimized.tree.ty(ty) {
             mir::Type::Function { .. } => self.types.pointer().bytes(),
             ty if ty.is_reference_representation() => 0,
             _ => return Err(self.invalid("value is not a reference representation")),

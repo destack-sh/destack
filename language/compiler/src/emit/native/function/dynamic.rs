@@ -20,7 +20,7 @@ impl FunctionEmitter<'_> {
             .optimized
             .tree
             .storage_type(self.value_type(destination)?);
-        let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.get(dynamic_type) else {
+        let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.ty(dynamic_type) else {
             return Err(self.invalid("native dynamic binding result is not dynamic"));
         };
         let table = self
@@ -62,7 +62,7 @@ impl FunctionEmitter<'_> {
         let storage = self
             .optimized
             .tree
-            .get(dynamic_type)
+            .ty(dynamic_type)
             .reference_storage()
             .ok_or_else(|| self.invalid("native dynamic value has no reference storage"))?;
         let (payload, offset) = self.dynamic_entry(dynamic, slot, builder)?;

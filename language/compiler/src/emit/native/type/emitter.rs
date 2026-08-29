@@ -59,7 +59,7 @@ impl<'a> TypeEmitter<'a> {
 
         self.optimized
             .tree
-            .get(ty)
+            .ty(ty)
             .int_info_with_pointer_width(self.layout.pointer_bits())
             .map(|(_, is_signed)| is_signed)
             .ok_or_else(|| self.unsupported("native operation requires an integer type"))
@@ -71,7 +71,7 @@ impl<'a> TypeEmitter<'a> {
         ty: mir::TypeId,
     ) -> Result<u32, EmitError> {
         let ty = self.optimized.tree.storage_type(ty);
-        let stride = match self.optimized.tree.get(ty) {
+        let stride = match self.optimized.tree.ty(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 self.element_stride(*pointee)?
             }

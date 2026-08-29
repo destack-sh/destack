@@ -61,7 +61,7 @@ impl<'a> FunctionEmitter<'a> {
         cases: mir::SwitchCaseSlice,
     ) -> Result<(), EmitError> {
         let variant_type = self.optimized.tree.storage_type(self.value_type(value)?);
-        let discriminant = match self.optimized.tree.get(variant_type) {
+        let discriminant = match self.optimized.tree.ty(variant_type) {
             mir::Type::Variant { discriminant, .. } => *discriminant,
             _ => return Err(self.internal("variant switch requires a variant value")),
         };
@@ -94,7 +94,15 @@ impl<'a> FunctionEmitter<'a> {
         } else {
             let label = bytecode::Label(self.next_label);
             self.next_label += 1;
-            self.stubs.push(Stub::Unreachable { label });
+            let (operation, provenance) = self
+                .builder
+                .mapping()
+                .map_err(|error| self.bytecode_error(error))?;
+            self.stubs.push(Stub::Unreachable {
+                label,
+                operation,
+                provenance,
+            });
 
             label
         };
@@ -266,8 +274,14 @@ impl<'a> FunctionEmitter<'a> {
         let parameters = parameters.iter().map(|parameter| parameter.value).collect();
         let label = bytecode::Label(self.next_label);
         self.next_label += 1;
+        let (operation, provenance) = self
+            .builder
+            .mapping()
+            .map_err(|error| self.bytecode_error(error))?;
         self.stubs.push(Stub::Transfer {
             label,
+            operation,
+            provenance,
             target: target.clone(),
             parameters,
         });

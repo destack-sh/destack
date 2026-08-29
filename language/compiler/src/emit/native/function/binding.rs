@@ -38,7 +38,7 @@ impl FunctionEmitter<'_> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Call, EmitError> {
         let mir::Callee::Direct { function } = call.callee else {
-            return Err(self.invalid("native indirect binding dispatch is not emitted yet"));
+            return Err(self.invalid("native indirect binding dispatch is unsupported"));
         };
         let callee = self.optimized.tree.get(function);
         let arguments = self.optimized.tree.get_values(call.arguments);

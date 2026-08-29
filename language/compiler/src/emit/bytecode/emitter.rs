@@ -1,13 +1,13 @@
 use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceBuilder, ProvenanceId};
 
 use crate::{EmitError, ObjectEmitter};
 
 use super::{FunctionEmission, FunctionEmitter, TypeEmitter};
 
-/// Emit one relocatable bytecode object from optimized MIR.
+/// A relocatable bytecode emitter for optimized MIR.
 #[derive(Debug)]
 pub struct BytecodeEmitter<'a> {
     /// Optimized MIR being emitted.
@@ -32,13 +32,15 @@ impl<'a> BytecodeEmitter<'a> {
     }
 
     /// Emit one relocatable bytecode object.
-    pub fn emit(&self) -> Result<bytecode::Object, EmitError> {
+    pub fn emit(&self, provenance: &mut ProvenanceBuilder) -> Result<bytecode::Object, EmitError> {
         let mut frames = Vec::new();
         let mut registers = Vec::new();
         let mut operations = Vec::new();
+        let mut mappings = Vec::new();
         let mut relocations = Vec::new();
         let mut code = Vec::new();
         let mut functions = Vec::with_capacity(self.object.functions().len());
+        let mut provenance = provenance.record("emit-bytecode");
 
         // emit functions in object order
         for &function_id in self.object.functions() {
@@ -57,12 +59,13 @@ impl<'a> BytecodeEmitter<'a> {
                 function_id,
                 function,
             )?
-            .emit()?;
+            .emit(&mut provenance)?;
             functions.push(self.append(
                 emitted,
                 &mut frames,
                 &mut registers,
                 &mut operations,
+                &mut mappings,
                 &mut relocations,
                 &mut code,
             )?);
@@ -78,6 +81,7 @@ impl<'a> BytecodeEmitter<'a> {
             .frames(frames)
             .registers(registers)
             .operations(operations)
+            .mappings(mappings)
             .relocations(relocations)
             .code(code)
             .build())
@@ -89,7 +93,8 @@ impl<'a> BytecodeEmitter<'a> {
         emitted: FunctionEmission,
         frames: &mut Vec<bytecode::FrameMap>,
         registers: &mut Vec<bytecode::RegisterSpan>,
-        operations: &mut Vec<bytecode::CodeOffset>,
+        operations: &mut Vec<(bytecode::CodeOffset, ProvenanceId)>,
+        mappings: &mut Vec<bytecode::Mapping>,
         relocations: &mut Vec<bytecode::Relocation>,
         code: &mut Vec<u8>,
     ) -> Result<bytecode::Function, EmitError> {
@@ -118,6 +123,11 @@ impl<'a> BytecodeEmitter<'a> {
         let operation_count = body.operations.len() as u32;
         operations.extend(body.operations);
 
+        // append physical provenance changes
+        let mapping_start = mappings.len() as u32;
+        let mapping_count = body.mappings.len() as u32;
+        mappings.extend(body.mappings);
+
         // append encoded bytes and relocate their object offsets
         let code_start = code.len() as u32;
         let code_len = body.code.len() as u32;
@@ -134,6 +144,7 @@ impl<'a> BytecodeEmitter<'a> {
                 byte_len: code_len,
             }),
             EntryRange::new(operation_start, operation_count),
+            EntryRange::new(mapping_start, mapping_count),
             body.register_count,
         ))
     }

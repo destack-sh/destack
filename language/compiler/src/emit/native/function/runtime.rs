@@ -81,7 +81,7 @@ impl<'a> FunctionEmitter<'a> {
     /// Return the heap space addressed by one reference-like type.
     pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<native::abi::Space, EmitError> {
         let ty = self.optimized.tree.storage_type(ty);
-        let definition = self.optimized.tree.get(ty);
+        let definition = self.optimized.tree.ty(ty);
 
         let space = definition
             .reference_storage()
@@ -140,7 +140,7 @@ impl<'a> FunctionEmitter<'a> {
             .declare(index, byte_len, alignment, self.output)
             .map_err(|error| Self::internal(self.module, error.to_string()))?;
 
-        // reuse one Cranelift global value for every occurrence
+        // reuse one Cranelift global value for every Program index
         let reference = if let Some(reference) = self.indices.get(&index).copied() {
             reference
         } else {

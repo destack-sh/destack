@@ -31,7 +31,7 @@ impl<'a> FunctionEmitter<'a> {
                 right,
             } => {
                 let ty = self.optimized.tree.storage_type(self.value_type(*left)?);
-                let ty = match self.optimized.tree.get(ty) {
+                let ty = match self.optimized.tree.ty(ty) {
                     mir::Type::Vector { element, .. } => *element,
                     _ => ty,
                 };
@@ -50,7 +50,7 @@ impl<'a> FunctionEmitter<'a> {
                     .optimized
                     .tree
                     .storage_type(self.value_type(*argument)?);
-                let is_float = self.optimized.tree.get(ty).is_float(&self.optimized.tree);
+                let is_float = self.optimized.tree.ty(ty).is_float(&self.optimized.tree);
                 let argument = self.scalar(*argument)?;
                 let value = match (*operator, is_float) {
                     (mir::UnaryOperator::Negate, false) => builder.ins().ineg(argument),

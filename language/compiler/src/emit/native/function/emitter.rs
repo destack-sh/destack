@@ -8,7 +8,7 @@ use cranelift_object::ObjectModule;
 use destack_artifact::MirOptimized;
 use destack_mir as mir;
 use destack_native as native;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId, ProvenanceJournal};
 
 use crate::{EmitError, ObjectEmitter};
 
@@ -16,7 +16,7 @@ use super::super::object::SymbolTable;
 use super::super::r#type::{TypeEmitter, ValueType};
 use super::{Local, StackMap, Value};
 
-/// Emit one MIR function into Cranelift IR.
+/// A Cranelift IR emitter for one MIR function.
 pub(crate) struct FunctionEmitter<'a> {
     /// Module receiving diagnostics.
     pub(super) module: ModuleId,
@@ -111,13 +111,17 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Emit one typed native function body.
-    pub(crate) fn emit(mut self, target: &mut cir::Function) -> Result<Vec<StackMap>, EmitError> {
+    pub(crate) fn emit(
+        mut self,
+        target: &mut cir::Function,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> Result<Vec<StackMap>, EmitError> {
         let mut context = FunctionBuilderContext::new();
         let mut builder = cranelift_frontend::FunctionBuilder::new(target, &mut context);
         self.create_blocks(&mut builder)?;
         self.bind_parameters(&mut builder)?;
         self.create_locals(&mut builder)?;
-        self.emit_blocks(&mut builder)?;
+        self.emit_blocks(&mut builder, provenance)?;
         builder.seal_all_blocks();
         builder.finalize(self.types.frontend_config());
 
@@ -131,6 +135,7 @@ impl<'a> FunctionEmitter<'a> {
         output: &mut ObjectModule,
         function_id: FuncId,
         function: &mir::Function,
+        provenance: ProvenanceId,
         target: &mut cir::Function,
     ) -> Result<(), EmitError> {
         let mut context = FunctionBuilderContext::new();
@@ -139,6 +144,7 @@ impl<'a> FunctionEmitter<'a> {
         builder.append_block_params_for_function_params(block);
         builder.switch_to_block(block);
         builder.seal_block(block);
+        builder.set_srcloc(cir::SourceLoc::new(provenance.index()));
 
         // unpack the fixed outer ABI parameters
         let parameters = builder.block_params(block).to_vec();
@@ -363,6 +369,7 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn emit_blocks(
         &mut self,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+        provenance: &mut ProvenanceJournal<'_>,
     ) -> Result<(), EmitError> {
         let mut blocks = self.function.blocks().to_vec();
         self.object.order_blocks(&mut blocks);
@@ -393,6 +400,9 @@ impl<'a> FunctionEmitter<'a> {
             let mut is_active = true;
             for instruction_id in &block.instructions {
                 let instruction = self.optimized.tree.get(*instruction_id);
+                let source = self.optimized.tree.provenance(*instruction_id);
+                let emitted = provenance.derive(source);
+                builder.set_srcloc(cir::SourceLoc::new(emitted.index()));
                 is_active = self.emit_instruction(*instruction_id, instruction, builder)?;
                 if !is_active {
                     break;
@@ -402,6 +412,9 @@ impl<'a> FunctionEmitter<'a> {
             // terminate the block exactly once
             if is_active {
                 let terminator = self.optimized.tree.get(block.terminator);
+                let source = self.optimized.tree.provenance(block.terminator);
+                let emitted = provenance.derive(source);
+                builder.set_srcloc(cir::SourceLoc::new(emitted.index()));
                 self.emit_terminator(block_id, terminator, builder)?;
             }
         }

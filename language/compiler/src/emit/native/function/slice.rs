@@ -23,7 +23,7 @@ impl FunctionEmitter<'_> {
         let start = self.scalar(start)?;
         let length = self.scalar(length)?;
         let result_type = self.optimized.tree.storage_type(result_type);
-        let element = match self.optimized.tree.get(result_type) {
+        let element = match self.optimized.tree.ty(result_type) {
             mir::Type::Slice { element, .. } => *element,
             _ => return Err(self.invalid("native slice view result is not a slice")),
         };

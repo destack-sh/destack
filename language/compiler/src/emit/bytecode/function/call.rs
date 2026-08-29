@@ -34,11 +34,11 @@ impl<'a> FunctionEmitter<'a> {
         let result = self
             .optimized
             .tree
-            .get(call.signature)
+            .ty(call.signature)
             .function_signature_parts()
             .map(|(_, _, result)| result)
             .ok_or_else(|| self.internal("call has no callable signature"))?;
-        let destinations = if matches!(self.optimized.tree.get(result), mir::Type::Void) {
+        let destinations = if matches!(self.optimized.tree.ty(result), mir::Type::Void) {
             Vec::new()
         } else {
             self.successor_destinations(terminator, mir::Successor::InvokeNormal, target)?

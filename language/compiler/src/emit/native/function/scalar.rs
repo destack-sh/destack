@@ -60,7 +60,7 @@ impl<'a> FunctionEmitter<'a> {
         use cir::condcodes::{FloatCC, IntCC};
 
         // emit floating point operations directly
-        if matches!(self.optimized.tree.get(ty), mir::Type::Float(_)) {
+        if matches!(self.optimized.tree.ty(ty), mir::Type::Float(_)) {
             let value = match operator {
                 mir::BinaryOperator::Add => builder.ins().fadd(left, right),
                 mir::BinaryOperator::Subtract => builder.ins().fsub(left, right),
@@ -259,8 +259,8 @@ impl<'a> FunctionEmitter<'a> {
         let pointer_bits = self.types.layout.pointer_bits();
         let source = self.optimized.tree.storage_type(source);
         let target = self.optimized.tree.storage_type(target);
-        let source_definition = self.optimized.tree.get(source);
-        let target_definition = self.optimized.tree.get(target);
+        let source_definition = self.optimized.tree.ty(source);
+        let target_definition = self.optimized.tree.ty(target);
         let source_integer = source_definition.int_info_with_pointer_width(pointer_bits);
         let target_integer = target_definition.int_info_with_pointer_width(pointer_bits);
         let source_float = matches!(source_definition, mir::Type::Float(_));
@@ -325,13 +325,13 @@ impl<'a> FunctionEmitter<'a> {
         let source = self
             .optimized
             .tree
-            .get(source)
+            .ty(source)
             .int_info_with_pointer_width(pointer_bits)
             .ok_or_else(|| self.invalid("native saturating cast source is not an integer"))?;
         let target = self
             .optimized
             .tree
-            .get(target)
+            .ty(target)
             .int_info_with_pointer_width(pointer_bits)
             .ok_or_else(|| self.invalid("native saturating cast target is not an integer"))?;
         let source_type = cir::Type::int(source.0)

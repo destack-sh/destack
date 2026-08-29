@@ -182,7 +182,7 @@ impl<'a> FunctionEmitter<'a> {
         let (source_width, source_signed) = self
             .optimized
             .tree
-            .get(source)
+            .ty(source)
             .int_info_with_pointer_width(pointer_bits)
             .ok_or_else(|| self.invalid("native narrow check value is not an integer"))?;
         let source_type = cir::Type::int(source_width)

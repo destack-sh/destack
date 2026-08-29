@@ -13,7 +13,7 @@ use destack_core::{FxIndexMap, FxIndexSet};
 use destack_mir as mir;
 use destack_native as native;
 use destack_repository::{OptimizeLevel, Target};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceBuilder, ProvenanceId, ProvenanceJournal};
 use target_lexicon::{Endianness, Triple};
 
 use crate::{EmitError, ObjectEmitter};
@@ -22,7 +22,7 @@ use super::function::{FunctionEmitter, StackMap};
 use super::object::{SymbolTable, UnwindEmitter};
 use super::r#type::TypeEmitter;
 
-/// Emit one target-dependent relocatable native object.
+/// A target-dependent native object emitter.
 pub struct NativeEmitter<'a> {
     /// Module receiving diagnostics.
     module: ModuleId,
@@ -54,6 +54,8 @@ pub struct NativeEmitter<'a> {
     blocks: Vec<Option<native::BlockBuilder>>,
     /// Object-local native trap sites.
     traps: Vec<native::ObjectTrap>,
+    /// Object-local native code provenance extents.
+    extents: Vec<native::ObjectCodeExtent>,
     /// Physical native frame maps.
     frame_maps: Vec<native::ObjectFrameMapBuilder>,
     /// Explicit target CPU features.
@@ -70,6 +72,7 @@ impl fmt::Debug for NativeEmitter<'_> {
             .field("functions", &self.functions.len())
             .field("blocks", &self.blocks.len())
             .field("traps", &self.traps.len())
+            .field("extents", &self.extents.len())
             .field("frame_maps", &self.frame_maps.len())
             .finish()
     }
@@ -113,15 +116,17 @@ impl<'a> NativeEmitter<'a> {
             definitions: Vec::new(),
             blocks: Vec::new(),
             traps: Vec::new(),
+            extents: Vec::new(),
             frame_maps: Vec::new(),
             features,
         })
     }
 
     /// Emit the complete relocatable native object.
-    pub fn emit(mut self) -> Result<native::Object, EmitError> {
+    pub fn emit(mut self, provenance: &mut ProvenanceBuilder) -> Result<native::Object, EmitError> {
         self.declare_functions()?;
-        self.emit_functions()?;
+        let mut provenance = provenance.record("emit-native");
+        self.emit_functions(&mut provenance)?;
 
         // require every reserved code block to have been compiled
         let blocks = self
@@ -137,17 +142,16 @@ impl<'a> NativeEmitter<'a> {
         let target = self.isa.triple().to_string();
         let unwind = self.unwind.build()?;
 
-        Ok(native::ObjectBuilder::new(target, self.layout)
+        let map = native::ObjectMapBuilder::new(self.extents)
+            .traps(self.traps)
+            .frames(self.frame_maps);
+
+        Ok(native::ObjectBuilder::new(target, self.layout, map)
             .features(self.features)
             .symbols(self.symbols.into_values())
             .blocks(blocks)
             .definitions(self.definitions)
             .unwind(unwind)
-            .map(
-                native::ObjectMapBuilder::new()
-                    .traps(self.traps)
-                    .frames(self.frame_maps),
-            )
             .build())
     }
 
@@ -194,7 +198,7 @@ impl<'a> NativeEmitter<'a> {
     }
 
     /// Emit every defined body and canonical entry.
-    fn emit_functions(&mut self) -> Result<(), EmitError> {
+    fn emit_functions(&mut self, provenance: &mut ProvenanceJournal<'_>) -> Result<(), EmitError> {
         for index in 0..self.object.functions().len() {
             let id = self.object.functions()[index];
             let function = self.optimized.tree.get(id);
@@ -204,7 +208,8 @@ impl<'a> NativeEmitter<'a> {
             let body = definition.body();
             let entry = definition.entry();
             let frame_base = self.frame_maps.len() as u32;
-            let (mut context, stack_maps) = self.lower_body(index, id, function, frame_base)?;
+            let (mut context, stack_maps, body_provenance) =
+                self.lower_body(index, id, function, frame_base, provenance)?;
             let function_id = self.functions[&id];
 
             // compile the typed native body
@@ -213,15 +218,18 @@ impl<'a> NativeEmitter<'a> {
                 .map_err(|error| Self::internal(self.module, error.to_string()))?;
             let frame_maps = Self::frame_maps(self.module, body, &context, stack_maps)?;
             self.frame_maps.extend(frame_maps);
-            self.blocks[body.index()] = Some(self.block(function_id, body, &context)?);
+            self.blocks[body.index()] =
+                Some(self.block(function_id, body, body_provenance, &context)?);
 
             // compile the canonical engine-transition entry
             let entry_id = self.entries[&id];
-            let mut context = self.lower_entry(index, function_id, function)?;
+            let (mut context, entry_provenance) =
+                self.lower_entry(index, id, function_id, function, provenance)?;
             self.output
                 .define_function(entry_id, &mut context)
                 .map_err(|error| Self::internal(self.module, error.to_string()))?;
-            self.blocks[entry.index()] = Some(self.block(entry_id, entry, &context)?);
+            self.blocks[entry.index()] =
+                Some(self.block(entry_id, entry, entry_provenance, &context)?);
         }
 
         Ok(())
@@ -234,13 +242,16 @@ impl<'a> NativeEmitter<'a> {
         id: mir::FunctionId,
         function: &mir::Function,
         frame_base: u32,
-    ) -> Result<(Context, Vec<StackMap>), EmitError> {
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> Result<(Context, Vec<StackMap>, ProvenanceId), EmitError> {
         let function_id = self.functions[&id];
         let isa = self.isa.clone();
         let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
         let mut context = Context::new();
         context.func.signature = types.signature(function)?;
         context.func.name = cir::UserFuncName::user(0, function_id.as_u32());
+        let source = self.optimized.tree.provenance(id);
+        let body_provenance = provenance.generate(&[source]);
         let stack_maps = FunctionEmitter::new(
             self.module,
             self.optimized,
@@ -254,35 +265,40 @@ impl<'a> NativeEmitter<'a> {
             index as u32,
             frame_base,
         )?
-        .emit(&mut context.func)?;
+        .emit(&mut context.func, provenance)?;
         self.verify(&context)?;
 
-        Ok((context, stack_maps))
+        Ok((context, stack_maps, body_provenance))
     }
 
     /// Lower one canonical engine-transition entry into Cranelift IR.
     fn lower_entry(
         &mut self,
         index: usize,
+        id: mir::FunctionId,
         function_id: FuncId,
         function: &mir::Function,
-    ) -> Result<Context, EmitError> {
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> Result<(Context, ProvenanceId), EmitError> {
         let isa = self.isa.clone();
         let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
         let mut context = Context::new();
         context.func.signature = types.entry_signature();
         context.func.name = cir::UserFuncName::user(1, index as u32);
+        let source = self.optimized.tree.provenance(id);
+        let provenance = provenance.generate(&[source]);
         FunctionEmitter::emit_entry(
             self.module,
             &types,
             &mut self.output,
             function_id,
             function,
+            provenance,
             &mut context.func,
         )?;
         self.verify(&context)?;
 
-        Ok(context)
+        Ok((context, provenance))
     }
 
     /// Format canonical Cranelift IR emitted for tests.
@@ -291,6 +307,8 @@ impl<'a> NativeEmitter<'a> {
         self.declare_functions()?;
         let mut rendered = Vec::new();
         let mut frame_base = 0;
+        let mut provenance = self.optimized.provenance.extend();
+        let mut provenance = provenance.record("emit-native");
 
         // lower every body and entry through the production path
         for index in 0..self.object.functions().len() {
@@ -299,11 +317,13 @@ impl<'a> NativeEmitter<'a> {
             if !function.is_defined() {
                 continue;
             }
-            let (context, stack_maps) = self.lower_body(index, id, function, frame_base)?;
+            let (context, stack_maps, _) =
+                self.lower_body(index, id, function, frame_base, &mut provenance)?;
             rendered.push(context.func.display().to_string());
             frame_base += stack_maps.len() as u32;
             let function_id = self.functions[&id];
-            let context = self.lower_entry(index, function_id, function)?;
+            let (context, _) =
+                self.lower_entry(index, id, function_id, function, &mut provenance)?;
             rendered.push(context.func.display().to_string());
         }
 
@@ -318,6 +338,7 @@ impl<'a> NativeEmitter<'a> {
         &mut self,
         function: FuncId,
         block: native::BlockId,
+        generated: ProvenanceId,
         context: &Context,
     ) -> Result<native::BlockBuilder, EmitError> {
         let compiled = context
@@ -325,6 +346,41 @@ impl<'a> NativeEmitter<'a> {
             .ok_or_else(|| Self::internal(self.module, "native function was not compiled"))?;
         let alignment = native::Alignment::new(compiled.buffer.alignment)
             .ok_or_else(|| Self::internal(self.module, "native function has invalid alignment"))?;
+
+        // retain every machine byte under native provenance
+        let mut end = 0;
+        for extent in compiled.buffer.get_srclocs_sorted() {
+            // ignore empty backend ranges
+            if extent.start >= extent.end {
+                continue;
+            }
+
+            // require disjoint ranges from Cranelift
+            if extent.start < end {
+                return Err(Self::internal(
+                    self.module,
+                    "native source locations overlap",
+                ));
+            }
+
+            // attribute backend generated gaps to the enclosing function
+            if end < extent.start {
+                self.append_extent(block, end, extent.start, generated);
+            }
+            let provenance = if extent.loc.is_default() {
+                generated
+            } else {
+                ProvenanceId::new(extent.loc.bits())
+            };
+            self.append_extent(block, extent.start, extent.end, provenance);
+            end = extent.end;
+        }
+
+        // attribute the final backend generated range
+        let byte_len = compiled.buffer.data().len() as u32;
+        if end < byte_len {
+            self.append_extent(block, end, byte_len, generated);
+        }
 
         // convert every Cranelift relocation into an object-local symbol reference
         let relocations = compiled
@@ -358,6 +414,32 @@ impl<'a> NativeEmitter<'a> {
         self.unwind.add(symbol, compiled, self.isa.as_ref())?;
 
         Ok(native::BlockBuilder::new(compiled.buffer.data(), alignment).relocations(relocations))
+    }
+
+    /// Append one native code extent, merging adjacent matching provenance.
+    fn append_extent(
+        &mut self,
+        block: native::BlockId,
+        start: u32,
+        end: u32,
+        provenance: ProvenanceId,
+    ) {
+        let byte_len = end - start;
+
+        // merge adjacent ranges with the same attribution
+        if let Some(previous) = self.extents.last_mut()
+            && previous.block == block
+            && previous.range.end() == start
+            && previous.provenance == provenance
+        {
+            previous.range.byte_len += byte_len;
+        } else {
+            self.extents.push(native::ObjectCodeExtent {
+                block,
+                range: native::CodeRange::new(start, byte_len),
+                provenance,
+            });
+        }
     }
 
     /// Convert one Cranelift trap into its language ABI classification.

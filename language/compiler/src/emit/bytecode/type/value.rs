@@ -10,7 +10,7 @@ impl TypeEmitter<'_> {
     pub(crate) fn register_type(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
         // resolve the storage type behind the MIR type and its layout
         let representation = self.optimized.tree.storage_type(ty);
-        let definition = self.optimized.tree.get(representation);
+        let definition = self.optimized.tree.ty(representation);
         let layout = self.layout(representation)?;
 
         // map each MIR type onto its bytecode register representation
@@ -102,7 +102,7 @@ impl TypeEmitter<'_> {
         };
 
         // pick the signedness and width from the MIR type
-        match self.optimized.tree.get(storage) {
+        match self.optimized.tree.ty(storage) {
             mir::Type::Boolean => Ok(bytecode::Scalar::Boolean),
             mir::Type::Character => Ok(bytecode::Scalar::Uint32),
             mir::Type::Int { is_signed, .. } => self.integer_scalar(scalar.bit_width(), *is_signed),
@@ -118,11 +118,7 @@ impl TypeEmitter<'_> {
 
     /// Return one uninitialized bytecode representation.
     fn uninitialized(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
-        match self
-            .optimized
-            .tree
-            .get(self.optimized.tree.storage_type(ty))
-        {
+        match self.optimized.tree.ty(self.optimized.tree.storage_type(ty)) {
             mir::Type::Reference { kind, storage, .. } => {
                 Ok(bytecode::ValueType::uninit_reference(
                     self.reference_kind(*kind),

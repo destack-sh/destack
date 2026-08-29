@@ -306,7 +306,7 @@ impl<'a> FunctionEmitter<'a> {
             .optimized
             .tree
             .storage_type(self.value_type(aggregate)?);
-        let (aggregate_type, base) = match self.optimized.tree.get(aggregate_type) {
+        let (aggregate_type, base) = match self.optimized.tree.ty(aggregate_type) {
             // preserve stable reference and pointer bits while projecting their pointee
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => (
                 self.optimized.tree.storage_type(*pointee),
@@ -343,7 +343,7 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let base_type = self.optimized.tree.storage_type(self.value_type(base)?);
-        let address = match self.optimized.tree.get(base_type) {
+        let address = match self.optimized.tree.ty(base_type) {
             // fixed arrays are canonical frame values
             mir::Type::FixedArray { .. } => {
                 self.require_frame_reference(destination)?;
@@ -372,7 +372,7 @@ impl<'a> FunctionEmitter<'a> {
             .optimized
             .tree
             .storage_type(self.value_type(destination)?);
-        let storage = self.optimized.tree.get(ty).reference_storage();
+        let storage = self.optimized.tree.ty(ty).reference_storage();
         if storage != Some(mir::Storage::Frame) {
             return Err(self.invalid("native aggregate address is not frame relative"));
         }

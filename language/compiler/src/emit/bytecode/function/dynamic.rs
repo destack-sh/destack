@@ -17,7 +17,7 @@ impl<'a> FunctionEmitter<'a> {
             .optimized
             .tree
             .storage_type(self.value_type(destination)?);
-        let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.get(dynamic_type) else {
+        let mir::Type::Dynamic { constraint, .. } = self.optimized.tree.ty(dynamic_type) else {
             return Err(self.internal("dynamic binding result is not dynamic"));
         };
         let table = self.types.dynamic_id(concrete, *constraint)?;

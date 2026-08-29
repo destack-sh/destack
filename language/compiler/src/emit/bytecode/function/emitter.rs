@@ -3,7 +3,7 @@ use destack_core::FxIndexMap;
 use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_mir as mir;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceId, ProvenanceJournal};
 
 use crate::{EmitError, ObjectEmitter};
 
@@ -11,7 +11,7 @@ use super::super::TypeEmitter;
 use super::FrameEmission;
 use super::register::{RegisterAllocation, RegisterAllocator};
 
-/// Emit one MIR function into relocatable bytecode.
+/// A relocatable bytecode emitter for one MIR function.
 #[derive(Debug)]
 pub(crate) struct FunctionEmitter<'a> {
     /// Optimized MIR being emitted.
@@ -62,6 +62,10 @@ pub(super) enum Stub {
     Transfer {
         /// Branch label entering this transfer.
         label: bytecode::Label,
+        /// The logical operation that produced this transfer.
+        operation: u32,
+        /// The provenance inherited from the MIR terminator.
+        provenance: ProvenanceId,
         /// MIR edge target and arguments.
         target: mir::BlockTarget,
         /// Target parameters receiving the explicit edge arguments.
@@ -71,6 +75,10 @@ pub(super) enum Stub {
     Unreachable {
         /// Branch label entering this fallback.
         label: bytecode::Label,
+        /// The logical operation that produced this fallback.
+        operation: u32,
+        /// The provenance inherited from the MIR terminator.
+        provenance: ProvenanceId,
     },
 }
 
@@ -147,7 +155,10 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Emit the complete function definition.
-    pub(crate) fn emit(mut self) -> Result<FunctionEmission, EmitError> {
+    pub(crate) fn emit(
+        mut self,
+        provenance: &mut ProvenanceJournal<'_>,
+    ) -> Result<FunctionEmission, EmitError> {
         let body = self
             .function
             .body
@@ -164,11 +175,15 @@ impl<'a> FunctionEmitter<'a> {
 
             for instruction_id in &block.instructions {
                 let instruction = self.optimized.tree.get(*instruction_id);
-                self.builder.begin_operation();
+                let source = self.optimized.tree.provenance(*instruction_id);
+                let provenance = provenance.derive(source);
+                self.builder.begin_operation(provenance);
                 self.emit_instruction(*instruction_id, instruction)?;
             }
 
-            self.builder.begin_operation();
+            let source = self.optimized.tree.provenance(block.terminator);
+            let provenance = provenance.derive(source);
+            self.builder.begin_operation(provenance);
             self.emit_terminator(block_id, self.optimized.tree.get(block.terminator))?;
         }
 
@@ -177,14 +192,26 @@ impl<'a> FunctionEmitter<'a> {
             match stub {
                 Stub::Transfer {
                     label,
+                    operation,
+                    provenance,
                     target,
                     parameters,
                 } => {
                     self.define(label)?;
+                    self.builder
+                        .set_mapping(operation, provenance)
+                        .map_err(|error| self.bytecode_error(error))?;
                     self.emit_transfer(&target, &parameters)?;
                 }
-                Stub::Unreachable { label } => {
+                Stub::Unreachable {
+                    label,
+                    operation,
+                    provenance,
+                } => {
                     self.define(label)?;
+                    self.builder
+                        .set_mapping(operation, provenance)
+                        .map_err(|error| self.bytecode_error(error))?;
                     self.emit_empty(bytecode::Opcode::UNREACHABLE)?;
                 }
             }

@@ -22,9 +22,7 @@ impl<'a> FunctionEmitter<'a> {
             }
             // select one erased payload or environment destructor from its owner allocation
             None if matches!(
-                self.optimized
-                    .tree
-                    .get(self.optimized.tree.storage_type(ty)),
+                self.optimized.tree.ty(self.optimized.tree.storage_type(ty)),
                 mir::Type::Dynamic {
                     kind: mir::ReferenceKind::Unique,
                     ..

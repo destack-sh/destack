@@ -8,7 +8,7 @@ impl TypeEmitter<'_> {
     /// Return the value addressed by one reference-like MIR type.
     pub(crate) fn pointee(&self, ty: mir::TypeId) -> Result<mir::TypeId, EmitError> {
         let ty = self.optimized.tree.storage_type(ty);
-        let pointee = match self.optimized.tree.get(ty) {
+        let pointee = match self.optimized.tree.ty(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
             mir::Type::Slice { element, .. } => *element,
             _ => return Err(self.missing("reference pointee")),
@@ -20,7 +20,7 @@ impl TypeEmitter<'_> {
     /// Return the byte stride addressed by one indexed reference-like type.
     pub(crate) fn element_stride(&self, ty: mir::TypeId) -> Result<u32, EmitError> {
         let ty = self.optimized.tree.storage_type(ty);
-        let stride = match self.optimized.tree.get(ty) {
+        let stride = match self.optimized.tree.ty(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 self.element_stride(*pointee)?
             }

@@ -244,7 +244,7 @@ impl<'a> FunctionEmitter<'a> {
         let reference = self.reference(reference, builder)?;
 
         // take a pointer as it stands
-        match self.optimized.tree.get(ty) {
+        match self.optimized.tree.ty(ty) {
             mir::Type::Pointer { .. } => Ok(reference),
             // rebase reference bits on the storage they name
             ty => {

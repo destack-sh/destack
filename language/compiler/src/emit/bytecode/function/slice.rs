@@ -15,7 +15,7 @@ impl<'a> FunctionEmitter<'a> {
         length: mir::Value,
     ) -> Result<(), EmitError> {
         let source_type = self.optimized.tree.storage_type(self.value_type(source)?);
-        let mir::Type::Slice { element, .. } = self.optimized.tree.get(source_type) else {
+        let mir::Type::Slice { element, .. } = self.optimized.tree.ty(source_type) else {
             return Err(self.internal("slice view source is not a slice"));
         };
         let stride = self.types.byte_len(*element)?;

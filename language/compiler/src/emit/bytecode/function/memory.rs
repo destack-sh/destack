@@ -18,7 +18,7 @@ impl<'a> FunctionEmitter<'a> {
             .tree
             .storage_type(self.value_type(aggregate)?);
         if let mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } =
-            self.optimized.tree.get(aggregate_type)
+            self.optimized.tree.ty(aggregate_type)
         {
             aggregate_type = self.optimized.tree.storage_type(*pointee);
         }
@@ -62,7 +62,7 @@ impl<'a> FunctionEmitter<'a> {
         value: mir::Value,
     ) -> Result<(), EmitError> {
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        let source = match self.optimized.tree.get(ty) {
+        let source = match self.optimized.tree.ty(ty) {
             // direct references and pointers already contain address bits
             mir::Type::Reference { .. } | mir::Type::Pointer { .. } => self.word(value)?,
 
@@ -322,7 +322,7 @@ impl<'a> FunctionEmitter<'a> {
             .optimized
             .tree
             .storage_type(self.value_type(reference)?);
-        let address = match self.optimized.tree.get(ty) {
+        let address = match self.optimized.tree.ty(ty) {
             mir::Type::Pointer { .. } => bytecode::Address::Pointer,
             mir::Type::Reference { .. } => bytecode::Address::Reference,
             _ => return Err(self.internal("memory access requires a reference or pointer")),
@@ -498,7 +498,7 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<bytecode::RegisterId, EmitError> {
         let ty = self.optimized.tree.storage_type(self.value_type(source)?);
         let offset = usize::from(matches!(
-            self.optimized.tree.get(ty),
+            self.optimized.tree.ty(ty),
             mir::Type::Function { .. }
         ));
         if offset >= usize::from(value.word_count) {

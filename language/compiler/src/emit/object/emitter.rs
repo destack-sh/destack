@@ -5,7 +5,7 @@ use destack_mir as mir;
 use destack_native as native;
 use destack_program::object::{FrameState, Function, Global, Point, Type};
 use destack_program::{Object, ObjectBuilder};
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProvenanceTable};
 use destack_webassembly as wasm;
 
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
@@ -49,7 +49,7 @@ impl ObjectEmitter {
         // assign stable object type identities
         let mut types = Vec::new();
         let mut type_ids = Vec::new();
-        for (id, definition) in optimized.tree.iter_nodes::<mir::Type>() {
+        for (id, definition) in optimized.tree.iter_types() {
             type_ids.push(id);
 
             // read the name and language item off the declaration
@@ -277,9 +277,9 @@ impl ObjectEmitter {
         self
     }
 
-    /// Build the object with its selected execution forms.
-    pub fn build(self) -> Object {
-        self.object.frames(self.frames).build()
+    /// Build the object with its selected execution forms and provenance.
+    pub fn build(self, provenance: ProvenanceTable) -> Object {
+        self.object.frames(self.frames).build(provenance)
     }
 
     /// Build one internal object emission diagnostic.

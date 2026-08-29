@@ -93,7 +93,7 @@ impl FunctionEmitter<'_> {
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;
-        let is_float = matches!(self.optimized.tree.get(ty), mir::Type::Float(_));
+        let is_float = matches!(self.optimized.tree.ty(ty), mir::Type::Float(_));
         let old = match (is_float, operator) {
             // exchange the exact floating point representation directly
             (true, mir::AtomicRmwOperator::Exchange) => {

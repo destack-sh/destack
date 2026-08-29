@@ -30,7 +30,7 @@ impl TypeEmitter<'_> {
         let (_, parameters, result) = self
             .optimized
             .tree
-            .get(signature)
+            .ty(signature)
             .function_signature_parts()
             .ok_or_else(|| self.unsupported("native call signature is not callable"))?;
         let pointer = self.pointer();

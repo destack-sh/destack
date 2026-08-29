@@ -442,7 +442,7 @@ impl SiteEmitter {
 
     /// Return the storage of one reference-like MIR type.
     fn reference_storage(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Storage> {
-        match optimized.tree.get(optimized.tree.storage_type(ty)) {
+        match optimized.tree.ty(optimized.tree.storage_type(ty)) {
             mir::Type::Reference { storage, .. }
             | mir::Type::Slice { storage, .. }
             | mir::Type::Dynamic { storage, .. }
@@ -453,7 +453,7 @@ impl SiteEmitter {
 
     /// Return the stored value type addressed by one pointer or reference-like MIR type.
     fn pointee_type(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::TypeId> {
-        match optimized.tree.get(optimized.tree.storage_type(ty)) {
+        match optimized.tree.ty(optimized.tree.storage_type(ty)) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
                 Some(optimized.tree.storage_type(*pointee))
             }

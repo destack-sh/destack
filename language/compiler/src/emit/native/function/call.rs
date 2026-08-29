@@ -178,7 +178,7 @@ impl FunctionEmitter<'_> {
         let result = self
             .optimized
             .tree
-            .get(call.signature)
+            .ty(call.signature)
             .function_signature_parts()
             .map(|(_, _, result)| result)
             .ok_or_else(|| self.invalid("native call has no callable signature"))?;

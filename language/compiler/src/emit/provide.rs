@@ -267,13 +267,15 @@ impl Compiler {
             .target_modules()
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
+        let mut provenance = optimized.provenance.extend();
         let mut object = ObjectEmitter::new(module, &lowered, &optimized, modules)?;
 
         // emit every representation selected by this Program target
         for code in target_config.code.iter().copied() {
             object = match code {
                 Code::Bytecode => {
-                    let bytecode = BytecodeEmitter::new(module, &optimized, &object).emit()?;
+                    let bytecode =
+                        BytecodeEmitter::new(module, &optimized, &object).emit(&mut provenance)?;
 
                     object.bytecode(bytecode)
                 }
@@ -287,7 +289,7 @@ impl Compiler {
                             &object,
                             &target_config,
                         )?
-                        .emit()?;
+                        .emit(&mut provenance)?;
 
                         object.native(native)
                     }
@@ -313,7 +315,7 @@ impl Compiler {
         }
 
         // finalize the complete relocatable object
-        let output = object.build();
+        let output = object.build(provenance.finish());
 
         Ok(ArtifactPayload::Object(Arc::new(output)))
     }
@@ -328,7 +330,7 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         let module = self.module(context.revision(), module)?;
         let file = self.file(context, module.file_id)?;
-        let asset = Asset::new(file.ty, file.blob(), Some(module.uri.clone()), None);
+        let asset = Asset::new(file.ty, file.blob(), Some(module.uri.clone()));
 
         Ok(ArtifactPayload::Asset(Arc::new(asset)))
     }
