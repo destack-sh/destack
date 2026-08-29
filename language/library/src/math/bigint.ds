@@ -1,6 +1,6 @@
 import { Slice } from "destack:collections";
 import { Result, todo } from "destack:error";
-import { IntlError, Locales, NumberFormatOptions } from "destack:intl";
+import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
 import { MaybeOwned, MaybeUninit } from "destack:memory";
 import {
     Add,
@@ -83,6 +83,7 @@ export extension of bigint
         ShiftLeft<usize>,
         ShiftRight<usize>,
         Subtract<bigint>,
+        ToLocaleString,
         Xor<bigint>
 {
     /// The arithmetic result type.

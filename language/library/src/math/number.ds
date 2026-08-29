@@ -1,5 +1,5 @@
 import { Result, todo } from "destack:error";
-import { IntlError, Locales, NumberFormatOptions } from "destack:intl";
+import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 /// The positive float infinity.
@@ -12,7 +12,7 @@ export const NaN: number = 0.0 / 0.0;
 
 /// Number constants and parsing functions.
 @languageItem("math.Number")
-export class Number {
+export class Number implements ToLocaleString {
     /// Difference between 1 and the next representable float64 value.
     static readonly EPSILON: number = 2.220446049250313e-16;
 

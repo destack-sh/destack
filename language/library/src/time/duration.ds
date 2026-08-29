@@ -1,5 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
-import { DurationFormatOptions, IntlError, Locales } from "destack:intl";
+import { DurationFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { TimeError } from "./error.ds";
@@ -40,7 +40,7 @@ export type DurationLike = Duration | DurationFields | string;
 
 /// Temporal duration.
 @languageItem("time.Duration")
-export class Duration {
+export class Duration implements ToLocaleString {
     /// Create a zero duration.
     static create(): Duration {
         todo("Duration.createDefault")

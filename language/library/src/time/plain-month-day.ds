@@ -1,5 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
-import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { TimeError } from "./error.ds";
@@ -48,7 +48,7 @@ export type PlainMonthDayToPlainDateOptions = {
 
 /// Temporal plain month-day.
 @languageItem("time.PlainMonthDay")
-export class PlainMonthDay {
+export class PlainMonthDay implements ToLocaleString {
     /// Create an ISO plain month-day.
     static create(
         isoMonth: number,

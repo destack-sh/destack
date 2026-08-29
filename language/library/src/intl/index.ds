@@ -4,6 +4,7 @@ export * from "./date-time-format.ds";
 export * from "./display-names.ds";
 export * from "./duration-format.ds";
 export * from "./error.ds";
+export * from "./format.ds";
 export * from "./list-format.ds";
 export * from "./locale.ds";
 export * from "./number-format.ds";

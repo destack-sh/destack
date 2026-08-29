@@ -1,5 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
-import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
@@ -13,7 +13,7 @@ export type InstantLike = Instant | ZonedDateTime | string;
 
 /// Temporal instant.
 @languageItem("time.Instant")
-export class Instant {
+export class Instant implements ToLocaleString {
     /// Create an instant from epoch nanoseconds.
     static create(epochNanoseconds: bigint): Result<Instant, RangeError> {
         todo("Instant.create")

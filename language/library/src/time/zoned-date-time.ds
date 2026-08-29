@@ -1,5 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
-import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
@@ -48,7 +48,7 @@ export type ZonedDateTimeLike = ZonedDateTime | ZonedDateTimeInput | string;
 
 /// Temporal zoned date-time.
 @languageItem("time.ZonedDateTime")
-export class ZonedDateTime {
+export class ZonedDateTime implements ToLocaleString {
     /// Create a zoned date-time from epoch nanoseconds.
     static create(
         epochNanoseconds: bigint,

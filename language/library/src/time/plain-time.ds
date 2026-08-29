@@ -1,5 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
-import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
@@ -30,7 +30,7 @@ export type PlainTimeLike = PlainTime | PlainDateTime | ZonedDateTime | PlainTim
 
 /// Temporal plain time.
 @languageItem("time.PlainTime")
-export class PlainTime {
+export class PlainTime implements ToLocaleString {
     /// Create midnight.
     static create(): PlainTime {
         todo("PlainTime.createDefault")

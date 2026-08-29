@@ -1,5 +1,5 @@
 import { RangeError, Result, todo } from "destack:error";
-import { DateTimeFormatOptions, IntlError, Locales } from "destack:intl";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "destack:intl";
 import { MaybeOwned } from "destack:memory";
 
 import { Duration, DurationLike } from "./duration.ds";
@@ -51,7 +51,7 @@ export type PlainDateLike = PlainDate | ZonedDateTime | PlainDateTime | PlainDat
 
 /// Temporal plain date.
 @languageItem("time.PlainDate")
-export class PlainDate {
+export class PlainDate implements ToLocaleString {
     /// Create an ISO plain date.
     static create(
         isoYear: number,

@@ -879,6 +879,12 @@ define_language_items! {
         error {
             /// Error interface for conventional error shapes.
             Error => (NewtypeInterface, "error/error", "Error"),
+
+            /// Runtime range failure used by web-compatible APIs.
+            RangeError => (Newtype, "error/error", "RangeError"),
+
+            /// Runtime type failure used by web-compatible APIs.
+            TypeError => (Newtype, "error/error", "TypeError"),
         }
 
         /// `destack:error/host`.
@@ -1383,6 +1389,87 @@ define_language_items! {
 
             /// Iterator yield struct.
             IteratorYield => (Struct, "iter/iterator", "IteratorYield"),
+        }
+    }
+
+    /// Internationalization types.
+    intl {
+        /// `destack:intl/collator`.
+        collator {
+            /// Locale-sensitive string collator.
+            IntlCollator => (Class, "intl/collator", "Collator"),
+        }
+
+        /// `destack:intl/date-time-format`.
+        date_time_format {
+            /// Locale-sensitive date-time formatter.
+            IntlDateTimeFormat => (Class, "intl/date-time-format", "DateTimeFormat"),
+        }
+
+        /// `destack:intl/display-names`.
+        display_names {
+            /// Locale-sensitive display-name formatter.
+            IntlDisplayNames => (Class, "intl/display-names", "DisplayNames"),
+        }
+
+        /// `destack:intl/duration-format`.
+        duration_format {
+            /// Locale-sensitive duration formatter.
+            IntlDurationFormat => (Class, "intl/duration-format", "DurationFormat"),
+        }
+
+        /// `destack:intl/error`.
+        error {
+            /// Internationalization failure.
+            IntlError => (Newtype, "intl/error", "IntlError"),
+        }
+
+        /// `destack:intl/format`.
+        format {
+            /// Locale-sensitive string representation protocol.
+            IntlToLocaleString => (NewtypeInterface, "intl/format", "ToLocaleString"),
+        }
+
+        /// `destack:intl/list-format`.
+        list_format {
+            /// Locale-sensitive list formatter.
+            IntlListFormat => (Class, "intl/list-format", "ListFormat"),
+        }
+
+        /// `destack:intl/locale`.
+        locale {
+            /// Parsed and canonical locale identifier.
+            IntlLocale => (Class, "intl/locale", "Locale"),
+        }
+
+        /// `destack:intl/number-format`.
+        number_format {
+            /// Locale-sensitive number formatter.
+            IntlNumberFormat => (Class, "intl/number-format", "NumberFormat"),
+        }
+
+        /// `destack:intl/plural-rules`.
+        plural_rules {
+            /// Locale-sensitive plural selection rules.
+            IntlPluralRules => (Class, "intl/plural-rules", "PluralRules"),
+        }
+
+        /// `destack:intl/relative-time-format`.
+        relative_time_format {
+            /// Locale-sensitive relative-time formatter.
+            IntlRelativeTimeFormat => (Class, "intl/relative-time-format", "RelativeTimeFormat"),
+        }
+
+        /// `destack:intl/segmenter`.
+        segmenter {
+            /// Segments produced from one input string.
+            IntlSegments => (Class, "intl/segmenter", "Segments"),
+
+            /// Iterator over segmented text.
+            IntlSegmentIterator => (Class, "intl/segmenter", "SegmentIterator"),
+
+            /// Locale-sensitive Unicode text segmenter.
+            IntlSegmenter => (Class, "intl/segmenter", "Segmenter"),
         }
     }
 
@@ -3331,6 +3418,12 @@ define_language_items! {
         duration {
             /// Temporal duration.
             Duration => (Class, "time/duration", "Duration"),
+        }
+
+        /// `destack:time/error`.
+        error {
+            /// Date, time, calendar, or time-zone failure.
+            TimeError => (Newtype, "time/error", "TimeError"),
         }
 
         /// `destack:time/instant`.
