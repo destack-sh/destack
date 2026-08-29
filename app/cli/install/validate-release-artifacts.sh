@@ -38,7 +38,7 @@ resolve_release_tag() {
 # resolve the release channel
 resolve_release_channel() {
     case "${DESTACK_RELEASE_CHANNEL_INPUT}" in
-        release | nightly | canary)
+        release | canary)
             printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
             ;;
         *)
