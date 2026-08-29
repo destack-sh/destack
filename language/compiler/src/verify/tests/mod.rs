@@ -1,6 +1,7 @@
 mod access;
 mod alias;
 mod call;
+mod callable;
 mod drop;
 mod initialization;
 mod lifetime;

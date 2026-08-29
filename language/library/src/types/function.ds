@@ -1,7 +1,10 @@
 /// Permitted invocation count for a callable value.
 export type Multiplicity = "repeatable" | "once";
 
-/// Callable value type, repeatable by default and affine when invoked once.
+/// Callable value with a managed, owned, or borrowed environment.
+///
+/// A repeatable call requires mutable or exclusive access to the callable.
+/// Only the owned form of `^Function<Parameters, Return, "once">` is a valid once callable.
 @languageItem("types.Function")
 export newtype Function<
     Parameters: readonly (...unknown[],) = (),

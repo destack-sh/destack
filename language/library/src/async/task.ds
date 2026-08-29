@@ -20,12 +20,12 @@ export local struct Task<T> implements Awaitable<T>, Drop {
     }
 
     /// Run one body on a fresh fiber and expose its result.
-    static spawn<T>(body: Function<(), T, "once">): Task<T> {
+    static spawn<T>(body: ^Function<(), T, "once">): Task<T> {
         let start = Task.create<T>();
         let producer = start.producer;
 
         @capture("move")
-        let run: Function<(), void, "once"> = () => {
+        let run: ^Function<(), void, "once"> = () => {
             producer.attach();
             producer.complete(body());
         };
@@ -279,7 +279,7 @@ export local struct TaskScope implements AsyncDispose, Drop {
     }
 
     /// Spawn one task owned by this scope.
-    spawn<T>(&exclusive this, body: Function<(), T, "once">): Task<T> {
+    spawn<T>(&exclusive this, body: ^Function<(), T, "once">): Task<T> {
         todo("TaskScope.spawn")
     }
 
@@ -306,4 +306,4 @@ export local struct TaskScope implements AsyncDispose, Drop {
     effect: "deterministic",
     requires: [],
 })
-export declare function queueMicrotask(run: Function<(), void, "once">): void;
+export declare function queueMicrotask(run: ^Function<(), void, "once">): void;

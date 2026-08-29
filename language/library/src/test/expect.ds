@@ -15,7 +15,7 @@ export const expect: Expect = createExpect(false);
 @languageItem("test.Expect")
 export newtype interface Expect {
     /// Create a panic expectation over one unwind-safe callable.
-    <R>(body: Function<(), R, "once"> & UnwindSafe, message?: ^string): PanicExpectation<R>;
+    <R>(body: ^Function<(), R, "once"> & UnwindSafe, message?: ^string): PanicExpectation<R>;
 
     /// Create an expectation over `value`.
     <T, 'a>(value: &'a readonly T, message?: ^string): Expectation<'a, T>;
@@ -305,7 +305,7 @@ export struct Expectation<'a, T> {
 @languageItem("test.PanicExpectation")
 export struct PanicExpectation<R> {
     /// The callable to invoke once.
-    private readonly body: Function<(), R, "once"> & UnwindSafe;
+    private readonly body: ^Function<(), R, "once"> & UnwindSafe;
 
     /// Whether the matcher is negated.
     private readonly isNegated: boolean;

@@ -620,8 +620,10 @@ export type Record<K: PropertyKey, V> = {
 ### Functions, Lambdas and Captures
 
 - lambdas (fat pointers with env)
-- `Function`, `^Function`, `&Function`
-- multiplicity "once" and "repeat"
+- `Function`, `^Function`, and `&Function` use managed, owned, and borrowed environments
+- repeatable calls require `&Function` or stronger access and preserve the environment
+- `&readonly Function` cannot be called; `&exclusive Function` grants the required mutable access
+- only `^Function<Parameters, Return, "once">` is valid; its call consumes the callable
 - `FunctionPointer` for raw function pointers without environment
 
 - the default is "managed" / automatic as in TS, which means we don't have to think about captures, but incur some allocation cost

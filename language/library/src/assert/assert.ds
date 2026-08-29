@@ -2,7 +2,7 @@ import { panic } from "destack:error";
 import { Debug, PartialEqual } from "destack:ops";
 
 /// An assertion message or a function that creates one after failure.
-export type AssertionMessage = string | Function<(), string, "once">;
+export type AssertionMessage = string | ^Function<(), string, "once">;
 
 /// Require `condition` to hold.
 @languageItem("assert.assert")
@@ -54,7 +54,7 @@ export function assertNotEqual<T, U>(
 /// Evaluate an assertion message after its assertion fails.
 function evaluateMessage(message: AssertionMessage | undefined, fallback: string): string {
     // compute lazy messages only on the failure path
-    if (message is Function<(), string, "once">) {
+    if (message is ^Function<(), string, "once">) {
         return message();
     }
 

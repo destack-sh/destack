@@ -46,7 +46,7 @@ export extension<T> of Poll<T> {
     }
 
     /// Map the available value.
-    map<U>(this, f: Function<(T,), U, "once">): Poll<U> {
+    map<U>(this, f: ^Function<(T,), U, "once">): Poll<U> {
         match (this) {
             Ready { value } => Poll.ready(f(value))
             Pending {} => Poll.pending()

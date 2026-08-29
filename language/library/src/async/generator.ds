@@ -46,12 +46,12 @@ export local class Generator<Y, R = void, N = void> {
     /// Create a suspended generator from its lowered body.
     @languageItem("async.Generator.create")
     private static create<Y, R, N>(
-        body: Function<(GeneratorProducer<Y, R, N>,), R, "once">,
+        body: ^Function<(GeneratorProducer<Y, R, N>,), R, "once">,
     ): Generator<Y, R, N> {
         let state = new GeneratorState<Y, R, N>();
 
         @capture("move")
-        let run: Function<(), void, "once"> = () => {
+        let run: ^Function<(), void, "once"> = () => {
             let producer = GeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {
@@ -238,12 +238,12 @@ export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     /// Create a suspended async generator from its lowered body.
     @languageItem("async.AsyncGenerator.create")
     private static create<Y: Copy, R: Copy, N>(
-        body: Function<(AsyncGeneratorProducer<Y, R, N>,), R, "once">,
+        body: ^Function<(AsyncGeneratorProducer<Y, R, N>,), R, "once">,
     ): AsyncGenerator<Y, R, N> {
         let state = new AsyncGeneratorState<Y, R, N>();
 
         @capture("move")
-        let run: Function<(), void, "once"> = () => {
+        let run: ^Function<(), void, "once"> = () => {
             let producer = AsyncGeneratorProducer { state };
             let request = state.begin();
             let result = match (request) {

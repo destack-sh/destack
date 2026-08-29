@@ -34,7 +34,7 @@ export declare function panic(message: &string): never;
 @languageItem("error.catchUnwind")
 @intrinsic("error.catchUnwind")
 export declare function catchUnwind<T>(
-    body: Function<(), T, "once"> & UnwindSafe,
+    body: ^Function<(), T, "once"> & UnwindSafe,
 ): Result<T, Panic>;
 
 /// Resume an existing panic without invoking the panic hook again.

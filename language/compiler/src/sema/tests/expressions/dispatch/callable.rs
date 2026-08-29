@@ -40,6 +40,168 @@ const text = transform(1);
     );
 }
 
+/// Reject calling a repeatable function through readonly access.
+#[test]
+fn test_reject_calling_repeatable_function_through_readonly_borrow() {
+    let session = TestSession::single(
+        r#"
+function invokeReadonly(run: &readonly Function<(), void>): void {
+    run();
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types(),
+        r#"
+=== annotated ===
+function invokeReadonly<'a>(run: &'a readonly (() => void)): void {
+    run();
+}
+
+=== dir ===
+function invokeReadonly(run: &readonly Function<(), void>): void {
+/// @generic.template symbol=invokeReadonly parameters=('a, P1: Place)
+/// @type.symbol symbol=invokeReadonly type=<invokeReadonly.'a, invokeReadonly.P1: Place>(&invokeReadonly.'a readonly Function<(), void>) => void
+/// @type.symbol symbol=invokeReadonly.run source="run: &readonly Function<(), void>" type=&invokeReadonly.'a readonly Function<(), void>
+/// @resolution.name source=Function target=Function
+
+    run();
+    /// @type.node source=run() type=void
+    /// @resolution.name source=run target=invokeReadonly.run
+    /// @resolution.call source=run() parameters=() return=void kind=expression target=expression receiver=&invokeReadonly.'a readonly Function<(), void>
+    /// @resolution.place source=run placement=invokeReadonly.P1 lifetime=invokeReadonly.'a access="readonly"
+    /// @resolution.access source=run root=invokeReadonly.run
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Function<(), void>' is not assignable to the callable's required access '&Function<(), void>'"
+/// @diagnostic.label line=3 column=5 span="run()" line_source="run();"
+"#,
+    );
+}
+
+/// Reject a once function without an owned environment.
+#[test]
+fn test_reject_managed_once_function_type() {
+    let session = TestSession::single(
+        r#"
+type Invalid = Function<(), void, "once">;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+type Invalid = Function<(), void, "once">;
+
+=== dir ===
+type Invalid = Function<(), void, "once">;
+/// @type.symbol symbol=Invalid source="type Invalid = Function<(), void, \"once\">" type=Function<(), void, "once">
+/// @definition.type symbol=Invalid source="type Invalid = Function<(), void, \"once\">" value=Function<(), void, "once">
+/// @resolution.name source=Function target=Function
+"#,
+        r#"
+/// @diagnostic.error id=once-function-requires-owned message="a once Function requires an owned environment"
+/// @diagnostic.label line=2 column=16 span="Function<(), void, \"once\">" line_source="type Invalid = Function<(), void, \"once\">;"
+/// @diagnostic.help message="use '^Function<(), void, \"once\">'"
+"#,
+    );
+}
+
+/// Select the first callable member whose where clauses hold.
+#[test]
+fn test_call_signature_where_clause_selects_a_callable_member() {
+    let session = TestSession::single(
+        r#"
+interface InvocationKind<in out T> {
+    (): "copy" where T: Copy;
+    (): "affine";
+}
+
+declare const copyKind: InvocationKind<int32>;
+declare const affineKind: InvocationKind<^Function<(), void, "once">>;
+
+const copy = copyKind();
+const affine = affineKind();
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked()
+            .with_node_types()
+            .without_reference_types(),
+        r#"
+=== annotated ===
+interface InvocationKind<in out T> {
+    (): "copy" where T: Copy;
+    (): "affine";
+}
+
+declare const copyKind: InvocationKind<int32>;
+declare const affineKind: InvocationKind<^Function<(), void, "once">>;
+
+const copy: "copy" = copyKind();
+const affine: "affine" = affineKind();
+
+=== dir ===
+interface InvocationKind<in out T> {
+/// @generic.template symbol=InvocationKind parameters=(in out T)
+/// @type.symbol symbol=InvocationKind type=InvocationKind
+/// @definition.interface symbol=InvocationKind template=(in out T)
+/// @definition.where symbol=InvocationKind relation=satisfies left=this right=InvocationKind<T>
+/// @definition.signature kind=call source="(): \"copy\" where T: Copy" type=Function<(), "copy">
+/// @definition.signature kind=call source="(): \"affine\"" type=Function<(), "affine">
+/// @type.symbol symbol=InvocationKind.T source=T type=T
+
+    (): "copy" where T: Copy;
+    /// @resolution.name source=T target=InvocationKind.T
+    /// @resolution.name source=Copy target=Copy
+
+    (): "affine";
+}
+
+declare const copyKind: InvocationKind<int32>;
+/// @type.symbol symbol=copyKind source=copyKind type=InvocationKind<int32>
+/// @resolution.pattern source=copyKind kind=binding target=copyKind
+/// @resolution.name source=InvocationKind target=InvocationKind
+
+declare const affineKind: InvocationKind<^Function<(), void, "once">>;
+/// @type.symbol symbol=affineKind source=affineKind type=InvocationKind<^Function<(), void, "once">>
+/// @resolution.pattern source=affineKind kind=binding target=affineKind
+/// @resolution.name source=InvocationKind target=InvocationKind
+/// @resolution.name source=Function target=Function
+
+const copy = copyKind();
+/// @type.symbol symbol=copy source=copy type="copy"
+/// @resolution.pattern source=copy kind=binding target=copy
+/// @type.node source=copyKind() type="copy"
+/// @resolution.name source=copyKind target=copyKind
+/// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target="call((): \"copy\")" receiver=InvocationKind<int32> constraint=InvocationKind<int32>
+/// @resolution.place source=copyKind placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=copyKind root=copyKind
+
+const affine = affineKind();
+/// @type.symbol symbol=affine source=affine type="affine"
+/// @resolution.pattern source=affine kind=binding target=affine
+/// @type.node source=affineKind() type="affine"
+/// @resolution.name source=affineKind target=affineKind
+/// @resolution.call source=affineKind() parameters=() return="affine" kind=dynamic target="call((): \"affine\")" receiver=InvocationKind<^Function<(), void, "once">> constraint=InvocationKind<^Function<(), void, "once">>
+/// @resolution.place source=affineKind placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=affineKind root=affineKind
+"#,
+        r#"
+"#,
+    );
+}
+
 #[test]
 fn test_callable_union_invokes_every_runtime_arm() {
     let session = TestSession::single(
