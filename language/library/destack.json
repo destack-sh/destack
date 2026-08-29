@@ -119,6 +119,9 @@
     "./serde": {
       "path": "./src/serde/index.ds"
     },
+    "./signal": {
+      "path": "./src/signal/index.ds"
+    },
     "./stream": {
       "path": "./src/stream/index.ds"
     },

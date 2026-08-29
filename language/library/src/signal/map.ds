@@ -1,0 +1,122 @@
+import { todo } from "destack:error";
+import { Copy } from "destack:memory";
+import { Equal, Hash } from "destack:ops";
+
+import {
+    Accessor,
+    PollingAccessor,
+    PollingSourceAccessor,
+    SignalRef,
+    SourceAccessor,
+} from "./accessor.ds";
+import { DerivationMayPend, DerivationValue } from "./derive.ds";
+
+/// An optional list value.
+export type Maybe<T> = T | void | null | undefined | false;
+
+/// Options for reactive array mapping.
+export type MapArrayOptions<Item, Output, Key = Item> = {
+    /// Identity mode or a stable key derived from each item.
+    keyed?: boolean | ^Function<(&readonly Item,), Key>;
+
+    /// Value derived when the input is empty.
+    fallback?: ^Function<(), Output>;
+
+    /// Diagnostic name.
+    name?: string;
+};
+
+/// Options for reactive repetition.
+export type RepeatOptions<Output, From = Accessor<usize | undefined>> = {
+    /// Reactive first index.
+    from?: From;
+
+    /// Value derived when the count is zero.
+    fallback?: ^Function<(), Output>;
+
+    /// Diagnostic name.
+    name?: string;
+};
+
+/// Reactive item argument selected for copyable and affine values.
+local type MapItem<Item> = Item extends Copy ? Item : SignalRef<Item>;
+
+/// Ready or polling list accessor accepted by array mapping.
+local type ListAccessor<Item> =
+    | Accessor<Maybe<readonly Item[]>>
+    | PollingAccessor<Maybe<readonly Item[]>>;
+
+/// Item exposed by one ready or polling list accessor.
+local type ListItem<List> =
+    List extends Accessor<Maybe<readonly (infer Item)[]>>
+        ? Item
+        : List extends PollingAccessor<Maybe<readonly (infer Item)[]>>
+          ? Item
+          : never;
+
+/// Ready or polling count accessor accepted by repetition.
+local type CountAccessor = Accessor<usize> | PollingAccessor<usize>;
+
+/// Ready or polling offset accessor accepted by repetition.
+local type FromAccessor = Accessor<usize | undefined> | PollingAccessor<usize | undefined>;
+
+/// Whether one accessor may be pending.
+local type AccessorMayPend<Read> = Read extends PollingAccessor<unknown> ? true : false;
+
+/// Array accessor selected from its input and mapped output.
+local type MapArrayAccessor<List, Output> = true extends
+    | AccessorMayPend<List>
+    | DerivationMayPend<Output>
+    ? PollingSourceAccessor<DerivationValue<Output>[]>
+    : SourceAccessor<DerivationValue<Output>[]>;
+
+/// Array accessor selected from its count, offset, and mapped output.
+local type RepeatAccessor<Count, From, Output> = true extends
+    | AccessorMayPend<Count>
+    | AccessorMayPend<From>
+    | DerivationMayPend<Output>
+    ? PollingSourceAccessor<DerivationValue<Output>[]>
+    : SourceAccessor<DerivationValue<Output>[]>;
+
+/// Map a reactive array and retain rows by item equality and hash.
+export function mapArray<List: ListAccessor<unknown>, Output>(
+    list: List,
+    map: ^Function<(MapItem<ListItem<List>>, SourceAccessor<usize>), Output>,
+    options?: MapArrayOptions<ListItem<List>, Output> & { keyed?: true },
+): MapArrayAccessor<List, Output>
+    where ListItem<List>: Hash, ListItem<List>: Equal<ListItem<List>> {
+    todo("signal.mapArray")
+}
+
+/// Map a reactive array and retain rows by their index.
+export function mapArray<List: ListAccessor<unknown>, Output>(
+    list: List,
+    map: ^Function<(SourceAccessor<ListItem<List>>, usize), Output>,
+    options: MapArrayOptions<ListItem<List>, Output> & { keyed: false },
+): MapArrayAccessor<List, Output> {
+    todo("signal.mapArray")
+}
+
+/// Map a reactive array and retain rows by a derived key.
+export function mapArray<List: ListAccessor<unknown>, Key: Hash, Output>(
+    list: List,
+    map: ^Function<(SourceAccessor<ListItem<List>>, SourceAccessor<usize>), Output>,
+    options: MapArrayOptions<ListItem<List>, Output, Key> & {
+        keyed: ^Function<(&readonly ListItem<List>,), Key>;
+    },
+): MapArrayAccessor<List, Output> where Key: Equal<Key> {
+    todo("signal.mapArray")
+}
+
+/// Map a reactive count and retain rows by index.
+export function repeat<
+    Output,
+    Count: CountAccessor,
+    From: FromAccessor = Accessor<usize | undefined>,
+>(
+    count: Count,
+    map: ^Function<(usize,), Output>,
+    options?: RepeatOptions<Output, From>,
+): RepeatAccessor<Count, From, Output> {
+    todo("signal.repeat")
+}

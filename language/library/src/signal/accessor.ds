@@ -1,0 +1,53 @@
+import { Poll } from "destack:async";
+import { todo } from "destack:error";
+import { Copy } from "destack:memory";
+import { Dereference } from "destack:ops";
+
+/// Stable readonly access to one observed signal value.
+export local class SignalRef<out T> implements Dereference<"readonly"> {
+    /// The retained value.
+    private readonly value: T;
+
+    /// Retain one observed value.
+    private constructor(value: ^T) {
+        this.value = value;
+    }
+
+    /// The referenced signal value.
+    type Output = T;
+
+    /// Borrow the retained value.
+    dereference(&readonly this): &readonly this.Output {
+        todo("SignalRef.dereference")
+    }
+}
+
+/// Repeatable read of an available signal value.
+export type Accessor<out T> = {
+    /// Copy the current value.
+    (): T where T: Copy;
+
+    /// Retain readonly access to the current value.
+    (): SignalRef<T>;
+};
+
+/// Repeatable read of a signal value that may be pending.
+export type PollingAccessor<out T> = {
+    /// Poll and copy the current value.
+    (): Poll<T> where T: Copy;
+
+    /// Poll for readonly access to the current value.
+    (): Poll<SignalRef<T>>;
+};
+
+/// Capability for reevaluating one signal source.
+export local newtype interface Refreshable {
+    /// Reevaluate this source.
+    static refresh(source: &readonly this): void;
+}
+
+/// Refreshable accessor whose value is available.
+export type SourceAccessor<T> = Accessor<T> & Refreshable;
+
+/// Refreshable accessor whose value may be pending.
+export type PollingSourceAccessor<T> = PollingAccessor<T> & Refreshable;

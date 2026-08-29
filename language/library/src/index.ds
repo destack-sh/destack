@@ -15,6 +15,7 @@ export * from "./range";
 export * from "./regexp";
 export * from "./reflect";
 export * from "./serde";
+export * from "./signal";
 export * from "./collections";
 export * from "./math";
 export * from "./string";
