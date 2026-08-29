@@ -39,14 +39,20 @@ const checkedTokens = [{ start: 13, end: 19, kind: "class", modifiers: 1 }];
 const expectedChecked = `<span data-k="keyword">export</span> <span data-k="keyword">class</span> <span data-k="type" data-s="class" data-m="1">Notify</span>`;
 const linkedSource = "const backend: AudioBackendKind";
 const expectedLinked = `<span data-k="keyword">const</span> <span data-k="name">backend</span><span data-k="punct">:</span> <a data-reference href="/docs/language/library/audio/binding/enum/audio-backend-kind/"><span data-k="type">AudioBackendKind</span></a>`;
+const typescriptSource = "const port: number = 300;";
+const expectedTypescript = `<span class="hljs-keyword">const</span> <span class="hljs-attr">port</span>: <span class="hljs-built_in">number</span> = <span class="hljs-number">300</span>;`;
+const tsxSource = "const view = <main>Hello</main>;";
+const expectedTsx = `<span class="hljs-keyword">const</span> view = <span class="language-xml"><span class="hljs-tag">&lt;<span class="hljs-name">main</span>&gt;</span>Hello<span class="hljs-tag">&lt;/<span class="hljs-name">main</span>&gt;</span></span>;`;
+const rustSource = "let port: u16 = 300;";
+const expectedRust = `<span class="hljs-keyword">let</span> <span class="hljs-variable">port</span>: <span class="hljs-type">u16</span> = <span class="hljs-number">300</span>;`;
 
-// preserve the complete parser backed rendering used by homepage Destack examples
+// preserve parser backed rendering for homepage Destack examples
 assert.equal(highlightCode(destackSource, "destack"), expectedDestack);
 
 // preserve Destack metavariables in structural pattern specimens
 assert.equal(highlightCode(pattern, "pattern"), expectedPattern);
 
-// render MIR fences through the repository grammar under canonical and descriptive names
+// render MIR fences under both language names
 assert.equal(highlightCode(mirSource, "dsm"), expectedMir);
 assert.equal(highlightCode(mirSource, "mir"), expectedMir);
 
@@ -54,13 +60,18 @@ assert.equal(highlightCode(mirSource, "mir"), expectedMir);
 assert.equal(highlightCode(bytecodeSource, "dsa"), expectedBytecode);
 assert.equal(highlightCode(bytecodeSource, "bytecode"), expectedBytecode);
 
-// let checked symbol kinds override lexical captures in generated signatures
+// render TypeScript, TSX, and Rust fences
+assert.equal(highlightCode(typescriptSource, ".ts"), expectedTypescript);
+assert.equal(highlightCode(tsxSource, "tsx"), expectedTsx);
+assert.equal(highlightCode(rustSource, ".rs"), expectedRust);
+
+// let semantic symbol kinds override lexical captures
 assert.deepEqual(
     highlightCodeFragments([checkedSource], "destack", [checkedTokens]),
     [expectedChecked],
 );
 
-// link parsed type references only when the checked catalog supplies one destination
+// link type references with one destination
 assert.deepEqual(
     highlightCodeFragments([linkedSource], "destack", [], {
         AudioBackendKind: "/docs/language/library/audio/binding/enum/audio-backend-kind/",

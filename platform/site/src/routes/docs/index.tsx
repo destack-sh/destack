@@ -1,6 +1,6 @@
 import { Navigate } from "@solidjs/router";
 
-/// Forward the manual root to its first chapter.
-export default function Documentation() {
-    return <Navigate href="/docs/start/" />;
+/// Forward `/docs` to the language guide.
+export default function Guide() {
+    return <Navigate href="/docs/language/" />;
 }

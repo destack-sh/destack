@@ -7,12 +7,11 @@ import { renderMarkdown } from "./markdown.mjs";
 import { plainTextFor, tokenEstimateFor } from "./text.mjs";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
-const documentDirectory = join(repositoryDirectory, "docs");
+const documentDirectory = join(repositoryDirectory, "language/library");
 const libraryReferenceFile = join(
     repositoryDirectory,
     "platform/site/.generated/library-reference.json",
 );
-const standardLibraryOrder = 39;
 const standardLibraryPath = "language/library";
 const standardLibraryRoute = `/docs/${standardLibraryPath}/`;
 const libraryKindOrder = [
@@ -42,7 +41,7 @@ const libraryKindTitles = new Map([
     ["extension", "Extensions"],
 ]);
 
-/// Read the checked standard library package reference.
+/// Read the standard library package reference.
 export function readLibraryReference() {
     if (!existsSync(libraryReferenceFile)) {
         throw new Error("missing generated library reference, run `just platform/site/generate`");
@@ -56,8 +55,9 @@ export function readLibraryReference() {
     return reference;
 }
 
-/// Render the standard library catalog, module indexes, and canonical public items.
-export function renderLibraryDocuments(reference) {
+/// Render the standard library catalog, module indexes, and items.
+export function renderLibraryDocuments(reference, index) {
+    const order = index.order;
     const namespaceRoutes = new Map(reference.modules.map((module) => [
         libraryModuleDisplay(reference.package.name, module.path),
         libraryModuleRoute(module.specifier),
@@ -82,17 +82,17 @@ export function renderLibraryDocuments(reference) {
         }
     }
 
-    const catalog = renderLibraryCatalog(reference);
+    const catalog = renderLibraryCatalog(reference, index);
     const modules = reference.modules.map((module) => {
         const items = moduleItems.get(module.specifier);
         if (items == undefined) {
             throw new Error(`missing indexed items for ${module.specifier}`);
         }
 
-        return renderLibraryModule(module, items);
+        return renderLibraryModule(module, items, order);
     });
 
-    // highlight every checked definition with one parser process
+    // highlight every definition with one parser process
     const canonical = [...canonicalItems.values()]
         .sort((left, right) => left.route.localeCompare(right.route));
     const references = libraryReferences(canonical);
@@ -127,7 +127,7 @@ export function renderLibraryDocuments(reference) {
         definitionIndex += item.declarations.length;
         memberIndex += memberCount;
 
-        return renderLibraryItem(item, declarationHighlights, memberHighlights);
+        return renderLibraryItem(item, declarationHighlights, memberHighlights, order);
     });
 
     // reject route collisions before writing any generated pages
@@ -150,12 +150,12 @@ export function renderLibraryDocuments(reference) {
     return { documents: [catalog, ...modules], items };
 }
 
-/// Index public names that resolve to exactly one canonical item.
+/// Index exported names that resolve to one item.
 function libraryReferences(items) {
     const routes = new Map();
     const ambiguous = new Set();
 
-    // collect one destination for every unambiguous checked export name
+    // collect one destination for each unambiguous export name
     for (const item of items) {
         const route = routes.get(item.name);
         if (route == undefined) {
@@ -177,7 +177,7 @@ function libraryReferences(items) {
 function libraryModuleItems(module, namespaceRoutes) {
     const items = new Map();
 
-    // group overload declarations by exported name and checked declaration kind
+    // group overload declarations by exported name and declaration kind
     for (const exported of module.exports) {
         for (const declaration of exported.declarations) {
             const key = `${declaration.kind}\0${exported.name}`;
@@ -215,7 +215,7 @@ function libraryModuleItems(module, namespaceRoutes) {
     return [...items.values()];
 }
 
-/// Select the most specific public module for every checked declaration identity.
+/// Select the most specific module for each declaration.
 function canonicalLibraryItems(modules, moduleItems) {
     const canonical = new Map();
 
@@ -239,7 +239,7 @@ function canonicalLibraryItems(modules, moduleItems) {
     return canonical;
 }
 
-/// Return one item identity from exact checked declaration locations.
+/// Return an item identity from its declaration locations.
 function libraryItemIdentity(item) {
     if (item.kind === "namespace") {
         return `${item.module.specifier}\0namespace\0${item.name}`;
@@ -278,8 +278,7 @@ function libraryItemScore(item) {
 }
 
 /// Render the standard library catalog.
-function renderLibraryCatalog(reference) {
-    const description = reference.package.description ?? "Destack standard library reference.";
+function renderLibraryCatalog(reference, index) {
     const exportCount = reference.modules.reduce(
         (count, module) => count + module.exports.length,
         0,
@@ -289,9 +288,7 @@ function renderLibraryCatalog(reference) {
 
         return `<li><a href="${moduleRoute}"><code>${escapeHtml(module.specifier)}</code><span>${module.exports.length} exports</span></a></li>`;
     }).join("");
-    const markdown = `# Standard Library
-
-${description}
+    const markdown = `${index.markdown}
 
 ${reference.modules.length} public modules · ${exportCount} public exports · toolchain ${reference.toolchainVersion}
 
@@ -300,36 +297,33 @@ ${reference.modules.length} public modules · ${exportCount} public exports · t
 ${reference.modules.map((module) =>
         `- [${module.specifier}](${libraryModuleRoute(module.specifier)}) — ${module.exports.length} exports`
     ).join("\n")}`;
-    const html = `<div class="reference-catalog"><dl><div><dt>modules</dt><dd>${reference.modules.length}</dd></div><div><dt>exports</dt><dd>${exportCount}</dd></div><div><dt>toolchain</dt><dd>${escapeHtml(reference.toolchainVersion)}</dd></div></dl><h2 id="modules">Modules</h2><ul class="reference-module-list">${moduleRows}</ul></div>`;
+    const html = `${index.html}<div class="reference-catalog"><dl><div><dt>modules</dt><dd>${reference.modules.length}</dd></div><div><dt>exports</dt><dd>${exportCount}</dd></div><div><dt>toolchain</dt><dd>${escapeHtml(reference.toolchainVersion)}</dd></div></dl><h2 id="modules">Modules</h2><ul class="reference-module-list">${moduleRows}</ul></div>`;
+    const searchSections = [
+        ...index.searchSections,
+        {
+            depth: 2,
+            id: "modules",
+            text: reference.modules.map((module) => module.specifier).join(" "),
+            title: "Modules",
+        },
+    ];
 
     return {
-        assets: [],
-        description,
-        file: libraryReferenceFile,
-        headings: [{ depth: 1, id: "standard-library", text: "Standard Library" }],
+        ...index,
         html,
-        lead: description,
         markdown,
-        markdownRoute: `/docs/${standardLibraryPath}/index.md`,
-        order: standardLibraryOrder,
-        path: `${standardLibraryPath}/index.md`,
-        route: standardLibraryRoute,
-        searchSections: [{
-            depth: 1,
-            id: "standard-library",
-            text: `${description} ${reference.modules.map((module) => module.specifier).join(" ")}`,
-            title: "Standard Library",
-        }],
-        searchText: `${description} ${reference.modules.map((module) => module.specifier).join(" ")}`,
-        tableOfContents: [{ depth: 2, id: "modules", text: "Modules" }],
-        textRoute: `/docs/${standardLibraryPath}/index.txt`,
-        title: "Standard Library",
+        searchSections,
+        searchText: searchSections.map((section) => section.text).join(" "),
+        tableOfContents: [
+            ...index.tableOfContents,
+            { depth: 2, id: "modules", text: "Modules" },
+        ],
         tokens: tokenEstimateFor(plainTextFor(markdown)),
     };
 }
 
-/// Render one checked public standard library module index.
-function renderLibraryModule(module, items) {
+/// Render a standard library module index.
+function renderLibraryModule(module, items, order) {
     const route = libraryModuleRoute(module.specifier);
     const groups = libraryItemGroups(items);
     const sections = groups.map((group) => {
@@ -364,7 +358,7 @@ function renderLibraryModule(module, items) {
         html,
         markdown,
         markdownRoute: `/docs/${path}`,
-        order: standardLibraryOrder,
+        order,
         path,
         route,
         searchSections,
@@ -380,7 +374,7 @@ function renderLibraryModule(module, items) {
     };
 }
 
-/// Group one module's public items by their checked declaration kind.
+/// Group a module's exports by declaration kind.
 function libraryItemGroups(items) {
     const groups = [];
 
@@ -407,8 +401,8 @@ function libraryItemGroups(items) {
     return groups;
 }
 
-/// Render one canonical checked standard library item.
-function renderLibraryItem(item, declarationHighlights, memberHighlights) {
+/// Render a standard library item.
+function renderLibraryItem(item, declarationHighlights, memberHighlights, order) {
     const documentation = [...new Set(item.declarations
         .map((declaration) => declaration.documentation)
         .filter((value) => value != undefined))]
@@ -448,7 +442,7 @@ function renderLibraryItem(item, declarationHighlights, memberHighlights) {
         module: item.module,
         moduleRoute: libraryModuleRoute(item.module.specifier),
         moduleTitle: libraryModuleTitle(item.module.specifier),
-        order: standardLibraryOrder,
+        order,
         path,
         route: item.route,
         searchSections: [{
@@ -495,7 +489,7 @@ function renderLibraryMembers(members, highlighted, route, heading, id) {
     return `<section class="reference-member-section"><h2 id="${id}">${heading}</h2><dl class="reference-members">${rows}</dl></section>`;
 }
 
-/// Render authored documentation attached to one library item.
+/// Render documentation attached to one library item.
 function renderLibraryDocumentation(documentation, route) {
     if (documentation == undefined) {
         return "";
@@ -564,7 +558,7 @@ function libraryDefinition(declaration) {
     return { text, tokens };
 }
 
-/// Return one signature with the checked declaration name classified for highlighting.
+/// Classify the declaration name in a signature.
 function librarySignature(declaration) {
     const name = declaration.signature.name;
     const tokens = name == undefined

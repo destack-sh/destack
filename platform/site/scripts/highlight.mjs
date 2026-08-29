@@ -2,6 +2,7 @@ import hljs from "highlight.js/lib/core";
 import bash from "highlight.js/lib/languages/bash";
 import javascript from "highlight.js/lib/languages/javascript";
 import json from "highlight.js/lib/languages/json";
+import rust from "highlight.js/lib/languages/rust";
 import typescript from "highlight.js/lib/languages/typescript";
 import xml from "highlight.js/lib/languages/xml";
 import { execFileSync } from "node:child_process";
@@ -39,6 +40,8 @@ hljs.registerLanguage("bash", bash);
 hljs.registerLanguage("javascript", javascript);
 hljs.registerLanguage("js", javascript);
 hljs.registerLanguage("json", json);
+hljs.registerLanguage("rust", rust);
+hljs.registerLanguage("rs", rust);
 hljs.registerLanguage("typescript", typescript);
 hljs.registerLanguage("ts", typescript);
 hljs.registerLanguage("tsx", typescript);
@@ -226,7 +229,7 @@ export function highlightDestackFile(file, source) {
 
 /// Normalize one Markdown language identifier.
 function normalizeLanguage(language) {
-    return (language ?? "").trim().split(/[:\s]+/)[0].toLowerCase();
+    return (language ?? "").trim().split(/[:\s]+/)[0].toLowerCase().replace(/^\./, "");
 }
 
 /// Select the Tree-sitter grammar for one normalized language.

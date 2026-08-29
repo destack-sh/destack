@@ -142,7 +142,7 @@ export function Cover() {
                         <Installation />
                         <a
                             {...stylex.attrs(posterStyles.boarding)}
-                            href="/docs/start/"
+                            href="/docs/language/start/"
                         >
                             get started <span aria-hidden="true">→</span>
                         </a>

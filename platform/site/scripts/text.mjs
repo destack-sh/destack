@@ -1,6 +1,6 @@
 /// Normalize Markdown into compact full-text search content.
 export function searchTextFor(markdown) {
-    return markdown
+    return withoutComments(markdown)
         .replace(/```[\s\S]*?```/g, (block) => block.replace(/^```[^\n]*|```$/g, ""))
         .replace(/<[^>]+>/g, " ")
         .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
@@ -12,7 +12,7 @@ export function searchTextFor(markdown) {
 /// Convert Markdown into readable text while preserving code exactly.
 export function plainTextFor(markdown) {
     const code = [];
-    const protectedMarkdown = markdown
+    const protectedMarkdown = withoutComments(markdown)
         .replace(/^```[^\n]*\n([\s\S]*?)^```\s*$/gm, (_, source) => protect(source.trimEnd(), code))
         .replace(/`([^`\n]+)`/g, (_, source) => protect(source, code));
     const text = protectedMarkdown
@@ -32,7 +32,14 @@ export function plainTextFor(markdown) {
     return text.replace(/\u0000(\d+)\u0000/g, (_, index) => code[Number(index)]);
 }
 
-/// Replace code with a stable placeholder during prose cleanup.
+/// Remove HTML comments from rendered text.
+function withoutComments(markdown) {
+    return markdown.replace(/```[\s\S]*?```|`[^`\n]*`|<!--[\s\S]*?-->/g, (source) =>
+        source.startsWith("<!--") ? "" : source,
+    );
+}
+
+/// Protect code during prose cleanup.
 function protect(source, code) {
     const index = code.length;
     code.push(source);

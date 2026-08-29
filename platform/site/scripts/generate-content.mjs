@@ -27,7 +27,16 @@ import { readLibraryReference, renderLibraryDocuments } from "./reference.mjs";
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const siteDirectory = join(repositoryDirectory, "platform/site");
 const contentDirectory = join(siteDirectory, "src/content/blog");
-const documentDirectory = join(repositoryDirectory, "docs");
+const documentDirectories = [
+    {
+        directory: join(repositoryDirectory, "language/docs"),
+        path: "language",
+    },
+    {
+        directory: join(repositoryDirectory, "language/library/docs"),
+        path: "language/library",
+    },
+];
 const generatedDirectory = join(siteDirectory, "src/generated");
 const publicDirectory = join(siteDirectory, "public");
 const publicContentDirectory = join(publicDirectory, "_content");
@@ -42,10 +51,17 @@ const isCheck = process.argv.includes("--check");
 const documentPathPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 
 const documentSources = readDocumentSources();
+const renderedDocuments = renderDocuments(documentSources);
+const libraryIndex = renderedDocuments.find(
+    (document) => document.path === "language/library/index.md",
+);
+if (libraryIndex == undefined) {
+    throw new Error("missing standard library documentation index");
+}
 const libraryReference = readLibraryReference();
-const library = renderLibraryDocuments(libraryReference);
+const library = renderLibraryDocuments(libraryReference, libraryIndex);
 const documents = [
-    ...renderDocuments(documentSources),
+    ...renderedDocuments.filter((document) => document !== libraryIndex),
     ...library.documents,
 ].sort((left, right) => left.order - right.order || left.route.localeCompare(right.route));
 const postSources = readPostSources();
@@ -160,12 +176,14 @@ function resolveAssets(html, assets) {
 
 /// Read and order every documentation source.
 function readDocumentSources() {
-    if (!existsSync(documentDirectory)) {
-        return [];
-    }
+    const sources = documentDirectories.flatMap((collection) => {
+        // require each documentation directory
+        if (!existsSync(collection.directory)) {
+            throw new Error(`missing documentation directory: ${collection.directory}`);
+        }
 
-    const sources = markdownFiles(documentDirectory)
-        .map((file) => {
+        // map files into the documentation tree
+        return markdownFiles(collection.directory).map((file) => {
             const source = readFileSync(file, "utf8");
             const { markdown, metadata } = parseFrontmatter(source, file);
             requireString(metadata, "title", file);
@@ -176,12 +194,14 @@ function readDocumentSources() {
                 throw new Error(`invalid order in ${file}`);
             }
 
-            const path = relative(documentDirectory, file).replaceAll("\\", "/");
+            const relativePath = relative(collection.directory, file).replaceAll("\\", "/");
+            const path = `${collection.path}/${relativePath}`;
             const route = documentRoute(path);
             const headings = headingsFor(markdown);
 
             return {
                 description: metadata.description,
+                directory: collection.directory,
                 file,
                 headings,
                 lead: metadata.description,
@@ -194,8 +214,8 @@ function readDocumentSources() {
                 title: metadata.title,
                 tokens: tokenEstimateFor(plainTextFor(markdown)),
             };
-        })
-        .sort((left, right) => left.order - right.order || left.route.localeCompare(right.route));
+        });
+    }).sort((left, right) => left.order - right.order || left.route.localeCompare(right.route));
 
     validateDocuments(sources);
 
@@ -267,7 +287,7 @@ function renderDocuments(sources) {
     return sources.map((source) => {
         const context = {
             assets: [],
-            documentDirectory,
+            documentDirectory: source.directory,
             kind: "document",
             markdownDirectory: dirname(source.file),
             ownHeadings: new Set(source.headings.map((heading) => heading.id)),
@@ -287,7 +307,7 @@ function renderDocuments(sources) {
     });
 }
 
-/// Read the checked standard library package reference.
+/// Read and order blog posts.
 function readPostSources() {
     if (!existsSync(contentDirectory)) {
         return [];

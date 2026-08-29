@@ -14,6 +14,7 @@ import { Reader } from "./reader";
 
 const mobile = "@media (max-width: 767px)";
 
+const guideIndex = "language/index.md";
 const standardLibraryPath = "language/library/";
 const standardLibraryIndex = `${standardLibraryPath}index.md`;
 
@@ -80,19 +81,27 @@ type DocumentNavigationProps = {
 
 /// Render the manual chapters and current article headings.
 function DocumentNavigation(props: DocumentNavigationProps) {
-    // keep the generated module catalog within the language section
+    // show guide roots and the current section
     const isStandardLibrary =
         props.current.path.startsWith(standardLibraryPath);
-    const chapters = documents.filter(
-        (document) =>
-            !document.path.startsWith(standardLibraryPath) ||
-            document.path === standardLibraryIndex,
-    );
+    const currentSection = props.current.path.split("/")[1];
+    const chapters = documents.filter((document) => {
+        const isGeneratedLibrary =
+            document.path.startsWith(standardLibraryPath) &&
+            document.path !== standardLibraryIndex;
+        if (document.path === guideIndex || isGeneratedLibrary) {
+            return false;
+        }
+
+        const section = document.path.split("/")[1];
+
+        return documentDepth(document) === 1 || section === currentSection;
+    });
 
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
             <A {...stylex.attrs(styles.bookTitle)} href="/docs/">
-                <span>documentation</span>
+                <span>guide</span>
             </A>
 
             <ol {...stylex.attrs(styles.bookList)}>

@@ -9,6 +9,8 @@ const codeExtensions = {
     bash: "sh",
     bytecode: "dsa",
     javascript: "js",
+    plaintext: "txt",
+    rust: "rs",
     mir: "dsm",
     shell: "sh",
     typescript: "ts",
@@ -325,7 +327,7 @@ function nextFigureLabel(counters, kind) {
 function parseCodeFence(language) {
     const [head, ...tail] = language.trim().split(/\s+/);
     const attributes = parseAttributes(tail.join(" "));
-    const [name, qualifier] = (head ?? "").split(":", 2);
+    const [name, qualifier] = (head ?? "").replace(/^\./, "").split(":", 2);
     const shorthandTitle = qualifier === "unchecked" ? undefined : qualifier;
 
     return {
