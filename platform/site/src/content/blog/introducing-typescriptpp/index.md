@@ -174,10 +174,7 @@ author: "Florian"
 - if "boiling the ocean" suddenly becomes (theoretically) feasible, what sort of landscaping could we do on the software ecosystem
 - "second system effect"
 
-- why innovate here? what is the ideal final system?
-- where do we begin change? where do we want to end up?
 - what is the ideal final system?
-
 - pragmatic perfection
 - I don't want to learn your very smart totally new and totally different language
 - I like imperative programming
@@ -186,7 +183,7 @@ author: "Florian"
 - Predictable, known behavior - even if imperfect - is better than something totally new, theoretically perfect thing
 - (besides, we usually figure out that the grass isn't quite greener anyway..)
 
-- so there is the overwhelming sense of the evolution of programming has yielded a current set of pretty good languages, and wildly different ideas - while not necessarily wrong - are at least inherently suspicious
+- there is the overwhelming sense of the evolution of programming has yielded a current set of pretty good languages, and wildly different ideas - while not necessarily wrong - are at least inherently suspicious
 - so you know, colored functions are fine, and nice and familiar, it's just an effect
 - Promises are fine actually. microtasks a little weird but whatever
 - number is okay as a type actually, it's convenient
@@ -294,14 +291,10 @@ There are also some TypeScript features that are not sound or just not needed in
 - explicit wrapping / saturating / checked arithmetic
 - only upcasts are allowed via `as`
 
-### Enums
-
-- enums are reasonably simple
-- no const enum needed?
-- integer and string..?
-- string enums are just managed strings
-- auto incrementing enum (starts at 0, int64, signed)
-- enums are nominal! need to explicitly cast
+- bigint / string
+- `string` preserves JavaScript semantics: `length` counts UTF-16 code units while iteration yields Unicode code points as `char`
+- direct string indexing yields `char` and traps on a lone surrogate; `units()`, `chars()`, and `bytes()` expose UTF-16 units, Unicode scalars, and UTF-8 bytes explicitly
+- native strings store owned UTF-16 code units, while JavaScript targets use the host string representation
 
 ### Sequences
 
@@ -318,6 +311,20 @@ There are also some TypeScript features that are not sound or just not needed in
 - subslices..?
 - `&[T]` is also a fat pointer, `[T]` is a managed slice, `^[T]` is an owned slice
 - `[T]` is managed by default (just like `Function` and `Dynamic` are managed fat pointers by default)
+
+### Enums
+
+- enums are reasonably simple, they're just a known set of allowed values
+- and are represent by their exact value
+- no const enum needed?
+- just integer and string enums..?
+- auto incrementing enum (starts at 0, int64, signed)
+- enums are nominal! need to explicitly cast
+
+- enums are carried by their value, unlike unions / literals
+- so int enums are actual ints, string enums are just managed strings
+
+- like all nominal types enums may carry instance members, constants, etc.
 
 ### Classes
 
@@ -374,14 +381,44 @@ type ProductId = number & {
 
 ```ds
 newtype UserId = string;
+const userId = UserId("123");
+
 newtype UserId = private string; // can only be constructed within file
 ```
+
+- nominal interfaces (traits)
 
 ```ds
 newtype interface Add<T> {
     add(a: T, b: T): T;
 }
 ```
+
+### Extensions
+
+- Rust has `impl` blocks for as the _sole_ mechanism for attaching members to nominal targets
+- TS++ has its as an additional mechanism
+- like `impl` in Rust but a little broader
+
+- inherent, anonymous, named extensions
+- E / T, T may be local or imported
+- `extension of T`
+- `extension E of T`
+- `export extension of T`
+- `export extension E of T`
+- an inhernt extension beside its target is visible wherever the target is visible
+- an anonymous extension on a foreign target is visible only in its declaring file
+- a named foreign extension must be imported explicitly
+
+- `extension<T> of T`: blanket extension
+- structural types, unions, and intersections cannot receive extensions
+- rustc coherence
+- overlapping implementations of one interface for one type, including blanket overlap, are errors
+- no orphan rule? 
+- extension members are lexical, but `implements` contributes a program-wide relation whenever its module is in the program
+- global extensions considered for impls (not import order)
+- member overloading only within a single declaration block (extension or itme declaration)
+- also for @unsafe impls
 
 ### Algebra
 
@@ -438,12 +475,16 @@ export type Record<K: PropertyKey, V> = {
     - can I read through index signatures? can I call through them?
     - (index signatures use `dynamic.find` at runtime, which is a linear scan over string equality!)
 
+- in general interfaces should "just work" by default, like everything in TS++
+- when we want / need to be explicit, `Dynamic<T>` 
+- like explicit `dyn T` (but fixed size fat pointer)
+- `unknown` is just `Dynamic<unknown>`
+
 ### Generics
 
 - trivial syntactic cleanup: `T extends string` -> `T: string`
 - stay the same basically
 - in, out, in out, measured variance
-- generalised `const` parameter for value generics (literal types with a fixed cardinality of one, measured by usage like with variance)
 
 - monomorph or not to monomorph
 - how far? do we monomorph refs?
@@ -452,18 +493,16 @@ export type Record<K: PropertyKey, V> = {
 
 - where clauses
 - where clauses on members and extensions
-- any (trivially) statically decidable predicate
+- `where` clauses accept interface bounds, associated member bounds, and static equality constraints
+-
+any (trivially) statically decidable predicate
 - `foo<const T: isize>() where T > 5`
 - measured cardinality (like measured variance)
 
-### Narrowing
+- generalised `const` parameter for value generics (literal types with a fixed cardinality of one, measured by usage like with variance)
 
-- type narrowing as usual, narrowing is just doing runtime type checking
-- instanceof, typeof, is
-- typeof in type position
-- is for type queries
-- instanceof for classes
-- match narrowing
+- mutable arrays are invariant, readonly array views are covariant, and explicit copies may widen element values
+- managed values follow derived variance under aliasing; owned and readonly storage may be covariant; mutable borrows, exclusive borrows, and raw pointers are exact
 
 ---
 
@@ -476,17 +515,11 @@ export type Record<K: PropertyKey, V> = {
 - pattern matching
 - (no weird switch fallthrough)
 
-### TSX
-
-- tag based trees are pretty useful and broadly applicable
-- full TSX support (no arbitrary XMLNS namespaces though)
-- there are other ways of doing UI, but this is a pretty good one, and it's *very* familiar
-- trees, generalised tree litearls,
-- lowercase tree builders, ..?
-- support both "Elements" (like `<Panel />`) and "fragments" (`<div />`)
-- (unfortunately this also means keeping TS ambiguity around..)
-
-- contextual TreeBuilder interface incl. string tags
+- almost every statement form is also an expression; the final expression without a trailing semicolon becomes the value of its enclosing block
+- `do { ... }` makes a block expression explicit where a bare brace would be ambiguous with an object or statement block
+- `if let` and `while let` bind a refutable pattern for the successful branch or iteration
+- `loop` is the explicit infinite-loop form and produces values through `break value`
+- labeled loops accept `break label: value`
 
 ### Patterns and Match
 
@@ -517,16 +550,32 @@ export type Record<K: PropertyKey, V> = {
 
 - queryable
 - `@if` static gating
-- taint/tag system
+- `@if(staticTerm)` removes imports, declarations, members, statements, cases, arguments, fields, and similar contributions before checking and output
+- `@if` is resolved before inference
 
-### Documentation
+- `@allow`, `@warn`, `@deny`, `@forbid`, and `@expect` tune diagnostics lexically; conditional forms may use static metadata and carry a reason
+- `@unsafe` marks an unsafe operation, while `@safe` exposes a checked API whose implementation contains unsafe operations
+- `@derive` synthesizes compiler-known interfaces such as `Copy`, `SharedSafe`, `Clone`, `Default`, comparison, formatting, hashing, and serialization capabilities
 
-- builtin ish?
-- cargo doc?
-- jsdoc?
-- documentations on all expressions (like decorators)
+### TSX
 
-- doc tests are a great idea, let's do that
+- tag based trees are pretty useful and broadly applicable
+- full TSX support (no arbitrary XMLNS namespaces though)
+- there are other ways of doing UI, but this is a pretty good one, and it's *very* familiar
+- trees, generalised tree litearls,
+- lowercase tree builders, ..?
+- support both "Elements" (like `<Panel />`) and "fragments" (`<div />`)
+- (unfortunately this also means keeping TS ambiguity around..)
+
+- contextual TreeBuilder interface incl. string tags
+
+- tree literals build through a contextual `TreeBuilder`
+otherwise `compiler.tree` names the default builder as `<specifier>#<export>`
+- lowercase tags are keys of the builder's `Tags` row and call its static `element`; fragments call its static `fragment`
+- uppercase tags resolve ordinary lexical values: functions receive a props object, classes receive constructor props, and structs receive literal fields
+- written and spread attributes merge under TSX rules; every required property must be present and every contributed property must exist on the target row
+- children synthesize the `children` property and form a source-ordered tuple
+- text remains a string literal and spread children must have statically known tuple length
 
 ### Result and Try
 
@@ -543,8 +592,10 @@ export type Record<K: PropertyKey, V> = {
 - the only sane error handling method is the Swift-y Rust-y ? operator 
 
 - result and async (promise / task)
+- host promises that can reject are adopted into result carriers, or converted into panics, at the binding boundary
 
 - Try-Catch-Finally still works
+- try catch finally is ofc also an expression and closes on its value
 - familiar try / catch / finally syntax still works though!
 - catch (e) is all Try error residuals
 - catch match (e) as the ergonomic switch
@@ -553,36 +604,24 @@ export type Record<K: PropertyKey, V> = {
 
 - using / async using (like TC39 proposal)
 - Dispose / AsyncDIspose
+- `using` accepts `Dispose | null | undefined`
+- `await using` accepts `AsyncDispose | Dispose | null | undefined` and falls back to synchronous disposal
 
 - vs Drop
+- resources are disposed in reverse declaration order on fallthrough, `return`, `break`, `continue`, and `?`
+- loop-form `using` disposes the resource after every iteration
+- `Drop` follows value lifetime and manages memory-shaped finalization; `using` follows lexical scope and manages files, locks, sockets, transactions, and similar resources
 
-### Extensions
+### Narrowing
 
-- Rust has `impl` blocks for as the _sole_ mechanism for attaching members to nominal targets
-- TS++ has its as an additional mechanism
-- like `impl` in Rust but a little broader
-- inherent, anonymous, named extensions
-- E / T, T may be local or imported
-- `extension of T`
-- `extension E of T`
-- `export extension of T`
-- `export extension E of T`
-
-- `extension<T> of T`: blanket extension
-- rustc coherence
-- no orphan rule? 
-- global extensions considered for impls (not import order)
-- member overloading only within a single declaration block (extension or itme declaration)
-- also for @unsafe impls
+- type narrowing as usual, narrowing is just doing runtime type checking
+- instanceof, typeof, is
+- typeof in type position
+- is for type queries
+- instanceof for classes
+- match narrowing
 
 ### Overloading
-
-- operator overloading
-- serious math-y applications want operator overloading
-- newtype interfaces ("traits")
-- binary `Add`, `Subtract`, `Multiply`, `Divide`, etc.
-- unary `Plus`, `Minus`
-- `Vector2<float32> + Vector2<float32>`
 
 - dispatch and coherence
 - need some .. coherent model
@@ -590,6 +629,18 @@ export type Record<K: PropertyKey, V> = {
 - function overloading *only* within same declaration scope (single struct, class, extension, ..)
 - extension members are lexical and import-scoped
 - interface implementations participate in the whole program (even if not imported/exported)
+
+- operator overloading
+- serious math-y applications want operator overloading
+- newtype interfaces ("traits")
+- binary `Add`, `Subtract`, `Multiply`, `Divide`, etc.
+- unary `Plus`, `Minus`
+- `Vector2<float32> + Vector2<float32>`
+- operators dispatch through standard interfaces on the left operand only; the reverse operand order needs its own implementation
+
+- union member dispatch resolves every variant
+- one common implementation stays static
+- otherwise the compiler emits a runtime case dispatch and unions the result types
 
 ### Static and Const
 
@@ -616,6 +667,9 @@ export type Record<K: PropertyKey, V> = {
 - `const <expr>` and `const { ... }` for comptime evaluation
 - `const function` for comptime functions that can only be called at comptile time
 - cardinality is measured by usage (sort of like how variance and )
+- ordinary functions may run at compile time when called from a const expression; `const function` declares that no runtime callable form exists
+- const evaluation is isolated to its expression and cannot mutate outer static or global state
+- const results must be serializable into an artifact (runtime pointers and handles cannot escape compilation)
 
 ### Functions, Lambdas and Captures
 
@@ -624,27 +678,69 @@ export type Record<K: PropertyKey, V> = {
 - repeatable calls require `&Function` or stronger access and preserve the environment
 - `&readonly Function` cannot be called; `&exclusive Function` grants the required mutable access
 - only `^Function<Parameters, Return, "once">` is valid; its call consumes the callable
-- `FunctionPointer` for raw function pointers without environment
+- `FunctionPointer` for raw / think function pointers without environment
 
+- capture
 - the default is "managed" / automatic as in TS, which means we don't have to think about captures, but incur some allocation cost
 - on demand when desired we can specify `@capture` for lambdas / nested functions
 - `@capture` with `"move"`, `"borrow"`, `"copy"`,`"manage"`, ..
-- 
+- `@capture("manage")` preserves identity, `@capture("borrow")` borrows the original binding, `@capture("copy")` snapshots it, and `@capture("move")` transfers it
 
-### Async
+```ds
+@capture({
+    default: "copy",
+    socket: "move",
+    logger: "borrow",
+    this: "borrow",
+})
+return (message) => {
+    logger.info("sending");
+    return socket.write(`${this.prefix}: ${message}`);
+};
+```
+
+- `"repeatable"` is the default multiplicity, while `"once"` is affine and consumed by its first invocation
+- closures preserve lexical `this` and use `Function<Parameters, Return, Multiplicity>`; 
+
+### Async and Promise
 
 - proper async
 - keep familiar Promise for aliased async
 - Promise is implemented basically completely in userland!
 - *fiber*-based execution (e.g. JVM's new Loom model).. but doesn't really matter, feels like TS
 - (for soundness, Promis requires Copy values, which classes and primitive value types trivially satisfy)
-- introduce Task for structured affine concurrency (same async/await model)
-- (Promise = managed class, Task = value type, Promise requires aliasable / copyable type)
 
 - TS++ has no exceptions, promises never reject quite like they do in TS++
 - (they're really more like Futures once you remove the exception model)
 - `Promise<Result<T, E>>` as the result type for fallible async work
 - (or `Task<Result<T, E>>` for affine execution)
+
+- introduce Task for structured affine concurrency (same async/await model)
+- (Promise = managed class, Task = value type, Promise requires aliasable / copyable type)
+- `Promise<T>` is repeatable Worker-local completion for copyable values
+- `Task<T>` is consuming Worker-local completion with cancellation and scope ownership
+
+- `TaskScope` owns work that outlives a frame; asynchronous disposal cancels pending children and waits for cleanup
+- cancellation resumes a parked continuation into its cancellation path, runs `using`, `finally`, and `Drop`, and stops at the task boundary
+- every started operation must be awaited, returned, or handed to a scope; `no-floating-promises` is denied by default
+
+### Panic
+
+- no exceptions, results for known unknowns
+- but still need some way to model hard failures
+- trap / abort .. abort.. but what  about panics for
+- overflows / underflows
+- out of bounds
+- deliberate unreachable
+
+- worker scoped
+- a panic unwinds only the current Worker, running `using`, `await using`, `finally`, and `Drop` cleanup in reverse order
+- the Worker terminates with a `Panic` containing its message, source location, and available stack trace; supervisors, tests, and simulation observe that termination through the Worker API
+- catch unwind
+- also useful for testing
+- again like in Rust
+
+- must-unwrapping a failure, explicit `panic`, overflow, out-of-bounds access, lone-surrogate string indexing, and reached `unreachable` code panic
 
 ---
 
@@ -662,8 +758,33 @@ export type Record<K: PropertyKey, V> = {
 - (with the defaults being TS shaped as always)
 -  owneship (managed, owned, borrowed, or raw)
 -  access (readonly, mutable, or exclusive)
--  space/place (local, shared, inline, or another defined space)
--  lifetime
+-  region: space/place (local, shared, inline, or another defined space) + lifetime
+
+### Local and Shared
+
+- so far we have assumed basically single-threaded, async execution
+- this is most code, but obviously a complete language needs to consider concurrency at a more fundamental level, across threads
+- many ways to do this, TS already strongly biases into the "local-first" direction
+- we could just generalise SharedArrayBuffer and friends?
+- split local and shared memory spaces
+- separate heaps, separate GCs
+- worker-first, local-first, shared-nothing-first memory model
+
+- local isolated heap per worker
+- local and shared modifier on types
+- local and shared modifier on bindings
+- local and shared modifier on declarations
+- worker-local stuff is .. local (Promise, Task, etc.)
+- no need for Send and Sync, basically the 90 degree rotated version of that classic pair
+
+- local borrowing managed is sound except across suspension
+- how to keep local / shared safe
+- proper managed object types on shared
+
+- borrows are place polymorphic by default
+- reference types are local by default unless otherwise specified
+- `SharedSafe`
+
 
 ### Layout
 
@@ -675,6 +796,11 @@ export type Record<K: PropertyKey, V> = {
 - @repr
 - custom repr
 - @repr("C")
+- `@repr("destack")`, `@repr("C")`, `@repr("transparent")`, integer enum backings, explicit alignment, and packed field alignment constrain layout
+
+- closed: aliases, newtypes, and object shapes have one concrete representation
+- open: bare structural interfaces and indexed shapes are open and store through `Dynamic<T>`
+- indexed structural fields are readonly and return `T | undefined`; represented collections such as `Map` implement `IndexSet` for writes
 
 ### Ownership
 
@@ -696,6 +822,19 @@ export type Record<K: PropertyKey, V> = {
 - sometimes we need stuff that cannot be statically proven.. raw pointers, *T
 - arrghh yes seriously pointers in TypeScript let's go
 
+| Form | Meaning | Access | Exclusive |
+| --- | --- | --- | --- |
+| `T` | direct value for value types, managed reference for reference types | mutable | depends on representation |
+| `^T` | uniquely owned value | mutable | yes |
+| `&T` | borrowed access | mutable | no |
+| `&readonly T` | borrowed readonly access | readonly | no |
+| `&exclusive T` | borrowed exclusive access | mutable | yes |
+| `*T` | inert unchecked pointer | unchecked | unchecked |
+
+- the owner keeps the value alive and destroys it when the owner's own lifetime ends
+- ownership, access, placement, and lifetime compose independently and normalize through `Managed`, `Owned`, `Borrowed`, `Raw`, and `Placed`
+- plain `T` always preserves the TypeScript-shaped default: structs and other value types are direct  values, while classes and other reference types are (local) managed aliases
+
 ### Borrowing
 
 - if we want value types and we want to pass them around, we need some way to reference them safely
@@ -714,6 +853,15 @@ export type Record<K: PropertyKey, V> = {
 - the Rust model really is the most widespread and commonly known
 -  (inference only locally within functions, no induced generics beyond that)
 - fortunately, we barely write code by hand anymore unless we want to, most use cases for this will be in libraries most users will never see, so whatever. it works, we know it works, it's safe.
+
+- `&readonly T` and `&T` may overlap; `&exclusive T` cannot overlap another live loan of the same place
+- writing through non-exclusive borrowed access requires an overwrite-stable place: the old value needs no destruction, the layout is fixed, and every concurrently observable representation is valid
+- stored borrows write lifetime parameters explicitly; function signatures infer hidden lifetime parameters, prefer the receiver lifetime, union borrowed input lifetimes, and otherwise use `"static"`
+
+- borrows into managed storage retain and pin every managed object in the borrowed path until the borrow's last use
+- a borrow used to initialize a binding extends its temporary to the binding lifetime; other 
+temporaries live to the end of the enclosing statement
+- owned and borrowed sources may remain live across `await` and `yield` (a borrow rooted in local managed storage must end at the next suspension point)
 
 ### Mutability
 
@@ -745,6 +893,7 @@ export type Record<K: PropertyKey, V> = {
 - (e.g. Drop on an Array deallocates the memory)
 - no drop flags needed because no partial initialisation + eager drop
 - Drop is *not* lowered to JS (not sure how that would even work..?)
+- owned locals drop after their last use, owned fields drop with their parent, and managed allocations run `Drop` when reclaimed
 
 ```ds
 export newtype interface Drop {
@@ -753,31 +902,15 @@ export newtype interface Drop {
 }
 ```
 
-- it's a finalizer, but a very restricted one
+- Drop is a finalizer, yes, but a very restricted one
 - no allocations, no panics, statically checked
 
-### Local and Shared
-
-- so far we have assumed basically single-threaded, async execution
-- this is most code, but obviously a complete language needs to consider concurrency at a more fundamental level, across threads
-- many ways to do this, TS already strongly biases into the "local-first" direction
-- we could just generalise SharedArrayBuffer and friends?
-- split local and shared memory spaces
-- separate heaps, separate GCs
-- worker-first, local-first, shared-nothing-first memory model
-
-- local isolated heap per worker
-- local and shared modifier on types
-- local and shared modifier on bindings
-- local and shared modifier on declarations
-- worker-local stuff is .. local (Promise, Task, etc.)
-- no need for Send and Sync, basically the 90 degree rotated version of that classic pair
-
-- local borrowing managed is sound except across suspension
-- how to keep local / shared safe
-- proper managed object types on shared
-
----
+- no drop flags
+- maybe-present values use explicit unions; conditional moves are rejected at control-flow joins, so runtime drop flags are unnecessary
+- `drop(value)` ends ownership immediately
+- `forget(value)` suppresses automatic drop
+- `ManuallyDrop<T>` stores outside automatic drop
+- and `Box<T>.leak()` yields a static borrow
 
 ## Runtime
 
@@ -793,7 +926,6 @@ export newtype interface Drop {
 - so, decidedly not "byte identical"
 - .. but basically feels the same
 
-
 - "Write Once, Run Everywhere"
 - yada yada heard it a million times
 - (though it did arguably sorta work for Java, and now the web , and maybe WASM, .. mostly)
@@ -808,6 +940,23 @@ export newtype interface Drop {
 - no async imports / exports
 - no CommonJS
 - no export type / import type
+
+- nested `module { ... }` block whose decorators configure the module itself
+
+- `global { ... }` contributes configured value globals and may re-export a standard prelude; it does not create TypeScript's separate ambient type world
+
+- JSON, TOML, and YAML imports become exact deeply readonly literal values at compile time
+- Markdown, CSS, HTML, and plain text import as `string`; images, fonts, Wasm, and other binary files import as `uint8[]`
+- `with { type: ... }` overrides the loader with `json`, `toml`, `yaml`, `text`, `binary`, or `base64`
+
+### Documentation
+
+- builtin ish?
+- jsdoc?
+- documentations on all expressions (like decorators)
+
+- cargo doc?
+- doc tests are a great idea, let's do that
 
 ### destack.json
 
@@ -878,57 +1027,33 @@ For module-level constants we keep and extend the `import.meta` convention:
 - @binding
 - configured via Context
 
+### Policy
+
+- packages declare required host actions and resources in `policy.requires`
+- applications and workspaces decide access with ordered `policy.rules`
+- each rule matches a subject such as a package, an action such as `fs.read` or `net.connect`, and a resource pattern
+- bindings are the runtime enforcement point because every host interaction crosses a typed `@binding`
+
+```json
+{
+    "policy": {
+        "requires": [
+            { "action": "fs.read", "resource": "app://config/**" },
+            { "action": "net.connect", "resource": "tcp://database.internal:5432" }
+        ],
+        "rules": [
+            {
+                "subject": { "package": "@vendor/parser" },
+                "action": "net.connect",
+                "resource": "*",
+                "access": "deny"
+            }
+        ]
+    }
+}
+```
+
+
 ### Testing
 
 - jest/vitest style tests
-
-### Panic
-
-- no exceptions, results for known unknowns
-- but still need some way to model hard failures
-- trap / abort .. abort.. but what  about panics for
-- overflows / underflows
-- out of bounds
-- deliberate unreachable
-
-- worker scoped
-- catch unwind
-- also useful for testing
-- again like in Rust
-
-<!--
-### Policy
-
-- policy config destack.json stuff
--->
-
-<!--### Style
-
-- one of the perks of owning the whole toolchain is we can make the parser and formatter and linter and such do whatever we want
-- doc comments on expressions too, why not
-- colored regions?
-- logic blocks
-- neurotic code styles
-- annoyingly pedantic linting (but it's fine)-->
-
-<!--### Topology
-
-- Entity, Edge, ...
-- C4, ...-->
-
-<!--### Testing
-
-- destack:test
-- jest / vitest style
-- again, sticking to good prior art-->
-
-<!--### Standard Library
-
-- again: what is the most widely known, idiomatic shape here that everyone already knows?
-- in this case: Node and Web shaped
-- `node:*` -> `destack:*`
-- Web* APIs
-- fetch, .. whatever good standards the Web has
-- Rust-y stdlib underneath-->
-
-<!--### Linter-->
