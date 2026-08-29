@@ -11,6 +11,6 @@ await mkdir(publicDirectory, { recursive: true });
 await rm(publicBrandDirectory, { recursive: true, force: true });
 await mkdir(publicBrandDirectory, { recursive: true });
 
-for (const asset of ["banner", "favicon", "icon"]) {
+for (const asset of ["favicon", "icon"]) {
     await cp(join(brandDirectory, asset), join(publicBrandDirectory, asset), { recursive: true });
 }

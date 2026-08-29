@@ -7,7 +7,7 @@ const outputDirectory = join(siteDirectory, ".output/public");
 
 await mkdir(join(outputDirectory, "brand"), { recursive: true });
 
-for (const asset of ["banner", "favicon", "icon"]) {
+for (const asset of ["favicon", "icon"]) {
     await cp(join(repositoryDirectory, "platform/brand", asset), join(outputDirectory, "brand", asset), {
         recursive: true,
     });
