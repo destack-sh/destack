@@ -92,9 +92,9 @@ export extension<T, const N: usize> of SmallArray<T, N>
         todo("SmallArray.withCapacity")
     }
 
-    /// Create a small array from `values`.
-    static from(values: Iterable<T>): SmallArray<T, N> {
-        todo("SmallArray.from")
+    /// Create a small array from a fixed array.
+    static from(value: [T; N]): SmallArray<T, N> {
+        todo("SmallArray.fromFixedArray")
     }
 
     /// Create a small array from an array.
@@ -102,9 +102,9 @@ export extension<T, const N: usize> of SmallArray<T, N>
         todo("SmallArray.fromArray")
     }
 
-    /// Create a small array from a fixed array.
-    static from(value: [T; N]): SmallArray<T, N> {
-        todo("SmallArray.fromFixedArray")
+    /// Create a small array from `values`.
+    static from(values: Iterable<T>): SmallArray<T, N> {
+        todo("SmallArray.from")
     }
 
     /// Create a small array from `values`.
