@@ -2,7 +2,7 @@ use destack_core::Arena;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeIdAny, SymbolId};
+use crate::SymbolId;
 
 /// One JavaScript scope identifier.
 #[repr(transparent)]
@@ -21,8 +21,6 @@ impl ScopeId {
 pub struct Scope {
     /// The parent scope when one exists.
     pub parent: Option<ScopeId>,
-    /// The node introducing the scope when one exists.
-    pub owner: Option<LocalNodeIdAny>,
     /// The symbols declared directly in this scope.
     pub symbols: Vec<SymbolId>,
 }
@@ -40,7 +38,6 @@ impl ScopeTable {
         let mut scopes = Arena::new();
         scopes.allocate(Scope {
             parent: None,
-            owner: None,
             symbols: Vec::new(),
         });
 
@@ -48,11 +45,10 @@ impl ScopeTable {
     }
 
     /// Allocate one scope.
-    pub(crate) fn insert(&mut self, parent: ScopeId, owner: Option<LocalNodeIdAny>) -> ScopeId {
+    pub(crate) fn insert(&mut self, parent: ScopeId) -> ScopeId {
         let id = ScopeId(self.scopes.len() as u32);
         let scope = Scope {
             parent: Some(parent),
-            owner,
             symbols: Vec::new(),
         };
         self.scopes.allocate(scope);

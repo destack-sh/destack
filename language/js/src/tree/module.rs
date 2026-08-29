@@ -4,8 +4,7 @@ use destack_source::{ModuleId, ProvenanceId, ProvenanceJournal, ProvenanceTable}
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    LocalNodeId, LocalNodeIdAny, ScopeId, ScopeTable, Statement, SymbolId, SymbolNamespace,
-    SymbolTable, Tree,
+    LocalNodeId, ScopeId, ScopeTable, Statement, SymbolId, SymbolNamespace, SymbolTable, Tree,
 };
 
 /// One lowered JavaScript module tree.
@@ -56,8 +55,8 @@ impl Module {
     }
 
     /// Allocate one lexical scope.
-    pub fn insert_scope(&mut self, parent: ScopeId, owner: Option<LocalNodeIdAny>) -> ScopeId {
-        self.scopes.insert(parent, owner)
+    pub fn insert_scope(&mut self, parent: ScopeId) -> ScopeId {
+        self.scopes.insert(parent)
     }
 
     /// Allocate one symbol and declare it in its lexical scope.
@@ -66,12 +65,9 @@ impl Module {
         name: StringId,
         namespace: SymbolNamespace,
         scope: ScopeId,
-        declaration: Option<LocalNodeIdAny>,
         provenance: ProvenanceId,
     ) -> SymbolId {
-        let symbol = self
-            .symbols
-            .insert(name, namespace, scope, declaration, provenance);
+        let symbol = self.symbols.insert(name, namespace, scope, provenance);
         self.scopes.get_mut(scope).symbols.push(symbol);
 
         symbol

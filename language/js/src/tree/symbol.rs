@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::{ProvenanceId, ProvenanceJournal};
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeIdAny, ScopeId};
+use crate::ScopeId;
 
 /// One stable JavaScript symbol identifier.
 #[repr(transparent)]
@@ -34,8 +34,6 @@ pub struct Symbol {
     pub namespace: SymbolNamespace,
     /// The declaring scope.
     pub scope: ScopeId,
-    /// The declaring node when one exists.
-    pub declaration: Option<LocalNodeIdAny>,
     /// The provenance of the symbol.
     pub provenance: ProvenanceId,
 }
@@ -61,7 +59,6 @@ impl SymbolTable {
         name: StringId,
         namespace: SymbolNamespace,
         scope: ScopeId,
-        declaration: Option<LocalNodeIdAny>,
         provenance: ProvenanceId,
     ) -> SymbolId {
         let id = SymbolId(self.symbols.len() as u32);
@@ -70,7 +67,6 @@ impl SymbolTable {
             link: id,
             namespace,
             scope,
-            declaration,
             provenance,
         };
         self.symbols.allocate(symbol);
