@@ -1,59 +1,34 @@
 <div align="center">
-<p>
-    <img src="./platform/brand/banner/banner.svg" width="960" alt="Destack banner">
-</p>
 
-# Destack: Universal Software Engine
-
-**Destack is a universal software engine for building correct, optimal, integrated software systems.**
-
-Open source cross-platform TypeScript(++) toolchain, VM, AOT compiler, runtime, and libraries.
+## The Destack
 
 <p>
     <a href="destack.json"><img src="https://img.shields.io/badge/version-2026.8.3-2ea44f?style=for-the-badge" alt="Version"></a>
+    <a href="#usage"><img src="https://img.shields.io/badge/maturity-alpha-orange?style=for-the-badge" alt="Maturity: alpha"></a>
     <a href="LICENSE.txt"><img src="https://img.shields.io/badge/license-MIT-blue?style=for-the-badge" alt="MIT License"></a>
-    <a href="https://github.com/destack-sh/destack/actions/workflows/nightly.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/nightly.yml?branch=main&label=Nightly&logo=github&style=for-the-badge" alt="Nightly"></a>
     <a href="https://github.com/destack-sh/destack/actions/workflows/release.yml"><img src="https://img.shields.io/github/actions/workflow/status/destack-sh/destack/release.yml?branch=main&label=Release&logo=github&style=for-the-badge" alt="Release"></a>
     <a title="Discord" target="_blank" href="https://discord.gg/xUFQ45TWYd"><img alt="Chat with Destack people on Discord" src="https://img.shields.io/discord/1079840654466752606?label=Discord&logo=discord&logoColor=white&style=for-the-badge"></a>
 </p>
 
 </div>
 
----
+**Destack is an absurdly integrated fully hackable open source computing stack.**
 
-## The Destack
+The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale.
+To standardize software and its production, we must first make all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
 
-**Destack is a universal software engine with a language, compiler, toolchain, runtime, and libraries built on top of TypeScript and the open web ecosystem.**
-Mechanically, Destack is an integrated stack for building correct and optimal software systems, but conceptually, Destack is the antithesis to the very idea of a "stack":
-instead of wrangling many disparate languages, tools, libraries, approaches, runtimes, services, and apps, Destack unifies the processes of software production into _one_ universal computing stack:
+The centrepiece of any integrated software system must be a programming language.
+Destack is built around TypeScript++, our universal programming language evolved from TypeScript to serve *all* computing needs within one modern, familiar Web-shaped ecosystem.
+Basically: what if TypeScript were strict, sound, and also capable of being a serious systems language?
+That's TypeScript++.
 
-- [**Destack Manual**](docs/index.md): Design, language, runtime, and technical reference.
-- [**Destack Language**](language/README.md): TypeScript(++) compiler and runtime implementation.
-- [**Destack Library**](library/README.md): Rich standard library for most things most software needs.
-
-The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale, and we accomplish this by making all software systems fully [homoiconic](https://en.wikipedia.org/wiki/Homoiconicity) and hackable with [incrementally granular](https://caseymuratori.com/blog_0016) building blocks.
-The architecture is therefore modeled around "do-it-yourself software" over "ready-to-wear software", providing a sort of meta-stack for developing correct, optimal, integrated software stacks.
-
-## Usage
-
-> [!WARNING]
-> **Destack is an _alpha_ software stack.**
-> Things may change or break or vanish.
-
-**Get started with Destack**:
-- Install Destack via `curl -fsSL https://destack.sh/install | sh`.
-- Create a new Destack app with `destack new my-destack-app`.
+Destack is currently in alpha, but you can get a feel for it at: TODO
 
 ## Contributing
 
-Destack is in [very active development](https://github.com/destack-sh/destack/commits/main/) with a singular focus: a fully integrated computing stack for building optimal, correct, integrated software systems.
-We welcome feedback, issues, ideas, and _maybe_ some small fixes, but please [reach out](https://discord.gg/xUFQ45TWYd) first for non-trivial contributions.
-See [TESTING.md](TESTING.md) and [CONTRIBUTING.md](CONTRIBUTING.md) for more.
+Destack is not currently open for public source contributions, but we welcome feedback, issues, and ideas.
 
 ## License
 
 Destack is fully open source under the MIT license across the full stack.
-See [LICENSE.txt](LICENSE.txt).
-
-Destack also includes components licensed, vendored, and integrated from third parties, which come with their own licenses including but not limited to the Apache-2.0 (with LLVM-exception) license.
-See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+See [LICENSE.txt](LICENSE.txt) with vendored parts licensed under other license like Apache-2.0 (with LLVM-exception) license, listed in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
