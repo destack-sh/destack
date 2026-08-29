@@ -4,12 +4,6 @@ We welcome serious non-slop bug reports, issues and feature suggestions: join ou
 
 Destack is not generally open for public contributions at this point.
 
-## Versioning
-
-The root [destack.json](destack.json) declares the complete Destack distribution and workspace.
-Its `version` uses `YEAR.MONTH.MICRO` and advances weekly, while each Package or Product declares its own Stability.
-Do not change versions during normal development, only advance versions through `just next-version` or `just release`.
-
 ## Security
 
 If you find a security issue, please follow [SECURITY.md](SECURITY.md).
@@ -36,9 +30,20 @@ See the relevant directories we're working on for the relevant just recipes.
 
 ## Release
 
-Release CI is tag driven and runs on `v*` pushes:
- - Use `just release` to prepare the next weekly release commit and tag.
- - Use `just release-push` to push the current release commit and tag.
- - Nightly is the high-frequency early-access channel.
- - Canary is reserved for internal validation builds.
-See [RELEASE.md](RELEASE.md) for the canonical release runbook, credential matrix, signing model, and failure recovery guidance.
+The root [destack.json](destack.json) declares the complete distribution and its `YEAR.MONTH.MICRO` version.
+Packages and products declare their own stability.
+Do not edit versions directly: use `just next-version`, `just set-version`, or `just release`.
+
+Prepare and publish a release from the repository root:
+
+```sh
+just check-quick
+just check-full
+just release
+# review the release commit and vYEAR.MONTH.MICRO tag
+just release-push
+```
+
+Pushing the tag runs [.github/workflows/release.yml](.github/workflows/release.yml).
+Use `just validate-release` and `just publish --dry-run` for additional packaging checks.
+CI credentials live in the GitHub `release` environment, while local publishing reads `.env.local`.
