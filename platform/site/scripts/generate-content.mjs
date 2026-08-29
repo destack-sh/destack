@@ -30,10 +30,12 @@ const contentDirectory = join(siteDirectory, "src/content/blog");
 const documentDirectories = [
     {
         directory: join(repositoryDirectory, "language/docs"),
+        hierarchy: [],
         path: "language",
     },
     {
         directory: join(repositoryDirectory, "language/library/docs"),
+        hierarchy: [30],
         path: "language/library",
     },
 ];
@@ -49,6 +51,7 @@ const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 const generatedSearchFile = join(generatedDirectory, "search.ts");
 const isCheck = process.argv.includes("--check");
 const documentPathPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+const documentSegmentPattern = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 
 const documentSources = readDocumentSources();
 const renderedDocuments = renderDocuments(documentSources);
@@ -174,7 +177,7 @@ function resolveAssets(html, assets) {
     return resolved;
 }
 
-/// Read and order every documentation source.
+/// Read every documentation source in path order.
 function readDocumentSources() {
     const sources = documentDirectories.flatMap((collection) => {
         // require each documentation directory
@@ -189,13 +192,14 @@ function readDocumentSources() {
             requireString(metadata, "title", file);
             requireString(metadata, "description", file);
 
-            const order = Number(metadata.order);
-            if (!Number.isSafeInteger(order) || order < 0) {
-                throw new Error(`invalid order in ${file}`);
+            // reject frontmatter ordering
+            if (Object.hasOwn(metadata, "order")) {
+                throw new Error(`documentation order belongs in the source path: ${file}`);
             }
 
-            const relativePath = relative(collection.directory, file).replaceAll("\\", "/");
-            const path = `${collection.path}/${relativePath}`;
+            const sourcePath = relative(collection.directory, file).replaceAll("\\", "/");
+            const { hierarchy, path: publicPath } = parseDocumentPath(sourcePath, file);
+            const path = `${collection.path}/${publicPath}`;
             const route = documentRoute(path);
             const headings = headingsFor(markdown);
 
@@ -204,10 +208,10 @@ function readDocumentSources() {
                 directory: collection.directory,
                 file,
                 headings,
+                hierarchy: [...collection.hierarchy, ...hierarchy],
                 lead: metadata.description,
                 markdownRoute: `/${join("docs", path).replaceAll("\\", "/")}`,
                 markdown,
-                order,
                 path,
                 route,
                 textRoute: `/${join("docs", path.replace(/\.md$/, ".txt")).replaceAll("\\", "/")}`,
@@ -215,16 +219,61 @@ function readDocumentSources() {
                 tokens: tokenEstimateFor(plainTextFor(markdown)),
             };
         });
-    }).sort((left, right) => left.order - right.order || left.route.localeCompare(right.route));
+    }).sort(compareDocuments);
 
     validateDocuments(sources);
 
-    return sources;
+    return sources.map(({ hierarchy: _, ...source }, order) => ({ ...source, order }));
 }
 
-/// Validate the path, order, and title invariants of the manual.
+/// Parse a numbered source path into its public path and hierarchy.
+function parseDocumentPath(path, file) {
+    const segments = path.split("/");
+    const names = [];
+    const hierarchy = [];
+
+    // strip the numeric prefix from each public path segment
+    for (const [index, segment] of segments.entries()) {
+        const isIndex = index === segments.length - 1 && segment === "index.md";
+        if (isIndex) {
+            names.push(segment);
+            continue;
+        }
+
+        const extension = index === segments.length - 1 ? ".md" : "";
+        const name = extension === "" ? segment : segment.slice(0, -extension.length);
+        const match = documentSegmentPattern.exec(name);
+        if (match == null) {
+            throw new Error(`documentation path lacks a numeric prefix: ${file}`);
+        }
+
+        hierarchy.push(Number(match[1]));
+        names.push(`${match[2]}${extension}`);
+    }
+
+    return { hierarchy, path: names.join("/") };
+}
+
+/// Compare documentation sources by their numeric hierarchy.
+function compareDocuments(left, right) {
+    const depthCount = Math.min(left.hierarchy.length, right.hierarchy.length);
+
+    // compare every shared level
+    for (let depth = 0; depth < depthCount; depth += 1) {
+        const difference = left.hierarchy[depth] - right.hierarchy[depth];
+        if (difference !== 0) {
+            return difference;
+        }
+    }
+
+    const depthDifference = left.hierarchy.length - right.hierarchy.length;
+
+    return depthDifference || left.route.localeCompare(right.route);
+}
+
+/// Validate the path, hierarchy, and title invariants of the manual.
 function validateDocuments(documents) {
-    const orders = new Set();
+    const hierarchies = new Set();
     const paths = new Set(documents.map((document) => document.path));
 
     for (const document of documents) {
@@ -232,10 +281,11 @@ function validateDocuments(documents) {
             throw new Error(`invalid documentation path: ${document.path}`);
         }
 
-        if (orders.has(document.order)) {
-            throw new Error(`duplicate documentation order: ${document.order}`);
+        const hierarchy = document.hierarchy.join(".");
+        if (hierarchies.has(hierarchy)) {
+            throw new Error(`duplicate documentation hierarchy: ${hierarchy}`);
         }
-        orders.add(document.order);
+        hierarchies.add(hierarchy);
 
         const titles = document.headings.filter((heading) => heading.depth === 1);
         if (titles.length !== 1 || titles[0].text !== document.title) {

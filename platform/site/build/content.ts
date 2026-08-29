@@ -39,7 +39,8 @@ export function contentPlugin(siteDirectory: string): Plugin {
             script: "scripts/generate-content.mjs",
             triggers: [
                 join(siteDirectory, "src/content/blog"),
-                resolve(siteDirectory, "../../docs"),
+                resolve(siteDirectory, "../../language/docs"),
+                resolve(siteDirectory, "../../language/library/docs"),
             ],
         },
     ];
