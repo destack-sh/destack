@@ -52,8 +52,6 @@ impl Formatter<'_, '_, '_> {
     /// Format one type owned by this formatter's module.
     pub(super) fn local_type(&self, type_value: &dir::Type) -> QueryResult<String> {
         let text = match type_value {
-            dir::Type::Hole(hole) => format!("?{hole}"),
-            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Error => "<error>".to_string(),
             dir::Type::Never => "never".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
