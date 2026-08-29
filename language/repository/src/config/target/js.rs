@@ -29,8 +29,6 @@ pub struct TargetJsOptions {
     pub assets: JsAssetOptions,
     /// Output configuration for assembled products.
     pub output: JsOutputOptions,
-    /// Minification options.
-    pub minify: JsMinifyOptions,
 }
 
 /// Module format for emitted JavaScript output.
@@ -202,36 +200,6 @@ pub struct JsAssetOptions {
     pub mode: JsAssetMode,
     /// Inline asset payloads smaller than this many bytes.
     pub inline_limit: Option<u64>,
-}
-
-/// JavaScript minification options.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
-#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
-#[serde(default)]
-#[serde(rename_all = "camelCase")]
-pub struct JsMinifyOptions {
-    /// Whether to minify final bundled output.
-    pub enabled: bool,
-    /// Whether to minify syntax forms.
-    pub syntax: bool,
-    /// Whether to minify whitespace.
-    pub whitespace: bool,
-    /// Whether to minify identifiers.
-    pub identifiers: bool,
-    /// Whether to preserve function and class names.
-    pub keep_names: bool,
-}
-
-impl JsMinifyOptions {
-    /// Return whether any minification pass is enabled.
-    pub fn is_enabled(&self) -> bool {
-        self.enabled || self.syntax || self.whitespace || self.identifiers
-    }
-
-    /// Return whether output text should be compacted or structurally minified.
-    pub fn minifies_output(&self) -> bool {
-        self.enabled || self.syntax || self.whitespace
-    }
 }
 
 /// Generated code controls for one output.
