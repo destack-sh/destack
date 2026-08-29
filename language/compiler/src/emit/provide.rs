@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirLowered,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirBound, DirChecked,
+    DirDeclared, DirElaborated, DirExpanded, DirMaterialized, DirParsed, DirResolved, MirLowered,
     MirOptimized, Output,
 };
+use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
@@ -11,11 +13,12 @@ use crate::{Compiler, CompilerError, CompilerResult, EmitError};
 
 use super::ObjectEmitter;
 use super::bytecode::BytecodeEmitter;
+use super::js::ModuleEmitter;
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use super::native::NativeEmitter;
 
 impl Compiler {
-    /// Collect inputs for one structured script.
+    /// Collect inputs for one JavaScript module.
     pub(crate) fn collect_script(
         &self,
         module: ModuleId,
@@ -42,10 +45,10 @@ impl Compiler {
             .into());
         }
 
-        // declare the DIR tables consumed by script emission
+        // declare the DIR tables consumed by JavaScript emission
         dependencies.require(ArtifactKey::dir_parsed(module));
         dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::dir_imported(module, profile));
+        dependencies.require(ArtifactKey::dir_resolved(module, profile));
         dependencies.require(ArtifactKey::dir_expanded(module, profile));
         dependencies.require(ArtifactKey::dir_materialized(module, profile));
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
@@ -105,7 +108,7 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Build one structured script.
+    /// Build one JavaScript module.
     pub(crate) fn provide_script(
         &self,
         module: ModuleId,
@@ -143,9 +146,71 @@ impl Compiler {
             .into());
         }
 
-        // emit script from materialized DIR
+        // require a code module
+        {
+            let module = self.module(context.revision(), module)?;
+            if !module.is_code() {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "asset modules are linked directly for module '{}'",
+                        module.uri
+                    ),
+                });
+            }
+        }
+
+        // read the complete materialized DIR
         let artifacts = self.artifact_reader(context);
-        let output = self.emit_script(module, &target_config, profile, context, &artifacts)?;
+        let parsed = artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
+        let bound = artifacts
+            .read::<DirBound>((module, profile))
+            .map_err(CompilerError::from)?;
+        let resolved = artifacts
+            .read::<DirResolved>((module, profile))
+            .map_err(CompilerError::from)?;
+        let expanded = artifacts
+            .read::<DirExpanded>((module, profile))
+            .map_err(CompilerError::from)?;
+        let declared = artifacts
+            .read::<DirDeclared>((module, profile))
+            .map_err(CompilerError::from)?;
+        let elaborated = artifacts
+            .read::<DirElaborated>((module, profile))
+            .map_err(CompilerError::from)?;
+        let checked = artifacts
+            .read::<DirChecked>((module, profile))
+            .map_err(CompilerError::from)?;
+        let materialized = artifacts
+            .read::<DirMaterialized>((module, profile))
+            .map_err(CompilerError::from)?;
+
+        // project the DIR tables consumed by emission
+        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
+        let resolutions = checked.resolution_table(&declared, &elaborated);
+        let decisions = materialized.decision_table(&declared, &elaborated, &checked);
+        let types = materialized.type_table(&bound, &expanded, &declared, &elaborated, &checked);
+        let patches = [expanded.patch.clone(), materialized.patch.clone()];
+        let view = dir::View::with_patches(&parsed.tree, &patches);
+
+        // emit one JavaScript module and its provenance
+        let mut provenance = materialized.provenance.extend();
+        let journal = provenance.record("emit-javascript");
+        let mut output = ModuleEmitter::new(
+            view,
+            materialized.roots.as_ref(),
+            self.repository.string_pool(),
+            bindings,
+            &resolved.references,
+            resolutions,
+            decisions,
+            types,
+            &materialized.provenance,
+            journal,
+        )
+        .emit()?;
+        output.provenance = provenance.finish();
 
         Ok(ArtifactPayload::Script(Arc::new(output)))
     }

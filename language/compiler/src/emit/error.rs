@@ -29,21 +29,14 @@ pub enum EmitError {
     // -------------------------------------------------------------------------
     // types
     // -------------------------------------------------------------------------
-    /// Unsupported type for emit.
+    /// Unsupported type during emission.
     #[diagnostic(id = "unsupported-emission-type", message = "unsupported type")]
     UnsupportedType {
         anchor: DiagnosticAnchor,
         module: ModuleId,
     },
 
-    /// Missing type information.
-    #[diagnostic(id = "missing-type-information", message = "missing type")]
-    MissingType {
-        anchor: DiagnosticAnchor,
-        module: ModuleId,
-    },
-
-    /// Unexpected construct (wrong node type).
+    /// Unexpected construct during emission.
     #[diagnostic(
         id = "unexpected-emission-construct",
         message = "unexpected construct: {message}"
@@ -57,7 +50,7 @@ pub enum EmitError {
     // -------------------------------------------------------------------------
     // internal failures
     // -------------------------------------------------------------------------
-    /// Internal emit error.
+    /// Internal emission error.
     #[diagnostic(id = "internal-emission-error", message = "internal error: {message}")]
     Internal {
         anchor: DiagnosticAnchor,
