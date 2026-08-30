@@ -1,29 +1,23 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::sema::{
-    BodyState, CandidateOutcome, CheckAttempt, CheckOutcome, Expectation, FlowSite, InferMode,
-    PlaceUse, Relation, ValueCheck, Verdict,
+    CandidateOutcome, CheckAttempt, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite,
+    InferMode, PlaceUse, ValueCheck, Verdict,
 };
-use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Check one expression node against an expected type.
     pub(in crate::sema) fn check_expression(
         &mut self,
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<ValueCheck> {
-        // record the written expectation for tools and lowering
-        self.check
-            .expected_types
-            .insert(site.node, expectation.target);
-
         // convert a node checked once by its committed type
-        if let Some(source) = self.check.node_types.get(&site.node) {
+        if let Some(source) = self.own_node_type(site.node) {
             return Ok(ValueCheck {
                 source,
-                stored: source,
                 outcome: CheckOutcome::Holds,
                 target: expectation.target,
             });
@@ -35,132 +29,14 @@ impl BodyState<'_, '_> {
             return Ok(check);
         }
 
-        // select one contextual union member when exactly one applies
-        if expectation.relation.is_union_distributive()
-            && let Some(check) = self.check_union_target(site, expectation)?
-        {
-            return Ok(check);
-        }
-
         // infer expressions without a target-directed rule
         let source = self.infer_node(site, PlaceUse::Read, expectation.mode)?;
 
         Ok(ValueCheck {
             source,
-            stored: source,
             outcome: CheckOutcome::Holds,
             target: expectation.target,
         })
-    }
-
-    /// Check one expression against one uniquely applicable union member.
-    fn check_union_target(
-        &mut self,
-        site: FlowSite,
-        expectation: Expectation,
-    ) -> CompilerResult<Option<ValueCheck>> {
-        let origin = site.origin();
-        let Some(targets) = self.check.union_leaves(origin, expectation.target)? else {
-            return Ok(None);
-        };
-
-        // track the best candidate and the best undecided fallback
-        let mut viable = None;
-        let mut is_viable_ambiguous = false;
-        let mut indeterminate = None;
-        let mut is_indeterminate_ambiguous = false;
-
-        // classify every member without retaining speculative state
-        for target in targets {
-            let mode = expectation.mode;
-            let candidate = Expectation {
-                target,
-                mode,
-                ..expectation
-            };
-            let verdict = self.probe_candidate(|state| {
-                let checked = state.try_check_expression(site, candidate)?;
-                let outcome = match checked {
-                    // proceed into the conversion attempt on a pending outer check
-                    CheckAttempt::Checked(check)
-                        if matches!(check.outcome, CheckOutcome::Holds | CheckOutcome::Pending) =>
-                    {
-                        let source = state.flow_type_at(site, check.source)?;
-                        let value = state.expression_value(site, source)?;
-                        let conversion = state.convert_value(
-                            site,
-                            candidate.cause,
-                            candidate.relation,
-                            value,
-                            candidate.target,
-                            candidate.use_,
-                            candidate.mode,
-                        )?;
-
-                        match conversion.outcome {
-                            CheckOutcome::Holds => CandidateOutcome::Accepted(()),
-                            // accept a pending conversion under an open probe
-                            CheckOutcome::Pending => CandidateOutcome::Accepted(()),
-                            CheckOutcome::Fails(_) => CandidateOutcome::Rejected(()),
-                        }
-                    }
-                    CheckAttempt::Checked(_) | CheckAttempt::NotApplicable => {
-                        CandidateOutcome::Rejected(())
-                    }
-                };
-
-                Ok(outcome)
-            })?;
-
-            // prefer a unique viable member over speculative members
-            match verdict {
-                Verdict::Holds if viable.replace(target).is_some() => {
-                    is_viable_ambiguous = true;
-                }
-                Verdict::Holds => {}
-                Verdict::Ambiguous if indeterminate.replace(target).is_some() => {
-                    is_indeterminate_ambiguous = true;
-                }
-                Verdict::Ambiguous | Verdict::Fails => {}
-            }
-        }
-
-        // infer ambiguous contexts before selecting a member
-        let selected = match (
-            is_viable_ambiguous,
-            viable,
-            is_indeterminate_ambiguous,
-            indeterminate,
-        ) {
-            (false, Some(selected), _, _) => Some(selected),
-            (_, None, false, Some(selected)) => Some(selected),
-            _ => None,
-        };
-        let Some(target) = selected else {
-            return Ok(None);
-        };
-
-        // confirm the selected member in the owning state
-        let mode = expectation.mode;
-        let candidate = Expectation {
-            target,
-            mode,
-            ..expectation
-        };
-        let checked = self.try_check_expression(site, candidate)?;
-        let CheckAttempt::Checked(check) = checked else {
-            return Err(CompilerError::Internal {
-                message: "confirmed contextual union member became inapplicable".to_string(),
-            });
-        };
-        let check = ValueCheck {
-            source: check.source,
-            stored: check.source,
-            outcome: check.outcome,
-            target: expectation.target,
-        };
-
-        Ok(Some(check))
     }
 
     /// Try checking one expression using its target.
@@ -169,6 +45,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
+        // read the checked expression and its target
         let target = expectation.target;
         let origin = site.origin();
         let node = site.node.into_typed::<dir::Expression>();
@@ -178,27 +55,38 @@ impl BodyState<'_, '_> {
             .get(node.local_id)
             .clone();
 
-        // deduce function value parameters from a callable target
+        // type a function value once as its callable
         if let dir::Expression::Declaration(declaration) = &expression
             && self.is_function_value_declaration(site.node, *declaration)?
         {
             self.commit_function_value(site.node, *declaration)?;
-            let check = self.check_function_value(site, Some(expectation), InferMode::Regular)?;
+            let Some(symbol) = self.lambdas.get(&site.node).map(|body| body.symbol) else {
+                return Ok(CheckAttempt::NotApplicable);
+            };
+            let callable = self.symbol_type(symbol)?;
+            self.commit_node_type(site.node, callable)?;
+
+            // pass a callable its context through inference barriers
+            let target = self.erase_inference_barriers(site.node.module_id, expectation.target)?;
+            let check = self.check_value(
+                site,
+                callable,
+                Expectation {
+                    target,
+                    ..expectation
+                },
+            )?;
+            self.schedule_function_body(site.node)?;
 
             return Ok(CheckAttempt::Checked(check));
         }
-        if self.check.lambdas.contains_key(&site.node) {
-            let check = self.check_function_value(site, Some(expectation), InferMode::Regular)?;
 
-            return Ok(CheckAttempt::Checked(check));
-        }
-
+        // check by the expression's own syntax
         match expression {
             dir::Expression::TreeExpression { .. } => {
                 let source = self.check_tree_expression(site, Some(&expectation))?;
                 let check = ValueCheck {
                     source,
-                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -211,10 +99,8 @@ impl BodyState<'_, '_> {
             dir::Expression::Literal(value) => {
                 let source = self.literal_type(value)?;
                 self.commit_node_type(site.node, source)?;
-                self.check.fresh_nodes.insert(site.node, None);
                 let check = ValueCheck {
                     source,
-                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -226,16 +112,15 @@ impl BodyState<'_, '_> {
                     || self.contextualizes_template(expectation.target)?;
                 let source = self.template_expression_type(site, value, keeps_template)?;
                 self.commit_node_type(site.node, source)?;
-                self.check.fresh_nodes.insert(site.node, None);
                 let check = ValueCheck {
                     source,
-                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
 
                 Ok(CheckAttempt::Checked(check))
             }
+            // convert a block's tail inside the block
             dir::Expression::Block(block) => {
                 let check = self.check_block(site, block, expectation)?;
 
@@ -247,80 +132,18 @@ impl BodyState<'_, '_> {
             dir::Expression::Chain { expression } => {
                 self.check_chain_expression(site, expression, expectation)
             }
-            dir::Expression::Satisfies { expression, .. } => {
-                self.check_transparent_expression(site, expression, expectation)
-            }
-            dir::Expression::If {
-                condition,
-                then_expression,
-                else_expression,
-                ..
-            } => {
-                self.check_condition_operands(site.node.module_id, &condition)?;
-
-                self.check_if_expression(
-                    site,
-                    &condition,
-                    then_expression,
-                    else_expression,
-                    expectation,
-                )
-            }
-            dir::Expression::Match { value, arms } => self.check_match_expression(
-                site,
-                value,
-                &arms.into_iter().collect::<SmallVec<[_; 4]>>(),
-                expectation,
-            ),
-            expression @ (dir::Expression::ArrayExpression { .. }
+            dir::Expression::ArrayExpression { .. }
             | dir::Expression::FixedArrayExpression { .. }
             | dir::Expression::TupleExpression { .. }
-            | dir::Expression::ObjectExpression { .. }) => {
-                // resolve the target head before matching structural literals
-                let Some(target_value) = self.construction_value(origin, target)? else {
-                    return Ok(CheckAttempt::NotApplicable);
-                };
-
-                match expression {
-                    dir::Expression::ArrayExpression { elements } => self.check_array_expression(
-                        site,
-                        &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
-                        target,
-                        target_value,
-                        expectation,
-                    ),
-                    dir::Expression::FixedArrayExpression { value, length } => self
-                        .check_fixed_array_expression(
-                            site,
-                            value,
-                            length,
-                            target,
-                            target_value,
-                            expectation,
-                        ),
-                    dir::Expression::TupleExpression { elements } => self.check_tuple_expression(
-                        site,
-                        &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
-                        target,
-                        target_value,
-                        expectation,
-                    ),
-                    dir::Expression::ObjectExpression { properties } => self
-                        .check_object_expression(
-                            site,
-                            &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
-                            target_value,
-                            expectation,
-                        ),
-                    _ => Ok(CheckAttempt::NotApplicable),
-                }
-            }
+            | dir::Expression::ObjectExpression { .. }
+            | dir::Expression::If { .. }
+            | dir::Expression::Match { .. } => self.check_composite(site, expectation),
             dir::Expression::StructExpression { ty, properties } => {
                 let contextual = self.construction_value(origin, target)?;
                 let construct_target = self.select_construct_target(site, ty, contextual)?;
-                let representation = match (expectation.relation, contextual) {
-                    (Relation::Satisfies, _) | (_, None) => construct_target,
-                    (_, Some(_)) => self.replace_form_value(origin, target, construct_target)?,
+                let representation = match contextual {
+                    None => construct_target,
+                    Some(_) => self.replace_form_value(origin, target, construct_target)?,
                 };
                 let check = self.select_property_merge(
                     site,
@@ -330,7 +153,6 @@ impl BodyState<'_, '_> {
 
                 Ok(CheckAttempt::Checked(ValueCheck {
                     source: check.source,
-                    stored: check.source,
                     outcome: check.outcome,
                     target,
                 }))
@@ -352,7 +174,6 @@ impl BodyState<'_, '_> {
                 )?;
                 Ok(CheckAttempt::Checked(ValueCheck {
                     source: check.source,
-                    stored: check.source,
                     outcome: check.outcome,
                     target,
                 }))
@@ -366,7 +187,6 @@ impl BodyState<'_, '_> {
                 )?;
                 let check = ValueCheck {
                     source,
-                    stored: source,
                     outcome: CheckOutcome::Holds,
                     target,
                 };
@@ -374,8 +194,51 @@ impl BodyState<'_, '_> {
                 Ok(CheckAttempt::Checked(check))
             }
 
+            // leave every other expression to its own inference
             _ => Ok(CheckAttempt::NotApplicable),
         }
+    }
+
+    /// Check one composite through the members its context declares.
+    ///
+    /// Its values convert at those members, then the whole value converts.
+    fn check_composite(
+        &mut self,
+        site: FlowSite,
+        expectation: Expectation,
+    ) -> CompilerResult<CheckAttempt> {
+        // infer the composite under its context, counting the failures its values report
+        let checks = self.fulfill.checks.count();
+        let failures = self.fulfill.failures.len();
+        let source =
+            self.infer_node_in(site, PlaceUse::Read, expectation.mode, Some(expectation))?;
+        let is_refused = self.fulfill.failures.len() > failures
+            || self
+                .fulfill
+                .checks
+                .relation_failures_from(checks)
+                .next()
+                .is_some();
+
+        // report a refused value, and join a branching node's converted values
+        if is_refused || self.branching_value_nodes(site.node).is_some() {
+            let outcome = match is_refused {
+                true => CheckOutcome::Fails(CheckFailure::Reported),
+                false => CheckOutcome::Holds,
+            };
+
+            return Ok(CheckAttempt::Checked(ValueCheck {
+                source,
+                outcome,
+                target: expectation.target,
+            }));
+        }
+
+        Ok(CheckAttempt::Checked(self.check_value(
+            site,
+            source,
+            expectation,
+        )?))
     }
 
     /// Check one plural reference by selecting the first overload its target accepts.
@@ -385,14 +248,15 @@ impl BodyState<'_, '_> {
         name: dir::StringId,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
+        // read the reference node
         let node = site.node.into_typed::<dir::Expression>();
 
         // revisited references keep their committed value
-        if self.check.committed_node_type(site.node).is_some() {
+        if self.committed_node_type(site.node).is_some() {
             return Ok(CheckAttempt::NotApplicable);
         }
 
-        // reuse a committed resolution, or resolve the reference now
+        // reuse a committed resolution, else resolve the reference
         let resolution = match self
             .resolutions(node.module_id)
             .name_resolution(node.into_any())
@@ -415,7 +279,7 @@ impl BodyState<'_, '_> {
         let mut selected = None;
         for symbol in symbols.iter().copied() {
             let source = self.symbol_type(symbol)?;
-            let verdict = self.probe_candidate(|state| {
+            let verdict = self.decide_candidate(|state| {
                 let value = state.expression_value(site, source)?;
                 let conversion = state.convert_value(
                     site,
@@ -459,13 +323,13 @@ impl BodyState<'_, '_> {
         child: dir::LocalNodeId<dir::Expression>,
         expectation: Expectation,
     ) -> CompilerResult<CheckAttempt> {
+        // check the child and take its value as this node's own
         let module = site.node.module_id;
         let child_site = self.visit_site(child.into_global_any(module))?;
         let check = self.check_node(child_site, expectation)?;
         self.commit_node_type(site.node, check.source)?;
         let check = ValueCheck {
             source: check.source,
-            stored: check.source,
             outcome: check.outcome,
             target: check.target,
         };

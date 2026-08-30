@@ -3,12 +3,12 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    AssignmentSelection, BodyState, Cause, CauseKind, Expectation, FlowPointId, FlowSite,
+    AssignmentSelection, Cause, CauseKind, CheckState, Expectation, FlowPointId, FlowSite,
     InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Check one pattern against its input type.
     pub(in crate::sema) fn check_pattern(
         &mut self,
@@ -58,11 +58,12 @@ impl BodyState<'_, '_> {
                 | dir::AssignPattern::Object { .. }
         );
         let input = if needs_reduced_input {
-            self.check.normalize(pattern_origin, input)?
+            self.normalize(pattern_origin, input)?
         } else {
             input
         };
 
+        // select by the assignment pattern's own syntax
         match pattern {
             // x = value, obj.x = value
             dir::AssignPattern::Place { expression: value } => {
@@ -214,12 +215,13 @@ impl BodyState<'_, '_> {
         let pattern = self.module(module).view().get(node.local_id).clone();
         let needs_reduced_input = Self::is_destructuring_pattern(&pattern);
         let input = if needs_reduced_input {
-            self.check.normalize(origin, input)?
+            self.normalize(origin, input)?
         } else {
             input
         };
         let input = self.filter_destructuring_source(node, origin, input)?;
 
+        // select by the pattern's own syntax
         match &pattern {
             // _
             dir::Pattern::Wildcard => self.commit_pattern(node, dir::PatternDecision::Ignore),
@@ -283,13 +285,15 @@ impl BodyState<'_, '_> {
                 )
             }
 
-            // &pattern, ^pattern, *pattern
+            // &pattern
             dir::Pattern::BorrowOf { mutability, right } => {
                 self.select_borrow_pattern(node, flow, scope, input, *right, *mutability)
             }
+            // ^pattern
             dir::Pattern::MoveOf { mutability, right } => {
                 self.select_move_pattern(node, flow, scope, input, *right, *mutability)
             }
+            // *pattern
             dir::Pattern::DereferenceOf { right } => {
                 self.select_dereference_pattern(node, origin, flow, scope, input, *right)
             }
@@ -333,13 +337,14 @@ impl BodyState<'_, '_> {
                 self.select_object_pattern(node, origin, flow, scope, input, &fields)
             }
 
-            // T(value), T { name }
+            // T(value)
             dir::Pattern::NominalTuple { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
                 self.walk_body_construct_type(module, ty)?;
 
                 self.select_newtype_pattern(node, origin, flow, scope, ty, &fields)
             }
+            // T { name }
             dir::Pattern::NominalObject { ty, fields } => {
                 let (ty, fields) = (*ty, fields.iter().copied().collect::<SmallVec<[_; 4]>>());
                 self.walk_body_construct_type(module, ty)?;
@@ -375,22 +380,21 @@ impl BodyState<'_, '_> {
             })?;
 
         // take the bound type, or bind the captured input to the symbol
-        let binding = self.check.symbol_type_maybe(symbol);
+        let binding = self.symbol_type_maybe(symbol);
         let input = if binding == Some(input) {
             input
         } else {
             let input = self.pattern_binding_type(symbol, input)?;
             if let Some(binding) = binding {
-                let cause = self.check.intern_cause(Cause::root(
+                let cause = self.intern_cause(Cause::root(
                     origin,
                     CauseKind::Pattern {
                         pattern: node.into_any(),
                     },
                 ));
-                self.check
-                    .relate(origin, cause, Relation::Equal, input, binding)?;
+                self.relate(origin, cause, Relation::Equal, input, binding)?;
             } else {
-                self.check.commit_binding_type(symbol, input)?;
+                self.commit_binding_type(symbol, input)?;
             }
 
             input
@@ -401,6 +405,7 @@ impl BodyState<'_, '_> {
             self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
         }
 
+        // commit the binding
         self.commit_pattern(
             node,
             dir::PatternDecision::Bind(dir::PatternBindingResolution {
@@ -426,6 +431,7 @@ impl BodyState<'_, '_> {
             self.check_pattern_projection(flow, scope, input, (*pattern).into_global_any(module))?;
         }
 
+        // commit the or pattern
         self.commit_pattern(
             node,
             dir::PatternDecision::Or(dir::PatternOrResolution {
@@ -459,7 +465,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Report one pattern whose tag is not nominal, committing the rejection.
+    /// Report one pattern whose tag names no nominal, committing the rejection.
     pub(in crate::sema) fn report_rejected_pattern(
         &mut self,
         node: dir::GlobalNodeId<dir::Pattern>,
@@ -602,14 +608,14 @@ impl BodyState<'_, '_> {
     }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Return the type bound by one pattern binding.
     pub(in crate::sema) fn pattern_binding_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.place_binding_type(symbol, input)
+        self.place_binding_type(symbol, input)
     }
 
     /// Return whether one pattern has a default branch.
@@ -749,6 +755,7 @@ impl BodyState<'_, '_> {
         &mut self,
         module: ModuleId,
         field: dir::LocalNodeId<dir::PatternField>,
+        // read the key and nested pattern each field form names
     ) -> CompilerResult<Option<(dir::StaticKey, Option<dir::LocalNodeId<dir::Pattern>>)>> {
         let field = self.module(module).view().get(field).clone();
         let key = match field {
@@ -782,8 +789,8 @@ impl BodyState<'_, '_> {
         };
         let expectation = Expectation {
             target: input,
-            relation: Relation::Assignable,
-            cause: self.check.intern_cause(Cause::root(
+            relation: Relation::Storable,
+            cause: self.intern_cause(Cause::root(
                 Origin::Node(pattern, scope),
                 CauseKind::Pattern { pattern },
             )),
@@ -845,7 +852,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         input: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.without_union_members(origin, input, |member| {
+        self.without_union_members(origin, input, |member| {
             matches!(member, dir::Type::Null | dir::Type::Undefined)
         })
     }

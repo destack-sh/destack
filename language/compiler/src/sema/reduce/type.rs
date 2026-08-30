@@ -37,12 +37,22 @@ impl CheckState<'_> {
             ty = self.shallow_resolve(body)?;
         }
 
+        // read the constraint each erased head names
         match self.ty(ty)? {
             // explicit erasure names its constraint
             dir::Type::Dynamic(dynamic) => Ok(Some(dynamic.constraint)),
 
             // carry an unknown dynamic payload directly
             dir::Type::Unknown => Ok(Some(ty)),
+
+            // erase an object shape that declares index signatures
+            dir::Type::Object(shape)
+                if !self
+                    .object_index_signatures(ty.module_id, shape.index_signatures)?
+                    .is_empty() =>
+            {
+                Ok(Some(ty))
+            }
 
             // interface-typed values erase behind their constraint
             dir::Type::Application(instance) => Ok(matches!(
@@ -56,7 +66,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Resolve solved variables through one type graph, keeping open holes.
+    /// Settle solved variables through one type graph, keeping open holes.
     pub(in crate::sema) fn deeply_resolve(
         &mut self,
         origin: Origin,
@@ -67,7 +77,7 @@ impl CheckState<'_> {
         self.deeply_resolve_shared(origin, id, &mut shared)
     }
 
-    /// Resolve solved variables through one type graph, reusing scoped heads.
+    /// Settle solved variables through one type graph, reusing scoped heads.
     pub(in crate::sema) fn deeply_resolve_shared(
         &mut self,
         origin: Origin,
@@ -94,7 +104,7 @@ impl CheckState<'_> {
     }
 
     /// Splice one tuple's closed rest spreads into positional elements.
-    fn reduce_tuple_rest_splice(
+    pub(in crate::sema) fn reduce_tuple_rest_splice(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
@@ -160,6 +170,7 @@ impl CheckState<'_> {
         }
         rebuilt.extend(parameters[rest_index + 1..].iter().copied());
 
+        // intern the spread signature
         let parameters = self.intern_parameters(&rebuilt)?;
         let spread = self.intern_signature(dir::FunctionSignatureType {
             parameters,
@@ -206,6 +217,7 @@ impl CheckState<'_> {
 
     /// Return the declaration origin owning one reducible head.
     fn head_origin(&self, id: dir::GlobalTypeId) -> CompilerResult<Option<Origin>> {
+        // name the declaration owning the head
         let origin = match self.ty(id)? {
             dir::Type::Application(instance) => Some(Origin::Symbol(instance.symbol)),
             dir::Type::Reference(reference) => Some(Origin::Symbol(reference.symbol)),
@@ -232,6 +244,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let id = self.shallow_resolve(id)?;
+        // reduce by the head the type carries
         match self.ty(id)? {
             // reduce meta heads, which name computations
             dir::Type::Member(_) | dir::Type::Operation(_) => self.normalize(origin, id),
@@ -245,37 +258,6 @@ impl CheckState<'_> {
             }
             // keep every other head as written
             _ => Ok(id),
-        }
-    }
-
-    /// Normalize one transparent alias head to its body, keeping every other head rigid.
-    pub(in crate::sema) fn normalize_alias_head(
-        &mut self,
-        origin: Origin,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut current = id;
-        loop {
-            // stop at the first head that is not a named alias
-            let symbol = match self.ty(current)? {
-                dir::Type::Application(instance) => instance.symbol,
-                dir::Type::Reference(reference) => reference.symbol,
-                _ => return Ok(current),
-            };
-            if !matches!(
-                self.definition(symbol)?,
-                Some(dir::Definition::TypeAlias(_))
-            ) {
-                return Ok(current);
-            }
-
-            // stop once the alias reaches its fixed point
-            let reduced = self.structurally_normalize(origin, current)?;
-            if reduced == current {
-                return Ok(current);
-            }
-
-            current = reduced;
         }
     }
 
@@ -301,23 +283,13 @@ impl CheckState<'_> {
         self.normalize(origin, id)
     }
 
-    /// Normalize the head of one type to its simplest available form.
+    /// Normalize the head of one type to its simplest available form, memoizing closed heads.
     pub(in crate::sema) fn normalize(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.counters.reduces += 1;
-
-        self.normalize_head(origin, id)
-    }
-
-    /// Reduce one type head, recording the reductions that close.
-    fn normalize_head(
-        &mut self,
-        origin: Origin,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
         let id = self.shallow_resolve(id)?;
         let flags = self.type_flags(id)?;
 
@@ -417,6 +389,7 @@ impl CheckState<'_> {
             self.import_external_module(id.module_id)?;
         }
 
+        // follow the chain by the head the type carries
         match self.ty(id)? {
             // block the chain on an open variable
             dir::Type::Variable(_) => Ok(id),
@@ -487,14 +460,14 @@ impl CheckState<'_> {
             // complete the elided arguments of a written application
             dir::Type::Application(instance) => {
                 if let Some(filled) = self.fill_elided_application(id.module_id, &instance)? {
-                    return self.normalize_head(origin, filled);
+                    return self.normalize(origin, filled);
                 }
 
                 // reduce intrinsic references to their builtin forms
                 if let Some(reduced) =
                     self.reduce_intrinsic_reference(origin, id.module_id, &instance)?
                 {
-                    return self.normalize_head(origin, reduced);
+                    return self.normalize(origin, reduced);
                 }
 
                 match self.type_alias_body(origin, id.module_id, &instance)? {
@@ -522,18 +495,13 @@ impl CheckState<'_> {
                     return Ok(error);
                 }
 
-                // select one declaring interface for an unqualified projection,
-                //  preferring the formed owner's conformances over its payload's
+                // select one declaring interface for an unqualified projection
                 let mut qualifier = member.qualifier;
                 if qualifier.is_none() {
-                    qualifier = self
-                        .body()
-                        .select_associated_qualifier(origin, owner, member.key)?;
+                    qualifier = self.select_associated_qualifier(origin, owner, member.key)?;
                 }
                 if qualifier.is_none() {
-                    qualifier = self
-                        .body()
-                        .select_associated_qualifier(origin, peeled, member.key)?;
+                    qualifier = self.select_associated_qualifier(origin, peeled, member.key)?;
                 }
                 // shed owner forms for unqualified member lookup
                 let owner = if qualifier.is_none() { peeled } else { owner };
@@ -555,7 +523,7 @@ impl CheckState<'_> {
                 }
 
                 // continue the chain through the projected type
-                let projection = self.body().project_member(origin, &member)?;
+                let projection = self.project_member(origin, &member)?;
                 let Some(projected) = projection else {
                     return Ok(id);
                 };
@@ -631,7 +599,7 @@ impl CheckState<'_> {
                     _ => value,
                 };
 
-                self.normalize_head(origin, rebuilt)
+                self.normalize(origin, rebuilt)
             }
 
             // absorb the view forms a borrow's payload carries
@@ -659,7 +627,7 @@ impl CheckState<'_> {
                     value: payload,
                 }))?;
 
-                let headed = self.normalize_head(origin, rebuilt)?;
+                let headed = self.normalize(origin, rebuilt)?;
 
                 Ok(headed)
             }
@@ -781,8 +749,7 @@ impl CheckState<'_> {
             }
         }
 
-        // keep an unchanged local root as it stands, leaving computation
-        //  heads to reduce once their operands close
+        // keep an unchanged local root as it stands
         let target = origin.module();
         let is_union = matches!(root, dir::Type::Union(_));
         let is_computation = matches!(root, dir::Type::Operation(_));
@@ -798,6 +765,7 @@ impl CheckState<'_> {
         let ty = self.map_type_children(id.module_id, ty, &mut |_state, child| {
             Ok(replacements.get(&child).copied().unwrap_or(child))
         })?;
+        // rebuild the head over its replaced children
         let rebuilt = match ty {
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 8]> = self.type_ids(target, union.elements)?.into();
@@ -888,6 +856,7 @@ impl CheckState<'_> {
             definition.value
         };
 
+        // apply the instance arguments to the alias body
         let substitution = self.instance_substitution(instance_module, instance)?;
 
         // substitute applied arguments through the body

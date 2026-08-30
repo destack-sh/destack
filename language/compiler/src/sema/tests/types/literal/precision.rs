@@ -301,6 +301,7 @@ const copy = version;
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=version type=1
 /// @resolution.name source=version target=values.version
+/// @resolution.place source=version placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=version root=values.version
 "#,
     );

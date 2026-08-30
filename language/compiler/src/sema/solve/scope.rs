@@ -1,17 +1,24 @@
 use destack_repository::ArtifactAttemptRecorder;
 
 use crate::CompilerResult;
-use crate::sema::{Check, CheckState, FallbackStage, InferenceScope, Pass, Wake, WalkState};
+use crate::sema::{Check, CheckState, Pass, WalkState};
 
 /// How far one fulfillment resolves the scope's owned variables.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) enum Resolve {
-    /// Resolve what the bounds determine, keep the remainder open.
-    Bounded,
-    /// Complete remaining roots from defaults and literal widening.
-    Complete,
-    /// Complete every component from its bounds as they stand.
+pub(in crate::sema) enum Settle {
+    /// Settle the variables their bounds decide, leaving the rest open.
+    Possible,
+    /// Settle every variable, the undecided ones through their fallbacks.
+    All,
+    /// Settle every variable at the end of a body, the undecided ones through their defaults.
     Final,
+}
+
+impl Settle {
+    /// Return whether this stage settles every variable.
+    pub(in crate::sema) fn settles(self) -> bool {
+        !matches!(self, Self::Possible)
+    }
 }
 
 impl WalkState<'_, '_> {
@@ -44,11 +51,13 @@ impl WalkState<'_, '_> {
 #[derive(Debug, Clone, Copy)]
 pub(in crate::sema) struct ScopeMark {
     /// The variables and mutations the scope owns.
-    scope: InferenceScope,
+    scope: usize,
     /// The check count at the open.
     checks: usize,
     /// The retained failure count at the open.
     failures: usize,
+    /// The reported diagnostic count at the open.
+    diagnostics: usize,
 }
 
 impl CheckState<'_> {
@@ -68,66 +77,50 @@ impl CheckState<'_> {
     fn open_scope(&mut self) -> ScopeMark {
         self.infer.scope_depth += 1;
 
+        // mark the state this scope rolls back to
         ScopeMark {
-            scope: InferenceScope::open(self.infer.variable_count()),
+            scope: self.infer.variable_count(),
             checks: self.fulfill.checks.count(),
             failures: self.fulfill.failures.len(),
+            diagnostics: self.module.diagnostics.len(),
         }
     }
 
     /// Drive one scope's fulfillment to a fixpoint.
     pub(in crate::sema) fn fulfill_scope(
         &mut self,
-        scope: InferenceScope,
-        resolve: Resolve,
+        scope: usize,
+        stage: Settle,
     ) -> CompilerResult<()> {
-        // resolve components at the stage the resolve point allows
-        let stage = match resolve {
-            Resolve::Bounded | Resolve::Complete => FallbackStage::Bounded,
-            Resolve::Final => FallbackStage::Final,
-        };
-
-        // give stage-waiting work its chance at this resolve stage
-        self.fulfill.wake(Wake::Stage);
-
-        // give every waiting check its decisive chance at the final resolve
-        if resolve == Resolve::Final {
-            self.fulfill.wake_all();
-
-            // drive every relation check still open
-            let incomplete = self
-                .fulfill
-                .checks
-                .iter()
-                .filter_map(|(id, check)| matches!(check, Check::Relation(_)).then_some(id))
-                .filter(|id| !self.fulfill.checks.is_complete(*id))
-                .collect::<Vec<_>>();
-            for id in incomplete {
-                self.solve_relation(id, Resolve::Final)?;
-            }
-        }
-
+        // propagate the bounds and resolve the variables the stage allows, to a fixpoint
         loop {
-            // propagate constraints and step unblocked pending work
-            if self.solve_where_possible(resolve)? {
-                self.fulfill.wake(Wake::Stage);
+            if self.solve_where_possible(Settle::Possible)? {
                 continue;
             }
-
-            // resolve components the accumulated bounds already determine
             if self.resolve_scope(scope, stage)? {
-                self.fulfill.wake(Wake::Stage);
-                continue;
-            }
-
-            // complete remaining roots from declared defaults and widening
-            if resolve != Resolve::Bounded && self.apply_scope_default(scope)? {
-                self.fulfill.wake(Wake::Stage);
                 continue;
             }
 
             break;
         }
+        if stage == Settle::Possible {
+            return Ok(());
+        }
+
+        // settle every relation of this scope still open, then finish the fixpoint
+        let fence = self.infer.decided_checks();
+        self.fulfill.wake_all(fence);
+        let incomplete = self
+            .fulfill
+            .checks
+            .iter()
+            .filter_map(|(id, check)| matches!(check, Check::Relation(_)).then_some(id))
+            .filter(|id| id.index() >= fence && !self.fulfill.checks.is_complete(*id))
+            .collect::<Vec<_>>();
+        for id in incomplete {
+            self.solve_relation(id, Settle::All)?;
+        }
+        while self.solve_where_possible(Settle::All)? || self.resolve_scope(scope, stage)? {}
 
         Ok(())
     }
@@ -146,12 +139,7 @@ impl CheckState<'_> {
 
     /// Close one body scope, resolving every variable it opened.
     fn close_body_scope(&mut self, mark: ScopeMark) -> CompilerResult<()> {
-        self.fulfill_scope(mark.scope, Resolve::Bounded)?;
-
-        // resolve the body's own roots to their final forms
-        while self.resolve_scope(mark.scope, FallbackStage::Final)? {
-            self.fulfill_scope(mark.scope, Resolve::Bounded)?;
-        }
+        self.settle_scope(mark.scope, Settle::Final)?;
         self.infer.scope_depth -= 1;
 
         Ok(())
@@ -159,16 +147,13 @@ impl CheckState<'_> {
 
     /// Close one inference scope.
     fn close_scope(&mut self, mark: ScopeMark) -> CompilerResult<()> {
-        // resolve only the variables a nested close allocated, leaving defaults to the outermost
+        // resolve the variables a nested close allocated, leaving defaults to the outermost
         if self.infer.scope_depth > 1 {
-            self.fulfill_scope(mark.scope, Resolve::Bounded)?;
-
-            // a declaration root closes what it opened, nothing later refines it
-            if self.pass == Pass::Declare {
-                while self.resolve_scope(mark.scope, FallbackStage::Final)? {
-                    self.fulfill_scope(mark.scope, Resolve::Bounded)?;
-                }
-            }
+            let stage = match self.pass {
+                Pass::Declare => Settle::All,
+                _ => Settle::Possible,
+            };
+            self.settle_scope(mark.scope, stage)?;
             self.infer.scope_depth -= 1;
 
             return Ok(());
@@ -184,31 +169,31 @@ impl CheckState<'_> {
 
     /// Drain the outermost scope, reporting whatever stays open.
     fn drain_scope(&mut self, mark: ScopeMark) -> CompilerResult<()> {
-        self.fulfill_scope(mark.scope, Resolve::Complete)?;
-
-        // leave declaration holes open for elaborate
+        // complete the final components from their bounds as they stand
+        self.fulfill_scope(mark.scope, Settle::Final)?;
         if self.pass == Pass::Declare {
             return Ok(());
         }
 
-        // complete the final components from their bounds as they stand
-        self.fulfill_scope(mark.scope, Resolve::Final)?;
-
         // report the pass's failures, then poison what stayed open
         let explained = self.report_failures(mark.checks, mark.failures)?;
-        self.report_unresolved(mark.scope, &explained)?;
-
-        // step the remainder over the poisoned holes
-        self.fulfill_scope(mark.scope, Resolve::Final)
+        self.report_unresolved(mark.scope, mark.diagnostics, &explained)
     }
 
-    /// Close the inference one statement opened.
-    pub(in crate::sema) fn close_statement(&mut self, scope: InferenceScope) -> CompilerResult<()> {
-        // skip statements that opened no inference
-        if self.infer.variable_count() == scope.first_variable() && !self.fulfill.has_open_work() {
-            return Ok(());
+    /// Settle one scope at one resolve stage.
+    pub(in crate::sema) fn settle_scope(
+        &mut self,
+        scope: usize,
+        stage: Settle,
+    ) -> CompilerResult<()> {
+        // fulfill the bounds, then complete the scope's own roots at the final stage
+        self.fulfill_scope(scope, Settle::Possible)?;
+        if stage.settles() {
+            while self.resolve_scope(scope, Settle::All)? {
+                self.fulfill_scope(scope, Settle::Possible)?;
+            }
         }
 
-        self.fulfill_scope(scope, Resolve::Complete)
+        Ok(())
     }
 }

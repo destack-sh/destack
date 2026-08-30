@@ -4,11 +4,11 @@ use smallvec::SmallVec;
 use super::InferMode;
 use crate::CompilerResult;
 use crate::sema::{
-    BodyState, Cause, CauseKind, ConditionBranch, Expectation, FlowSite, Obligation, PlaceUse,
-    RangeElementObligation, Relation, RelationCheck, Value, ValueUse, VariableRole, Verdict,
+    Cause, CauseKind, CheckState, ConditionBranch, Expectation, FlowSite, Obligation, PlaceUse,
+    RangeElementObligation, Relation, RelationCheck, Value, ValueUse, Verdict,
 };
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Infer one binary expression, narrowing short-circuited right operands.
     ///
     /// Example:
@@ -22,6 +22,7 @@ impl BodyState<'_, '_> {
         operator: dir::BinaryOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // infer the left operand
         let module = site.node.module_id;
         let origin = site.origin();
         let left_source = left.into_global_any(module);
@@ -32,11 +33,11 @@ impl BodyState<'_, '_> {
         // short-circuit operators narrow their right operand
         let right_type = match ConditionBranch::from_short_circuit(operator) {
             Some(branch) => {
-                let before = self.check.fork_flow();
-                self.check.narrow_expression(left, branch)?;
+                let before = self.fork_flow();
+                self.narrow_expression(left, branch)?;
                 let right_site = self.visit_site(right_source)?;
                 let right_type = self.operand_type(origin, right_site)?;
-                self.check.restore_flow(before);
+                self.restore_flow(before);
 
                 right_type
             }
@@ -65,20 +66,23 @@ impl BodyState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
+        // visit the checked value
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let value_site = self.visit_site(value.into_global_any(module))?;
 
         // check the value against the target without taking its type
         let target = self.require_node_type(target_type.into_global_any(module))?;
-        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
-        let check = self.check_node_expected(
+        let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
+        let check = self.check_node(
             value_site,
-            target,
-            Relation::Satisfies,
-            cause,
-            ValueUse::Satisfies,
-            InferMode::Regular,
+            Expectation {
+                target,
+                relation: Relation::Subtype,
+                cause,
+                use_: ValueUse::Satisfies,
+                mode: InferMode::Regular,
+            },
         )?;
         let value_type = check.source;
         self.commit_node_type(node.into_any(), value_type)?;
@@ -93,6 +97,7 @@ impl BodyState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<()> {
+        // visit the cast operand
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let value_site = self.visit_site(value.into_global_any(module))?;
@@ -110,15 +115,14 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
-        let target = self.require_node_type(target_type.into_global_any(module))?;
-
         // check the operand through the cast target
+        let target = self.require_node_type(target_type.into_global_any(module))?;
         let cause = self.intern_cause(Cause::root(value_site.origin(), CauseKind::Expression));
         let expectation = Expectation {
             target,
-            relation: Relation::Castable,
+            relation: Relation::Storable,
             cause,
-            use_: ValueUse::Store,
+            use_: ValueUse::Cast,
             mode: InferMode::Regular,
         };
         let check = self.check_node(value_site, expectation)?;
@@ -126,31 +130,28 @@ impl BodyState<'_, '_> {
 
         // resolve both sides of the cast
         let origin = value_site.origin();
-        let value_root = self.check.shallow_resolve(value_type)?;
-        let target_root = self.check.shallow_resolve(target)?;
+        let value_root = self.shallow_resolve(value_type)?;
+        let target_root = self.shallow_resolve(target)?;
 
         // deny an unwrap the newtype's backing visibility rejects
         if value_root != target_root
-            && let Some(instance) = self.check.decompose_newtype(origin, value_root)?
-            && self.check.decide_relation(
-                origin,
-                Relation::Castable,
-                instance.backing,
-                target_root,
-            )? == Verdict::Holds
+            && let Some(instance) = self.decompose_newtype(origin, value_root)?
+            && self
+                .decide(|state| {
+                    state.relate_castable(origin, cause, instance.backing, target_root)
+                })?
+                .0
+                == Verdict::Holds
         {
             self.check_backing_access(origin, instance.symbol)?;
         }
 
         // warn when the cast target equals the operand's resolved type
-        if value_root == target_root && self.check.type_variables(value_root)?.is_empty() {
-            self.check.report_redundant_cast(
-                node.into_any(),
-                value.into_global_any(module),
-                target,
-            );
+        if value_root == target_root && self.type_variables(value_root)?.is_empty() {
+            self.report_redundant_cast(node.into_any(), value.into_global_any(module), target);
         }
 
+        // take the cast target as the expression's own type
         self.commit_node_type(node.into_any(), target)?;
 
         Ok(())
@@ -164,6 +165,7 @@ impl BodyState<'_, '_> {
         end: Option<dir::LocalNodeId<dir::Expression>>,
         end_kind: dir::RangeEnd,
     ) -> CompilerResult<()> {
+        // read the range expression's node
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
 
@@ -176,7 +178,7 @@ impl BodyState<'_, '_> {
                 ty,
                 node: Some(bound_site.node),
                 place: None,
-                is_fresh: self.check.fresh_nodes.contains_key(&bound_site.node),
+                is_fresh: self.is_fresh_node(bound_site.node)?,
             });
         }
 
@@ -185,14 +187,14 @@ impl BodyState<'_, '_> {
             [] => None,
             bounds => {
                 let origin = site.origin();
-                let variable = self.open_variable(origin, VariableRole::Regular);
+                let variable = self.open_variable(origin);
                 let element = self.variable_type(variable)?;
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 for bound in bounds {
-                    let bound = self.fresh_variable(origin, *bound)?;
+                    let bound = self.store_candidate(origin, *bound, element, false)?.ty;
                     self.push_relation(RelationCheck::new(
                         origin,
-                        Relation::Assignable,
+                        Relation::Subtype,
                         bound,
                         element,
                         cause,
@@ -200,8 +202,8 @@ impl BodyState<'_, '_> {
                 }
 
                 // oblige both endpoints to share one element type
-                let scope = self.check.origin_scope(origin)?;
-                self.check.push_obligation(
+                let scope = self.origin_scope(origin)?;
+                self.push_obligation(
                     Obligation::RangeElement(RangeElementObligation {
                         source: node.into_any(),
                         element,
@@ -236,6 +238,7 @@ impl BodyState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         propagates: bool,
     ) -> CompilerResult<()> {
+        // project the operand through its try output
         let node = site.node.into_typed::<dir::Expression>();
         let value_site = self.visit_site(value.into_global_any(node.module_id))?;
         let value = self.infer_node_type(value_site, PlaceUse::Read)?;
@@ -256,11 +259,12 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         site: FlowSite,
     ) -> CompilerResult<()> {
+        // build the residual the operand propagates
         let origin = site.origin();
         let residual = self.intern_operation(dir::TypeOperation::TryResidual { value })?;
 
         // collect the residual directly at a local try target
-        if let Some(target) = self.check.collect_try_residual(residual) {
+        if let Some(target) = self.collect_try_residual(residual) {
             self.commit_decision(
                 node,
                 dir::Decision::Residual(dir::ResidualDecision {
@@ -273,11 +277,9 @@ impl BodyState<'_, '_> {
         }
 
         // propagation out of the function satisfies the return's FromResidual
-        if let Some(return_target) = self.check.current_return_target() {
-            let symbol = self
-                .check
-                .language_symbol(dir::LanguageItem::FromResidual)?;
-            let arguments = self.check.intern_type_ids(&[residual])?;
+        if let Some(return_target) = self.current_return_target() {
+            let symbol = self.language_symbol(dir::LanguageItem::FromResidual)?;
+            let arguments = self.intern_type_ids(&[residual])?;
             let target = self.intern_type(dir::Type::Application(dir::GenericApplication {
                 symbol,
                 arguments,
@@ -285,7 +287,7 @@ impl BodyState<'_, '_> {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             self.push_relation(RelationCheck::new(
                 origin,
-                Relation::Satisfies,
+                Relation::Subtype,
                 return_target,
                 target,
                 cause,
@@ -300,7 +302,7 @@ impl BodyState<'_, '_> {
         }
         // try propagation needs an enclosing function
         else {
-            self.check.report_try_outside_function(node);
+            self.report_try_outside_function(node);
         }
 
         Ok(())
@@ -318,15 +320,14 @@ impl BodyState<'_, '_> {
 
         // require the enclosing body's asynchrony
         if self
-            .check
             .flow
             .current_function()
             .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
         {
-            self.check
-                .report_await_outside_async_context(module, node.local_id.into_any());
+            self.report_await_outside_async_context(module, node.local_id.into_any());
         }
 
+        // reduce the awaited value through its output
         let awaited_site = self.visit_site(awaited.into_global_any(module))?;
         let value = self.infer_node_type(awaited_site, PlaceUse::Read)?;
         let result = self.reduce_operation_type(

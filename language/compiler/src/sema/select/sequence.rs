@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, FlowPointId, Origin, Protocol, Value};
+use crate::sema::{CheckState, FlowPointId, Origin, Protocol, Value};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one sequence pattern.
     pub(in crate::sema) fn select_sequence_pattern(
         &mut self,
@@ -18,6 +18,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         self.report_duplicate_pattern_bindings(module, fields)?;
 
+        // require a well formed rest field
         if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
@@ -155,6 +156,7 @@ impl BodyState<'_, '_> {
             return Ok(false);
         }
 
+        // read the position the rest field starts at
         let rest_start = self.assign_sequence_rest_start(module, fields);
 
         // reject non-sequence sources before projecting fields
@@ -247,6 +249,7 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // commit the sequence assignment pattern
         let () = self.commit_assign_pattern(
             node,
             dir::AssignPatternDecision::Sequence(dir::AssignPatternSequenceResolution {
@@ -291,6 +294,10 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         index: usize,
     ) -> CompilerResult<Option<dir::ProjectionResolution>> {
+        // rebase the origin at this element field
+        let origin = self.origin_at(origin, node)?;
+
+        // read the element at this exact index
         let index = self.static_usize_type(node, index)?;
         let Some(selection) = self.select_subscript_read_source(
             origin,
@@ -323,6 +330,10 @@ impl BodyState<'_, '_> {
         sequence: &Protocol,
         start: usize,
     ) -> CompilerResult<Option<dir::CallDecision>> {
+        // rebase the origin at this rest field
+        let origin = self.origin_at(origin, node)?;
+
+        // read the rest slice from this start
         let start_type = self.static_usize_type(node, start)?;
         let key = self.static_name("rest");
         let sources = [dir::ArgumentSource::Static(start_type)];

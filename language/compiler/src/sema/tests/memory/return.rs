@@ -21,37 +21,36 @@ function first<'a>(values: &'a readonly [int32]): &'a readonly int32 {
 }
 
 function inspect<'a>(values: &'a readonly [int32]): void {
-    first<P1>(values) satisfies &readonly int32;
+    first(values) satisfies &readonly int32;
 }
 
 === dir ===
 function first(values: &readonly [int32]): &readonly int32 {
-/// @generic.template symbol=first parameters=('a, P1: Place)
-/// @type.symbol symbol=first type=<first.'a, first.P1: Place>(&first.'a readonly Slice<int32>) => &first.'a readonly int32
+/// @generic.template symbol=first parameters=('a)
+/// @type.symbol symbol=first type=<first.'a>(&first.'a readonly Slice<int32>) => &first.'a readonly int32
 /// @type.symbol symbol=first.values source="values: &readonly [int32]" type=&first.'a readonly Slice<int32>
 
     return &readonly values[0];
     /// @resolution.name source=values target=first.values
-    /// @resolution.place source=values placement=first.P1 lifetime=first.'a access="readonly"
+    /// @resolution.place source=values placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values root=first.values
-    /// @resolution.place source=values[0] placement=first.P1 lifetime=first.'a access="readonly"
+    /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values[0] root=first.values keys=[0]
     /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&first.'a int32, \"readonly\">)"
-    /// @generic.instantiation id="index#1<int32, \"readonly\", first.P1>" template=index#1 arguments=(int32, "readonly", first.P1)
+    /// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
 
 }
 
 function inspect(values: &readonly [int32]): void {
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly Slice<int32>) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect type=<inspect.'a>(&inspect.'a readonly Slice<int32>) => void
 /// @type.symbol symbol=inspect.values source="values: &readonly [int32]" type=&inspect.'a readonly Slice<int32>
 
     first(values) satisfies &readonly int32;
     /// @resolution.name source=first target=first
-    /// @resolution.call source=first(values) parameters=(&inspect.'a readonly Slice<int32>) arguments=(provided(values) as &inspect.'a readonly Slice<int32>) return=&inspect.'a readonly int32 kind=symbol target=first instance=first<inspect.P1>
-    /// @generic.instantiation id=first<inspect.P1> template=first arguments=(inspect.P1)
+    /// @resolution.call source=first(values) parameters=(&inspect.'a readonly Slice<int32>) arguments=(provided(values) as &inspect.'a readonly Slice<int32>) return=&inspect.'a readonly int32 kind=symbol target=first
     /// @resolution.name source=values target=inspect.values
-    /// @resolution.place source=values placement=inspect.P1 lifetime=inspect.'a access="readonly"
+    /// @resolution.place source=values placement=inspect.'a lifetime=inspect.'a access="readonly"
     /// @resolution.access source=values root=inspect.values
 
 }
@@ -75,14 +74,14 @@ function pick<'a, 'b>(
     left: &'a readonly int32,
     right: &'b readonly int32,
     takeLeft: boolean,
-): Borrowed<int32, 'a & P1 | 'b & P3, "readonly"> {
+): Borrowed<int32, 'a | 'b, "readonly"> {
     return takeLeft ? left : right;
 }
 
 === dir ===
 function pick(left: &readonly int32, right: &readonly int32, takeLeft: boolean): &readonly int32 {
-/// @generic.template symbol=pick parameters=('a, P1: Place, 'b, P3: Place)
-/// @type.symbol symbol=pick type=<pick.'a, pick.P1: Place, pick.'b, pick.P3: Place>(&pick.'a readonly int32, &pick.'b readonly int32, boolean) => Borrowed<int32, pick.'a & pick.P1 | pick.'b & pick.P3, "readonly">
+/// @generic.template symbol=pick parameters=('a, 'b)
+/// @type.symbol symbol=pick type=<pick.'a, pick.'b>(&pick.'a readonly int32, &pick.'b readonly int32, boolean) => &pick.'a | pick.'b readonly int32
 /// @type.symbol symbol=pick.left source="left: &readonly int32" type=&pick.'a readonly int32
 /// @type.symbol symbol=pick.right source="right: &readonly int32" type=&pick.'b readonly int32
 /// @type.symbol symbol=pick.takeLeft source="takeLeft: boolean" type=boolean
@@ -92,10 +91,10 @@ function pick(left: &readonly int32, right: &readonly int32, takeLeft: boolean):
     /// @resolution.place source=takeLeft placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=takeLeft root=pick.takeLeft
     /// @resolution.name source=left target=pick.left
-    /// @resolution.place source=left placement=pick.P1 lifetime=pick.'a access="readonly"
+    /// @resolution.place source=left placement=pick.'a lifetime=pick.'a access="readonly"
     /// @resolution.access source=left root=pick.left
     /// @resolution.name source=right target=pick.right
-    /// @resolution.place source=right placement=pick.P3 lifetime=pick.'b access="readonly"
+    /// @resolution.place source=right placement=pick.'b lifetime=pick.'b access="readonly"
     /// @resolution.access source=right root=pick.right
 
 }
@@ -142,6 +141,7 @@ function fallback(): &readonly int32 {
 }
 "#,
         r#"
+
 "#,
     );
 }
@@ -196,7 +196,7 @@ class Store {
 }
 "#, r#"
 /// @diagnostic.error id=return-not-assignable message="type '&readonly local int32' is not assignable to the declared result type '&'static readonly constant int32'"
-/// @diagnostic.label line=6 column=16 span="&" line_source="return &readonly this.value;"
+/// @diagnostic.label line=6 column=16 span="&readonly this.value" line_source="return &readonly this.value;"
 "#);
 }
 
@@ -230,18 +230,18 @@ function escape(): &'static readonly int32 {
 
 === dir ===
 function first(values: &readonly [int32]): &readonly int32 {
-/// @generic.template symbol=first parameters=('a, P1: Place)
-/// @type.symbol symbol=first type=<first.'a, first.P1: Place>(&first.'a readonly Slice<int32>) => &first.'a readonly int32
+/// @generic.template symbol=first parameters=('a)
+/// @type.symbol symbol=first type=<first.'a>(&first.'a readonly Slice<int32>) => &first.'a readonly int32
 /// @type.symbol symbol=first.values source="values: &readonly [int32]" type=&first.'a readonly Slice<int32>
 
     return &readonly values[0];
     /// @resolution.name source=values target=first.values
-    /// @resolution.place source=values placement=first.P1 lifetime=first.'a access="readonly"
+    /// @resolution.place source=values placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values root=first.values
-    /// @resolution.place source=values[0] placement=first.P1 lifetime=first.'a access="readonly"
+    /// @resolution.place source=values[0] placement=first.'a lifetime=first.'a access="readonly"
     /// @resolution.access source=values[0] root=first.values keys=[0]
     /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&first.'a int32, \"readonly\">)"
-    /// @generic.instantiation id="index#1<int32, \"readonly\", first.P1>" template=index#1 arguments=(int32, "readonly", first.P1)
+    /// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
 
 }
 
@@ -256,14 +256,17 @@ function escape(): &readonly int32 {
 
     return first(&readonly values);
     /// @resolution.name source=first target=first
-    /// @resolution.call source="first(&readonly values)" parameters=(Borrowed<Slice<int32>, "frame" & <error>, "readonly">) arguments=(provided(&readonly values) as Borrowed<Slice<int32>, "frame" & <error>, "readonly">) return=Borrowed<int32, "frame" & <error>, "readonly"> kind=symbol target=first instance=first<<error>>
+    /// @resolution.call source="first(&readonly values)" parameters=(&'frame readonly Slice<int32>) arguments=(provided(&readonly values) as &'frame readonly Slice<int32>) return=&'frame readonly int32 kind=symbol target=first
     /// @resolution.name source=values target=escape.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=values root=escape.values
 
 }
 "#, r#"
-/// @diagnostic.error id=not-assignable message="type '\"frame\"' is not assignable to type '\"static\"'"
+/// @diagnostic.error id=not-assignable message="type '^int32[]' is not assignable to type '^Slice<int32>'"
+/// @diagnostic.label line=7 column=30 span="[1, 2]" line_source="const values: ^[int32] = [1, 2];"
+/// @diagnostic.related line=7 column=19 span="^" line_source="const values: ^[int32] = [1, 2];" message="expected due to this annotation"
+/// @diagnostic.error id=return-not-assignable message="type '&readonly local int32' is not assignable to the declared result type '&'static readonly constant int32'"
 /// @diagnostic.label line=9 column=12 span="first(&readonly values)" line_source="return first(&readonly values);"
 "#);
 }
@@ -297,22 +300,22 @@ class Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.class symbol=Store
 /// @definition.field symbol=Store.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Store.view slot=view type=<Store.view.'a, Store.view.P1: Place>(this: &Store.view.'a readonly this) => &Store.view.'a readonly int32
+/// @definition.method symbol=Store.view slot=view type=<Store.view.'a>(this: &Store.view.'a readonly this) => &Store.view.'a readonly int32
 
     value: int32 = 0;
     /// @type.symbol symbol=Store.value source="value: int32 = 0" type=int32
 
     view(&readonly this): &readonly int32 {
-    /// @generic.template symbol=Store.view parameters=('a, P1: Place)
-    /// @type.symbol symbol=Store.view type=<Store.view.'a, Store.view.P1: Place>(this: &Store.view.'a readonly this) => &Store.view.'a readonly int32
+    /// @generic.template symbol=Store.view parameters=('a)
+    /// @type.symbol symbol=Store.view type=<Store.view.'a>(this: &Store.view.'a readonly this) => &Store.view.'a readonly int32
     /// @type.symbol symbol=Store.view.this source="&readonly this" type=&Store.view.'a readonly this
 
         return &readonly this.value;
         /// @resolution.member source=this.value receiver=&Store.view.'a readonly Store type=int32 kind=field target_receiver=&Store.view.'a readonly Store key=value target=Store.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Store type=&Store.view.'a readonly Store
-        /// @resolution.place source=this placement=Store.view.P1 lifetime=Store.view.'a access="readonly"
+        /// @resolution.place source=this placement=Store.view.'a lifetime=Store.view.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement=Store.view.P1 lifetime=Store.view.'a access="readonly"
+        /// @resolution.place source=this.value placement=Store.view.'a lifetime=Store.view.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }

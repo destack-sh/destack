@@ -2,14 +2,14 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{BodyState, CallableArgument, FlowSite, Origin, PlaceUse, Relation, ValueUse};
+use crate::sema::{CallableArgument, CheckState, FlowSite, Origin, PlaceUse, Relation, ValueUse};
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Return runtime argument bindings for parameters.
     ///
-    /// A rest binding accepts the element type from each packed source;
-    /// the packed collection type stays on the signature parameter.
+    /// A rest binding accepts the element type from each packed source.
+    /// The packed collection type stays on the signature parameter.
     pub(in crate::sema) fn argument_bindings(
         &mut self,
         origin: Origin,
@@ -20,6 +20,7 @@ impl BodyState<'_, '_> {
         let mut argument_index = 0usize;
         let mut bindings = Vec::with_capacity(parameters.len());
 
+        // bind each declared parameter to its written argument
         for parameter_type in parameters.iter() {
             let mut accepted = parameter_type.ty;
             let source = if parameter_type.is_rest {
@@ -29,7 +30,7 @@ impl BodyState<'_, '_> {
                     .collect();
                 argument_index = arguments.len();
 
-                // selected signatures are resolved, the element must project
+                // require the element to project from the resolved signature
                 let element = self.rest_element_type(origin, parameter_type.ty)?;
                 accepted = element.unwrap_or(accepted);
 
@@ -69,9 +70,8 @@ impl BodyState<'_, '_> {
         };
 
         let site = self.visit_site(value)?;
-        let ty = self.infer_node_type(site, PlaceUse::Read)?;
 
-        Ok(ty)
+        self.infer_node_type(site, PlaceUse::Read)
     }
 
     /// Infer the types supplied by runtime arguments.
@@ -98,24 +98,31 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<SmallVec<[CallableArgument; 4]>> {
         let mut values = SmallVec::<[CallableArgument; 4]>::new();
 
-        // preserve source expressions for candidate checking
+        // type every argument once ahead of the candidates that relate to it
         for argument in arguments {
             let source = argument.into_global_any(module);
             let is_spread = self.is_spread_argument(source);
             match self.argument_expression(module, *argument) {
-                Some(value) => values.push(CallableArgument {
-                    source: value,
-                    ty: None,
-                    relation: Relation::Assignable,
-                    use_,
-                    is_spread,
-                }),
+                Some(value) => {
+                    let site = self.visit_site(value)?;
+                    let ty = match !is_spread && self.is_composite_node(value) {
+                        true => None,
+                        false => Some(self.infer_node_type(site, PlaceUse::Read)?),
+                    };
+                    values.push(CallableArgument {
+                        source: value,
+                        ty,
+                        relation: Relation::Storable,
+                        use_,
+                        is_spread,
+                    });
+                }
                 None => {
-                    let ty = self.intern_type(dir::Type::Error)?;
+                    let ty = Some(self.intern_type(dir::Type::Error)?);
                     values.push(CallableArgument {
                         source,
-                        ty: Some(ty),
-                        relation: Relation::Assignable,
+                        ty,
+                        relation: Relation::Storable,
                         use_,
                         is_spread,
                     });
@@ -141,20 +148,24 @@ impl BodyState<'_, '_> {
         for argument in sources {
             match argument {
                 dir::ArgumentSource::Provided(source) => {
+                    let site = self.visit_site(*source)?;
+                    let ty = Some(self.infer_node_type(site, PlaceUse::Read)?);
                     values.push(CallableArgument {
                         source: *source,
-                        ty: None,
-                        relation: Relation::Assignable,
+                        ty,
+                        relation: Relation::Storable,
                         use_: ValueUse::Argument,
                         is_spread: self.is_spread_argument(*source),
                     });
                 }
                 dir::ArgumentSource::Rest { elements, .. } => {
                     for source in elements {
+                        let site = self.visit_site(*source)?;
+                        let ty = Some(self.infer_node_type(site, PlaceUse::Read)?);
                         values.push(CallableArgument {
                             source: *source,
-                            ty: None,
-                            relation: Relation::Assignable,
+                            ty,
+                            relation: Relation::Storable,
                             use_: ValueUse::Argument,
                             is_spread: self.is_spread_argument(*source),
                         });
@@ -164,7 +175,7 @@ impl BodyState<'_, '_> {
                     values.push(CallableArgument {
                         source,
                         ty: Some(*ty),
-                        relation: Relation::Assignable,
+                        relation: Relation::Storable,
                         use_: ValueUse::Argument,
                         is_spread: false,
                     });
@@ -186,6 +197,7 @@ impl BodyState<'_, '_> {
             return false;
         };
 
+        // read whether the argument spreads
         matches!(
             self.module(node.module_id).view().get(argument),
             dir::Argument::Spread { .. }

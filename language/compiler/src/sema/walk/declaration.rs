@@ -6,7 +6,7 @@ use smallvec::SmallVec;
 use crate::sema::{
     CauseKind, CheckError, CheckState, ElisionSite, FunctionHeader, GenericTemplateId,
     InducedParameterOwner, Origin, Receiver, ReceiverBinding, Relation, TypeSubstitution,
-    VariableRole, WalkState,
+    VariableKind, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -97,6 +97,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // declare by the declaration's own syntax
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
@@ -290,6 +291,7 @@ impl WalkState<'_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // walk a declaration statement, entering its node first
         match self.tree.get(expression) {
             dir::Expression::Declaration(declaration) => {
                 let declaration = *declaration;
@@ -326,6 +328,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // walk the declaration, marking it in flight
         self.check.walking_declarations.push(node);
         let walked = self.walk_declaration_kind(id, declaration);
         self.check.walking_declarations.pop();
@@ -343,6 +346,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // walk by the declaration's own syntax
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
@@ -406,7 +410,7 @@ impl WalkState<'_, '_> {
         let template = self.check.template_by_source(source);
         let _scope = self.enter_template_scope(template);
 
-        // handle intrinsic declarations separately from ordinary aliases
+        // walk intrinsic declarations apart from ordinary aliases
         if matches!(
             self.tree.get(declaration.value),
             dir::TypeExpression::Intrinsic
@@ -488,6 +492,7 @@ impl WalkState<'_, '_> {
             }
         }
 
+        // type an intrinsic declaration as opaque
         let value = self.intern_type(dir::Type::Intrinsic)?;
         self.commit_node_type(declaration.value, value)?;
 
@@ -701,7 +706,7 @@ impl WalkState<'_, '_> {
                     .symbol_kind(instance.symbol)
                     .map(|kind| kind == dir::SymbolKind::Class)?
                 {
-                    self.relate_heritage_clause(extends_type, Relation::Extends, receiver.ty, ty)?;
+                    self.relate_heritage_clause(extends_type, Relation::Subtype, receiver.ty, ty)?;
                     extends = Some(dir::NominalHeritage { source, ty });
                     super_ty = Some(ty);
                 } else {
@@ -885,6 +890,7 @@ impl WalkState<'_, '_> {
         };
         let ty = self.intern_signature(function)?;
 
+        // declare the default constructor
         Ok(vec![dir::ClassConstructorDefinition {
             constructor: dir::ClassConstructor::Default,
             ty,
@@ -978,6 +984,19 @@ impl WalkState<'_, '_> {
             next_value = Some(variant.value.increment());
             members.push(dir::DefinitionMember::EnumVariant(variant));
         }
+
+        // declare the enum ahead of its members, which read its variants
+        let declared = dir::Definition::Enum(dir::EnumDefinition {
+            space: declaration.place.map(dir::PlaceModifier::space),
+            template: None,
+            representation: dir::Representation::default(),
+            derives: Default::default(),
+            backing: backing.unwrap_or(dir::EnumBackingType::DEFAULT),
+            implements: implements.clone(),
+            members: members.clone(),
+            conformances: dir::AutoInterfaceSet::new(),
+        });
+        self.check.insert_definition(symbol, source, declared)?;
 
         // walk the members declared beside the variants
         for member in &declaration.members {
@@ -1109,6 +1128,7 @@ impl WalkState<'_, '_> {
         let target_type = self.walk_type_expression(declaration.target_type)?;
         let origin = Origin::Node(source, self.flow().template_scope());
         let target = self.walk_extension_target(origin, target_type)?;
+        // name the target for the extension's diagnostics
         let target_name = match &target {
             dir::ExtensionTarget::Rooted { root, .. } => match root {
                 dir::TypeRoot::Declaration(symbol) => self.check.format_symbol(*symbol),
@@ -1217,6 +1237,7 @@ impl WalkState<'_, '_> {
         self.induced_owner = Some(induction);
         let template = self.open_signature_template(source, &declaration.signature)?;
 
+        // walk the declared signature header
         let (header, result, tracked) = self.walk_signature_header(
             id.into_any(),
             template,
@@ -1569,10 +1590,14 @@ impl WalkState<'_, '_> {
                 Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
             );
         if infers {
-            return Ok((
-                Some(self.open_type_hole(source, VariableRole::Return)?),
-                Vec::new(),
-            ));
+            let result = self.open_type_hole(source, VariableKind::Type)?;
+
+            // join the values an inferred result's returns produce
+            if let Some(variable) = self.check.root_variable(result)? {
+                self.check.infer.variable_mut(variable)?.is_join = true;
+            }
+
+            return Ok((Some(result), Vec::new()));
         }
 
         // require a written result type on every named declaration
@@ -1646,6 +1671,7 @@ impl WalkState<'_, '_> {
         );
         let clause = source.into_global_any(self.module);
 
+        // relate the declaration to its heritage clause
         self.relate_type(
             origin,
             CauseKind::Heritage { clause },
@@ -1727,7 +1753,7 @@ impl WalkState<'_, '_> {
             return Ok(dir::ExtensionTarget::Rooted { root, ty });
         }
 
-        // reject targets without a root declaration, blankets covering bare parameters
+        // require a root declaration, or a blanket over a bare parameter
         if !matches!(self.check.ty(chain.base())?, dir::Type::Parameter(_)) {
             self.report_invalid_extension_target(origin, ty)?;
         }

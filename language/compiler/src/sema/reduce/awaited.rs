@@ -16,7 +16,7 @@ impl CheckState<'_> {
         self.async_completion_type_guarded(target, &mut active)
     }
 
-    /// Resolve one async completion type while guarding transparent recursion.
+    /// Settle one async completion type while guarding transparent recursion.
     fn async_completion_type_guarded(
         &mut self,
         target: dir::GlobalTypeId,
@@ -141,6 +141,7 @@ impl CheckState<'_> {
             dir::Type::Application(instance) => Some(instance),
             _ => None,
         };
+        // read the value the awaited instance yields
         let inner = match instance {
             Some(instance)
                 if matches!(

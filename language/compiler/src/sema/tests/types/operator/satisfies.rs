@@ -122,7 +122,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
 === annotated ===
 type Shape = { a: number };
 
-const value: { a: 1; b: int64 } = { a: 1, b: 2 } satisfies Shape;
+const value: { a: float64; b: int64 } = { a: 1, b: 2 } satisfies Shape;
 
 === dir ===
 type Shape = { a: number };
@@ -131,13 +131,13 @@ type Shape = { a: number };
 /// @type.symbol symbol=Shape.a source="a: number" type=float64
 
 const value = { a: 1, b: 2 } satisfies Shape;
-/// @type.symbol symbol=value source=value type={ a: 1; b: int64 }
+/// @type.symbol symbol=value source=value type={ a: float64; b: int64 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Shape target=Shape
 "#,
         r#"
 /// @diagnostic.error id=excess-property message="unknown property 'b' in object literal for type 'Shape'"
-/// @diagnostic.label line=4 column=30 span="satisfies" line_source="const value = { a: 1, b: 2 } satisfies Shape;"
+/// @diagnostic.label line=4 column=15 span="{ a: 1, b: 2 }" line_source="const value = { a: 1, b: 2 } satisfies Shape;"
 /// @diagnostic.note message="object literals may only specify known properties"
 "#,
     );
@@ -238,9 +238,9 @@ import { Float, Integer } from "destack:math";
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '1' does not satisfy 'Integer'"
-/// @diagnostic.label line=4 column=3 span="satisfies" line_source="1 satisfies Integer;"
+/// @diagnostic.label line=4 column=1 span="1" line_source="1 satisfies Integer;"
 /// @diagnostic.error id=constraint-not-satisfied message="type '1.5' does not satisfy 'Float'"
-/// @diagnostic.label line=5 column=5 span="satisfies" line_source="1.5 satisfies Float;"
+/// @diagnostic.label line=5 column=1 span="1.5" line_source="1.5 satisfies Float;"
 "#,
     );
 }

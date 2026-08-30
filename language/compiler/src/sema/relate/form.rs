@@ -20,6 +20,7 @@ impl CheckState<'_> {
         // name the payload slot the form carries
         let cause = self.intern_cause(Cause::child(origin, CauseKind::Payload, cause));
 
+        // relate the payload by the form that carries it
         match form {
             // raw pointers require identical values
             dir::Form::Raw => self.constrain_type(origin, cause, Relation::Equal, source, target),
@@ -37,7 +38,7 @@ impl CheckState<'_> {
             // readonly borrows remove the write path through their payload
             dir::Form::Borrowed(borrow) => {
                 let access = self.type_borrow(module, borrow)?.access;
-                if self.body().is_readonly_access(access)? {
+                if self.is_readonly_access(access)? {
                     self.constrain_variance(
                         origin,
                         cause,
@@ -89,6 +90,7 @@ impl CheckState<'_> {
         let source = self.shallow_resolve(source)?;
         let target = self.shallow_resolve(target)?;
 
+        // relate the arguments by the heads standing on both sides
         match (self.ty(source)?, self.ty(target)?) {
             // relate nominal arguments by the declaration's variance in this form
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
@@ -121,7 +123,7 @@ impl CheckState<'_> {
                     cause,
                     source_instance.symbol,
                     form,
-                    relation.interior(),
+                    relation,
                     &source_arguments,
                     &target_arguments,
                 )
@@ -146,7 +148,7 @@ impl CheckState<'_> {
                     origin,
                     cause,
                     form,
-                    relation.interior(),
+                    relation,
                     source_slice.element,
                     target_slice.element,
                 ),
@@ -160,10 +162,28 @@ impl CheckState<'_> {
                     origin,
                     cause,
                     form,
-                    relation.interior(),
+                    relation,
                     element,
                     target_slice.element,
                 )
+            }
+
+            // relate tuple elements in place
+            (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
+                let Some(pairs) = self.tuple_pairs(source, target)? else {
+                    return Ok(Verdict::Fails);
+                };
+                let mut verdict = Verdict::Holds;
+                for (source, target) in pairs {
+                    verdict = verdict.and(
+                        self.constrain_variance(origin, cause, form, relation, source, target)?,
+                    );
+                    if verdict == Verdict::Fails {
+                        break;
+                    }
+                }
+
+                Ok(verdict)
             }
 
             // preserve the established representation of other values
@@ -171,8 +191,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Constrain assignability involving memory forms.
-    pub(in crate::sema) fn constrain_form_assignable(
+    /// Relate two types through the memory forms either side carries.
+    pub(in crate::sema) fn relate_form(
         &mut self,
         origin: Origin,
         cause: CauseId,
@@ -181,7 +201,13 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Verdict>> {
         // let union targets select their arm, re-entering form logic per arm
-        if matches!(self.ty(target)?, dir::Type::Union(_)) {
+        let target_head = self.normalize(origin, target)?;
+        if matches!(self.ty(target_head)?, dir::Type::Union(_)) {
+            return Ok(None);
+        }
+
+        // decide a predicate over an interface target on the formed subject itself
+        if relation == Relation::Subtype && self.is_conformance_target(target)? {
             return Ok(None);
         }
 
@@ -202,6 +228,7 @@ impl CheckState<'_> {
             )?));
         }
 
+        // relate the payloads by the forms standing on both sides
         match (self.ty(source)?, self.ty(target)?) {
             // readonly forms view their payloads covariantly
             (dir::Type::Form(source_form), dir::Type::Form(target_form))
@@ -216,16 +243,6 @@ impl CheckState<'_> {
                     target_form.form,
                     source_form.value,
                     target_form.value,
-                )?))
-            }
-
-            // read copyable readonly views out as their payload value
-            (dir::Type::Form(source_form), _) if source_form.form == dir::Form::Readonly => {
-                Ok(Some(self.constrain_copyable_read_out(
-                    origin,
-                    relation,
-                    source_form.value,
-                    target,
                 )?))
             }
 
@@ -307,18 +324,6 @@ impl CheckState<'_> {
                     target_form.form,
                 )?;
                 if constructor == Verdict::Fails {
-                    // read copyable payloads out of unmatched borrows outside widening
-                    if relation != Relation::Widens
-                        && matches!(source_form.form, dir::Form::Borrowed(_))
-                    {
-                        return Ok(Some(self.constrain_copyable_read_out(
-                            origin,
-                            relation,
-                            source_form.value,
-                            target,
-                        )?));
-                    }
-
                     return Ok(Some(Verdict::Fails));
                 }
 
@@ -336,10 +341,8 @@ impl CheckState<'_> {
                 Ok(Some(constructor.and(payload)))
             }
 
-            // copy values into uniquely owned storage outside widening
-            (_, dir::Type::Form(target_form))
-                if relation != Relation::Widens && target_form.form == dir::Form::Owned =>
-            {
+            // copy values into uniquely owned storage
+            (_, dir::Type::Form(target_form)) if target_form.form == dir::Form::Owned => {
                 // refuse a safe reference as uniquely owned storage
                 let is_reference = self.type_is_reference(origin, source)?;
                 if is_reference {
@@ -355,7 +358,7 @@ impl CheckState<'_> {
                 Ok(Some(self.constrain_type(
                     origin,
                     cause,
-                    Relation::Assignable,
+                    relation,
                     source,
                     target_form.value,
                 )?))
@@ -363,8 +366,7 @@ impl CheckState<'_> {
 
             // admit bare values into managed storage at the storage's own space
             (_, dir::Type::Form(target_form))
-                if relation != Relation::Widens
-                    && !matches!(self.ty(source)?, dir::Type::Form(_))
+                if !matches!(self.ty(source)?, dir::Type::Form(_))
                     && matches!(target_form.form, dir::Form::Managed { .. }) =>
             {
                 // read the place the managed storage names
@@ -432,49 +434,32 @@ impl CheckState<'_> {
                     )?));
                 }
 
-                // keep references at their placement
-                let is_reference = self.type_is_reference(origin, source)?;
-                if is_reference {
-                    return Ok(Some(Verdict::Fails));
-                }
+                Ok(Some(Verdict::Fails))
+            }
 
-                Ok(Some(self.constrain_copyable_read_out(
-                    origin,
-                    relation,
-                    source_form.value,
-                    target,
+            // owned values conform to an interface through the value they store
+            (dir::Type::Form(source_form), dir::Type::Application(instance))
+                if source_form.form == dir::Form::Owned
+                    && self
+                        .symbol_kind(instance.symbol)
+                        .map(|kind| kind.is_interface())? =>
+            {
+                Ok(Some(self.relate_interface(
+                    origin, cause, relation, source, target,
                 )?))
             }
 
-            // transfer owned values into the destination type's default form
-            (dir::Type::Form(source_form), _)
-                if relation != Relation::Widens && source_form.form == dir::Form::Owned =>
-            {
-                // keep the handle for managed defaults
+            // transfer owned values into the destination's default form
+            (dir::Type::Form(source_form), _) if source_form.form == dir::Form::Owned => {
                 if self.default_ownership(origin, source_form.value)?
                     == Some(dir::Ownership::Managed)
                 {
-                    Ok(Some(Verdict::Fails))
+                    return Ok(Some(Verdict::Fails));
                 }
-                // take the payload directly for every other default
-                else {
-                    Ok(Some(self.constrain_type(
-                        origin,
-                        cause,
-                        Relation::Assignable,
-                        source_form.value,
-                        target,
-                    )?))
-                }
-            }
 
-            // borrows read copyable payloads out by value outside widening
-            (dir::Type::Form(source_form), _)
-                if relation != Relation::Widens
-                    && matches!(source_form.form, dir::Form::Borrowed(_)) =>
-            {
-                Ok(Some(self.constrain_copyable_read_out(
+                Ok(Some(self.constrain_type(
                     origin,
+                    cause,
                     relation,
                     source_form.value,
                     target,
@@ -483,41 +468,6 @@ impl CheckState<'_> {
 
             _ => Ok(None),
         }
-    }
-
-    /// Constrain one copyable payload read out of a view or borrow.
-    fn constrain_copyable_read_out(
-        &mut self,
-        origin: Origin,
-        relation: Relation,
-        payload: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        // keep the view whenever the payload is itself a reference
-        let is_reference = self.type_is_reference(origin, payload)?;
-        if is_reference {
-            return Ok(Verdict::Fails);
-        }
-
-        // reject writable borrow targets before reading the copy out
-        if let dir::Type::Form(target_form) = self.ty(target)?
-            && let dir::Form::Borrowed(borrow) = target_form.form
-        {
-            let access = self.type_borrow(target.module_id, borrow)?.access;
-            if self.access_of(access)? != Some(dir::Access::Readonly) {
-                return Ok(Verdict::Fails);
-            }
-        }
-
-        // read copyable payloads out of the view only
-        match self.decide_auto_interface(origin, payload, dir::AutoInterface::Copy)? {
-            Verdict::Holds => {}
-            verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
-        }
-
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-
-        self.constrain_type(origin, cause, relation, payload, target)
     }
 
     /// Relate two memory form constructors under equality.
@@ -530,6 +480,7 @@ impl CheckState<'_> {
         target_module: ModuleId,
         target: dir::Form,
     ) -> CompilerResult<Verdict> {
+        // match the two forms by their constructors
         match (source, target) {
             // borrows match on both their access and their region
             (dir::Form::Borrowed(source_borrow), dir::Form::Borrowed(target_borrow)) => {
@@ -571,6 +522,7 @@ impl CheckState<'_> {
         target_module: ModuleId,
         target: dir::Form,
     ) -> CompilerResult<Verdict> {
+        // flow the source form into the target form
         match (source, target) {
             // a borrow flows into a readonly view
             (dir::Form::Borrowed(_), dir::Form::Readonly) => Ok(Verdict::Holds),
@@ -584,7 +536,7 @@ impl CheckState<'_> {
                 let region = self.constrain_type(
                     origin,
                     cause,
-                    Relation::Assignable,
+                    Relation::Storable,
                     source.region,
                     target.region,
                 )?;
@@ -611,6 +563,7 @@ impl CheckState<'_> {
         let source = self.normalize_memory_component(origin, source)?;
         let target = self.normalize_memory_component(origin, target)?;
 
+        // accept two identical access terms
         if source == target {
             return Ok(Verdict::Holds);
         }
@@ -619,6 +572,7 @@ impl CheckState<'_> {
         let source_access = self.access_of(source)?;
         let target_access = self.access_of(target)?;
 
+        // relate the two access terms
         match (self.ty(source)?, self.ty(target)?) {
             // every access grants readonly
             _ if target_access == Some(dir::Access::Readonly) => Ok(Verdict::Holds),
@@ -692,7 +646,7 @@ impl CheckState<'_> {
         if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-            return self.constrain_type(origin, cause, Relation::Assignable, source, target);
+            return self.constrain_type(origin, cause, Relation::Storable, source, target);
         }
 
         self.relate_access_assignable(origin, source, target)
@@ -712,6 +666,7 @@ impl CheckState<'_> {
             return Ok((region, value));
         };
 
+        // require a managed handle around the payload
         let dir::Form::Managed { place } = form.form else {
             return Ok((region, value));
         };
@@ -725,11 +680,13 @@ impl CheckState<'_> {
 
                 Ok((folded, form.value))
             }
-            // bind an open region to a fresh pair holding the place
+            // split an open region into its extent and its place
             dir::Type::Variable(_) => {
                 let extent = self.open_memory_type(origin, dir::MemoryParameter::Region)?;
+                let space = self.open_memory_type(origin, dir::MemoryParameter::Place)?;
+                let split = self.intern_region(extent, space)?;
+                self.constrain_type(origin, cause, Relation::Equal, resolved, split)?;
                 let pair = self.intern_region(extent, place)?;
-                self.constrain_type(origin, cause, Relation::Equal, resolved, pair)?;
 
                 Ok((pair, form.value))
             }

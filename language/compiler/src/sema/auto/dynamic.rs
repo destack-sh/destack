@@ -29,12 +29,13 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
+        // read the head standing on the type
         let kind = self.ty(ty)?;
 
         // decide each runtime representation
         match kind {
             // leave an open variable or canonical hole undecided
-            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // accept region terms outright, they carry no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
@@ -76,11 +77,9 @@ impl CheckState<'_> {
             // fail the interface for type parameters that survived substitution
             dir::Type::Parameter(_) => Ok(Verdict::Fails),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Rigid(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural dynamic safety"),
-                })
-            }
+            dir::Type::Erased(_) | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural dynamic safety"),
+            }),
             // refuse unreduced type operations
             dir::Type::Member(_) | dir::Type::Operation(_) => Ok(Verdict::Fails),
             // represent a memory form through its payload

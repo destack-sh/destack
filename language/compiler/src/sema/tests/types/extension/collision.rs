@@ -204,10 +204,10 @@ function build(values: [int32]): void {
 import { Set } from "destack:collections";
 
 function build(values: [int32]): void {
-    const owned: ^Set<int32> = Set.from<int32>([...values]);
-    const managed: Set<int32> = Set.from<int32>([...values]) as Set<int32>;
+    const owned: ^Set<int32> = Set.from<int32>([...values] as Iterable<int32>);
+    const managed: Set<int32> = Set.from<int32>([...values] as Iterable<int32>) as Set<int32>;
     const mapped: int32[] = Array.from<int32, int32>(
-        [...values],
+        [...values] as Iterable<int32>,
         (value: int32): int32 => value,
     ) as int32[];
 }

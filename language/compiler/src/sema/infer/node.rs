@@ -2,8 +2,8 @@ use destack_dir as dir;
 
 use super::InferMode;
 use crate::sema::{
-    BodyState, CauseId, Check, CheckOutcome, FailedCheck, FlowSite, NodeCheck, Relation,
-    ValueCheck, ValueConversion, ValueUse,
+    CauseId, Check, CheckOutcome, CheckState, FailedCheck, FlowSite, NodeForm, PatternCheck,
+    Relation, ValueCheck, ValueConversion, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -51,7 +51,7 @@ impl Expectation {
     ) -> Self {
         Self {
             target,
-            relation: Relation::Assignable,
+            relation: Relation::Storable,
             cause,
             use_,
             mode: InferMode::Regular,
@@ -59,7 +59,7 @@ impl Expectation {
     }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Attempt one node's check once.
     pub(in crate::sema) fn attempt_node(
         &mut self,
@@ -86,45 +86,6 @@ impl BodyState<'_, '_> {
         Ok(check)
     }
 
-    /// Check one node in place and return its decided resolution.
-    pub(in crate::sema) fn decide_node(
-        &mut self,
-        node: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<dir::Decision> {
-        if self.decision(node).is_none() {
-            let site = self.visit_site(node)?;
-            self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
-        }
-
-        match self.decision(node) {
-            Some(resolution) => Ok(resolution.clone()),
-            None => Err(CompilerError::Internal {
-                message: format!("node {node:?} checked without a decision"),
-            }),
-        }
-    }
-
-    /// Check one node against an expected type inside an enclosing check.
-    pub(in crate::sema) fn check_node_expected(
-        &mut self,
-        site: FlowSite,
-        target: dir::GlobalTypeId,
-        relation: Relation,
-        cause: CauseId,
-        use_: ValueUse,
-        mode: InferMode,
-    ) -> CompilerResult<ValueCheck> {
-        let expectation = Expectation {
-            target,
-            relation,
-            cause,
-            use_,
-            mode,
-        };
-
-        self.check_node(site, expectation)
-    }
-
     /// Check one committed node value against an expected type.
     pub(in crate::sema) fn check_value(
         &mut self,
@@ -132,6 +93,7 @@ impl BodyState<'_, '_> {
         source: dir::GlobalTypeId,
         expectation: Expectation,
     ) -> CompilerResult<ValueCheck> {
+        // convert the value at its expectation
         let value = self.expression_value(site, source)?;
         let conversion = self.convert_value(
             site,
@@ -143,6 +105,7 @@ impl BodyState<'_, '_> {
             expectation.mode,
         )?;
 
+        // commit the conversion the check selected
         let check = self.commit_value_conversion(site, source, expectation, conversion)?;
 
         Ok(check)
@@ -158,25 +121,23 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<ValueCheck> {
         // commit the selected runtime conversion for this authored value
         if let Some(coercion) = conversion.coercion {
-            self.check.commit_coercion(site.node, *coercion)?;
+            self.commit_coercion(site.node, *coercion)?;
         }
 
-        // retain a failed confirmed value check at its authored cause
+        // retain a failed value check over the value the conversion related
         if let CheckOutcome::Fails(failure) = conversion.outcome {
-            self.check.push_failure(FailedCheck {
+            self.push_failure(FailedCheck {
                 cause: expectation.cause,
                 relation: expectation.relation,
                 use_: Some(expectation.use_),
-                source,
+                source: conversion.source,
                 target: conversion.target,
                 failure,
-                is_provisional: false,
             })?;
         }
 
         Ok(ValueCheck {
             source,
-            stored: conversion.source,
             outcome: conversion.outcome,
             target: conversion.target,
         })
@@ -188,28 +149,48 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         mut expectation: Expectation,
     ) -> CompilerResult<ValueCheck> {
+        // check the node against its target
         let check = self.check_node_target(site, expectation)?;
         expectation.target = check.target;
 
         // preserve target-directed failures without attempting conversion
         if let CheckOutcome::Fails(failure) = check.outcome {
             let source = check.source;
-            self.check.push_failure(FailedCheck {
+            self.push_failure(FailedCheck {
                 cause: expectation.cause,
                 relation: expectation.relation,
                 use_: Some(expectation.use_),
                 source,
                 target: check.target,
                 failure,
-                is_provisional: false,
             })?;
 
             return Ok(check);
         }
 
+        // leave blocks, composites, and function values to convert inside their own check
+        if site.node.local_id.ty == dir::NodeType::Block
+            || self.is_composite_node(site.node)
+            || matches!(self.node_syntax(site.node), NodeForm::FunctionValue)
+        {
+            return Ok(check);
+        }
+
+        // convert every other value at this site
         let source = check.source;
 
         self.check_value(site, source, expectation)
+    }
+
+    /// Check one destructuring pattern against its closed input.
+    pub(in crate::sema) fn check_destructuring_pattern(
+        &mut self,
+        site: FlowSite,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let target = self.resolve_structurally(site, target)?;
+
+        self.check_pattern(site.node.into_typed(), site.flow, site.scope, target)
     }
 
     /// Check one node against an expectation.
@@ -221,84 +202,54 @@ impl BodyState<'_, '_> {
         // remove inference barriers once the complete contextual type closes
         expectation.target = self.erase_inference_barriers_if_closed(expectation.target)?;
 
-        // barrier targets check once their variables close, after the body
-        if let Some(no_infer) = self.no_infer_target(expectation.target)? {
-            let open = self.collect_open_variables([no_infer])?;
-            if !open.is_empty() {
-                self.check
-                    .queue_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
-
-                return Ok(ValueCheck {
-                    source: expectation.target,
-                    stored: expectation.target,
-                    outcome: CheckOutcome::Holds,
-                    target: expectation.target,
-                });
-            }
-            let no_infer = self.shallow_resolve(no_infer)?;
-            expectation.target = no_infer;
-        }
-
+        // check by the node's own kind
         let node = site.node;
         let target = expectation.target;
         let mut check = match node.local_id.ty {
             dir::NodeType::Expression => self.check_expression(site, expectation)?,
+            // convert a block's tail inside the block
             dir::NodeType::Block => {
-                self.check_block(site, node.into_typed().local_id, expectation)?
+                return self.check_block(site, node.into_typed().local_id, expectation);
             }
             dir::NodeType::Pattern => {
-                // stall destructuring patterns until their input closes
+                // take an input apart once it closes
                 let pattern = self
                     .module(node.module_id)
                     .view()
                     .get(node.into_typed::<dir::Pattern>().local_id)
                     .clone();
-                let open = match Self::is_destructuring_pattern(&pattern) {
-                    true => self.collect_open_variables([target])?,
-                    false => Default::default(),
-                };
-                if !open.is_empty() {
-                    self.check
-                        .queue_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
-
-                    return Ok(ValueCheck {
-                        source: target,
-                        stored: target,
-                        outcome: CheckOutcome::Holds,
-                        target,
-                    });
+                match Self::is_destructuring_pattern(&pattern) {
+                    true => match self.root_variable(target)? {
+                        Some(root) if self.infer.variable(root)?.state.is_open() => {
+                            self.queue_check_stalled(
+                                Check::Pattern(PatternCheck { site, target }),
+                                &[root],
+                            )?;
+                        }
+                        _ => self.check_destructuring_pattern(site, target)?,
+                    },
+                    false => {
+                        self.check_pattern(node.into_typed(), site.flow, site.scope, target)?
+                    }
                 }
-                self.check_pattern(node.into_typed(), site.flow, site.scope, target)?;
 
                 ValueCheck {
                     source: target,
-                    stored: target,
                     outcome: CheckOutcome::Holds,
                     target,
                 }
             }
             dir::NodeType::AssignPattern => {
-                // stall destructuring targets until their input closes
+                // resolve the input a destructuring target takes apart
                 let pattern = self
                     .module(node.module_id)
                     .view()
                     .get(node.into_typed::<dir::AssignPattern>().local_id)
                     .clone();
-                let open = match Self::is_destructuring_assign_pattern(&pattern) {
-                    true => self.collect_open_variables([target])?,
-                    false => Default::default(),
+                let target = match Self::is_destructuring_assign_pattern(&pattern) {
+                    true => self.resolve_structurally(site, target)?,
+                    false => target,
                 };
-                if !open.is_empty() {
-                    self.check
-                        .queue_check_stalled(Check::Node(NodeCheck { site, expectation }), &open)?;
-
-                    return Ok(ValueCheck {
-                        source: target,
-                        stored: target,
-                        outcome: CheckOutcome::Holds,
-                        target,
-                    });
-                }
                 self.check_assign_pattern(
                     node.into_typed(),
                     site.flow,
@@ -309,14 +260,12 @@ impl BodyState<'_, '_> {
 
                 ValueCheck {
                     source: target,
-                    stored: target,
                     outcome: CheckOutcome::Holds,
                     target,
                 }
             }
             dir::NodeType::TypeExpression => ValueCheck {
                 source: target,
-                stored: target,
                 outcome: CheckOutcome::Holds,
                 target,
             },
@@ -326,6 +275,8 @@ impl BodyState<'_, '_> {
                 });
             }
         };
+
+        // narrow the checked value at this site
         check.source = self.flow_type_at(site, check.source)?;
 
         Ok(check)
@@ -338,27 +289,32 @@ impl BodyState<'_, '_> {
         use_: PlaceUse,
         mode: InferMode,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        self.infer_node_in(site, use_, mode, None)
+    }
+
+    /// Infer one source node under the contextual type its site offers.
+    pub(in crate::sema) fn infer_node_in(
+        &mut self,
+        site: FlowSite,
+        use_: PlaceUse,
+        mode: InferMode,
+        context: Option<Expectation>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read a node typed once
         let node = site.node;
-        if let Some(ty) = self.node_types.get(&node) {
-            // committed holes re-infer until their node decides
-            let is_hole = matches!(self.check.ty_raw(ty)?, dir::Type::Variable(_))
-                && self.check.decision(node).is_none();
-            if !is_hole {
-                return self.shallow_resolve(ty);
-            }
+        if let Some(ty) = self.own_node_type(node) {
+            return Ok(ty);
         }
 
-        // check function value bodies in place, without a context
-        if self.check.lambdas.contains_key(&node) {
-            let check = self.check_function_value(site, None, mode)?;
-
-            return self.shallow_resolve(check.source);
+        // type a function value as its callable
+        if self.lambdas.contains_key(&node) {
+            return self.function_value_type(node);
         }
 
         // infer every other node by its syntax family
         match node.local_id.ty {
             dir::NodeType::Expression => {
-                self.infer_expression(site, use_, mode)?;
+                self.infer_expression(site, use_, mode, context)?;
             }
             dir::NodeType::Block => {
                 self.infer_block(site, node.into_typed().local_id)?;
@@ -371,10 +327,19 @@ impl BodyState<'_, '_> {
             }
         }
 
-        let Some(ty) = self.node_types.get(&node) else {
+        let Some(ty) = self.own_node_type(node) else {
+            let kind = match node.local_id.ty {
+                dir::NodeType::Expression => format!(
+                    "{:?}",
+                    self.module(node.module_id)
+                        .view()
+                        .get(node.into_typed::<dir::Expression>().local_id)
+                ),
+                _ => String::new(),
+            };
             return Err(CompilerError::Internal {
                 message: format!(
-                    "node inference returned without publishing a type: {}",
+                    "node inference returned without publishing a type: {} {kind}",
                     self.node_label(node),
                 ),
             });
@@ -389,6 +354,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         use_: PlaceUse,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // infer the node and narrow it at this site
         let ty = self.infer_node(site, use_, InferMode::Regular)?;
         let ty = self.flow_type_at(site, ty)?;
         self.commit_expression_place(site, ty)?;

@@ -2,25 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Check, CheckState, FlowPointChange, FlowPredicate, FlowSite, NarrowingCheck, Origin, Relation,
-    VariableRole, Verdict,
+    CheckState, FlowPointChange, FlowPredicate, FlowSite, Origin, Relation, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
-
-/// The outcome of resolving narrowings at one flow site.
-pub(in crate::sema) enum FlowNarrowing {
-    /// The narrowed type.
-    Narrowed(dir::GlobalTypeId),
-    /// No narrowing applies.
-    Unchanged,
-    /// A consulted equality operation stays undecided behind its selection hole.
-    Pending {
-        /// The consulted equality operation.
-        operation: dir::GlobalNodeIdAny,
-        /// The open variable the narrowing stalled on.
-        blocker: dir::TypeVariableId,
-    },
-}
 
 impl CheckState<'_> {
     /// Return one type as viewed at one flow point.
@@ -47,32 +31,19 @@ impl CheckState<'_> {
             return Ok(ty);
         };
 
-        match self.flow_narrowed_type(site, path.path(), ty)? {
-            FlowNarrowing::Narrowed(narrowed) => Ok(narrowed),
-            FlowNarrowing::Unchanged => Ok(ty),
-            // wait for the consulted operation to decide, then re-narrow and close the hole
-            FlowNarrowing::Pending { operation, .. } => {
-                let hole = self.open_variable(site.origin(), VariableRole::Regular);
-                self.queue_check(Check::Narrowing(NarrowingCheck {
-                    site,
-                    path: path.path().clone(),
-                    operation,
-                    source: ty,
-                    hole,
-                }))?;
+        // narrow through the predicates visible at this site
+        let narrowed = self.flow_narrowed_type(site, path.path(), ty)?;
 
-                self.variable_type(hole)
-            }
-        }
+        Ok(narrowed.unwrap_or(ty))
     }
 
-    /// Return the type after narrowings visible at one flow site.
+    /// Return the type after narrowings visible at one flow site, none without a narrowing.
     pub(in crate::sema) fn flow_narrowed_type(
         &mut self,
         site: FlowSite,
         path: &dir::AccessPath,
         source: dir::GlobalTypeId,
-    ) -> CompilerResult<FlowNarrowing> {
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the checked module's flow graph from the live cursor before flushes
         let module_id = self.module_id;
         let module = self.module(site.node.module_id);
@@ -127,51 +98,27 @@ impl CheckState<'_> {
 
         // stop when no narrowing affects this path
         if predicates.is_empty() {
-            return Ok(FlowNarrowing::Unchanged);
+            return Ok(None);
         }
 
         // apply oldest first, so each later test refines the earlier result
         let mut narrowed = source;
         for (tested, predicate) in predicates.into_iter().rev() {
-            // wait for a consulted operation to decide
-            if let FlowPredicate::Equality { operation, .. } = predicate
-                && let Some(blocker) = self.operation_hole(operation)?
-            {
-                return Ok(FlowNarrowing::Pending { operation, blocker });
+            // resolve a variable blocking the narrowing structurally, then narrow once more
+            let mut narrowing =
+                self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)?;
+            if let Err(blocker) = narrowing {
+                let blocker = self.variable_type(blocker)?;
+                self.resolve_structurally(site, blocker)?;
+                narrowing =
+                    self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)?;
             }
-            // wait for an open variable blocking the narrowing itself
-            match self.resolve_flow_predicate(site, path, &tested, narrowed, predicate)? {
-                Ok(Some(next)) => narrowed = next,
-                Ok(None) => {}
-                // require equality behind a narrowing stalled on a structural variable
-                Err(blocker) => {
-                    let FlowPredicate::Equality { operation, .. } = predicate else {
-                        return Err(CompilerError::Internal {
-                            message: "non-equality flow predicate stalled on a variable".into(),
-                        });
-                    };
-
-                    return Ok(FlowNarrowing::Pending { operation, blocker });
-                }
+            if let Ok(Some(next)) = narrowing {
+                narrowed = next;
             }
         }
 
-        Ok(FlowNarrowing::Narrowed(narrowed))
-    }
-
-    /// Return the open hole standing for one undecided operation.
-    pub(in crate::sema) fn operation_hole(
-        &mut self,
-        operation: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        if self.decision(operation).is_some() {
-            return Ok(None);
-        }
-        let Some(ty) = self.committed_node_type(operation) else {
-            return Ok(None);
-        };
-
-        self.root_variable(ty)
+        Ok(Some(narrowed))
     }
 
     /// Apply one flow predicate to a source type.
@@ -183,7 +130,9 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         predicate: FlowPredicate,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
+        // narrow by the predicate's own form
         match predicate {
+            // narrow through the subset a pattern accepts
             FlowPredicate::Pattern {
                 pattern,
                 is_positive,
@@ -200,10 +149,12 @@ impl CheckState<'_> {
                     None => Ok(Ok(None)),
                 }
             }
+            // narrow through a checked equality operand
             FlowPredicate::Equality {
                 operation,
                 is_equal,
             } => self.resolve_equality_predicate(site, path, tested, source, operation, is_equal),
+            // narrow through the subset a guard selects
             FlowPredicate::Guard { guard, is_positive } => {
                 let Some(narrowed) = self.guard_narrowing(guard)? else {
                     return Ok(Ok(None));
@@ -232,6 +183,7 @@ impl CheckState<'_> {
         operation: dir::GlobalNodeIdAny,
         is_equal: bool,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
+        // read the checked operands of the equality
         let Some((operator, operands)) = self.equality_operands(operation)? else {
             return Ok(Ok(None));
         };
@@ -256,12 +208,13 @@ impl CheckState<'_> {
             if matches!(
                 operator,
                 dir::BinaryOperator::Equal | dir::BinaryOperator::NotEqual
-            ) && matches!(self.ty(target)?, dir::Type::Null | dir::Type::Undefined)
-            {
+            ) && matches!(
+                self.ty(self.shallow_resolve(target)?)?,
+                dir::Type::Null | dir::Type::Undefined
+            ) {
                 let null = self.intern_type(dir::Type::Null)?;
                 let undefined = self.intern_type(dir::Type::Undefined)?;
-                let elements = self.intern_type_ids(&[null, undefined])?;
-                target = self.intern_type(dir::Type::Union(dir::UnionType { elements }))?;
+                target = self.normalized_union_type([null, undefined])?;
             }
 
             return self.narrow_equality_access(
@@ -305,6 +258,7 @@ impl CheckState<'_> {
             }
         };
 
+        // read the operands each resolution exposes
         match resolution {
             // return the exact checked operand nodes of compiler equality
             dir::OperationResolution::One(dir::OperatorApplication::Binary {
@@ -344,6 +298,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         is_equal: bool,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
+        // read the path the operand accesses
         let operand_path = access.path();
 
         // narrow the value stored at this exact path
@@ -424,7 +379,7 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Resolve one runtime type predicate.
+    /// Settle one runtime type predicate.
     fn resolve_type_predicate(
         &mut self,
         site: FlowSite,
@@ -432,6 +387,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         is_positive: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // build the narrowing operation over both sides
         let operation = dir::TypeOperation::Narrow(dir::NarrowType {
             source,
             target,
@@ -491,6 +447,7 @@ impl CheckState<'_> {
         pattern: dir::GlobalNodeId<dir::Pattern>,
         resolution: &dir::PatternDecision,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read the subset each resolution accepts
         match resolution {
             dir::PatternDecision::Test(test) => Ok(test.predicate.narrowed),
             dir::PatternDecision::Variant(variant) => Ok(variant.predicate.narrowed),
@@ -548,6 +505,7 @@ impl CheckState<'_> {
         origin: Origin,
         pattern: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // require a pattern node
         let dir::NodeType::Pattern = pattern.local_id.ty else {
             return Ok(None);
         };
@@ -562,6 +520,7 @@ impl CheckState<'_> {
         _pattern: dir::GlobalNodeId<dir::Pattern>,
         branches: &[dir::GlobalNodeIdAny],
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // collect the distinct subset every branch accepts
         let mut targets = Vec::new();
         for branch in branches {
             let Some(target) = self.pattern_node_predicate_target(origin, *branch)? else {
@@ -572,6 +531,7 @@ impl CheckState<'_> {
             }
         }
 
+        // join the branch subsets
         let target = match targets.as_slice() {
             [] => None,
             [single] => Some(*single),

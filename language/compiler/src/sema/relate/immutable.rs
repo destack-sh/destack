@@ -33,6 +33,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
+        // decide by the value's own storage
         match self.ty(ty)? {
             // open variables fail as ambiguity until they solve
             dir::Type::Variable(_) => Ok(false),
@@ -55,7 +56,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    self.body().is_readonly_access(access)
+                    self.is_readonly_access(access)
                 }
                 dir::Form::Owned | dir::Form::Managed { .. } => {
                     self.is_immutable(origin, form.value, active)

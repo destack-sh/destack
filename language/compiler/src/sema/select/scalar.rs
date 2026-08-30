@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, FlowPointId, FlowSite, Origin, PlaceUse};
+use crate::sema::{CheckState, FlowPointId, FlowSite, Origin, PlaceUse};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one literal pattern from its closed expression value.
     pub(in crate::sema) fn select_literal_pattern(
         &mut self,
@@ -40,7 +40,8 @@ impl BodyState<'_, '_> {
         )?;
 
         // closed literal values select literal predicates
-        let literal = self.ty(ty)?.singleton_literal();
+        let written = self.shallow_resolve(ty)?;
+        let literal = self.ty(written)?.singleton_literal();
         match literal {
             // test the matched input against the selected literal
             Some(literal) => {
@@ -118,6 +119,7 @@ impl BodyState<'_, '_> {
         )
         .with_narrowed(narrowed);
 
+        // commit the selected test
         self.commit_pattern(
             node,
             dir::PatternDecision::Test(Box::new(dir::PatternPredicateResolution { predicate })),
@@ -131,6 +133,7 @@ impl BodyState<'_, '_> {
         domain: dir::GlobalTypeId,
         written: &dir::RangeType,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // intersect the written interval with the domain
         let narrowed = match self.ty(domain)? {
             // intersect nested intervals exactly
             dir::Type::Range(domain) => domain

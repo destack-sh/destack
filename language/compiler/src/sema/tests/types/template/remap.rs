@@ -451,7 +451,7 @@ type HandlerMap<T> = {
     [K in keyof T as `on-${K}`]: T[K];
 };
 
-const handlers: { on-open: true; on-close: false } = {
+const handlers: { on-open: boolean; on-close: boolean } = {
     "on-open": true,
     "on-close": false,
 } satisfies HandlerMap<{ open: boolean; close: boolean }>;
@@ -476,7 +476,7 @@ type HandlerMap<T> = {
 };
 
 const handlers = {
-/// @type.symbol symbol=handlers source=handlers type={ on-open: true; on-close: false }
+/// @type.symbol symbol=handlers source=handlers type={ on-open: boolean; on-close: boolean }
 /// @resolution.pattern source=handlers kind=binding target=handlers
 
     "on-open": true,
@@ -490,7 +490,7 @@ handlers["on-open"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
 /// @resolution.place source="handlers[\"on-open\"]" placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source="handlers[\"on-open\"]" root=handlers keys=[on-open]
-/// @resolution.subscript source="handlers[\"on-open\"]" type=true kind=member target="receiver={ on-open: true; on-close: false }, target=field(receiver={ on-open: true; on-close: false }, target=on-open, type=true), type=true"
+/// @resolution.subscript source="handlers[\"on-open\"]" type=boolean kind=member target="receiver={ on-open: boolean; on-close: boolean }, target=field(receiver={ on-open: boolean; on-close: boolean }, target=on-open, type=boolean), type=boolean"
 /// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handlers root=handlers
 "#,

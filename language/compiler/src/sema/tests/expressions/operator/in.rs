@@ -137,12 +137,12 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, &Bag.has.'a readonly string) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place>(this: Managed<Bag, Bag.has.P1>, &Bag.has.'a readonly string) => boolean
 
     has(key: &readonly string): boolean {
-    /// @generic.template symbol=Bag.has parameters=('a, P1: Place, P2: Place)
-    /// @type.symbol symbol=Bag.has type=<Bag.has.'a, Bag.has.P1: Place, Bag.has.P2: Place>(this: Managed<Bag, Bag.has.P2>, &Bag.has.'a readonly string) => boolean
-    /// @type.symbol symbol=Bag.has.this type=Managed<Bag, Bag.has.P2>
+    /// @generic.template symbol=Bag.has parameters=('a, P1: Place)
+    /// @type.symbol symbol=Bag.has type=<Bag.has.'a, Bag.has.P1: Place>(this: Managed<Bag, Bag.has.P1>, &Bag.has.'a readonly string) => boolean
+    /// @type.symbol symbol=Bag.has.this type=Managed<Bag, Bag.has.P1>
     /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'a readonly string
 
         return true;
@@ -442,7 +442,7 @@ true in point;
 /// @resolution.access source=point root=point
 "#,
         r#"
-/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for 'true' and '{ x: int64 }'"
+/// @diagnostic.error id=no-matching-operator message="operator 'in' is not defined for 'true' and '{ x: {integer} }'"
 /// @diagnostic.label line=4 column=6 span="in" line_source="true in point;"
 "#,
     );

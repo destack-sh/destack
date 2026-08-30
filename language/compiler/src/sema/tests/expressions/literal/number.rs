@@ -44,6 +44,7 @@ let value = 42;
 /// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=42 type=42
+/// @coercion.node source=42 from=42 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 "#,
     );
 }

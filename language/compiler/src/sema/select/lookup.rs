@@ -1,212 +1,18 @@
+use crate::sema::VariableKind;
 use destack_core::{FxIndexSet, NameMatch, find_best_match};
 use destack_dir as dir;
-use destack_dir::MemberRole;
+use destack_dir::{MemberRole, TypeFold};
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, ApparentInstance, BodyState, CheckState, Goal, Origin, ReceiverSteps, RelationCheck,
-    TypeArgumentInference, TypeSubstitution, Verdict,
+    ApparentInstance, CheckState, ExtensionHead, GenericParameterId, Origin, ReceiverSteps,
+    RelationCheck, TypeArgumentInference, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult, diagnostic_suggestion_distance};
 
-/// One field found by member lookup.
-#[derive(Debug, Clone)]
-pub(in crate::sema) enum FieldLookup {
-    /// One field declared by a structural aggregate.
-    Structural {
-        /// The receiver selection kept during lookup.
-        receiver: LookupReceiver,
-        /// The structural aggregate that declares the field.
-        owner: dir::GlobalTypeId,
-        /// The projected property operations.
-        access: dir::PropertyAccess,
-        /// Whether the property may be absent.
-        is_optional: bool,
-    },
-    /// One compiler-defined field projection.
-    Projection {
-        /// The receiver selection kept during lookup.
-        receiver: LookupReceiver,
-        /// The selected projection.
-        projection: dir::Projection,
-    },
-}
-
-/// Result of looking up one member on a receiver type.
-#[derive(Debug, Clone)]
-#[allow(clippy::large_enum_variant)]
-pub(in crate::sema) enum MemberLookup {
-    /// The receiver has no such member.
-    Missing,
-    /// One structural field exists.
-    Field(FieldLookup),
-    /// One or more declaration-backed members exist.
-    Found(Vec<MemberCandidate>),
-    /// Every union receiver arm exposes one member lookup.
-    Union(Vec<MemberArmLookup>),
-    /// One intersection receiver imposes every constituent lookup.
-    Intersection(Vec<MemberLookup>),
-    /// The lookup re-entered an in-flight extension decision and stays undecided.
-    Ambiguous,
-}
-
-/// One member lookup selected for a runtime union arm.
-#[derive(Debug, Clone)]
-pub(in crate::sema) struct MemberArmLookup {
-    /// The runtime receiver arm.
-    pub(in crate::sema) receiver: dir::GlobalTypeId,
-    /// The member selected on that arm.
-    pub(in crate::sema) lookup: MemberLookup,
-}
-
-impl FieldLookup {
-    /// Return the type produced by reading this property.
-    pub(in crate::sema) fn read_type(
-        &self,
-        body: &mut BodyState<'_, '_>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let (read, is_optional) = match self {
-            Self::Structural {
-                access,
-                is_optional,
-                ..
-            } => (access.read(), *is_optional),
-            Self::Projection { projection, .. } => (Some(projection.ty()), false),
-        };
-
-        let Some(read) = read else {
-            return Ok(None);
-        };
-
-        if !is_optional {
-            return Ok(Some(read));
-        }
-
-        // read an optional property as its type or undefined
-        let undefined = body.intern_type(dir::Type::Undefined)?;
-        let read = body.normalized_union_type([read, undefined])?;
-
-        Ok(Some(read))
-    }
-
-    /// Return the type accepted by writing this property.
-    pub(in crate::sema) fn write_type(&self) -> Option<dir::GlobalTypeId> {
-        match self {
-            Self::Structural { access, .. } => access.write(),
-            Self::Projection { .. } => None,
-        }
-    }
-
-    /// Return the receiver selection this field reads through.
-    fn receiver_mut(&mut self) -> &mut LookupReceiver {
-        match self {
-            Self::Structural { receiver, .. } | Self::Projection { receiver, .. } => receiver,
-        }
-    }
-
-    /// Return the member access selected by reading this field.
-    pub(in crate::sema) fn read_access(
-        &self,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-        body: &mut BodyState<'_, '_>,
-    ) -> CompilerResult<Option<dir::MemberAccess>> {
-        let Some(ty) = self.read_type(body)? else {
-            return Ok(None);
-        };
-
-        let target = match self {
-            Self::Structural {
-                receiver: lookup,
-                owner,
-                ..
-            } => dir::MemberTarget::Field(dir::FieldResolution {
-                receiver: lookup.resolve(receiver),
-                target: dir::FieldTarget::Structural { owner: *owner, key },
-                ty,
-            }),
-            Self::Projection {
-                receiver: lookup,
-                projection,
-            } => dir::MemberTarget::Projection {
-                key,
-                receiver: dir::AdjustedReceiver {
-                    source: receiver,
-                    adjustments: lookup.adjustments().clone(),
-                },
-                projection: projection.clone(),
-            },
-        };
-
-        Ok(Some(dir::MemberAccess::new(receiver, target, ty)))
-    }
-
-    /// Return the value projection selected by reading this field.
-    pub(in crate::sema) fn projection(
-        &self,
-        source: dir::GlobalTypeId,
-        key: dir::StaticKey,
-        body: &mut BodyState<'_, '_>,
-    ) -> CompilerResult<Option<dir::Projection>> {
-        let Some(ty) = self.read_type(body)? else {
-            return Ok(None);
-        };
-
-        let projection = match self {
-            Self::Structural {
-                receiver, owner, ..
-            } => dir::Projection::Field(dir::FieldResolution {
-                receiver: receiver.resolve(source),
-                target: dir::FieldTarget::Structural { owner: *owner, key },
-                ty,
-            }),
-            Self::Projection {
-                receiver,
-                projection,
-            } => {
-                let target = dir::MemberTarget::Projection {
-                    key,
-                    receiver: dir::AdjustedReceiver {
-                        source,
-                        adjustments: receiver.adjustments().clone(),
-                    },
-                    projection: projection.clone(),
-                };
-                let access = dir::MemberAccess::new(source, target, ty);
-
-                dir::Projection::Member(Box::new(access))
-            }
-        };
-
-        Ok(Some(projection))
-    }
-
-    /// Return the member access selected by writing this field.
-    pub(in crate::sema) fn write_access(
-        &self,
-        receiver: dir::GlobalTypeId,
-        key: dir::StaticKey,
-    ) -> Option<dir::MemberAccess> {
-        let (field_receiver, owner, ty) = match self {
-            Self::Structural {
-                receiver,
-                owner,
-                access,
-                ..
-            } => (receiver, owner, access.write()?),
-            Self::Projection { .. } => return None,
-        };
-
-        let target = dir::MemberTarget::Field(dir::FieldResolution {
-            receiver: field_receiver.resolve(receiver),
-            target: dir::FieldTarget::Structural { owner: *owner, key },
-            ty,
-        });
-
-        Some(dir::MemberAccess::new(receiver, target, ty))
-    }
-}
+/// Every member one lookup found on a receiver, empty when the receiver has none.
+pub(in crate::sema) type MemberLookup = Vec<MemberCandidate>;
 
 /// One declaration member visible to member lookup.
 #[derive(Debug, Clone, Copy)]
@@ -229,235 +35,6 @@ pub(in crate::sema) struct DeclaredMember {
     pub(in crate::sema) is_writable: bool,
     /// Whether the member may be absent.
     pub(in crate::sema) is_optional: bool,
-}
-
-impl MemberLookup {
-    /// Return a lookup from collected candidates.
-    pub(in crate::sema) fn from_candidates(candidates: Vec<MemberCandidate>) -> Self {
-        if candidates.is_empty() {
-            Self::Missing
-        } else {
-            Self::Found(candidates)
-        }
-    }
-
-    /// Consume the declaration candidates from a lookup over declaration shapes alone.
-    pub(in crate::sema) fn into_candidates(self) -> Option<Vec<MemberCandidate>> {
-        match self {
-            Self::Found(candidates) => Some(candidates),
-            Self::Intersection(lookups) => {
-                let mut candidates = Vec::new();
-                for lookup in lookups {
-                    candidates.extend(lookup.into_candidates()?);
-                }
-
-                Some(candidates)
-            }
-            Self::Missing | Self::Field(_) | Self::Union(_) | Self::Ambiguous => None,
-        }
-    }
-
-    /// Return whether lookup found at least one member.
-    pub(in crate::sema) fn is_found(&self) -> bool {
-        !matches!(self, Self::Missing | Self::Ambiguous)
-    }
-
-    /// Return whether this lookup's shape survives canonical storage.
-    pub(in crate::sema) fn is_canonical(&self) -> bool {
-        match self {
-            Self::Missing => true,
-            Self::Field(FieldLookup::Structural { receiver, .. }) => {
-                matches!(receiver, LookupReceiver::Direct(_))
-            }
-            Self::Field(FieldLookup::Projection { .. }) => false,
-            Self::Found(candidates) => candidates
-                .iter()
-                .all(|candidate| matches!(candidate.receiver, LookupReceiver::Direct(_))),
-            Self::Union(arms) => arms.iter().all(|arm| arm.lookup.is_canonical()),
-            Self::Intersection(lookups) => lookups.iter().all(Self::is_canonical),
-            Self::Ambiguous => false,
-        }
-    }
-
-    /// Return the declaration candidates selected by lookup precedence.
-    pub(super) fn declaration_candidates(&self) -> Vec<&MemberCandidate> {
-        match self {
-            Self::Missing | Self::Field(_) | Self::Ambiguous => Vec::new(),
-            Self::Found(candidates) => Self::selected_candidates(candidates),
-            Self::Union(arms) => arms
-                .iter()
-                .flat_map(|arm| arm.lookup.declaration_candidates())
-                .collect(),
-            Self::Intersection(lookups) => lookups
-                .iter()
-                .flat_map(Self::declaration_candidates)
-                .collect(),
-        }
-    }
-
-    /// Return the declaration candidates selected from one lookup result.
-    pub(super) fn selected_candidates(candidates: &[MemberCandidate]) -> Vec<&MemberCandidate> {
-        let best = candidates.iter().map(MemberCandidate::precedence).min();
-
-        candidates
-            .iter()
-            .filter(|candidate| Some(candidate.precedence()) == best)
-            .collect()
-    }
-
-    /// Return whether this lookup may produce an absent member.
-    pub(super) fn is_optional(&self) -> bool {
-        match self {
-            Self::Missing | Self::Ambiguous | Self::Field(FieldLookup::Projection { .. }) => false,
-            Self::Field(FieldLookup::Structural { is_optional, .. }) => *is_optional,
-            Self::Found(candidates) => Self::selected_candidates(candidates)
-                .into_iter()
-                .any(|candidate| candidate.is_optional),
-            Self::Union(arms) => arms.iter().any(|arm| arm.lookup.is_optional()),
-            Self::Intersection(lookups) => {
-                !lookups.is_empty() && lookups.iter().all(Self::is_optional)
-            }
-        }
-    }
-
-    /// Return the required field type this lookup reads directly.
-    pub(in crate::sema) fn direct_field_type(&self) -> Option<dir::GlobalTypeId> {
-        match self {
-            // a refined structural field reads its stored value
-            Self::Field(FieldLookup::Structural {
-                receiver: LookupReceiver::Direct(_),
-                access,
-                is_optional: false,
-                ..
-            }) => access.read(),
-            // one selected declared field reads its stored value
-            Self::Found(candidates) => {
-                let candidates = Self::selected_candidates(candidates);
-                let [candidate] = candidates.as_slice() else {
-                    return None;
-                };
-                if candidate.role != MemberRole::Field
-                    || candidate.is_optional
-                    || !matches!(candidate.receiver, LookupReceiver::Direct(_))
-                {
-                    return None;
-                }
-
-                Some(candidate.access_type)
-            }
-            // every remaining lookup reads through a property, a projection, or many arms
-            Self::Missing
-            | Self::Field(FieldLookup::Structural { .. })
-            | Self::Field(FieldLookup::Projection { .. })
-            | Self::Union(_)
-            | Self::Intersection(_)
-            | Self::Ambiguous => None,
-        }
-    }
-
-    /// Return the member kind represented by this lookup.
-    pub(super) fn kind(&self) -> dir::MemberKind {
-        let mut kinds = Vec::new();
-        self.collect_kinds(&mut kinds);
-        kinds.sort();
-        kinds.dedup();
-
-        match kinds.as_slice() {
-            [] => dir::MemberKind::Field,
-            [kind] => *kind,
-            _ => dir::MemberKind::Property,
-        }
-    }
-
-    /// Collect member kinds selected by this lookup.
-    fn collect_kinds(&self, kinds: &mut Vec<dir::MemberKind>) {
-        match self {
-            Self::Missing | Self::Ambiguous => {}
-            Self::Field(_) => kinds.push(dir::MemberKind::Field),
-            Self::Found(candidates) => kinds.extend(
-                Self::selected_candidates(candidates)
-                    .into_iter()
-                    .map(|candidate| candidate.kind),
-            ),
-            Self::Union(arms) => {
-                for arm in arms {
-                    arm.lookup.collect_kinds(kinds);
-                }
-            }
-            Self::Intersection(lookups) => {
-                for lookup in lookups {
-                    lookup.collect_kinds(kinds);
-                }
-            }
-        }
-    }
-
-    /// Return whether any selected declaration is a setter.
-    pub(super) fn has_setter(&self) -> bool {
-        match self {
-            Self::Missing | Self::Field(_) | Self::Ambiguous => false,
-            Self::Found(candidates) => candidates
-                .iter()
-                .any(|candidate| candidate.role == MemberRole::Setter),
-            Self::Union(arms) => arms.iter().any(|arm| arm.lookup.has_setter()),
-            Self::Intersection(lookups) => lookups.iter().any(Self::has_setter),
-        }
-    }
-
-    /// Apply one selection to every receiver this lookup found.
-    fn select_receivers(&mut self, select: &mut impl FnMut(&mut LookupReceiver)) {
-        match self {
-            Self::Missing | Self::Ambiguous => {}
-            Self::Field(field) => select(field.receiver_mut()),
-            Self::Found(candidates) => {
-                for candidate in candidates {
-                    select(&mut candidate.receiver);
-                }
-            }
-            Self::Union(arms) => {
-                for arm in arms {
-                    arm.lookup.select_receivers(select);
-                }
-            }
-            Self::Intersection(lookups) => {
-                for lookup in lookups {
-                    lookup.select_receivers(select);
-                }
-            }
-        }
-    }
-
-    /// Return whether this lookup reads a compiler-defined field projection.
-    fn has_projection(&self) -> bool {
-        match self {
-            Self::Missing | Self::Ambiguous | Self::Found(_) => false,
-            Self::Field(field) => matches!(field, FieldLookup::Projection { .. }),
-            Self::Union(arms) => arms.iter().any(|arm| arm.lookup.has_projection()),
-            Self::Intersection(lookups) => lookups.iter().any(Self::has_projection),
-        }
-    }
-
-    /// Prepend one implicit adjustment to every selected receiver.
-    pub(in crate::sema) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
-        self.select_receivers(&mut |receiver| receiver.prepend(adjustment.clone()));
-    }
-
-    /// Select every found member through one erased receiver.
-    pub(in crate::sema) fn select_dynamic(
-        &mut self,
-        constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        // a compiler-defined field projection reads its union representation directly
-        if self.has_projection() {
-            return Err(CompilerError::Internal {
-                message: "compiler-defined field projection selected dynamic dispatch".to_string(),
-            });
-        }
-
-        self.select_receivers(&mut |receiver| receiver.select_dynamic(constraint));
-
-        Ok(())
-    }
 }
 
 impl DeclaredMember {
@@ -492,17 +69,15 @@ impl DeclaredMember {
         }))
     }
 
-    /// Return the value type exposed by this member at a use site.
-    pub(in crate::sema) fn access_type(
+    /// Return the operations this member exposes over its substituted type.
+    pub(in crate::sema) fn access(
         &self,
         check: &CheckState<'_>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(access) = check.property_access(self.role, ty, false)? else {
-            return Ok(ty);
-        };
+    ) -> CompilerResult<dir::PropertyAccess> {
+        let access = check.property_access(self.role, ty, !self.is_writable)?;
 
-        Ok(access.store())
+        Ok(access.unwrap_or(dir::PropertyAccess::Read(ty)))
     }
 
     /// Return the callable type exposed by this declaration member.
@@ -514,9 +89,49 @@ impl DeclaredMember {
     }
 }
 
-/// One declaration-backed member candidate.
+/// One member found on a receiver, with the runtime arm it reads through.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct MemberCandidate {
+    /// What the candidate reads.
+    pub(in crate::sema) source: MemberSource,
+    /// The member space that selected this candidate.
+    pub(in crate::sema) space: dir::MemberSpace,
+    /// How the member behaves at a use site.
+    pub(in crate::sema) role: MemberRole,
+    /// The member kind.
+    pub(in crate::sema) kind: dir::MemberKind,
+    /// The projected operations, optional widening excluded.
+    pub(in crate::sema) access: dir::PropertyAccess,
+    /// The substituted callable type for methods and accessors.
+    pub(in crate::sema) callable: Option<dir::GlobalTypeId>,
+    /// Whether the member may be absent.
+    pub(in crate::sema) is_optional: bool,
+    /// The receiver adjustments selected during lookup.
+    pub(in crate::sema) receiver: LookupReceiver,
+    /// The runtime union arm the candidate reads through.
+    pub(in crate::sema) arm: Option<MemberArm>,
+}
+
+/// What one member candidate reads.
+/// FUGU #Suspicious: the fuck is "MemberSource"..?
+#[allow(clippy::large_enum_variant)]
+#[derive(Debug, Clone)]
+pub(in crate::sema) enum MemberSource {
+    /// One declaration member.
+    Declared(DeclaredCandidate),
+    /// One field a structural aggregate declares.
+    Structural {
+        /// The aggregate that declares the field.
+        owner: dir::GlobalTypeId,
+    },
+    /// One compiler-defined field projection.
+    Projection(dir::Projection),
+}
+
+/// One declaration member selected by lookup.
+/// FUGU #Suspicious: DeclaredCandidate in addition to MemberCandidate..? too many nouns, weird
+#[derive(Debug, Clone)]
+pub(in crate::sema) struct DeclaredCandidate {
     /// The declaring member symbol.
     pub(in crate::sema) symbol: dir::GlobalSymbolId,
     /// The declaration that exposed the member.
@@ -525,32 +140,55 @@ pub(in crate::sema) struct MemberCandidate {
     pub(in crate::sema) origin: dir::MemberOrigin,
     /// The interface whose requirement the member implements, when it does.
     pub(in crate::sema) requirement: Option<dir::GlobalSymbolId>,
-    /// The member space that selected this candidate.
-    pub(in crate::sema) space: dir::MemberSpace,
-    /// How the member behaves at a use site.
-    pub(in crate::sema) role: MemberRole,
-    /// The member kind.
-    pub(in crate::sema) kind: dir::MemberKind,
-    /// Whether the member accepts writes.
-    pub(in crate::sema) is_writable: bool,
-    /// The substituted type before optional read widening.
-    pub(in crate::sema) access_type: dir::GlobalTypeId,
-    /// The substituted callable type for methods and accessors.
-    pub(in crate::sema) callable: Option<dir::GlobalTypeId>,
-    /// Whether the member may be absent.
-    pub(in crate::sema) is_optional: bool,
     /// The generic arguments matched through the owner.
     pub(in crate::sema) generic_arguments: Vec<dir::GenericArgumentBinding>,
     /// The member static value when it carries one.
     pub(in crate::sema) value: Option<dir::GlobalStaticId>,
     /// The substituted static value of the member, when it has one.
     pub(in crate::sema) value_type: Option<dir::GlobalTypeId>,
-    /// The receiver adjustments selected during lookup.
-    pub(in crate::sema) receiver: LookupReceiver,
     /// The declared bounds the winning candidate writes at its site.
     pub(in crate::sema) bounds: Vec<RelationCheck>,
     /// The declared target the winning candidate's receiver satisfies at its site.
     pub(in crate::sema) target: Option<RelationCheck>,
+    /// The erased owner parameters selecting sites reopen through `instantiate`.
+    pub(in crate::sema) site_parameters: SmallVec<[GenericParameterId; 2]>,
+}
+
+impl DeclaredCandidate {
+    /// Create a candidate over one owner with the arguments matched through it.
+    pub(in crate::sema) fn new(
+        symbol: dir::GlobalSymbolId,
+        owner: dir::GlobalSymbolId,
+        origin: dir::MemberOrigin,
+        generic_arguments: Vec<dir::GenericArgumentBinding>,
+    ) -> Self {
+        Self {
+            symbol,
+            owner,
+            origin,
+            requirement: None,
+            generic_arguments,
+            value: None,
+            value_type: None,
+            bounds: Vec::new(),
+            target: None,
+            site_parameters: SmallVec::new(),
+        }
+    }
+
+    /// Return the declaration block this candidate answers for: its requirement or its owner.
+    pub(in crate::sema) fn declaring_block(&self) -> dir::GlobalSymbolId {
+        self.requirement.unwrap_or(self.owner)
+    }
+}
+
+/// One runtime union arm a member candidate reads through.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) struct MemberArm {
+    /// The union element the arm selects.
+    pub(in crate::sema) element: dir::GlobalTypeId,
+    /// The receiver narrowed to that element.
+    pub(in crate::sema) receiver: dir::GlobalTypeId,
 }
 
 /// Receiver state kept by one member lookup candidate.
@@ -586,16 +224,9 @@ impl LookupReceiver {
         }
     }
 
-    /// Select this receiver through one erased dispatch constraint.
-    fn select_dynamic(&mut self, constraint: dir::GlobalTypeId) {
-        *self = Self::Dynamic {
-            adjustments: ReceiverSteps::new(),
-            constraint,
-        };
-    }
-
     /// Attach this lookup state to its use-site receiver.
     pub(in crate::sema) fn resolve(&self, source: dir::GlobalTypeId) -> dir::MemberReceiver {
+        // attach the steps each lookup receiver carries
         match self {
             Self::Direct(steps) => dir::MemberReceiver::Direct(dir::AdjustedReceiver {
                 source,
@@ -616,9 +247,119 @@ impl LookupReceiver {
 }
 
 impl MemberCandidate {
-    /// Return the declaration block this candidate answers for: its requirement or its owner.
-    pub(in crate::sema) fn declaring_block(&self) -> dir::GlobalSymbolId {
-        self.requirement.unwrap_or(self.owner)
+    /// Create a declared candidate reading directly through the use-site receiver.
+    pub(in crate::sema) fn declared(
+        declared: DeclaredCandidate,
+        member: &DeclaredMember,
+        access: dir::PropertyAccess,
+        callable: Option<dir::GlobalTypeId>,
+    ) -> Self {
+        Self {
+            source: MemberSource::Declared(declared),
+            space: member.space,
+            role: member.role,
+            kind: member.kind,
+            access,
+            callable,
+            is_optional: member.is_optional,
+            receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+            arm: None,
+        }
+    }
+
+    /// Create a structural field candidate over one aggregate.
+    pub(in crate::sema) fn structural(
+        owner: dir::GlobalTypeId,
+        access: dir::PropertyAccess,
+        is_optional: bool,
+    ) -> Self {
+        Self {
+            source: MemberSource::Structural { owner },
+            space: dir::MemberSpace::Instance,
+            role: MemberRole::Field,
+            kind: dir::MemberKind::Field,
+            access,
+            callable: None,
+            is_optional,
+            receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+            arm: None,
+        }
+    }
+
+    /// Create a candidate reading one compiler-defined projection.
+    pub(in crate::sema) fn projection(projection: dir::Projection) -> Self {
+        Self {
+            access: dir::PropertyAccess::Read(projection.ty()),
+            source: MemberSource::Projection(projection),
+            space: dir::MemberSpace::Instance,
+            role: MemberRole::Field,
+            kind: dir::MemberKind::Field,
+            callable: None,
+            is_optional: false,
+            receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+            arm: None,
+        }
+    }
+
+    /// Return the declaration this candidate reads, when it reads one.
+    pub(in crate::sema) fn declaration(&self) -> Option<&DeclaredCandidate> {
+        match &self.source {
+            MemberSource::Declared(declared) => Some(declared),
+            MemberSource::Structural { .. } | MemberSource::Projection(_) => None,
+        }
+    }
+
+    /// Return the declaration this candidate reads, mutably.
+    pub(in crate::sema) fn declaration_mut(&mut self) -> Option<&mut DeclaredCandidate> {
+        match &mut self.source {
+            MemberSource::Declared(declared) => Some(declared),
+            MemberSource::Structural { .. } | MemberSource::Projection(_) => None,
+        }
+    }
+
+    /// Return the declaring symbol, when the candidate reads a declaration.
+    pub(in crate::sema) fn symbol(&self) -> Option<dir::GlobalSymbolId> {
+        self.declaration().map(|declared| declared.symbol)
+    }
+
+    /// Return whether two candidates read one member.
+    pub(in crate::sema) fn reads_same(&self, other: &Self) -> bool {
+        // compare the two candidates by their sources
+        match (&self.source, &other.source) {
+            (MemberSource::Declared(left), MemberSource::Declared(right)) => {
+                left.symbol == right.symbol
+            }
+            (
+                MemberSource::Structural { owner: left },
+                MemberSource::Structural { owner: right },
+            ) => left == right,
+            _ => false,
+        }
+    }
+
+    /// Reopen this candidate's erased owner parameters at one use site.
+    pub(in crate::sema) fn instantiate(
+        &self,
+        origin: Origin,
+        body: &mut CheckState<'_>,
+    ) -> CompilerResult<MemberCandidate> {
+        // hand candidates without erased owner parameters through unchanged
+        let mut candidate = self.clone();
+        let Some(declared) = candidate.declaration_mut() else {
+            return Ok(candidate);
+        };
+        let parameters = std::mem::take(&mut declared.site_parameters);
+
+        // open one site variable per erased parameter
+        let module = origin.module();
+        for parameter in parameters {
+            let variable = body.open_instantiation(origin, parameter, VariableKind::Type)?;
+            let fresh = body.variable_type(variable)?;
+            let from = body.intern_type(dir::Type::Erased(parameter))?;
+            candidate.map_types(&mut |ty| body.replace_type(module, ty, from, fresh))?;
+        }
+
+        Ok(candidate)
     }
 
     /// Return this candidate's selection precedence.
@@ -627,27 +368,30 @@ impl MemberCandidate {
             LookupReceiver::Direct(steps) => !steps.is_empty(),
             LookupReceiver::Dynamic { .. } => true,
         };
+        let (is_requirement, origin) = match self.declaration() {
+            Some(declared) => (declared.requirement.is_some(), declared.origin),
+            None => (false, dir::MemberOrigin::Declaration),
+        };
 
         // rank inherent members before interface requirements
-        (self.requirement.is_some(), self.origin, is_adjusted)
+        (is_requirement, origin, is_adjusted)
     }
 
     /// Return the type produced by reading this candidate.
     pub(in crate::sema) fn read_type(
         &self,
-        body: &mut BodyState<'_, '_>,
+        body: &mut CheckState<'_>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        if !self.role.is_readable() {
+        let Some(read) = self.access.read() else {
             return Ok(None);
-        }
-
+        };
         if !self.is_optional {
-            return Ok(Some(self.access_type));
+            return Ok(Some(read));
         }
 
         // read an optional member as its type or undefined
         let undefined = body.intern_type(dir::Type::Undefined)?;
-        let ty = body.normalized_union_type([self.access_type, undefined])?;
+        let ty = body.normalized_union_type([read, undefined])?;
 
         Ok(Some(ty))
     }
@@ -655,36 +399,68 @@ impl MemberCandidate {
     /// Return the durable member candidate for this lookup candidate.
     pub(in crate::sema) fn resolution_candidate(
         &self,
+        declared: &DeclaredCandidate,
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> dir::MemberCandidate {
         dir::MemberCandidate {
             receiver: self.receiver.resolve(receiver),
             space: self.space,
-            owner: self.owner,
+            owner: declared.owner,
             access_type: ty,
             callable_type: self.callable,
-            key: dir::InstanceKey::new(self.symbol, self.generic_arguments.clone()),
+            key: dir::InstanceKey::new(declared.symbol, declared.generic_arguments.clone()),
         }
     }
 
-    /// Return the durable member access for this lookup candidate.
+    /// Return the durable member access reading this candidate.
     pub(in crate::sema) fn access(
         &self,
         receiver: dir::GlobalTypeId,
         key: dir::StaticKey,
         ty: dir::GlobalTypeId,
     ) -> dir::MemberAccess {
-        let target = match self.field(key) {
-            Some(target) => dir::MemberTarget::Field(dir::FieldResolution {
+        // name the target each candidate source resolves to
+        let target = match &self.source {
+            MemberSource::Declared(declared) => match self.field(key) {
+                Some(target) => dir::MemberTarget::Field(dir::FieldResolution {
+                    receiver: self.receiver.resolve(receiver),
+                    target,
+                    ty,
+                }),
+                None => {
+                    dir::MemberTarget::Symbol(self.resolution_candidate(declared, receiver, ty))
+                }
+            },
+            MemberSource::Structural { owner } => dir::MemberTarget::Field(dir::FieldResolution {
                 receiver: self.receiver.resolve(receiver),
-                target,
+                target: dir::FieldTarget::Structural { owner: *owner, key },
                 ty,
             }),
-            None => dir::MemberTarget::Symbol(self.resolution_candidate(receiver, ty)),
+            MemberSource::Projection(projection) => dir::MemberTarget::Projection {
+                key,
+                receiver: dir::AdjustedReceiver {
+                    source: receiver,
+                    adjustments: self.receiver.adjustments().clone(),
+                },
+                projection: projection.clone(),
+            },
         };
 
         dir::MemberAccess::new(receiver, target, ty)
+    }
+
+    /// Return the value projection reading this candidate.
+    pub(in crate::sema) fn projected(
+        &self,
+        source: dir::GlobalTypeId,
+        key: dir::StaticKey,
+        ty: dir::GlobalTypeId,
+    ) -> dir::Projection {
+        match self.access(source, key, ty).target {
+            dir::MemberTarget::Field(field) => dir::Projection::Field(field),
+            target => dir::Projection::Member(Box::new(dir::MemberAccess::new(source, target, ty))),
+        }
     }
 
     /// Return the stored field selected by this candidate.
@@ -693,11 +469,150 @@ impl MemberCandidate {
             return None;
         }
 
-        Some(dir::FieldTarget::Member {
-            symbol: self.symbol,
-            key,
+        Some(match &self.source {
+            MemberSource::Declared(declared) => dir::FieldTarget::Member {
+                symbol: declared.symbol,
+                key,
+            },
+            MemberSource::Structural { owner } => {
+                dir::FieldTarget::Structural { owner: *owner, key }
+            }
+            MemberSource::Projection(_) => return None,
         })
     }
+
+    /// Prepend one implicit adjustment to the selected receiver.
+    pub(in crate::sema) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
+        self.receiver.prepend(adjustment);
+    }
+}
+
+// FUGU #Cleanup: all of select/lookup.rs is insane and complex and the top level functions are disgusting I hate all of this
+
+/// Return the candidates lookup precedence ranks first.
+pub(in crate::sema) fn selected_candidates<'candidate>(
+    candidates: &[&'candidate MemberCandidate],
+) -> Vec<&'candidate MemberCandidate> {
+    let best = candidates
+        .iter()
+        .map(|candidate| candidate.precedence())
+        .min();
+
+    // keep the candidates at the best precedence
+    candidates
+        .iter()
+        .copied()
+        .filter(|candidate| Some(candidate.precedence()) == best)
+        .collect()
+}
+
+/// Group candidates by the runtime arm they read through, arm-less ones joining every arm.
+pub(in crate::sema) fn member_arms(
+    candidates: &[MemberCandidate],
+) -> Vec<(Option<MemberArm>, Vec<&MemberCandidate>)> {
+    let mut arms = Vec::<MemberArm>::new();
+    for candidate in candidates {
+        if let Some(arm) = candidate.arm
+            && !arms.contains(&arm)
+        {
+            arms.push(arm);
+        }
+    }
+    if arms.is_empty() {
+        return vec![(None, candidates.iter().collect())];
+    }
+
+    // group the candidates by the runtime arm they reach
+    arms.into_iter()
+        .map(|arm| {
+            let group = candidates
+                .iter()
+                .filter(|candidate| candidate.arm.is_none_or(|own| own == arm))
+                .collect();
+
+            (Some(arm), group)
+        })
+        .collect()
+}
+
+/// Return the member kind one lookup represents.
+pub(in crate::sema) fn member_kind(candidates: &[MemberCandidate]) -> dir::MemberKind {
+    let mut kinds = Vec::new();
+    for (_, group) in member_arms(candidates) {
+        kinds.extend(
+            selected_candidates(&group)
+                .into_iter()
+                .map(|candidate| candidate.kind),
+        );
+    }
+    kinds.sort();
+    kinds.dedup();
+
+    // join the collected kinds
+    match kinds.as_slice() {
+        [] => dir::MemberKind::Field,
+        [kind] => *kind,
+        _ => dir::MemberKind::Property,
+    }
+}
+
+/// Return whether one lookup may produce an absent member.
+pub(in crate::sema) fn is_optional_member(candidates: &[MemberCandidate]) -> bool {
+    member_arms(candidates).into_iter().any(|(_, group)| {
+        let selected = selected_candidates(&group);
+
+        !selected.is_empty() && selected.iter().all(|candidate| candidate.is_optional)
+    })
+}
+
+/// Return the required field type one lookup reads directly.
+pub(in crate::sema) fn direct_field_type(
+    candidates: &[&MemberCandidate],
+) -> Option<dir::GlobalTypeId> {
+    let selected = selected_candidates(candidates);
+    let [candidate] = selected.as_slice() else {
+        return None;
+    };
+    if candidate.role != MemberRole::Field
+        || candidate.is_optional
+        || matches!(candidate.source, MemberSource::Projection(_))
+        || !matches!(candidate.receiver, LookupReceiver::Direct(_))
+    {
+        return None;
+    }
+
+    candidate.access.read()
+}
+
+/// Prepend one implicit adjustment to every selected receiver.
+pub(in crate::sema) fn prepend_adjustment(
+    candidates: &mut [MemberCandidate],
+    adjustment: &dir::ReceiverAdjustment,
+) {
+    for candidate in candidates {
+        candidate.prepend_adjustment(adjustment.clone());
+    }
+}
+
+/// Select every found member through one erased receiver.
+pub(in crate::sema) fn select_dynamic(
+    candidates: &mut [MemberCandidate],
+    constraint: dir::GlobalTypeId,
+) -> CompilerResult<()> {
+    for candidate in candidates {
+        // read a compiler-defined field projection's union representation directly
+        if matches!(candidate.source, MemberSource::Projection(_)) {
+            return Err(CompilerError::Internal {
+                message: "compiler-defined field projection selected dynamic dispatch".to_string(),
+            });
+        }
+        candidate.receiver = LookupReceiver::Dynamic {
+            adjustments: ReceiverSteps::new(),
+            constraint,
+        };
+    }
+
+    Ok(())
 }
 
 /// One member lookup on the active recursion path.
@@ -726,8 +641,8 @@ pub(super) enum ExtensionFilter {
     Include,
 }
 
-impl BodyState<'_, '_> {
-    /// Collect the declared member keys reachable from one lookup subject.
+impl CheckState<'_> {
+    /// Collect the declared member keys one lookup subject exposes.
     pub(in crate::sema) fn subject_member_keys(
         &mut self,
         origin: Origin,
@@ -748,7 +663,7 @@ impl BodyState<'_, '_> {
         Ok(keys.into_iter().collect())
     }
 
-    /// Look one member up on a resolved subject, sharing the canonical answer.
+    /// Look one member up on a resolved subject.
     pub(in crate::sema) fn lookup_member(
         &mut self,
         origin: Origin,
@@ -756,38 +671,11 @@ impl BodyState<'_, '_> {
         subject: dir::MemberSubject,
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
-        let canonicalized = self.check.canonicalize_goal(
-            origin,
-            Goal::Member {
-                module,
-                space: subject.space,
-                key,
-            },
-            &[subject.receiver, subject.target],
-            false,
-        )?;
-
-        // reuse the stored answer, instantiated over this goal's inference variables
-        if let Some((goal, canonical)) = &canonicalized
-            && let Some(Answer::Member(response)) = self.check.answers.get(goal).cloned()
-        {
-            self.check.counters.member_reuses += 1;
-
-            return self
-                .check
-                .instantiate_response(origin, canonical, &response);
-        }
-
-        // count each derived goal, and each goal canonicalization refused
-        if canonicalized.is_some() {
-            self.check.counters.member_derivations += 1;
-        } else {
-            self.check.counters.member_refusals += 1;
-        }
+        self.counters.member_derivations += 1;
 
         // derive the lookup, guarding the recursion path it walks
         let mut active_queries = FxIndexSet::default();
-        let lookup = self.lookup_subject_member(
+        self.lookup_subject_member(
             origin,
             module,
             subject.receiver,
@@ -796,23 +684,7 @@ impl BodyState<'_, '_> {
             key,
             ExtensionFilter::Include,
             &mut active_queries,
-        )?;
-
-        // commit the decision under its canonical goal
-        if let Some((goal, canonical)) = &canonicalized
-            && lookup.is_canonical()
-        {
-            let checks_from = self.check.fulfill.checks.count();
-            self.check.commit_answer(
-                goal,
-                canonical,
-                checks_from,
-                lookup.clone(),
-                Answer::Member,
-            )?;
-        }
-
-        Ok(lookup)
+        )
     }
 
     /// Look up one inherent member on a receiver type.
@@ -826,6 +698,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<MemberLookup> {
         let mut active_queries = FxIndexSet::default();
 
+        // look the key up from the receiver itself
         self.lookup_subject_member(
             origin,
             module,
@@ -913,7 +786,7 @@ impl BodyState<'_, '_> {
             extensions,
         };
         if !active.insert(query) {
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         }
 
         // look the key up in the resolved subject, then leave the path
@@ -946,12 +819,11 @@ impl BodyState<'_, '_> {
             dir::Type::Refined(refined) => {
                 let refined = self.type_refined(subject.module_id, refined)?;
                 if refined.key == key {
-                    return Ok(MemberLookup::Field(FieldLookup::Structural {
-                        receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                        owner: subject,
-                        access: dir::PropertyAccess::Read(refined.value),
-                        is_optional: false,
-                    }));
+                    return Ok(vec![MemberCandidate::structural(
+                        subject,
+                        dir::PropertyAccess::Read(refined.value),
+                        false,
+                    )]);
                 }
 
                 self.lookup_subject_member(
@@ -1007,11 +879,11 @@ impl BodyState<'_, '_> {
                     && self.is_erased_value(subject)?
                     && self.is_subject_receiver(origin, receiver, subject)?
                 {
-                    lookup.select_dynamic(subject)?;
+                    select_dynamic(&mut lookup, subject)?;
                 }
 
                 // newtypes dereference to their backing for missing members
-                if matches!(lookup, MemberLookup::Missing)
+                if lookup.is_empty()
                     && let Some(instance) = self.newtype_payload(origin, subject)?
                 {
                     let value = instance.backing;
@@ -1022,7 +894,7 @@ impl BodyState<'_, '_> {
                     )?;
 
                     // keep the payload adjustment before deeper receiver steps
-                    lookup.prepend_adjustment(adjustment);
+                    prepend_adjustment(&mut lookup, &adjustment);
 
                     return Ok(lookup);
                 }
@@ -1044,13 +916,24 @@ impl BodyState<'_, '_> {
                         extensions,
                         active,
                     ),
-                    _ => Ok(MemberLookup::Missing),
+                    _ => Ok(Vec::new()),
                 }
             }
 
             // generic parameters look through their bounds
             dir::Type::Parameter(parameter) => {
                 let bounds = self.parameter_bounds(origin, parameter)?;
+
+                self.lookup_bound_member(
+                    origin, module, receiver, &bounds, space, key, extensions, active,
+                )
+            }
+
+            // rigid projections look through their declared constraint
+            dir::Type::Member(member) => {
+                let member = self.type_member(subject.module_id, member)?;
+                let bounds = self.projection_constraint(origin, &member)?;
+                let bounds = bounds.into_iter().collect::<SmallVec<[_; 1]>>();
 
                 self.lookup_bound_member(
                     origin, module, receiver, &bounds, space, key, extensions, active,
@@ -1082,10 +965,10 @@ impl BodyState<'_, '_> {
                     ExtensionFilter::Exclude,
                     active,
                 )?;
-                lookup.select_dynamic(constraint)?;
+                select_dynamic(&mut lookup, constraint)?;
 
                 // extensions remain direct calls over the erased receiver
-                if matches!(lookup, MemberLookup::Missing)
+                if lookup.is_empty()
                     && extensions == ExtensionFilter::Include
                     && let Some(instance) = self.apparent_instance(constraint)?
                 {
@@ -1112,7 +995,7 @@ impl BodyState<'_, '_> {
                     .copied()
                     .collect::<SmallVec<[_; 2]>>();
                 if properties.is_empty() {
-                    return Ok(MemberLookup::Missing);
+                    return Ok(Vec::new());
                 }
 
                 // project each declared operation through the receiver
@@ -1166,12 +1049,11 @@ impl BodyState<'_, '_> {
                     }
                 };
 
-                Ok(MemberLookup::Field(FieldLookup::Structural {
-                    receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                    owner: subject,
+                Ok(vec![MemberCandidate::structural(
+                    subject,
                     access,
                     is_optional,
-                }))
+                )])
             }
 
             // tuples expose their labeled elements, then their extension members
@@ -1208,12 +1090,11 @@ impl BodyState<'_, '_> {
                     }
                 };
 
-                Ok(MemberLookup::Field(FieldLookup::Structural {
-                    receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                    owner: subject,
+                Ok(vec![MemberCandidate::structural(
+                    subject,
                     access,
-                    is_optional: element.is_optional,
-                }))
+                    element.is_optional,
+                )])
             }
 
             // unions join member lookups across their elements
@@ -1231,19 +1112,15 @@ impl BodyState<'_, '_> {
                 let elements: SmallVec<[_; 8]> = self
                     .type_ids(subject.module_id, intersection.elements)?
                     .into();
-                let mut lookups = Vec::with_capacity(elements.len());
+                let mut candidates = Vec::new();
                 for element in elements.iter().copied() {
                     let element = self.shallow_resolve(element)?;
-                    let mut lookup = match self.lookup_subject_member(
+                    let mut lookup = self.lookup_subject_member(
                         origin, module, receiver, element, space, key, extensions, active,
-                    )? {
-                        MemberLookup::Missing => continue,
-                        MemberLookup::Intersection(nested) => {
-                            lookups.extend(nested);
-                            continue;
-                        }
-                        lookup => lookup,
-                    };
+                    )?;
+                    if lookup.is_empty() {
+                        continue;
+                    }
 
                     // read a member of a kept union arm through the representation beside it
                     let arm = self.replace_form_value(origin, receiver, element)?;
@@ -1257,29 +1134,20 @@ impl BodyState<'_, '_> {
                             self.project_carried_arm(origin, representation, arm)?
                         {
                             for adjustment in steps.into_iter().rev() {
-                                lookup.prepend_adjustment(adjustment);
+                                prepend_adjustment(&mut lookup, &adjustment);
                             }
                             break;
                         }
                     }
 
-                    lookups.push(lookup);
+                    candidates.extend(lookup);
                 }
 
-                // answer from a sole element, or intersect every element's lookup
-                let lookup = if lookups.is_empty() {
-                    MemberLookup::Missing
-                } else if lookups.len() == 1 {
-                    lookups.remove(0)
-                } else {
-                    MemberLookup::Intersection(lookups)
-                };
-
-                Ok(lookup)
+                Ok(candidates)
             }
 
             // every remaining subject shape exposes no keyed member
-            _ => Ok(MemberLookup::Missing),
+            _ => Ok(Vec::new()),
         }
     }
 
@@ -1299,12 +1167,12 @@ impl BodyState<'_, '_> {
             let lookup = self.lookup_subject_member(
                 origin, module, receiver, *bound, space, key, extensions, active,
             )?;
-            if lookup.is_found() {
+            if !lookup.is_empty() {
                 return Ok(lookup);
             }
         }
 
-        Ok(MemberLookup::Missing)
+        Ok(Vec::new())
     }
 
     /// Look up one member through the receiver's apparent declaration instance.
@@ -1335,9 +1203,10 @@ impl BodyState<'_, '_> {
                 );
             }
 
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         };
 
+        // look the key up on the named declaration
         self.lookup_symbol_member(
             origin,
             module,
@@ -1364,9 +1233,10 @@ impl BodyState<'_, '_> {
         active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<MemberLookup> {
         if space != dir::MemberSpace::Static {
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         }
 
+        // read the declaration the reference names
         let mut symbol = reference.symbol;
 
         // name a type alias's root declaration for statics, keeping the body for its own members
@@ -1388,9 +1258,13 @@ impl BodyState<'_, '_> {
         // search inherent members first
         let is_alias = self.symbol_kind(symbol)?.is_type_alias();
         if !is_alias {
+            let instance = ApparentInstance {
+                symbol,
+                arguments: arguments.iter().copied().collect(),
+            };
             let inherent =
-                self.lookup_inherent_declaration_member(origin, receiver, symbol, arguments, key)?;
-            if inherent.is_found() {
+                self.lookup_inherent_symbol_member(origin, receiver, &instance, space, key)?;
+            if !inherent.is_empty() {
                 return Ok(inherent);
             }
         }
@@ -1400,14 +1274,14 @@ impl BodyState<'_, '_> {
             ExtensionFilter::Include => {
                 self.lookup_static_extension_member(origin, module, symbol, arguments, key)?
             }
-            ExtensionFilter::Exclude => MemberLookup::Missing,
+            ExtensionFilter::Exclude => Vec::new(),
         };
 
         // search the declaration's own interfaces when no extension matched
-        if !lookup.is_found() && !is_alias {
+        if lookup.is_empty() && !is_alias {
             // search associated members through their declaring interface last
             let associated = self.lookup_associated_member(origin, receiver, space, key)?;
-            if associated.is_found() {
+            if !associated.is_empty() {
                 return Ok(associated);
             }
 
@@ -1415,13 +1289,13 @@ impl BodyState<'_, '_> {
             let instance = self.declaration_instance(reference.symbol)?;
             let subject = self.intern_type(dir::Type::Application(instance))?;
             let derived = self.lookup_derived_member(origin, subject, space, key)?;
-            if derived.is_found() {
+            if !derived.is_empty() {
                 return Ok(derived);
             }
         }
 
         // look the key up in the alias body when the root declaration missed it
-        if !lookup.is_found()
+        if lookup.is_empty()
             && let Some(body) = alias_body
         {
             return self.lookup_subject_member(
@@ -1458,12 +1332,12 @@ impl BodyState<'_, '_> {
         extensions: ExtensionFilter,
         active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<MemberLookup> {
-        let mut lookups = Vec::with_capacity(elements.len());
+        let mut candidates = Vec::new();
 
         // runtime receiver unions settle each member under its enclosing forms
         let is_receiver_union = self.is_subject_receiver(origin, receiver, subject)?;
 
-        // require every element to expose the member
+        // require every element to expose the member, tagging each candidate with its arm
         for element in elements {
             let arm_receiver = if is_receiver_union {
                 self.replace_form_value(origin, receiver, *element)?
@@ -1480,29 +1354,29 @@ impl BodyState<'_, '_> {
                 extensions,
                 active,
             )?;
-
-            if matches!(lookup, MemberLookup::Missing) {
-                return Ok(MemberLookup::Missing);
+            if lookup.is_empty() {
+                return Ok(Vec::new());
             }
 
-            lookups.push(MemberArmLookup {
+            let arm = MemberArm {
+                element: *element,
                 receiver: arm_receiver,
-                lookup,
-            });
+            };
+            for mut candidate in lookup {
+                candidate.arm.get_or_insert(arm);
+                candidates.push(candidate);
+            }
         }
 
         // project distinct singleton fields through the physical union discriminant
         if space == dir::MemberSpace::Instance
             && let Some(projection) =
-                self.select_union_discriminant(origin, receiver, elements, key, &lookups)?
+                self.select_union_discriminant(origin, receiver, elements, key, &candidates)?
         {
-            return Ok(MemberLookup::Field(FieldLookup::Projection {
-                receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                projection,
-            }));
+            return Ok(vec![MemberCandidate::projection(projection)]);
         }
 
-        Ok(MemberLookup::Union(lookups))
+        Ok(candidates)
     }
 
     /// Select a shared required field as one physical union discriminant.
@@ -1512,7 +1386,7 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         elements: &[dir::GlobalTypeId],
         key: dir::StaticKey,
-        lookups: &[MemberArmLookup],
+        candidates: &[MemberCandidate],
     ) -> CompilerResult<Option<dir::Projection>> {
         // require every selected element to belong to one physical union representation
         let (representation, _) = self.project_newtype_receiver(origin, receiver)?;
@@ -1528,15 +1402,14 @@ impl BodyState<'_, '_> {
         }
 
         // require one distinct singleton-valued field from every selected arm
-        if elements.len() != lookups.len() {
-            return Err(CompilerError::Internal {
-                message: "union member selection has mismatched arms".to_string(),
-            });
-        }
-        let mut cases = Vec::with_capacity(lookups.len());
-        let mut types = Vec::with_capacity(lookups.len());
-        for (element, arm) in elements.iter().zip(lookups) {
-            let Some(ty) = arm.lookup.direct_field_type() else {
+        let mut cases = Vec::with_capacity(elements.len());
+        let mut types = Vec::with_capacity(elements.len());
+        for element in elements {
+            let arm = candidates
+                .iter()
+                .filter(|candidate| candidate.arm.is_some_and(|arm| arm.element == *element))
+                .collect::<Vec<_>>();
+            let Some(ty) = direct_field_type(&arm) else {
                 return Ok(None);
             };
             let base = self.strip_form(origin, ty)?;
@@ -1595,12 +1468,13 @@ impl BodyState<'_, '_> {
             self.lookup_inherent_symbol_member(origin, receiver, &instance, space, key)?
         };
 
-        if inherent.is_found() {
+        // prefer the inherent members the declaration exposes
+        if !inherent.is_empty() {
             return Ok(inherent);
         }
 
         // search extensions next: declared members shadow interface defaults
-        let mut lookup = MemberLookup::Missing;
+        let mut lookup = Vec::new();
         if extensions == ExtensionFilter::Include {
             lookup = self.lookup_extension_member(
                 origin,
@@ -1611,32 +1485,16 @@ impl BodyState<'_, '_> {
                 space,
                 key,
             )?;
-
-            // retry a missing lookup against the receiver's apparent owner
-            if matches!(lookup, MemberLookup::Missing) {
-                let apparent = self.intern_apparent_type(receiver)?;
-                if apparent != receiver {
-                    lookup = self.lookup_extension_member(
-                        origin,
-                        module,
-                        receiver,
-                        apparent,
-                        dir::TypeRoot::Declaration(instance.symbol),
-                        space,
-                        key,
-                    )?;
-                }
-            }
         }
 
         // answer with the matched extension member
-        if lookup.is_found() {
+        if !lookup.is_empty() {
             return Ok(lookup);
         }
 
         // search associated members through their declaring interface last
         let associated = self.lookup_associated_member(origin, receiver, space, key)?;
-        if associated.is_found() {
+        if !associated.is_empty() {
             return Ok(associated);
         }
 
@@ -1657,7 +1515,6 @@ impl BodyState<'_, '_> {
             .filter(|interface| interface.has_builtin_implementation() && !interface.is_marker());
         for interface in derived {
             let Some(symbol) = self
-                .check
                 .environment_bound
                 .language
                 .symbol(dir::LanguageItem::from(interface))
@@ -1675,19 +1532,17 @@ impl BodyState<'_, '_> {
             // look the derived member up on the subject itself
             let lookup =
                 self.lookup_inherent_symbol_member(origin, subject, &instance, space, key)?;
-            if !lookup.is_found() {
+            if lookup.is_empty() {
                 continue;
             }
 
             // admit the member once the subject satisfies the interface
-            match self.decide_auto_interface(origin, subject, interface)? {
-                Verdict::Holds => return Ok(lookup),
-                Verdict::Ambiguous => return Ok(MemberLookup::Ambiguous),
-                Verdict::Fails => {}
+            if self.decide_auto_interface(origin, subject, interface)? == Verdict::Holds {
+                return Ok(lookup);
             }
         }
 
-        Ok(MemberLookup::Missing)
+        Ok(Vec::new())
     }
 
     /// Look up one associated member through its uniquely declaring interface.
@@ -1699,11 +1554,12 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
         if space != dir::MemberSpace::Static {
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         }
 
+        // require a qualifier for the projected key
         let Some(qualifier) = self.select_associated_qualifier(origin, receiver, key)? else {
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         };
 
         // search the interface application selected for this projection
@@ -1717,161 +1573,6 @@ impl BodyState<'_, '_> {
         self.lookup_inherent_symbol_member(origin, receiver, &qualifier, space, key)
     }
 
-    /// Look up one inherent static member on a declaration reference.
-    fn lookup_inherent_declaration_member(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        symbol: dir::GlobalSymbolId,
-        arguments: &[dir::GlobalTypeId],
-        key: dir::StaticKey,
-    ) -> CompilerResult<MemberLookup> {
-        // read the static members this declaration declares under the key
-        let Some(definition) = self.definition(symbol)? else {
-            return Ok(MemberLookup::Missing);
-        };
-        let members = definition
-            .members_with_key(dir::MemberSpace::Static, key)
-            .cloned()
-            .collect::<SmallVec<[_; 2]>>();
-
-        // read the heritage roots this declaration inherits statics from
-        let heritages = definition
-            .bases()
-            .iter()
-            .map(|heritage| heritage.ty)
-            .collect::<SmallVec<[_; 2]>>();
-
-        // bind the declaration's template parameters to the applied subject arguments
-        let mut applied = TypeSubstitution::default();
-        if !arguments.is_empty()
-            && let Some(template) = self.symbol_template(symbol)?
-        {
-            let parameters = self.generic_template_parameters(template)?;
-            for (parameter, argument) in parameters.iter().zip(arguments) {
-                applied.bind(*parameter, *argument)?;
-            }
-        }
-
-        // answer inherited statics through substituted heritage applications
-        if members.is_empty() {
-            for heritage in heritages {
-                let heritage = self.substitute_type(heritage, &applied)?;
-                let (heritage_module, instance) = self.nominal_application(heritage)?;
-                let heritage_arguments: SmallVec<[_; 8]> =
-                    self.type_ids(heritage_module, instance.arguments)?.into();
-                let lookup = self.lookup_inherent_declaration_member(
-                    origin,
-                    receiver,
-                    instance.symbol,
-                    &heritage_arguments,
-                    key,
-                )?;
-                if lookup.is_found() {
-                    return Ok(lookup);
-                }
-            }
-
-            return Ok(MemberLookup::Missing);
-        }
-
-        // collect visible static declaration members
-        let mut candidates = Vec::new();
-        for member in members {
-            let key = member.key();
-            let Some(member) = self.declared_member(&member)? else {
-                continue;
-            };
-
-            // project valueless associated members symbolically over the receiver
-            let mut ty = match member.ty {
-                Some(ty) => ty,
-                None if member.role == MemberRole::Associated
-                    && let Some(key) = key =>
-                {
-                    let arguments = self.check.intern_type_ids(&[])?;
-                    let projection = dir::MemberType {
-                        owner: receiver,
-                        key,
-                        arguments,
-                        qualifier: None,
-                    };
-
-                    self.check.intern_member(projection)?
-                }
-                None => continue,
-            };
-
-            // read the member's written static value and the applied arguments
-            let mut written = self.static_value(member.symbol);
-            let mut generic_arguments = applied.bindings.to_vec();
-
-            // substitute callable members over the applied arguments and receiver
-            if member.role.is_callable() {
-                let substitution = applied.clone().with_receiver(receiver);
-                ty = self.substitute_type(ty, &substitution)?;
-                written = written
-                    .map(|written| self.substitute_type(written, &substitution))
-                    .transpose()?;
-            }
-            // instantiate each direct value at its source use
-            else if let Some(template) = self.symbol_template(symbol)? {
-                let parameters = self.generic_template_parameters(template)?;
-                let Some(substitution) = self.instantiate_parameters(
-                    origin,
-                    &parameters,
-                    &[],
-                    applied.clone().with_receiver(receiver),
-                    TypeArgumentInference::Exact,
-                )?
-                else {
-                    return Err(CompilerError::Internal {
-                        message: format!("declaration template {template:?} cannot instantiate"),
-                    });
-                };
-
-                for constraint in
-                    self.substitute_application_constraints(origin, template, &substitution)?
-                {
-                    self.check.push_relation(constraint)?;
-                }
-
-                ty = self.substitute_type(ty, &substitution)?;
-                written = written
-                    .map(|written| self.substitute_type(written, &substitution))
-                    .transpose()?;
-                generic_arguments = substitution.bindings.to_vec();
-            }
-
-            // project the member's operations through the receiver
-            let callable = member.callable_type(ty);
-            let access_type = member.access_type(self, ty)?;
-            let access_type =
-                self.projected_member_type(origin, Some(receiver), member.role, access_type)?;
-            candidates.push(MemberCandidate {
-                symbol: member.symbol,
-                owner: symbol,
-                origin: dir::MemberOrigin::Declaration,
-                requirement: None,
-                space: dir::MemberSpace::Static,
-                role: member.role,
-                kind: member.kind,
-                is_writable: member.is_writable,
-                access_type,
-                callable,
-                is_optional: member.is_optional,
-                generic_arguments,
-                value: None,
-                value_type: written,
-                receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                bounds: Vec::new(),
-                target: None,
-            });
-        }
-
-        Ok(MemberLookup::from_candidates(candidates))
-    }
-
     /// Look up one inherent member on a declaration, walking its heritage.
     fn lookup_inherent_symbol_member(
         &mut self,
@@ -1883,7 +1584,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<MemberLookup> {
         // require the declaration's definition
         let Some(definition) = self.definition(instance.symbol)? else {
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         };
 
         // collect own members and heritage applications
@@ -1906,11 +1607,10 @@ impl BodyState<'_, '_> {
             instance,
             &substitution,
             &members,
-            space,
             key,
         )?;
         if !candidates.is_empty() {
-            return Ok(MemberLookup::Found(candidates));
+            return Ok(candidates);
         }
 
         // search substituted heritage applications
@@ -1925,12 +1625,12 @@ impl BodyState<'_, '_> {
 
             let lookup =
                 self.lookup_inherent_symbol_member(origin, receiver, &heritage, space, key)?;
-            if lookup.is_found() {
+            if !lookup.is_empty() {
                 return Ok(lookup);
             }
         }
 
-        Ok(MemberLookup::Missing)
+        Ok(Vec::new())
     }
 
     /// Build the member candidates one instance declares for one key.
@@ -1941,11 +1641,9 @@ impl BodyState<'_, '_> {
         instance: &ApparentInstance,
         substitution: &TypeSubstitution,
         members: &[dir::DefinitionMember],
-        space: dir::MemberSpace,
         key: dir::StaticKey,
     ) -> CompilerResult<Vec<MemberCandidate>> {
         // build one candidate per declaration behind the key
-        let substitution = substitution.clone();
         let mut candidates = Vec::new();
         for member in members.iter().cloned() {
             let Some(declared) = self.declared_member(&member)? else {
@@ -1971,48 +1669,63 @@ impl BodyState<'_, '_> {
                 _ => continue,
             };
 
-            // apply this instance's arguments and read the member's operations
+            // instantiate a value on an unapplied generic declaration at its use site
             let member = declared;
+            let mut substitution = substitution.clone();
+            let mut generic_arguments =
+                self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
+            if instance.arguments.is_empty()
+                && !member.role.is_callable()
+                && let Some(template) = self.symbol_template(instance.symbol)?
+            {
+                let parameters = self.generic_template_parameters(template)?;
+                let Some(instantiated) = self.instantiate_parameters(
+                    origin,
+                    &parameters,
+                    &[],
+                    substitution,
+                    TypeArgumentInference::Exact,
+                )?
+                else {
+                    return Err(CompilerError::Internal {
+                        message: format!("declaration template {template:?} cannot instantiate"),
+                    });
+                };
+                for constraint in
+                    self.substitute_application_constraints(origin, template, &instantiated)?
+                {
+                    self.push_relation(constraint)?;
+                }
+                generic_arguments = instantiated.bindings.to_vec();
+                substitution = instantiated;
+            }
+
+            // apply the arguments and read the member's operations
             let ty = self.substitute_type(ty, &substitution)?;
             let callable = member.callable_type(ty);
-            let access_type = member.access_type(self, ty)?;
-            let access_type =
-                self.projected_member_type(origin, Some(receiver), member.role, access_type)?;
+            let access = self.projected_member_access(origin, Some(receiver), &member, ty)?;
 
             // substitute static value types for projections
             let written = match self.static_value(symbol) {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
                 None => None,
             };
-
-            // carry this instance's solved arguments onto the candidate
-            let generic_arguments =
-                self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
-            candidates.push(MemberCandidate {
+            let mut declared = DeclaredCandidate::new(
                 symbol,
-                owner: instance.symbol,
-                origin: dir::MemberOrigin::Declaration,
-                requirement: None,
-                space,
-                role: member.role,
-                kind: member.kind,
-                is_writable: member.is_writable,
-                access_type,
-                callable,
-                is_optional: member.is_optional,
+                instance.symbol,
+                dir::MemberOrigin::Declaration,
                 generic_arguments,
-                value: None,
-                value_type: written,
-                receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                bounds: Vec::new(),
-                target: None,
-            });
+            );
+            declared.value_type = written;
+            candidates.push(MemberCandidate::declared(
+                declared, &member, access, callable,
+            ));
         }
 
         Ok(candidates)
     }
 
-    /// Return the reachable member key closest to one missing key.
+    /// Return the exposed member key closest to one missing key.
     pub(in crate::sema) fn closest_member_key(
         &mut self,
         origin: Origin,
@@ -2034,6 +1747,7 @@ impl BodyState<'_, '_> {
             .map(|candidate| self.format_static_key(candidate))
             .collect::<Vec<_>>();
 
+        // suggest the closest declared key
         Ok(find_best_match(
             key,
             keys,
@@ -2059,6 +1773,7 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
+        // collect the keys by the subject's own head
         match self.ty(subject)? {
             // fail loudly on a variable that survived solving
             dir::Type::Variable(variable) => {
@@ -2066,18 +1781,6 @@ impl BodyState<'_, '_> {
                     message: format!(
                         "member keys contain unresolved variable {variable:?} after solving"
                     ),
-                });
-            }
-            // fail loudly on a canonical hole outside the solver
-            dir::Type::Hole(hole) => {
-                return Err(CompilerError::Internal {
-                    message: format!("member keys contain canonical hole ?{hole}"),
-                });
-            }
-            // fail loudly on a canonical rigid type outside the solver
-            dir::Type::Rigid(rigid) => {
-                return Err(CompilerError::Internal {
-                    message: format!("member keys contain canonical rigid type ^{rigid}"),
                 });
             }
             // declarations expose the same keys as keyed lookup
@@ -2266,14 +1969,15 @@ impl BodyState<'_, '_> {
         keys: &mut FxIndexSet<dir::StaticKey>,
     ) -> CompilerResult<()> {
         // enumerate the visible extension keys from the decided candidates
-        let extensions = self.reachable_extensions(origin, module, subject, subject, root)?;
+        let extensions = self.subject_extensions(origin, module, subject, subject, root)?;
         for extension in extensions {
-            let matched = self
-                .extension_subject_candidates(
-                    origin, module, subject, subject, extension, space, None,
-                )?
-                // treat a re-entered extension as an empty key set at its fixed point
-                .unwrap_or_default();
+            let Some(source) =
+                self.decide_extension_source(origin, module, subject, subject, extension)?
+            else {
+                continue;
+            };
+            let matched =
+                self.extension_candidates(origin, subject, subject, &source, space, None)?;
             keys.extend(matched.iter().map(|(key, _)| *key));
         }
 
@@ -2325,7 +2029,8 @@ impl BodyState<'_, '_> {
         }
 
         // collect extension keys targeting this declaration
-        for extension in self.visible_extensions(module, dir::TypeRoot::Declaration(symbol))? {
+        let head = ExtensionHead::Root(dir::TypeRoot::Declaration(symbol));
+        for extension in self.extensions_over(module, &[head])? {
             self.collect_definition_keys(extension, space, keys)?;
         }
 
@@ -2339,12 +2044,12 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
         keys: &mut FxIndexSet<dir::StaticKey>,
     ) -> CompilerResult<()> {
+        // owners without a declaration body declare no keys
         let Some(definition) = self.definition(symbol)? else {
-            return Err(CompilerError::Internal {
-                message: format!("member key declaration is missing: {symbol:?}"),
-            });
+            return Ok(());
         };
 
+        // collect each declared key in the requested space
         for member in definition.members() {
             if member.space() == space
                 && let Some(key) = member.key()
@@ -2356,7 +2061,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Resolve the checked type of each member declared through its own symbol.
+    /// Settle the checked type of each member declared through its own symbol.
     pub(in crate::sema) fn resolve_declared_types(
         &mut self,
         members: &mut [DeclaredMember],
@@ -2404,30 +2109,31 @@ impl dir::TypeFold for LookupReceiver {
     }
 }
 
-impl dir::TypeFold for FieldLookup {
+impl dir::TypeFold for MemberSource {
     fn map_types<E>(
         &mut self,
         map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
     ) -> Result<(), E> {
         match self {
-            Self::Structural {
-                receiver,
-                owner,
-                access,
-                ..
-            } => {
-                receiver.map_types(map)?;
-                owner.map_types(map)?;
-                access.map_types(map)
+            Self::Declared(declared) => {
+                declared.value_type.map_types(map)?;
+                declared.generic_arguments.map_types(map)?;
+                declared.bounds.map_types(map)?;
+                declared.target.map_types(map)
             }
-            Self::Projection {
-                receiver,
-                projection,
-            } => {
-                receiver.map_types(map)?;
-                projection.map_types(map)
-            }
+            Self::Structural { owner } => owner.map_types(map),
+            Self::Projection(projection) => projection.map_types(map),
         }
+    }
+}
+
+impl dir::TypeFold for MemberArm {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.element.map_types(map)?;
+        self.receiver.map_types(map)
     }
 }
 
@@ -2436,37 +2142,10 @@ impl dir::TypeFold for MemberCandidate {
         &mut self,
         map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
     ) -> Result<(), E> {
-        self.access_type.map_types(map)?;
+        self.source.map_types(map)?;
+        self.access.map_types(map)?;
         self.callable.map_types(map)?;
-        self.value_type.map_types(map)?;
-        self.generic_arguments.map_types(map)?;
         self.receiver.map_types(map)?;
-        self.bounds.map_types(map)?;
-        self.target.map_types(map)
-    }
-}
-
-impl dir::TypeFold for MemberArmLookup {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        self.receiver.map_types(map)?;
-        self.lookup.map_types(map)
-    }
-}
-
-impl dir::TypeFold for MemberLookup {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        match self {
-            Self::Missing | Self::Ambiguous => Ok(()),
-            Self::Field(field) => field.map_types(map),
-            Self::Found(candidates) => candidates.map_types(map),
-            Self::Union(arms) => arms.map_types(map),
-            Self::Intersection(lookups) => lookups.map_types(map),
-        }
+        self.arm.map_types(map)
     }
 }

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, MemberLookup, Origin, TypeSubstitution};
+use crate::sema::{CheckState, MemberLookup, Origin, TypeSubstitution, member_arms};
 use crate::{CompilerError, CompilerResult};
 
 /// One broad property-key domain.
@@ -109,12 +109,12 @@ pub(in crate::sema) enum OperationReduction {
 /// Reason one closed type operation is ill-formed.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(in crate::sema) enum InvalidOperation {
-    /// The receiver can never be indexed.
+    /// The receiver admits no index.
     IndexReceiver {
         /// The indexed receiver type.
         receiver: dir::GlobalTypeId,
     },
-    /// The key does not project from the receiver.
+    /// The key projects from no receiver member.
     IndexKey {
         /// The indexed receiver type.
         receiver: dir::GlobalTypeId,
@@ -139,10 +139,8 @@ impl CheckState<'_> {
             dir::Type::Reference(_) | dir::Type::Static(_) => dir::MemberSpace::Static,
             _ => dir::MemberSpace::Instance,
         };
-        let subject = self.body().member_subject(origin, owner, head, space)?;
-        let lookup = self
-            .body()
-            .lookup_member(origin, origin.module(), subject, key)?;
+        let subject = self.member_subject(origin, owner, head, space)?;
+        let lookup = self.lookup_member(origin, origin.module(), subject, key)?;
 
         let reduction = self.reduce_member_lookup(owner, key_type, lookup)?;
 
@@ -156,83 +154,47 @@ impl CheckState<'_> {
         key_type: dir::GlobalTypeId,
         lookup: MemberLookup,
     ) -> CompilerResult<OperationReduction> {
-        match lookup {
-            // contribute a field's value type
-            MemberLookup::Field(field) => {
-                match field.read_type(&mut self.body())? {
-                    Some(ty) => Ok(OperationReduction::Projected(ty)),
-                    // write-only properties project nothing readable
-                    None => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
-                        receiver: owner,
-                        key: key_type,
-                    })),
-                }
-            }
-
-            // contribute a matching member's static value or callable value type
-            MemberLookup::Found(candidates) => match candidates.as_slice() {
-                [candidate] => {
-                    if let Some(written) = candidate.value_type {
-                        return Ok(OperationReduction::Projected(written));
-                    }
-                    if let Some(value) = candidate.value {
-                        let ty = self.intern_type(dir::Type::Static(value))?;
-
-                        return Ok(OperationReduction::Projected(ty));
-                    }
-
-                    match candidate.read_type(&mut self.body())? {
-                        Some(ty) => Ok(OperationReduction::Projected(ty)),
-                        None => Ok(OperationReduction::Rigid),
-                    }
-                }
-                // overloaded members stay symbolic
-                _ => Ok(OperationReduction::Rigid),
-            },
-
-            // union receivers project every runtime arm
-            MemberLookup::Union(lookups) => {
-                let mut types = Vec::with_capacity(lookups.len());
-                for arm in lookups {
-                    match self.reduce_member_lookup(arm.receiver, key_type, arm.lookup)? {
-                        OperationReduction::Projected(ty) => types.push(ty),
-                        OperationReduction::Rigid => return Ok(OperationReduction::Rigid),
-                        OperationReduction::Invalid(invalid) => {
-                            return Ok(OperationReduction::Invalid(invalid));
-                        }
-                    }
-                }
-                let ty = self.normalized_union_type(types)?;
-
-                Ok(OperationReduction::Projected(ty))
-            }
-
-            // intersection receivers impose every projected member type
-            MemberLookup::Intersection(lookups) => {
-                let mut types = Vec::with_capacity(lookups.len());
-                for lookup in lookups {
-                    match self.reduce_member_lookup(owner, key_type, lookup)? {
-                        OperationReduction::Projected(ty) => types.push(ty),
-                        OperationReduction::Rigid => return Ok(OperationReduction::Rigid),
-                        OperationReduction::Invalid(invalid) => {
-                            return Ok(OperationReduction::Invalid(invalid));
-                        }
-                    }
-                }
-                let ty = self.normalized_intersection_type(types)?;
-
-                Ok(OperationReduction::Projected(ty))
-            }
-
-            // missing members reject the key on the closed receiver
-            MemberLookup::Missing => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
+        // missing members reject the key on the closed receiver
+        if lookup.is_empty() {
+            return Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
                 receiver: owner,
                 key: key_type,
-            })),
-
-            // keep undecided lookups symbolic
-            MemberLookup::Ambiguous => Ok(OperationReduction::Rigid),
+            }));
         }
+
+        // project every runtime arm, joining several as one union
+        let mut types = Vec::new();
+        for (_, group) in member_arms(&lookup) {
+            // overloaded members stay symbolic
+            let [candidate] = group.as_slice() else {
+                return Ok(OperationReduction::Rigid);
+            };
+
+            // contribute a static value, a written value type, or the read type
+            let declared = candidate.declaration();
+            if let Some(written) = declared.and_then(|declared| declared.value_type) {
+                types.push(written);
+                continue;
+            }
+            if let Some(value) = declared.and_then(|declared| declared.value) {
+                types.push(self.intern_type(dir::Type::Static(value))?);
+                continue;
+            }
+            match (candidate.read_type(self)?, declared) {
+                (Some(ty), _) => types.push(ty),
+                // write-only properties project nothing readable
+                (None, None) => {
+                    return Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
+                        receiver: owner,
+                        key: key_type,
+                    }));
+                }
+                (None, Some(_)) => return Ok(OperationReduction::Rigid),
+            }
+        }
+        let ty = self.normalized_union_type(types)?;
+
+        Ok(OperationReduction::Projected(ty))
     }
 
     /// Reduce one indexed access type over its reduced operands.
@@ -374,6 +336,7 @@ impl CheckState<'_> {
             }
         };
 
+        // project the key, else report the access invalid
         match projected {
             Some(ty) => Ok(OperationReduction::Projected(ty)),
             None => Ok(OperationReduction::Invalid(InvalidOperation::IndexKey {
@@ -443,6 +406,7 @@ impl CheckState<'_> {
             return Ok(Some(KeyDomain::from_key(static_key)));
         }
 
+        // read the domain the key type names
         let domain = match self.ty(key)? {
             dir::Type::Primitive(dir::PrimitiveType::String) => Some(KeyDomain::String),
             dir::Type::Primitive(dir::PrimitiveType::Integer(_)) => Some(KeyDomain::Usize),
@@ -497,6 +461,7 @@ impl CheckState<'_> {
         origin: Origin,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<KeySet>> {
+        // collect the keys by the target's own head
         let set = match self.ty(target)? {
             // structural object keys come from fields and index signatures
             dir::Type::Object(shape) => {
@@ -706,6 +671,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         let key_type = self.normalize(origin, key_type)?;
 
+        // collect the keys the domain names
         match self.ty(key_type)? {
             // union key domains contribute every alternative
             dir::Type::Union(union) => {
@@ -765,9 +731,9 @@ impl CheckState<'_> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::StaticKey>> {
-        // read the type through its solution
         let ty = self.shallow_resolve(ty)?;
 
+        // read the exact key the type denotes
         let key = match self.ty(ty)? {
             dir::Type::Key(key) => key,
             // named static values preserve their exact key
@@ -804,6 +770,7 @@ impl CheckState<'_> {
         // close the key source first
         let closed = self.normalize(origin, mapped.parameter.constraint)?;
         let closed_type = self.ty(closed)?;
+        // read the keys the closed source enumerates
         let keys = match closed_type {
             dir::Type::Union(_) => {
                 let leaves = self.union_leaves(origin, closed)?;
@@ -927,6 +894,7 @@ impl CheckState<'_> {
             });
         }
 
+        // intern the mapped shape
         let fields = self.intern_properties(&fields)?;
         let index_signatures = self.intern_index_signatures(&index_signatures)?;
         let shape = dir::Type::Object(dir::ObjectType {

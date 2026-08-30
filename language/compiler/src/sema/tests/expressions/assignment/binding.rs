@@ -285,7 +285,7 @@ values = [1, 2];
 /// @type.node source=[1, 2] type=int32[]
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -327,7 +327,7 @@ values = [];
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 "#,
     );
 }
@@ -691,9 +691,6 @@ const b = a;
 /// @diagnostic.error id=use-before-assigned message="'b' is used before being assigned"
 /// @diagnostic.label line=2 column=11 span="b" line_source="const a = b;"
 /// @diagnostic.related line=3 column=7 span="b" line_source="const b = a;" message="declared here"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=3 column=7 span="b" line_source="const b = a;"
-/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

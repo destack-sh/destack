@@ -24,8 +24,6 @@ impl DirSnapshotBuilder<'_> {
                 self.type_id_label(types, region.extent),
                 self.type_id_label(types, region.space)
             ),
-            dir::Type::Hole(hole) => format!("?{hole}"),
-            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
             dir::Type::Void => "void".to_string(),

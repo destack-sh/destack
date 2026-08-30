@@ -37,7 +37,7 @@ function select(value: User): "managed" {
 }
 
 declare const user: local User;
-const selected: "borrowed" = select<"local">(user as &'static readonly User);
+const selected: "borrowed" = select(user as &'static readonly User);
 
 selected satisfies "borrowed";
 
@@ -47,8 +47,8 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 function select(value: &readonly User): "borrowed" {
-/// @generic.template symbol=select#1 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(&select#1.'a readonly User) => "borrowed"
+/// @generic.template symbol=select#1 parameters=('a)
+/// @type.symbol symbol=select#1 type=<select#1.'a>(&select#1.'a readonly User) => "borrowed"
 /// @type.symbol symbol=select.value#1 source="value: &readonly User" type=&select#1.'a readonly User
 /// @resolution.name source=User target=User
 
@@ -72,8 +72,7 @@ const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="borrowed"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="borrowed" kind=symbol target=select#1 instance="select#1<\"local\">"
-/// @generic.instantiation id="select#1<\"local\">" template=select#1 arguments=("local")
+/// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="borrowed" kind=symbol target=select#1
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -85,6 +84,7 @@ selected satisfies "borrowed";
 /// @resolution.access source=selected root=selected
 "#,
         r#"
+
 "#,
     );
 }
@@ -126,7 +126,7 @@ function select<'a>(value: &'a User): "mutable" {
 }
 
 declare const user: local User;
-const selected: "readonly" = select<"local">(user as &'static readonly User);
+const selected: "readonly" = select(user as &'static readonly User);
 
 selected satisfies "readonly";
 
@@ -136,8 +136,8 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 function select(value: &readonly User): "readonly" {
-/// @generic.template symbol=select#1 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(&select#1.'a readonly User) => "readonly"
+/// @generic.template symbol=select#1 parameters=('a)
+/// @type.symbol symbol=select#1 type=<select#1.'a>(&select#1.'a readonly User) => "readonly"
 /// @type.symbol symbol=select.value#1 source="value: &readonly User" type=&select#1.'a readonly User
 /// @resolution.name source=User target=User
 
@@ -145,8 +145,8 @@ function select(value: &readonly User): "readonly" {
 }
 
 function select(value: &User): "mutable" {
-/// @generic.template symbol=select#2 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#2 type=<select#2.'a, select#2.P1: Place>(&select#2.'a User) => "mutable"
+/// @generic.template symbol=select#2 parameters=('a)
+/// @type.symbol symbol=select#2 type=<select#2.'a>(&select#2.'a User) => "mutable"
 /// @type.symbol symbol=select.value#2 source="value: &User" type=&select#2.'a User
 /// @resolution.name source=User target=User
 
@@ -162,8 +162,7 @@ const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="readonly"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="readonly" kind=symbol target=select#1 instance="select#1<\"local\">"
-/// @generic.instantiation id="select#1<\"local\">" template=select#1 arguments=("local")
+/// @resolution.call source=select(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return="readonly" kind=symbol target=select#1
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -216,7 +215,7 @@ function select<'a>(value: &'a User): "mutable" {
 }
 
 declare const user: &'static User;
-const selected: "readonly" = select<"constant">(user);
+const selected: "readonly" = select(user);
 
 selected satisfies "readonly";
 
@@ -226,8 +225,8 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 function select(value: &readonly User): "readonly" {
-/// @generic.template symbol=select#1 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#1 type=<select#1.'a, select#1.P1: Place>(&select#1.'a readonly User) => "readonly"
+/// @generic.template symbol=select#1 parameters=('a)
+/// @type.symbol symbol=select#1 type=<select#1.'a>(&select#1.'a readonly User) => "readonly"
 /// @type.symbol symbol=select.value#1 source="value: &readonly User" type=&select#1.'a readonly User
 /// @resolution.name source=User target=User
 
@@ -235,8 +234,8 @@ function select(value: &readonly User): "readonly" {
 }
 
 function select(value: &User): "mutable" {
-/// @generic.template symbol=select#2 parameters=('a, P1: Place)
-/// @type.symbol symbol=select#2 type=<select#2.'a, select#2.P1: Place>(&select#2.'a User) => "mutable"
+/// @generic.template symbol=select#2 parameters=('a)
+/// @type.symbol symbol=select#2 type=<select#2.'a>(&select#2.'a User) => "mutable"
 /// @type.symbol symbol=select.value#2 source="value: &User" type=&select#2.'a User
 /// @resolution.name source=User target=User
 
@@ -252,8 +251,7 @@ const selected = select(user);
 /// @type.symbol symbol=selected source=selected type="readonly"
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=select target=[select#1, select#2]
-/// @resolution.call source=select(user) parameters=(&'static readonly constant User) arguments=(provided(user) as &'static readonly constant User) return="readonly" kind=symbol target=select#1 instance="select#1<\"constant\">"
-/// @generic.instantiation id="select#1<\"constant\">" template=select#1 arguments=("constant")
+/// @resolution.call source=select(user) parameters=(&'static readonly constant User) arguments=(provided(user) as &'static readonly constant User) return="readonly" kind=symbol target=select#1
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="constant" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
@@ -299,9 +297,9 @@ declare function replace<'a>(value: &'a exclusive User): void;
 
 const user: User = new User();
 
-inspect<"local">(user as &'static readonly User);
-modify<"local">(user as &'static User);
-replace<"local">(user as &'static exclusive User);
+inspect(user as &'static readonly User);
+modify(user as &'static User);
+replace(user as &'static exclusive User);
 
 === dir ===
 class User {}
@@ -309,20 +307,20 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function inspect(value: &readonly User): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
 declare function modify(value: &User): void;
-/// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a, modify.P1: Place>(&modify.'a User) => void
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a>(&modify.'a User) => void
 /// @type.symbol symbol=modify.value source="value: &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
 declare function replace(value: &exclusive User): void;
-/// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: &exclusive User): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive User) => void
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: &exclusive User): void" type=<replace.'a>(&replace.'a exclusive User) => void
 /// @type.symbol symbol=replace.value source="value: &exclusive User" type=&replace.'a exclusive User
 /// @resolution.name source=User target=User
 
@@ -335,9 +333,7 @@ const user: User = new User();
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -345,9 +341,7 @@ inspect(user);
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify instance="modify<\"local\">"
-/// @generic.instantiation id="modify<\"local\">" template=modify arguments=("local")
-/// @generic.instance id="modify<\"local\">" template=modify arguments=("local")
+/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -355,9 +349,7 @@ modify(user);
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace instance="replace<\"local\">"
-/// @generic.instantiation id="replace<\"local\">" template=replace arguments=("local")
-/// @generic.instance id="replace<\"local\">" template=replace arguments=("local")
+/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -397,9 +389,9 @@ declare function replace<'a>(value: &'a exclusive User): void;
 
 declare let user: ^User;
 
-inspect<"local">(user as &'static readonly User);
-modify<"local">(user as &'static User);
-replace<"local">(user as &'static exclusive User);
+inspect(user as &'static readonly User);
+modify(user as &'static User);
+replace(user as &'static exclusive User);
 
 === dir ===
 class User {}
@@ -407,20 +399,20 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function inspect(value: local &readonly User): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: local &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: local &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
 /// @type.symbol symbol=inspect.value source="value: local &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
 declare function modify(value: local &User): void;
-/// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a, modify.P1: Place>(&modify.'a User) => void
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a>(&modify.'a User) => void
 /// @type.symbol symbol=modify.value source="value: local &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
 declare function replace(value: local &exclusive User): void;
-/// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive User) => void
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a>(&replace.'a exclusive User) => void
 /// @type.symbol symbol=replace.value source="value: local &exclusive User" type=&replace.'a exclusive User
 /// @resolution.name source=User target=User
 
@@ -431,9 +423,7 @@ declare let user: ^User;
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -441,9 +431,7 @@ inspect(user);
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify instance="modify<\"local\">"
-/// @generic.instantiation id="modify<\"local\">" template=modify arguments=("local")
-/// @generic.instance id="modify<\"local\">" template=modify arguments=("local")
+/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -451,9 +439,7 @@ modify(user);
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace instance="replace<\"local\">"
-/// @generic.instantiation id="replace<\"local\">" template=replace arguments=("local")
-/// @generic.instance id="replace<\"local\">" template=replace arguments=("local")
+/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -485,7 +471,7 @@ class User {}
 declare function inspect<'a>(value: &'a readonly User): void;
 declare const user: readonly local User;
 
-inspect<"local">(user as &'static readonly User);
+inspect(user as &'static readonly User);
 
 === dir ===
 class User {}
@@ -493,8 +479,8 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function inspect(value: &readonly User): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
@@ -505,9 +491,7 @@ declare const user: local readonly User;
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(user) parameters=(&'static readonly User) arguments=(provided(user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
@@ -542,8 +526,8 @@ declare function modify<'a>(value: &'a User): void;
 declare function replace<'a>(value: &'a exclusive User): void;
 declare const user: readonly local User;
 
-modify<"local">(user);
-replace<"local">(user);
+modify(user);
+replace(user);
 
 === dir ===
 class User {}
@@ -551,14 +535,14 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function modify(value: local &User): void;
-/// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a, modify.P1: Place>(&modify.'a User) => void
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a>(&modify.'a User) => void
 /// @type.symbol symbol=modify.value source="value: local &User" type=&modify.'a User
 /// @resolution.name source=User target=User
 
 declare function replace(value: local &exclusive User): void;
-/// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive User) => void
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: local &exclusive User): void" type=<replace.'a>(&replace.'a exclusive User) => void
 /// @type.symbol symbol=replace.value source="value: local &exclusive User" type=&replace.'a exclusive User
 /// @resolution.name source=User target=User
 
@@ -569,16 +553,14 @@ declare const user: local readonly User;
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify instance="modify<\"local\">"
-/// @generic.instantiation id="modify<\"local\">" template=modify arguments=("local")
+/// @resolution.call source=modify(user) parameters=(&'static User) arguments=(provided(user) as &'static User) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace instance="replace<\"local\">"
-/// @generic.instantiation id="replace<\"local\">" template=replace arguments=("local")
+/// @resolution.call source=replace(user) parameters=(&'static exclusive User) arguments=(provided(user) as &'static exclusive User) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user root=user
@@ -624,8 +606,8 @@ declare function inspect<'a>(value: &'a readonly Cell): void;
 declare const explicit: local Cell;
 declare const alias: local Cell;
 
-inspect<"local">(explicit as &'static readonly Cell);
-inspect<"local">(alias as &'static readonly Cell);
+inspect(explicit as &'static readonly Cell);
+inspect(alias as &'static readonly Cell);
 
 === dir ===
 struct Cell {}
@@ -639,8 +621,8 @@ type ManagedCell = Managed<Cell>;
 /// @resolution.name source=Cell target=Cell
 
 declare function inspect(value: &readonly Cell): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly Cell) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a>(&inspect.'a readonly Cell) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly Cell" type=&inspect.'a readonly Cell
 /// @resolution.name source=Cell target=Cell
 
@@ -657,8 +639,7 @@ declare const alias: ManagedCell;
 
 inspect(explicit);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(explicit) parameters=(&'static readonly Cell) arguments=(provided(explicit) as &'static readonly Cell) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(explicit) parameters=(&'static readonly Cell) arguments=(provided(explicit) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=explicit target=explicit
 /// @resolution.place source=explicit placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=explicit root=explicit
@@ -666,7 +647,7 @@ inspect(explicit);
 
 inspect(alias);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(alias) parameters=(&'static readonly Cell) arguments=(provided(alias) as &'static readonly Cell) return=void kind=symbol target=inspect instance="inspect<\"local\">"
+/// @resolution.call source=inspect(alias) parameters=(&'static readonly Cell) arguments=(provided(alias) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=alias target=alias
 /// @resolution.place source=alias placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=alias root=alias
@@ -705,7 +686,7 @@ newtype ManagedCellId = Managed<Cell>;
 declare function inspect<'a>(value: &'a readonly ManagedCellId): void;
 declare const cell: ManagedCellId;
 
-inspect<"local">(cell as &'static readonly ManagedCellId);
+inspect(cell as &'static readonly ManagedCellId);
 
 === dir ===
 struct Cell {}
@@ -719,8 +700,8 @@ newtype ManagedCellId = Managed<Cell>;
 /// @resolution.name source=Cell target=Cell
 
 declare function inspect(value: &readonly ManagedCellId): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly ManagedCellId): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly ManagedCellId) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly ManagedCellId): void" type=<inspect.'a>(&inspect.'a readonly ManagedCellId) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly ManagedCellId" type=&inspect.'a readonly ManagedCellId
 /// @resolution.name source=ManagedCellId target=ManagedCellId
 
@@ -731,8 +712,7 @@ declare const cell: ManagedCellId;
 
 inspect(cell);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(cell) parameters=(&'static readonly ManagedCellId) arguments=(provided(cell) as &'static readonly ManagedCellId) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(cell) parameters=(&'static readonly ManagedCellId) arguments=(provided(cell) as &'static readonly ManagedCellId) return=void kind=symbol target=inspect
 /// @resolution.name source=cell target=cell
 /// @resolution.place source=cell placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=cell root=cell
@@ -770,8 +750,8 @@ declare function inspect<'a>(value: &'a readonly Cell): void;
 declare const localCell: local Cell;
 declare const readonlyCell: readonly local Cell;
 
-inspect<"local">(localCell as &'static readonly Cell);
-inspect<"local">(readonlyCell as &'static readonly Cell);
+inspect(localCell as &'static readonly Cell);
+inspect(readonlyCell as &'static readonly Cell);
 
 === dir ===
 struct Cell {}
@@ -779,8 +759,8 @@ struct Cell {}
 /// @definition.struct symbol=Cell source="struct Cell {}"
 
 declare function inspect(value: &readonly Cell): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly Cell) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly Cell): void" type=<inspect.'a>(&inspect.'a readonly Cell) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly Cell" type=&inspect.'a readonly Cell
 /// @resolution.name source=Cell target=Cell
 
@@ -798,8 +778,7 @@ declare const readonlyCell: local readonly Managed<Cell>;
 
 inspect(localCell);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(localCell) parameters=(&'static readonly Cell) arguments=(provided(localCell) as &'static readonly Cell) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(localCell) parameters=(&'static readonly Cell) arguments=(provided(localCell) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=localCell target=localCell
 /// @resolution.place source=localCell placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=localCell root=localCell
@@ -807,7 +786,7 @@ inspect(localCell);
 
 inspect(readonlyCell);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(readonlyCell) parameters=(&'static readonly Cell) arguments=(provided(readonlyCell) as &'static readonly Cell) return=void kind=symbol target=inspect instance="inspect<\"local\">"
+/// @resolution.call source=inspect(readonlyCell) parameters=(&'static readonly Cell) arguments=(provided(readonlyCell) as &'static readonly Cell) return=void kind=symbol target=inspect
 /// @resolution.name source=readonlyCell target=readonlyCell
 /// @resolution.place source=readonlyCell placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=readonlyCell root=readonlyCell
@@ -864,9 +843,9 @@ class State {
 declare function inspect<'a>(value: &'a readonly User): void;
 declare const state: State;
 
-inspect<"local">(state.user as &'static readonly User);
-inspect<"local">(state.boxed.value as &'static readonly User);
-inspect<"local">(state.users[0] as &'static readonly User);
+inspect(state.user as &'static readonly User);
+inspect(state.boxed.value as &'static readonly User);
+inspect(state.users[0] as &'static readonly User);
 
 === dir ===
 class User {}
@@ -916,13 +895,13 @@ class State {
     /// @resolution.name source=User target=User
     /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
     /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
-    /// @generic.instance id="arrayFromSlice<User, \"local\">" template=arrayFromSlice arguments=(User, "local")
+    /// @generic.instance id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
 
 }
 
 declare function inspect(value: &readonly User): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly User) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly User" type=&inspect.'a readonly User
 /// @resolution.name source=User target=User
 
@@ -933,9 +912,7 @@ declare const state: State;
 
 inspect(state.user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(state.user) parameters=(&'static readonly User) arguments=(provided(state.user) as &'static readonly User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(state.user) parameters=(&'static readonly User) arguments=(provided(state.user) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.user receiver=State type=User kind=field target_receiver=State key=user target=State.user target_type=User
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
@@ -946,7 +923,7 @@ inspect(state.user);
 
 inspect(state.boxed.value);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(state.boxed.value) parameters=(&'static readonly User) arguments=(provided(state.boxed.value) as &'static readonly User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
+/// @resolution.call source=inspect(state.boxed.value) parameters=(&'static readonly User) arguments=(provided(state.boxed.value) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.boxed receiver=State type=Box<User> kind=field target_receiver=State key=boxed target=State.boxed target_type=Box<User>
 /// @resolution.member source=state.boxed.value receiver=Box<User> type=User kind=field target_receiver=Box<User> key=value target=Box.value target_type=User
@@ -960,7 +937,7 @@ inspect(state.boxed.value);
 
 inspect(state.users[0]);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(state.users[0]) parameters=(&'static readonly User) arguments=(provided(state.users[0]) as &'static readonly User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
+/// @resolution.call source=inspect(state.users[0]) parameters=(&'static readonly User) arguments=(provided(state.users[0]) as &'static readonly User) return=void kind=symbol target=inspect
 /// @resolution.name source=state target=state
 /// @resolution.member source=state.users receiver=State type=User[] kind=field target_receiver=State key=users target=State.users target_type=User[]
 /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
@@ -970,10 +947,10 @@ inspect(state.users[0]);
 /// @resolution.place source=state.users[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
 /// @resolution.subscript source=state.users[0] type=User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static User, \"exclusive\">)"
-/// @generic.instantiation id="index#1<User, \"exclusive\", \"local\">" template=index#1 arguments=(User, "exclusive", "local")
+/// @generic.instantiation id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive")
 /// @generic.instance id="WithAccess<&'frame User, \"exclusive\">" template=WithAccess arguments=(&'frame User, "exclusive")
 /// @generic.instance id="WithAccess<&'frame User[], \"exclusive\">" template=WithAccess arguments=(&'frame User[], "exclusive")
-/// @generic.instance id="index#1<User, \"exclusive\", \"local\">" template=index#1 arguments=(User, "exclusive", "local")
+/// @generic.instance id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive")
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );
@@ -1229,20 +1206,18 @@ inspect("message");
 === annotated ===
 declare function inspect<'a>(value: &'a readonly string): void;
 
-inspect<"local">("message" as &'frame readonly string);
+inspect("message" as &'frame readonly string);
 
 === dir ===
 declare function inspect(value: &readonly string): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly string): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly string) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly string): void" type=<inspect.'a>(&inspect.'a readonly string) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly string" type=&inspect.'a readonly string
 
 inspect("message");
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source="inspect(\"message\")" parameters=(&'frame readonly string) arguments=(provided("message") as &'frame readonly string) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
-/// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: widen, target: string }, { kind: borrow, target: &'frame readonly string }] origin=implicit
+/// @resolution.call source="inspect(\"message\")" parameters=(&'frame readonly string) arguments=(provided("message") as &'frame readonly string) return=void kind=symbol target=inspect
+/// @coercion.node source="\"message\"" from="message" adjustments=[{ kind: materialize, target: string }, { kind: borrow, target: &'frame readonly string }] origin=implicit
 "#,
     );
 }
@@ -1273,8 +1248,8 @@ declare const user: shared User;
 declare function inspect<'a>(value: &'a readonly shared User): void;
 declare function modify<'a>(value: &'a shared User): void;
 
-inspect<"local">(user as &'static readonly shared User);
-modify<"local">(user as &'static shared User);
+inspect(user as &'static readonly shared User);
+modify(user as &'static shared User);
 
 === dir ===
 class User {}
@@ -1287,22 +1262,20 @@ declare const user: shared User;
 /// @resolution.name source=User target=User
 
 declare function inspect(value: shared &readonly User): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: shared &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly shared User) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: shared &readonly User): void" type=<inspect.'a>(&inspect.'a readonly shared User) => void
 /// @type.symbol symbol=inspect.value source="value: shared &readonly User" type=&inspect.'a readonly shared User
 /// @resolution.name source=User target=User
 
 declare function modify(value: shared &User): void;
-/// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: shared &User): void" type=<modify.'a, modify.P1: Place>(&modify.'a shared User) => void
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: shared &User): void" type=<modify.'a>(&modify.'a shared User) => void
 /// @type.symbol symbol=modify.value source="value: shared &User" type=&modify.'a shared User
 /// @resolution.name source=User target=User
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly shared User) arguments=(provided(user) as &'static readonly shared User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(user) parameters=(&'static readonly shared User) arguments=(provided(user) as &'static readonly shared User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
@@ -1310,9 +1283,7 @@ inspect(user);
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void kind=symbol target=modify instance="modify<\"local\">"
-/// @generic.instantiation id="modify<\"local\">" template=modify arguments=("local")
-/// @generic.instance id="modify<\"local\">" template=modify arguments=("local")
+/// @resolution.call source=modify(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
@@ -1344,7 +1315,7 @@ class User {}
 declare const user: shared User;
 declare function replace<'a>(value: &'a exclusive shared User): void;
 
-replace<"local">(user);
+replace(user);
 
 === dir ===
 class User {}
@@ -1357,15 +1328,14 @@ declare const user: shared User;
 /// @resolution.name source=User target=User
 
 declare function replace(value: shared &exclusive User): void;
-/// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: shared &exclusive User): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive shared User) => void
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: shared &exclusive User): void" type=<replace.'a>(&replace.'a exclusive shared User) => void
 /// @type.symbol symbol=replace.value source="value: shared &exclusive User" type=&replace.'a exclusive shared User
 /// @resolution.name source=User target=User
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive shared User) arguments=(provided(user) as &'static exclusive shared User) return=void kind=symbol target=replace instance="replace<\"local\">"
-/// @generic.instantiation id="replace<\"local\">" template=replace arguments=("local")
+/// @resolution.call source=replace(user) parameters=(&'static exclusive shared User) arguments=(provided(user) as &'static exclusive shared User) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
 /// @resolution.access source=user root=user
@@ -1407,9 +1377,9 @@ declare function inspect<'a>(value: &'a readonly shared User): void;
 declare function modify<'a>(value: &'a shared User): void;
 declare function replace<'a>(value: &'a exclusive shared User): void;
 
-inspect<"local">(user as &'static readonly shared User);
-modify<"local">(user as &'static shared User);
-replace<"local">(user as &'static exclusive shared User);
+inspect(user as &'static readonly shared User);
+modify(user as &'static shared User);
+replace(user as &'static exclusive shared User);
 
 === dir ===
 class User {}
@@ -1422,28 +1392,26 @@ declare shared let user: ^User;
 /// @resolution.name source=User target=User
 
 declare function inspect(value: shared &readonly User): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: shared &readonly User): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly shared User) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: shared &readonly User): void" type=<inspect.'a>(&inspect.'a readonly shared User) => void
 /// @type.symbol symbol=inspect.value source="value: shared &readonly User" type=&inspect.'a readonly shared User
 /// @resolution.name source=User target=User
 
 declare function modify(value: shared &User): void;
-/// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: shared &User): void" type=<modify.'a, modify.P1: Place>(&modify.'a shared User) => void
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: shared &User): void" type=<modify.'a>(&modify.'a shared User) => void
 /// @type.symbol symbol=modify.value source="value: shared &User" type=&modify.'a shared User
 /// @resolution.name source=User target=User
 
 declare function replace(value: shared &exclusive User): void;
-/// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: shared &exclusive User): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive shared User) => void
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: shared &exclusive User): void" type=<replace.'a>(&replace.'a exclusive shared User) => void
 /// @type.symbol symbol=replace.value source="value: shared &exclusive User" type=&replace.'a exclusive shared User
 /// @resolution.name source=User target=User
 
 inspect(user);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(user) parameters=(&'static readonly shared User) arguments=(provided(user) as &'static readonly shared User) return=void kind=symbol target=inspect instance="inspect<\"local\">"
-/// @generic.instantiation id="inspect<\"local\">" template=inspect arguments=("local")
-/// @generic.instance id="inspect<\"local\">" template=inspect arguments=("local")
+/// @resolution.call source=inspect(user) parameters=(&'static readonly shared User) arguments=(provided(user) as &'static readonly shared User) return=void kind=symbol target=inspect
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -1451,9 +1419,7 @@ inspect(user);
 
 modify(user);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void kind=symbol target=modify instance="modify<\"local\">"
-/// @generic.instantiation id="modify<\"local\">" template=modify arguments=("local")
-/// @generic.instance id="modify<\"local\">" template=modify arguments=("local")
+/// @resolution.call source=modify(user) parameters=(&'static shared User) arguments=(provided(user) as &'static shared User) return=void kind=symbol target=modify
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -1461,9 +1427,7 @@ modify(user);
 
 replace(user);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(user) parameters=(&'static exclusive shared User) arguments=(provided(user) as &'static exclusive shared User) return=void kind=symbol target=replace instance="replace<\"local\">"
-/// @generic.instantiation id="replace<\"local\">" template=replace arguments=("local")
-/// @generic.instance id="replace<\"local\">" template=replace arguments=("local")
+/// @resolution.call source=replace(user) parameters=(&'static exclusive shared User) arguments=(provided(user) as &'static exclusive shared User) return=void kind=symbol target=replace
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
@@ -1504,8 +1468,8 @@ declare function inspectValues<'a>(value: &'a readonly int32[]): void;
 declare const point: Point;
 declare const values: int32[];
 
-inspectPoint<"constant">(point as &'static readonly Point);
-inspectValues<"local">(values as &'static readonly int32[]);
+inspectPoint(point as &'static readonly Point);
+inspectValues(values as &'static readonly int32[]);
 
 === dir ===
 struct Point {
@@ -1519,14 +1483,14 @@ struct Point {
 }
 
 declare function inspectPoint(value: &readonly Point): void;
-/// @generic.template symbol=inspectPoint parameters=('a, P1: Place)
-/// @type.symbol symbol=inspectPoint source="declare function inspectPoint(value: &readonly Point): void" type=<inspectPoint.'a, inspectPoint.P1: Place>(&inspectPoint.'a readonly Point) => void
+/// @generic.template symbol=inspectPoint parameters=('a)
+/// @type.symbol symbol=inspectPoint source="declare function inspectPoint(value: &readonly Point): void" type=<inspectPoint.'a>(&inspectPoint.'a readonly Point) => void
 /// @type.symbol symbol=inspectPoint.value source="value: &readonly Point" type=&inspectPoint.'a readonly Point
 /// @resolution.name source=Point target=Point
 
 declare function inspectValues(value: &readonly int32[]): void;
-/// @generic.template symbol=inspectValues parameters=('a, P1: Place)
-/// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a, inspectValues.P1: Place>(&inspectValues.'a readonly int32[]) => void
+/// @generic.template symbol=inspectValues parameters=('a)
+/// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a>(&inspectValues.'a readonly int32[]) => void
 /// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=&inspectValues.'a readonly int32[]
 
 declare const point: Point;
@@ -1543,9 +1507,7 @@ declare const values: int32[];
 
 inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint
-/// @resolution.call source=inspectPoint(point) parameters=(&'static readonly constant Point) arguments=(provided(point) as &'static readonly constant Point) return=void kind=symbol target=inspectPoint instance="inspectPoint<\"constant\">"
-/// @generic.instantiation id="inspectPoint<\"constant\">" template=inspectPoint arguments=("constant")
-/// @generic.instance id="inspectPoint<\"constant\">" template=inspectPoint arguments=("constant")
+/// @resolution.call source=inspectPoint(point) parameters=(&'static readonly constant Point) arguments=(provided(point) as &'static readonly constant Point) return=void kind=symbol target=inspectPoint
 /// @resolution.name source=point target=point
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
@@ -1553,9 +1515,7 @@ inspectPoint(point);
 
 inspectValues(values);
 /// @resolution.name source=inspectValues target=inspectValues
-/// @resolution.call source=inspectValues(values) parameters=(&'static readonly int32[]) arguments=(provided(values) as &'static readonly int32[]) return=void kind=symbol target=inspectValues instance="inspectValues<\"local\">"
-/// @generic.instantiation id="inspectValues<\"local\">" template=inspectValues arguments=("local")
-/// @generic.instance id="inspectValues<\"local\">" template=inspectValues arguments=("local")
+/// @resolution.call source=inspectValues(values) parameters=(&'static readonly int32[]) arguments=(provided(values) as &'static readonly int32[]) return=void kind=symbol target=inspectValues
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
@@ -1591,24 +1551,24 @@ declare function replace<'a>(value: &'a exclusive int32): void;
 
 declare const value: int32;
 
-inspect<"constant">(value as &'static readonly int32);
-modify<"constant">(value);
-replace<"constant">(value);
+inspect(value as &'static readonly int32);
+modify(value);
+replace(value);
 
 === dir ===
 declare function inspect(value: &readonly int32): void;
-/// @generic.template symbol=inspect parameters=('a, P1: Place)
-/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly int32): void" type=<inspect.'a, inspect.P1: Place>(&inspect.'a readonly int32) => void
+/// @generic.template symbol=inspect parameters=('a)
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly int32): void" type=<inspect.'a>(&inspect.'a readonly int32) => void
 /// @type.symbol symbol=inspect.value source="value: &readonly int32" type=&inspect.'a readonly int32
 
 declare function modify(value: &int32): void;
-/// @generic.template symbol=modify parameters=('a, P1: Place)
-/// @type.symbol symbol=modify source="declare function modify(value: &int32): void" type=<modify.'a, modify.P1: Place>(&modify.'a int32) => void
+/// @generic.template symbol=modify parameters=('a)
+/// @type.symbol symbol=modify source="declare function modify(value: &int32): void" type=<modify.'a>(&modify.'a int32) => void
 /// @type.symbol symbol=modify.value source="value: &int32" type=&modify.'a int32
 
 declare function replace(value: &exclusive int32): void;
-/// @generic.template symbol=replace parameters=('a, P1: Place)
-/// @type.symbol symbol=replace source="declare function replace(value: &exclusive int32): void" type=<replace.'a, replace.P1: Place>(&replace.'a exclusive int32) => void
+/// @generic.template symbol=replace parameters=('a)
+/// @type.symbol symbol=replace source="declare function replace(value: &exclusive int32): void" type=<replace.'a>(&replace.'a exclusive int32) => void
 /// @type.symbol symbol=replace.value source="value: &exclusive int32" type=&replace.'a exclusive int32
 
 declare const value: int32;
@@ -1617,8 +1577,7 @@ declare const value: int32;
 
 inspect(value);
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(value) parameters=(&'static readonly constant int32) arguments=(provided(value) as &'static readonly constant int32) return=void kind=symbol target=inspect instance="inspect<\"constant\">"
-/// @generic.instantiation id="inspect<\"constant\">" template=inspect arguments=("constant")
+/// @resolution.call source=inspect(value) parameters=(&'static readonly constant int32) arguments=(provided(value) as &'static readonly constant int32) return=void kind=symbol target=inspect
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
@@ -1626,16 +1585,14 @@ inspect(value);
 
 modify(value);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(value) parameters=(&'static constant int32) arguments=(provided(value) as &'static constant int32) return=void kind=symbol target=modify instance="modify<\"constant\">"
-/// @generic.instantiation id="modify<\"constant\">" template=modify arguments=("constant")
+/// @resolution.call source=modify(value) parameters=(&'static constant int32) arguments=(provided(value) as &'static constant int32) return=void kind=symbol target=modify
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 
 replace(value);
 /// @resolution.name source=replace target=replace
-/// @resolution.call source=replace(value) parameters=(&'static exclusive constant int32) arguments=(provided(value) as &'static exclusive constant int32) return=void kind=symbol target=replace instance="replace<\"constant\">"
-/// @generic.instantiation id="replace<\"constant\">" template=replace arguments=("constant")
+/// @resolution.call source=replace(value) parameters=(&'static exclusive constant int32) arguments=(provided(value) as &'static exclusive constant int32) return=void kind=symbol target=replace
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
@@ -1675,14 +1632,14 @@ messages.push(message);
 === annotated ===
 declare const values: int32[];
 
-values.push<int32, "local">(1);
+values.push<int32>(1);
 
 class Message {}
 
 declare const messages: Message[];
 declare const message: shared Message;
 
-messages.push<Message, "local">(message);
+messages.push<Message>(message);
 
 === dir ===
 declare const values: shared int32[];
@@ -1691,11 +1648,10 @@ declare const values: shared int32[];
 
 values.push(1);
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
+/// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @generic.instantiation id=push<int32> template=push arguments=(int32)
 
@@ -1715,11 +1671,10 @@ declare const message: shared Message;
 
 messages.push(message);
 /// @resolution.name source=messages target=messages
-/// @resolution.member source=messages.push receiver=Message[] type=<push.'a, push.P1: Place>(this: Borrowed<Message[], push.'a & push.P1, "exclusive">, ...Message[]) => isize kind=symbol target_receiver=Message[] target=push
-/// @resolution.call source=messages.push(message) parameters=(Message[]) arguments=(rest(message) pack=arrayFromSlice as Message) return=isize kind=symbol target=push receiver=Message[] adjustments=(borrow(&'static exclusive Message[])) instance="Array<Message>.<extension#5>.push<\"local\">"
+/// @resolution.member source=messages.push receiver=Message[] type=<push.'a>(this: &push.'a exclusive Message[], ...Message[]) => isize kind=symbol target_receiver=Message[] target=push
+/// @resolution.call source=messages.push(message) parameters=(Message[]) arguments=(rest(message) pack=arrayFromSlice as Message) return=isize kind=symbol target=push receiver=Message[] adjustments=(borrow(&'static exclusive Message[])) instance=Array<Message>.<extension#5>.push
 /// @resolution.place source=messages placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=messages root=messages
-/// @generic.instantiation id="push<Message, \"local\">" template=push arguments=(Message, "local")
 /// @generic.instantiation id=arrayFromSlice<Message> template=arrayFromSlice arguments=(Message)
 /// @generic.instantiation id=push<Message> template=push arguments=(Message)
 /// @resolution.name source=message target=message
@@ -1946,7 +1901,7 @@ let point: ^Point = Point { x: 1 };
 /// @type.node source="Point { x: 1 }" type=Point
 /// @resolution.name source=Point target=Point
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 
 let borrow = &point;
 /// @type.symbol symbol=borrow source=borrow type=&'static Point
@@ -2152,7 +2107,7 @@ declare function duplicate<T: Copy>(value: T): ^T;
 declare const values: ^int32[];
 
 duplicate<int64>(32);
-duplicate(values);
+duplicate<^int32[]>(values);
 
 === dir ===
 import { Copy } from "destack:memory";
@@ -2178,15 +2133,14 @@ duplicate(32);
 
 duplicate(values);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(values) parameters=(<error>) arguments=(provided(values) as <error>) return=Owned<<error>> kind=symbol target=duplicate instance=duplicate<<error>>
+/// @resolution.call source=duplicate(values) parameters=(Owned<Array<int32>>) arguments=(provided(values) as Owned<Array<int32>>) return=Owned<Array<int32>> kind=symbol target=duplicate instance=duplicate<Owned<Array<int32>>>
+/// @generic.instantiation id=duplicate<Owned<Array<int32>>> template=duplicate arguments=(Owned<Array<int32>>)
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type '^int32[]' does not satisfy 'Copy'"
-/// @diagnostic.label line=8 column=1 span="duplicate(values)" line_source="duplicate(values);"
-/// @diagnostic.related line=4 column=28 span="T" line_source="declare function duplicate<T: Copy>(value: T): ^T;" message="required by this bound on 'T'"
+
 "#,
     );
 }
@@ -2209,10 +2163,10 @@ filtered;
         r#"
 === annotated ===
 declare const values: (int32 | undefined)[];
-const mapped: (int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined, "local">(
+const mapped: (int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
     (value: int32 | undefined): int32 | undefined => value,
 ) as (int32 | undefined)[];
-const filtered: (int32 | undefined)[] = mapped.filter<int32 | undefined, "local">(
+const filtered: (int32 | undefined)[] = mapped.filter<int32 | undefined>(
     (value: int32 | undefined): boolean => value != undefined,
 ) as (int32 | undefined)[];
 
@@ -2291,13 +2245,13 @@ kept;
 === annotated ===
 declare function consume(value: int32): void;
 
-declare const shared: Borrowed<int32, "static", "mutable">;
-declare const exclusive: Borrowed<int32, "static", "exclusive">;
+declare const shared: &'static int32;
+declare const exclusive: &'static exclusive int32;
 
 consume(shared as int32);
 consume(exclusive as int32);
 
-const kept: Borrowed<int32, "static", "mutable"> = shared;
+const kept: &'static int32 = shared;
 kept;
 
 === dir ===
@@ -2361,7 +2315,7 @@ const handle: Array<int32> = borrow;
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare const borrow: Borrowed<int32[], "static", "readonly">;
+declare const borrow: &'static readonly int32[];
 
 const handle: int32[] = borrow;
 

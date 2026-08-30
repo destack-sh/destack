@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CauseKind, FunctionBody, GeneratorTargets, GenericTemplateId, InducedParameterOwner, Origin,
-    ReceiverBinding, Relation, VariableRole, WalkState,
+    ReceiverBinding, Relation, VariableKind, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -80,7 +80,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok((None, None));
         };
 
-        // collect the input regions, the receiver's winning over the value parameters'
+        // collect the input regions, preferring the receiver's own
         let mut seen = FxIndexSet::default();
         let mut input_lifetimes = Vec::new();
         if let Some(this_parameter) = this_parameter {
@@ -145,7 +145,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        // collect written region terms whole, without walking inside
+        // collect each written region term whole
         let mut terms = Vec::new();
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
@@ -164,7 +164,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 continue;
             }
 
-            // collect closed region terms and pairs whole, walking everything else
+            // collect closed region terms and pairs whole
             if self.check.memory_kind(id)? == Some(dir::MemoryParameter::Region) {
                 terms.push(id);
             } else {
@@ -253,6 +253,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.induced_owner = previous;
         let template = self.induced_owner_template(owner, template)?;
 
+        // intern the walked signature
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
             asynchrony: dir::Asynchrony::Sync,
@@ -349,6 +350,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(None);
         }
 
+        // open the template the signature declares
         let source = source.into_global(self.module);
         let template = if generic_parameters.is_empty() {
             self.check.open_generic_template(source)?
@@ -383,6 +385,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         body: dir::LocalNodeId<dir::Expression>,
         result: dir::GlobalTypeId,
         receiver: Option<ReceiverBinding>,
+        enclosing_receiver: Option<ReceiverBinding>,
     ) -> CompilerResult<()> {
         // open the body scope and its result targets
         let source = body.into_any();
@@ -400,7 +403,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         if signature.asynchrony == dir::Asynchrony::Async && !signature.is_generator {
             // infer unannotated async functions as promises
             if signature.return_type.is_none() {
-                let completed = self.open_type_hole(source, VariableRole::Return)?;
+                let completed = self.open_type_hole(source, VariableKind::Type)?;
                 let promised =
                     self.language_type_reference(dir::LanguageItem::Promise, &[completed])?;
                 let Some(variable) = self.check.root_variable(result)? else {
@@ -426,7 +429,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.relate_type(
                     origin,
                     CauseKind::Return { annotation: None },
-                    Relation::Assignable,
+                    Relation::Storable,
                     promised,
                     result,
                 )?;
@@ -435,9 +438,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // open the generator yielded, completed, and resumed types
         if signature.is_generator {
-            let yielded = self.open_type_hole(source, VariableRole::Regular)?;
-            let completed = self.open_type_hole(source, VariableRole::Return)?;
-            let resumed = self.open_type_hole(source, VariableRole::Regular)?;
+            let yielded = self.open_type_hole(source, VariableKind::Type)?;
+            let completed = self.open_type_hole(source, VariableKind::Type)?;
+            let resumed = self.open_type_hole(source, VariableKind::Type)?;
             let item = match signature.asynchrony {
                 // function* f() {}
                 dir::Asynchrony::Sync => dir::LanguageItem::Generator,
@@ -456,7 +459,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 self.relate_type(
                     origin,
                     CauseKind::Return { annotation: None },
-                    Relation::Assignable,
+                    Relation::Storable,
                     generated,
                     result,
                 )?;
@@ -514,7 +517,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             initializes,
             asynchrony: signature.asynchrony,
             receiver,
+            enclosing_receiver,
             entries,
+            flow: None,
         };
         if self.check.functions.insert(symbol, body).is_some() {
             return Err(CompilerError::Internal {
@@ -607,7 +612,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
                 ty
             }
         } else {
-            self.open_type_hole(id.into_any(), VariableRole::Parameter)?
+            self.open_type_hole(id.into_any(), VariableKind::Type)?
         };
         self.commit_node_type(id, ty)?;
 

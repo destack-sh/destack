@@ -180,7 +180,7 @@ declare function parse<T: string>(value: `id:${T}`): T;
 
 let key: string = "id:users";
 
-parse(key);
+parse<string>(key);
 
 === dir ===
 declare function parse<T: string>(value: `id:${T}`): T;
@@ -197,13 +197,14 @@ let key = "id:users";
 
 parse(key);
 /// @resolution.name source=parse target=parse
-/// @resolution.call source=parse(key) parameters=(`id:${<error>}`) arguments=(provided(key) as `id:${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @resolution.call source=parse(key) parameters=(`id:${string}`) arguments=(provided(key) as `id:${string}`) return=string kind=symbol target=parse instance=parse<string>
+/// @generic.instantiation id=parse<string> template=parse arguments=(string)
 /// @resolution.name source=key target=key
 /// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=key root=key
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'string' is not assignable to parameter of type '`id:${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'string' is not assignable to parameter of type '`id:${string}`'"
 /// @diagnostic.label line=6 column=7 span="key" line_source="parse(key);"
 /// @diagnostic.related line=6 column=1 span="parse(key)" line_source="parse(key);" message="in this call"
 "#,
@@ -326,7 +327,7 @@ parse("no");
 === annotated ===
 declare function parse<T: number>(value: `${T}`): T;
 
-parse("no");
+parse<float64>("no");
 
 === dir ===
 declare function parse<T: number>(value: `${T}`): T;
@@ -339,10 +340,11 @@ declare function parse<T: number>(value: `${T}`): T;
 
 parse("no");
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"no\")" parameters=(`${<error>}`) arguments=(provided("no") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @resolution.call source="parse(\"no\")" parameters=(`${float64}`) arguments=(provided("no") as `${float64}`) return=float64 kind=symbol target=parse instance=parse<float64>
+/// @generic.instantiation id=parse<float64> template=parse arguments=(float64)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '\"no\"' is not assignable to parameter of type '`${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"no\"' is not assignable to parameter of type '`${float64}`'"
 /// @diagnostic.label line=4 column=7 span="\"no\"" line_source="parse(\"no\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"no\")" line_source="parse(\"no\");" message="in this call"
 "#,

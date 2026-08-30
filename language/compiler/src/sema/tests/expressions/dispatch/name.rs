@@ -28,6 +28,7 @@ const copy = value;
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=1
 /// @resolution.name source=value target=value
+/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 "#,
     );

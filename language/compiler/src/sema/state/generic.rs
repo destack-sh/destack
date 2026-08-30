@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin, TypeSubstitution, VariableRole};
+use crate::sema::{CheckState, Origin, TypeSubstitution, VariableKind};
 use crate::{CompilerError, CompilerResult};
 
 /// Stable id for one declaration-side generic parameter.
@@ -160,6 +160,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<SmallVec<[GenericParameterId; 4]>> {
         let template = self.require_generic_template(id)?;
 
+        // read each parameter under the template's module
         let parameters = template
             .parameters
             .iter()
@@ -178,6 +179,7 @@ impl CheckState<'_> {
             return Ok(true);
         };
 
+        // read the template's own and inherited parameters
         let mut parameters = self.generic_template_parameters(template)?;
         parameters.extend(self.owner_template_parameters(template)?);
 
@@ -237,6 +239,7 @@ impl CheckState<'_> {
             });
         };
 
+        // read each parameter under the template's module
         let parameters = template
             .parameters
             .iter()
@@ -314,11 +317,11 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        // bind nothing for an unapplied bare declaration
+        if arguments.is_empty() {
+            return Ok(Vec::new());
+        }
         let Some(template) = self.symbol_template(symbol)? else {
-            if arguments.is_empty() {
-                return Ok(Vec::new());
-            }
-
             return Err(CompilerError::Internal {
                 message: format!("nongeneric symbol {symbol:?} has applied generic arguments"),
             });
@@ -345,7 +348,7 @@ impl CheckState<'_> {
         if !state.lower.is_empty() {
             return Ok(argument);
         }
-        if self.infer.variable_role(variable)?.is_inference() {
+        if !matches!(state.kind, VariableKind::Memory(_)) {
             let Some(binding) = self.generic_parameter(parameter) else {
                 return Ok(argument);
             };
@@ -496,6 +499,7 @@ impl CheckState<'_> {
         binding: &dir::GenericParameterBinding,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // admit the argument by the parameter's own kind
         match binding.memory_parameter() {
             Some(dir::MemoryParameter::Region) => Ok(matches!(
                 self.memory_kind(argument)?,
@@ -509,14 +513,12 @@ impl CheckState<'_> {
     }
 
     /// Return the memory kind one type term inhabits.
-    ///
-    /// Kinds come from structure first: region pairs, declared parameters, and union elements.
-    /// Bare literals classify by the reserved texts, which a dir test keeps pairwise disjoint.
     pub(in crate::sema) fn memory_kind(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::MemoryParameter>> {
         let id = self.shallow_resolve(id)?;
+        // read the memory kind each term carries
         match self.ty(id)? {
             // regions are lifetime-kinded pairs
             dir::Type::Region(_) => Ok(Some(dir::MemoryParameter::Region)),
@@ -534,10 +536,30 @@ impl CheckState<'_> {
                 }
             }
 
-            // parameters inhabit their declared kind
-            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => Ok(self
-                .generic_parameter(parameter)
-                .and_then(|binding| binding.memory_parameter())),
+            // parameters inhabit their declared kind or the kind their constraint names
+            dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
+                let Some(binding) = self.generic_parameter(parameter) else {
+                    return Ok(None);
+                };
+                match (binding.memory_parameter(), binding.constraint) {
+                    (Some(kind), _) => Ok(Some(kind)),
+                    (None, Some(constraint))
+                        if let dir::Type::Application(_) = self.ty(constraint)? =>
+                    {
+                        self.memory_kind(constraint)
+                    }
+                    _ => Ok(None),
+                }
+            }
+
+            // name each memory domain's own kind
+            dir::Type::Application(instance) => Ok(self
+                .language_item(instance.symbol)?
+                .and_then(dir::MemoryParameter::from_language_item)
+                .map(|kind| match kind {
+                    dir::MemoryParameter::Space => dir::MemoryParameter::Place,
+                    kind => kind,
+                })),
 
             // joins inhabit the kind every element shares
             dir::Type::Union(union) => {
@@ -563,18 +585,31 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return one memory-domain constraint type.
+    pub(in crate::sema) fn memory_parameter_constraint(
+        &mut self,
+        kind: dir::MemoryParameter,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(symbol) = self.environment_bound.language.symbol(kind.language_item()) else {
+            return Ok(None);
+        };
+        let arguments = self.intern_type_ids(&[])?;
+        let constraint = self.intern_type(dir::Type::Application(dir::GenericApplication {
+            symbol,
+            arguments,
+        }))?;
+
+        Ok(Some(constraint))
+    }
+
     /// Push one induced memory parameter.
     pub(in crate::sema) fn push_induced_memory_parameter(
         &mut self,
         template: GenericTemplateId,
         site: dir::GlobalNodeIdAny,
-        role: VariableRole,
+        kind: dir::MemoryParameter,
     ) -> CompilerResult<GenericParameterId> {
-        let VariableRole::Memory { kind, constraint } = role else {
-            return Err(CompilerError::Internal {
-                message: "ordinary inference variable cannot become a memory parameter".into(),
-            });
-        };
+        let constraint = self.memory_parameter_constraint(kind)?;
 
         // reuse the parameter this site already induced
         if let Some(parameter) = self.reuse_induced_parameter(template, site, kind)? {
@@ -585,6 +620,7 @@ impl CheckState<'_> {
         let number = self
             .generic_template(template)
             .map_or(0, |template| template.parameters.len());
+        // name the induced parameter after its kind
         let generated = match kind {
             dir::MemoryParameter::Access => format!("A{number}"),
             dir::MemoryParameter::Ownership => format!("O{number}"),
@@ -594,6 +630,7 @@ impl CheckState<'_> {
         };
         let name = self.strings().intern(&generated);
 
+        // push the induced parameter onto the template
         let parameter = self.push_generic_parameter(
             template,
             site,
@@ -1145,6 +1182,7 @@ impl CheckState<'_> {
         module: ModuleId,
         scope: dir::LocalScopeId,
     ) -> Option<GenericTemplateId> {
+        // read the template the scope writes
         let local = match self.module_maybe(module) {
             Some(state) => state.written_template_by_scope(scope),
             None => self
@@ -1156,7 +1194,7 @@ impl CheckState<'_> {
         local.map(|id| id.into_global(module))
     }
 
-    /// Resolve applied generic argument bindings for checked DIR.
+    /// Settle applied generic argument bindings for checked DIR.
     pub(in crate::sema) fn resolved_argument_bindings(
         &mut self,
         applied: &[dir::GenericArgumentBinding],

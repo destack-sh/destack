@@ -34,12 +34,8 @@ describe("arithmetic", ((): void => {
     beforeEach((): BodyResult => {});
 
     test("adds values", ((): BodyResult => {
-        expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, int64, "local">(
-            2 as &'frame readonly int64,
-        );
-        expect<int64>(2 as &'frame readonly int64).toBe<int64, "local">(
-            2 as &'frame readonly int64,
-        );
+        expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, int64>(2 as &'frame readonly int64);
+        expect<int64>(2 as &'frame readonly int64).toBe<int64>(2 as &'frame readonly int64);
         expect.soft<string>("pineapple" as &'frame readonly string).toContain<string>("apple");
     }) as Body<CaseContext & {}> | undefined);
 

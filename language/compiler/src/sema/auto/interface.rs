@@ -46,10 +46,13 @@ impl CheckState<'_> {
 
             // relate the receiver against the compared operand
             if let Some(other) = other {
-                // read the argument solutions resolved after the bound was queued
+                // read the argument solutions the bound picked up after queuing
                 let other = self.shallow_resolve(other)?;
                 let substitution = TypeSubstitution::default().with_receiver(ty);
                 let other = self.substitute_type(other, &substitution)?;
+                if !self.collect_open_variables([ty, other])?.is_empty() {
+                    return Ok(Verdict::Ambiguous);
+                }
 
                 // decide strict equality from both exact operands
                 if interface == dir::AutoInterface::StrictEqual {
@@ -93,6 +96,18 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         interface: dir::AutoInterface,
     ) -> CompilerResult<Verdict> {
+        // decide an open numeric variable at its family default
+        if let Some(variable) = self.root_variable(ty)? {
+            return match self.root_kind(variable)?.fallback() {
+                Some(fallback) => {
+                    let fallback = self.intern_type(fallback)?;
+
+                    self.decide_auto_interface(origin, fallback, interface)
+                }
+                None => Ok(Verdict::Ambiguous),
+            };
+        }
+
         // decide conformance once over variable-free types under the assuming template
         let flags = self.type_flags(ty)?;
         let key = if flags.has_variable() {
@@ -218,7 +233,7 @@ impl CheckState<'_> {
                     self.relate_parameter_bounds(
                         origin,
                         cause,
-                        Relation::Satisfies,
+                        Relation::Subtype,
                         parameter,
                         target,
                     )?
@@ -231,7 +246,7 @@ impl CheckState<'_> {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
                 Some(
-                    self.relate_this_bounds(origin, cause, Relation::Satisfies, target)?
+                    self.relate_this_bounds(origin, cause, Relation::Subtype, target)?
                         .holds(),
                 )
             }
@@ -248,6 +263,7 @@ impl CheckState<'_> {
         left: dir::GlobalTypeId,
         right: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // require builtin equality over overlapping operands
         let has_builtin = self.has_builtin_strict_equality(origin, left, right)?;
         let overlaps = self.types_may_overlap(origin, left, right)?;
 
@@ -260,6 +276,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<bool> {
+        // match the primitive's own scalar domain
         let is_representation = matches!(
             self.ty(ty)?,
             dir::Type::Primitive(primitive) if primitive.scalar_domain() == domain
@@ -275,6 +292,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         domain: dir::ScalarDomain,
     ) -> CompilerResult<bool> {
+        // require every family to sit inside that domain
         let families = self.scalar_families(origin, ty)?;
         let is_only_domain = families.is_some_and(|families| families.is_only_domain(domain));
 
@@ -295,7 +313,7 @@ impl CheckState<'_> {
         for interface in dir::AutoInterface::ALL {
             // decide without committing bindings or reports
             let mut verdict = Verdict::Fails;
-            self.probe_candidate(|state| {
+            self.decide_candidate(|state| {
                 verdict = state.decide_auto_interface(origin, ty, interface)?;
 
                 Ok(CandidateOutcome::<(), ()>::Rejected(()))
@@ -393,6 +411,7 @@ impl CheckState<'_> {
         origin: Origin,
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<dir::AutoInterfaceSet> {
+        // seed the walk at the written bound
         let mut conformances = dir::AutoInterfaceSet::new();
         let mut pending = vec![constraint];
         let mut visited = FxIndexSet::default();

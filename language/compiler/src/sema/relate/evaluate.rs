@@ -1,11 +1,7 @@
+use crate::CompilerResult;
+use crate::sema::{Cause, CauseId, CauseKind, CheckState, Cycle, Origin, Relation};
 use destack_core::ensure_sufficient_stack;
 use destack_dir as dir;
-use smallvec::SmallVec;
-
-use crate::CompilerResult;
-use crate::sema::{
-    Answer, CandidateOutcome, Cause, CauseId, CauseKind, CheckState, Cycle, Goal, Origin, Relation,
-};
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,42 +75,25 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // read solved variables through their committed entries
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        // bring both operands to their comparison roots
+        let (source, source_variable) = self.relate_root(origin, source)?;
+        let (target, target_variable) = self.relate_root(origin, target)?;
 
         // retry an open head once it solves
-        if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
+        if source_variable.is_some() || target_variable.is_some() {
             return Ok(Verdict::Ambiguous);
         }
 
-        // relate the written heads first, rolling every evaluation effect back
+        // decide the pair in isolation
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        let mut related = Verdict::Fails;
-        let probe = self.probe_relation(|state| {
-            related = ensure_sufficient_stack(|| {
-                state.relate_pair(origin, cause, relation, source, target)
-            })?;
-
-            Ok(related.holds())
+        let (related, decided) = self.decide(|state| {
+            ensure_sufficient_stack(|| state.relate_pair(origin, cause, relation, source, target))
         })?;
-        if probe == Verdict::Holds {
-            return Ok(Verdict::Holds);
-        }
-
-        // reduce stuck heads once and decide the reduced pair
-        let reduced_source = self.structurally_normalize(origin, source)?;
-        let reduced_target = self.structurally_normalize(origin, target)?;
-        if reduced_source == source && reduced_target == target {
-            // leave a relation over open heads undecided
-            if probe == Verdict::Ambiguous || related == Verdict::Ambiguous {
-                return Ok(Verdict::Ambiguous);
-            }
-
-            return self.decide_stuck_relation(source, target);
-        }
-
-        self.decide_relation(origin, relation, reduced_source, reduced_target)
+        Ok(match related.and(decided) {
+            Verdict::Holds => Verdict::Holds,
+            Verdict::Ambiguous => Verdict::Ambiguous,
+            Verdict::Fails => self.decide_stuck_relation(source, target)?,
+        })
     }
 
     /// Decide one failed stuck relation, undecided while either head stays open.
@@ -157,8 +136,6 @@ impl CheckState<'_> {
     pub(in crate::sema) fn decide_outcome(
         &mut self,
         is_holds: bool,
-        origin: Origin,
-        relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
@@ -171,19 +148,6 @@ impl CheckState<'_> {
         let target = self.shallow_resolve(target)?;
         if self.is_open_head(source)? || self.is_open_head(target)? {
             return Ok(Verdict::Ambiguous);
-        }
-
-        // predicates carry their own ambiguity, decided without committing
-        if relation == Relation::Satisfies {
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            let mut decision = Verdict::Fails;
-            self.probe_candidate(|state| {
-                decision = state.relate_satisfies(origin, cause, relation, source, target)?;
-
-                Ok(CandidateOutcome::<(), ()>::Rejected(()))
-            })?;
-
-            return Ok(decision);
         }
 
         Ok(Verdict::Fails)
@@ -209,15 +173,76 @@ impl CheckState<'_> {
         }
 
         // accept inference barrier targets outright
-        if self.no_infer_target(target)?.is_some() {
+        if let Some(inner) = self.no_infer_target(target)? {
+            let source_value = self.strip_form(origin, source)?;
+            if matches!(
+                self.ty(source_value)?,
+                dir::Type::Function(_) | dir::Type::FunctionSignature(_)
+            ) {
+                return self.constrain_type(origin, cause, relation, source, inner);
+            }
+
             return Ok(Verdict::Holds);
         }
 
+        // decide a pair over open variables afresh
+        if self.type_flags(source)?.has_variable() || self.type_flags(target)?.has_variable() {
+            return self.evaluate_relation(origin, cause, relation, source, target);
+        }
+
+        // reuse decided relations, in flight through their cycle or memoized once closed
+        let cycle = if self.is_conformance_target(target)? {
+            Cycle::Inductive
+        } else {
+            Cycle::Coinductive
+        };
+        let key = (relation, source, target);
+        if let Some(is_holds) = self.decided_relations.get(&key) {
+            self.counters.relation_reuses += 1;
+
+            return Ok(Verdict::decided(*is_holds));
+        }
+        if let Some(is_holds) = self.infer.relations.lookup(&key, cycle) {
+            self.counters.relation_reuses += 1;
+
+            return Ok(Verdict::decided(is_holds));
+        }
+
+        // decide the pair as an active attempt, memoizing resolved decisions
+        self.counters.relation_decisions += 1;
+        let attempt = self.infer.relations.enter(key);
+        let decision = self.evaluate_relation(origin, cause, relation, source, target);
+        match &decision {
+            Ok(verdict) if *verdict != Verdict::Ambiguous => {
+                // remember closed pairs alone
+                let flags = self.type_flags(source)? | self.type_flags(target)?;
+                let is_open = flags.has_parameter() || flags.has_this() || flags.has_variable();
+                if let Some(is_holds) = self.infer.relations.finish(attempt, verdict.holds())
+                    && !is_open
+                {
+                    self.decided_relations.insert(key, is_holds);
+                }
+            }
+            _ => self.infer.relations.cancel(attempt),
+        }
+
+        decision
+    }
+
+    /// Relate the type operator heads shared by every relation.
+    fn relate_heads(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Verdict>> {
         // refined targets require the base and the refined member equality
         if let Some(refined) = self.refined_head(target)? {
             let base = self.constrain_type(origin, cause, relation, source, refined.base)?;
             if base == Verdict::Fails {
-                return Ok(Verdict::Fails);
+                return Ok(Some(Verdict::Fails));
             }
 
             // project the refined key out of the source
@@ -231,12 +256,14 @@ impl CheckState<'_> {
             let value =
                 self.constrain_type(origin, cause, Relation::Equal, projected, refined.value)?;
 
-            return Ok(base.and(value));
+            return Ok(Some(base.and(value)));
         }
 
         // refined sources imply their base application
         if let Some(refined) = self.refined_head(source)? {
-            return self.constrain_type(origin, cause, relation, refined.base, target);
+            return self
+                .constrain_type(origin, cause, relation, refined.base, target)
+                .map(Some);
         }
 
         // leave the relation undecided while a conditional blocks on open variables
@@ -246,43 +273,47 @@ impl CheckState<'_> {
                     .collect_open_variables([conditional.left, conditional.right])?
                     .is_empty()
             {
-                return Ok(Verdict::Ambiguous);
+                return Ok(Some(Verdict::Ambiguous));
             }
         }
 
-        // stuck narrows decide relations through their source, positive ones
-        //  through the narrowing target as well
+        // decide a stuck narrow through its source and its narrowing target
         if let Some(dir::TypeOperation::Narrow(narrow)) = self.operation_head(source)? {
             let through_source =
                 self.constrain_type(origin, cause, relation, narrow.source, target)?;
             if through_source == Verdict::Holds {
-                return Ok(Verdict::Holds);
+                return Ok(Some(Verdict::Holds));
             }
 
             if narrow.is_positive {
                 let through_target =
                     self.constrain_type(origin, cause, relation, narrow.target, target)?;
                 if through_target == Verdict::Holds {
-                    return Ok(Verdict::Holds);
+                    return Ok(Some(Verdict::Holds));
                 }
             }
         }
 
         // irreducible conditionals relate through both branches
-        if matches!(relation, Relation::Assignable | Relation::Widens)
+        if relation.is_directed()
             && let Some(dir::TypeOperation::Conditional(conditional)) =
                 self.operation_head(source)?
         {
             let then_branch =
                 self.constrain_type(origin, cause, relation, conditional.then_type, target)?;
             if then_branch == Verdict::Fails {
-                return Ok(Verdict::Fails);
+                return Ok(Some(Verdict::Fails));
             }
 
             let else_branch =
                 self.constrain_type(origin, cause, relation, conditional.else_type, target)?;
 
-            return Ok(then_branch.and(else_branch));
+            return Ok(Some(then_branch.and(else_branch)));
+        }
+
+        // relate region terms by their own rule
+        if let Some(verdict) = self.relate_region_terms(origin, cause, relation, source, target)? {
+            return Ok(Some(verdict));
         }
 
         // exact property keys compare by key identity
@@ -290,14 +321,8 @@ impl CheckState<'_> {
             self.static_key_from_type(source)?,
             self.static_key_from_type(target)?,
         ) {
-            return Ok(Verdict::decided(source_key == target_key));
+            return Ok(Some(Verdict::decided(source_key == target_key)));
         }
-
-        // relate region terms by their own rule
-        if let Some(verdict) = self.relate_region_terms(origin, cause, relation, source, target)? {
-            return Ok(verdict);
-        }
-
         // decide region kind inhabitants before canonicalization erases parameter kinds
         if let Some(symbol) = self.type_symbol(target)?
             && matches!(
@@ -311,81 +336,17 @@ impl CheckState<'_> {
             )
             && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
         {
-            return Ok(Verdict::Holds);
+            return Ok(Some(Verdict::Holds));
         }
 
-        // canonicalize the pair
-        let Some((question, canonical)) =
-            self.canonicalize_goal(origin, Goal::Relation(relation), &[source, target], true)?
-        else {
-            return self.evaluate_relation(origin, cause, relation, source, target);
-        };
-        let flags =
-            self.type_flags(canonical.operands[0])? | self.type_flags(canonical.operands[1])?;
-        let has_holes = flags.has_hole();
-
-        // reuse a decided answer
-        if let Some(answer) = self.answers.get(&question) {
-            let is_holds = matches!(answer, Answer::Holds);
-            if !has_holes || !is_holds {
-                self.counters.relation_reuses += 1;
-
-                return Ok(Verdict::decided(is_holds));
-            }
-        }
-
-        // decide holed pairs outside the in-flight stack
-        if has_holes {
-            let decision = self.evaluate_relation(origin, cause, relation, source, target)?;
-            if decision == Verdict::Fails && self.infer.relations.is_idle() {
-                self.answers.insert(question, Answer::Fails);
-            }
-
-            return Ok(decision);
-        }
-
-        // reuse decided relations
-        let cycle = if self.is_conformance_target(target)? {
-            Cycle::Inductive
-        } else {
-            Cycle::Coinductive
-        };
-        let key = (relation, source, target);
-        if let Some(is_holds) = self.infer.relations.lookup(&key, cycle) {
-            self.counters.relation_reuses += 1;
-
-            return Ok(Verdict::decided(is_holds));
-        }
-
-        // enter this pair as an active decision
-        self.counters.relation_decisions += 1;
-        let attempt = self.infer.relations.enter(key);
-
-        // decide the pair through its own rule
-        let decision = self.evaluate_relation(origin, cause, relation, source, target);
-
-        // memoize resolved decisions, forget failed and undecided attempts
-        match &decision {
-            Ok(verdict) if *verdict != Verdict::Ambiguous => {
-                // decided resolved pairs are durable for the whole module
-                let is_holds = verdict.holds();
-                if let Some(is_holds) = self.infer.relations.finish(attempt, is_holds) {
-                    let answer = if is_holds {
-                        Answer::Holds
-                    } else {
-                        Answer::Fails
-                    };
-                    self.answers.insert(question, answer);
-                }
-            }
-            _ => self.infer.relations.cancel(attempt),
-        }
-
-        decision
+        Ok(None)
     }
 
     /// Return whether one relation target asks interface conformance.
-    fn is_conformance_target(&mut self, target: dir::GlobalTypeId) -> CompilerResult<bool> {
+    pub(in crate::sema) fn is_conformance_target(
+        &mut self,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
         // read the nominal symbol the target names
         let symbol = match self.ty(target)? {
             dir::Type::Application(application) => application.symbol,
@@ -393,13 +354,14 @@ impl CheckState<'_> {
             _ => return Ok(false),
         };
 
+        // read whether the symbol declares an interface
         Ok(matches!(
             self.definition(symbol)?,
             Some(dir::Definition::Interface(_))
         ))
     }
 
-    /// Evaluate one relation through its own rule.
+    /// Evaluate one relation: the operator heads shared by every relation, then its own rule.
     fn evaluate_relation(
         &mut self,
         origin: Origin,
@@ -408,6 +370,10 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        if let Some(verdict) = self.relate_heads(origin, cause, relation, source, target)? {
+            return Ok(verdict);
+        }
+
         // decide equality on closed pairs before the broader relation
         let closed = !(self.type_flags(source)? | self.type_flags(target)?).has_variable();
         let equal = match relation {
@@ -421,13 +387,8 @@ impl CheckState<'_> {
         // decide the relation itself when equality left it open
         let decision = match relation {
             Relation::Equal => self.relate_equal(origin, cause, source, target)?,
-            Relation::Subtype => self.relate_subtype(origin, cause, source, target)?,
-            Relation::Assignable | Relation::Widens => {
-                self.relate_assignable(origin, cause, relation, source, target)?
-            }
-            Relation::Castable => self.relate_castable(origin, cause, source, target)?,
-            Relation::Satisfies | Relation::Extends => {
-                self.relate_satisfies(origin, cause, relation, source, target)?
+            Relation::Subtype | Relation::Storable => {
+                self.relate_directed(origin, cause, relation, source, target)?
             }
         };
 
@@ -505,250 +466,5 @@ impl CheckState<'_> {
         }
 
         Ok(verdict)
-    }
-
-    /// Relate one pair under subtype inclusion, where every source inhabitant inhabits the target.
-    fn relate_subtype(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        // read both callable signatures for the callable fallbacks below
-        let source_signature = self.callable_signature(source)?;
-        let target_signature = self.callable_signature(target)?;
-
-        // decide inclusion by constructor pair
-        let decision = match (self.ty(source)?, self.ty(target)?) {
-            // empty and indeterminate domains
-            (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
-            (dir::Type::Never, _) => Verdict::Holds,
-            (_, dir::Type::Unknown) => Verdict::Holds,
-            (dir::Type::Unknown, _) => Verdict::Fails,
-
-            // union and intersection inclusion
-            (dir::Type::Union(union), _) => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(source.module_id, union.elements)?.into();
-
-                self.relate_all_sources(origin, cause, Relation::Subtype, &elements, target)?
-            }
-            (_, dir::Type::Union(union)) => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(target.module_id, union.elements)?.into();
-
-                self.relate_any_target(origin, cause, Relation::Subtype, source, &elements)?
-            }
-            (dir::Type::Intersection(intersection), _) => {
-                let elements: SmallVec<[_; 8]> = self
-                    .type_ids(source.module_id, intersection.elements)?
-                    .into();
-
-                self.relate_any_source(origin, cause, Relation::Subtype, &elements, target)?
-            }
-            (_, dir::Type::Intersection(intersection)) => {
-                let elements: SmallVec<[_; 8]> = self
-                    .type_ids(target.module_id, intersection.elements)?
-                    .into();
-
-                self.relate_all_targets(origin, cause, Relation::Subtype, source, &elements)?
-            }
-
-            // rigid generic domains prove inclusion through their bounds
-            (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
-                self.relate_parameter_bounds(origin, cause, Relation::Subtype, parameter, target)?
-            }
-            (dir::Type::This, _) => {
-                self.relate_this_bounds(origin, cause, Relation::Subtype, target)?
-            }
-            (dir::Type::Member(member), _) => {
-                let member = self.type_member(source.module_id, member)?;
-                match self.body().projection_constraint(origin, &member)? {
-                    Some(constraint) => {
-                        self.constrain_type(origin, cause, Relation::Subtype, constraint, target)?
-                    }
-                    None => Verdict::Fails,
-                }
-            }
-
-            // scalar singleton and interval inclusion
-            (
-                dir::Type::Literal(dir::Literal::String(text))
-                | dir::Type::Key(dir::StaticKey::Name(text)),
-                dir::Type::Operation(operation),
-            ) if let dir::TypeOperation::TemplateLiteral(template) =
-                self.type_operation(target.module_id, operation)? =>
-            {
-                let text = self.strings().get(text).to_string();
-
-                // bind open spans to the text they capture
-                let mut is_open = false;
-                for &span in self.type_ids(target.module_id, template.spans)? {
-                    is_open = is_open || self.type_flags(span)?.has_variable();
-                }
-                if is_open {
-                    self.relate_template_captures(
-                        origin,
-                        cause,
-                        &text,
-                        target.module_id,
-                        &template,
-                    )?
-                } else {
-                    self.relate_template_string(origin, &text, target.module_id, &template)?
-                }
-            }
-            (dir::Type::Operation(operation), dir::Type::Primitive(dir::PrimitiveType::String))
-                if matches!(
-                    self.type_operation(source.module_id, operation)?,
-                    dir::TypeOperation::TemplateLiteral(_)
-                ) =>
-            {
-                Verdict::Holds
-            }
-            (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
-                if let dir::TypeOperation::TemplateLiteral(template) =
-                    self.type_operation(target.module_id, operation)? =>
-            {
-                self.relate_string_into_template(
-                    origin,
-                    cause,
-                    source,
-                    target.module_id,
-                    &template,
-                )?
-            }
-            (dir::Type::Operation(source_operation), dir::Type::Operation(target_operation))
-                if let dir::TypeOperation::TemplateLiteral(source_template) =
-                    self.type_operation(source.module_id, source_operation)?
-                    && let dir::TypeOperation::TemplateLiteral(target_template) =
-                        self.type_operation(target.module_id, target_operation)? =>
-            {
-                self.relate_template_template(
-                    origin,
-                    source.module_id,
-                    &source_template,
-                    target.module_id,
-                    &target_template,
-                )?
-            }
-            (_, dir::Type::Primitive(primitive))
-                if self
-                    .static_key_from_type(source)?
-                    .is_some_and(|key| key.widens_to_primitive(primitive)) =>
-            {
-                Verdict::Holds
-            }
-
-            // scalar sources decide interface targets before literal widening
-            (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
-                if self.symbol_kind(instance.symbol)?.is_interface() =>
-            {
-                self.relate_interface(origin, cause, Relation::Subtype, source, target)?
-            }
-            (dir::Type::Literal(literal), target) => Verdict::decided(literal.widens_to(&target)),
-            (dir::Type::Range(range), target) => Verdict::decided(range.widens_to(&target)),
-
-            // precise variants inhabit their declared owner
-            (dir::Type::Variant(variant), _)
-                if !matches!(self.ty(target)?, dir::Type::Variant(_)) =>
-            {
-                self.constrain_type(origin, cause, Relation::Subtype, variant.owner, target)?
-            }
-
-            // relate dynamic values only against other dynamic values
-            (dir::Type::Dynamic(source), dir::Type::Dynamic(target)) => self.constrain_type(
-                origin,
-                cause,
-                Relation::Subtype,
-                source.constraint,
-                target.constraint,
-            )?,
-            (dir::Type::Dynamic(_), _) | (_, dir::Type::Dynamic(_)) => Verdict::Fails,
-
-            // subtype inclusion observes collection elements covariantly
-            (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
-                origin,
-                cause,
-                Relation::Subtype,
-                source.element,
-                target.element,
-            )?,
-            (dir::Type::FixedArray(source), dir::Type::FixedArray(target)) => {
-                let element = self.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Subtype,
-                    source.element,
-                    target.element,
-                )?;
-                let count = self.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Equal,
-                    source.count,
-                    target.count,
-                )?;
-
-                element.and(count)
-            }
-            (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
-                self.relate_tuple_assignable(origin, cause, Relation::Subtype, source, target)?
-            }
-
-            // structural and nominal inclusion
-            (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.relate_shape(origin, cause, Relation::Subtype, source, target)?
-            }
-            (
-                dir::Type::Object(_)
-                | dir::Type::Primitive(_)
-                | dir::Type::Slice(_)
-                | dir::Type::FixedArray(_),
-                dir::Type::Application(instance),
-            ) if self.symbol_kind(instance.symbol)?.is_interface() => {
-                self.relate_interface(origin, cause, Relation::Subtype, source, target)?
-            }
-            (dir::Type::Application(instance), dir::Type::Object(_)) => self
-                .relate_reference_against_target(
-                    origin,
-                    cause,
-                    Relation::Subtype,
-                    source.module_id,
-                    &instance,
-                    target,
-                )?,
-            (dir::Type::Application(source_instance), dir::Type::Application(target_instance)) => {
-                self.relate_application(
-                    origin,
-                    cause,
-                    Relation::Subtype,
-                    source,
-                    &source_instance,
-                    target,
-                    &target_instance,
-                )?
-            }
-
-            // callable values include according to signature variance
-            (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
-                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
-            }
-            (_, dir::Type::FunctionSignature(_)) if let Some(source) = source_signature => {
-                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
-            }
-            (dir::Type::FunctionSignature(_), _) if let Some(target) = target_signature => {
-                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
-            }
-            (_, _) if let (Some(source), Some(target)) = (source_signature, target_signature) => {
-                self.relate_function_assignable(origin, cause, Relation::Subtype, source, target)?
-            }
-
-            // forms and all unmatched constructors require equality
-            _ => Verdict::Fails,
-        };
-
-        Ok(decision)
     }
 }

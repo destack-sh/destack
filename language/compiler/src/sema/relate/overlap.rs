@@ -30,6 +30,7 @@ impl CheckState<'_> {
         let source = self.normalize_computation(origin, source)?;
         let target = self.normalize_computation(origin, target)?;
 
+        // accept two identical types
         if source == target {
             return Ok(true);
         }
@@ -255,14 +256,14 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let lookup = self.body().lookup_inherent_member(
+            let lookup = self.lookup_inherent_member(
                 origin,
                 origin.module(),
                 target,
                 dir::MemberSpace::Instance,
                 field.key,
             )?;
-            if let Some(target_field) = self.body().member_read_type(&lookup)? {
+            if let Some(target_field) = self.member_read_type(&lookup)? {
                 let source_field = field.access.read().unwrap_or_else(|| field.access.store());
                 if !self.type_may_overlap(origin, source_field, target_field, active)? {
                     return Ok(false);
@@ -348,7 +349,7 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // accept inherited applications, the subtype's values are shared
+        // accept inherited applications, which share the subtype's values
         let source_is_subtype = self.decide_relation(origin, Relation::Subtype, source, target)?;
         let target_is_subtype = self.decide_relation(origin, Relation::Subtype, target, source)?;
         // treat an undecided pair as overlapping
@@ -368,6 +369,7 @@ impl CheckState<'_> {
     /// A pair outside the singleton and interval domains returns `None`, leaving it to the other
     /// constructor families.
     fn scalar_types_may_overlap(&self, source: &dir::Type, target: &dir::Type) -> Option<bool> {
+        // overlap the singleton and interval domains
         let overlaps = match (source, target) {
             (dir::Type::Literal(source), dir::Type::Literal(target)) => source == target,
             (dir::Type::Literal(source), dir::Type::Range(target)) => {

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    CauseKind, FieldInitializationObligation, Obligation, Origin, Receiver, ValueUse, WalkState,
+    CauseKind, FieldInitializationObligation, Origin, Receiver, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -187,6 +187,7 @@ impl WalkState<'_, '_> {
             .signature_parameters(module, head.parameters)?
             .to_vec();
 
+        // bind each written parameter to its declared type
         for (parameter, declared) in signature.parameters.iter().zip(declared_parameters) {
             let node = self.tree.get(*parameter).clone();
 
@@ -298,14 +299,14 @@ impl WalkState<'_, '_> {
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         let scope = self.check.symbol_template(symbol)?;
-        let obligation = FieldInitializationObligation {
-            source: id.into_global_any(self.module),
-            symbol,
-            receiver,
-        };
-
         self.check
-            .push_obligation(Obligation::FieldInitialization(obligation), scope)?;
+            .field_initializations
+            .push(FieldInitializationObligation {
+                source: id.into_global_any(self.module),
+                scope,
+                symbol,
+                receiver,
+            });
 
         Ok(())
     }
@@ -331,6 +332,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
+        // bind the method's declared parameters
         self.walk_declared_parameters(signature, method.module_id, &head)?;
 
         // bind the written receiver to its declared type
@@ -341,7 +343,7 @@ impl WalkState<'_, '_> {
             _ => None,
         };
 
-        self.walk_function_body(symbol, signature, body, result, receiver)?;
+        self.walk_function_body(symbol, signature, body, result, receiver, None)?;
 
         Ok(())
     }
@@ -381,6 +383,7 @@ impl WalkState<'_, '_> {
             return Ok(false);
         };
 
+        // bind the function value's declared parameters
         self.walk_declared_parameters(&declaration.signature, signature.module_id, &head)?;
 
         // bind the written receiver to its declared type
@@ -390,8 +393,21 @@ impl WalkState<'_, '_> {
             }
             _ => None,
         };
+        let enclosing_receiver = self
+            .check
+            .flow
+            .lexical_receiver()
+            .map(|(_, receiver)| receiver);
 
-        self.walk_function_body(symbol, &declaration.signature, body, result, receiver)?;
+        // walk the body under the bound receiver
+        self.walk_function_body(
+            symbol,
+            &declaration.signature,
+            body,
+            result,
+            receiver,
+            enclosing_receiver,
+        )?;
 
         Ok(true)
     }

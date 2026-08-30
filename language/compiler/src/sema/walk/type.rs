@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     GenericArgument, GenericParameterId, MemberRole, MixedObjectSignature, Origin, Receiver,
-    TypeSubstitution, VariableRole, WalkState,
+    TypeSubstitution, VariableKind, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -26,6 +26,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_any();
 
+        // walk by the type expression's own syntax
         match self.tree.get(id) {
             // "ok", 42, true
             dir::TypeExpression::Literal { value } => self.intern_type(dir::Type::Literal(*value)),
@@ -184,10 +185,11 @@ impl WalkState<'_, '_> {
                     value,
                 }))
             }
-            // local T, shared T
+            // local T
             dir::TypeExpression::Local { target_type } => {
                 self.walk_placed_type(id, *target_type, dir::Space::Local)
             }
+            // shared T
             dir::TypeExpression::Shared { target_type } => {
                 self.walk_placed_type(id, *target_type, dir::Space::Shared)
             }
@@ -308,20 +310,20 @@ impl WalkState<'_, '_> {
                     element_types.push(self.walk_type_expression(element)?);
                 }
 
-                // intern a written extent & space intersection as its region
+                // read a written extent & space pair as the closed region it names
                 if let [first, second] = element_types.as_slice() {
-                    let first_kind = self.check.memory_kind(*first)?;
-                    let second_kind = self.check.memory_kind(*second)?;
-                    let pair = if first_kind == Some(dir::MemoryParameter::Region)
-                        && second_kind == Some(dir::MemoryParameter::Place)
-                    {
-                        Some((*first, *second))
-                    } else if first_kind == Some(dir::MemoryParameter::Place)
-                        && second_kind == Some(dir::MemoryParameter::Region)
-                    {
-                        Some((*second, *first))
-                    } else {
-                        None
+                    let kinds = (
+                        self.check.memory_kind(*first)?,
+                        self.check.memory_kind(*second)?,
+                    );
+                    let pair = match kinds {
+                        (Some(dir::MemoryParameter::Region), Some(dir::MemoryParameter::Place)) => {
+                            Some((*first, *second))
+                        }
+                        (Some(dir::MemoryParameter::Place), Some(dir::MemoryParameter::Region)) => {
+                            Some((*second, *first))
+                        }
+                        _ => None,
                     };
                     if let Some((extent, spaces)) = pair {
                         return self.check.intern_region(extent, spaces);
@@ -454,6 +456,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_any();
 
+        // walk by the infer form's own syntax
         match form {
             // open anonymous holes for ordinary inference
             dir::InferForm::Hole => {
@@ -461,7 +464,7 @@ impl WalkState<'_, '_> {
                     return Ok(rejected);
                 }
 
-                self.open_type_hole(source, VariableRole::Regular)
+                self.open_type_hole(source, VariableKind::Type)
             }
 
             // preserve named infer bindings for conditional matching
@@ -522,6 +525,7 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // commit the bindings each path segment names
         match self.tree.get(id) {
             // commit the name binding at the path root
             dir::Expression::Identifier { name } => {
@@ -593,6 +597,7 @@ impl WalkState<'_, '_> {
             .get(source)
             .cloned();
 
+        // record by the reference the resolver bound
         match reference {
             // a type literal name records its denoted type
             Some(dir::Reference::TypeLiteral(literal)) => {
@@ -606,7 +611,7 @@ impl WalkState<'_, '_> {
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.check.present_symbols(&symbols);
                 for symbol in symbols.iter().copied() {
-                    self.capture_symbol_reference(source, symbol);
+                    self.capture_symbol_reference(source, symbol)?;
                 }
 
                 self.check
@@ -763,6 +768,7 @@ impl WalkState<'_, '_> {
         // read the resolver output for this lexical reference
         let reference = self.resolved_type_reference(id);
 
+        // denote by the reference the resolver bound
         match reference {
             // a type literal name denotes its builtin type
             Some(dir::Reference::TypeLiteral(literal)) => {
@@ -848,6 +854,7 @@ impl WalkState<'_, '_> {
     ) -> Option<dir::Reference> {
         let source = id.into_global_any(self.module);
 
+        // read the resolver output for this reference
         self.check
             .module(self.module)
             .resolved
@@ -862,7 +869,7 @@ impl WalkState<'_, '_> {
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
-        self.capture_symbol_reference(source, symbol);
+        self.capture_symbol_reference(source, symbol)?;
         self.check
             .commit_name(source, dir::NameResolution::new(symbol))
     }
@@ -878,6 +885,7 @@ impl WalkState<'_, '_> {
         let source = id.into_global_any(self.module);
         let symbols = self.check.present_symbols(symbols);
 
+        // denote by the symbols the reference selects
         match symbols.as_slice() {
             // reject malformed resolver state
             [] => Err(CompilerError::Internal {
@@ -1009,7 +1017,7 @@ impl WalkState<'_, '_> {
         Ok(is_symbolic.then_some(reference.symbol))
     }
 
-    /// Resolve one const slot's value binding to its static value.
+    /// Settle one const slot's value binding to its static value.
     fn static_binding_argument(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -1069,6 +1077,7 @@ impl WalkState<'_, '_> {
             self.flow().template_scope(),
         );
 
+        // bind each declared parameter to its written argument
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0;
         for parameter in parameters.iter().copied() {
@@ -1221,9 +1230,12 @@ impl WalkState<'_, '_> {
 
         // build the form the item constructs
         let form = match item {
-            // take the plain forms the item names
+            // take the plain forms the item names, carrying the written place
             dir::LanguageItem::Managed => {
-                let place = self.check.local_place()?;
+                let place = match arguments.get(1).copied() {
+                    Some(place) => self.check.normalize_memory_component(origin, place)?,
+                    None => self.check.local_place()?,
+                };
 
                 dir::Form::Managed { place }
             }
@@ -1263,24 +1275,6 @@ impl WalkState<'_, '_> {
                 };
 
                 self.check.intern_borrow(region, access)?
-            }
-            // carry the written place
-            dir::LanguageItem::Placed => {
-                let Some(place) = arguments.get(1).copied() else {
-                    let name = self.check.format_symbol(symbol);
-                    self.check.report_wrong_generic_arity(
-                        self.module,
-                        source,
-                        name,
-                        2,
-                        arguments.len(),
-                    );
-
-                    return self.intern_type(dir::Type::Error);
-                };
-                let place = self.check.normalize_memory_component(origin, place)?;
-
-                dir::Form::Managed { place }
             }
             // fail on every other head
             _ => {
@@ -1393,6 +1387,7 @@ impl WalkState<'_, '_> {
         let mut construct_signatures = Vec::new();
         let mut index_signatures = Vec::new();
 
+        // walk each written member into the shape
         for member in members {
             let member = *member;
             match self.tree.get(member) {
@@ -1513,7 +1508,7 @@ impl WalkState<'_, '_> {
             }
         }
 
-        // name the signature that named properties were written beside
+        // name the signature the named properties sit beside
         let conflict = match (
             properties.is_empty(),
             index_signatures.is_empty(),
@@ -1564,6 +1559,7 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TupleElement>,
     ) -> CompilerResult<dir::TypeElement> {
+        // walk by the element's own syntax
         match self.tree.get(id) {
             // label: T
             dir::TupleElement::Element {
@@ -1708,6 +1704,7 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Error);
         }
 
+        // intern the written interval
         self.intern_type(dir::Type::Range(dir::RangeType {
             start: Some(start),
             end: Some(end),
@@ -1752,6 +1749,7 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Error);
         };
 
+        // walk the key source the mapped type reads
         let constraint = self.walk_type_expression(source_type)?;
 
         // create a local generic parameter for the mapped key
@@ -1811,6 +1809,7 @@ impl WalkState<'_, '_> {
             _ => None,
         };
 
+        // intern the mapped operation
         self.intern_operation(dir::TypeOperation::Mapped(dir::MappedType {
             parameter: dir::MappedTypeParameter {
                 name,

@@ -87,7 +87,7 @@ impl CheckState<'_> {
         // project each value through its Try implementation
         let mut projected = Vec::new();
         for value in values {
-            let selected = self.body().select_language_protocol_member(
+            let selected = self.select_language_protocol_member(
                 origin,
                 value,
                 value,

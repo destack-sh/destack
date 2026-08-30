@@ -22,6 +22,7 @@ impl WalkState<'_, '_> {
         self.enter_node(id)?;
         let expression = self.tree.get(id).clone();
 
+        // walk by the place expression's own syntax
         match expression {
             // x
             dir::Expression::Identifier { .. } => self.walk_named_assigned_place(id.into_any()),
@@ -100,6 +101,7 @@ impl WalkState<'_, '_> {
     fn has_name_reference(&self, id: dir::LocalNodeId<dir::Expression>) -> bool {
         let source = id.into_global_any(self.module);
 
+        // read whether the resolver bound a name here
         matches!(
             self.check
                 .module(self.module)
@@ -125,7 +127,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        self.capture_symbol_reference(source, symbol);
+        self.capture_symbol_reference(source, symbol)?;
 
         Ok(self.assigned_symbol_place(symbol))
     }
@@ -140,7 +142,8 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
-        self.capture_symbol_reference(global, symbol);
+        // capture the reference and commit its resolution
+        self.capture_symbol_reference(global, symbol)?;
         self.check
             .commit_name(global, dir::NameResolution::new(symbol))?;
 

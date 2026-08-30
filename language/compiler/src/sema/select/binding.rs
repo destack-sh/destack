@@ -2,15 +2,16 @@ use std::sync::Arc;
 
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
+use destack_dir::TypeFold;
 use smallvec::SmallVec;
 
+use crate::CompilerResult;
 use crate::sema::{
-    ApparentInstance, BodyState, LookupReceiver, MemberCandidate, MemberLookup, MemberRole, Origin,
-    ReceiverSteps,
+    ApparentInstance, CheckState, DeclaredCandidate, LookupReceiver, MemberCandidate, MemberLookup,
+    MemberRole, MemberSource, Origin, ReceiverSteps,
 };
-use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Return one closed subject's inherent members in declaration preorder, grouped by key.
     pub(in crate::sema) fn inherent_member_table(
         &mut self,
@@ -25,7 +26,7 @@ impl BodyState<'_, '_> {
             for binding in bindings.iter() {
                 let candidates =
                     self.binding_member_candidates(origin, receiver, instance, binding, space)?;
-                table.insert(binding.key, MemberLookup::Found(candidates));
+                table.insert(binding.key, candidates);
             }
 
             return Ok(table);
@@ -82,11 +83,10 @@ impl BodyState<'_, '_> {
                     &level,
                     &substitution,
                     &members,
-                    space,
                     key,
                 )?;
                 if !candidates.is_empty() {
-                    table.insert(key, MemberLookup::Found(candidates));
+                    table.insert(key, candidates);
                 }
             }
 
@@ -125,7 +125,7 @@ impl BodyState<'_, '_> {
                 return Ok(None);
             };
 
-            let substitution = level.substitution(self.check)?;
+            let substitution = level.substitution(self)?;
 
             // bind each declared member the nearer levels left open
             for member in definition.members() {
@@ -137,7 +137,7 @@ impl BodyState<'_, '_> {
                 }
 
                 // conformance levels serve their default members only
-                if is_conformance && !self.check.definition_member_has_default(member) {
+                if is_conformance && !self.definition_member_has_default(member) {
                     continue;
                 }
 
@@ -150,7 +150,7 @@ impl BodyState<'_, '_> {
                     // valueless associated members project through receivers
                     None if declared.role == MemberRole::Associated => {
                         let arguments = self.intern_type_ids(&[])?;
-                        let owner = level.intern(self.check)?;
+                        let owner = level.intern(self)?;
 
                         self.intern_member(dir::MemberType {
                             owner,
@@ -164,17 +164,9 @@ impl BodyState<'_, '_> {
 
                 // apply this level's arguments and read the member's operations
                 let ty = self.substitute_type(ty, &substitution)?;
-                let ty = self.check.shallow_resolve(ty)?;
+                let ty = self.shallow_resolve(ty)?;
                 let callable = declared.callable_type(ty);
-                let access_type = declared.access_type(self.check, ty)?;
-                let access = match declared.role {
-                    MemberRole::Setter => dir::PropertyAccess::Write(access_type),
-                    _ if declared.is_writable => dir::PropertyAccess::ReadWrite {
-                        read: access_type,
-                        write: access_type,
-                    },
-                    _ => dir::PropertyAccess::Read(access_type),
-                };
+                let access = declared.access(self, ty)?;
 
                 let declaration = dir::MemberDeclaration {
                     symbol: declared.symbol,
@@ -288,7 +280,7 @@ impl BodyState<'_, '_> {
                 .iter()
                 .map(|heritage| heritage.ty)
                 .collect::<SmallVec<[_; 2]>>();
-            let substitution = level.substitution(self.check)?;
+            let substitution = level.substitution(self)?;
 
             for heritage in heritages {
                 let heritage = self.substitute_type(heritage, &substitution)?;
@@ -321,17 +313,17 @@ impl BodyState<'_, '_> {
         let Some(bindings) = self.member_bindings(instance.symbol, space)? else {
             let table = self.inherent_member_table(origin, receiver, instance, space)?;
 
-            return Ok(table.get(&key).cloned().unwrap_or(MemberLookup::Missing));
+            return Ok(table.get(&key).cloned().unwrap_or_default());
         };
         let Some(binding) = bindings.iter().find(|binding| binding.key == key) else {
-            return Ok(MemberLookup::Missing);
+            return Ok(Vec::new());
         };
 
         // substitute the binding through this instance and receiver
         let candidates =
             self.binding_member_candidates(origin, receiver, instance, binding, space)?;
 
-        Ok(MemberLookup::Found(candidates))
+        Ok(candidates)
     }
 
     /// Return one owner's canonical member bindings, memoized per run.
@@ -341,13 +333,14 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
     ) -> CompilerResult<Option<Arc<Vec<dir::MemberBinding>>>> {
         // serve the memo
-        if let Some(bindings) = self.check.member_bindings.get(&(symbol, space)) {
-            self.check.counters.binding_reuses += 1;
+        if let Some(bindings) = self.member_bindings.get(&(symbol, space)) {
+            self.counters.binding_reuses += 1;
 
             return Ok(bindings.clone());
         }
 
-        self.check.counters.binding_derivations += 1;
+        // count this derivation
+        self.counters.binding_derivations += 1;
 
         // read owners their module's elaborate pass already flattened
         let stored = self.stored_member_bindings(symbol, space);
@@ -371,8 +364,7 @@ impl BodyState<'_, '_> {
         };
 
         // memoize the bindings for every later goal
-        self.check
-            .member_bindings
+        self.member_bindings
             .insert((symbol, space), bindings.clone());
 
         Ok(bindings)
@@ -385,8 +377,8 @@ impl BodyState<'_, '_> {
         space: dir::MemberSpace,
     ) -> Option<Vec<dir::MemberBinding>> {
         // read own owners from the pass tail over the committed base
-        if self.check.is_own_module(symbol.module_id) {
-            let module = &self.check.module;
+        if self.is_own_module(symbol.module_id) {
+            let module = &self.module;
             if let Some(bindings) = module.members_tail.bindings(symbol, space) {
                 return Some(bindings.to_vec());
             }
@@ -399,7 +391,7 @@ impl BodyState<'_, '_> {
         }
 
         // read foreign owners from their module's elaborated bindings
-        let external = self.check.external_modules.get(&symbol.module_id)?;
+        let external = self.external_modules.get(&symbol.module_id)?;
         let bindings = external.members.bindings(symbol, space)?;
 
         Some(bindings.to_vec())
@@ -416,9 +408,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Vec<MemberCandidate>> {
         // substitute the canonical types for this instance and receiver
         let receiver_value = self.strip_form(origin, receiver)?;
-        let substitution = instance
-            .substitution(self.check)?
-            .with_receiver(receiver_value);
+        let substitution = instance.substitution(self)?.with_receiver(receiver_value);
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &instance.arguments)?;
 
@@ -434,47 +424,38 @@ impl BodyState<'_, '_> {
                 generic_arguments.clone()
             };
 
-            // pick the stored access basis by the declaration's role
-            let access = match declaration.role {
-                dir::MemberRole::Setter => binding.access.write(),
-                dir::MemberRole::Method if declaration.callable_type.is_some() => {
-                    declaration.callable_type
-                }
-                _ => binding.access.read(),
-            };
-            let Some(access) = access else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "member binding {:?} stores no access for {:?}",
-                        binding.key, declaration.role
-                    ),
-                });
-            };
-
             // rigid receivers project associated members through themselves
-            let access_type = if declaration.role == dir::MemberRole::Associated
+            let mut access = binding.access;
+            if declaration.role == dir::MemberRole::Associated
                 && self.is_rigid_projection_owner(receiver)?
             {
                 let arguments = self.intern_type_ids(&[])?;
-
-                self.intern_member(dir::MemberType {
+                let projected = self.intern_member(dir::MemberType {
                     owner: receiver,
                     key: binding.key,
                     arguments,
                     qualifier: None,
-                })?
+                })?;
+                access = dir::PropertyAccess::Read(projected);
             } else {
-                self.substitute_type(access, &substitution)?
-            };
-            let access_type =
-                self.projected_member_type(origin, Some(receiver), declaration.role, access_type)?;
+                access.map_types(&mut |ty| self.substitute_type(ty, &substitution))?;
+            }
+            access.map_types(&mut |ty| {
+                self.projected_member_type(origin, Some(receiver), declaration.role, ty)
+            })?;
+            // read a method as its own signature
             let callable = match declaration.callable_type {
                 Some(callable) => Some(self.substitute_type(callable, &substitution)?),
                 None => None,
             };
+            if let Some(callable) = callable
+                && declaration.role == dir::MemberRole::Method
+            {
+                access = dir::PropertyAccess::Read(callable);
+            }
 
             // substitute the stored static value through the same instance
-            let value = self.check.symbol_static_id(declaration.symbol);
+            let value = self.symbol_static_id(declaration.symbol);
             let value_type = match self.static_value(declaration.symbol) {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
                 None => None,
@@ -485,24 +466,25 @@ impl BodyState<'_, '_> {
                 dir::MemberOrigin::Declaration => None,
                 _ => self.requirement_interface(declaration.owner, binding.key)?,
             };
+            let mut declared = DeclaredCandidate::new(
+                declaration.symbol,
+                declaration.owner,
+                declaration.origin,
+                generic_arguments,
+            );
+            declared.requirement = requirement;
+            declared.value = value;
+            declared.value_type = value_type;
             candidates.push(MemberCandidate {
-                symbol: declaration.symbol,
-                owner: declaration.owner,
-                origin: declaration.origin,
-                requirement,
+                source: MemberSource::Declared(declared),
                 space,
                 role: declaration.role,
                 kind: binding.kind,
-                is_writable: binding.access.write().is_some(),
-                access_type,
+                access,
                 callable,
                 is_optional: binding.is_optional,
-                generic_arguments,
-                value,
-                value_type,
                 receiver: LookupReceiver::Direct(ReceiverSteps::new()),
-                bounds: Vec::new(),
-                target: None,
+                arm: None,
             });
         }
 

@@ -229,7 +229,7 @@ const wide: Holder<int32> = one;
 
 /// Erasing a type argument to unknown reports a diagnostic.
 #[test]
-fn test_reject_erasing_a_type_argument_to_unknown() {
+fn test_move_a_struct_argument_into_unknown() {
     let session = TestSession::single(
         r#"
 class Circle {}
@@ -293,6 +293,104 @@ const opaque: Holder<unknown> = circles;
 /// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
 /// @diagnostic.label line=9 column=33 span="circles" line_source="const opaque: Holder<unknown> = circles;"
 /// @diagnostic.related line=9 column=15 span="Holder" line_source="const opaque: Holder<unknown> = circles;" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'unknown', found 'Circle'"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_aliasing_a_class_argument_as_unknown() {
+    let session = TestSession::single(
+        r#"
+class Circle {}
+
+class Holder<T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+declare const circles: Holder<Circle>;
+const opaque: Holder<unknown> = circles;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Circle {}
+
+class Holder<in out T> {
+    value: T;
+
+    constructor(value: T) {
+        this.value = value;
+    }
+}
+
+declare const circles: Holder<Circle>;
+const opaque: Holder<unknown> = circles;
+
+=== dir ===
+class Circle {}
+/// @type.symbol symbol=Circle source="class Circle {}" type=Circle
+/// @definition.class symbol=Circle source="class Circle {}"
+
+class Holder<T> {
+/// @generic.template symbol=Holder parameters=(in out T)
+/// @type.symbol symbol=Holder type=Holder
+/// @definition.class symbol=Holder template=(in out T)
+/// @definition.field symbol=Holder.value source="value: T" key=value type=T
+/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>(T) => Managed<this, Holder.constructor.P0>
+/// @type.symbol symbol=Holder.T source=T type=T
+
+    value: T;
+    /// @type.symbol symbol=Holder.value source="value: T" type=T
+    /// @resolution.name source=T target=Holder.T
+
+    constructor(value: T) {
+    /// @generic.template symbol=Holder.constructor parent=template#0 parameters=(P0: Place)
+    /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>(T) => Managed<this, Holder.constructor.P0>
+    /// @type.symbol symbol=Holder.constructor.this type=Holder<T>
+    /// @type.symbol symbol=Holder.constructor.value source="value: T" type=T
+    /// @resolution.name source=T target=Holder.T
+
+        this.value = value;
+        /// @resolution.receiver source=this kind=this declaration=Holder type=Holder<T>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.assignment source=this.value write="receiver=Holder<T>, target=field(receiver=Holder<T>, target=Holder.value, type=T), type=T" type=T
+        /// @resolution.name source=value target=Holder.constructor.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Holder.constructor.value
+
+    }
+}
+
+declare const circles: Holder<Circle>;
+/// @type.symbol symbol=circles source=circles type=Holder<Circle>
+/// @resolution.pattern source=circles kind=binding target=circles
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=Circle target=Circle
+
+const opaque: Holder<unknown> = circles;
+/// @type.symbol symbol=opaque source=opaque type=Holder<unknown>
+/// @resolution.pattern source=opaque kind=binding target=opaque
+/// @resolution.name source=Holder target=Holder
+/// @resolution.name source=circles target=circles
+/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=circles root=circles
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'Holder<Circle>' is not assignable to type 'Holder<unknown>'"
+/// @diagnostic.label line=13 column=33 span="circles" line_source="const opaque: Holder<unknown> = circles;"
+/// @diagnostic.related line=13 column=15 span="Holder" line_source="const opaque: Holder<unknown> = circles;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'unknown', found 'Circle'"
 "#,
     );
@@ -1096,10 +1194,10 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
-/// @generic.instance id="arrayFromSlice<Circle, \"local\">" template=arrayFromSlice arguments=(Circle, "local")
 /// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
 /// @generic.instance id=MaybeUninit<Circle> template=MaybeUninit arguments=(Circle)
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
+/// @generic.instance id=arrayFromSlice<Circle> template=arrayFromSlice arguments=(Circle)
 /// @generic.instance id=new<MaybeUninit<Circle>> template=new arguments=(MaybeUninit<Circle>)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
@@ -1107,10 +1205,10 @@ declare const circles: Stack<Circle>;
 const view: readonly Stack<Shape> = circles;
 /// @type.symbol symbol=view source=view type=Readonly<Stack<Shape>>
 /// @resolution.pattern source=view kind=binding target=view
-/// @generic.instance id="arrayFromSlice<Shape, \"local\">" template=arrayFromSlice arguments=(Shape, "local")
 /// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
 /// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
+/// @generic.instance id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
 /// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape

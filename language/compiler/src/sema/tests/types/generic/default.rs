@@ -23,14 +23,14 @@ const marker: local Phantom<int32> = Phantom<int32>.default<int32>();
 import { Phantom } from "destack:memory";
 
 const marker: Phantom<int32> = Phantom<int32>.default();
-/// @type.symbol symbol=marker source=marker type=Placed<memory.phantom.Phantom<int32>, "local">
+/// @type.symbol symbol=marker source=marker type=Managed<memory.phantom.Phantom<int32>, "local">
 /// @resolution.name source=Phantom target=memory.phantom.Phantom
 /// @type.node source=Phantom<int32> type=memory.phantom.Phantom<int32>
-/// @type.node source=Phantom<int32>.default type=() => Placed<memory.phantom.Phantom<int32>, "local">
-/// @type.node source=Phantom<int32>.default() type=Placed<memory.phantom.Phantom<int32>, "local">
+/// @type.node source=Phantom<int32>.default type=() => Managed<memory.phantom.Phantom<int32>, "local">
+/// @type.node source=Phantom<int32>.default() type=Managed<memory.phantom.Phantom<int32>, "local">
 /// @resolution.name source=Phantom target=memory.phantom.Phantom
 /// @resolution.member source=Phantom<int32>.default receiver=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default
-/// @resolution.call source=Phantom<int32>.default() parameters=() return=Placed<memory.phantom.Phantom<int32>, "local"> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32> instance=memory.phantom.Phantom<int32>.<extension#1>.default
+/// @resolution.call source=Phantom<int32>.default() parameters=() return=Managed<memory.phantom.Phantom<int32>, "local"> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32> instance=memory.phantom.Phantom<int32>.<extension#1>.default
 /// @resolution.instantiation source=Phantom<int32> target=memory.phantom.Phantom instance=memory.phantom.Phantom<int32>
 /// @generic.instance source=Phantom<int32> id=memory.phantom.Phantom<int32>
 /// @generic.instance source=Phantom<int32>.default id=memory.phantom.Phantom<int32>

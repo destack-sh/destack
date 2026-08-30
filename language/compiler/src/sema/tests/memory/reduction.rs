@@ -207,7 +207,7 @@ borrowed satisfies Borrowed<Point, "static" & "local", "mutable">;
 import { Point, share } from "./dep.ds";
 
 declare const point: Point;
-const borrowed: Borrowed<^Point, "static", "mutable"> = share<Point>(point);
+const borrowed: &'static ^Point = share<Point>(point);
 
 borrowed satisfies Borrowed<Point, "static" & "local", "mutable">;
 

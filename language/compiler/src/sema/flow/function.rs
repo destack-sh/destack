@@ -1,17 +1,22 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 
-use crate::sema::{CheckState, FlowBranch, FunctionFrame, ReceiverBinding};
+use crate::sema::{
+    CheckState, FlowBranch, FunctionFrame, GeneratorTargets, InferMode, ReceiverBinding,
+};
 
 impl CheckState<'_> {
     /// Enter one function body's flow frame.
     pub(in crate::sema) fn enter_function_frame(
         &mut self,
         symbol: dir::GlobalSymbolId,
-        return_target: dir::GlobalTypeId,
-        yield_target: Option<dir::GlobalTypeId>,
+        return_target: Option<dir::GlobalTypeId>,
+        generator: Option<GeneratorTargets>,
+        initializes: Option<dir::GlobalSymbolId>,
+        output_mode: InferMode,
         asynchrony: dir::Asynchrony,
         receiver: Option<ReceiverBinding>,
+        enclosing_receiver: Option<ReceiverBinding>,
     ) {
         // capture enclosing flow stack boundaries
         let flow = &self.flow;
@@ -24,8 +29,11 @@ impl CheckState<'_> {
             target_start,
             try_start,
             receiver,
+            enclosing_receiver,
             return_target,
-            yield_target,
+            generator,
+            initializes,
+            output_mode,
             asynchrony,
             captured_symbols: FxIndexSet::default(),
             captured_receiver: None,
@@ -52,13 +60,34 @@ impl CheckState<'_> {
     pub(in crate::sema) fn is_in_generator(&self) -> bool {
         self.flow
             .current_function()
-            .is_some_and(|function| function.yield_target.is_some())
+            .is_some_and(|function| function.generator.is_some())
+    }
+
+    /// Return the enclosing generator body's targets.
+    pub(in crate::sema) fn current_generator(&self) -> Option<GeneratorTargets> {
+        self.flow
+            .current_function()
+            .and_then(|function| function.generator)
+    }
+
+    /// Return the class the enclosing constructor body initializes.
+    pub(in crate::sema) fn current_initializes(&self) -> Option<dir::GlobalSymbolId> {
+        self.flow
+            .current_function()
+            .and_then(|function| function.initializes)
+    }
+
+    /// Return the literal inference mode of the enclosing body's outputs.
+    pub(in crate::sema) fn current_output_mode(&self) -> InferMode {
+        self.flow
+            .current_function()
+            .map_or(InferMode::Regular, |function| function.output_mode)
     }
 
     /// Return the enclosing function return target.
     pub(in crate::sema) fn current_return_target(&self) -> Option<dir::GlobalTypeId> {
         self.flow
             .current_function()
-            .map(|function| function.return_target)
+            .and_then(|function| function.return_target)
     }
 }

@@ -1,7 +1,7 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 
-use crate::sema::{FlowBranch, FlowCheckpoint, ReceiverBinding};
+use crate::sema::{FlowBranch, FlowCheckpoint, GeneratorTargets, InferMode, ReceiverBinding};
 
 /// A function body currently being walked.
 #[derive(Debug)]
@@ -14,12 +14,18 @@ pub(in crate::sema) struct FunctionFrame {
     pub(in crate::sema::flow) target_start: usize,
     /// The first try target visible inside this function.
     pub(in crate::sema::flow) try_start: usize,
-    /// The lexical receiver visible inside this function.
+    /// The receiver this function binds itself.
     pub(in crate::sema::flow) receiver: Option<ReceiverBinding>,
-    /// The value accepted by `return` inside this function body.
-    pub(in crate::sema::flow) return_target: dir::GlobalTypeId,
-    /// The value accepted by `yield` inside this generator body.
-    pub(in crate::sema::flow) yield_target: Option<dir::GlobalTypeId>,
+    /// The enclosing receiver a function value closes over.
+    pub(in crate::sema::flow) enclosing_receiver: Option<ReceiverBinding>,
+    /// The value accepted by `return` inside this function body, absent in constructors.
+    pub(in crate::sema::flow) return_target: Option<dir::GlobalTypeId>,
+    /// The yield targets when the body is a generator.
+    pub(in crate::sema::flow) generator: Option<GeneratorTargets>,
+    /// The declaration whose fields this constructor initializes.
+    pub(in crate::sema::flow) initializes: Option<dir::GlobalSymbolId>,
+    /// Literal inference applied to inferred returns and yields.
+    pub(in crate::sema::flow) output_mode: InferMode,
     /// The function asynchrony.
     pub(in crate::sema) asynchrony: dir::Asynchrony,
     /// Outer symbols read by this function.
@@ -61,10 +67,12 @@ pub(in crate::sema) enum ControlTargetForm {
     Loop {
         /// The output joined by break values.
         result: dir::GlobalTypeId,
+        /// The context the break values store under.
+        mode: InferMode,
     },
     /// A conditional or iterating loop accepts value-less `break` and `continue`.
     Iteration,
-    /// A switch accepts value-less `break` but not `continue`.
+    /// A switch accepts value-less `break` alone.
     Switch,
 }
 

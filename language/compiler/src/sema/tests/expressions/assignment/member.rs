@@ -34,6 +34,8 @@ state.count = 1;
 /// @resolution.rejected source=state.count
 "#,
         r#"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'count'"
+/// @diagnostic.label line=3 column=7 span="count" line_source="state.count = 1;"
 "#,
     );
 }

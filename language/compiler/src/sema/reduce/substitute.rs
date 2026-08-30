@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, GenericParameterId, Origin};
+use crate::sema::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 /// One generic type substitution.
@@ -125,20 +125,6 @@ enum SubstitutionRule<'a> {
         /// The replacement type id.
         to: dir::GlobalTypeId,
     },
-    /// Replace open roots and generic parameters with numbered holes and rigid types.
-    Canonicalize {
-        /// The canonical hole per open root.
-        holes: &'a FxIndexMap<dir::TypeVariableId, dir::HoleIndex>,
-        /// The canonical rigid number per generic parameter.
-        parameters: &'a FxIndexMap<GenericParameterId, dir::RigidIndex>,
-    },
-    /// Replace numbered canonical holes and rigid types with live types.
-    Instantiate {
-        /// The live variable per canonical hole, in hole order.
-        holes: &'a [dir::TypeVariableId],
-        /// The live parameter type per canonical rigid number.
-        parameters: &'a [dir::GlobalTypeId],
-    },
     /// Replace conditional-infer binders with captured types.
     SubstituteInfer {
         /// The captured types keyed by binder symbol.
@@ -162,8 +148,6 @@ impl SubstitutionRule<'_> {
                 .find(|binding| binding.parameter == parameter)
                 .map(|binding| binding.argument),
             Self::Replace { .. }
-            | Self::Canonicalize { .. }
-            | Self::Instantiate { .. }
             | Self::SubstituteInfer { .. }
             | Self::EraseNoInfer
             | Self::Normalize { .. } => None,
@@ -175,8 +159,6 @@ impl SubstitutionRule<'_> {
         match self {
             Self::Substitute { substitution } => substitution.receiver,
             Self::Replace { .. }
-            | Self::Canonicalize { .. }
-            | Self::Instantiate { .. }
             | Self::SubstituteInfer { .. }
             | Self::EraseNoInfer
             | Self::Normalize { .. } => None,
@@ -192,8 +174,6 @@ impl SubstitutionRule<'_> {
                 .map(|capture| capture.ty),
             Self::Substitute { .. }
             | Self::Replace { .. }
-            | Self::Canonicalize { .. }
-            | Self::Instantiate { .. }
             | Self::EraseNoInfer
             | Self::Normalize { .. } => None,
         }
@@ -258,12 +238,11 @@ impl CheckState<'_> {
             return Ok(id);
         }
 
-        // reuse one decided substitution of a resolved graph, verifying the
-        //  stored bindings behind the hashed key
+        // reuse one decided substitution of closed inputs
         let mut hasher = FxHasher::default();
         substitution.bindings.hash(&mut hasher);
         let key = (id, substitution.receiver, hasher.finish());
-        let is_closed = !flags.has_variable();
+        let is_closed = !flags.has_variable() && self.is_closed_substitution(substitution)?;
         if is_closed
             && let Some((bindings, substituted)) = self.substitutions.get(&key)
             && *bindings == substitution.bindings
@@ -283,6 +262,22 @@ impl CheckState<'_> {
         }
 
         Ok(substituted)
+    }
+
+    /// Return whether one substitution binds closed types only.
+    fn is_closed_substitution(&self, substitution: &TypeSubstitution) -> CompilerResult<bool> {
+        if let Some(receiver) = substitution.receiver
+            && self.type_flags(receiver)?.has_variable()
+        {
+            return Ok(false);
+        }
+        for binding in &substitution.bindings {
+            if self.type_flags(binding.argument)?.has_variable() {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// Instantiate one interface type under a selected implementation.
@@ -359,22 +354,6 @@ impl CheckState<'_> {
             }
         }
 
-        // rebuild each node's expectation the same way
-        let expected_types: Vec<_> = self
-            .module
-            .types_tail
-            .expected_types()
-            .filter(|(node, _)| node.module_id == module)
-            .collect();
-        for (node, ty) in expected_types {
-            let origin = Origin::Node(node, None);
-            let normal =
-                self.substitute_graph(module, ty, SubstitutionRule::Normalize { origin })?;
-            if normal != ty {
-                self.module.types_tail.set_expected_type(node, normal);
-            }
-        }
-
         // rebuild each recorded member subject over normalized heads
         let subjects: Vec<_> = self.module.iter_member_subjects().collect();
         for (site, mut subject) in subjects {
@@ -439,6 +418,7 @@ impl CheckState<'_> {
         origin: Origin,
         definition: &mut dir::Definition,
     ) -> CompilerResult<()> {
+        // translate the types each definition holds
         match definition {
             // an alias holds its aliased value
             dir::Definition::TypeAlias(alias) => {
@@ -614,6 +594,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
+        // require a NoInfer application
         if self.language_item(application.symbol)? != Some(dir::LanguageItem::NoInfer) {
             return Ok(None);
         }
@@ -631,32 +612,6 @@ impl CheckState<'_> {
         };
 
         Ok(Some(*target))
-    }
-
-    /// Replace numbered canonical holes and rigid types with live types in one pass.
-    pub(in crate::sema) fn instantiate_answer_type(
-        &mut self,
-        target: ModuleId,
-        id: dir::GlobalTypeId,
-        holes: &[dir::TypeVariableId],
-        parameters: &[dir::GlobalTypeId],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let rule = SubstitutionRule::Instantiate { holes, parameters };
-
-        self.substitute_graph(target, id, rule)
-    }
-
-    /// Replace open variable roots with numbered canonical holes in one pass.
-    pub(in crate::sema) fn canonicalize_type(
-        &mut self,
-        target: ModuleId,
-        id: dir::GlobalTypeId,
-        holes: &FxIndexMap<dir::TypeVariableId, dir::HoleIndex>,
-        parameters: &FxIndexMap<GenericParameterId, dir::RigidIndex>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let rule = SubstitutionRule::Canonicalize { holes, parameters };
-
-        self.substitute_graph(target, id, rule)
     }
 
     /// Return whether one type applies the replaced declaration with equal arguments.
@@ -779,29 +734,11 @@ impl CheckState<'_> {
             }
             // a receiver reference under a receiver rewrite
             (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
-            // a variable follows its solution, or its canonical hole when open
+            // follow a variable to its solution
             (dir::Type::Variable(variable), _) => match self.infer.solution(variable)? {
                 Some(solution) => self.substitution_affects(solution, rule, affected)?,
-                None => match rule {
-                    SubstitutionRule::Canonicalize { holes, .. } => {
-                        holes.contains_key(&self.infer.alias_root(variable)?)
-                    }
-                    _ => false,
-                },
+                None => false,
             },
-            // a generic parameter with a canonical rigid number
-            (
-                dir::Type::Parameter(parameter),
-                SubstitutionRule::Canonicalize { parameters, .. },
-            ) => parameters.contains_key(&parameter),
-            // a canonical hole with a live counterpart
-            (dir::Type::Hole(hole), SubstitutionRule::Instantiate { holes, .. }) => {
-                (hole.0 as usize) < holes.len()
-            }
-            // a canonical rigid type with a live parameter
-            (dir::Type::Rigid(rigid), SubstitutionRule::Instantiate { parameters, .. }) => {
-                (rigid.0 as usize) < parameters.len()
-            }
             // an inference barrier under an erasing pass
             (_, SubstitutionRule::EraseNoInfer) if self.no_infer_target(id)?.is_some() => true,
             // every other head inherits from its children
@@ -866,6 +803,7 @@ impl CheckState<'_> {
             _ => None,
         };
 
+        // substitute through a solved variable
         if let Some(variable) = variable {
             return match self.infer.solution(variable)? {
                 // substitute through the solution, which flags apart from its variable entry
@@ -875,16 +813,8 @@ impl CheckState<'_> {
 
                     self.substitute_guarded(target, solution, rule, &affected, substituting)
                 }
-                // rename one open root to its numbered canonical hole
-                None => match rule {
-                    SubstitutionRule::Canonicalize { holes, .. } => {
-                        match holes.get(&self.infer.alias_root(variable)?) {
-                            Some(hole) => self.intern_type(dir::Type::Hole(*hole)),
-                            None => Ok(id),
-                        }
-                    }
-                    _ => Ok(id),
-                },
+                // keep an open root as it stands
+                None => Ok(id),
             };
         }
 
@@ -935,36 +865,6 @@ impl CheckState<'_> {
         // preserve every graph without a requested substitution
         if !affected.get(&id).copied().unwrap_or(false) {
             return Ok(id);
-        }
-
-        // reopen one canonical hole or rigid type at its live counterpart,
-        //  keeping rigid numbers past the live parameters raw
-        if let SubstitutionRule::Instantiate { holes, parameters } = rule {
-            match self.ty(id)? {
-                dir::Type::Hole(hole) => {
-                    let Some(variable) = holes.get(hole.0 as usize) else {
-                        return Err(CompilerError::Internal {
-                            message: format!("canonical hole {hole} has no live counterpart"),
-                        });
-                    };
-
-                    return self.intern_type(dir::Type::Variable(*variable));
-                }
-                dir::Type::Rigid(rigid) => {
-                    if let Some(parameter) = parameters.get(rigid.0 as usize) {
-                        return Ok(*parameter);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        // rename one generic parameter to its numbered canonical rigid type
-        if let dir::Type::Parameter(parameter) = self.ty(id)?
-            && let SubstitutionRule::Canonicalize { parameters, .. } = rule
-            && let Some(rigid) = parameters.get(&parameter)
-        {
-            return self.intern_type(dir::Type::Rigid(*rigid));
         }
 
         // read type records from their owner and intern the result in the target module

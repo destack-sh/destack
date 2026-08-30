@@ -62,7 +62,7 @@ const value: HasX = Point { x: 1 };
 /// @resolution.name source=HasX target=HasX
 /// @resolution.name source=Point target=Point
 /// @coercion.node source="Point { x: 1 }" from=Point adjustments=[{ kind: erase, target: HasX }] origin=implicit
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 
 value satisfies HasX;
 /// @resolution.name source=value target=value
@@ -169,7 +169,7 @@ picture satisfies Drawable;
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Picture' does not satisfy 'Drawable'"
-/// @diagnostic.label line=16 column=9 span="satisfies" line_source="picture satisfies Drawable;"
+/// @diagnostic.label line=16 column=1 span="picture" line_source="picture satisfies Drawable;"
 "#,
     );
 }

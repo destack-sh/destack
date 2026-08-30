@@ -1,5 +1,6 @@
 use destack_core::FxIndexSet;
 use destack_dir as dir;
+use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -36,6 +37,9 @@ impl NullishPart {
     }
 }
 
+/// The depth same type comparison descends into applications, forms, and unions.
+const SAME_TYPE_DEPTH: u32 = 8;
+
 impl CheckState<'_> {
     /// Rebuild one union without the members a rejecting position strips.
     pub(in crate::sema) fn without_union_members(
@@ -49,6 +53,7 @@ impl CheckState<'_> {
 
         // keep the members the position accepts
         let mut kept = Vec::new();
+        // collect the members by the value's own head
         match self.ty(resolved)? {
             dir::Type::Union(union) => {
                 let elements = self.type_ids(resolved.module_id, union.elements)?.to_vec();
@@ -70,8 +75,20 @@ impl CheckState<'_> {
         &mut self,
         elements: impl IntoIterator<Item = dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let elements = self.union_elements(elements)?;
+        let mut elements = self.union_elements(elements)?;
 
+        // order the arms canonically, nullish arms last, so equal unions intern equal
+        let mut keyed = SmallVec::<[(bool, dir::GlobalTypeId); 4]>::new();
+        for element in elements.iter().copied() {
+            let is_nullish = matches!(self.ty(element)?, dir::Type::Null | dir::Type::Undefined);
+            keyed.push((is_nullish, element));
+        }
+        keyed.sort_by_key(|(is_nullish, element)| {
+            (*is_nullish, element.module_id, element.local_id)
+        });
+        elements = keyed.into_iter().map(|(_, element)| element).collect();
+
+        // join the deduplicated elements
         match elements.as_slice() {
             [single] => Ok(*single),
             _ => {
@@ -176,6 +193,29 @@ impl CheckState<'_> {
             }
         }
 
+        // both boolean literals together are the boolean primitive
+        let mut booleans = [false, false];
+        for element in &kept {
+            if let dir::Type::Literal(dir::Literal::Boolean(value)) = self.ty(*element)? {
+                booleans[value as usize] = true;
+            }
+        }
+        if booleans == [true, true] {
+            let mut collapsed = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+            let boolean = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
+            for element in kept {
+                match self.ty(element)? {
+                    dir::Type::Literal(dir::Literal::Boolean(_)) => {
+                        if !collapsed.contains(&boolean) {
+                            collapsed.push(boolean);
+                        }
+                    }
+                    _ => collapsed.push(element),
+                }
+            }
+            kept = collapsed;
+        }
+
         Ok(kept)
     }
 
@@ -193,6 +233,7 @@ impl CheckState<'_> {
         };
         let borrow = self.type_borrow(element.module_id, borrow)?;
 
+        // layer the borrow over each kept slot
         for slot in kept.iter_mut() {
             let dir::Type::Form(existing) = self.ty(*slot)? else {
                 continue;
@@ -209,7 +250,6 @@ impl CheckState<'_> {
             }
 
             // factor borrows sharing one monomorphic space by joining their extents
-            //  distinct spaces keep the union discriminant
             let existing_region = self.shallow_resolve(existing_borrow.region)?;
             let region = self.shallow_resolve(borrow.region)?;
             let (dir::Type::Region(existing_pair), dir::Type::Region(pair)) =
@@ -313,14 +353,90 @@ impl CheckState<'_> {
         Ok(())
     }
 
+    /// Return whether two types are the same type by content.
+    fn is_same_type(
+        &self,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        self.is_same_type_at(left, right, 0)
+    }
+
+    /// Return whether two types are the same type down to one depth.
+    fn is_same_type_at(
+        &self,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+        depth: u32,
+    ) -> CompilerResult<bool> {
+        let left = self.shallow_resolve(left)?;
+        let right = self.shallow_resolve(right)?;
+        if left == right {
+            return Ok(true);
+        }
+        if depth >= SAME_TYPE_DEPTH {
+            return Ok(false);
+        }
+        Ok(match (self.ty(left)?, self.ty(right)?) {
+            (dir::Type::Application(left_instance), dir::Type::Application(right_instance)) => {
+                left_instance.symbol == right_instance.symbol
+                    && self.are_same_type_lists(
+                        left.module_id,
+                        left_instance.arguments,
+                        right.module_id,
+                        right_instance.arguments,
+                        depth,
+                    )?
+            }
+            (dir::Type::Form(left_form), dir::Type::Form(right_form)) => {
+                left_form.form == right_form.form
+                    && self.is_same_type_at(left_form.value, right_form.value, depth + 1)?
+            }
+            (dir::Type::Union(left_union), dir::Type::Union(right_union)) => self
+                .are_same_type_lists(
+                    left.module_id,
+                    left_union.elements,
+                    right.module_id,
+                    right_union.elements,
+                    depth,
+                )?,
+            (left, right) => left == right,
+        })
+    }
+
+    /// Return whether two type lists hold the same types in order.
+    fn are_same_type_lists(
+        &self,
+        left_module: ModuleId,
+        left: dir::TypeListId,
+        right_module: ModuleId,
+        right: dir::TypeListId,
+        depth: u32,
+    ) -> CompilerResult<bool> {
+        let left = self.type_ids(left_module, left)?;
+        let right = self.type_ids(right_module, right)?;
+        if left.len() != right.len() {
+            return Ok(false);
+        }
+        for (left, right) in left.iter().zip(right.iter()) {
+            if !self.is_same_type_at(*left, *right, depth + 1)? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
+    }
+
     /// Return whether one union element covers another element.
     fn union_element_covers(
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        if self.is_same_type(source, target)? {
+            return Ok(true);
+        }
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            (source, target) if source == target => true,
             (_, dir::Type::Never) => true,
             (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
             (target, dir::Type::Range(range)) => range.widens_to(&target),

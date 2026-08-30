@@ -88,21 +88,21 @@ struct Point {
 }
 
 const point: Point = Point { x: 1 };
-const length: int32 = point.length<"constant">();
+const length: int32 = point.length();
 
 === dir ===
 struct Point {
 /// @type.symbol symbol=Point type=Point
 /// @definition.struct symbol=Point
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-/// @definition.method symbol=Point.length slot=length type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32
+/// @definition.method symbol=Point.length slot=length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
 
     x: int32;
     /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
     length(&readonly this): int32 {
-    /// @generic.template symbol=Point.length parameters=('a, P1: Place)
-    /// @type.symbol symbol=Point.length type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32
+    /// @generic.template symbol=Point.length parameters=('a)
+    /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
     /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
 
         return this.x;
@@ -110,9 +110,9 @@ struct Point {
         /// @type.node source=this.x type=int32
         /// @resolution.member source=this.x receiver=&Point.length.'a readonly Point type=int32 kind=field target_receiver=&Point.length.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Point type=&Point.length.'a readonly Point
-        /// @resolution.place source=this placement=Point.length.P1 lifetime=Point.length.'a access="readonly"
+        /// @resolution.place source=this placement=Point.length.'a lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement=Point.length.P1 lifetime=Point.length.'a access="readonly"
+        /// @resolution.place source=this.x placement=Point.length.'a lifetime=Point.length.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
 
     }
@@ -129,15 +129,13 @@ const length = point.length();
 /// @type.symbol symbol=length source=length type=int32
 /// @resolution.pattern source=length kind=binding target=length
 /// @type.node source=point type=Point
-/// @type.node source=point.length type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32
+/// @type.node source=point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.length receiver=Point type=<Point.length.'a, Point.length.P1: Place>(this: &Point.length.'a readonly Point) => int32 kind=symbol target_receiver=Point target=Point.length
-/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="Point.length<\"constant\">"
+/// @resolution.member source=point.length receiver=Point type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32 kind=symbol target_receiver=Point target=Point.length
+/// @resolution.call source=point.length() parameters=() return=int32 kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly constant Point))
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
-/// @generic.instantiation id="Point.length<\"constant\">" template=Point.length arguments=("constant")
-/// @generic.instance id="Point.length<\"constant\">" template=Point.length arguments=("constant")
 "#,
     );
 }
@@ -225,7 +223,7 @@ let values: int32[] = [];
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 
 const length = values.length;
 /// @type.symbol symbol=length source=length type=isize
@@ -236,8 +234,8 @@ const length = values.length;
 /// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
-/// @generic.instance id="length<int32, \"local\">" template=length arguments=(int32, "local")
+/// @generic.instantiation id=length<int32> template=length arguments=(int32)
+/// @generic.instance id=length<int32> template=length arguments=(int32)
 "#,
     );
 }
@@ -282,10 +280,10 @@ const length = values.length;
 /// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values.values
-/// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
-/// @generic.instance id="length<int32, \"local\">" template=length arguments=(int32, "local")
+/// @generic.instantiation id=length<int32> template=length arguments=(int32)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=length<int32> template=length arguments=(int32)
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 "#,
     );
@@ -373,7 +371,7 @@ values.push(1);
         r#"
 === annotated ===
 let values: int32[] = [];
-values.push<int32, "local">(1);
+values.push<int32>(1);
 
 === dir ===
 let values: int32[] = [];
@@ -384,21 +382,20 @@ let values: int32[] = [];
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
-/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 
 values.push(1);
 /// @type.node source=values type=int32[]
-/// @type.node source=values.push type=<push.'a, push.P1: Place>(this: &push.'a exclusive int32[], ...int32[]) => isize
+/// @type.node source=values.push type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize
 /// @type.node source=values.push(1) type=isize
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
+/// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'static exclusive int32[])) instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-/// @generic.instance id="push<int32, \"local\">" template=push arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.instance id=push<int32> template=push arguments=(int32)
 /// @type.node source=1 type=1
 "#,
     );

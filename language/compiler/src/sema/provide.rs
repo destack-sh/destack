@@ -62,6 +62,7 @@ impl Compiler {
             return Ok(dependencies);
         };
 
+        // require the artifacts of each referenced module
         for reference in references.targets {
             dependencies.require_payload(ArtifactKey::dir_bound(reference, profile));
             dependencies.require_payload(ArtifactKey::dir_expanded(reference, profile));
@@ -156,6 +157,7 @@ impl Compiler {
             return Ok(dependencies);
         };
 
+        // require the artifacts of each imported module
         for import in references.targets {
             dependencies.require_payload(ArtifactKey::dir_declared(import, profile));
             dependencies.require_payload(ArtifactKey::dir_bound(import, profile));
@@ -259,6 +261,7 @@ impl Compiler {
             return Ok(dependencies);
         };
 
+        // require the artifacts of each imported module
         for import in references.targets {
             dependencies.require_payload(ArtifactKey::dir_declared(import, profile));
             dependencies.require_payload(ArtifactKey::dir_elaborated(import, profile));
@@ -348,6 +351,7 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
+        // require the declarations of each implicit environment module
         for module in environment.implicit_modules() {
             dependencies.require_payload(ArtifactKey::dir_declared(module, profile));
         }
@@ -373,40 +377,20 @@ impl Compiler {
             let declared = artifacts
                 .read::<DirDeclared>((module, profile))
                 .map_err(CompilerError::from)?;
-            let types = declared.types.clone();
-
             for (symbol, definition) in declared.definitions.iter_definitions() {
                 // index extension declarations by their resolved target
-                if let dir::Definition::Extension(extension) = definition {
-                    match extension.target.root() {
-                        Some(root) => {
-                            environment
-                                .extensions_by_root
-                                .entry(root)
-                                .or_default()
-                                .push(symbol);
-                        }
-                        None => environment.blanket_extensions.push(symbol),
-                    }
-                }
-
-                // index implementing declarations by their interface and target root
-                let root = match definition {
-                    dir::Definition::Extension(extension) => extension.target.root(),
-                    _ => Some(dir::TypeRoot::Declaration(symbol)),
+                let dir::Definition::Extension(extension) = definition else {
+                    continue;
                 };
-                for implementation in definition.implementations() {
-                    let interface = implementation.interface;
-                    let Some(dir::Type::Application(instance)) =
-                        types.get_type_maybe(interface.local_id)
-                    else {
-                        continue;
-                    };
-                    environment
-                        .implementations_by_interface
-                        .entry(instance.symbol)
-                        .or_default()
-                        .push((symbol, root));
+                match extension.target.root() {
+                    Some(root) => {
+                        environment
+                            .extensions_by_root
+                            .entry(root)
+                            .or_default()
+                            .push(symbol);
+                    }
+                    None => environment.blanket_extensions.push(symbol),
                 }
             }
         }

@@ -40,23 +40,23 @@ extension of int32 implements Show {
 }
 
 function describe<T: Show, 'a>(value: &'a readonly T): string {
-    return value.show<P2>();
+    return value.show();
 }
 
 declare const one: int32;
 
-const label: string = describe<int32, "constant">(&readonly one);
+const label: string = describe<int32>(&readonly one);
 
 === dir ===
 newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly this) => string
+/// @definition.method symbol=Show.show source="show(&readonly this): string" slot=show type=<Show.show.'a>(this: &Show.show.'a readonly this) => string
 
     show(&readonly this): string;
-    /// @generic.template symbol=Show.show parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Show.show source="show(&readonly this): string" type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly this) => string
+    /// @generic.template symbol=Show.show parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Show.show source="show(&readonly this): string" type=<Show.show.'a>(this: &Show.show.'a readonly this) => string
     /// @type.symbol symbol=Show.show.this source="&readonly this" type=&Show.show.'a readonly this
 
 }
@@ -64,13 +64,13 @@ newtype interface Show {
 extension of int32 implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show slot=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly this) => string
 /// @definition.conformance symbol=<module>#2 member=show requirement=Show.show
 /// @resolution.name source=Show target=Show
 
     show(&readonly this): string {
-    /// @generic.template symbol=show parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=show type=<show.'a, show.P1: Place>(this: &show.'a readonly this) => string
+    /// @generic.template symbol=show parent=template#1 parameters=('a)
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly this) => string
     /// @type.symbol symbol=show.this source="&readonly this" type=&show.'a readonly this
 
         return "int32";
@@ -78,8 +78,8 @@ extension of int32 implements Show {
 }
 
 function describe<T: Show>(value: &readonly T): string {
-/// @generic.template symbol=describe parameters=(T: Show, 'a, P2: Place)
-/// @type.symbol symbol=describe type=<T: Show, describe.'a, describe.P2: Place>(&describe.'a readonly T) => string
+/// @generic.template symbol=describe parameters=(T: Show, 'a)
+/// @type.symbol symbol=describe type=<T: Show, describe.'a>(&describe.'a readonly T) => string
 /// @type.symbol symbol=describe.T source="T: Show" type=T
 /// @resolution.name source=Show target=Show
 /// @type.symbol symbol=describe.value source="value: &readonly T" type=&describe.'a readonly T
@@ -87,11 +87,11 @@ function describe<T: Show>(value: &readonly T): string {
 
     return value.show();
     /// @resolution.name source=value target=describe.value
-    /// @resolution.member source=value.show receiver=&describe.'a readonly T type=<Show.show.'a, Show.show.P1: Place>(this: &Show.show.'a readonly T) => string kind=symbol target_receiver=&describe.'a readonly T target=Show.show
-    /// @resolution.call source=value.show() parameters=() return=string kind=symbol target=Show.show receiver=&describe.'a readonly T instance=Show.show<describe.P2>
-    /// @resolution.place source=value placement=describe.P2 lifetime=describe.'a access="readonly"
+    /// @resolution.member source=value.show receiver=&describe.'a readonly T type=<Show.show.'a>(this: &Show.show.'a readonly T) => string kind=symbol target_receiver=&describe.'a readonly T target=Show.show
+    /// @resolution.call source=value.show() parameters=() return=string kind=symbol target=Show.show receiver=&describe.'a readonly T
+    /// @resolution.place source=value placement=describe.'a lifetime=describe.'a access="readonly"
     /// @resolution.access source=value root=describe.value
-    /// @generic.instantiation id="Show.show<T, describe.P2>" template=Show.show arguments=(describe.P2) owner=describe
+    /// @generic.instantiation id=Show.show<T> template=Show.show arguments=() owner=describe
 
 }
 
@@ -103,8 +103,8 @@ const label = describe(&readonly one);
 /// @type.symbol symbol=label source=label type=string
 /// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=describe target=describe
-/// @resolution.call source="describe(&readonly one)" parameters=(&'static readonly constant int32) arguments=(provided(&readonly one) as &'static readonly constant int32) return=string kind=symbol target=describe instance="describe<int32, \"constant\">"
-/// @generic.instantiation id="describe<int32, \"constant\">" template=describe arguments=(int32, "constant")
+/// @resolution.call source="describe(&readonly one)" parameters=(&'static readonly constant int32) arguments=(provided(&readonly one) as &'static readonly constant int32) return=string kind=symbol target=describe instance=describe<int32>
+/// @generic.instantiation id=describe<int32> template=describe arguments=(int32)
 /// @resolution.name source=one target=one
 /// @resolution.place source=one placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=one root=one

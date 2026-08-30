@@ -119,8 +119,8 @@ const b: Result = "b";
 type Extract<T> = T extends `foo-${infer A}` ? A : never;
 type Result = Extract<`foo-a` | `foo-b`>;
 
-const a: "a" | "b" = "a" as "a" | "b";
-const b: "a" | "b" = "b" as "a" | "b";
+const a: "a" | "b" = "a";
+const b: "a" | "b" = "b";
 
 === dir ===
 type Extract<T> = T extends `foo-${infer A}` ? A : never;

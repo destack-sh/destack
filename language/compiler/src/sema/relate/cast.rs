@@ -5,7 +5,7 @@ use crate::CompilerResult;
 use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 
 impl CheckState<'_> {
-    /// Relate two types under explicit castability.
+    /// Relate two types under an explicit cast: the cast table, then inclusion.
     pub(in crate::sema) fn relate_castable(
         &mut self,
         origin: Origin,
@@ -50,7 +50,7 @@ impl CheckState<'_> {
                 &mut formats,
             )?;
 
-            // require every exact format, with open parameters leaving the set incomplete
+            // require every exact format the operands name
             if parameters.is_empty()
                 && !formats.is_empty()
                 && formats.iter().all(|source| source.widens_to(format))
@@ -59,6 +59,7 @@ impl CheckState<'_> {
             }
         }
 
+        // accept the first explicit cast rule that holds
         let mut verdict = Verdict::Fails;
 
         // enum variants project explicitly to their declared literal value
@@ -85,13 +86,7 @@ impl CheckState<'_> {
             if let Some(value) = value {
                 let literal = dir::Literal::from(value);
                 let literal = self.intern_type(dir::Type::Literal(literal))?;
-                verdict = verdict.or(self.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Castable,
-                    literal,
-                    target,
-                )?);
+                verdict = verdict.or(self.relate_castable(origin, cause, literal, target)?);
                 if verdict == Verdict::Holds {
                     return Ok(Verdict::Holds);
                 }
@@ -120,8 +115,7 @@ impl CheckState<'_> {
                     dir::EnumBackingType::String => dir::PrimitiveType::String,
                 };
                 let backing = self.intern_type(dir::Type::Primitive(primitive))?;
-                let projected =
-                    self.constrain_type(origin, cause, Relation::Castable, backing, target)?;
+                let projected = self.relate_castable(origin, cause, backing, target)?;
                 if projected == Verdict::Fails {
                     backed = Verdict::Fails;
                     break;
@@ -139,25 +133,13 @@ impl CheckState<'_> {
         // concrete newtypes project explicitly to their backing type
         if let Some(instance) = self.decompose_newtype(origin, source)? {
             let backing = instance.backing;
-            verdict = verdict.or(self.constrain_type(
-                origin,
-                cause,
-                Relation::Castable,
-                backing,
-                target,
-            )?);
+            verdict = verdict.or(self.relate_castable(origin, cause, backing, target)?);
             if verdict == Verdict::Holds {
                 return Ok(Verdict::Holds);
             }
         }
 
-        // an assignable source casts explicitly to its target
-        Ok(verdict.or(self.relate_assignable(
-            origin,
-            cause,
-            Relation::Assignable,
-            source,
-            target,
-        )?))
+        // cast an included source explicitly to its target
+        Ok(verdict.or(self.constrain_type(origin, cause, Relation::Subtype, source, target)?))
     }
 }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin, Relation, Verdict};
+use crate::sema::{ActiveGoal, CheckState, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -20,13 +20,13 @@ impl CheckState<'_> {
         }
 
         // close recursive types coinductively across conformance re-entry
-        if !self.deriving.insert((ty, interface)) {
+        if !self.active.insert(ActiveGoal::Derive(ty, interface)) {
             return Ok(Verdict::Holds);
         }
 
         // decide the type, then release its re-entry mark
         let result = self.decide_derivable_type(origin, ty, interface);
-        self.deriving.swap_remove(&(ty, interface));
+        self.active.swap_remove(&ActiveGoal::Derive(ty, interface));
 
         result
     }
@@ -79,7 +79,7 @@ impl CheckState<'_> {
         // decide the remaining structural forms
         match kind {
             // answer optimistically for an open variable
-            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // accept region terms outright, they carry no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
@@ -137,11 +137,9 @@ impl CheckState<'_> {
             // fail the interface for type parameters that survived substitution
             dir::Type::Parameter(_) => Ok(Verdict::Fails),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Rigid(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural derivability"),
-                })
-            }
+            dir::Type::Erased(_) | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural derivability"),
+            }),
             // fail loudly on memory forms decided before this point
             dir::Type::Form(_) => Err(CompilerError::Internal {
                 message: format!("memory form {ty:?} reached structural derivability"),
@@ -196,6 +194,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         };
 
+        // decide by the declaration's own storage
         match definition {
             // fail loudly, normalization unfolds aliases before this decision
             dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
@@ -204,7 +203,7 @@ impl CheckState<'_> {
                     instance.symbol
                 ),
             }),
-            // conform scalar-backed enums through their backing values, refusing default and zero
+            // conform scalar-backed enums through their backing values
             dir::Definition::Enum(_) => Ok(Verdict::decided(!matches!(
                 interface,
                 dir::AutoInterface::Default | dir::AutoInterface::Zeroable
@@ -299,7 +298,7 @@ impl CheckState<'_> {
         // full conformance lets declared implementations serve components
         let item = dir::LanguageItem::from(interface);
         let target = self.language_type(item, &[])?;
-        let verdict = self.decide_relation(origin, Relation::Satisfies, field, target)?;
+        let verdict = self.decide_relation(origin, Relation::Subtype, field, target)?;
 
         Ok(verdict)
     }

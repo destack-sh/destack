@@ -1,11 +1,9 @@
+use crate::sema::VariableKind;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{
-    BodyState, CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution,
-    VariableRole,
-};
+use crate::sema::{CheckState, GenericParameterId, GenericTemplateId, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 /// Literal inference selected for one generic application.
@@ -166,16 +164,25 @@ impl CheckState<'_> {
             }
 
             // open one inference variable for the omitted parameter
-            let variable = self.open_variable(origin, VariableRole::Instantiation { parameter });
+            let memory_kind = match (binding.memory_parameter(), binding.constraint) {
+                (Some(kind), _) => Some(kind),
+                (None, Some(constraint)) => self.memory_kind(constraint)?,
+                (None, None) => None,
+            };
+            let kind = memory_kind.map_or(VariableKind::Type, VariableKind::Memory);
+            let variable = self.open_instantiation(origin, parameter, kind)?;
 
             // record the instantiation while the site claims its typing position
             self.infer
                 .insert_instantiation(origin_id, parameter, variable);
 
             // keep the declared default for dry inference
-            if let Some(default) = binding.default {
+            if let Some(kind) = memory_kind {
+                let default = self.elided_memory_default(kind)?;
+                self.set_variable_default(variable, default)?;
+            } else if let Some(default) = binding.default {
                 let default = self.substitute_type(default, &substitution)?;
-                self.set_variable_default(variable, default);
+                self.set_variable_default(variable, default)?;
             }
 
             let argument = self.variable_type(variable)?;
@@ -184,55 +191,9 @@ impl CheckState<'_> {
 
         Ok(Some(substitution))
     }
-
-    /// Return whether a type exposes another type through transparent alternatives.
-    pub(in crate::sema) fn has_exposed_type(
-        &self,
-        ty: dir::GlobalTypeId,
-        exposed: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(&[ty]);
-        let mut visited = SmallVec::<[dir::GlobalTypeId; 8]>::new();
-
-        // follow forms, unions, intersections, and conditional alternatives
-        while let Some(ty) = pending.pop() {
-            if ty == exposed {
-                return Ok(true);
-            }
-            if visited.contains(&ty) {
-                continue;
-            }
-            visited.push(ty);
-
-            match self.ty(ty)? {
-                dir::Type::Form(form) => pending.push(form.value),
-                dir::Type::Union(union) => {
-                    pending.extend(self.type_ids(ty.module_id, union.elements)?.iter().copied());
-                }
-                dir::Type::Intersection(intersection) => {
-                    pending.extend(
-                        self.type_ids(ty.module_id, intersection.elements)?
-                            .iter()
-                            .copied(),
-                    );
-                }
-                dir::Type::Operation(_) => {
-                    if let Some(dir::TypeOperation::Conditional(conditional)) =
-                        self.operation_head(ty)?
-                    {
-                        pending.push(conditional.then_type);
-                        pending.push(conditional.else_type);
-                    }
-                }
-                _ => {}
-            }
-        }
-
-        Ok(false)
-    }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one explicit instantiation once its target name decides.
     pub(in crate::sema) fn select_instantiation(
         &mut self,
@@ -337,7 +298,7 @@ impl BodyState<'_, '_> {
                 for constraint in
                     self.substitute_application_constraints(origin, template, &substitution)?
                 {
-                    self.check.push_relation(constraint)?;
+                    self.push_relation(constraint)?;
                 }
 
                 match self.ty(declared)? {

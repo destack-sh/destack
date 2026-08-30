@@ -380,7 +380,7 @@ struct Counter {
     }
 }
 
-const next: Counter = Counter { value: 1 }.increment<"local">();
+const next: Counter = Counter { value: 1 }.increment();
 next satisfies Counter;
 
 === dir ===
@@ -388,14 +388,14 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(): Counter {
-    /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter
+    /// @generic.template symbol=Counter.increment parameters=('a)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter
     /// @type.symbol symbol=Counter.increment.this type=&Counter.increment.'a readonly Counter
     /// @resolution.name source=Counter target=Counter
 
@@ -404,9 +404,9 @@ struct Counter {
         /// @resolution.member source=this.value receiver=&Counter.increment.'a readonly Counter type=int32 kind=field target_receiver=&Counter.increment.'a readonly Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a readonly Counter
-        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="readonly"
+        /// @resolution.place source=this placement=Counter.increment.'a lifetime=Counter.increment.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="readonly"
+        /// @resolution.place source=this.value placement=Counter.increment.'a lifetime=Counter.increment.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -416,10 +416,8 @@ const next = Counter { value: 1 }.increment();
 /// @type.symbol symbol=next source=next type=Counter
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Counter target=Counter
-/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a readonly Counter) => Counter kind=symbol target_receiver=Counter target=Counter.increment
-/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter)) instance="Counter.increment<\"local\">"
-/// @generic.instantiation id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
-/// @generic.instance id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
+/// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter))
 
 next satisfies Counter;
 /// @resolution.name source=next target=next
@@ -626,7 +624,7 @@ struct Counter {
 }
 
 let counter: Counter = Counter { value: 1 };
-const next: int32 = counter.increment<"local">();
+const next: int32 = counter.increment();
 next satisfies int32;
 
 === dir ===
@@ -634,19 +632,19 @@ struct Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.struct symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
-/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => int32
+/// @definition.method symbol=Counter.increment slot=increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32
 
     value: int32;
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     increment(&exclusive this): int32 {
-    /// @generic.template symbol=Counter.increment parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => int32
+    /// @generic.template symbol=Counter.increment parameters=('a)
+    /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32
     /// @type.symbol symbol=Counter.increment.this source="&exclusive this" type=&Counter.increment.'a exclusive this
 
         this.value = this.value + 1;
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this placement=Counter.increment.'a lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
         /// @resolution.access source=this.value root=this keys=[value]
@@ -654,17 +652,17 @@ struct Counter {
         /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.operator source="this.value + 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this placement=Counter.increment.'a lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this.value placement=Counter.increment.'a lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
         this.value
         /// @resolution.member source=this.value receiver=&Counter.increment.'a exclusive Counter type=int32 kind=field target_receiver=&Counter.increment.'a exclusive Counter key=value target=Counter.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a exclusive Counter
-        /// @resolution.place source=this placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this placement=Counter.increment.'a lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement=Counter.increment.P1 lifetime=Counter.increment.'a access="exclusive"
+        /// @resolution.place source=this.value placement=Counter.increment.'a lifetime=Counter.increment.'a access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -679,12 +677,10 @@ const next = counter.increment();
 /// @type.symbol symbol=next source=next type=int32
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=counter target=counter
-/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a, Counter.increment.P1: Place>(this: &Counter.increment.'a exclusive Counter) => int32 kind=symbol target_receiver=Counter target=Counter.increment
-/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static exclusive Counter)) instance="Counter.increment<\"local\">"
+/// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a exclusive Counter) => int32 kind=symbol target_receiver=Counter target=Counter.increment
+/// @resolution.call source=counter.increment() parameters=() return=int32 kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static exclusive Counter))
 /// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
-/// @generic.instantiation id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
-/// @generic.instance id="Counter.increment<\"local\">" template=Counter.increment arguments=("local")
 
 next satisfies int32;
 /// @resolution.name source=next target=next
@@ -735,7 +731,7 @@ const counter: Counter = { value: 1 };
 /// @resolution.name source=Counter target=Counter
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ value: int32 }' is not assignable to type 'Counter'"
+/// @diagnostic.error id=not-assignable message="type '{ value: int64 }' is not assignable to type 'Counter'"
 /// @diagnostic.label line=6 column=26 span="{ value: 1 }" line_source="const counter: Counter = { value: 1 };"
 /// @diagnostic.related line=6 column=16 span="Counter" line_source="const counter: Counter = { value: 1 };" message="expected due to this annotation"
 "#,
@@ -774,12 +770,14 @@ type Options = {
 };
 
 struct Entry<'a> {
-    logger?: Borrowed<string, 'a, "readonly">;
+    logger?: &'a readonly string;
     message?: string | undefined;
 }
 
 function make(options?: Options): Entry<"static" & "constant"> {
-    const entry: Entry<"frame"> = Entry<"frame"> { message: options?.message };
+    const entry: Entry<"static" & "constant"> = Entry<"static" & "constant"> {
+        message: options?.message,
+    };
 
     return entry;
 }
@@ -818,7 +816,7 @@ function make(options?: Options): Entry {
 /// @resolution.name source=Entry target=Entry
 
     const entry = Entry { message: options?.message };
-    /// @type.symbol symbol=make.entry source=entry type=Entry<"frame">
+    /// @type.symbol symbol=make.entry source=entry type=Entry<"static" & "constant">
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options

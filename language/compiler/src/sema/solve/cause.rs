@@ -4,9 +4,6 @@ use destack_dir as dir;
 use crate::sema::{Origin, Variance};
 
 /// One interned reason a constraint exists.
-///
-/// Causes form a tree from each constraint back to the written syntax that
-/// required it, so any failure traces itself by walking its chain.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) struct Cause {
     /// The source this constraint anchors to.
@@ -33,6 +30,19 @@ impl Cause {
             origin,
             kind,
             parent: Some(parent),
+        }
+    }
+
+    /// Create one cause descending from a parent constraint, or a root cause without one.
+    pub(in crate::sema) fn child_maybe(
+        origin: Origin,
+        kind: CauseKind,
+        parent: Option<CauseId>,
+    ) -> Self {
+        Self {
+            origin,
+            kind,
+            parent,
         }
     }
 }

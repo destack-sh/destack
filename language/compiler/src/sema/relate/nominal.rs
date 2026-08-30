@@ -69,203 +69,6 @@ impl HeritageClosure {
 }
 
 impl CheckState<'_> {
-    /// Relate two closed roots under a check-only constraint relation.
-    pub(in crate::sema) fn relate_satisfies(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        // decide formed sources against capability and interface targets directly
-        if matches!(self.ty(source)?, dir::Type::Form(_)) {
-            // capability targets decide through their intrinsic rule
-            if let Some(interface) = self
-                .type_symbol(target)?
-                .map(|symbol| self.language_item(symbol))
-                .transpose()?
-                .flatten()
-                .and_then(dir::AutoInterface::from_language_item)
-                .filter(|interface| interface.has_builtin_implementation())
-            {
-                return self.decide_auto_interface(origin, source, interface);
-            }
-
-            // applied interface targets select implementations
-            if let dir::Type::Application(instance) = self.ty(target)?
-                && matches!(
-                    self.definition(instance.symbol)?,
-                    Some(dir::Definition::Interface(_))
-                )
-            {
-                return self.relate_interface(origin, cause, relation, source, target);
-            }
-        }
-
-        // intersection targets require every element under the same relation
-        if let dir::Type::Intersection(intersection) = self.ty(target)? {
-            let elements: SmallVec<[_; 8]> = self
-                .type_ids(target.module_id, intersection.elements)?
-                .into();
-
-            return self.relate_all_targets(origin, cause, relation, source, &elements);
-        }
-
-        // intersection sources satisfy through any element
-        if let dir::Type::Intersection(intersection) = self.ty(source)? {
-            let elements: SmallVec<[_; 8]> = self
-                .type_ids(source.module_id, intersection.elements)?
-                .into();
-
-            return self.relate_any_source(origin, cause, relation, &elements, target);
-        }
-
-        // decide generic parameters through their bounds, then through their form
-        if let dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) = self.ty(source)? {
-            let decision = self
-                .relate_parameter_bounds(origin, cause, relation, parameter, target)?
-                .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?;
-            if decision == Verdict::Holds {
-                return Ok(Verdict::Holds);
-            }
-            let formed = self.constrain_form_assignable(origin, cause, relation, source, target)?;
-
-            return Ok(formed.unwrap_or(decision));
-        }
-
-        // memory forms decide like closed form assignability
-        if (matches!(self.ty(source)?, dir::Type::Form(_))
-            || matches!(self.ty(target)?, dir::Type::Form(_)))
-            && let Some(decision) =
-                self.constrain_form_assignable(origin, cause, relation, source, target)?
-        {
-            return Ok(decision);
-        }
-
-        // accept region pairs and extent terms against the opaque region and lifetime kinds
-        if let Some(symbol) = self.type_symbol(target)?
-            && matches!(
-                self.language_item(symbol)?,
-                Some(dir::LanguageItem::Lifetime | dir::LanguageItem::Region)
-            )
-            && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
-        {
-            return Ok(Verdict::Holds);
-        }
-
-        // enum members satisfy constraints through their owner
-        if let dir::Type::Variant(member) = self.ty(source)? {
-            return self.constrain_type(origin, cause, relation, member.owner, target);
-        }
-
-        // nullish try residuals satisfy an including return type by absorption
-        if let dir::Type::Application(instance) = self.ty(target)?
-            && matches!(
-                self.language_item(instance.symbol)?,
-                Some(dir::LanguageItem::FromResidual)
-            )
-            && let [residual] = *self.type_ids(target.module_id, instance.arguments)?
-            && self.is_nullish_type(origin, residual)?
-        {
-            return self.decide_relation(origin, Relation::Assignable, residual, source);
-        }
-
-        // union sources must satisfy the target through every element
-        if let dir::Type::Union(union) = self.ty(source)? {
-            let elements: SmallVec<[_; 8]> =
-                self.type_ids(source.module_id, union.elements)?.into();
-
-            return self.relate_all_sources(origin, cause, relation, &elements, target);
-        }
-
-        // union targets accept when any element accepts the source
-        if let dir::Type::Union(union) = self.ty(target)? {
-            let elements: SmallVec<[_; 8]> =
-                self.type_ids(target.module_id, union.elements)?.into();
-
-            return self.relate_any_target(origin, cause, relation, source, &elements);
-        }
-
-        // match const scalars against the member values of a closed enum
-        if let dir::Type::Literal(literal) = self.ty(source)?
-            && let Some(symbol) = self.type_symbol(target)?
-            && let Some(dir::Definition::Enum(definition)) = self.definition(symbol)?
-        {
-            let members = definition.members.clone();
-            for member in &members {
-                let dir::DefinitionMember::EnumVariant(variant) = member else {
-                    continue;
-                };
-                if dir::Literal::from(variant.value) == literal {
-                    return Ok(Verdict::Holds);
-                }
-            }
-
-            return Ok(Verdict::Fails);
-        }
-
-        // static scalar operations relate through their result type
-        if matches!(
-            self.operation_head(source)?,
-            Some(dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_))
-        ) && let Some(result) = self.static_operation_type(origin, source)?
-        {
-            let verdict = self.constrain_type(origin, cause, relation, result, target)?;
-            if verdict != Verdict::Fails {
-                return Ok(verdict);
-            }
-        }
-
-        // read the nominal application the target names, if any
-        let target_instance = match self.ty(target)? {
-            dir::Type::Application(target) => Some(target),
-            _ => None,
-        };
-
-        // route every applied interface through one implementation selection path
-        if let Some(target_instance) = target_instance.as_ref()
-            && matches!(
-                self.definition(target_instance.symbol)?,
-                Some(dir::Definition::Interface(_))
-            )
-        {
-            return self.relate_interface(origin, cause, relation, source, target);
-        }
-
-        // nominal sources meet nominal constraints through their declarations
-        let instances = match (self.ty(source)?, target_instance) {
-            (dir::Type::Application(source), Some(target)) => Some((source, target)),
-            _ => None,
-        };
-
-        match (instances, relation) {
-            (Some((source_instance, target_instance)), _) => self.relate_application(
-                origin,
-                cause,
-                relation,
-                source,
-                &source_instance,
-                target,
-                &target_instance,
-            ),
-
-            // satisfy other values through assignability or union membership
-            (None, _) => {
-                // check-only relations read structural pairs covariantly
-                if let (dir::Type::Object(_), dir::Type::Object(_)) =
-                    (self.ty(source)?, self.ty(target)?)
-                {
-                    return self.relate_shape(origin, cause, relation, source, target);
-                }
-
-                // everything else decides through assignability
-                self.relate_assignable(origin, cause, relation, source, target)?
-                    .or_else(|| self.relate_into_union(origin, cause, relation, source, target))
-            }
-        }
-    }
-
     /// Relate two applied declarations.
     pub(in crate::sema) fn relate_application(
         &mut self,
@@ -293,6 +96,7 @@ impl CheckState<'_> {
             });
         }
 
+        // read the kind the target declares
         let target_kind = self.symbol_kind(target_instance.symbol)?;
 
         // interface targets select one implementation path
@@ -347,30 +151,6 @@ impl CheckState<'_> {
         }
 
         Ok(Verdict::Fails)
-    }
-
-    /// Relate two different nominal applications under assignability.
-    pub(in crate::sema) fn relate_application_assignable(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        let (source_instance, target_instance) = match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Application(source), dir::Type::Application(target)) => (source, target),
-            _ => return Ok(Verdict::Fails),
-        };
-
-        self.relate_application(
-            origin,
-            cause,
-            Relation::Assignable,
-            source,
-            &source_instance,
-            target,
-            &target_instance,
-        )
     }
 
     /// Return the first declared field missing from one struct construction.
@@ -561,7 +341,7 @@ impl CheckState<'_> {
             self.constrain_type(
                 origin,
                 field_cause,
-                Relation::Assignable,
+                Relation::Storable,
                 field.access.store(),
                 declared.access.store(),
             )?;
@@ -593,6 +373,7 @@ impl CheckState<'_> {
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         pending.push(symbol);
 
+        // walk the heritage above the declaration
         while let Some(symbol) = pending.pop() {
             if visited.contains(&symbol) {
                 continue;
@@ -640,6 +421,7 @@ impl CheckState<'_> {
         let mut visited = SmallVec::<[dir::GlobalSymbolId; 4]>::new();
         pending.push(symbol);
 
+        // walk the heritage above the declaration
         while let Some(symbol) = pending.pop() {
             if visited.contains(&symbol) {
                 continue;
@@ -703,10 +485,9 @@ impl CheckState<'_> {
         let mut verdict = Verdict::Holds;
         for (key, field_type, is_optional) in fields {
             let subject =
-                self.body()
-                    .member_subject(origin, source, source, dir::MemberSpace::Instance)?;
-            let lookup = self.body().lookup_member(origin, module, subject, key)?;
-            let member = self.body().member_read_type(&lookup)?;
+                self.member_subject(origin, source, source, dir::MemberSpace::Instance)?;
+            let lookup = self.lookup_member(origin, module, subject, key)?;
+            let member = self.member_read_type(&lookup)?;
 
             match member {
                 // missing members satisfy optional targets only
@@ -754,12 +535,13 @@ impl CheckState<'_> {
         self.instance_heritage_closure(origin, ty, instance_module, instance)
     }
 
-    /// Resolve one heritage root, reducing aliases to their nominal application.
+    /// Settle one heritage root, reducing aliases to their nominal application.
     fn heritage_root(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // normalize an alias application before reading its head
         let is_alias = match self.nominal_application_maybe(ty)? {
             Some((_, instance)) => matches!(
                 self.definition(instance.symbol)?,
@@ -932,6 +714,7 @@ impl CheckState<'_> {
         reached.push(symbol);
         frontier.push(symbol);
 
+        // walk the frontier of reached declarations
         while let Some(current) = frontier.pop() {
             // an unchecked or aliased declaration leaves the heritage open
             let Some(definition) = self.definition(current)? else {

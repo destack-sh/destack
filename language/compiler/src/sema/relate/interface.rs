@@ -85,6 +85,18 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // conform ownership forms through the value they store
+        let written_source = source;
+        let source = self.ownership_payload(origin, source)?;
+        let target = match self.type_flags(target)?.has_this() {
+            true => {
+                let substitution = TypeSubstitution::default().with_receiver(source);
+
+                self.substitute_type(target, &substitution)?
+            }
+            false => target,
+        };
+
         // read the target interface declaration
         let (_, target_instance) = self.nominal_application(target)?;
         let is_nominal = match self.definition(target_instance.symbol)? {
@@ -95,6 +107,16 @@ impl CheckState<'_> {
                 });
             }
         };
+
+        // flow a nullish try residual into every return type that includes it
+        if matches!(
+            self.language_item(target_instance.symbol)?,
+            Some(dir::LanguageItem::FromResidual)
+        ) && let [residual] = *self.type_ids(target.module_id, target_instance.arguments)?
+            && self.is_nullish_type(origin, residual)?
+        {
+            return self.decide_relation(origin, Relation::Subtype, residual, source);
+        }
 
         // classify the interfaces the compiler decides itself
         let auto_interface = self
@@ -128,30 +150,28 @@ impl CheckState<'_> {
                 .type_ids(target.module_id, target_instance.arguments)?
                 .into();
             let form = self.default_variance_form(target_instance.symbol)?;
-            let argument_relation = match relation {
-                Relation::Subtype => relation,
-                _ => relation.interior(),
-            };
+
             return self.relate_type_arguments(
                 origin,
                 cause,
                 target_instance.symbol,
                 form,
-                argument_relation,
+                relation,
                 &source_arguments,
                 &target_arguments,
             );
         }
 
         // select a visible extension implementation
-        let implemented = self.body().decide_extension_implementation(
+        let implementation = self.decide_extension_implementation(
             origin,
             relation,
             target.module_id,
-            source,
+            written_source,
             &target_instance,
             None,
         )?;
+        let implemented = implementation.verdict;
         if implemented == Verdict::Holds {
             return Ok(Verdict::Holds);
         }
@@ -263,24 +283,38 @@ impl CheckState<'_> {
                 (None, implemented)
             };
 
-            // relate the instance arguments under the declared variance
+            // bind the candidate's open arguments, then relate under the declared variance
             let is_matched = match instance {
                 Some((instance_module, instance)) => {
                     let arguments: SmallVec<[_; 8]> =
                         self.type_ids(instance_module, instance.arguments)?.into();
                     let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                     let form = self.default_variance_form(interface.symbol)?;
+                    let mut bound = Verdict::Holds;
+                    for (declared, requested) in arguments.iter().zip(&interface_arguments) {
+                        if self.root_variable(*declared)?.is_some() {
+                            bound = bound.and(self.constrain_type(
+                                origin,
+                                cause,
+                                Relation::Equal,
+                                *declared,
+                                *requested,
+                            )?);
+                        }
+                    }
 
-                    self.relate_type_arguments(
-                        origin,
-                        cause,
-                        interface.symbol,
-                        form,
-                        relation.interior(),
-                        &arguments,
-                        &interface_arguments,
-                    )?
-                    .holds()
+                    bound.holds()
+                        && self
+                            .relate_type_arguments(
+                                origin,
+                                cause,
+                                interface.symbol,
+                                form,
+                                relation,
+                                &arguments,
+                                &interface_arguments,
+                            )?
+                            .holds()
                 }
                 None => false,
             };
@@ -334,6 +368,7 @@ impl CheckState<'_> {
             });
         };
 
+        // read the members the interface declares
         let interface_members = definition.members.clone();
 
         // select written bindings, declared values, then interface defaults
@@ -398,7 +433,7 @@ impl CheckState<'_> {
 
             let constraint =
                 self.instantiate_interface_type(constraint, implementation, receiver)?;
-            if self.decide_relation(origin, Relation::Satisfies, *value, constraint)?
+            if self.decide_relation(origin, Relation::Subtype, *value, constraint)?
                 == Verdict::Fails
             {
                 return Ok(None);
@@ -424,16 +459,12 @@ impl CheckState<'_> {
         // require each member from the source
         let mut verdict = Verdict::Holds;
         for member in &requirements.members {
-            let subject = self
-                .body()
-                .member_subject(origin, source, source, member.space)?;
-            let lookup = self
-                .body()
-                .lookup_member(origin, module, subject, member.key)?;
+            let subject = self.member_subject(origin, source, source, member.space)?;
+            let lookup = self.lookup_member(origin, module, subject, member.key)?;
 
             // require presence when an associated type stays abstract
             let Some(member_type) = member.ty else {
-                if lookup.is_found() || member.has_default || member.is_optional {
+                if !lookup.is_empty() || member.has_default || member.is_optional {
                     continue;
                 }
 
@@ -446,7 +477,7 @@ impl CheckState<'_> {
             let member_decision = match access {
                 // properties relate their complete read and write operations
                 Some(required) if member.role != MemberRole::Method => {
-                    let Some(found) = self.body().member_binding(member.key, &lookup)? else {
+                    let Some(found) = self.member_binding(member.key, &lookup)? else {
                         if member.is_optional || member.has_default {
                             continue;
                         }
@@ -463,12 +494,9 @@ impl CheckState<'_> {
                         access: required,
                         is_optional: member.is_optional,
                     };
-                    let Some(relations) = self.shape_property_relations(
-                        Relation::Assignable,
-                        false,
-                        &source,
-                        &target,
-                    ) else {
+                    let Some(relations) =
+                        self.shape_property_relations(Relation::Storable, &source, &target)
+                    else {
                         return Ok(Verdict::Fails);
                     };
 
@@ -476,7 +504,7 @@ impl CheckState<'_> {
                 }
                 // methods compare callable signatures without their receivers
                 Some(_) => {
-                    let Some(found) = self.body().member_read_type(&lookup)? else {
+                    let Some(found) = self.member_read_type(&lookup)? else {
                         if member.is_optional || member.has_default {
                             continue;
                         }
@@ -484,18 +512,11 @@ impl CheckState<'_> {
                         return Ok(Verdict::Fails);
                     };
 
-                    self.relate_method(
-                        origin,
-                        cause,
-                        Relation::Assignable,
-                        found,
-                        member_type,
-                        None,
-                    )?
+                    self.relate_method(origin, cause, Relation::Storable, found, member_type, None)?
                 }
                 // associated members use their selected value type
                 None => {
-                    let Some(found) = self.body().member_read_type(&lookup)? else {
+                    let Some(found) = self.member_read_type(&lookup)? else {
                         if member.is_optional || member.has_default {
                             continue;
                         }
@@ -503,7 +524,7 @@ impl CheckState<'_> {
                         return Ok(Verdict::Fails);
                     };
 
-                    self.constrain_type(origin, cause, Relation::Assignable, found, member_type)?
+                    self.constrain_type(origin, cause, Relation::Storable, found, member_type)?
                 }
             };
 
@@ -606,7 +627,7 @@ impl CheckState<'_> {
         if is_function {
             return match family {
                 SignatureFamily::Call => {
-                    self.relate_method(origin, cause, Relation::Assignable, source, required, None)
+                    self.relate_method(origin, cause, Relation::Storable, source, required, None)
                 }
                 SignatureFamily::Construct => Ok(Verdict::Fails),
             };
@@ -626,7 +647,7 @@ impl CheckState<'_> {
             verdict = verdict.or(self.relate_method(
                 origin,
                 cause,
-                Relation::Assignable,
+                Relation::Storable,
                 signature.ty,
                 required,
                 None,
@@ -750,6 +771,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         let item = self.language_item(symbol)?;
 
+        // read whether the item names a callable representation
         Ok(matches!(
             item,
             Some(dir::LanguageItem::Function | dir::LanguageItem::FunctionPointer)
@@ -771,6 +793,7 @@ impl CheckState<'_> {
             });
         };
 
+        // read the members the declaration holds
         let members = definition.members.clone();
 
         // collect direct interface members with applied arguments

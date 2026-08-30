@@ -106,10 +106,10 @@ declare const values: [int32; 3];
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @resolution.access source=[first, , last] root=values
-/// @generic.instantiation id="index#1<int32, 3, \"exclusive\", \"local\">" template=index#1 arguments=(int32, 3, "exclusive", "local")
+/// @generic.instantiation id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive")
 /// @generic.instance id="WithAccess<&'frame FixedArray<int32, 3>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<int32, 3>, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="index#1<int32, 3, \"exclusive\", \"local\">" template=index#1 arguments=(int32, 3, "exclusive", "local")
+/// @generic.instance id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive")
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
@@ -234,7 +234,7 @@ let tail: int32[] = [];
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
@@ -244,11 +244,11 @@ declare const values: int32[];
 /// @type.node source="[head, ...tail] = values" type=int32[]
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @resolution.access source=[head, ...tail] root=values
-/// @generic.instantiation id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-/// @generic.instance id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head

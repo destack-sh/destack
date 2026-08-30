@@ -61,11 +61,11 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize {
-    /// @generic.template symbol=Buffer.write parameters=('a, P1: Place)
-    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a, Buffer.write.P1: Place>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+    /// @generic.template symbol=Buffer.write parameters=('a)
+    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
     /// @type.symbol symbol=Buffer.write.this type=&Buffer.write.'a readonly Buffer
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
@@ -74,7 +74,7 @@ struct Buffer {
         /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
         /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
-        /// @generic.instantiation id="length<uint8, \"local\">" template=length arguments=(uint8, "local")
+        /// @generic.instantiation id=length<uint8> template=length arguments=(uint8)
 
     }
 }

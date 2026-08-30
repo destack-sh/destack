@@ -2,9 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, Cause, CauseKind, FlowPointId, Origin, Relation, RelationCheck};
+use crate::sema::{Cause, CauseKind, CheckState, FlowPointId, Origin, Relation, RelationCheck};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one tuple pattern, projecting elements by position.
     pub(in crate::sema) fn select_tuple_pattern(
         &mut self,
@@ -18,6 +18,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         self.report_duplicate_pattern_bindings(module, fields)?;
 
+        // require a well formed rest field
         if !self.report_pattern_rest_fields(module, fields) {
             return self.commit_rejected_pattern(node);
         }
@@ -101,6 +102,7 @@ impl BodyState<'_, '_> {
             position += 1;
         }
 
+        // commit the tuple destructure
         self.commit_pattern(
             node,
             dir::PatternDecision::Destructure(Box::new(dir::PatternDestructureResolution::Tuple(
@@ -182,6 +184,7 @@ impl BodyState<'_, '_> {
             position += 1;
         }
 
+        // commit the tuple assignment pattern
         let () = self.commit_assign_pattern(
             node,
             dir::AssignPatternDecision::Tuple(dir::AssignPatternTupleResolution {

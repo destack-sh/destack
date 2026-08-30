@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_source::ModuleId;
 
-use crate::sema::{BodyState, Origin};
+use crate::sema::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one written enum variant pattern.
     pub(in crate::sema) fn select_variant_type_pattern(
         &mut self,

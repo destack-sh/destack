@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin, PlaceUse,
-    Value,
+    CheckState, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin, PlaceUse,
+    Value, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -19,7 +19,7 @@ enum ObjectField {
     Rejected,
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one object pattern, projecting fields by key.
     pub(in crate::sema) fn select_object_pattern(
         &mut self,
@@ -53,6 +53,7 @@ impl BodyState<'_, '_> {
         let (fields, rest) =
             self.project_named_fields(node, origin, flow, scope, scrutinee, fields)?;
 
+        // commit the object destructure
         self.commit_pattern(
             node,
             dir::PatternDecision::Destructure(Box::new(dir::PatternDestructureResolution::Object(
@@ -77,6 +78,7 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         self.report_duplicate_assign_fields(module, fields)?;
 
+        // require a well formed rest field
         if !self.report_assign_rest_fields(module, fields) {
             self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
 
@@ -86,6 +88,7 @@ impl BodyState<'_, '_> {
         // destructure the physical value beneath nominal wrappers
         let scrutinee = self.narrow_pattern_scrutinee(origin, scrutinee, &[])?;
 
+        // require a keyed source to destructure
         if !self.is_keyed_type(origin, scrutinee)? {
             self.report_pattern_source_not_object_shaped(origin, scrutinee)?;
             self.commit_decision(node.into_any(), dir::Decision::Rejected)?;
@@ -93,6 +96,7 @@ impl BodyState<'_, '_> {
             return Ok(false);
         }
 
+        // project each named field out of the source
         let Some((fields, rest)) =
             self.project_assign_named_fields(node, origin, flow, scope, scrutinee, fields)?
         else {
@@ -101,6 +105,7 @@ impl BodyState<'_, '_> {
             return Ok(false);
         };
 
+        // commit the object assignment pattern
         let () = self.commit_assign_pattern(
             node,
             dir::AssignPatternDecision::Object(dir::AssignPatternObjectResolution {
@@ -127,6 +132,7 @@ impl BodyState<'_, '_> {
     )> {
         let module = node.module_id;
 
+        // project each written field in source order
         let mut projected = Vec::with_capacity(fields.len());
         let mut projected_keys = SmallVec::<[dir::StaticKey; 8]>::new();
         let mut rest = None;
@@ -428,12 +434,14 @@ impl BodyState<'_, '_> {
                 self.module(module).view().get(pattern)
             {
                 let place = expression.into_global_any(module);
+                // decide the place a rejected field names
                 self.decide_reference(place)?;
             }
 
             return Ok(None);
         };
 
+        // check the field pattern against its projected value
         self.check_pattern_projection(
             key_site.flow,
             key_site.scope,
@@ -448,7 +456,7 @@ impl BodyState<'_, '_> {
         }))
     }
 
-    /// Project one named assignment field the input type does not declare.
+    /// Project one named assignment field absent from the input type.
     fn project_missing_assign_field(
         &mut self,
         flow: FlowPointId,
@@ -598,98 +606,52 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         lookup: MemberLookup,
     ) -> CompilerResult<ObjectField> {
-        let field = match lookup {
-            MemberLookup::Field(field) => {
-                // write-only properties expose nothing to an object read
-                let Some(projection) = field.projection(owner, key, self)? else {
-                    return Ok(ObjectField::Missing);
-                };
+        // project every runtime arm, joining several as one union projection
+        if lookup.is_empty() {
+            return Ok(ObjectField::Missing);
+        }
+        let arms = member_arms(&lookup);
+        let is_union = arms.iter().any(|(arm, _)| arm.is_some());
+        let mut projections = Vec::with_capacity(arms.len());
+        let mut types = Vec::with_capacity(arms.len());
+        for (arm, group) in arms {
+            let owner = arm.map_or(owner, |arm| arm.receiver);
+            let projection = match self.object_member_field(origin, owner, key, &group)? {
+                Ok(projection) => projection,
+                // project the key on each runtime arm
+                Err(field) => return Ok(field),
+            };
+            types.push(projection.ty());
+            projections.push(projection);
+        }
 
-                ObjectField::Projection(Box::new(projection.into()))
-            }
-            MemberLookup::Found(candidates) => {
-                self.object_member_field(origin, owner, key, candidates)?
-            }
-            MemberLookup::Union(lookups) => {
-                let mut projections = Vec::with_capacity(lookups.len());
-                let mut types = Vec::with_capacity(lookups.len());
-                for arm in lookups {
-                    let ObjectField::Projection(projection) =
-                        self.object_lookup_field(origin, arm.receiver, key, arm.lookup)?
-                    else {
-                        return Ok(ObjectField::Rejected);
-                    };
-                    let dir::OperationResolution::One(projection) = *projection else {
-                        return Err(CompilerError::Internal {
-                            message: "union object lookup produced a nested union projection"
-                                .to_string(),
-                        });
-                    };
-                    types.push(projection.ty());
-                    projections.push(projection);
-                }
-                let ty = self.normalized_union_type(types)?;
-
-                ObjectField::Projection(Box::new(dir::OperationResolution::Union {
+        Ok(ObjectField::Projection(Box::new(
+            match (is_union, projections.as_slice()) {
+                (false, [_]) => dir::OperationResolution::One(projections.remove(0)),
+                _ => dir::OperationResolution::Union {
                     arms: projections,
-                    ty,
-                }))
-            }
-            lookup @ MemberLookup::Intersection(_) => {
-                let Some(resolution) = self.select_member_read(
-                    origin,
-                    Value {
-                        ty: owner,
-                        node: None,
-                        place: None,
-                        is_fresh: false,
-                    },
-                    key,
-                    &lookup,
-                )?
-                else {
-                    return Ok(ObjectField::Rejected);
-                };
-
-                ObjectField::Projection(Box::new(resolution.into()))
-            }
-            MemberLookup::Missing | MemberLookup::Ambiguous => ObjectField::Missing,
-        };
-
-        Ok(field)
+                    ty: self.normalized_union_type(types)?,
+                },
+            },
+        )))
     }
 
-    /// Return the lowerable projection for declaration-backed object fields.
+    /// Return the lowerable projection one runtime arm's candidates expose, or the rejection.
     fn object_member_field(
         &mut self,
         origin: Origin,
         owner: dir::GlobalTypeId,
         key: dir::StaticKey,
-        candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<ObjectField> {
-        let field = match candidates.as_slice() {
+        candidates: &[&MemberCandidate],
+    ) -> CompilerResult<Result<dir::Projection, ObjectField>> {
+        let field = match candidates {
             [candidate] if candidate.role == MemberRole::Field => {
-                let Some(field) = candidate.field(key) else {
-                    return Err(CompilerError::Internal {
-                        message: "field member candidate has no field projection".to_string(),
-                    });
+                // write-only properties expose nothing to an object read
+                let Some(ty) = candidate.read_type(self)? else {
+                    return Ok(Err(ObjectField::Missing));
                 };
 
-                ObjectField::Projection(Box::new(
-                    dir::Projection::Field(dir::FieldResolution {
-                        receiver: candidate.receiver.resolve(owner),
-                        target: field,
-                        ty: candidate
-                            .read_type(self)?
-                            .ok_or_else(|| CompilerError::Internal {
-                                message: format!(
-                                    "field {:?} has no readable type",
-                                    candidate.symbol
-                                ),
-                            })?,
-                    })
-                    .into(),
-                ))
+                candidate.projected(owner, key, ty)
             }
             [candidate] if candidate.role == MemberRole::Getter => {
                 let call = self.select_getter_call(
@@ -706,30 +668,28 @@ impl BodyState<'_, '_> {
                 // the owner's own getter must accept its own receiver
                 let Some(call) = call else {
                     return Err(CompilerError::Internal {
-                        message: format!("getter {:?} rejects its own owner", candidate.symbol),
+                        message: format!("getter {:?} rejects its own owner", candidate.symbol()),
                     });
                 };
 
-                let projection = dir::Projection::Call(Box::new(call));
-
-                ObjectField::Projection(Box::new(projection.into()))
+                dir::Projection::Call(Box::new(call))
             }
             [_candidate] => {
                 let key = self.format_static_key(&key);
                 self.report_pattern_member_not_field(origin, owner, key)?;
 
-                ObjectField::Rejected
+                return Ok(Err(ObjectField::Rejected));
             }
-            [] => ObjectField::Missing,
+            [] => return Ok(Err(ObjectField::Missing)),
             _ => {
                 let key = self.format_static_key(&key);
                 self.report_ambiguous_member(origin, key)?;
 
-                ObjectField::Rejected
+                return Ok(Err(ObjectField::Rejected));
             }
         };
 
-        Ok(field)
+        Ok(Ok(field))
     }
 
     /// Return the object rest projection after omitting selected keys.
@@ -740,6 +700,7 @@ impl BodyState<'_, '_> {
         owner: dir::GlobalTypeId,
         omitted: &[dir::StaticKey],
     ) -> CompilerResult<Option<dir::ProjectionResolution>> {
+        // read the fields the spread supplies
         let Some(fields) = self.spread_fields(origin, module, owner)? else {
             return Ok(None);
         };

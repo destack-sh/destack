@@ -17,6 +17,7 @@ impl CheckState<'_> {
             .get(node.local_id)
             .clone();
 
+        // reduce by the value expression's own syntax
         match expression {
             // reduce direct value references through resolver output
             dir::Expression::Identifier { .. } => self.reduce_typeof_reference(value),
@@ -67,7 +68,7 @@ impl CheckState<'_> {
             .references
             .get(value)
             .cloned();
-
+        // reduce by the reference the resolver bound
         match reference {
             // reflect a type literal into its Type<T> value
             Some(dir::Reference::TypeLiteral(literal)) => {
@@ -97,7 +98,12 @@ impl CheckState<'_> {
                 };
 
                 // lift a class used as a value to its declared static side
-                let is_class = matches!(self.definition(*symbol)?, Some(dir::Definition::Class(_)));
+                let is_class = matches!(self.symbol_kind(*symbol)?, dir::SymbolKind::Class);
+                if is_class && self.is_own_module(symbol.module_id) {
+                    let id = self.class_static_id(*symbol)?;
+
+                    return Ok(Some(self.intern_type(dir::Type::Static(id))?));
+                }
                 if is_class && let Some(id) = self.symbol_static_id(*symbol) {
                     return Ok(Some(self.intern_type(dir::Type::Static(id))?));
                 }
@@ -106,6 +112,10 @@ impl CheckState<'_> {
                     return Ok(Some(value));
                 }
 
+                // keep a declaration's uncommitted value type symbolic
+                if self.is_declaring() && self.adopt_symbol_type_maybe(*symbol)?.is_none() {
+                    return Ok(None);
+                }
                 let ty = self.symbol_type(*symbol)?;
 
                 Ok(Some(ty))
@@ -114,7 +124,7 @@ impl CheckState<'_> {
             // projected paths reduce through their expression shape
             Some(dir::Reference::Projected { .. }) | None => Ok(None),
 
-            // invalid paths were already reported by walk
+            // walk reports the invalid paths
             Some(
                 dir::Reference::Ambiguous(_)
                 | dir::Reference::Missing

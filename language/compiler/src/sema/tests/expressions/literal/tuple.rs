@@ -10,10 +10,7 @@ let value = (1, "two", true);
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_coercion()
-            ,
+        DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 let value: (int64, string, boolean) = (1, "two", true);
@@ -24,11 +21,11 @@ let value = (1, "two", true);
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=(1, "two", true) type=(int64, string, boolean)
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int64 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source="\"two\"" type="two"
-/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: widen, target: string }] origin=implicit
+/// @coercion.node source="\"two\"" from="two" adjustments=[{ kind: materialize, target: string }] origin=implicit
 /// @type.node source=true type=true
-/// @coercion.node source=true from=true adjustments=[{ kind: widen, target: boolean }] origin=implicit
+/// @coercion.node source=true from=true adjustments=[{ kind: materialize, target: boolean }] origin=implicit
 "#,
     );
 }
@@ -129,7 +126,7 @@ const value: (1 | 2, "a" | "b") = (1, "a");
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const value: (1 | 2, "a" | "b") = (1 as 1 | 2, "a" as "a" | "b");
+const value: (1 | 2, "a" | "b") = (1, "a");
 
 === dir ===
 const value: (1 | 2, "a" | "b") = (1, "a");

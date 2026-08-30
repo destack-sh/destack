@@ -16,7 +16,7 @@ function name(user: { name: string } | null): string | undefined {
         r#"
 === annotated ===
 function name(user: { name: string } | null): string | undefined {
-    return user?.name;
+    return user?.name as string | undefined;
 }
 
 === dir ===
@@ -100,7 +100,7 @@ function name(user: { name: string } | null): string | undefined {
         r#"
 === annotated ===
 function name(user: { name: string } | null): string | undefined {
-    return user?.["name"];
+    return user?.["name"] as string | undefined;
 }
 
 === dir ===
@@ -186,7 +186,7 @@ function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
         r#"
 === annotated ===
 function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
-    return service?.callback?.();
+    return service?.callback?.() as int32 | undefined;
 }
 
 === dir ===

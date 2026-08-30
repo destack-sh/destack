@@ -138,7 +138,7 @@ const value = both.value;
 /// @type.symbol symbol=value source=value type=string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=both target=both
-/// @resolution.member source=both.value receiver=Left & Right type=string kind=intersection targets=[field(receiver=Left & Right, target=Left.value, type=string), field(receiver=Left & Right, target=Right.value, type=string)]
+/// @resolution.member source=both.value receiver=Left & Right type=string kind=field target_receiver=Left & Right key=value target=Left.value target_type=string
 /// @resolution.place source=both placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=both root=both
 /// @resolution.access source=both.value root=both keys=[value]

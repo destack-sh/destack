@@ -104,6 +104,8 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
     /// @resolution.name source=value target=write.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=write.value
 
 }
 
@@ -238,7 +240,10 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @resolution.access source=sink root=write.sink
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
+    /// @type.node source=value type=T#2
     /// @resolution.name source=value target=write.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=write.value
 
 }
 
@@ -265,7 +270,7 @@ write("message", number);
 /// @diagnostic.error id=argument-not-assignable message="argument of type 'NumberSink' is not assignable to parameter of type 'SinkFor<string>'"
 /// @diagnostic.label line=17 column=18 span="number" line_source="write(\"message\", number);"
 /// @diagnostic.related line=17 column=1 span="write(\"message\", number)" line_source="write(\"message\", number);" message="in this call"
-/// @diagnostic.note message="'SinkFor<string>' reduces to 'TextSink'"
+/// @diagnostic.note message="the mismatch is in parameter 0 of field 'write': expected 'int32', found 'string'"
 "#,
     );
 }

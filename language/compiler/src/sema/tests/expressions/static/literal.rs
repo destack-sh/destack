@@ -123,8 +123,6 @@ const size = float.length;
 /// @resolution.member source=float.length receiver="measure" type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=float placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=float root=float
-/// @generic.instantiation id="length<\"local\">" template=length arguments=("local")
-/// @generic.instance id="length<\"local\">" template=length arguments=("local")
 "#,
     );
 }

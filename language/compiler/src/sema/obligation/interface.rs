@@ -3,7 +3,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, InterfaceConformanceObligation, InterfaceMember, MemberCandidate,
-    MemberLookup, ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution, Verdict,
+    ObligationCheck, ObligationFailure, Origin, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -136,6 +136,11 @@ impl CheckState<'_> {
         members: &[dir::DefinitionMember],
         is_unsafe_extension: bool,
     ) -> CompilerResult<ConformanceSelection> {
+        // refuse an interface written with an error
+        if self.type_flags(interface)?.has_error() {
+            return Ok(ConformanceSelection::Missing);
+        }
+
         // validate compiler-known markers through their compiler rule
         let (_, application) = self.nominal_application(interface)?;
         let auto_interface = self
@@ -249,9 +254,8 @@ impl CheckState<'_> {
             }
         }
 
-        let mut selected = Vec::new();
-
         // match each named requirement against declared or inherent members
+        let mut selected = Vec::new();
         for requirement in &requirements.members {
             let mut candidates =
                 SmallVec::<[(dir::GlobalSymbolId, Option<dir::GlobalTypeId>); 2]>::new();
@@ -259,7 +263,7 @@ impl CheckState<'_> {
                 if member.space() != requirement.space || member.key() != Some(requirement.key) {
                     continue;
                 }
-                let member = match self.body().declared_member(member)? {
+                let member = match self.declared_member(member)? {
                     Some(member) => member,
                     None => continue,
                 };
@@ -280,8 +284,11 @@ impl CheckState<'_> {
                     ));
                 };
                 for candidate in inherent {
-                    let ty = candidate.callable.unwrap_or(candidate.access_type);
-                    candidates.push((candidate.symbol, Some(ty)));
+                    let Some(symbol) = candidate.symbol() else {
+                        continue;
+                    };
+                    let ty = candidate.callable.unwrap_or(candidate.access.store());
+                    candidates.push((symbol, Some(ty)));
                 }
             }
 
@@ -309,7 +316,7 @@ impl CheckState<'_> {
                     };
                     let decision = self.relate_member(
                         origin,
-                        Relation::Assignable,
+                        Relation::Storable,
                         requirement.role,
                         found,
                         required,
@@ -341,7 +348,7 @@ impl CheckState<'_> {
         let signatures = self.relate_interface_signatures(
             origin,
             cause,
-            Relation::Satisfies,
+            Relation::Subtype,
             target,
             &requirements,
         )?;
@@ -384,7 +391,6 @@ impl CheckState<'_> {
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         let mut visited = SmallVec::<[dir::GlobalTypeId; 16]>::new();
         pending.push(ty);
-
         while let Some(id) = pending.pop() {
             if visited.contains(&id) {
                 continue;
@@ -418,7 +424,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         requirement: &InterfaceMember,
     ) -> CompilerResult<Option<Vec<MemberCandidate>>> {
-        let lookup = self.body().lookup_inherent_member(
+        let lookup = self.lookup_inherent_member(
             origin,
             origin.module(),
             target,
@@ -428,49 +434,34 @@ impl CheckState<'_> {
 
         // requirements are satisfied by every member visible on the target
         let mut is_visible = false;
-        let lookup = match lookup {
-            MemberLookup::Missing if !requirement.has_default => {
-                is_visible = true;
-                self.body().lookup_visible_member(
-                    origin,
-                    origin.module(),
-                    target,
-                    requirement.space,
-                    requirement.key,
-                )?
-            }
-            lookup => lookup,
-        };
-
-        // yield declaration candidates for a nominal implementation
-        let candidates = match lookup {
-            MemberLookup::Ambiguous => return Ok(None),
-            MemberLookup::Missing => Vec::new(),
-            MemberLookup::Found(candidates) => candidates,
-            lookup @ MemberLookup::Intersection(_) => {
-                lookup
-                    .into_candidates()
-                    .ok_or_else(|| CompilerError::Internal {
-                        message: "nominal implementation has a structural member".into(),
-                    })?
-            }
-            MemberLookup::Field(_) | MemberLookup::Union(_) => {
-                return Err(CompilerError::Internal {
-                    message: "nominal implementation has a structural member".into(),
-                });
-            }
+        let candidates = if lookup.is_empty() && !requirement.has_default {
+            is_visible = true;
+            self.lookup_visible_member(
+                origin,
+                origin.module(),
+                target,
+                requirement.space,
+                requirement.key,
+            )?
+        } else {
+            lookup
         };
 
         // keep the public members, a visible one declared beside its target
         let mut kept = Vec::with_capacity(candidates.len());
         for candidate in candidates {
-            if !self.is_public_member(candidate.symbol)? {
+            let Some(declared) = candidate.declaration() else {
+                return Err(CompilerError::Internal {
+                    message: "nominal implementation has a structural member".into(),
+                });
+            };
+            if !self.is_public_member(declared.symbol)? {
                 continue;
             }
             if is_visible
-                && (candidate.origin == dir::MemberOrigin::BlanketExtension
+                && (declared.origin == dir::MemberOrigin::BlanketExtension
                     || matches!(
-                        self.definition(candidate.owner)?,
+                        self.definition(declared.owner)?,
                         Some(dir::Definition::Interface(_))
                     ))
             {
@@ -484,6 +475,7 @@ impl CheckState<'_> {
 
     /// Return whether one member is part of its declaration's public membership.
     fn is_public_member(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
+        // read the visibility the declaration gives the member
         let visibility = self.member_visibility(symbol)?;
 
         Ok(!matches!(

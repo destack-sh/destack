@@ -277,7 +277,7 @@ function values(entries: { value: int32 }[]): int32[] {
         r#"
 === annotated ===
 function values(entries: { value: int32 }[]): int32[] {
-    return entries.map<{ value: int32 }, int32, "local">(({ value }): int32 => value) as int32[];
+    return entries.map<{ value: int32 }, int32>(({ value }): int32 => value) as int32[];
 }
 
 === dir ===
@@ -329,7 +329,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
         r#"
 === annotated ===
 function unwrap(values: (int32 | undefined)[]): int32[] {
-    return values.map<int32 | undefined, int32, "local">(
+    return values.map<int32 | undefined, int32>(
         (value: int32 | undefined): int32 => value!,
     ) as int32[];
 }

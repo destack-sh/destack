@@ -64,7 +64,7 @@ impl Variance {
     ///
     /// The relation is `Widens` when the arguments name storage inside an
     /// existing value, and `Assignable` when a conformance query encodes
-    /// call edges that convert at each use.
+    /// call edges that convert at each use, and the predicate itself for a bound.
     pub(in crate::sema) fn argument_relation(
         self,
         relation: Relation,
@@ -188,6 +188,7 @@ impl CheckState<'_> {
                 .unwrap_or(Variance::Invariant));
         }
 
+        // join the declared variance with the derived one
         let derived = self.derive_variance(parameter, form)?;
         let variance = match declared {
             Some(declared) if self.parameter_variance_form(parameter)? == form => declared,
@@ -211,6 +212,7 @@ impl CheckState<'_> {
             return Ok(VarianceForm::Owned);
         };
 
+        // read the form the owning declaration defaults to
         match template.symbol {
             Some(symbol) => self.default_variance_form(symbol),
             None => Ok(VarianceForm::Owned),
@@ -222,10 +224,10 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<VarianceForm> {
-        // NOTE #Suspicious: an intended declare-phase Owned default was dead code
-        //  here, the kind read always answers; surface if declare derives wrong forms
+        // NOTE #Suspicious: the kind read always answers here, surface wrong declare forms
         let kind = self.symbol_kind(symbol)?;
 
+        // read the form each declaration kind defaults to
         let form = match kind {
             dir::SymbolKind::Class
             | dir::SymbolKind::Interface
@@ -252,6 +254,7 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
+        // read whether the symbol declares stored fields
         Ok(matches!(
             self.definition(symbol)?,
             Some(
@@ -309,8 +312,7 @@ impl CheckState<'_> {
             return Ok(Variance::Invariant);
         };
 
-        // measure class and interface methods as reference instances,
-        //  and every other declaration's methods as value instances
+        // measure class and interface methods as reference instances
         let is_reference = matches!(
             definition,
             dir::Definition::Class(_) | dir::Definition::Interface(_)
@@ -369,6 +371,7 @@ impl CheckState<'_> {
             members.push((newtype.backing, storage));
         }
 
+        // measure the parameter through the declaration's heritage
         let mut heritages = definition
             .bases()
             .iter()
@@ -450,6 +453,7 @@ impl CheckState<'_> {
             return Ok(Variance::Bivariant);
         }
 
+        // measure the position the parameter occurs at
         let measured = match self.ty(ty)? {
             // the measured parameter occurs at this position
             dir::Type::Parameter(occurrence) if occurrence == parameter => position,
@@ -673,7 +677,6 @@ impl CheckState<'_> {
         }
 
         // relate each argument pair under its parameter's variance
-        let relation = self.instance_argument_relation(symbol, relation)?;
         let mut verdict = Verdict::Holds;
         for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
             // read both arguments through their solutions
@@ -685,7 +688,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // skip closed lifetime slots for Verify, still linking open ones
+            // link the open lifetime slots Verify measures
             if !self.type_flags(source)?.has_variable()
                 && !self.type_flags(target)?.has_variable()
                 && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
@@ -730,25 +733,6 @@ impl CheckState<'_> {
         Ok(verdict)
     }
 
-    /// Return the relation used by one instance symbol's arguments.
-    pub(in crate::sema) fn instance_argument_relation(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        relation: Relation,
-    ) -> CompilerResult<Relation> {
-        let relation = match self.symbol_kind(symbol)? {
-            // widen interface applications by assignability
-            dir::SymbolKind::Interface | dir::SymbolKind::NewtypeInterface
-                if relation == Relation::Widens =>
-            {
-                Relation::Assignable
-            }
-            _ => relation,
-        };
-
-        Ok(relation)
-    }
-
     /// Return one indexed argument's variance, invariant when unknown.
     pub(in crate::sema) fn argument_variance(
         &mut self,
@@ -764,6 +748,7 @@ impl CheckState<'_> {
             .as_ref()
             .and_then(|parameters| parameters.get(index).copied());
 
+        // read the variance the declared parameter carries
         match parameter {
             Some(parameter) => self.parameter_variance(parameter, form),
             None => Ok(Variance::Invariant),
@@ -784,6 +769,7 @@ impl CheckState<'_> {
             None => None,
         };
 
+        // measure the parameter across every argument
         let mut measured = Variance::Bivariant;
         for (index, argument) in arguments.iter().enumerate() {
             // unknown base templates measure conservatively

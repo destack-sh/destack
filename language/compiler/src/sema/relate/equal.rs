@@ -27,6 +27,7 @@ impl CheckState<'_> {
             return Ok(verdict);
         }
 
+        // decide equality by the heads standing on both sides
         let decision = match (self.ty(source)?, self.ty(target)?) {
             // unit types compare by kind
             (dir::Type::Null, dir::Type::Null)
@@ -116,7 +117,7 @@ impl CheckState<'_> {
             }
             // compare anonymous classes by shape
             (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.relate_shape_equal(origin, cause, source, target)?
+                self.relate_shape(origin, cause, Relation::Equal, false, source, target)?
             }
             // composites compare fixed slots beneath one shared constructor
             _ => match self.decompose_type_pair(source, target)? {

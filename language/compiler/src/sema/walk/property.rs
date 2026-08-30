@@ -111,6 +111,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
+        // walk by the property's own syntax
         match property {
             // { name: value }
             dir::Property::Field { value, .. } => {
@@ -149,7 +150,7 @@ impl WalkState<'_, '_> {
 
                 // walk method body after its result exists
                 if let (Some(symbol), Some(body), Some(result)) = (symbol, body, result) {
-                    self.walk_function_body(symbol, signature, body, result, None)?;
+                    self.walk_function_body(symbol, signature, body, result, None, None)?;
                 }
 
                 Ok(())
@@ -186,6 +187,7 @@ impl WalkState<'_, '_> {
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
+        // declare by the member's own syntax
         let definition: CompilerResult<Option<dir::DefinitionMember>> = match member {
             // type Item = T
             dir::Member::AssociatedType {
@@ -285,7 +287,7 @@ impl WalkState<'_, '_> {
                     }
                     // take the error type for the reported field
                     None if is_uninferable => Some(self.intern_type(dir::Type::Error)?),
-                    // infer the field from its default through the binding slot
+                    // infer the field from its default through the field slot
                     None => symbol
                         .map(|symbol| self.binding_type_slot(symbol))
                         .transpose()?,
@@ -296,8 +298,7 @@ impl WalkState<'_, '_> {
                     self.commit_symbol_type(symbol, field_type)?;
                 }
 
-                // validate annotated defaults while checking
-                //  unannotated ones supply the type
+                // check an annotated default, and read the type an unannotated one supplies
                 let checks_default = declared_type.is_none() || !self.check.is_declaring();
                 if checks_default && let (Some(field_type), Some(default)) = (field_type, default) {
                     let before_default = self.fork_flow();
@@ -489,6 +490,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
+        // bind the method's declared parameters
         self.walk_declared_parameters(signature, method.module_id, &head)?;
 
         // bind the receiver for instance methods
@@ -525,6 +527,7 @@ impl WalkState<'_, '_> {
         let _receiver =
             self.enter_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()));
 
+        // walk the body each member form declares
         match member {
             // method() {}
             dir::Member::Method {
@@ -554,6 +557,7 @@ impl WalkState<'_, '_> {
                     body,
                     method_body.result,
                     method_body.receiver,
+                    None,
                 )?;
 
                 Ok(())
@@ -608,6 +612,7 @@ impl WalkState<'_, '_> {
                 .report_interface_member_visibility(self.module, id.into_any());
         }
 
+        // declare by the type member's own syntax
         match member {
             // field: T
             dir::TypeMember::Field {
@@ -724,7 +729,7 @@ impl WalkState<'_, '_> {
                         }
                         _ => None,
                     };
-                    self.walk_function_body(symbol, signature, body, result, receiver)?;
+                    self.walk_function_body(symbol, signature, body, result, receiver, None)?;
                 }
 
                 // classify how the member receives its implementation
@@ -900,7 +905,7 @@ impl WalkState<'_, '_> {
                 self.relate_type(
                     origin,
                     CauseKind::Initializer { annotation },
-                    Relation::Assignable,
+                    Relation::Storable,
                     written,
                     declared,
                 )?;
@@ -909,6 +914,7 @@ impl WalkState<'_, '_> {
             self.commit_static_value(symbol, written)?;
         }
 
+        // declare the associated const
         Ok(Some(dir::DefinitionMember::AssociatedConst(
             dir::AssociatedConstDefinition {
                 symbol,
@@ -1088,6 +1094,7 @@ impl WalkState<'_, '_> {
         name: Option<dir::Name>,
         signature: &dir::FunctionSignature,
     ) -> String {
+        // name the member by its declared role
         match signature.role {
             Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
             Some(dir::FunctionRole::New) => "new".to_string(),
@@ -1122,8 +1129,7 @@ impl WalkState<'_, '_> {
                     .report_constructor_result_annotation(self.module, return_type.into_any());
             }
 
-            // reference nominals construct at the instantiated space
-            //  owners with a declared space use it, open owners take an induced place parameter
+            // construct a reference nominal at the space its owner declares
             let result = match receiver {
                 Some(binding) if binding.receiver.ownership == Some(dir::Ownership::Managed) => {
                     let owner_space = binding

@@ -743,7 +743,7 @@ declare const handle: Handle;
 publish<CleanEnvelope>(cleanEnvelope);
 publish<LocalEnvelope>(localEnvelope);
 publish<CleanEnvelope>(cleanEnvelope);
-publish(handle);
+publish<Handle>(handle);
 cleanEnvelope satisfies SharedSafe;
 
 === dir ===
@@ -821,6 +821,8 @@ publish<LocalEnvelope>(localEnvelope);
 /// @generic.instantiation id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 /// @resolution.name source=LocalEnvelope target=LocalEnvelope
 /// @resolution.name source=localEnvelope target=localEnvelope
+/// @resolution.place source=localEnvelope placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=localEnvelope root=localEnvelope
 
 publish(cleanEnvelope);
 /// @resolution.name source=publish target=publish
@@ -831,7 +833,8 @@ publish(cleanEnvelope);
 
 publish(handle);
 /// @resolution.name source=publish target=publish
-/// @resolution.call source=publish(handle) parameters=(<error>) arguments=(provided(handle) as <error>) return=void kind=symbol target=publish instance=publish<<error>>
+/// @resolution.call source=publish(handle) parameters=(Handle) arguments=(provided(handle) as Handle) return=void kind=symbol target=publish instance=publish<Handle>
+/// @generic.instantiation id=publish<Handle> template=publish arguments=(Handle)
 /// @resolution.name source=handle target=handle
 /// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handle root=handle

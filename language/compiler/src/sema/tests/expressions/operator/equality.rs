@@ -21,19 +21,19 @@ function positive<'a>(value: &'a readonly (int32 | undefined)): boolean {
 
 === dir ===
 function positive(value: &readonly (int32 | undefined)): boolean {
-/// @generic.template symbol=positive parameters=('a, P1: Place)
-/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(&positive.'a readonly int32 | undefined) => boolean
+/// @generic.template symbol=positive parameters=('a)
+/// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32 | undefined) => boolean
 /// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=&positive.'a readonly int32 | undefined
 
     value !== undefined && value > 0
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement=positive.P1 lifetime=positive.'a access="readonly"
+    /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement=positive.P1 lifetime=positive.'a access="readonly"
+    /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
 
 }
@@ -62,19 +62,19 @@ function positive<'a>(value: &'a readonly (int32 | undefined)): boolean {
 
 === dir ===
 function positive(value: &readonly (int32 | undefined)): boolean {
-/// @generic.template symbol=positive parameters=('a, P1: Place)
-/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(&positive.'a readonly int32 | undefined) => boolean
+/// @generic.template symbol=positive parameters=('a)
+/// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32 | undefined) => boolean
 /// @type.symbol symbol=positive.value source="value: &readonly (int32 | undefined)" type=&positive.'a readonly int32 | undefined
 
     value === undefined || value > 0
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value === undefined || value > 0" type=boolean operator="||" kind=builtin operands=[value === undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value === undefined" type=boolean operator="===" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement=positive.P1 lifetime=positive.'a access="readonly"
+    /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement=positive.P1 lifetime=positive.'a access="readonly"
+    /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
 
 }
@@ -342,15 +342,15 @@ declare const secondMaybe: int32 | undefined;
 declare const firstUser: User;
 declare const secondUser: User;
 
-const numbersMatch: boolean = same<int32, int32, "constant", "constant">(
+const numbersMatch: boolean = same<int32, int32>(
     firstNumber as &'static readonly int32,
     secondNumber as &'static readonly int32,
 );
-const maybesMatch: boolean = same<int32 | undefined, int32 | undefined, "constant", "constant">(
+const maybesMatch: boolean = same<int32 | undefined, int32 | undefined>(
     firstMaybe as &'static readonly (int32 | undefined),
     secondMaybe as &'static readonly (int32 | undefined),
 );
-const usersDiffer: boolean = different<User, "local", "local">(
+const usersDiffer: boolean = different<User>(
     firstUser as &'static readonly User,
     secondUser as &'static readonly User,
 );
@@ -359,8 +359,8 @@ const usersDiffer: boolean = different<User, "local", "local">(
 import { StrictEqual } from "destack:ops";
 
 function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): boolean {
-/// @generic.template symbol=same parameters=(R, L: StrictEqual<R>, 'a, P3: Place, 'b, P5: Place)
-/// @type.symbol symbol=same type=<R, L: StrictEqual<R>, same.'a, same.P3: Place, same.'b, same.P5: Place>(&same.'a readonly L, &same.'b readonly R) => boolean
+/// @generic.template symbol=same parameters=(R, L: StrictEqual<R>, 'a, 'b)
+/// @type.symbol symbol=same type=<R, L: StrictEqual<R>, same.'a, same.'b>(&same.'a readonly L, &same.'b readonly R) => boolean
 /// @type.symbol symbol=same.R source=R type=R
 /// @type.symbol symbol=same.L source="L: StrictEqual<R>" type=L
 /// @resolution.name source=StrictEqual target=StrictEqual
@@ -374,25 +374,25 @@ function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): bool
     /// @type.node source="*left === *right" type=boolean
     /// @type.node source=*left type=L
     /// @resolution.operator source="*left === *right" type=boolean operator="===" kind=builtin operands=[*left as L, *right as R]
-    /// @resolution.place source=*left placement=same.P3 lifetime=same.'a access="readonly"
+    /// @resolution.place source=*left placement=same.'a lifetime=same.'a access="readonly"
     /// @resolution.operator source=*left type=L operator="*" kind=builtin operands=[left as &same.'a readonly L]
     /// @type.node source=left type=&same.'a readonly L
     /// @resolution.name source=left target=same.left
-    /// @resolution.place source=left placement=same.P3 lifetime=same.'a access="readonly"
+    /// @resolution.place source=left placement=same.'a lifetime=same.'a access="readonly"
     /// @resolution.access source=left root=same.left
     /// @type.node source=*right type=R
-    /// @resolution.place source=*right placement=same.P5 lifetime=same.'b access="readonly"
+    /// @resolution.place source=*right placement=same.'b lifetime=same.'b access="readonly"
     /// @resolution.operator source=*right type=R operator="*" kind=builtin operands=[right as &same.'b readonly R]
     /// @type.node source=right type=&same.'b readonly R
     /// @resolution.name source=right target=same.right
-    /// @resolution.place source=right placement=same.P5 lifetime=same.'b access="readonly"
+    /// @resolution.place source=right placement=same.'b lifetime=same.'b access="readonly"
     /// @resolution.access source=right root=same.right
 
 }
 
 function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): boolean {
-/// @generic.template symbol=different parameters=(T: StrictEqual<T>, 'a, P2: Place, 'b, P4: Place)
-/// @type.symbol symbol=different type=<T: StrictEqual<T>, different.'a, different.P2: Place, different.'b, different.P4: Place>(&different.'a readonly T, &different.'b readonly T) => boolean
+/// @generic.template symbol=different parameters=(T: StrictEqual<T>, 'a, 'b)
+/// @type.symbol symbol=different type=<T: StrictEqual<T>, different.'a, different.'b>(&different.'a readonly T, &different.'b readonly T) => boolean
 /// @type.symbol symbol=different.T source="T: StrictEqual<T>" type=T
 /// @resolution.name source=StrictEqual target=StrictEqual
 /// @resolution.name source=T target=different.T
@@ -405,18 +405,18 @@ function different<T: StrictEqual<T>>(left: &readonly T, right: &readonly T): bo
     /// @type.node source="*left !== *right" type=boolean
     /// @type.node source=*left type=T
     /// @resolution.operator source="*left !== *right" type=boolean operator="!==" kind=builtin operands=[*left as T, *right as T]
-    /// @resolution.place source=*left placement=different.P2 lifetime=different.'a access="readonly"
+    /// @resolution.place source=*left placement=different.'a lifetime=different.'a access="readonly"
     /// @resolution.operator source=*left type=T operator="*" kind=builtin operands=[left as &different.'a readonly T]
     /// @type.node source=left type=&different.'a readonly T
     /// @resolution.name source=left target=different.left
-    /// @resolution.place source=left placement=different.P2 lifetime=different.'a access="readonly"
+    /// @resolution.place source=left placement=different.'a lifetime=different.'a access="readonly"
     /// @resolution.access source=left root=different.left
     /// @type.node source=*right type=T
-    /// @resolution.place source=*right placement=different.P4 lifetime=different.'b access="readonly"
+    /// @resolution.place source=*right placement=different.'b lifetime=different.'b access="readonly"
     /// @resolution.operator source=*right type=T operator="*" kind=builtin operands=[right as &different.'b readonly T]
     /// @type.node source=right type=&different.'b readonly T
     /// @resolution.name source=right target=different.right
-    /// @resolution.place source=right placement=different.P4 lifetime=different.'b access="readonly"
+    /// @resolution.place source=right placement=different.'b lifetime=different.'b access="readonly"
     /// @resolution.access source=right root=different.right
 
 }
@@ -457,8 +457,8 @@ const numbersMatch = same(firstNumber, secondNumber);
 /// @type.node source="same(firstNumber, secondNumber)" type=boolean
 /// @type.node source=same type=(&'static readonly constant int32, &'static readonly constant int32) => boolean
 /// @resolution.name source=same target=same
-/// @resolution.call source="same(firstNumber, secondNumber)" parameters=(&'static readonly constant int32, &'static readonly constant int32) arguments=(provided(firstNumber) as &'static readonly constant int32, provided(secondNumber) as &'static readonly constant int32) return=boolean kind=symbol target=same instance="same<int32, int32, \"constant\", \"constant\">"
-/// @generic.instantiation id="same<int32, int32, \"constant\", \"constant\">" template=same arguments=(int32, int32, "constant", "constant")
+/// @resolution.call source="same(firstNumber, secondNumber)" parameters=(&'static readonly constant int32, &'static readonly constant int32) arguments=(provided(firstNumber) as &'static readonly constant int32, provided(secondNumber) as &'static readonly constant int32) return=boolean kind=symbol target=same instance="same<int32, int32>"
+/// @generic.instantiation id="same<int32, int32>" template=same arguments=(int32, int32)
 /// @type.node source=firstNumber type=int32
 /// @resolution.name source=firstNumber target=firstNumber
 /// @resolution.place source=firstNumber placement="constant" lifetime="static" access="readonly"
@@ -474,8 +474,8 @@ const maybesMatch = same(firstMaybe, secondMaybe);
 /// @type.node source="same(firstMaybe, secondMaybe)" type=boolean
 /// @type.node source=same type=(&'static readonly constant int32 | undefined, &'static readonly constant int32 | undefined) => boolean
 /// @resolution.name source=same target=same
-/// @resolution.call source="same(firstMaybe, secondMaybe)" parameters=(&'static readonly constant int32 | undefined, &'static readonly constant int32 | undefined) arguments=(provided(firstMaybe) as &'static readonly constant int32 | undefined, provided(secondMaybe) as &'static readonly constant int32 | undefined) return=boolean kind=symbol target=same instance="same<int32 | undefined, int32 | undefined, \"constant\", \"constant\">"
-/// @generic.instantiation id="same<int32 | undefined, int32 | undefined, \"constant\", \"constant\">" template=same arguments=(int32 | undefined, int32 | undefined, "constant", "constant")
+/// @resolution.call source="same(firstMaybe, secondMaybe)" parameters=(&'static readonly constant int32 | undefined, &'static readonly constant int32 | undefined) arguments=(provided(firstMaybe) as &'static readonly constant int32 | undefined, provided(secondMaybe) as &'static readonly constant int32 | undefined) return=boolean kind=symbol target=same instance="same<int32 | undefined, int32 | undefined>"
+/// @generic.instantiation id="same<int32 | undefined, int32 | undefined>" template=same arguments=(int32 | undefined, int32 | undefined)
 /// @type.node source=firstMaybe type=int32 | undefined
 /// @resolution.name source=firstMaybe target=firstMaybe
 /// @resolution.place source=firstMaybe placement="constant" lifetime="static" access="readonly"
@@ -491,8 +491,8 @@ const usersDiffer = different(firstUser, secondUser);
 /// @type.node source="different(firstUser, secondUser)" type=boolean
 /// @type.node source=different type=(&'static readonly User, &'static readonly User) => boolean
 /// @resolution.name source=different target=different
-/// @resolution.call source="different(firstUser, secondUser)" parameters=(&'static readonly User, &'static readonly User) arguments=(provided(firstUser) as &'static readonly User, provided(secondUser) as &'static readonly User) return=boolean kind=symbol target=different instance="different<User, \"local\", \"local\">"
-/// @generic.instantiation id="different<User, \"local\", \"local\">" template=different arguments=(User, "local", "local")
+/// @resolution.call source="different(firstUser, secondUser)" parameters=(&'static readonly User, &'static readonly User) arguments=(provided(firstUser) as &'static readonly User, provided(secondUser) as &'static readonly User) return=boolean kind=symbol target=different instance=different<User>
+/// @generic.instantiation id=different<User> template=different arguments=(User)
 /// @type.node source=firstUser type=User
 /// @resolution.name source=firstUser target=firstUser
 /// @resolution.place source=firstUser placement="local" lifetime="static" access="exclusive"
@@ -503,6 +503,7 @@ const usersDiffer = different(firstUser, secondUser);
 /// @resolution.access source=secondUser root=secondUser
 "#,
         r#"
+
 "#,
     );
 }
@@ -556,7 +557,7 @@ extension of Badge implements StrictEqual<Badge> {}
 declare const token: Token;
 declare const number: int32;
 requireStrictEqual<Token>(token);
-requireStringStrictEqual(number);
+requireStringStrictEqual<int32>(number);
 
 === dir ===
 import { StrictEqual } from "destack:ops";
@@ -626,10 +627,11 @@ requireStrictEqual(token);
 /// @resolution.access source=token root=token
 
 requireStringStrictEqual(number);
-/// @type.node source=requireStringStrictEqual type=(<error>) => void
+/// @type.node source=requireStringStrictEqual type=(int32) => void
 /// @type.node source=requireStringStrictEqual(number) type=void
 /// @resolution.name source=requireStringStrictEqual target=requireStringStrictEqual
-/// @resolution.call source=requireStringStrictEqual(number) parameters=(<error>) arguments=(provided(number) as <error>) return=void kind=symbol target=requireStringStrictEqual instance=requireStringStrictEqual<<error>>
+/// @resolution.call source=requireStringStrictEqual(number) parameters=(int32) arguments=(provided(number) as int32) return=void kind=symbol target=requireStringStrictEqual instance=requireStringStrictEqual<int32>
+/// @generic.instantiation id=requireStringStrictEqual<int32> template=requireStringStrictEqual arguments=(int32)
 /// @type.node source=number type=int32
 /// @resolution.name source=number target=number
 /// @resolution.place source=number placement="constant" lifetime="static" access="readonly"
@@ -765,8 +767,8 @@ const isReady = value === "ready";
 === annotated ===
 class User {}
 
-declare const value: string | User;
-const isReady: boolean = value === ("ready" as string | User);
+declare const value: User | string;
+const isReady: boolean = value === ("ready" as User | string);
 
 === dir ===
 class User {}
@@ -774,7 +776,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare const value: string | User;
-/// @type.symbol symbol=value source=value type=string | User
+/// @type.symbol symbol=value source=value type=User | string
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=User target=User
 
@@ -782,9 +784,9 @@ const isReady = value === "ready";
 /// @type.symbol symbol=isReady source=isReady type=boolean
 /// @resolution.pattern source=isReady kind=binding target=isReady
 /// @type.node source="value === \"ready\"" type=boolean
-/// @type.node source=value type=string | User
+/// @type.node source=value type=User | string
 /// @resolution.name source=value target=value
-/// @resolution.operator source="value === \"ready\"" type=boolean operator="===" kind=builtin operands=[value as string | User, "ready" as string | User]
+/// @resolution.operator source="value === \"ready\"" type=boolean operator="===" kind=builtin operands=[value as User | string, "ready" as User | string]
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value
 /// @type.node source="\"ready\"" type="ready"
@@ -841,7 +843,7 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
-    equal(&readonly this, other: Badge): boolean {
+    equal(&readonly this, other: &readonly Badge): boolean {
         this.id == other.id
     }
 }
@@ -864,14 +866,14 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
-    equal(&readonly this, other: Badge): boolean {
+    equal(&readonly this, other: &'b readonly Badge): boolean {
         this.id == other.id
     }
 }
 
 declare const left: Badge;
 declare const right: Badge;
-const same: boolean = left == right;
+const same: boolean = left == (right as &'static readonly Badge);
 
 === dir ===
 import { PartialEqual } from "destack:ops";
@@ -890,32 +892,32 @@ extension of Badge implements PartialEqual<Badge> {
 /// @generic.instance id=PartialEqual<Badge> template=PartialEqual arguments=(Badge)
 /// @definition.extension symbol=<module>#2 form=local target=Badge
 /// @definition.implements symbol=<module>#2 source=PartialEqual<Badge> target=PartialEqual<Badge>
-/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.'b>(this: &equal.'a readonly Badge, &equal.'b readonly Badge) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=Badge target=Badge
 
-    equal(&readonly this, other: Badge): boolean {
-    /// @generic.template symbol=equal parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Badge, Badge) => boolean
+    equal(&readonly this, other: &readonly Badge): boolean {
+    /// @generic.template symbol=equal parent=template#0 parameters=('a, 'b)
+    /// @type.symbol symbol=equal type=<equal.'a, equal.'b>(this: &equal.'a readonly Badge, &equal.'b readonly Badge) => boolean
     /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
-    /// @type.symbol symbol=equal.other source="other: Badge" type=Badge
+    /// @type.symbol symbol=equal.other source="other: &readonly Badge" type=&equal.'b readonly Badge
     /// @resolution.name source=Badge target=Badge
 
         this.id == other.id
         /// @resolution.member source=this.id receiver=&equal.'a readonly Badge type=float64 kind=field target_receiver=&equal.'a readonly Badge key=id target=Badge.id target_type=float64
         /// @resolution.operator source="this.id == other.id" type=boolean operator="==" kind=builtin operands=[this.id as float64 families=(float), other.id as float64 families=(float)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a readonly Badge
-        /// @resolution.place source=this placement=equal.P1 lifetime=equal.'a access="readonly"
+        /// @resolution.place source=this placement=equal.'a lifetime=equal.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.id placement=equal.P1 lifetime=equal.'a access="readonly"
+        /// @resolution.place source=this.id placement=equal.'a lifetime=equal.'a access="readonly"
         /// @resolution.access source=this.id root=this keys=[id]
         /// @resolution.name source=other target=equal.other
-        /// @resolution.member source=other.id receiver=Badge type=float64 kind=field target_receiver=Badge key=id target=Badge.id target_type=float64
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.member source=other.id receiver=&equal.'b readonly Badge type=float64 kind=field target_receiver=&equal.'b readonly Badge key=id target=Badge.id target_type=float64
+        /// @resolution.place source=other placement=equal.'b lifetime=equal.'b access="readonly"
         /// @resolution.access source=other root=equal.other
-        /// @resolution.place source=other.id placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other.id placement=equal.'b lifetime=equal.'b access="readonly"
         /// @resolution.access source=other.id root=equal.other keys=[id]
 
     }
@@ -935,11 +937,9 @@ const same = left == right;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(Badge) arguments=(provided(right) as Badge) return=boolean kind=symbol target=equal receiver=Badge adjustments=(borrow(&'static readonly constant Badge)) instance="Badge.<extension#1>.equal<\"constant\">"
+/// @resolution.operator source="left == right" type=boolean operator="==" kind=call parameters=(&'static readonly constant Badge) arguments=(provided(right) as &'static readonly constant Badge) return=boolean kind=symbol target=equal receiver=Badge adjustments=(borrow(&'static readonly constant Badge))
 /// @resolution.place source=left placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=left root=left
-/// @generic.instantiation id="equal<\"constant\">" template=equal arguments=("constant")
-/// @generic.instance id="equal<\"constant\">" template=equal arguments=("constant")
 /// @resolution.name source=right target=right
 /// @resolution.place source=right placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=right root=right
@@ -958,7 +958,7 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<float64> {
-    equal(&readonly this, other: float64): boolean {
+    equal(&readonly this, other: &readonly float64): boolean {
         return this.value == other;
     }
 }
@@ -980,13 +980,13 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<float64> {
-    equal(&readonly this, other: float64): boolean {
-        return this.value == other;
+    equal(&readonly this, other: &'b readonly float64): boolean {
+        return this.value == (other as float64);
     }
 }
 
 declare const measure: Measure;
-const same: boolean = measure == -0.0;
+const same: boolean = measure == (-0.0 as &'frame readonly float64);
 
 === dir ===
 import { PartialEqual } from "destack:ops";
@@ -1005,27 +1005,27 @@ extension of Measure implements PartialEqual<float64> {
 /// @generic.instance id=PartialEqual<float64> template=PartialEqual arguments=(float64)
 /// @definition.extension symbol=<module>#2 form=local target=Measure
 /// @definition.implements symbol=<module>#2 source=PartialEqual<float64> target=PartialEqual<float64>
-/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Measure, float64) => boolean
+/// @definition.method symbol=equal slot=equal type=<equal.'a, equal.'b>(this: &equal.'a readonly Measure, &equal.'b readonly float64) => boolean
 /// @definition.conformance symbol=<module>#2 member=equal requirement=PartialEqual.equal
 /// @resolution.name source=Measure target=Measure
 /// @resolution.name source=PartialEqual target=PartialEqual
 
-    equal(&readonly this, other: float64): boolean {
-    /// @generic.template symbol=equal parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=equal type=<equal.'a, equal.P1: Place>(this: &equal.'a readonly Measure, float64) => boolean
+    equal(&readonly this, other: &readonly float64): boolean {
+    /// @generic.template symbol=equal parent=template#0 parameters=('a, 'b)
+    /// @type.symbol symbol=equal type=<equal.'a, equal.'b>(this: &equal.'a readonly Measure, &equal.'b readonly float64) => boolean
     /// @type.symbol symbol=equal.this source="&readonly this" type=&equal.'a readonly this
-    /// @type.symbol symbol=equal.other source="other: float64" type=float64
+    /// @type.symbol symbol=equal.other source="other: &readonly float64" type=&equal.'b readonly float64
 
         return this.value == other;
         /// @resolution.member source=this.value receiver=&equal.'a readonly Measure type=float64 kind=field target_receiver=&equal.'a readonly Measure key=value target=Measure.value target_type=float64
         /// @resolution.operator source="this.value == other" type=boolean operator="==" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&equal.'a readonly Measure
-        /// @resolution.place source=this placement=equal.P1 lifetime=equal.'a access="readonly"
+        /// @resolution.place source=this placement=equal.'a lifetime=equal.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement=equal.P1 lifetime=equal.'a access="readonly"
+        /// @resolution.place source=this.value placement=equal.'a lifetime=equal.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=equal.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=other placement=equal.'b lifetime=equal.'b access="readonly"
         /// @resolution.access source=other root=equal.other
 
     }
@@ -1040,11 +1040,9 @@ const same = measure == -0.0;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=measure target=measure
-/// @resolution.operator source="measure == -0.0" type=boolean operator="==" kind=call parameters=(float64) arguments=(provided(-0.0) as float64) return=boolean kind=symbol target=equal receiver=Measure adjustments=(borrow(&'static readonly constant Measure)) instance="Measure.<extension#1>.equal<\"constant\">"
+/// @resolution.operator source="measure == -0.0" type=boolean operator="==" kind=call parameters=(&'frame readonly float64) arguments=(provided(-0.0) as &'frame readonly float64) return=boolean kind=symbol target=equal receiver=Measure adjustments=(borrow(&'static readonly constant Measure))
 /// @resolution.place source=measure placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=measure root=measure
-/// @generic.instantiation id="equal<\"constant\">" template=equal arguments=("constant")
-/// @generic.instance id="equal<\"constant\">" template=equal arguments=("constant")
 /// @resolution.operator source=-0.0 type=-0 operator="-" kind=builtin operands=[0.0 as 0 families=(float)]
 "#,
     );
@@ -1071,14 +1069,14 @@ function positive<'a>(value: &'a readonly int32): boolean {
 
 === dir ===
 function positive(value: &readonly int32): boolean {
-/// @generic.template symbol=positive parameters=('a, P1: Place)
-/// @type.symbol symbol=positive type=<positive.'a, positive.P1: Place>(&positive.'a readonly int32) => boolean
+/// @generic.template symbol=positive parameters=('a)
+/// @type.symbol symbol=positive type=<positive.'a>(&positive.'a readonly int32) => boolean
 /// @type.symbol symbol=positive.value source="value: &readonly int32" type=&positive.'a readonly int32
 
     return value > 0;
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement=positive.P1 lifetime=positive.'a access="readonly"
+    /// @resolution.place source=value placement=positive.'a lifetime=positive.'a access="readonly"
     /// @resolution.access source=value root=positive.value
 
 }

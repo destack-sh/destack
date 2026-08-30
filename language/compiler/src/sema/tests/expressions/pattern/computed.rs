@@ -189,7 +189,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
-    let { [key as "name" | "age"]: value } = user;
+    let { [key]: value } = user;
     return value;
 }
 

@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
-use crate::sema::{BodyState, FlowSite, PlaceUse};
+use crate::sema::{CheckState, FlowSite, PlaceUse};
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one tagged template through its tag's callable value.
     pub(in crate::sema) fn select_tagged_template(
         &mut self,

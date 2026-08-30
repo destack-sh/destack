@@ -34,8 +34,7 @@ impl CheckState<'_> {
                 message: "materialize runs over a checked module".to_string(),
             })?;
 
-        // seed from the module level instantiations checking recorded
-        //  region-only owners erase at lowering, so their instantiations root here too
+        // seed from the module level instantiations that checking recorded
         let instantiations: Vec<_> = checked.generics.iter_instantiations().cloned().collect();
         for instantiation in instantiations {
             let is_root = match instantiation.owner {
@@ -163,6 +162,7 @@ impl CheckState<'_> {
             return self.lifetime_literal(dir::Lifetime::Frame);
         }
 
+        // rebuild the children with their lifetimes erased
         visiting.push(id);
         let ty = self.ty(id)?;
         let rebuilt = self.map_type_children(id.module_id, ty, &mut |state, child| {
@@ -173,7 +173,6 @@ impl CheckState<'_> {
         self.intern_type(rebuilt)
     }
 
-    /// Return whether one type mentions an open type or place parameter.
     /// Ground the induced place and space parameters one argument carries at local.
     fn ground_induced_memory_argument(
         &mut self,
@@ -213,6 +212,7 @@ impl CheckState<'_> {
         Ok(argument)
     }
 
+    /// Return whether one type mentions an open type or place parameter.
     fn has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         // walk the type graph, stopping at the first open parameter
         let mut pending = vec![ty];
@@ -248,7 +248,7 @@ impl CheckState<'_> {
         depth: u32,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
-        // reject runaway polymorphic recursion at the depth rustc allows
+        // reject runaway polymorphic recursion past the depth limit
         if depth > INSTANCE_DEPTH_LIMIT {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -661,6 +661,7 @@ impl CheckState<'_> {
         &self,
         template: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::Instantiation>> {
+        // read the rows this template owns
         let owner = Some(template);
 
         // read the committed rows of the own module
@@ -911,6 +912,7 @@ impl CheckState<'_> {
             None => substituted,
         };
 
+        // evaluate any computation the substituted type reaches
         let resolved = match self.has_reachable_computation(substituted)? {
             true => self.evaluate_type(origin, substituted)?,
             false => substituted,
@@ -977,10 +979,12 @@ impl CheckState<'_> {
 
     /// Return one template module's parsed tree.
     fn template_tree(&self, module: ModuleId) -> CompilerResult<&dir::Tree> {
+        // read the own module's tree
         if self.is_own_module(module) {
             return Ok(&self.module.parsed.tree);
         }
 
+        // otherwise read the loaded foreign module
         self.external_modules
             .get(&module)
             .map(|external| &external.parsed.tree)
@@ -995,10 +999,12 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
+        // read the own module's rows
         if self.is_own_module(module) {
             return self.module.types.get_node_type_id(node);
         }
 
+        // otherwise read the loaded foreign module
         self.external_modules
             .get(&module)?
             .types
@@ -1007,10 +1013,12 @@ impl CheckState<'_> {
 
     /// Return one template symbol's committed type.
     fn template_symbol_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
+        // read the own module's rows
         if self.is_own_module(symbol.module_id) {
             return self.module.types.get_symbol_type_id(symbol);
         }
 
+        // otherwise read the loaded foreign module
         self.external_modules
             .get(&symbol.module_id)?
             .types
@@ -1023,10 +1031,12 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<&dir::Decision> {
+        // read the own module's rows
         if self.is_own_module(module) {
             return self.module.checked.as_ref()?.decisions.decision(node);
         }
 
+        // otherwise read the loaded foreign module
         self.external_modules.get(&module)?.decisions.decision(node)
     }
 
@@ -1036,6 +1046,7 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<&dir::PlaceResolution> {
+        // read the own module's rows
         if self.is_own_module(module) {
             return self
                 .module
@@ -1045,6 +1056,7 @@ impl CheckState<'_> {
                 .place_resolution(node);
         }
 
+        // otherwise read the loaded foreign module
         self.external_modules
             .get(&module)?
             .decisions
@@ -1057,10 +1069,12 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<&dir::Coercion> {
+        // read the own module's rows
         if self.is_own_module(module) {
             return self.module.checked.as_ref()?.coercions.coercion(node);
         }
 
+        // otherwise read the loaded foreign module
         self.external_modules.get(&module)?.coercions.coercion(node)
     }
 }

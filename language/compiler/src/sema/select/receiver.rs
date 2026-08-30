@@ -2,15 +2,16 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    BodyState, CandidateOutcome, Cause, CauseKind, MemberCandidate, MemberLookup, MemberRole,
-    Origin, ReceiverForm, Relation, Value,
+    CandidateOutcome, Cause, CauseKind, CheckState, MemberCandidate, MemberLookup, MemberRole,
+    Origin, ReceiverForm, Relation, Value, ValueUse, Verdict, prepend_adjustment,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// The most dereference steps one receiver probe walks, matching how rustc bounds autoderef.
+/// The most dereference steps one receiver lookup walks.
 const DEREFERENCE_LIMIT: usize = 8;
 
 /// The implicit adjustments selected for one receiver.
+/// FUGU #Cleanup: ReceiverSteps is a silly noun
 pub(in crate::sema) type ReceiverSteps = Vec<dir::ReceiverAdjustment>;
 
 /// One receiver reached by dereferencing the use-site receiver.
@@ -22,9 +23,9 @@ pub(in crate::sema) struct ReceiverStep {
     pub(in crate::sema) adjustments: ReceiverSteps,
 }
 
-impl BodyState<'_, '_> {
-    /// Probe one member key over the receiver's dereference steps.
-    pub(in crate::sema) fn probe_member(
+impl CheckState<'_> {
+    /// Match one member key over the receiver's dereference steps.
+    pub(in crate::sema) fn match_member(
         &mut self,
         origin: Origin,
         module: ModuleId,
@@ -43,22 +44,22 @@ impl BodyState<'_, '_> {
         for depth in 0..=DEREFERENCE_LIMIT {
             // look the key up at this step, by value and through its borrows
             let mut lookup = self.lookup_member_at_step(origin, module, subject, key, step)?;
-            if !matches!(lookup, MemberLookup::Missing) {
+            if !lookup.is_empty() {
                 // walk to the found depth again, committed, under the access the members require
                 let required = self.required_access(&lookup, access)?;
                 let steps = self.autoderef(origin, receiver, required)?;
                 let Some(found) = steps.get(depth) else {
-                    self.check.report_borrow_access_not_granted(
+                    self.report_borrow_access_not_granted(
                         origin,
                         required,
                         Some(dir::Access::Readonly),
                         subject.target,
                     )?;
 
-                    return Ok(MemberLookup::Ambiguous);
+                    return Ok(Vec::new());
                 };
                 for adjustment in found.adjustments.clone().into_iter().rev() {
-                    lookup.prepend_adjustment(adjustment);
+                    prepend_adjustment(&mut lookup, &adjustment);
                 }
 
                 return Ok(lookup);
@@ -69,7 +70,7 @@ impl BodyState<'_, '_> {
                 ty: step,
                 ..receiver
             };
-            let adjustment = self.probe_deduction(|state| {
+            let adjustment = self.decide_deduction(|state| {
                 Ok(Some(state.dereference_step(
                     origin,
                     stepped,
@@ -82,7 +83,7 @@ impl BodyState<'_, '_> {
             step = adjustment.ty();
         }
 
-        Ok(MemberLookup::Missing)
+        Ok(Vec::new())
     }
 
     /// Return the member one dereference step exposes under a key, by value or through a borrow.
@@ -106,9 +107,8 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // merge the candidates the targets expose, stopping at the first other lookup
-        let mut candidates = Vec::new();
-        let mut lookup = MemberLookup::Missing;
+        // merge the members the targets expose, each member once
+        let mut candidates = Vec::<MemberCandidate>::new();
         for target in targets {
             let stepped = dir::MemberSubject {
                 receiver: target,
@@ -116,35 +116,15 @@ impl BodyState<'_, '_> {
                 key_source: target,
                 ..subject
             };
-            match self.lookup_member(origin, module, stepped, key)? {
-                MemberLookup::Missing => {}
-                MemberLookup::Found(found) => {
-                    for candidate in found {
-                        if !candidates
-                            .iter()
-                            .any(|known: &MemberCandidate| known.symbol == candidate.symbol)
-                        {
-                            candidates.push(candidate);
-                        }
-                    }
+            for candidate in self.lookup_member(origin, module, stepped, key)? {
+                if !candidates.iter().any(|known| known.reads_same(&candidate)) {
+                    candidates.push(candidate);
                 }
-                other if candidates.is_empty() => {
-                    lookup = other;
-                    break;
-                }
-                _ => break,
             }
         }
 
         // keep the candidates this step reaches first
-        if !candidates.is_empty() {
-            let candidates = self.applicable_receiver_tier(origin, step, candidates)?;
-            if !candidates.is_empty() {
-                lookup = MemberLookup::Found(candidates);
-            }
-        }
-
-        Ok(lookup)
+        self.applicable_receiver_tier(origin, step, candidates)
     }
 
     /// Keep the candidates one step reaches first.
@@ -177,10 +157,13 @@ impl BodyState<'_, '_> {
             }
 
             // read the receiver form this method declares
+            let Some(declared) = candidate.declaration() else {
+                fields.push(candidate);
+                continue;
+            };
             methods.push(candidate.clone());
-            let ty = self.check.symbol_type(candidate.symbol)?;
+            let ty = self.symbol_type(declared.symbol)?;
             let this = self
-                .check
                 .signature_head(ty)?
                 .and_then(|head| head.this_parameter);
             let this_form = match this {
@@ -189,7 +172,7 @@ impl BodyState<'_, '_> {
                     self.receiver_form(this)?.unwrap_or(ReceiverForm::MANAGED)
                 }
                 // an implicit this takes its declaring extension's target form
-                _ => match self.definition(candidate.owner)?.cloned() {
+                _ => match self.definition(declared.owner)?.cloned() {
                     Some(dir::Definition::Extension(extension)) => {
                         let target = self.normalize(origin, extension.target.r#type())?;
                         self.receiver_form(target)?.unwrap_or(ReceiverForm::MANAGED)
@@ -209,7 +192,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // fall back to every method for reporting when no tier takes the step
+        // keep every method when no tier takes the step, so selection reports the receiver
         let mut tier = match (by_value.is_empty(), by_borrow.is_empty()) {
             (false, _) => by_value,
             (true, false) => by_borrow,
@@ -246,12 +229,15 @@ impl BodyState<'_, '_> {
         receiver: Value,
         protocol: Option<dir::Access>,
     ) -> CompilerResult<Vec<ReceiverStep>> {
+        // start at the use-site receiver
         let mut steps = vec![ReceiverStep {
             ty: receiver.ty,
             adjustments: ReceiverSteps::new(),
         }];
         let mut adjustments = ReceiverSteps::new();
         let mut ty = receiver.ty;
+
+        // step down until the receiver stops dereferencing
         for _ in 0..DEREFERENCE_LIMIT {
             let stepped = Value { ty, ..receiver };
             let Some(adjustment) = self.dereference_step(origin, stepped, protocol)? else {
@@ -275,14 +261,14 @@ impl BodyState<'_, '_> {
         value: Value,
         protocol: Option<dir::Access>,
     ) -> CompilerResult<Option<dir::ReceiverAdjustment>> {
+        // read the receiver head
         let receiver = self.shallow_resolve(value.ty)?;
 
         // read through one memory form, stopping where it caps the requested access
         if let dir::Type::Form(form) = self.ty(receiver)? {
             // stop at an owned form over a value that defaults to managed
             if form.form == dir::Form::Owned
-                && self.check.default_ownership(origin, form.value)?
-                    == Some(dir::Ownership::Managed)
+                && self.default_ownership(origin, form.value)? == Some(dir::Ownership::Managed)
             {
                 return Ok(None);
             }
@@ -294,7 +280,7 @@ impl BodyState<'_, '_> {
                 let granted = match form.form {
                     dir::Form::Readonly => Some(dir::Access::Readonly),
                     dir::Form::Borrowed(borrow) => {
-                        let held = self.check.type_borrow(receiver.module_id, borrow)?.access;
+                        let held = self.type_borrow(receiver.module_id, borrow)?.access;
                         let held = self.shallow_resolve(held)?;
                         match self.ty(held)? {
                             dir::Type::Literal(dir::Literal::String(held)) => {
@@ -312,11 +298,11 @@ impl BodyState<'_, '_> {
 
             // keep the handle qualification outside the local space
             if let dir::Form::Managed { place } = form.form {
-                let place = self.check.shallow_resolve(place)?;
-                let is_erased = self.check.erased_constraint(form.value)?.is_some();
+                let place = self.shallow_resolve(place)?;
+                let is_erased = self.erased_constraint(form.value)?.is_some();
                 if !is_erased
                     && matches!(
-                        self.check.place_space(place)?,
+                        self.place_space(place)?,
                         Some(dir::Space::Shared | dir::Space::Constant)
                     )
                 {
@@ -327,9 +313,9 @@ impl BodyState<'_, '_> {
             // step to a borrow's payload in the region's referent spaces
             let ty = match form.form {
                 dir::Form::Borrowed(borrow) => {
-                    let borrow = self.check.type_borrow(receiver.module_id, borrow)?;
-                    let region = self.check.shallow_resolve(borrow.region)?;
-                    let spaces = match self.check.ty(region)? {
+                    let borrow = self.type_borrow(receiver.module_id, borrow)?;
+                    let region = self.shallow_resolve(borrow.region)?;
+                    let spaces = match self.ty(region)? {
                         dir::Type::Region(pair) => pair.space,
                         _ => region,
                     };
@@ -379,7 +365,7 @@ impl BodyState<'_, '_> {
         }
 
         // step through a stuck named head that carries a memory form
-        let head = self.check.structurally_normalize(origin, receiver)?;
+        let head = self.structurally_normalize(origin, receiver)?;
         if head != receiver && matches!(self.ty(head)?, dir::Type::Form(_)) {
             return self.dereference_step(origin, Value { ty: head, ..value }, protocol);
         }
@@ -393,23 +379,28 @@ impl BodyState<'_, '_> {
         receiver: dir::GlobalTypeId,
         access: dir::Access,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read the value beneath an owned form
         let mut receiver = self.shallow_resolve(receiver)?;
         if let dir::Type::Form(form) = self.ty(receiver)?
             && form.form == dir::Form::Owned
         {
             receiver = self.shallow_resolve(form.value)?;
         }
+
+        // refuse a formed or open receiver
         if matches!(
             self.ty(receiver)?,
             dir::Type::Form(_) | dir::Type::Variable(_)
         ) {
             return Ok(None);
         }
+
+        // intern a frame-lived borrow of the receiver
         let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
         let access = self.access_literal(access)?;
-        let place = self.check.local_place()?;
-        let region = self.check.intern_region(lifetime, place)?;
-        let form = self.check.intern_borrow(region, access)?;
+        let place = self.local_place()?;
+        let region = self.intern_region(lifetime, place)?;
+        let form = self.intern_borrow(region, access)?;
 
         Ok(Some(self.intern_type(dir::Type::Form(dir::FormType {
             form,
@@ -423,16 +414,17 @@ impl BodyState<'_, '_> {
         lookup: &MemberLookup,
         use_access: dir::Access,
     ) -> CompilerResult<dir::Access> {
-        let MemberLookup::Found(candidates) = lookup else {
-            return Ok(use_access);
-        };
+        // take the strongest access any declared method requires
         let mut required = use_access;
-        for candidate in candidates {
+        for candidate in lookup {
+            let Some(declared) = candidate.declaration() else {
+                continue;
+            };
             if candidate.role != MemberRole::Method {
                 continue;
             }
-            let ty = self.check.symbol_type(candidate.symbol)?;
-            let Some(head) = self.check.signature_head(ty)? else {
+            let ty = self.symbol_type(declared.symbol)?;
+            let Some(head) = self.signature_head(ty)? else {
                 continue;
             };
             let Some(this) = head.this_parameter else {
@@ -445,7 +437,7 @@ impl BodyState<'_, '_> {
             let dir::Form::Borrowed(borrow) = form.form else {
                 continue;
             };
-            let access = self.check.type_borrow(this.module_id, borrow)?.access;
+            let access = self.type_borrow(this.module_id, borrow)?.access;
             let access = self.shallow_resolve(access)?;
             if let dir::Type::Literal(dir::Literal::String(access)) = self.ty(access)?
                 && let Some(access) = dir::Access::from_text(access)
@@ -465,95 +457,113 @@ impl BodyState<'_, '_> {
         this_parameter: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ReceiverSteps>> {
         // solve an open this-parameter place from the receiver
-        let parameter_type = self.check.normalize(origin, this_parameter)?;
-        if let Some(place) = self.check.form_chain(origin, parameter_type)?.place() {
-            let place = self.check.shallow_resolve(place)?;
-            if matches!(self.check.ty(place)?, dir::Type::Variable(_)) {
+        let parameter_type = self.normalize(origin, this_parameter)?;
+        if let Some(place) = self.form_chain(origin, parameter_type)?.place() {
+            let place = self.shallow_resolve(place)?;
+            if matches!(self.ty(place)?, dir::Type::Variable(_)) {
                 // read the referent place of the receiver type
-                let held = match self.check.form_chain(origin, receiver.ty)?.place() {
+                let held = match self.form_chain(origin, receiver.ty)?.place() {
                     Some(held) => held,
                     None => self.value_place(origin, receiver)?.placement,
                 };
-                let cause = self
-                    .check
-                    .intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.check
-                    .constrain_type(origin, cause, Relation::Equal, held, place)?;
+                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+                self.constrain_type(origin, cause, Relation::Equal, held, place)?;
             }
         }
 
+        // take the first step that satisfies the parameter
         let steps = self.builtin_steps(origin, receiver)?;
         for step in steps {
-            let stepped = Value {
-                ty: step.ty,
-                ..receiver
-            };
-            let related = self.confirm_candidate(|state| {
-                let cause = state.intern_cause(Cause::root(origin, CauseKind::Expression));
+            let verdict = self.decide_candidate(|state| {
+                let adjustments =
+                    state.constrain_receiver_step(origin, receiver, &step, this_parameter)?;
 
-                // take the step as is when it names the parameter's ownership
-                let step_type = state.normalize(origin, step.ty)?;
-                let step_ownership = state
-                    .form_chain(origin, step_type)?
-                    .ownership_form()
-                    .map(|form| form.form.ownership());
-                let parameter_type = state.normalize(origin, this_parameter)?;
-                let parameter_ownership = state
-                    .form_chain(origin, parameter_type)?
-                    .ownership_form()
-                    .map(|form| form.form.ownership());
-
-                // align two sides that carry no ownership through their defaults
-                let aligned = step_ownership == parameter_ownership
-                    || state.default_ownership(origin, step_type)?
-                        == state.default_ownership(origin, parameter_type)?;
-                let direct = aligned
-                    && state
-                        .constrain_type(
-                            origin,
-                            cause,
-                            Relation::Assignable,
-                            step.ty,
-                            this_parameter,
-                        )?
-                        .holds();
-                if direct {
-                    return Ok(CandidateOutcome::Accepted(step.adjustments.clone()));
-                }
-
-                // otherwise acquire the borrow the parameter writes, beneath any view form
-                let projects_view = matches!(
-                    state.ty(step.ty)?,
-                    dir::Type::Form(form) if form.form.ownership().is_none()
-                );
-                if projects_view {
-                    return Ok(CandidateOutcome::Rejected(()));
-                }
-                let Some(conversion) = state.borrow_conversion(origin, step.ty, this_parameter)?
-                else {
-                    return Ok(CandidateOutcome::Rejected(()));
-                };
-                let acquired = state
-                    .constrain_borrow(origin, cause, Relation::Assignable, stepped, &conversion)?
-                    .holds();
-                if !acquired {
-                    return Ok(CandidateOutcome::Rejected(()));
-                }
-                let borrowed = state.intern_type(dir::Type::Form(dir::FormType {
-                    form: conversion.borrow.form,
-                    value: step.ty,
-                }))?;
-                let mut adjustments = step.adjustments.clone();
-                adjustments.push(dir::ReceiverAdjustment::Borrow { ty: borrowed });
-
-                Ok(CandidateOutcome::Accepted(adjustments))
+                Ok(match adjustments {
+                    Some(adjustments) => CandidateOutcome::Accepted(adjustments),
+                    None => CandidateOutcome::Rejected(()),
+                })
             })?;
-            if let Some(adjustments) = related {
+            if verdict == Verdict::Fails {
+                continue;
+            }
+            if let Some(adjustments) =
+                self.constrain_receiver_step(origin, receiver, &step, this_parameter)?
+            {
                 return Ok(Some(adjustments));
             }
         }
 
         Ok(None)
+    }
+
+    /// Constrain one receiver step against the this parameter, returning its adjustments.
+    fn constrain_receiver_step(
+        &mut self,
+        origin: Origin,
+        receiver: Value,
+        step: &ReceiverStep,
+        this_parameter: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<ReceiverSteps>> {
+        // read the step as a value at this site
+        let stepped = Value {
+            ty: step.ty,
+            ..receiver
+        };
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+        // take the step as is when it names the parameter's ownership
+        let step_type = self.normalize(origin, step.ty)?;
+        let step_ownership = self
+            .form_chain(origin, step_type)?
+            .ownership_form()
+            .map(|form| form.form.ownership());
+        let parameter_type = self.normalize(origin, this_parameter)?;
+        let parameter_ownership = self
+            .form_chain(origin, parameter_type)?
+            .ownership_form()
+            .map(|form| form.form.ownership());
+
+        // align two sides that carry no ownership through their defaults
+        let is_aligned = step_ownership == parameter_ownership
+            || self.default_ownership(origin, step_type)?
+                == self.default_ownership(origin, parameter_type)?;
+
+        // take the step as an argument of the parameter once the sides align
+        if is_aligned {
+            let site = self.visit_site(receiver.node.unwrap_or(self.origin_source(origin)?))?;
+            let is_direct = self
+                .constrain_edge(site, cause, stepped, this_parameter, ValueUse::Argument)?
+                .holds();
+            if is_direct {
+                return Ok(Some(step.adjustments.clone()));
+            }
+        }
+
+        // otherwise acquire the borrow the parameter writes, beneath any view form
+        let is_view = matches!(
+            self.ty(step.ty)?,
+            dir::Type::Form(form) if form.form.ownership().is_none()
+        );
+        if is_view {
+            return Ok(None);
+        }
+        let Some(conversion) = self.borrow_conversion(origin, step.ty, this_parameter)? else {
+            return Ok(None);
+        };
+        let is_acquired = self
+            .constrain_borrow(origin, cause, Relation::Storable, stepped, &conversion)?
+            .holds();
+        if !is_acquired {
+            return Ok(None);
+        }
+        let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
+            form: conversion.borrow.form,
+            value: step.ty,
+        }))?;
+        let mut adjustments = step.adjustments.clone();
+        adjustments.push(dir::ReceiverAdjustment::Borrow { ty: borrowed });
+
+        Ok(Some(adjustments))
     }
 
     /// Apply the physical receiver projections required by one flow-narrowed lookup.
@@ -565,21 +575,16 @@ impl BodyState<'_, '_> {
         lookup: &mut MemberLookup,
     ) -> CompilerResult<()> {
         // project union lookups through each physical arm
-        if let MemberLookup::Union(lookups) = lookup
-            && let Some(arms) = self.union_arms(origin, narrowed)?
+        if lookup.iter().any(|candidate| candidate.arm.is_some())
+            && self.union_arms(origin, narrowed)?.is_some()
         {
-            // require one member lookup for every narrowed arm
-            if lookups.len() != arms.len() {
-                return Err(CompilerError::Internal {
-                    message: "narrowed union lookup does not cover every target arm".to_string(),
-                });
-            }
-
-            // attach each physical arm projection to its corresponding lookup
-            for (lookup, arm) in lookups.iter_mut().zip(arms) {
-                let adjustments = self.project_narrowed_receiver(origin, source, arm)?;
+            for candidate in lookup.iter_mut() {
+                let Some(arm) = candidate.arm else {
+                    continue;
+                };
+                let adjustments = self.project_narrowed_receiver(origin, source, arm.element)?;
                 for adjustment in adjustments.into_iter().rev() {
-                    lookup.lookup.prepend_adjustment(adjustment);
+                    candidate.prepend_adjustment(adjustment);
                 }
             }
 
@@ -594,7 +599,7 @@ impl BodyState<'_, '_> {
         // apply the common projection selected for one precise arm or compiler field
         let adjustments = self.project_narrowed_receiver(origin, source, narrowed)?;
         for adjustment in adjustments.into_iter().rev() {
-            lookup.prepend_adjustment(adjustment);
+            prepend_adjustment(lookup, &adjustment);
         }
 
         Ok(())
@@ -607,6 +612,7 @@ impl BodyState<'_, '_> {
         source: dir::GlobalTypeId,
         narrowed: dir::GlobalTypeId,
     ) -> CompilerResult<ReceiverSteps> {
+        // keep an unchanged receiver direct
         if source == narrowed {
             return Ok(ReceiverSteps::new());
         }
@@ -649,13 +655,14 @@ impl BodyState<'_, '_> {
         })
     }
 
-    /// Project one representation onto the union arm it keeps beside itself, or None for other types.
+    /// Project one representation onto the union arm it keeps beside itself.
     pub(in crate::sema) fn project_carried_arm(
         &mut self,
         origin: Origin,
         representation: dir::GlobalTypeId,
         arm: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ReceiverSteps>> {
+        // require a physical union beneath the enclosing newtypes
         let (payload, mut steps) = self.project_newtype_receiver(origin, representation)?;
         let Some(arms) = self.union_arms(origin, payload)? else {
             return Ok(None);
@@ -663,6 +670,8 @@ impl BodyState<'_, '_> {
         if !arms.contains(&arm) {
             return Ok(None);
         }
+
+        // project onto the named arm
         let union = self.form_chain(origin, payload)?.base();
         let payload = self.form_chain(origin, arm)?.base();
         steps.push(dir::ReceiverAdjustment::UnionPayload {
@@ -680,6 +689,7 @@ impl BodyState<'_, '_> {
         origin: Origin,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::GlobalTypeId, ReceiverSteps)> {
+        // start at the written receiver
         let mut receiver = source;
         let mut steps = ReceiverSteps::new();
 

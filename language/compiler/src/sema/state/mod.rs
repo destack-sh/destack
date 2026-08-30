@@ -6,6 +6,7 @@ mod generic;
 mod infer;
 mod module;
 mod origin;
+mod table;
 mod trace;
 
 pub(in crate::sema) use capture::*;
@@ -15,4 +16,5 @@ pub(in crate::sema) use generic::*;
 pub(in crate::sema) use infer::*;
 pub(in crate::sema) use module::*;
 pub(in crate::sema) use origin::*;
+pub(in crate::sema) use table::*;
 pub(in crate::sema) use trace::*;

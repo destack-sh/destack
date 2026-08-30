@@ -41,7 +41,7 @@ interface Options {
 
 declare const options: Options;
 
-const focused: Options = { ...options, only: true } as Options;
+const focused: Options = { ...options, only: true };
 const renamed: Options = { ...options, name: "first", ...{ name: "second" } } as Options;
 const literal: { only: boolean; retries: int64; name: string | undefined } = {
     ...options,
@@ -141,7 +141,10 @@ const plain: Required = { ...required, only: true };
 /// @resolution.access source=required root=required
 "#,
         r#"
-
+/// @diagnostic.error id=not-assignable message="type '{ only: boolean; retries: int32; name: string | undefined }' is not assignable to type 'Options'"
+/// @diagnostic.label line=10 column=26 span="{ ...options, only: true }" line_source="const focused: Options = { ...options, only: true };"
+/// @diagnostic.related line=10 column=16 span="Options" line_source="const focused: Options = { ...options, only: true };" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in field 'name': expected 'string', found 'string | undefined'"
 "#,
     );
 }
@@ -178,7 +181,7 @@ interface Named {
 declare const named: Named;
 declare const full: { only: boolean; name: string };
 
-const spreadOptional: Named = { ...named, only: true } as Named;
+const spreadOptional: Named = { ...named, only: true };
 const literalRequired: Named = { only: true, name: "x" } as Named;
 const literalAbsent: Named = { only: true } as Named;
 const fromRequired: Named = full as Named;
@@ -236,7 +239,10 @@ const fromRequired: Named = full;
 /// @resolution.access source=full root=full
 "#,
         r#"
-
+/// @diagnostic.error id=not-assignable message="type '{ only: boolean; name: string | undefined }' is not assignable to type 'Named'"
+/// @diagnostic.label line=10 column=31 span="{ ...named, only: true }" line_source="const spreadOptional: Named = { ...named, only: true };"
+/// @diagnostic.related line=10 column=23 span="Named" line_source="const spreadOptional: Named = { ...named, only: true };" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in field 'name': expected 'string', found 'string | undefined'"
 "#,
     );
 }

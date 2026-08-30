@@ -11,10 +11,10 @@ use smallvec::SmallVec;
 
 use crate::export::ExportResolver;
 use crate::sema::{
-    Answer, BoundSet, CanonicalEntry, CanonicalGoal, Cause, CauseId, CheckCounters,
-    CheckModuleState, CheckTrace, DecoratorApplication, ExternalModuleTable, FlowBranch, FlowState,
-    Fulfillment, FunctionBody, GenericParameterId, HeritageReach, InferContext, Origin, OriginId,
-    Premise, Relation, VarianceForm, VarianceState,
+    Answer, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, DecoratorApplication,
+    ExtensionHead, ExternalModuleTable, FieldInitializationObligation, FlowBranch, FlowState,
+    Fulfillment, FunctionBody, GenericParameterId, GoalKey, HeritageReach, InferContext, NodeTable,
+    Origin, OriginId, Relation, RelationKey, VarianceForm, VarianceState,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -31,97 +31,17 @@ pub(in crate::sema) enum Pass {
     Materialize,
 }
 
-/// Committed node types in dense module columns, rolled back under open probes.
-#[derive(Debug, Default)]
-pub(in crate::sema) struct NodeTable {
-    /// One dense column per module, indexed by tree-global node id.
-    columns: FxHashMap<ModuleId, Vec<Option<(dir::NodeType, dir::GlobalTypeId)>>>,
-    /// Entries replaced while a probe journals, with their priors.
-    journal: Vec<(dir::GlobalNodeIdAny, Option<dir::GlobalTypeId>)>,
-    /// The open probe depth: positive depths journal inserts.
-    probes: usize,
-}
-
-impl NodeTable {
-    /// Return one committed node type.
-    pub(in crate::sema) fn get(&self, node: &dir::GlobalNodeIdAny) -> Option<dir::GlobalTypeId> {
-        let column = self.columns.get(&node.module_id)?;
-        let (tag, ty) = column.get(node.local_id.id as usize).copied().flatten()?;
-
-        (tag == node.local_id.ty).then_some(ty)
-    }
-
-    /// Return whether one node committed a type.
-    pub(in crate::sema) fn contains(&self, node: dir::GlobalNodeIdAny) -> bool {
-        self.get(&node).is_some()
-    }
-
-    /// Commit one node type, journaling the prior under open probes.
-    pub(in crate::sema) fn insert(&mut self, node: dir::GlobalNodeIdAny, ty: dir::GlobalTypeId) {
-        // grow this module's column to cover the node
-        let column = self.columns.entry(node.module_id).or_default();
-        let index = node.local_id.id as usize;
-        if column.len() <= index {
-            column.resize_with(index + 1, || None);
-        }
-
-        // journal the replaced entry while a probe may roll back
-        if self.probes > 0 {
-            let prior = column[index].and_then(|(tag, ty)| (tag == node.local_id.ty).then_some(ty));
-            self.journal.push((node, prior));
-        }
-
-        // commit the node type
-        column[index] = Some((node.local_id.ty, ty));
-    }
-
-    /// Collect every committed node id.
-    pub(in crate::sema) fn nodes(&self) -> Vec<dir::GlobalNodeIdAny> {
-        // collect each column's tagged entries
-        let mut nodes = Vec::new();
-        for (module, column) in &self.columns {
-            for (index, entry) in column.iter().enumerate() {
-                if let Some((tag, _)) = entry {
-                    nodes.push(dir::GlobalNodeIdAny {
-                        module_id: *module,
-                        local_id: dir::LocalNodeIdAny::new(index as u32, *tag),
-                    });
-                }
-            }
-        }
-
-        nodes
-    }
-
-    /// Mark the probe journal and start journaling inserts.
-    pub(in crate::sema) fn open_probe(&mut self) -> usize {
-        self.probes += 1;
-
-        self.journal.len()
-    }
-
-    /// Roll journaled inserts back to one probe mark.
-    pub(in crate::sema) fn close_probe(&mut self, mark: usize) -> CompilerResult<()> {
-        // restore each journaled entry down to the mark
-        while self.journal.len() > mark {
-            let Some((node, prior)) = self.journal.pop() else {
-                return Err(CompilerError::Internal {
-                    message: "node journal ended before its probe mark".to_string(),
-                });
-            };
-            let Some(column) = self.columns.get_mut(&node.module_id) else {
-                return Err(CompilerError::Internal {
-                    message: format!("journaled node {node:?} has no column"),
-                });
-            };
-            column[node.local_id.id as usize] = prior.map(|ty| (node.local_id.ty, ty));
-        }
-
-        // close the probe
-        self.probes -= 1;
-
-        Ok(())
-    }
+/// One goal on the active decision path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum ActiveGoal {
+    /// One auto interface derivation over a type, holding on re-entry.
+    Derive(dir::GlobalTypeId, dir::AutoInterface),
+    /// One extension matched against a subject, missing on re-entry.
+    Extension(dir::GlobalSymbolId, dir::GlobalTypeId),
+    /// One extension implementation goal, failing on re-entry.
+    Implementation(Relation, dir::GlobalTypeId, dir::GlobalTypeId),
+    /// One generic pattern matched against an actual, failing on re-entry.
+    Match(dir::GlobalTypeId, dir::GlobalTypeId, u64),
 }
 
 /// State for checking one resolved module.
@@ -179,33 +99,16 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) walked_decorators: FxIndexSet<dir::LocalNodeId<dir::Decorator>>,
     /// Declarations currently walking, innermost last.
     pub(in crate::sema) walking_declarations: Vec<dir::GlobalNodeIdAny>,
-    /// Active derivability goals closed coinductively on re-entry.
-    pub(in crate::sema) deriving: FxIndexSet<(dir::GlobalTypeId, dir::AutoInterface)>,
-    /// Active extension member lookups closed coinductively on re-entry.
-    pub(in crate::sema) active_extensions: FxIndexSet<(dir::GlobalSymbolId, dir::GlobalTypeId)>,
-    /// Extension applicability goals currently deciding.
-    pub(in crate::sema) deciding: FxIndexSet<(Relation, dir::GlobalTypeId, dir::GlobalTypeId)>,
+    /// The goals on the active decision path, each closing on re-entry by its own rule.
+    pub(in crate::sema) active: FxIndexSet<ActiveGoal>,
     /// The count of conditional reductions nested on the stack.
     pub(in crate::sema) instantiation_depth: u32,
 
     // memos
     /// Export lookups reused by import suggestions.
     pub(in crate::sema) exports: ExportResolver,
-    /// Decided answers per canonical goal, instantiated on later goals.
-    pub(in crate::sema) answers: FxIndexMap<CanonicalGoal, Answer>,
-    /// Canonical operand pairs per interned operands and assuming scope.
-    pub(in crate::sema) canonical_entries:
-        FxIndexMap<([dir::GlobalTypeId; 2], Option<dir::GlobalGenericTemplateId>), CanonicalEntry>,
-    /// Interned assumed bound sets, shared by goals with equal content.
-    pub(in crate::sema) bound_sets: FxIndexSet<BoundSet>,
-    /// Assumed bound content per scope and numbered parameter list.
-    pub(in crate::sema) premises: FxIndexMap<
-        (
-            Option<dir::GlobalGenericTemplateId>,
-            SmallVec<[GenericParameterId; 4]>,
-        ),
-        (SmallVec<[GenericParameterId; 4]>, Option<Premise>),
-    >,
+    /// Remembered choices per decided goal over closed operands.
+    pub(in crate::sema) answers: FxIndexMap<GoalKey, Answer>,
     /// Assuming templates per declared scope.
     pub(in crate::sema) assuming_scopes:
         FxIndexMap<Option<dir::GlobalGenericTemplateId>, Option<dir::GlobalGenericTemplateId>>,
@@ -227,6 +130,12 @@ pub(in crate::sema) struct CheckState<'a> {
         FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
     /// Memoized aliasing per closed type.
     pub(in crate::sema) aliasing: FxIndexMap<dir::GlobalTypeId, bool>,
+    /// Decided relations over closed operands.
+    pub(in crate::sema) decided_relations: FxIndexMap<RelationKey, bool>,
+    /// Extension targets closed receivers failed to match, by declared target and receiver.
+    pub(in crate::sema) unmatched_targets: FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId)>,
+    /// Const bindings initialized by a fresh value.
+    pub(in crate::sema) fresh_consts: FxIndexSet<dir::GlobalSymbolId>,
     /// Storable representations decided this pass.
     pub(in crate::sema) storables:
         FxIndexSet<(dir::GlobalTypeId, Option<dir::GlobalGenericTemplateId>)>,
@@ -261,12 +170,7 @@ pub(in crate::sema) struct CheckState<'a> {
         FxIndexMap<dir::GlobalSymbolId, Option<dir::GlobalSymbolId>>,
     /// Extension symbols visible per looking module and target head.
     pub(in crate::sema) visible_extensions:
-        FxIndexMap<(ModuleId, dir::TypeRoot), SmallVec<[dir::GlobalSymbolId; 4]>>,
-    /// Visible implementations per interface, each with its extension target root.
-    pub(in crate::sema) visible_implementations: FxIndexMap<
-        (ModuleId, dir::GlobalSymbolId),
-        SmallVec<[(dir::GlobalSymbolId, Option<dir::TypeRoot>); 4]>,
-    >,
+        FxIndexMap<(ModuleId, ExtensionHead), SmallVec<[dir::GlobalSymbolId; 4]>>,
     /// Member keys each blanket extension can expose.
     pub(in crate::sema) blanket_keys: FxIndexMap<dir::GlobalSymbolId, FxIndexSet<dir::StaticKey>>,
     /// Interface requirements each extension implements, keyed by member key.
@@ -280,24 +184,16 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) binding_types: FxIndexMap<dir::GlobalSymbolId, dir::GlobalTypeId>,
     /// Checked source node occurrence types.
     pub(in crate::sema) node_types: NodeTable,
-    /// Contextual expected types by source node occurrence.
-    pub(in crate::sema) expected_types: NodeTable,
-    /// Expression nodes whose value is a literal fresh from its expression.
-    pub(in crate::sema) fresh_nodes: FxIndexMap<dir::GlobalNodeIdAny, Option<dir::GlobalTypeId>>,
-    /// Const bindings initialized by a fresh literal, whose reads stay fresh.
-    pub(in crate::sema) fresh_bindings: FxIndexSet<dir::GlobalSymbolId>,
+    /// Interned memory component literal types, keyed by their reserved text.
+    pub(in crate::sema) memory_literals: FxHashMap<String, dir::GlobalTypeId>,
     /// Constructor exit branches per initialized class, filled at check.
     pub(in crate::sema) constructor_branches: FxIndexMap<dir::GlobalSymbolId, Vec<FlowBranch>>,
-    /// Reported nodes and their structural ancestors.
-    pub(in crate::sema) reported_nodes: FxIndexSet<dir::GlobalNodeIdAny>,
-    /// Nodes whose own inference variables poisoned, with their ancestors.
-    pub(in crate::sema) poisoned_nodes: FxIndexSet<dir::GlobalNodeIdAny>,
+    /// Declarations required to initialize their fields, checked once the constructors are.
+    pub(in crate::sema) field_initializations: Vec<FieldInitializationObligation>,
 
     // stats
     /// Work counters for the provider trace.
     pub(in crate::sema) counters: CheckCounters,
-    /// The generic match questions on the active matching path.
-    pub(in crate::sema) active_matches: FxIndexSet<(dir::GlobalTypeId, dir::GlobalTypeId, u64)>,
     /// Trace state kept only when tracing is requested.
     pub(in crate::sema) trace: Option<Box<CheckTrace>>,
 }
@@ -350,22 +246,20 @@ impl<'a> CheckState<'a> {
             walked_declarations: FxIndexSet::default(),
             walked_decorators: FxIndexSet::default(),
             walking_declarations: Vec::new(),
-            deriving: FxIndexSet::default(),
-            active_extensions: FxIndexSet::default(),
-            deciding: FxIndexSet::default(),
+            active: FxIndexSet::default(),
             instantiation_depth: 0,
             // memos
             exports: ExportResolver::new(profile),
             answers: FxIndexMap::default(),
-            canonical_entries: FxIndexMap::default(),
-            bound_sets: FxIndexSet::default(),
-            premises: FxIndexMap::default(),
             assuming_scopes: FxIndexMap::default(),
             normalizations: FxIndexMap::default(),
             erasures: FxIndexMap::default(),
             substitutions: FxIndexMap::default(),
             scalar_families: FxIndexMap::default(),
             aliasing: FxIndexMap::default(),
+            decided_relations: FxIndexMap::default(),
+            unmatched_targets: FxIndexSet::default(),
+            fresh_consts: FxIndexSet::default(),
             storables: FxIndexSet::default(),
             variances: FxIndexMap::default(),
             argument_ranks: FxIndexMap::default(),
@@ -373,25 +267,20 @@ impl<'a> CheckState<'a> {
             member_bindings: FxIndexMap::default(),
             interface_owners: FxIndexMap::default(),
             member_visibilities: FxIndexMap::default(),
-            reported_nodes: FxIndexSet::default(),
-            poisoned_nodes: FxIndexSet::default(),
             conformances: FxIndexMap::default(),
             drop_conformers: FxIndexMap::default(),
             visible_extensions: FxIndexMap::default(),
-            visible_implementations: FxIndexMap::default(),
             blanket_keys: FxIndexMap::default(),
             requirement_interfaces: FxIndexMap::default(),
             // outputs
             declaration_types: FxIndexMap::default(),
             binding_types: FxIndexMap::default(),
             node_types: NodeTable::default(),
-            expected_types: NodeTable::default(),
-            fresh_nodes: FxIndexMap::default(),
-            fresh_bindings: FxIndexSet::default(),
+            memory_literals: FxHashMap::default(),
             constructor_branches: FxIndexMap::default(),
+            field_initializations: Vec::new(),
             // stats
             counters: CheckCounters::default(),
-            active_matches: FxIndexSet::default(),
             trace: CheckTrace::new(records_events),
         }
     }
@@ -438,7 +327,7 @@ impl<'a> CheckState<'a> {
                 continue;
             }
 
-            // report the failure once, while declaring
+            // report the failure once while declaring
             if self.is_declaring() {
                 self.report_export_type_not_derivable(module, declarator);
             }
@@ -458,6 +347,7 @@ impl<'a> CheckState<'a> {
         root: dir::LocalNodeId<dir::Expression>,
         exported: &mut Vec<(dir::LocalNodeIdAny, dir::GlobalSymbolId)>,
     ) {
+        // collect the exports each root statement declares
         match tree.get(root) {
             // recurse into nested module and global root statements
             dir::Expression::Declaration(declaration) => {
@@ -901,6 +791,11 @@ impl CheckState<'_> {
         extent: dir::GlobalTypeId,
         space: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // name a region term's whole provenance
+        if self.memory_kind(space)? == Some(dir::MemoryParameter::Region) {
+            return Ok(space);
+        }
+
         self.intern_type(dir::Type::Region(dir::RegionType { extent, space }))
     }
 
@@ -960,6 +855,7 @@ impl CheckState<'_> {
         source: ModuleId,
         form: dir::Form,
     ) -> CompilerResult<dir::Form> {
+        // rewrite a foreign borrow into this module's rows
         match form {
             dir::Form::Borrowed(id) if source != self.module_id => {
                 let borrow = self.type_borrow(source, id)?;
@@ -1071,6 +967,7 @@ impl CheckState<'_> {
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::FunctionSignatureType>> {
+        // read the signature each callable head carries
         match self.ty(id)? {
             dir::Type::FunctionSignature(signature) => {
                 Ok(Some(self.type_signature(id.module_id, signature)?))
@@ -1099,6 +996,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::TypeOperation>> {
         let id = self.shallow_resolve(id)?;
 
+        // read the operation the head names
         match self.ty(id)? {
             dir::Type::Operation(operation) => {
                 Ok(Some(self.type_operation(id.module_id, operation)?))
@@ -1147,6 +1045,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let elements = self.intern_elements(elements)?;
 
+        // intern the elements as one tuple
         self.intern_type(dir::Type::Tuple(dir::TupleType {
             form: dir::TupleForm::Tuple,
             elements,
@@ -1275,7 +1174,7 @@ impl CheckState<'_> {
         )
     }
 
-    /// Resolve one interned list through the owning module's tables.
+    /// Settle one interned list through the owning module's tables.
     fn type_rows<'s, T>(
         &'s self,
         module: ModuleId,
@@ -1352,6 +1251,7 @@ impl CheckState<'_> {
             return Ok(());
         };
 
+        // adopt each declared symbol type
         for (symbol, _) in declared.types.symbol_types() {
             // skip statically absent declarations
             if let Ok(source) = self.symbol_source(symbol)
@@ -1459,6 +1359,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        // require the module the symbol declares in
         let working =
             self.module_maybe_mut(symbol.module_id)
                 .ok_or_else(|| CompilerError::Internal {
@@ -1468,6 +1369,7 @@ impl CheckState<'_> {
                     ),
                 })?;
 
+        // insert the definition into the pass segment
         working
             .definitions_tail
             .insert_definition(symbol, source, definition);
@@ -1519,8 +1421,6 @@ impl CheckState<'_> {
         let ty = match ty {
             // leaf heads
             dir::Type::Variable(_)
-            | dir::Type::Hole(_)
-            | dir::Type::Rigid(_)
             | dir::Type::Error
             | dir::Type::Never
             | dir::Type::Unknown
@@ -1891,6 +1791,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let properties = self.intern_properties(properties)?;
 
+        // intern the properties as one object shape
         self.intern_type(dir::Type::Object(dir::ObjectType {
             properties,
             call_signatures: dir::TypeListId::EMPTY,

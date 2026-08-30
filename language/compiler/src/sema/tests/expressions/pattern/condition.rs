@@ -478,8 +478,6 @@ if (let { name } = user && name.length > 0) {
 /// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as isize families=(integer), 0 as isize families=(integer)]
 /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=name root=name#2
-/// @generic.instantiation id="length<\"local\">" template=length arguments=("local")
-/// @generic.instance id="length<\"local\">" template=length arguments=("local")
 /// @type.node source=0 type=0
 
     name satisfies string;
@@ -674,7 +672,6 @@ while (let { name } = user && name.length > 0) {
 /// @resolution.operator source="name.length > 0" type=boolean operator=">" kind=builtin operands=[name.length as isize families=(integer), 0 as isize families=(integer)]
 /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=name root=name#2
-/// @generic.instantiation id="length<\"local\">" template=length arguments=("local")
 /// @type.node source=0 type=0
 
     name satisfies string;

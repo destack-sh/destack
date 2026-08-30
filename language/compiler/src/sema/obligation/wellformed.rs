@@ -66,6 +66,7 @@ impl CheckState<'_> {
             _ => return Ok(ObligationCheck::holds()),
         };
 
+        // reduce the index operation and translate what it refuses
         let reduction = self.reduce_index(origin, &index)?;
         let invalid = match reduction {
             // index a rigid receiver the way its bounds or its key set would
@@ -95,7 +96,7 @@ impl CheckState<'_> {
                             target: index.left,
                         }))?;
                     let is_known_key = self
-                        .decide_relation(origin, Relation::Satisfies, index.index, keys)?
+                        .decide_relation(origin, Relation::Subtype, index.index, keys)?
                         .holds();
                     if is_known_key {
                         return Ok(ObligationCheck::holds());

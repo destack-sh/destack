@@ -1,6 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
-/// Resolve intrinsic equality for builtin scalars and declared equality for library scalars.
+/// Stage intrinsic equality for builtin scalars and declared equality for library scalars.
 #[test]
 fn test_resolve_scalar_equality_protocols() {
     let session = TestSession::single(
@@ -256,7 +256,7 @@ import { PartialEqual } from "destack:ops";
 declare function requireStringEqual<T: PartialEqual<string>>(value: T): void;
 declare const value: int32;
 
-requireStringEqual(value);
+requireStringEqual<int32>(value);
 
 === dir ===
 import { PartialEqual } from "destack:ops";
@@ -275,7 +275,8 @@ declare const value: int32;
 
 requireStringEqual(value);
 /// @resolution.name source=requireStringEqual target=requireStringEqual
-/// @resolution.call source=requireStringEqual(value) parameters=(<error>) arguments=(provided(value) as <error>) return=void kind=symbol target=requireStringEqual instance=requireStringEqual<<error>>
+/// @resolution.call source=requireStringEqual(value) parameters=(int32) arguments=(provided(value) as int32) return=void kind=symbol target=requireStringEqual instance=requireStringEqual<int32>
+/// @generic.instantiation id=requireStringEqual<int32> template=requireStringEqual arguments=(int32)
 /// @resolution.name source=value target=value
 /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=value root=value

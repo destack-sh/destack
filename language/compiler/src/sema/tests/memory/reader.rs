@@ -44,30 +44,22 @@ declare const view: &'static readonly int32[];
 const ownedLength: isize = owned.length;
 const ownedEmpty: boolean = owned.isEmpty;
 const ownedAt: &'frame readonly int32 | undefined = owned.at<int32, "readonly">(0);
-const ownedIncludes: boolean = owned.includes<int32, int32, "constant", "local">(
-    1 as &'frame readonly int32,
-);
+const ownedIncludes: boolean = owned.includes<int32, int32>(1 as &'frame readonly int32);
 
 const managedLength: isize = managed.length;
 const managedEmpty: boolean = managed.isEmpty;
-const managedAt: int32 | undefined = managed.at<int32, "local">(0);
-const managedIncludes: boolean = managed.includes<int32, int32, "local", "local">(
-    1 as &'frame readonly int32,
-);
+const managedAt: int32 | undefined = managed.at<int32>(0);
+const managedIncludes: boolean = managed.includes<int32, int32>(1 as &'frame readonly int32);
 
 const borrowedLength: isize = borrowed.length;
 const borrowedEmpty: boolean = borrowed.isEmpty;
 const borrowedAt: &'static int32 | undefined = borrowed.at<int32, "mutable">(0);
-const borrowedIncludes: boolean = borrowed.includes<int32, int32, "constant", "local">(
-    1 as &'frame readonly int32,
-);
+const borrowedIncludes: boolean = borrowed.includes<int32, int32>(1 as &'frame readonly int32);
 
 const viewLength: isize = view.length;
 const viewEmpty: boolean = view.isEmpty;
 const viewAt: &'static readonly int32 | undefined = view.at<int32, "readonly">(0);
-const viewIncludes: boolean = view.includes<int32, int32, "constant", "local">(
-    1 as &'frame readonly int32,
-);
+const viewIncludes: boolean = view.includes<int32, int32>(1 as &'frame readonly int32);
 
 === dir ===
 declare const owned: ^int32[];
@@ -93,7 +85,7 @@ const ownedLength = owned.length;
 /// @resolution.member source=owned.length receiver=Owned<int32[]> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="length<int32, \"constant\">" template=length arguments=(int32, "constant")
+/// @generic.instantiation id=length<int32> template=length arguments=(int32)
 
 const ownedEmpty = owned.isEmpty;
 /// @type.symbol symbol=ownedEmpty source=ownedEmpty type=boolean
@@ -102,7 +94,7 @@ const ownedEmpty = owned.isEmpty;
 /// @resolution.member source=owned.isEmpty receiver=Owned<int32[]> type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="isEmpty<int32, \"constant\">" template=isEmpty arguments=(int32, "constant")
+/// @generic.instantiation id=isEmpty<int32> template=isEmpty arguments=(int32)
 
 const ownedAt = owned.at(0);
 /// @type.symbol symbol=ownedAt source=ownedAt type=&'frame readonly int32 | undefined
@@ -118,11 +110,11 @@ const ownedIncludes = owned.includes(1);
 /// @type.symbol symbol=ownedIncludes source=ownedIncludes type=boolean
 /// @resolution.pattern source=ownedIncludes kind=binding target=ownedIncludes
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.includes receiver=Owned<int32[]> type=<includes.Q, includes.'a, includes.P2: Place, includes.'b, includes.P4: Place>(this: Borrowed<int32[], includes.'a & includes.P2, "readonly">, &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=Owned<int32[]> target=includes
-/// @resolution.call source=owned.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=Owned<int32[]> adjustments=(borrow(&'static readonly constant Owned<int32[]>)) instance="Array<int32>.<extension#5>.includes<int32, \"constant\", \"local\">"
+/// @resolution.member source=owned.includes receiver=Owned<int32[]> type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=Owned<int32[]> target=includes
+/// @resolution.call source=owned.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=Owned<int32[]> adjustments=(borrow(&'static readonly constant Owned<int32[]>)) instance=Array<int32>.<extension#5>.includes<int32>
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="includes<int32, int32, \"constant\", \"local\">" template=includes arguments=(int32, int32, "constant", "local")
+/// @generic.instantiation id="includes<int32, int32>" template=includes arguments=(int32, int32)
 /// @generic.instantiation id=includes<int32> template=includes arguments=(int32)
 
 const managedLength = managed.length;
@@ -132,7 +124,6 @@ const managedLength = managed.length;
 /// @resolution.member source=managed.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
 
 const managedEmpty = managed.isEmpty;
 /// @type.symbol symbol=managedEmpty source=managedEmpty type=boolean
@@ -141,7 +132,6 @@ const managedEmpty = managed.isEmpty;
 /// @resolution.member source=managed.isEmpty receiver=int32[] type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="isEmpty<int32, \"local\">" template=isEmpty arguments=(int32, "local")
 
 const managedAt = managed.at(0);
 /// @type.symbol symbol=managedAt source=managedAt type=int32 | undefined
@@ -158,11 +148,10 @@ const managedIncludes = managed.includes(1);
 /// @type.symbol symbol=managedIncludes source=managedIncludes type=boolean
 /// @resolution.pattern source=managedIncludes kind=binding target=managedIncludes
 /// @resolution.name source=managed target=managed
-/// @resolution.member source=managed.includes receiver=int32[] type=<includes.Q, includes.'a, includes.P2: Place, includes.'b, includes.P4: Place>(this: Borrowed<int32[], includes.'a & includes.P2, "readonly">, &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=int32[] target=includes
-/// @resolution.call source=managed.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=int32[] adjustments=(borrow(&'static readonly int32[])) instance="Array<int32>.<extension#5>.includes<int32, \"local\", \"local\">"
+/// @resolution.member source=managed.includes receiver=int32[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=int32[] target=includes
+/// @resolution.call source=managed.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=int32[] adjustments=(borrow(&'static readonly int32[])) instance=Array<int32>.<extension#5>.includes<int32>
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="includes<int32, int32, \"local\", \"local\">" template=includes arguments=(int32, int32, "local", "local")
 
 const borrowedLength = borrowed.length;
 /// @type.symbol symbol=borrowedLength source=borrowedLength type=isize
@@ -194,8 +183,8 @@ const borrowedIncludes = borrowed.includes(1);
 /// @type.symbol symbol=borrowedIncludes source=borrowedIncludes type=boolean
 /// @resolution.pattern source=borrowedIncludes kind=binding target=borrowedIncludes
 /// @resolution.name source=borrowed target=borrowed
-/// @resolution.member source=borrowed.includes receiver=&'static constant int32[] type=<includes.Q, includes.'a, includes.P2: Place, includes.'b, includes.P4: Place>(this: Borrowed<int32[], includes.'a & includes.P2, "readonly">, &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=&'static constant int32[] target=includes
-/// @resolution.call source=borrowed.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=&'static constant int32[] instance="Array<int32>.<extension#5>.includes<int32, \"constant\", \"local\">"
+/// @resolution.member source=borrowed.includes receiver=&'static constant int32[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=&'static constant int32[] target=includes
+/// @resolution.call source=borrowed.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=&'static constant int32[] instance=Array<int32>.<extension#5>.includes<int32>
 /// @resolution.place source=borrowed placement="constant" lifetime="static" access="mutable"
 /// @resolution.access source=borrowed root=borrowed
 
@@ -228,8 +217,8 @@ const viewIncludes = view.includes(1);
 /// @type.symbol symbol=viewIncludes source=viewIncludes type=boolean
 /// @resolution.pattern source=viewIncludes kind=binding target=viewIncludes
 /// @resolution.name source=view target=view
-/// @resolution.member source=view.includes receiver=&'static readonly constant int32[] type=<includes.Q, includes.'a, includes.P2: Place, includes.'b, includes.P4: Place>(this: Borrowed<int32[], includes.'a & includes.P2, "readonly">, &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=&'static readonly constant int32[] target=includes
-/// @resolution.call source=view.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=&'static readonly constant int32[] instance="Array<int32>.<extension#5>.includes<int32, \"constant\", \"local\">"
+/// @resolution.member source=view.includes receiver=&'static readonly constant int32[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=&'static readonly constant int32[] target=includes
+/// @resolution.call source=view.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=&'static readonly constant int32[] instance=Array<int32>.<extension#5>.includes<int32>
 /// @resolution.place source=view placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=view root=view
 "#,
@@ -276,18 +265,18 @@ declare const view: &'static readonly string;
 
 const ownedLength: isize = owned.length;
 const ownedEmpty: boolean = owned.isEmpty;
-const ownedIncludes: boolean = owned.includes<"constant", "local">("a" as &'frame readonly string);
-const ownedTrimmed: string = owned.trim<"constant">() as string;
+const ownedIncludes: boolean = owned.includes("a" as &'frame readonly string);
+const ownedTrimmed: string = owned.trim() as string;
 
 const managedLength: isize = managed.length;
 const managedEmpty: boolean = managed.isEmpty;
-const managedIncludes: boolean = managed.includes<"local", "local">("a" as &'frame readonly string);
-const managedTrimmed: string = managed.trim<"local">() as string;
+const managedIncludes: boolean = managed.includes("a" as &'frame readonly string);
+const managedTrimmed: string = managed.trim() as string;
 
 const viewLength: isize = view.length;
 const viewEmpty: boolean = view.isEmpty;
-const viewIncludes: boolean = view.includes<"constant", "local">("a" as &'frame readonly string);
-const viewTrimmed: string = view.trim<"constant">() as string;
+const viewIncludes: boolean = view.includes("a" as &'frame readonly string);
+const viewTrimmed: string = view.trim() as string;
 
 === dir ===
 declare const owned: ^string;
@@ -309,7 +298,6 @@ const ownedLength = owned.length;
 /// @resolution.member source=owned.length receiver=Owned<string> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="length<\"constant\">" template=length arguments=("constant")
 
 const ownedEmpty = owned.isEmpty;
 /// @type.symbol symbol=ownedEmpty source=ownedEmpty type=boolean
@@ -318,27 +306,24 @@ const ownedEmpty = owned.isEmpty;
 /// @resolution.member source=owned.isEmpty receiver=Owned<string> type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="isEmpty<\"constant\">" template=isEmpty arguments=("constant")
 
 const ownedIncludes = owned.includes("a");
 /// @type.symbol symbol=ownedIncludes source=ownedIncludes type=boolean
 /// @resolution.pattern source=ownedIncludes kind=binding target=ownedIncludes
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.includes receiver=Owned<string> type=<includes.'a, includes.P1: Place, includes.'b, includes.P3: Place>(this: Borrowed<string, includes.'a & includes.P1, "readonly">, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=Owned<string> target=includes
-/// @resolution.call source="owned.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=Owned<string> adjustments=(borrow(&'static readonly constant Owned<string>)) instance="string.<extension#2>.includes<\"constant\", \"local\">"
+/// @resolution.member source=owned.includes receiver=Owned<string> type=<includes.'a, includes.'b>(this: &includes.'a readonly string, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=Owned<string> target=includes
+/// @resolution.call source="owned.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=Owned<string> adjustments=(borrow(&'static readonly constant Owned<string>))
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="includes<\"constant\", \"local\">" template=includes arguments=("constant", "local")
 
 const ownedTrimmed = owned.trim();
 /// @type.symbol symbol=ownedTrimmed source=ownedTrimmed type=string
 /// @resolution.pattern source=ownedTrimmed kind=binding target=ownedTrimmed
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.trim receiver=Owned<string> type=<trim.'a, trim.P1: Place>(this: Borrowed<string, trim.'a & trim.P1, "readonly">) => Owned<string> kind=symbol target_receiver=Owned<string> target=trim
-/// @resolution.call source=owned.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=Owned<string> adjustments=(borrow(&'static readonly constant Owned<string>)) instance="string.<extension#2>.trim<\"constant\">"
+/// @resolution.member source=owned.trim receiver=Owned<string> type=<trim.'a>(this: &trim.'a readonly string) => Owned<string> kind=symbol target_receiver=Owned<string> target=trim
+/// @resolution.call source=owned.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=Owned<string> adjustments=(borrow(&'static readonly constant Owned<string>))
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="trim<\"constant\">" template=trim arguments=("constant")
 
 const managedLength = managed.length;
 /// @type.symbol symbol=managedLength source=managedLength type=isize
@@ -347,7 +332,6 @@ const managedLength = managed.length;
 /// @resolution.member source=managed.length receiver=string type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="length<\"local\">" template=length arguments=("local")
 
 const managedEmpty = managed.isEmpty;
 /// @type.symbol symbol=managedEmpty source=managedEmpty type=boolean
@@ -356,27 +340,24 @@ const managedEmpty = managed.isEmpty;
 /// @resolution.member source=managed.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
 
 const managedIncludes = managed.includes("a");
 /// @type.symbol symbol=managedIncludes source=managedIncludes type=boolean
 /// @resolution.pattern source=managedIncludes kind=binding target=managedIncludes
 /// @resolution.name source=managed target=managed
-/// @resolution.member source=managed.includes receiver=string type=<includes.'a, includes.P1: Place, includes.'b, includes.P3: Place>(this: Borrowed<string, includes.'a & includes.P1, "readonly">, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=string target=includes
-/// @resolution.call source="managed.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=string adjustments=(borrow(&'static readonly string)) instance="string.<extension#2>.includes<\"local\", \"local\">"
+/// @resolution.member source=managed.includes receiver=string type=<includes.'a, includes.'b>(this: &includes.'a readonly string, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=string target=includes
+/// @resolution.call source="managed.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=string adjustments=(borrow(&'static readonly string))
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="includes<\"local\", \"local\">" template=includes arguments=("local", "local")
 
 const managedTrimmed = managed.trim();
 /// @type.symbol symbol=managedTrimmed source=managedTrimmed type=string
 /// @resolution.pattern source=managedTrimmed kind=binding target=managedTrimmed
 /// @resolution.name source=managed target=managed
-/// @resolution.member source=managed.trim receiver=string type=<trim.'a, trim.P1: Place>(this: Borrowed<string, trim.'a & trim.P1, "readonly">) => Owned<string> kind=symbol target_receiver=string target=trim
-/// @resolution.call source=managed.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=string adjustments=(borrow(&'static readonly string)) instance="string.<extension#2>.trim<\"local\">"
+/// @resolution.member source=managed.trim receiver=string type=<trim.'a>(this: &trim.'a readonly string) => Owned<string> kind=symbol target_receiver=string target=trim
+/// @resolution.call source=managed.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=string adjustments=(borrow(&'static readonly string))
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="trim<\"local\">" template=trim arguments=("local")
 
 const viewLength = view.length;
 /// @type.symbol symbol=viewLength source=viewLength type=isize
@@ -398,8 +379,8 @@ const viewIncludes = view.includes("a");
 /// @type.symbol symbol=viewIncludes source=viewIncludes type=boolean
 /// @resolution.pattern source=viewIncludes kind=binding target=viewIncludes
 /// @resolution.name source=view target=view
-/// @resolution.member source=view.includes receiver=&'static readonly constant string type=<includes.'a, includes.P1: Place, includes.'b, includes.P3: Place>(this: Borrowed<string, includes.'a & includes.P1, "readonly">, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=&'static readonly constant string target=includes
-/// @resolution.call source="view.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=&'static readonly constant string instance="string.<extension#2>.includes<\"constant\", \"local\">"
+/// @resolution.member source=view.includes receiver=&'static readonly constant string type=<includes.'a, includes.'b>(this: &includes.'a readonly string, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=&'static readonly constant string target=includes
+/// @resolution.call source="view.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=&'static readonly constant string
 /// @resolution.place source=view placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=view root=view
 
@@ -407,8 +388,8 @@ const viewTrimmed = view.trim();
 /// @type.symbol symbol=viewTrimmed source=viewTrimmed type=string
 /// @resolution.pattern source=viewTrimmed kind=binding target=viewTrimmed
 /// @resolution.name source=view target=view
-/// @resolution.member source=view.trim receiver=&'static readonly constant string type=<trim.'a, trim.P1: Place>(this: Borrowed<string, trim.'a & trim.P1, "readonly">) => Owned<string> kind=symbol target_receiver=&'static readonly constant string target=trim
-/// @resolution.call source=view.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=&'static readonly constant string instance="string.<extension#2>.trim<\"constant\">"
+/// @resolution.member source=view.trim receiver=&'static readonly constant string type=<trim.'a>(this: &trim.'a readonly string) => Owned<string> kind=symbol target_receiver=&'static readonly constant string target=trim
+/// @resolution.call source=view.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=&'static readonly constant string
 /// @resolution.place source=view placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=view root=view
 "#,
@@ -462,30 +443,20 @@ declare const managedSet: Set<int32>;
 declare const viewSet: &'static readonly Set<int32>;
 
 const ownedMapSize: usize = ownedMap.size;
-const ownedMapHas: boolean = ownedMap.has<string, int32, string, "constant", "local">(
-    "a" as &'frame readonly string,
-);
+const ownedMapHas: boolean = ownedMap.has<string, int32, string>("a" as &'frame readonly string);
 const managedMapSize: usize = managedMap.size;
-const managedMapHas: boolean = managedMap.has<string, int32, string, "local", "local">(
+const managedMapHas: boolean = managedMap.has<string, int32, string>(
     "a" as &'frame readonly string,
 );
 const viewMapSize: usize = viewMap.size;
-const viewMapHas: boolean = viewMap.has<string, int32, string, "constant", "local">(
-    "a" as &'frame readonly string,
-);
+const viewMapHas: boolean = viewMap.has<string, int32, string>("a" as &'frame readonly string);
 
 const ownedSetSize: usize = ownedSet.size;
-const ownedSetHas: boolean = ownedSet.has<int32, int32, "constant", "local">(
-    1 as &'frame readonly int32,
-);
+const ownedSetHas: boolean = ownedSet.has<int32, int32>(1 as &'frame readonly int32);
 const managedSetSize: usize = managedSet.size;
-const managedSetHas: boolean = managedSet.has<int32, int32, "local", "local">(
-    1 as &'frame readonly int32,
-);
+const managedSetHas: boolean = managedSet.has<int32, int32>(1 as &'frame readonly int32);
 const viewSetSize: usize = viewSet.size;
-const viewSetHas: boolean = viewSet.has<int32, int32, "constant", "local">(
-    1 as &'frame readonly int32,
-);
+const viewSetHas: boolean = viewSet.has<int32, int32>(1 as &'frame readonly int32);
 
 === dir ===
 import { Map, Set } from "destack:collections";
@@ -527,17 +498,17 @@ const ownedMapSize = ownedMap.size;
 /// @resolution.member source=ownedMap.size receiver=Owned<Map<string, int32>> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=ownedMap placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedMap root=ownedMap
-/// @generic.instantiation id="size<string, int32, \"constant\">" template=size arguments=(string, int32, "constant")
+/// @generic.instantiation id="size<string, int32>" template=size arguments=(string, int32)
 
 const ownedMapHas = ownedMap.has("a");
 /// @type.symbol symbol=ownedMapHas source=ownedMapHas type=boolean
 /// @resolution.pattern source=ownedMapHas kind=binding target=ownedMapHas
 /// @resolution.name source=ownedMap target=ownedMap
-/// @resolution.member source=ownedMap.has receiver=Owned<Map<string, int32>> type=<has.Q: Hash, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<Map<string, int32>, has.'a & has.P2, "readonly">, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Owned<Map<string, int32>> target=has
-/// @resolution.call source="ownedMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=Owned<Map<string, int32>> adjustments=(borrow(&'static readonly constant Owned<Map<string, int32>>)) instance="Map<string, int32>.<extension#8>.has<string, \"constant\", \"local\">"
+/// @resolution.member source=ownedMap.has receiver=Owned<Map<string, int32>> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Map<string, int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Owned<Map<string, int32>> target=has
+/// @resolution.call source="ownedMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=Owned<Map<string, int32>> adjustments=(borrow(&'static readonly constant Owned<Map<string, int32>>)) instance="Map<string, int32>.<extension#8>.has<string>"
 /// @resolution.place source=ownedMap placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedMap root=ownedMap
-/// @generic.instantiation id="has<string, int32, string, \"constant\", \"local\">" template=has arguments=(string, int32, string, "constant", "local")
+/// @generic.instantiation id="has<string, int32, string>" template=has arguments=(string, int32, string)
 /// @generic.instantiation id="has<string, int32>" template=has arguments=(string, int32)
 
 const managedMapSize = managedMap.size;
@@ -547,17 +518,15 @@ const managedMapSize = managedMap.size;
 /// @resolution.member source=managedMap.size receiver=Map<string, int32> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=managedMap placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managedMap root=managedMap
-/// @generic.instantiation id="size<string, int32, \"local\">" template=size arguments=(string, int32, "local")
 
 const managedMapHas = managedMap.has("a");
 /// @type.symbol symbol=managedMapHas source=managedMapHas type=boolean
 /// @resolution.pattern source=managedMapHas kind=binding target=managedMapHas
 /// @resolution.name source=managedMap target=managedMap
-/// @resolution.member source=managedMap.has receiver=Map<string, int32> type=<has.Q: Hash, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<Map<string, int32>, has.'a & has.P2, "readonly">, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Map<string, int32> target=has
-/// @resolution.call source="managedMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=Map<string, int32> adjustments=(borrow(&'static readonly Map<string, int32>)) instance="Map<string, int32>.<extension#8>.has<string, \"local\", \"local\">"
+/// @resolution.member source=managedMap.has receiver=Map<string, int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Map<string, int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Map<string, int32> target=has
+/// @resolution.call source="managedMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=Map<string, int32> adjustments=(borrow(&'static readonly Map<string, int32>)) instance="Map<string, int32>.<extension#8>.has<string>"
 /// @resolution.place source=managedMap placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managedMap root=managedMap
-/// @generic.instantiation id="has<string, int32, string, \"local\", \"local\">" template=has arguments=(string, int32, string, "local", "local")
 
 const viewMapSize = viewMap.size;
 /// @type.symbol symbol=viewMapSize source=viewMapSize type=usize
@@ -571,8 +540,8 @@ const viewMapHas = viewMap.has("a");
 /// @type.symbol symbol=viewMapHas source=viewMapHas type=boolean
 /// @resolution.pattern source=viewMapHas kind=binding target=viewMapHas
 /// @resolution.name source=viewMap target=viewMap
-/// @resolution.member source=viewMap.has receiver=&'static readonly constant Map<string, int32> type=<has.Q: Hash, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<Map<string, int32>, has.'a & has.P2, "readonly">, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=&'static readonly constant Map<string, int32> target=has
-/// @resolution.call source="viewMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=&'static readonly constant Map<string, int32> instance="Map<string, int32>.<extension#8>.has<string, \"constant\", \"local\">"
+/// @resolution.member source=viewMap.has receiver=&'static readonly constant Map<string, int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Map<string, int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=&'static readonly constant Map<string, int32> target=has
+/// @resolution.call source="viewMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=&'static readonly constant Map<string, int32> instance="Map<string, int32>.<extension#8>.has<string>"
 /// @resolution.place source=viewMap placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=viewMap root=viewMap
 
@@ -583,17 +552,17 @@ const ownedSetSize = ownedSet.size;
 /// @resolution.member source=ownedSet.size receiver=Owned<Set<int32>> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=ownedSet placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedSet root=ownedSet
-/// @generic.instantiation id="size<int32, \"constant\">" template=size arguments=(int32, "constant")
+/// @generic.instantiation id=size<int32> template=size arguments=(int32)
 
 const ownedSetHas = ownedSet.has(1);
 /// @type.symbol symbol=ownedSetHas source=ownedSetHas type=boolean
 /// @resolution.pattern source=ownedSetHas kind=binding target=ownedSetHas
 /// @resolution.name source=ownedSet target=ownedSet
-/// @resolution.member source=ownedSet.has receiver=Owned<Set<int32>> type=<has.Q: Hash, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<Set<int32>, has.'a & has.P2, "readonly">, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Owned<Set<int32>> target=has
-/// @resolution.call source=ownedSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=Owned<Set<int32>> adjustments=(borrow(&'static readonly constant Owned<Set<int32>>)) instance="Set<int32>.<extension#5>.has<int32, \"constant\", \"local\">"
+/// @resolution.member source=ownedSet.has receiver=Owned<Set<int32>> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Set<int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Owned<Set<int32>> target=has
+/// @resolution.call source=ownedSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=Owned<Set<int32>> adjustments=(borrow(&'static readonly constant Owned<Set<int32>>)) instance=Set<int32>.<extension#5>.has<int32>
 /// @resolution.place source=ownedSet placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedSet root=ownedSet
-/// @generic.instantiation id="has<int32, int32, \"constant\", \"local\">" template=has arguments=(int32, int32, "constant", "local")
+/// @generic.instantiation id="has<int32, int32>" template=has arguments=(int32, int32)
 /// @generic.instantiation id=has<int32> template=has arguments=(int32)
 
 const managedSetSize = managedSet.size;
@@ -603,17 +572,15 @@ const managedSetSize = managedSet.size;
 /// @resolution.member source=managedSet.size receiver=Set<int32> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=managedSet placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managedSet root=managedSet
-/// @generic.instantiation id="size<int32, \"local\">" template=size arguments=(int32, "local")
 
 const managedSetHas = managedSet.has(1);
 /// @type.symbol symbol=managedSetHas source=managedSetHas type=boolean
 /// @resolution.pattern source=managedSetHas kind=binding target=managedSetHas
 /// @resolution.name source=managedSet target=managedSet
-/// @resolution.member source=managedSet.has receiver=Set<int32> type=<has.Q: Hash, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<Set<int32>, has.'a & has.P2, "readonly">, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Set<int32> target=has
-/// @resolution.call source=managedSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=Set<int32> adjustments=(borrow(&'static readonly Set<int32>)) instance="Set<int32>.<extension#5>.has<int32, \"local\", \"local\">"
+/// @resolution.member source=managedSet.has receiver=Set<int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Set<int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Set<int32> target=has
+/// @resolution.call source=managedSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=Set<int32> adjustments=(borrow(&'static readonly Set<int32>)) instance=Set<int32>.<extension#5>.has<int32>
 /// @resolution.place source=managedSet placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managedSet root=managedSet
-/// @generic.instantiation id="has<int32, int32, \"local\", \"local\">" template=has arguments=(int32, int32, "local", "local")
 
 const viewSetSize = viewSet.size;
 /// @type.symbol symbol=viewSetSize source=viewSetSize type=usize
@@ -627,8 +594,8 @@ const viewSetHas = viewSet.has(1);
 /// @type.symbol symbol=viewSetHas source=viewSetHas type=boolean
 /// @resolution.pattern source=viewSetHas kind=binding target=viewSetHas
 /// @resolution.name source=viewSet target=viewSet
-/// @resolution.member source=viewSet.has receiver=&'static readonly constant Set<int32> type=<has.Q: Hash, has.'a, has.P2: Place, has.'b, has.P4: Place>(this: Borrowed<Set<int32>, has.'a & has.P2, "readonly">, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=&'static readonly constant Set<int32> target=has
-/// @resolution.call source=viewSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=&'static readonly constant Set<int32> instance="Set<int32>.<extension#5>.has<int32, \"constant\", \"local\">"
+/// @resolution.member source=viewSet.has receiver=&'static readonly constant Set<int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Set<int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=&'static readonly constant Set<int32> target=has
+/// @resolution.call source=viewSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=&'static readonly constant Set<int32> instance=Set<int32>.<extension#5>.has<int32>
 /// @resolution.place source=viewSet placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=viewSet root=viewSet
 "#,
@@ -706,10 +673,10 @@ function mutate<'a, 'b>(
     borrowed: &'a Counter,
     view: &'b readonly Counter,
 ): void {
-    owned.bump<"local">();
-    managed.bump<"local">();
-    borrowed.bump<P1>();
-    view.bump<P3>();
+    owned.bump();
+    managed.bump();
+    borrowed.bump();
+    view.bump();
 }
 
 === dir ===
@@ -717,36 +684,36 @@ class Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.count source="count: int32 = 0" key=count type=int32
-/// @definition.method symbol=Counter.bump slot=bump type=<Counter.bump.'a, Counter.bump.P1: Place>(this: &Counter.bump.'a exclusive this) => void
-/// @definition.method symbol=Counter.total slot=total role=getter type=<Counter.total.'a, Counter.total.P1: Place>(this: &Counter.total.'a readonly this) => int32
+/// @definition.method symbol=Counter.bump slot=bump type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive this) => void
+/// @definition.method symbol=Counter.total slot=total role=getter type=<Counter.total.'a>(this: &Counter.total.'a readonly this) => int32
 
     count: int32 = 0;
     /// @type.symbol symbol=Counter.count source="count: int32 = 0" type=int32
 
     get total(&readonly this): int32 {
-    /// @generic.template symbol=Counter.total parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.total type=<Counter.total.'a, Counter.total.P1: Place>(this: &Counter.total.'a readonly this) => int32
+    /// @generic.template symbol=Counter.total parameters=('a)
+    /// @type.symbol symbol=Counter.total type=<Counter.total.'a>(this: &Counter.total.'a readonly this) => int32
     /// @type.symbol symbol=Counter.total.this source="&readonly this" type=&Counter.total.'a readonly this
 
         return this.count;
         /// @resolution.member source=this.count receiver=&Counter.total.'a readonly Counter type=int32 kind=field target_receiver=&Counter.total.'a readonly Counter key=count target=Counter.count target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.total.'a readonly Counter
-        /// @resolution.place source=this placement=Counter.total.P1 lifetime=Counter.total.'a access="readonly"
+        /// @resolution.place source=this placement=Counter.total.'a lifetime=Counter.total.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.count placement=Counter.total.P1 lifetime=Counter.total.'a access="readonly"
+        /// @resolution.place source=this.count placement=Counter.total.'a lifetime=Counter.total.'a access="readonly"
         /// @resolution.access source=this.count root=this keys=[count]
 
     }
 
     bump(&exclusive this): void {
-    /// @generic.template symbol=Counter.bump parameters=('a, P1: Place)
-    /// @type.symbol symbol=Counter.bump type=<Counter.bump.'a, Counter.bump.P1: Place>(this: &Counter.bump.'a exclusive this) => void
+    /// @generic.template symbol=Counter.bump parameters=('a)
+    /// @type.symbol symbol=Counter.bump type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive this) => void
     /// @type.symbol symbol=Counter.bump.this source="&exclusive this" type=&Counter.bump.'a exclusive this
 
         this.count += 1;
         /// @resolution.operator source="this.count += 1" type=int32 operator="+" kind=builtin operands=[this.count as int32 families=(integer), 1 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.bump.'a exclusive Counter
-        /// @resolution.place source=this placement=Counter.bump.P1 lifetime=Counter.bump.'a access="exclusive"
+        /// @resolution.place source=this placement=Counter.bump.'a lifetime=Counter.bump.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.count kind=place
         /// @resolution.assignment source=this.count read="receiver=&Counter.bump.'a exclusive Counter, target=field(receiver=&Counter.bump.'a exclusive Counter, target=Counter.count, type=int32), type=int32" write="receiver=&Counter.bump.'a exclusive Counter, target=field(receiver=&Counter.bump.'a exclusive Counter, target=Counter.count, type=int32), type=int32" type=int32
@@ -782,7 +749,6 @@ const ownedTotal = owned.total;
 /// @resolution.member source=owned.total receiver=Owned<Counter> type=int32 kind=call target="Counter.total(parameters=(), arguments=(), return=int32)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
-/// @generic.instantiation id="Counter.total<\"constant\">" template=Counter.total arguments=("constant")
 
 const managedTotal = managed.total;
 /// @type.symbol symbol=managedTotal source=managedTotal type=int32
@@ -791,7 +757,6 @@ const managedTotal = managed.total;
 /// @resolution.member source=managed.total receiver=Counter type=int32 kind=call target="Counter.total(parameters=(), arguments=(), return=int32)"
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
-/// @generic.instantiation id="Counter.total<\"local\">" template=Counter.total arguments=("local")
 
 const borrowedTotal = borrowed.total;
 /// @type.symbol symbol=borrowedTotal source=borrowedTotal type=int32
@@ -810,8 +775,8 @@ const viewTotal = view.total;
 /// @resolution.access source=view root=view
 
 function mutate(owned: ^Counter, managed: Counter, borrowed: &Counter, view: &readonly Counter): void {
-/// @generic.template symbol=mutate parameters=('a, P1: Place, 'b, P3: Place)
-/// @type.symbol symbol=mutate type=<mutate.'a, mutate.P1: Place, mutate.'b, mutate.P3: Place>(Owned<Counter>, Counter, &mutate.'a Counter, &mutate.'b readonly Counter) => void
+/// @generic.template symbol=mutate parameters=('a, 'b)
+/// @type.symbol symbol=mutate type=<mutate.'a, mutate.'b>(Owned<Counter>, Counter, &mutate.'a Counter, &mutate.'b readonly Counter) => void
 /// @type.symbol symbol=mutate.owned source="owned: ^Counter" type=Owned<Counter>
 /// @resolution.name source=Counter target=Counter
 /// @type.symbol symbol=mutate.managed source="managed: Counter" type=Counter
@@ -823,34 +788,31 @@ function mutate(owned: ^Counter, managed: Counter, borrowed: &Counter, view: &re
 
     owned.bump();
     /// @resolution.name source=owned target=mutate.owned
-    /// @resolution.member source=owned.bump receiver=Owned<Counter> type=<Counter.bump.'a, Counter.bump.P1: Place>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=Owned<Counter> target=Counter.bump
-    /// @resolution.call source=owned.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=Owned<Counter> adjustments=(borrow(&'frame exclusive Owned<Counter>)) instance="Counter.bump<\"local\">"
+    /// @resolution.member source=owned.bump receiver=Owned<Counter> type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=Owned<Counter> target=Counter.bump
+    /// @resolution.call source=owned.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=Owned<Counter> adjustments=(borrow(&'frame exclusive Owned<Counter>))
     /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=owned root=mutate.owned
-    /// @generic.instantiation id="Counter.bump<\"local\">" template=Counter.bump arguments=("local")
 
     managed.bump();
     /// @resolution.name source=managed target=mutate.managed
-    /// @resolution.member source=managed.bump receiver=Counter type=<Counter.bump.'a, Counter.bump.P1: Place>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=Counter target=Counter.bump
-    /// @resolution.call source=managed.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=Counter adjustments=(borrow(&'frame exclusive Counter)) instance="Counter.bump<\"local\">"
+    /// @resolution.member source=managed.bump receiver=Counter type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=Counter target=Counter.bump
+    /// @resolution.call source=managed.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=Counter adjustments=(borrow(&'frame exclusive Counter))
     /// @resolution.place source=managed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=managed root=mutate.managed
 
     borrowed.bump();
     /// @resolution.name source=borrowed target=mutate.borrowed
-    /// @resolution.member source=borrowed.bump receiver=&mutate.'a Counter type=<Counter.bump.'a, Counter.bump.P1: Place>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=&mutate.'a Counter target=Counter.bump
-    /// @resolution.call source=borrowed.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=&mutate.'a Counter instance=Counter.bump<mutate.P1>
-    /// @resolution.place source=borrowed placement=mutate.P1 lifetime=mutate.'a access="mutable"
+    /// @resolution.member source=borrowed.bump receiver=&mutate.'a Counter type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=&mutate.'a Counter target=Counter.bump
+    /// @resolution.call source=borrowed.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=&mutate.'a Counter
+    /// @resolution.place source=borrowed placement=mutate.'a lifetime=mutate.'a access="mutable"
     /// @resolution.access source=borrowed root=mutate.borrowed
-    /// @generic.instantiation id=Counter.bump<mutate.P1> template=Counter.bump arguments=(mutate.P1)
 
     view.bump();
     /// @resolution.name source=view target=mutate.view
-    /// @resolution.member source=view.bump receiver=&mutate.'b readonly Counter type=<Counter.bump.'a, Counter.bump.P1: Place>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=&mutate.'b readonly Counter target=Counter.bump
-    /// @resolution.call source=view.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=&mutate.'b readonly Counter instance=Counter.bump<mutate.P3>
-    /// @resolution.place source=view placement=mutate.P3 lifetime=mutate.'b access="readonly"
+    /// @resolution.member source=view.bump receiver=&mutate.'b readonly Counter type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=&mutate.'b readonly Counter target=Counter.bump
+    /// @resolution.call source=view.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=&mutate.'b readonly Counter
+    /// @resolution.place source=view placement=mutate.'b lifetime=mutate.'b access="readonly"
     /// @resolution.access source=view root=mutate.view
-    /// @generic.instantiation id=Counter.bump<mutate.P3> template=Counter.bump arguments=(mutate.P3)
 
 }
 "#,
@@ -891,20 +853,20 @@ declare function make(): int32;
 
 const stored: int32 = 1;
 
-take<"local">(1 as &'frame readonly int32);
-take<"constant">(stored as &'static readonly int32);
-take<"local">(make() as &'frame readonly int32);
-takeText<"local">("a" as &'frame readonly string);
+take(1 as &'frame readonly int32);
+take(stored as &'static readonly int32);
+take(make() as &'frame readonly int32);
+takeText("a" as &'frame readonly string);
 
 === dir ===
 declare function take(value: &readonly int32): void;
-/// @generic.template symbol=take parameters=('a, P1: Place)
-/// @type.symbol symbol=take source="declare function take(value: &readonly int32): void" type=<take.'a, take.P1: Place>(&take.'a readonly int32) => void
+/// @generic.template symbol=take parameters=('a)
+/// @type.symbol symbol=take source="declare function take(value: &readonly int32): void" type=<take.'a>(&take.'a readonly int32) => void
 /// @type.symbol symbol=take.value source="value: &readonly int32" type=&take.'a readonly int32
 
 declare function takeText(value: &readonly string): void;
-/// @generic.template symbol=takeText parameters=('a, P1: Place)
-/// @type.symbol symbol=takeText source="declare function takeText(value: &readonly string): void" type=<takeText.'a, takeText.P1: Place>(&takeText.'a readonly string) => void
+/// @generic.template symbol=takeText parameters=('a)
+/// @type.symbol symbol=takeText source="declare function takeText(value: &readonly string): void" type=<takeText.'a>(&takeText.'a readonly string) => void
 /// @type.symbol symbol=takeText.value source="value: &readonly string" type=&takeText.'a readonly string
 
 declare function make(): int32;
@@ -913,18 +875,16 @@ declare function make(): int32;
 const stored: int32 = 1;
 /// @type.symbol symbol=stored source=stored type=int32
 /// @resolution.pattern source=stored kind=binding target=stored
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 
 take(1);
 /// @resolution.name source=take target=take
-/// @resolution.call source=take(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=void kind=symbol target=take instance="take<\"local\">"
-/// @generic.instantiation id="take<\"local\">" template=take arguments=("local")
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }, { kind: borrow, target: &'frame readonly int32 }] origin=implicit
+/// @resolution.call source=take(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=void kind=symbol target=take
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }, { kind: borrow, target: &'frame readonly int32 }] origin=implicit
 
 take(stored);
 /// @resolution.name source=take target=take
-/// @resolution.call source=take(stored) parameters=(&'static readonly constant int32) arguments=(provided(stored) as &'static readonly constant int32) return=void kind=symbol target=take instance="take<\"constant\">"
-/// @generic.instantiation id="take<\"constant\">" template=take arguments=("constant")
+/// @resolution.call source=take(stored) parameters=(&'static readonly constant int32) arguments=(provided(stored) as &'static readonly constant int32) return=void kind=symbol target=take
 /// @resolution.name source=stored target=stored
 /// @resolution.place source=stored placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=stored root=stored
@@ -932,16 +892,15 @@ take(stored);
 
 take(make());
 /// @resolution.name source=take target=take
-/// @resolution.call source=take(make()) parameters=(&'frame readonly int32) arguments=(provided(make()) as &'frame readonly int32) return=void kind=symbol target=take instance="take<\"local\">"
+/// @resolution.call source=take(make()) parameters=(&'frame readonly int32) arguments=(provided(make()) as &'frame readonly int32) return=void kind=symbol target=take
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=int32 kind=symbol target=make
 /// @coercion.node source=make() from=int32 adjustments=[{ kind: borrow, target: &'frame readonly int32 }] origin=implicit
 
 takeText("a");
 /// @resolution.name source=takeText target=takeText
-/// @resolution.call source="takeText(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=void kind=symbol target=takeText instance="takeText<\"local\">"
-/// @generic.instantiation id="takeText<\"local\">" template=takeText arguments=("local")
-/// @coercion.node source="\"a\"" from="a" adjustments=[{ kind: widen, target: string }, { kind: borrow, target: &'frame readonly string }] origin=implicit
+/// @resolution.call source="takeText(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=void kind=symbol target=takeText
+/// @coercion.node source="\"a\"" from="a" adjustments=[{ kind: materialize, target: string }, { kind: borrow, target: &'frame readonly string }] origin=implicit
 "#,
         r#"
 

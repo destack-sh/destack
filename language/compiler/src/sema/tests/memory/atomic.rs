@@ -30,7 +30,7 @@ declare const index: Atomic<usize>;
 declare const ratio: Atomic<float64>;
 
 function read<T: AtomicSafe, 'a>(value: &'a readonly Atomic<T>): T {
-    return value.load<T, P2>();
+    return value.load<T>();
 }
 
 === dir ===
@@ -61,8 +61,8 @@ declare const ratio: Atomic<float64>;
 /// @resolution.name source=Atomic target=Atomic
 
 function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
-/// @generic.template symbol=read parameters=(T: AtomicSafe, 'a, P2: Place)
-/// @type.symbol symbol=read type=<T: AtomicSafe, read.'a, read.P2: Place>(&read.'a readonly Atomic<T>) => T
+/// @generic.template symbol=read parameters=(T: AtomicSafe, 'a)
+/// @type.symbol symbol=read type=<T: AtomicSafe, read.'a>(&read.'a readonly Atomic<T>) => T
 /// @type.symbol symbol=read.T source="T: AtomicSafe" type=T
 /// @resolution.name source=AtomicSafe target=AtomicSafe
 /// @type.symbol symbol=read.value source="value: &readonly Atomic<T>" type=&read.'a readonly Atomic<T>
@@ -72,11 +72,10 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 
     return value.load();
     /// @resolution.name source=value target=read.value
-    /// @resolution.member source=value.load receiver=&read.'a readonly Atomic<T> type=<load.'a, load.P1: Place>(this: Borrowed<Atomic<T>, load.'a & load.P1, "readonly">, MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly Atomic<T> target=load
-    /// @resolution.call source=value.load() parameters=(MemoryOrdering) arguments=(omitted as MemoryOrdering) return=T kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance=Atomic<T>.<extension#1>.load<read.P2>
-    /// @resolution.place source=value placement=read.P2 lifetime=read.'a access="readonly"
+    /// @resolution.member source=value.load receiver=&read.'a readonly Atomic<T> type=<load.'a>(this: &load.'a readonly Atomic<T>, MemoryOrdering?) => T kind=symbol target_receiver=&read.'a readonly Atomic<T> target=load
+    /// @resolution.call source=value.load() parameters=(MemoryOrdering) arguments=(omitted as MemoryOrdering) return=T kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance=Atomic<T>.<extension#1>.load
+    /// @resolution.place source=value placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
-    /// @generic.instantiation id="load<T, read.P2>" template=load arguments=(T, read.P2) owner=read
     /// @generic.instantiation id=load<T> template=load arguments=(T) owner=read
 
 }

@@ -10,6 +10,7 @@ impl EventFormatter<'_, '_> {
         id: CheckId,
         finished: bool,
     ) -> TraceEvent {
+        // label by the check's own kind
         match check {
             Check::Relation(relation) => {
                 let source = self.type_label(relation.source);
@@ -30,26 +31,18 @@ impl EventFormatter<'_, '_> {
                     )
                     .bool("finished", finished)
             }
-            Check::Node(node) => TraceEvent::new("node.checked")
-                .text("id", self.check_label(id))
-                .text("target", self.type_label(node.expectation.target))
-                .bool("finished", finished),
             Check::Conversion(conversion) => TraceEvent::new("conversion.checked")
                 .text("id", self.check_label(id))
                 .text("source", self.type_label(conversion.source.ty))
                 .text("target", self.type_label(conversion.expectation.target))
                 .bool("finished", finished),
-            Check::Narrowing(narrowing) => TraceEvent::new("narrowing.checked")
-                .text("id", self.check_label(id))
-                .text("source", self.type_label(narrowing.source))
-                .text("operation", self.node_label(narrowing.operation))
-                .bool("finished", finished),
-            Check::Selection(selection) => TraceEvent::new("selection.checked")
-                .text("node", self.node_label(selection.site.node))
+            Check::Body(body) => TraceEvent::new("body.checked")
+                .text("node", self.node_label(body.node))
                 .text("id", self.check_label(id))
                 .bool("finished", finished),
-            Check::Equality(equality) => TraceEvent::new("equality.checked")
-                .text("node", self.node_label(equality.value))
+            Check::Pattern(pattern) => TraceEvent::new("pattern.checked")
+                .text("node", self.node_label(pattern.site.node))
+                .text("target", self.type_label(pattern.target))
                 .text("id", self.check_label(id))
                 .bool("finished", finished),
             Check::Declared(entry) => self.format_obligation(&entry.obligation, id, finished),

@@ -212,7 +212,7 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.ds", DirRows::checked(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32, "local">((value: int32): int32 => value + 1) as int32[];
+    return values.map<int32, int32>((value: int32): int32 => value + 1) as int32[];
 }
 
 === dir ===
@@ -387,25 +387,13 @@ function checkRight(input: int32): void {
 import * as assert from "destack:assert";
 
 function checkLeft(value: int32): void {
-    assert.assertEqual<int32, int32, "local", "local">(
-        value as &'frame readonly int32,
-        1 as &'frame readonly int32,
-    );
-    assert.assertEqual<int32, int32, "local", "local">(
-        value as &'frame readonly int32,
-        2 as &'frame readonly int32,
-    );
+    assert.assertEqual<int32, int32>(value as &'frame readonly int32, 1 as &'frame readonly int32);
+    assert.assertEqual<int32, int32>(value as &'frame readonly int32, 2 as &'frame readonly int32);
 }
 
 function checkRight(input: int32): void {
-    assert.assertEqual<int32, int32, "local", "local">(
-        input as &'frame readonly int32,
-        1 as &'frame readonly int32,
-    );
-    assert.assertEqual<int32, int32, "local", "local">(
-        input as &'frame readonly int32,
-        2 as &'frame readonly int32,
-    );
+    assert.assertEqual<int32, int32>(input as &'frame readonly int32, 1 as &'frame readonly int32);
+    assert.assertEqual<int32, int32>(input as &'frame readonly int32, 2 as &'frame readonly int32);
 }
 
 === dir ===
@@ -417,15 +405,15 @@ function checkLeft(value: int32): void {
 
     assert.assertEqual(value, 1);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
-    /// @generic.instantiation id="assertEqual<int32, int32, \"local\", \"local\">" template=assertEqual arguments=(int32, int32, "local", "local")
+    /// @resolution.call source="assert.assertEqual(value, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
+    /// @generic.instantiation id="assertEqual<int32, int32>" template=assertEqual arguments=(int32, int32)
     /// @resolution.name source=value target=checkLeft.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=checkLeft.value
 
     assert.assertEqual(value, 2);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
+    /// @resolution.call source="assert.assertEqual(value, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(value) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @resolution.name source=value target=checkLeft.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=checkLeft.value
@@ -438,14 +426,14 @@ function checkRight(input: int32): void {
 
     assert.assertEqual(input, 1);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
+    /// @resolution.call source="assert.assertEqual(input, 1)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(1) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @resolution.name source=input target=checkRight.input
     /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=input root=checkRight.input
 
     assert.assertEqual(input, 2);
     /// @resolution.name source=assert.assertEqual target=assertEqual
-    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32, \"local\", \"local\">"
+    /// @resolution.call source="assert.assertEqual(input, 2)" parameters=(&'frame readonly int32, &'frame readonly int32, AssertionMessage | undefined) arguments=(provided(input) as &'frame readonly int32, provided(2) as &'frame readonly int32, omitted as AssertionMessage | undefined) return=void kind=symbol target=assertEqual instance="assertEqual<int32, int32>"
     /// @resolution.name source=input target=checkRight.input
     /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=input root=checkRight.input

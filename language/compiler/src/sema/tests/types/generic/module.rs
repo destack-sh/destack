@@ -27,7 +27,7 @@ interface Holder<'a, in out T: View<'a>> {
 }
 
 struct View<'a> {
-    user: Borrowed<User, 'a, "readonly">;
+    user: &'a readonly User;
 }
 
 struct User {}
@@ -143,7 +143,7 @@ export struct Bar<'a> {
 }
 
 export struct Baz<'a> {
-    user: Borrowed<User, 'a, "readonly">;
+    user: &'a readonly User;
 }
 
 export struct User {}
@@ -924,7 +924,7 @@ export struct Attempt {
 export type Predicate = (attempt: &readonly Attempt) => boolean;
 /// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(&type_expression.'a readonly Attempt,), boolean>
 /// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(&type_expression.'a readonly Attempt,), boolean>
-/// @generic.template source=type_expression parameters=('a, P1: Place)
+/// @generic.template source=type_expression parameters=('a)
 /// @type.symbol symbol=Predicate.attempt source="attempt: &readonly Attempt" type=&type_expression.'a readonly Attempt
 /// @resolution.name source=Attempt target=Attempt
 

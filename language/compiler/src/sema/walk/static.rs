@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, DecoratorExpression, Origin, VariableRole, WalkState};
+use crate::sema::{CheckState, DecoratorExpression, Origin, VariableKind, WalkState};
 use crate::r#static::{StaticError, StaticEvaluator, StaticGuard};
 
 pub(in crate::sema) use dir::StaticPresence;
@@ -33,6 +33,7 @@ impl CheckState<'_> {
             return Ok(gate);
         }
 
+        // read the decorators written on the declaration
         let decorators = self.decorator_expressions(self.module_id, decorated);
 
         // decide every static gate
@@ -86,6 +87,7 @@ impl CheckState<'_> {
         let gate = self.decide_static_gate(decorated)?;
         let symbol = self.module(self.module_id).declaration_symbol(decorated);
 
+        // record the presence the gate decided
         match gate {
             // record absent declarations so name lookup drops them
             StaticPresence::Absent => {
@@ -151,6 +153,7 @@ impl CheckState<'_> {
             evaluator.evaluate_boolean(condition)
         };
 
+        // read the presence the condition evaluates to
         match evaluated {
             Ok(true) => Ok(StaticPresence::Present),
             Ok(false) => Ok(StaticPresence::Absent),
@@ -252,6 +255,7 @@ impl WalkState<'_, '_> {
             Err(StaticError::NotStatic(_) | StaticError::NotBoolean(_)) => {}
         }
 
+        // walk the expression the term left unevaluated
         match self.tree.get(expression) {
             // contextual static hole
             dir::Expression::Infer {
@@ -260,7 +264,7 @@ impl WalkState<'_, '_> {
             } => {
                 let ty = match self.report_declaration_hole(source)? {
                     Some(rejected) => rejected,
-                    None => self.open_type_hole(source, VariableRole::Regular)?,
+                    None => self.open_type_hole(source, VariableKind::Type)?,
                 };
                 self.commit_node_type(expression, ty)
             }
@@ -274,7 +278,7 @@ impl WalkState<'_, '_> {
                     let source = (*value).into_any();
                     let ty = match self.report_declaration_hole(source)? {
                         Some(rejected) => rejected,
-                        None => self.open_type_hole(source, VariableRole::Regular)?,
+                        None => self.open_type_hole(source, VariableKind::Type)?,
                     };
                     self.commit_node_type(*value, ty)?
                 } else {
@@ -334,7 +338,7 @@ impl WalkState<'_, '_> {
 
                 // record the name edge for checked output
                 let global_source = expression.into_global_any(self.module);
-                self.capture_symbol_reference(global_source, symbol);
+                self.capture_symbol_reference(global_source, symbol)?;
                 self.check
                     .commit_name(global_source, dir::NameResolution::new(symbol))?;
 
@@ -467,7 +471,7 @@ impl WalkState<'_, '_> {
 
                 // record the head's name edge for checked output
                 let head_source = left.into_global_any(self.module);
-                self.capture_symbol_reference(head_source, symbol);
+                self.capture_symbol_reference(head_source, symbol)?;
                 self.check
                     .commit_name(head_source, dir::NameResolution::new(symbol))?;
 
@@ -539,6 +543,7 @@ impl WalkState<'_, '_> {
 
                 self.commit_node_type(expression, ty)
             }
+            // every other expression
             _ => {
                 self.check
                     .report_undecidable_static_value(self.module, source);

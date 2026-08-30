@@ -459,8 +459,8 @@ type Box<T> = { value: T };
 type Unbox<T> = T extends Box<infer U> ? U : never;
 type Value = Unbox<Box<"a"> | Box<"b">>;
 
-const first: "a" | "b" = "a" as "a" | "b";
-const second: "a" | "b" = "b" as "a" | "b";
+const first: "a" | "b" = "a";
+const second: "a" | "b" = "b";
 
 === dir ===
 type Box<T> = { value: T };
@@ -550,9 +550,10 @@ const first: Element<typeof values> = values[0];
 /// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int32[] kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int32[], \"exclusive\">)"
-/// @generic.instantiation id="index#1<int32[], \"exclusive\", \"local\">" template=index#1 arguments=(int32[], "exclusive", "local")
+/// @generic.instantiation id="index#1<int32[], \"exclusive\">" template=index#1 arguments=(int32[], "exclusive")
 "#,
         r#"
+
 "#,
     );
 }
@@ -664,10 +665,9 @@ export type Poll<T> = T extends Copy ? never : Holder<T>;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=Poll.T
 "#, r#"
-/// @diagnostic.error id=not-erasable message="type 'T' cannot be erased into 'Copy'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'T' does not satisfy 'Copy'"
 /// @diagnostic.label line=8 column=55 span="T" line_source="export type Poll<T> = T extends Copy ? never : Holder<T>;"
 /// @diagnostic.related line=4 column=15 span="T" line_source="struct Holder<T: Copy> {" message="required by this bound on 'T'"
-/// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
 "#);
 }
 
@@ -1236,7 +1236,7 @@ declare const wide: Mixed<{ a: int32, f: (x: string) => void }>;
 type Mixed<T> = T extends { a: infer U; f: (x: infer U) => void } ? U : never;
 
 declare const narrow: "a";
-declare const wide: int32;
+declare const wide: never;
 
 === dir ===
 type Mixed<T> = T extends { a: infer U, f: (x: infer U) => void } ? U : never;
@@ -1259,7 +1259,7 @@ declare const narrow: Mixed<{ a: "a", f: (x: string) => void }>;
 /// @type.symbol symbol=x#1 source="x: string" type=string
 
 declare const wide: Mixed<{ a: int32, f: (x: string) => void }>;
-/// @type.symbol symbol=wide source=wide type=int32
+/// @type.symbol symbol=wide source=wide type=never
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Mixed target=Mixed
 /// @type.symbol symbol=a#2 source="a: int32" type=int32

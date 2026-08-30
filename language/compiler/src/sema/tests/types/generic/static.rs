@@ -255,10 +255,9 @@ const read = Holder.zero;
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=Holder target=Holder
 /// @resolution.member source=Holder.zero receiver=Holder type=int32 kind=symbol target_receiver=Holder target=Holder.zero
+/// @generic.instantiation id=Holder.zero<Copy> template=Holder.zero arguments=(Copy)
 "#, r#"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=8 column=21 span="zero" line_source="const read = Holder.zero;"
-/// @diagnostic.help message="annotate the type explicitly"
+
 "#);
 }
 
@@ -285,7 +284,7 @@ struct Registry<out T: Copy> {
     static fallback: T | undefined = undefined as T | undefined;
 }
 
-const fallback: int32 | undefined = Registry.fallback as int32 | undefined;
+const fallback: int32 | undefined = Registry.fallback;
 
 === dir ===
 struct Registry<T: Copy> {

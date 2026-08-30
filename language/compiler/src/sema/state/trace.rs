@@ -3,7 +3,7 @@ use destack_repository::{ProviderContext, TraceEvent};
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{Check, CheckId, CheckState, EventFormatter, TypeBound, VariableKind, Verdict};
+use crate::sema::{Bound, Check, CheckId, CheckState, EventFormatter, VariableKind};
 
 /// Environment variable naming the file check events stream into.
 const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
@@ -19,21 +19,13 @@ pub(in crate::sema) struct CheckCounters {
     pub(in crate::sema) binding_derivations: u64,
     /// Member bindings served from the memo.
     pub(in crate::sema) binding_reuses: u64,
-    /// Speculative probes opened.
-    pub(in crate::sema) probes: u64,
-    /// Probes opened by overload selection.
-    pub(in crate::sema) selection_probes: u64,
-    /// Probes opened by extension implementation matching.
-    pub(in crate::sema) extension_probes: u64,
     /// Types interned into the working segment.
     pub(in crate::sema) interns: u64,
     /// Type heads reduced.
     pub(in crate::sema) reduces: u64,
     /// Generic parameter instantiations opened.
     pub(in crate::sema) instantiations: u64,
-    /// Member lookups served from the answers table.
-    pub(in crate::sema) member_reuses: u64,
-    /// Member lookups derived past the answers table.
+    /// Member lookups derived.
     pub(in crate::sema) member_derivations: u64,
     /// Member lookups refusing canonical form.
     pub(in crate::sema) member_refusals: u64,
@@ -45,24 +37,14 @@ pub(in crate::sema) struct CheckCounters {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::sema) struct VariableBounds {
     /// Types that must be assignable to the variable.
-    pub(in crate::sema) lower: SmallVec<[TypeBound; 2]>,
+    pub(in crate::sema) lower: SmallVec<[Bound; 2]>,
     /// Types the variable must be assignable to.
-    pub(in crate::sema) upper: SmallVec<[TypeBound; 2]>,
+    pub(in crate::sema) upper: SmallVec<[Bound; 2]>,
 }
 
 /// One event recorded by check.
 #[derive(Debug)]
 pub(in crate::sema) enum CheckEvent {
-    /// One speculative probe started.
-    ProbeStarted {
-        /// The number of variables present before the probe.
-        variables: usize,
-    },
-    /// One speculative probe finished.
-    ProbeFinished {
-        /// The winnowed verdict, absent when the probe produced none.
-        verdict: Option<Verdict>,
-    },
     /// One variable was allocated.
     VariableAllocated {
         /// The allocated variable.
@@ -75,14 +57,14 @@ pub(in crate::sema) enum CheckEvent {
         /// The bounded variable.
         variable: dir::TypeVariableId,
         /// The pushed bound.
-        bound: TypeBound,
+        bound: Bound,
     },
     /// One upper bound was pushed onto an inference variable.
     UpperBoundPushed {
         /// The bounded variable.
         variable: dir::TypeVariableId,
         /// The pushed bound.
-        bound: TypeBound,
+        bound: Bound,
     },
     /// One node was decided.
     NodeDecided {
@@ -119,6 +101,7 @@ impl CheckTrace {
             return None;
         }
 
+        // start an empty trace
         Some(Box::new(Self {
             events: Vec::new(),
             records_events,
@@ -141,11 +124,6 @@ impl CheckTrace {
 }
 
 impl CheckState<'_> {
-    /// Return the number of recorded check events.
-    pub(in crate::sema) fn recorded_event_count(&self) -> usize {
-        self.trace.as_ref().map_or(0, |trace| trace.events.len())
-    }
-
     /// Record one check event.
     pub(in crate::sema) fn record_event(&mut self, event: CheckEvent) {
         if self.trace.is_none() {
@@ -174,6 +152,7 @@ impl CheckState<'_> {
         let check = self.fulfill.checks.get(id)?;
         let event = EventFormatter::new(self).format_check(check, id, is_finished);
 
+        // record the event on the live trace
         if let Some(trace) = &mut self.trace {
             trace.record(event);
         }
@@ -188,7 +167,6 @@ impl CheckState<'_> {
         }
 
         // count the variables that already reached a solution
-        let bounds = self.infer.variables.bound_count();
         let mut solutions = 0;
         for (_, state) in self.infer.variables() {
             solutions += usize::from(!state.state.is_open());
@@ -201,11 +179,7 @@ impl CheckState<'_> {
             match check {
                 Check::Relation(_) => constraints += 1,
                 Check::Declared(_) => obligations += 1,
-                Check::Node(_)
-                | Check::Conversion(_)
-                | Check::Narrowing(_)
-                | Check::Selection(_)
-                | Check::Equality(_) => {}
+                Check::Conversion(_) | Check::Body(_) | Check::Pattern(_) => {}
             }
         }
 
@@ -215,7 +189,6 @@ impl CheckState<'_> {
             ("check.solve.constraints", constraints as u64),
             ("check.solve.obligations", obligations as u64),
             ("check.solve.solutions", solutions as u64),
-            ("check.solve.bounds", bounds as u64),
             (
                 "check.solve.decisions",
                 self.module.decisions.decision_entries().count() as u64,
@@ -241,11 +214,7 @@ impl CheckCounters {
             ("check.bindings.built", self.binding_derivations),
             ("check.bindings.reused", self.binding_reuses),
             ("check.members.derived", self.member_derivations),
-            ("check.members.reused", self.member_reuses),
             ("check.members.refused", self.member_refusals),
-            ("check.probes.total", self.probes),
-            ("check.probes.selections", self.selection_probes),
-            ("check.probes.extensions", self.extension_probes),
             ("check.instantiations", self.instantiations),
             ("check.interns", self.interns),
             ("check.reduces", self.reduces),

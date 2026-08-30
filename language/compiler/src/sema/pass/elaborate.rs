@@ -7,7 +7,7 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::{
     CandidateOutcome, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
-    InterfaceConformanceObligation, Origin, Relation, VariableRole,
+    InterfaceConformanceObligation, Origin, Relation,
 };
 
 impl CheckState<'_> {
@@ -35,7 +35,7 @@ impl CheckState<'_> {
             // check every declaration against its declared shape
             state.check_declarations(module)?;
 
-            // commit conformances once the declared conformance selections landed
+            // commit conformances once the declared selections are in place
             state.commit_definition_conformances(module)?;
             state.commit_parameter_conformances(module)?;
             state.commit_instance_conformances(module)
@@ -60,6 +60,7 @@ impl CheckState<'_> {
             }
         }
 
+        // decide each nongeneric owner once
         for symbol in owners {
             // generic owners decide under their parameters, which stay per-site
             if self.symbol_template(symbol)?.is_some() {
@@ -116,9 +117,6 @@ impl CheckState<'_> {
     }
 
     /// Decide one most general implementation goal, seeding its memo entry.
-    ///
-    /// The probe rolls the goal's fresh variables back while the decided
-    /// memo entry survives, so nothing leaks into the pass's open scope.
     fn decide_general_implementation(
         &mut self,
         origin: Origin,
@@ -132,11 +130,12 @@ impl CheckState<'_> {
             None => 0,
         };
 
-        self.body().probe_candidate(|state| {
-            // ask the most general application, opening every argument fresh
+        // decide the declaration under a fresh application
+        self.decide_candidate(|state| {
+            // open every argument fresh
             let mut arguments = SmallVec::<[dir::GlobalTypeId; 4]>::new();
             for _ in 0..count {
-                let variable = state.check.open_variable(origin, VariableRole::Regular);
+                let variable = state.open_variable(origin);
                 arguments.push(state.intern_type(dir::Type::Variable(variable))?);
             }
 
@@ -150,7 +149,7 @@ impl CheckState<'_> {
             // land the decision in the goal memo, which the artifact persists
             state.decide_extension_implementation(
                 origin,
-                Relation::Satisfies,
+                Relation::Subtype,
                 module,
                 canonical,
                 &instance,
@@ -175,6 +174,7 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
 
+        // elaborate each declared symbol
         for (symbol, is_extension, is_alias) in symbols {
             let source = self
                 .module(module)
@@ -192,7 +192,7 @@ impl CheckState<'_> {
                 let coherence = ImplementationCoherenceObligation { source, symbol };
                 checks.push(self.check_implementation_coherence(origin, &coherence)?);
                 let coherence = ExtensionCoherenceObligation { source, symbol };
-                checks.push(self.body().check_extension_coherence(&coherence)?);
+                checks.push(self.check_extension_coherence(&coherence)?);
             }
 
             // parameter use for generic declarations, coherence covers extensions

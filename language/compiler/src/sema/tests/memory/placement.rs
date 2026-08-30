@@ -346,7 +346,7 @@ extension of Buffer implements Default {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#3 form=local target=Buffer
-/// @definition.method symbol=clear source="clear(&exclusive this): void {}" slot=clear type=<clear.'a, clear.P1: Place>(this: &clear.'a exclusive this) => void
+/// @definition.method symbol=clear source="clear(&exclusive this): void {}" slot=clear type=<clear.'a>(this: &clear.'a exclusive this) => void
 /// @definition.method symbol=make slot=make static=true type=() => Buffer
 /// @resolution.name source=Buffer target=Buffer
 
@@ -361,8 +361,8 @@ extension of Buffer {
     }
 
     clear(&exclusive this): void {}
-    /// @generic.template symbol=clear parameters=('a, P1: Place)
-    /// @type.symbol symbol=clear source="clear(&exclusive this): void {}" type=<clear.'a, clear.P1: Place>(this: &clear.'a exclusive this) => void
+    /// @generic.template symbol=clear parameters=('a)
+    /// @type.symbol symbol=clear source="clear(&exclusive this): void {}" type=<clear.'a>(this: &clear.'a exclusive this) => void
     /// @type.symbol symbol=clear.this source="&exclusive this" type=&clear.'a exclusive this
 
 }
@@ -485,7 +485,7 @@ extension<T> of Item<T> {
 
 extension<T> of Holder<T> {
     peek(&readonly this): int32 {
-        return this.item.size<T, P1>();
+        return this.item.size<T>();
     }
 }
 
@@ -513,14 +513,14 @@ class Holder<T> {
 extension<T> of Item<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Item<T#3>
-/// @definition.method symbol=size slot=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => int32
+/// @definition.method symbol=size slot=size type=<size.'a>(this: &size.'a readonly this) => int32
 /// @type.symbol symbol=T#1 source=T type=T#3
 /// @resolution.name source=Item target=Item
 /// @resolution.name source=T target=T#1
 
     size(&readonly this): int32 {
-    /// @generic.template symbol=size parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: &size.'a readonly this) => int32
+    /// @generic.template symbol=size parent=template#2 parameters=('a)
+    /// @type.symbol symbol=size type=<size.'a>(this: &size.'a readonly this) => int32
     /// @type.symbol symbol=size.this source="&readonly this" type=&size.'a readonly this
 
         return 1;
@@ -530,26 +530,25 @@ extension<T> of Item<T> {
 extension<T> of Holder<T> {
 /// @generic.template symbol=<module>#3 parameters=(T#4)
 /// @definition.extension symbol=<module>#3 form=local target=Holder<T#4>
-/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly this) => int32
 /// @type.symbol symbol=T#2 source=T type=T#4
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=T#2
 
     peek(&readonly this): int32 {
-    /// @generic.template symbol=peek parent=template#3 parameters=('a, P1: Place)
-    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
+    /// @generic.template symbol=peek parent=template#3 parameters=('a)
+    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly this) => int32
     /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
 
         return this.item.size();
         /// @resolution.member source=this.item receiver=&peek.'a readonly Holder<T#4> type=Readonly<Item<T#4>> kind=field target_receiver=&peek.'a readonly Holder<T#4> key=item target=Holder.item target_type=Readonly<Item<T#4>>
-        /// @resolution.member source=this.item.size receiver=Readonly<Managed<Item<T#4>, peek.P1>> type=<size.'a, size.P1: Place>(this: &size.'a readonly Item<T#4>) => int32 kind=symbol target_receiver=Readonly<Managed<Item<T#4>, peek.P1>> target=size
-        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=size receiver=Readonly<Managed<Item<T#4>, peek.P1>> adjustments=(Readonly<Managed<Item<T#4>, peek.P1>> => direct -> Managed<Item<T#4>, peek.P1>, borrow(&peek.'a readonly Managed<Item<T#4>, peek.P1>)) instance=Item<T#4>.<extension#1>.size<peek.P1>
+        /// @resolution.member source=this.item.size receiver=Readonly<Managed<Item<T#4>, peek.'a>> type=<size.'a>(this: &size.'a readonly Item<T#4>) => int32 kind=symbol target_receiver=Readonly<Managed<Item<T#4>, peek.'a>> target=size
+        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=size receiver=Readonly<Managed<Item<T#4>, peek.'a>> adjustments=(Readonly<Managed<Item<T#4>, peek.'a>> => direct -> Managed<Item<T#4>, peek.'a>, borrow(&peek.'a readonly Managed<Item<T#4>, peek.'a>)) instance=Item<T#4>.<extension#1>.size
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&peek.'a readonly Holder<T#4>
-        /// @resolution.place source=this placement=peek.P1 lifetime=peek.'a access="readonly"
+        /// @resolution.place source=this placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.item placement=peek.P1 lifetime=peek.'a access="readonly"
+        /// @resolution.place source=this.item placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this.item root=this keys=[item]
-        /// @generic.instantiation id="size<T#4, peek.P1>" template=size arguments=(T#4, peek.P1) owner=peek
         /// @generic.instantiation id=size<T#4> template=size arguments=(T#4) owner=peek
 
     }
@@ -611,7 +610,7 @@ class Holder<T> {
 
 extension<T> of Holder<T> {
     peek(&readonly this): int32 {
-        return this.item.size<T, P1>();
+        return this.item.size<T>();
     }
 }
 
@@ -635,26 +634,25 @@ class Holder<T> {
 extension<T> of Holder<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Holder<T#2>
-/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
+/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly this) => int32
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=T target=T
 
     peek(&readonly this): int32 {
-    /// @generic.template symbol=peek parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly this) => int32
+    /// @generic.template symbol=peek parent=template#1 parameters=('a)
+    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly this) => int32
     /// @type.symbol symbol=peek.this source="&readonly this" type=&peek.'a readonly this
 
         return this.item.size();
         /// @resolution.member source=this.item receiver=&peek.'a readonly Holder<T#2> type=Readonly<item.Item<T#2>> kind=field target_receiver=&peek.'a readonly Holder<T#2> key=item target=Holder.item target_type=Readonly<item.Item<T#2>>
-        /// @resolution.member source=this.item.size receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> type=<item.size.'a, item.size.P1: Place>(this: Borrowed<item.Item<T#2>, item.size.'a & item.size.P1, "readonly">) => int32 kind=symbol target_receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> target=item.size
-        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=item.size receiver=Readonly<Managed<item.Item<T#2>, peek.P1>> adjustments=(Readonly<Managed<item.Item<T#2>, peek.P1>> => direct -> Managed<item.Item<T#2>, peek.P1>, borrow(&peek.'a readonly Managed<item.Item<T#2>, peek.P1>)) instance=item.Item<T#2>.<extension#1>.size<peek.P1>
+        /// @resolution.member source=this.item.size receiver=Readonly<Managed<item.Item<T#2>, peek.'a>> type=<item.size.'a>(this: &item.size.'a readonly item.Item<T#2>) => int32 kind=symbol target_receiver=Readonly<Managed<item.Item<T#2>, peek.'a>> target=item.size
+        /// @resolution.call source=this.item.size() parameters=() return=int32 kind=symbol target=item.size receiver=Readonly<Managed<item.Item<T#2>, peek.'a>> adjustments=(Readonly<Managed<item.Item<T#2>, peek.'a>> => direct -> Managed<item.Item<T#2>, peek.'a>, borrow(&peek.'a readonly Managed<item.Item<T#2>, peek.'a>)) instance=item.Item<T#2>.<extension#1>.size
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Holder<T#2>
-        /// @resolution.place source=this placement=peek.P1 lifetime=peek.'a access="readonly"
+        /// @resolution.place source=this placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.item placement=peek.P1 lifetime=peek.'a access="readonly"
+        /// @resolution.place source=this.item placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this.item root=this keys=[item]
-        /// @generic.instantiation id="item.size<T#2, peek.P1>" template=item.size arguments=(T#2, peek.P1) owner=peek
         /// @generic.instantiation id=item.size<T#2> template=item.size arguments=(T#2) owner=peek
 
     }
@@ -705,7 +703,7 @@ class Pile<T> {
 /// @type.symbol symbol=Pile type=Pile
 /// @definition.class symbol=Pile template=(in out T)
 /// @definition.field symbol=Pile.items source="items: T[]" key=items type=T[]
-/// @definition.method symbol=Pile.count slot=count type=<Pile.count.'a, Pile.count.P1: Place>(this: &Pile.count.'a readonly this) => isize
+/// @definition.method symbol=Pile.count slot=count type=<Pile.count.'a>(this: &Pile.count.'a readonly this) => isize
 /// @type.symbol symbol=Pile.T source=T type=T
 
     items: T[];
@@ -713,32 +711,32 @@ class Pile<T> {
     /// @resolution.name source=T target=Pile.T
 
     count(&readonly this): isize {
-    /// @generic.template symbol=Pile.count parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Pile.count type=<Pile.count.'a, Pile.count.P1: Place>(this: &Pile.count.'a readonly this) => isize
+    /// @generic.template symbol=Pile.count parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Pile.count type=<Pile.count.'a>(this: &Pile.count.'a readonly this) => isize
     /// @type.symbol symbol=Pile.count.this source="&readonly this" type=&Pile.count.'a readonly this
 
         const item = this.items.at(0);
         /// @type.symbol symbol=Pile.count.item source=item type=&'frame readonly T | undefined
         /// @resolution.pattern source=item kind=binding target=Pile.count.item
         /// @resolution.member source=this.items receiver=&Pile.count.'a readonly Pile<T> type=readonly T[] kind=field target_receiver=&Pile.count.'a readonly Pile<T> key=items target=Pile.items target_type=readonly T[]
-        /// @resolution.member source=this.items.at receiver=Readonly<Managed<T[], Pile.count.P1>> type=(this: &'frame readonly T[], isize) => &'frame readonly T | undefined kind=symbol target_receiver=Readonly<Managed<T[], Pile.count.P1>> adjustments=(Readonly<Managed<T[], Pile.count.P1>> => direct -> Managed<T[], Pile.count.P1>, Managed<T[], Pile.count.P1> => direct -> T[]) target=at#2
-        /// @resolution.call source=this.items.at(0) parameters=(isize) arguments=(provided(0) as isize) return=&'frame readonly T | undefined kind=symbol target=at#2 receiver=Readonly<Managed<T[], Pile.count.P1>> adjustments=(Readonly<Managed<T[], Pile.count.P1>> => direct -> Managed<T[], Pile.count.P1>, Managed<T[], Pile.count.P1> => direct -> T[], borrow(&'frame readonly T[])) instance="Borrowed<T#4[], 'a, A#1>.<extension#4>.at#2"
+        /// @resolution.member source=this.items.at receiver=Readonly<Managed<T[], Pile.count.'a>> type=(this: &'frame readonly T[], isize) => &'frame readonly T | undefined kind=symbol target_receiver=Readonly<Managed<T[], Pile.count.'a>> adjustments=(Readonly<Managed<T[], Pile.count.'a>> => direct -> Managed<T[], Pile.count.'a>, Managed<T[], Pile.count.'a> => direct -> T[]) target=at#2
+        /// @resolution.call source=this.items.at(0) parameters=(isize) arguments=(provided(0) as isize) return=&'frame readonly T | undefined kind=symbol target=at#2 receiver=Readonly<Managed<T[], Pile.count.'a>> adjustments=(Readonly<Managed<T[], Pile.count.'a>> => direct -> Managed<T[], Pile.count.'a>, Managed<T[], Pile.count.'a> => direct -> T[]) instance="Borrowed<T#4[], 'a, A#1>.<extension#4>.at#2"
         /// @resolution.receiver source=this kind=this declaration=Pile type=&Pile.count.'a readonly Pile<T>
-        /// @resolution.place source=this placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
+        /// @resolution.place source=this placement=Pile.count.'a lifetime=Pile.count.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.items placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
+        /// @resolution.place source=this.items placement=Pile.count.'a lifetime=Pile.count.'a access="readonly"
         /// @resolution.access source=this.items root=this keys=[items]
         /// @generic.instantiation id="at#2<T, \"readonly\">" template=at#2 arguments=(T, "readonly") owner=Pile.count
 
         return this.items.size;
         /// @resolution.member source=this.items receiver=&Pile.count.'a readonly Pile<T> type=readonly T[] kind=field target_receiver=&Pile.count.'a readonly Pile<T> key=items target=Pile.items target_type=readonly T[]
-        /// @resolution.member source=this.items.size receiver=Readonly<Managed<T[], Pile.count.P1>> type=isize kind=call target="size(parameters=(), arguments=(), return=isize)"
+        /// @resolution.member source=this.items.size receiver=Readonly<Managed<T[], Pile.count.'a>> type=isize kind=call target="size(parameters=(), arguments=(), return=isize)"
         /// @resolution.receiver source=this kind=this declaration=Pile type=&Pile.count.'a readonly Pile<T>
-        /// @resolution.place source=this placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
+        /// @resolution.place source=this placement=Pile.count.'a lifetime=Pile.count.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.items placement=Pile.count.P1 lifetime=Pile.count.'a access="readonly"
+        /// @resolution.place source=this.items placement=Pile.count.'a lifetime=Pile.count.'a access="readonly"
         /// @resolution.access source=this.items root=this keys=[items]
-        /// @generic.instantiation id="size<T, Pile.count.P1>" template=size arguments=(T, Pile.count.P1) owner=Pile.count
+        /// @generic.instantiation id=size<T> template=size arguments=(T) owner=Pile.count
 
     }
 }
@@ -746,6 +744,8 @@ class Pile<T> {
         r#"
 /// @diagnostic.error id=field-not-definitely-initialized message="field 'items' is not initialized on every constructor path"
 /// @diagnostic.label line=3 column=5 span="items" line_source="items: T[];"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'T[]' is not assignable to the method's 'this' type '&readonly local T[]'"
+/// @diagnostic.label line=6 column=22 span="this.items.at(0)" line_source="const item = this.items.at(0);"
 "#,
     );
 }
@@ -790,8 +790,8 @@ function total(...values: int32[]): int32 {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=total.values
     /// @generic.instantiation id="Cast.truncate<isize, int32>" template=Cast.truncate arguments=(isize, int32)
-    /// @generic.instantiation id="length<int32, \"local\">" template=length arguments=(int32, "local")
     /// @generic.instantiation id=Cast.truncate<isize> template=Cast.truncate arguments=(isize)
+    /// @generic.instantiation id=length<int32> template=length arguments=(int32)
 
 }
 
@@ -830,7 +830,7 @@ function first<T>(values: Slice<T>): Slice<T> {
 import { Slice } from "destack:collections";
 
 function first<T>(values: Slice<T>): Slice<T> {
-    return values.subslice(0, 1);
+    return values.subslice<T, "exclusive">(0, 1);
 }
 
 === dir ===
@@ -848,17 +848,19 @@ function first<T>(values: Slice<T>): Slice<T> {
 
     return values.subslice(0, 1);
     /// @resolution.name source=values target=first.values
-    /// @resolution.member source=values.subslice receiver=Slice<T> type=<const subslice.A: Access = "readonly", subslice.'a, subslice.P2: Place>(this: WithAccess<Borrowed<Slice<T>, subslice.'a & subslice.P2, "mutable">, subslice.A>, usize, usize) => WithAccess<Borrowed<Slice<T>, subslice.'a & subslice.P2, "mutable">, subslice.A> kind=symbol target_receiver=Slice<T> target=subslice
-    /// @resolution.call source="values.subslice(0, 1)" parameters=(usize, usize) arguments=(provided(0) as usize, provided(1) as usize) return=WithAccess<Borrowed<Slice<T>, <error> & <error>, "mutable">, <error>> kind=symbol target=subslice receiver=Slice<T> adjustments=(borrow(Borrowed<Slice<T>, <error> & <error>, <error>>)) instance="Slice<T>.<extension#1>.subslice<<error>, \"local\">"
+    /// @resolution.member source=values.subslice receiver=Slice<T> type=<const subslice.A: Access = "readonly", subslice.'a>(this: WithAccess<&subslice.'a Slice<T>, subslice.A>, usize, usize) => WithAccess<&subslice.'a Slice<T>, subslice.A> kind=symbol target_receiver=Slice<T> target=subslice
+    /// @resolution.call source="values.subslice(0, 1)" parameters=(usize, usize) arguments=(provided(0) as usize, provided(1) as usize) return=WithAccess<&'frame Slice<T>, "exclusive"> kind=symbol target=subslice receiver=Slice<T> adjustments=(borrow(&'frame exclusive Slice<T>)) instance="Slice<T>.<extension#1>.subslice<\"exclusive\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=first.values
+    /// @generic.instantiation id="subslice<T, \"exclusive\">" template=subslice arguments=(T, "exclusive") owner=first
     /// @generic.instantiation id=subslice<T> template=subslice arguments=(T) owner=first
 
 }
 "#,
         r#"
-/// @diagnostic.error id=return-not-assignable message="type 'WithAccess<Borrowed<Slice<T>, <error> & <error>, \"mutable\">, <error>>' is not assignable to the declared result type 'Slice<T>'"
+/// @diagnostic.error id=return-not-assignable message="type 'WithAccess<&local Slice<T>, \"exclusive\">' is not assignable to the declared result type 'Slice<T>'"
 /// @diagnostic.label line=5 column=12 span="values.subslice(0, 1)" line_source="return values.subslice(0, 1);"
+/// @diagnostic.note message="'WithAccess<&local Slice<T>, \"exclusive\">' reduces to '&exclusive local Slice<T>'"
 "#,
     );
 }
@@ -913,7 +915,7 @@ freePlace satisfies "local";
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'PlaceOf<Free>' does not satisfy '\"local\"'"
-/// @diagnostic.label line=8 column=11 span="satisfies" line_source="freePlace satisfies \"local\";"
+/// @diagnostic.label line=8 column=1 span="freePlace" line_source="freePlace satisfies \"local\";"
 "#,
     );
 }
@@ -1113,6 +1115,394 @@ function read<R: Region>(borrow: local Borrowed<Cell, R, "readonly">): int32 {
     /// @resolution.access source=borrow.value root=read.borrow keys=[value]
 
 }
+"#,
+    );
+}
+
+/// Call a struct method through its elided receiver region on local and shared values.
+#[test]
+fn test_call_a_struct_method_on_local_and_shared_receivers() {
+    let session = TestSession::single(
+        r#"
+struct DrawnPoint {
+    x: int32;
+    draw(): int32 { return this.x; }
+}
+declare shared const remote: ^DrawnPoint;
+const near = DrawnPoint { x: 1 };
+const a = near.draw();
+const b = remote.draw();
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct DrawnPoint {
+    x: int32;
+    draw(): int32 {
+        return this.x;
+    }
+}
+declare shared const remote: DrawnPoint;
+const near: DrawnPoint = DrawnPoint { x: 1 };
+const a: int32 = near.draw();
+const b: int32 = remote.draw();
+
+=== dir ===
+struct DrawnPoint {
+/// @type.symbol symbol=DrawnPoint type=DrawnPoint
+/// @definition.struct symbol=DrawnPoint
+/// @definition.field symbol=DrawnPoint.x source="x: int32" key=x type=int32
+/// @definition.method symbol=DrawnPoint.draw source="draw(): int32 { return this.x; }" slot=draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => int32
+
+    x: int32;
+    /// @type.symbol symbol=DrawnPoint.x source="x: int32" type=int32
+
+    draw(): int32 { return this.x; }
+    /// @generic.template symbol=DrawnPoint.draw parameters=('a)
+    /// @type.symbol symbol=DrawnPoint.draw source="draw(): int32 { return this.x; }" type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => int32
+    /// @type.symbol symbol=DrawnPoint.draw.this type=&DrawnPoint.draw.'a readonly DrawnPoint
+    /// @type.node source=this type=&DrawnPoint.draw.'a readonly DrawnPoint
+    /// @type.node source=this.x type=int32
+    /// @resolution.member source=this.x receiver=&DrawnPoint.draw.'a readonly DrawnPoint type=int32 kind=field target_receiver=&DrawnPoint.draw.'a readonly DrawnPoint key=x target=DrawnPoint.x target_type=int32
+    /// @resolution.receiver source=this kind=this declaration=DrawnPoint type=&DrawnPoint.draw.'a readonly DrawnPoint
+    /// @resolution.place source=this placement=DrawnPoint.draw.'a lifetime=DrawnPoint.draw.'a access="readonly"
+    /// @resolution.access source=this root=this
+    /// @resolution.place source=this.x placement=DrawnPoint.draw.'a lifetime=DrawnPoint.draw.'a access="readonly"
+    /// @resolution.access source=this.x root=this keys=[x]
+
+}
+declare shared const remote: ^DrawnPoint;
+/// @type.symbol symbol=remote source=remote type=DrawnPoint
+/// @resolution.pattern source=remote kind=binding target=remote
+/// @resolution.name source=DrawnPoint target=DrawnPoint
+
+const near = DrawnPoint { x: 1 };
+/// @type.symbol symbol=near source=near type=DrawnPoint
+/// @resolution.pattern source=near kind=binding target=near
+/// @type.node source="DrawnPoint { x: 1 }" type=DrawnPoint
+/// @resolution.name source=DrawnPoint target=DrawnPoint
+/// @type.node source=1 type=1
+
+const a = near.draw();
+/// @type.symbol symbol=a source=a type=int32
+/// @resolution.pattern source=a kind=binding target=a
+/// @type.node source=near type=DrawnPoint
+/// @type.node source=near.draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => int32
+/// @type.node source=near.draw() type=int32
+/// @resolution.name source=near target=near
+/// @resolution.member source=near.draw receiver=DrawnPoint type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => int32 kind=symbol target_receiver=DrawnPoint target=DrawnPoint.draw
+/// @resolution.call source=near.draw() parameters=() return=int32 kind=symbol target=DrawnPoint.draw receiver=DrawnPoint adjustments=(borrow(&'static readonly constant DrawnPoint))
+/// @resolution.place source=near placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=near root=near
+
+const b = remote.draw();
+/// @type.symbol symbol=b source=b type=int32
+/// @resolution.pattern source=b kind=binding target=b
+/// @type.node source=remote type=DrawnPoint
+/// @type.node source=remote.draw type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => int32
+/// @type.node source=remote.draw() type=int32
+/// @resolution.name source=remote target=remote
+/// @resolution.member source=remote.draw receiver=DrawnPoint type=<DrawnPoint.draw.'a>(this: &DrawnPoint.draw.'a readonly DrawnPoint) => int32 kind=symbol target_receiver=DrawnPoint target=DrawnPoint.draw
+/// @resolution.call source=remote.draw() parameters=() return=int32 kind=symbol target=DrawnPoint.draw receiver=DrawnPoint adjustments=(borrow(&'static readonly shared DrawnPoint))
+/// @resolution.place source=remote placement="shared" lifetime="static" access="readonly"
+/// @resolution.access source=remote root=remote
+"#,
+    );
+}
+
+/// Call a callback over borrows from both spaces through its late-bound region.
+#[test]
+fn test_call_a_callback_over_borrows_from_both_spaces() {
+    let session = TestSession::single(
+        r#"
+struct Item { x: int32; }
+declare shared const remote: ^Item;
+function apply(f: (item: &readonly Item) => int32): int32 {
+    const near = Item { x: 1 };
+    return f(&readonly near) + f(&readonly remote);
+}
+const total = apply((item) => item.x);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+struct Item {
+    x: int32;
+}
+declare shared const remote: Item;
+function apply(f: (item: &'a readonly Item) => int32): int32 {
+    const near: Item = Item { x: 1 };
+    return f(&readonly near) + f(&readonly remote);
+}
+const total: int32 = apply((item: &'a readonly Item): int32 => item.x);
+
+=== dir ===
+struct Item { x: int32; }
+/// @type.symbol symbol=Item source="struct Item { x: int32; }" type=Item
+/// @definition.struct symbol=Item source="struct Item { x: int32; }"
+/// @definition.field symbol=Item.x source="x: int32" key=x type=int32
+/// @type.symbol symbol=Item.x source="x: int32" type=int32
+
+declare shared const remote: ^Item;
+/// @type.symbol symbol=remote source=remote type=Item
+/// @resolution.pattern source=remote kind=binding target=remote
+/// @resolution.name source=Item target=Item
+
+function apply(f: (item: &readonly Item) => int32): int32 {
+/// @type.symbol symbol=apply type=(Function<(&type_expression.'a readonly Item,), int32>) => int32
+/// @type.symbol symbol=apply.f source="f: (item: &readonly Item) => int32" type=Function<(&type_expression.'a readonly Item,), int32>
+/// @generic.template source=type_expression parameters=('a)
+/// @type.symbol symbol=apply.item source="item: &readonly Item" type=&type_expression.'a readonly Item
+/// @resolution.name source=Item target=Item
+
+    const near = Item { x: 1 };
+    /// @type.symbol symbol=apply.near source=near type=Item
+    /// @resolution.pattern source=near kind=binding target=apply.near
+    /// @type.node source="Item { x: 1 }" type=Item
+    /// @resolution.name source=Item target=Item
+    /// @type.node source=1 type=1
+
+    return f(&readonly near) + f(&readonly remote);
+    /// @type.node source="f(&readonly near) + f(&readonly remote)" type=int32
+    /// @type.node source="f(&readonly near)" type=int32
+    /// @type.node source=f type=Function<(&type_expression.'a readonly Item,), int32>
+    /// @resolution.name source=f target=apply.f
+    /// @resolution.call source="f(&readonly near)" parameters=(&'frame readonly Item) arguments=(provided(&readonly near) as &'frame readonly Item) return=int32 kind=expression target=expression
+    /// @resolution.operator source="f(&readonly near) + f(&readonly remote)" type=int32 operator="+" kind=builtin operands=[f(&readonly near) as int32 families=(integer), f(&readonly remote) as int32 families=(integer)]
+    /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=f root=apply.f
+    /// @type.node source="&readonly near" type=&'frame readonly Item
+    /// @type.node source=near type=Item
+    /// @resolution.name source=near target=apply.near
+    /// @resolution.place source=near placement="local" lifetime="frame" access="readonly"
+    /// @resolution.access source=near root=apply.near
+    /// @type.node source="f(&readonly remote)" type=int32
+    /// @type.node source=f type=Function<(&type_expression.'a readonly Item,), int32>
+    /// @resolution.name source=f target=apply.f
+    /// @resolution.call source="f(&readonly remote)" parameters=(&'static readonly shared Item) arguments=(provided(&readonly remote) as &'static readonly shared Item) return=int32 kind=expression target=expression
+    /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=f root=apply.f
+    /// @type.node source="&readonly remote" type=&'static readonly shared Item
+    /// @type.node source=remote type=Item
+    /// @resolution.name source=remote target=remote
+    /// @resolution.place source=remote placement="shared" lifetime="static" access="readonly"
+    /// @resolution.access source=remote root=remote
+
+}
+const total = apply((item) => item.x);
+/// @type.symbol symbol=total source=total type=int32
+/// @resolution.pattern source=total kind=binding target=total
+/// @type.node source="apply((item) => item.x)" type=int32
+/// @type.node source=apply type=(Function<(&type_expression.'a readonly Item,), int32>) => int32
+/// @resolution.name source=apply target=apply
+/// @resolution.call source="apply((item) => item.x)" parameters=(Function<(&type_expression.'a readonly Item,), int32>) arguments=(provided((item) => item.x) as Function<(&type_expression.'a readonly Item,), int32>) return=int32 kind=symbol target=apply
+/// @type.symbol symbol=symbol9 source="(item) => item.x" type=Function<(&type_expression.'a readonly Item,), int32>
+/// @type.node source="(item) => item.x" type=Function<(&type_expression.'a readonly Item,), int32>
+/// @type.symbol symbol=symbol9.item source=item type=&type_expression.'a readonly Item
+/// @type.node source=item type=&type_expression.'a readonly Item
+/// @type.node source=item.x type=int32
+/// @resolution.name source=item target=symbol9.item
+/// @resolution.member source=item.x receiver=&type_expression.'a readonly Item type=int32 kind=field target_receiver=&type_expression.'a readonly Item key=x target=Item.x target_type=int32
+/// @resolution.place source=item placement=type_expression.'a lifetime=type_expression.'a access="readonly"
+/// @resolution.access source=item root=symbol9.item
+/// @resolution.place source=item.x placement=type_expression.'a lifetime=type_expression.'a access="readonly"
+/// @resolution.access source=item.x root=symbol9.item keys=[x]
+"#,
+    );
+}
+
+/// Reject a shared class handle where a bare class parameter assumes a local one.
+#[test]
+fn test_reject_a_shared_handle_for_a_bare_class_parameter() {
+    let session = TestSession::single(
+        r#"
+class Player { score: int32 = 0; }
+declare shared const remote: Player;
+const near = new Player();
+function tick(player: Player): int32 { return player.score; }
+const a = tick(near);
+const b = tick(remote);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Player {
+    score: int32 = 0;
+}
+declare shared const remote: shared Player;
+const near: Player = new Player();
+function tick(player: Player): int32 {
+    return player.score;
+}
+const a: int32 = tick(near);
+const b: int32 = tick(remote);
+
+=== dir ===
+class Player { score: int32 = 0; }
+/// @type.symbol symbol=Player source="class Player { score: int32 = 0; }" type=Player
+/// @definition.class symbol=Player source="class Player { score: int32 = 0; }"
+/// @definition.field symbol=Player.score source="score: int32 = 0" key=score type=int32
+/// @type.symbol symbol=Player.score source="score: int32 = 0" type=int32
+/// @type.node source=0 type=0
+
+declare shared const remote: Player;
+/// @type.symbol symbol=remote source=remote type=shared Player
+/// @resolution.pattern source=remote kind=binding target=remote
+/// @resolution.name source=Player target=Player
+
+const near = new Player();
+/// @type.symbol symbol=near source=near type=Player
+/// @resolution.pattern source=near kind=binding target=near
+/// @type.node source="new Player()" type=Player
+/// @resolution.construct source="new Player()" parameters=() return=Player kind=class target=Player constructor=default
+/// @resolution.name source=Player target=Player
+
+function tick(player: Player): int32 { return player.score; }
+/// @type.symbol symbol=tick source="function tick(player: Player): int32 { return player.score; }" type=(Player) => int32
+/// @type.symbol symbol=tick.player source="player: Player" type=Player
+/// @resolution.name source=Player target=Player
+/// @type.node source=player type=Player
+/// @type.node source=player.score type=int32
+/// @resolution.name source=player target=tick.player
+/// @resolution.member source=player.score receiver=Player type=int32 kind=field target_receiver=Player key=score target=Player.score target_type=int32
+/// @resolution.place source=player placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=player root=tick.player
+/// @resolution.place source=player.score placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=player.score root=tick.player keys=[score]
+
+const a = tick(near);
+/// @type.symbol symbol=a source=a type=int32
+/// @resolution.pattern source=a kind=binding target=a
+/// @type.node source=tick type=(Player) => int32
+/// @type.node source=tick(near) type=int32
+/// @resolution.name source=tick target=tick
+/// @resolution.call source=tick(near) parameters=(Player) arguments=(provided(near) as Player) return=int32 kind=symbol target=tick
+/// @type.node source=near type=Player
+/// @resolution.name source=near target=near
+/// @resolution.place source=near placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=near root=near
+
+const b = tick(remote);
+/// @type.symbol symbol=b source=b type=int32
+/// @resolution.pattern source=b kind=binding target=b
+/// @type.node source=tick type=(Player) => int32
+/// @type.node source=tick(remote) type=int32
+/// @resolution.name source=tick target=tick
+/// @resolution.call source=tick(remote) parameters=(Player) arguments=(provided(remote) as Player) return=int32 kind=symbol target=tick
+/// @type.node source=remote type=shared Player
+/// @resolution.name source=remote target=remote
+/// @resolution.place source=remote placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=remote root=remote
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'shared Player' is not assignable to parameter of type 'Player'"
+/// @diagnostic.label line=7 column=16 span="remote" line_source="const b = tick(remote);"
+/// @diagnostic.related line=7 column=11 span="tick(remote)" line_source="const b = tick(remote);" message="in this call"
+"#,
+    );
+}
+
+/// Call a borrowed class parameter with local and shared handles through its region.
+#[test]
+fn test_call_a_borrowed_class_parameter_from_both_spaces() {
+    let session = TestSession::single(
+        r#"
+class Player { score: int32 = 0; }
+declare shared const remote: Player;
+const near = new Player();
+function tick(player: &readonly Player): int32 { return player.score; }
+const a = tick(&readonly near);
+const b = tick(&readonly remote);
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types(),
+        r#"
+=== annotated ===
+class Player {
+    score: int32 = 0;
+}
+declare shared const remote: shared Player;
+const near: Player = new Player();
+function tick<'a>(player: &'a readonly Player): int32 {
+    return player.score;
+}
+const a: int32 = tick(&readonly near);
+const b: int32 = tick(&readonly remote);
+
+=== dir ===
+class Player { score: int32 = 0; }
+/// @type.symbol symbol=Player source="class Player { score: int32 = 0; }" type=Player
+/// @definition.class symbol=Player source="class Player { score: int32 = 0; }"
+/// @definition.field symbol=Player.score source="score: int32 = 0" key=score type=int32
+/// @type.symbol symbol=Player.score source="score: int32 = 0" type=int32
+/// @type.node source=0 type=0
+
+declare shared const remote: Player;
+/// @type.symbol symbol=remote source=remote type=shared Player
+/// @resolution.pattern source=remote kind=binding target=remote
+/// @resolution.name source=Player target=Player
+
+const near = new Player();
+/// @type.symbol symbol=near source=near type=Player
+/// @resolution.pattern source=near kind=binding target=near
+/// @type.node source="new Player()" type=Player
+/// @resolution.construct source="new Player()" parameters=() return=Player kind=class target=Player constructor=default
+/// @resolution.name source=Player target=Player
+
+function tick(player: &readonly Player): int32 { return player.score; }
+/// @generic.template symbol=tick parameters=('a)
+/// @type.symbol symbol=tick source="function tick(player: &readonly Player): int32 { return player.score; }" type=<tick.'a>(&tick.'a readonly Player) => int32
+/// @type.symbol symbol=tick.player source="player: &readonly Player" type=&tick.'a readonly Player
+/// @resolution.name source=Player target=Player
+/// @type.node source=player type=&tick.'a readonly Player
+/// @type.node source=player.score type=int32
+/// @resolution.name source=player target=tick.player
+/// @resolution.member source=player.score receiver=&tick.'a readonly Player type=int32 kind=field target_receiver=&tick.'a readonly Player key=score target=Player.score target_type=int32
+/// @resolution.place source=player placement=tick.'a lifetime=tick.'a access="readonly"
+/// @resolution.access source=player root=tick.player
+/// @resolution.place source=player.score placement=tick.'a lifetime=tick.'a access="readonly"
+/// @resolution.access source=player.score root=tick.player keys=[score]
+
+const a = tick(&readonly near);
+/// @type.symbol symbol=a source=a type=int32
+/// @resolution.pattern source=a kind=binding target=a
+/// @type.node source="tick(&readonly near)" type=int32
+/// @type.node source=tick type=(&'static readonly Player) => int32
+/// @resolution.name source=tick target=tick
+/// @resolution.call source="tick(&readonly near)" parameters=(&'static readonly Player) arguments=(provided(&readonly near) as &'static readonly Player) return=int32 kind=symbol target=tick
+/// @type.node source="&readonly near" type=&'static readonly Player
+/// @type.node source=near type=Player
+/// @resolution.name source=near target=near
+/// @resolution.place source=near placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=near root=near
+
+const b = tick(&readonly remote);
+/// @type.symbol symbol=b source=b type=int32
+/// @resolution.pattern source=b kind=binding target=b
+/// @type.node source="tick(&readonly remote)" type=int32
+/// @type.node source=tick type=(&'static readonly shared Player) => int32
+/// @resolution.name source=tick target=tick
+/// @resolution.call source="tick(&readonly remote)" parameters=(&'static readonly shared Player) arguments=(provided(&readonly remote) as &'static readonly shared Player) return=int32 kind=symbol target=tick
+/// @type.node source="&readonly remote" type=&'static readonly shared Player
+/// @type.node source=remote type=shared Player
+/// @resolution.name source=remote target=remote
+/// @resolution.place source=remote placement="shared" lifetime="static" access="mutable"
+/// @resolution.access source=remote root=remote
 "#,
     );
 }

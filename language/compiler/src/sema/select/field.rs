@@ -3,10 +3,10 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::BodyState;
+use crate::sema::CheckState;
 
-impl BodyState<'_, '_> {
-    /// Return whether one pattern field list uses rest fields correctly.
+impl CheckState<'_> {
+    /// Return whether one pattern field list places its rest field last.
     pub(in crate::sema) fn report_pattern_rest_fields(
         &mut self,
         module: ModuleId,
@@ -27,7 +27,7 @@ impl BodyState<'_, '_> {
         self.report_rest_fields(module, fields)
     }
 
-    /// Return whether one assignment pattern field list uses rest fields correctly.
+    /// Return whether one assignment pattern field list places its rest field last.
     pub(in crate::sema) fn report_assign_rest_fields(
         &mut self,
         module: ModuleId,
@@ -96,6 +96,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         field: dir::LocalNodeId<dir::PatternField>,
     ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {
+        // read the key each field form names
         let key = match self.module(module).view().get(field).clone() {
             dir::PatternField::Named { name, .. } => Some((field.into_any(), name.into())),
             dir::PatternField::Computed { key, .. } => self
@@ -115,6 +116,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         field: dir::LocalNodeId<dir::AssignPatternField>,
     ) -> CompilerResult<Option<(dir::LocalNodeIdAny, dir::StaticKey)>> {
+        // read the key each field form names
         let key = match self.module(module).view().get(field).clone() {
             dir::AssignPatternField::Named { name, .. } => Some((field.into_any(), name.into())),
             dir::AssignPatternField::Computed { key, .. } => self
@@ -156,6 +158,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let source = field.into_any();
         let field_node = self.module(module).view().get(field).clone();
+        // introduce the names each field form binds
         match field_node {
             // shorthand fields introduce their field name
             dir::PatternField::Named {
@@ -222,6 +225,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let source = pattern.into_any();
         let pattern = self.module(module).view().get(pattern).clone();
+        // introduce the names each pattern form binds
         match pattern {
             // leaf bindings introduce one name into the current field list
             dir::Pattern::Binding { name, pattern } => {
@@ -231,7 +235,7 @@ impl BodyState<'_, '_> {
                 }
             }
 
-            // transparent patterns do not create independent field lists
+            // transparent patterns share the enclosing field list
             dir::Pattern::Must(pattern)
             | dir::Pattern::BorrowOf { right: pattern, .. }
             | dir::Pattern::MoveOf { right: pattern, .. }
@@ -257,7 +261,7 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
-    /// Return whether one field list uses rest fields correctly.
+    /// Return whether one field list places a single rest field last.
     fn report_rest_fields<I>(&mut self, module: ModuleId, fields: I) -> bool
     where
         I: IntoIterator<Item = (dir::LocalNodeIdAny, bool)>,

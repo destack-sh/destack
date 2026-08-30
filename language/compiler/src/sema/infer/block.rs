@@ -2,20 +2,21 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::sema::{
-    BodyState, CheckOutcome, Expectation, FlowSite, InferenceScope, PlaceUse, ValueCheck,
-};
+use crate::sema::{CheckState, Expectation, FlowSite, PlaceUse, ValueCheck};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Infer one block from its tail expression.
     pub(in crate::sema) fn infer_block(
         &mut self,
         site: FlowSite,
         block: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
+        // infer the leading statements
         let node = site.node;
         let module = node.module_id;
         self.infer_block_statements(module, block)?;
+
+        // type the block at its tail expression
         let tail = self.visit_block_value(module, block)?;
         let ty = match tail {
             Some(tail) => self.infer_node_type(tail, PlaceUse::Read)?,
@@ -26,12 +27,53 @@ impl BodyState<'_, '_> {
         Ok(())
     }
 
+    /// Check one block under an expected result type.
+    pub(in crate::sema) fn check_block(
+        &mut self,
+        site: FlowSite,
+        block: dir::LocalNodeId<dir::Block>,
+        expectation: Expectation,
+    ) -> CompilerResult<ValueCheck> {
+        // infer the leading statements once
+        let module = site.node.module_id;
+        if self.committed_node_type(site.node).is_none() {
+            self.infer_block_statements(module, block)?;
+        }
+
+        // check the block's value against the expectation
+        let value = self.visit_block_value(module, block)?;
+        let check = match value {
+            Some(value) => {
+                let check = self.check_node(value, expectation)?;
+                let value_type = check.source;
+                if self.committed_node_type(site.node).is_none() {
+                    self.commit_node_type(site.node, value_type)?;
+                }
+
+                ValueCheck {
+                    source: value_type,
+                    outcome: check.outcome,
+                    target: check.target,
+                }
+            }
+            None => {
+                let value = self.end_type(module, block.into_any())?;
+                self.commit_node_type(site.node, value)?;
+
+                self.check_value(site, value, expectation)?
+            }
+        };
+
+        Ok(check)
+    }
+
     /// Infer every leading statement of one block in source order.
     pub(in crate::sema) fn infer_block_statements(
         &mut self,
         module: ModuleId,
         block: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<()> {
+        // infer each leading statement in source order
         let statements = self
             .module(module)
             .view()
@@ -47,38 +89,27 @@ impl BodyState<'_, '_> {
 
             // mark a statement past the diverging end unreachable
             if !is_end_reachable {
-                self.check
-                    .module_mut(module)
-                    .flows
-                    .set_unreachable(node.local_id);
+                self.module_mut(module).flows.set_unreachable(node.local_id);
             }
 
             // let each statement own the inference it opens
-            let scope = InferenceScope::open(self.check.infer.variable_count());
             self.attempt_node(site, PlaceUse::Read, None)?;
 
-            // inference closes at the statement that opened it
-            self.check.close_statement(scope)?;
-
             // end the block unreachable on a never-typed statement, excluding unbound jumps
-            if let Some(ty) = self.check.committed_node_type(node) {
-                let ty = self.check.shallow_resolve(ty)?;
-                if matches!(self.check.ty(ty)?, dir::Type::Never)
-                    && !self.check.flow.is_unbound_jump(node.local_id)
+            if let Some(ty) = self.committed_node_type(node) {
+                let ty = self.shallow_resolve(ty)?;
+                if matches!(self.ty(ty)?, dir::Type::Never)
+                    && !self.flow.is_unbound_jump(node.local_id)
                 {
                     is_end_reachable = false;
-                    self.check
-                        .module_mut(module)
-                        .flows
-                        .set_diverging(node.local_id);
+                    self.module_mut(module).flows.set_diverging(node.local_id);
                 }
             }
         }
 
         // record the unreachable end for the block's completion type
         if !is_end_reachable {
-            self.check
-                .module_mut(module)
+            self.module_mut(module)
                 .unreachable_ends
                 .insert(block.into_any());
         }
@@ -92,53 +123,13 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         node: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let ty = match self.check.module(module).unreachable_ends.contains(&node) {
+        // end an unreachable block at never
+        let ty = match self.module(module).unreachable_ends.contains(&node) {
             true => dir::Type::Never,
             false => dir::Type::Void,
         };
 
         self.intern_type(ty)
-    }
-
-    /// Check one block under an expected result type.
-    pub(in crate::sema) fn check_block(
-        &mut self,
-        site: FlowSite,
-        block: dir::LocalNodeId<dir::Block>,
-        expectation: Expectation,
-    ) -> CompilerResult<ValueCheck> {
-        let module = site.node.module_id;
-        self.infer_block_statements(module, block)?;
-        let value = self.visit_block_value(module, block)?;
-        let check = match value {
-            Some(value) => {
-                let check = self.check_node(value, expectation)?;
-                let value_type = check.source;
-                self.commit_node_type(site.node, value_type)?;
-                if self.check.fresh_nodes.contains_key(&value.node) {
-                    self.check.fresh_nodes.insert(site.node, None);
-                }
-
-                ValueCheck {
-                    source: value_type,
-                    stored: value_type,
-                    outcome: check.outcome,
-                    target: check.target,
-                }
-            }
-            None => {
-                let value = self.end_type(module, block.into_any())?;
-                self.commit_node_type(site.node, value)?;
-                ValueCheck {
-                    source: value,
-                    stored: value,
-                    outcome: CheckOutcome::Holds,
-                    target: expectation.target,
-                }
-            }
-        };
-
-        Ok(check)
     }
 
     /// Visit one statically present block expression after walking its decorators.
@@ -147,11 +138,13 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<FlowSite>> {
+        // skip a statement its decorators removed
         if !self.walk_body_decorators(module, expression.into_any())? {
             return Ok(None);
         }
 
-        let site = self.check.visit_site(expression.into_global_any(module))?;
+        // visit the statement at its own site
+        let site = self.visit_site(expression.into_global_any(module))?;
 
         Ok(Some(site))
     }
@@ -162,6 +155,7 @@ impl BodyState<'_, '_> {
         module: ModuleId,
         block: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<Option<FlowSite>> {
+        // require a value expression
         let Some(value) = self.module(module).view().get(block).value_expression() else {
             return Ok(None);
         };

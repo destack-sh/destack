@@ -1,12 +1,10 @@
-use std::ops::{Deref, DerefMut};
-
 use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, InferMode, PlaceUse,
-    ReceiverBinding, Relation, ValueCheck, ValueUse,
+    Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, FlowSnapshot, InferMode,
+    PlaceUse, ReceiverBinding, Relation, ValueCheck, ValueUse,
 };
 
 /// Yield targets for one generator body.
@@ -35,51 +33,14 @@ pub(in crate::sema) struct FunctionBody {
     pub(in crate::sema) initializes: Option<dir::GlobalSymbolId>,
     /// The body's asynchrony, entering its flow frame at check.
     pub(in crate::sema) asynchrony: dir::Asynchrony,
-    /// The contextual receiver bound over the body.
+    /// The receiver the body binds itself.
     pub(in crate::sema) receiver: Option<ReceiverBinding>,
+    /// The enclosing receiver a function value closes over.
+    pub(in crate::sema) enclosing_receiver: Option<ReceiverBinding>,
     /// The parameter sources assigned on entry.
     pub(in crate::sema) entries: SmallVec<[dir::LocalNodeIdAny; 4]>,
-}
-
-/// Checking state for one function body.
-pub(in crate::sema) struct BodyState<'check, 'state> {
-    /// The module check state.
-    pub(in crate::sema) check: &'check mut CheckState<'state>,
-    /// The return target, when the body returns a value.
-    pub(in crate::sema) return_type: Option<dir::GlobalTypeId>,
-    /// The yield targets, when the body is a generator.
-    pub(in crate::sema) generator: Option<GeneratorTargets>,
-    /// The declaration whose fields this constructor initializes.
-    pub(in crate::sema) initializes: Option<dir::GlobalSymbolId>,
-    /// Literal inference applied to inferred returns and yields.
-    pub(in crate::sema) output_mode: InferMode,
-}
-
-impl<'state> Deref for BodyState<'_, 'state> {
-    type Target = CheckState<'state>;
-
-    fn deref(&self) -> &Self::Target {
-        self.check
-    }
-}
-
-impl DerefMut for BodyState<'_, '_> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        self.check
-    }
-}
-
-impl<'state> CheckState<'state> {
-    /// Enter a body-less checking context.
-    pub(in crate::sema) fn body(&mut self) -> BodyState<'_, 'state> {
-        BodyState {
-            check: self,
-            return_type: None,
-            generator: None,
-            initializes: None,
-            output_mode: InferMode::Regular,
-        }
-    }
+    /// The enclosing flow at the function value, kept while its slots stay open.
+    pub(in crate::sema) flow: Option<FlowSnapshot>,
 }
 
 impl FunctionBody {
@@ -90,15 +51,7 @@ impl FunctionBody {
         output_mode: InferMode,
         parent: Option<CauseId>,
     ) -> CompilerResult<Option<ValueCheck>> {
-        let mut state = BodyState {
-            check,
-            return_type: self.return_type,
-            generator: self.generator,
-            initializes: self.initializes,
-            output_mode,
-        };
-
-        // expect the body's completion value at the declared return type
+        // expect the body's completion value at the contextual return
         let expectation = self.return_type.map(|return_type| {
             let origin = self.site.origin();
             let kind = CauseKind::Return { annotation: None };
@@ -106,57 +59,46 @@ impl FunctionBody {
                 Some(parent) => Cause::child(origin, kind, parent),
                 None => Cause::root(origin, kind),
             };
-            let cause = state.check.intern_cause(cause);
+            let cause = check.intern_cause(cause);
 
             Expectation {
                 target: return_type,
-                relation: Relation::Assignable,
+                relation: Relation::Storable,
                 cause,
                 use_: ValueUse::Output,
                 mode: output_mode,
             }
         });
 
-        // resolve the targets the body returns and yields to
-        let (return_target, yield_target) = match self.generator {
-            Some(targets) => (
-                self.return_type.unwrap_or(targets.yielded),
-                Some(targets.yielded),
-            ),
-            None => (
-                self.return_type
-                    .unwrap_or(state.check.intern_type(dir::Type::Void)?),
-                None,
-            ),
-        };
-
         // enter the body's flow frame and mark its entry bindings
-        state.check.enter_function_frame(
+        check.enter_function_frame(
             self.symbol,
-            return_target,
-            yield_target,
+            self.return_type,
+            self.generator,
+            self.initializes,
+            output_mode,
             self.asynchrony,
             self.receiver,
+            self.enclosing_receiver,
         );
         for entry in &self.entries {
-            state.check.assign_bindings(*entry);
+            check.assign_bindings(*entry);
         }
 
         // check the body under its generic template scope
         if let Some(template) = self.site.scope {
-            state.check.flow.push_template_scope(template);
+            check.flow.push_template_scope(template);
         }
-        let checked = state.attempt_node(self.site, PlaceUse::Read, expectation);
+        let checked = check.attempt_node(self.site, PlaceUse::Read, expectation);
         if self.site.scope.is_some() {
-            state.check.flow.pop_template_scope();
+            check.flow.pop_template_scope();
         }
         let checked = checked?;
-        let branch = state.check.leave_function_frame();
+        let branch = check.leave_function_frame();
 
         // record the constructor's exit branch for class initialization
         if let Some(class) = self.initializes {
-            state
-                .check
+            check
                 .constructor_branches
                 .entry(class)
                 .or_default()

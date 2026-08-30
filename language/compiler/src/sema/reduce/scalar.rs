@@ -14,7 +14,7 @@ enum ScalarUse {
 }
 
 impl CheckState<'_> {
-    /// Return the scalar families one type can hold, or `None` when it is not scalar.
+    /// Return the scalar families one type can hold, or `None` for every other scalar.
     pub(in crate::sema) fn scalar_families(
         &mut self,
         origin: Origin,
@@ -104,6 +104,7 @@ impl CheckState<'_> {
         use_: ScalarUse,
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
     ) -> CompilerResult<Option<dir::ScalarFamilySet>> {
+        // read the families by the type's own head
         let root = self.normalize(origin, ty)?;
         let families = match self.ty(root)? {
             // union alternatives contribute every possible family
@@ -303,6 +304,7 @@ impl CheckState<'_> {
             }
         }
 
+        // read the family a scalar leaf belongs to
         let families = ty
             .scalar_domain()
             .map(|domain| dir::ScalarFamily::Domain(domain).into());
@@ -319,6 +321,7 @@ impl CheckState<'_> {
         parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
         formats: &mut SmallVec<[dir::PrimitiveType; 4]>,
     ) -> CompilerResult<()> {
+        // collect the formats the target names
         let target = self.normalize(origin, target)?;
         match self.ty(target)? {
             // retain exact formats from active scalar families
@@ -376,139 +379,5 @@ impl CheckState<'_> {
         }
 
         Ok(())
-    }
-
-    /// Return the scalar result type of one static operation.
-    pub(in crate::sema) fn static_operation_type(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut parameters = SmallVec::new();
-
-        self.evaluate_static_operation(origin, ty, &mut parameters)
-    }
-
-    /// Evaluate one static operation while tracking recursive parameter bounds.
-    fn evaluate_static_operation(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let root = self.normalize(origin, ty)?;
-        match self.ty(root)? {
-            // binary operators join their operand types
-            dir::Type::Operation(operation)
-                if let dir::TypeOperation::StaticBinary(binary) =
-                    self.type_operation(root.module_id, operation)? =>
-            {
-                if binary.operator.yields_boolean() {
-                    let boolean =
-                        self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-
-                    return Ok(Some(boolean));
-                }
-                let left = self.evaluate_scalar_operand(origin, binary.left, parameters)?;
-                let right = self.evaluate_scalar_operand(origin, binary.right, parameters)?;
-
-                // literals adopt their partner operand's type
-                let joined = match (left, right) {
-                    (Some(left), Some(right)) if left == right => Some(left),
-                    (Some(left), None) => Some(left),
-                    (None, Some(right)) => Some(right),
-                    _ => None,
-                };
-
-                Ok(joined)
-            }
-
-            // unary operators keep their operand type
-            dir::Type::Operation(operation)
-                if let dir::TypeOperation::StaticUnary(unary) =
-                    self.type_operation(root.module_id, operation)? =>
-            {
-                if unary.operator.yields_boolean() {
-                    let boolean =
-                        self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-
-                    return Ok(Some(boolean));
-                }
-
-                self.evaluate_scalar_operand(origin, unary.target, parameters)
-            }
-
-            _ => Ok(None),
-        }
-    }
-
-    /// Return one operand's concrete scalar type.
-    fn evaluate_scalar_operand(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let root = self.normalize(origin, ty)?;
-        match self.ty(root)? {
-            // concrete scalars type themselves
-            dir::Type::Primitive(_) => Ok(Some(root)),
-
-            // literals and ranges adopt their partner operand
-            dir::Type::Literal(_) | dir::Type::Range(_) => Ok(None),
-
-            // parameters type through every agreeing concrete scalar bound
-            dir::Type::Parameter(parameter) => {
-                if parameters.contains(&parameter) {
-                    return Ok(None);
-                }
-                parameters.push(parameter);
-                let selected = self.parameter_scalar_type(origin, parameter, parameters);
-                parameters.pop();
-
-                selected
-            }
-
-            // nested operations type through their own result
-            dir::Type::Operation(operation)
-                if matches!(
-                    self.type_operation(root.module_id, operation)?,
-                    dir::TypeOperation::StaticBinary(_) | dir::TypeOperation::StaticUnary(_)
-                ) =>
-            {
-                self.evaluate_static_operation(origin, root, parameters)
-            }
-
-            _ => Ok(None),
-        }
-    }
-
-    /// Return the common concrete scalar type admitted by one parameter's bounds.
-    fn parameter_scalar_type(
-        &mut self,
-        origin: Origin,
-        parameter: dir::GlobalGenericParameterId,
-        parameters: &mut SmallVec<[dir::GlobalGenericParameterId; 4]>,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut selected = None;
-        for bound in self.parameter_bounds(origin, parameter)? {
-            let root = self.normalize(origin, bound)?;
-            if matches!(self.ty(root)?, dir::Type::Parameter(_))
-                || self
-                    .type_scalar_families(origin, bound, ScalarUse::Value, parameters)?
-                    .is_none()
-            {
-                continue;
-            }
-            let Some(candidate) = self.evaluate_scalar_operand(origin, bound, parameters)? else {
-                continue;
-            };
-            if selected.is_some_and(|selected| selected != candidate) {
-                return Ok(None);
-            }
-            selected = Some(candidate);
-        }
-
-        Ok(selected)
     }
 }

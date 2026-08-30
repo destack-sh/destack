@@ -3,7 +3,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckOutcome, FlowSite, InferMode, InterfaceIndexSignature,
+    Cause, CauseKind, CheckOutcome, CheckState, FlowSite, InferMode, InterfaceIndexSignature,
     MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
     Verdict,
 };
@@ -100,6 +100,7 @@ impl SubscriptSelection {
 
     /// Return one value-producing subscript call.
     fn call_value(call: dir::Call, ty: dir::GlobalTypeId) -> Self {
+        // read the call as the subscript's own value
         let subscript = dir::Subscript {
             target: dir::SubscriptTarget::Call(call),
             ty,
@@ -165,11 +166,10 @@ impl SubscriptSelection {
         read_type: Option<dir::GlobalTypeId>,
         write_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Self> {
+        // keep every selected runtime arm
         let mut reads = Vec::new();
         let mut writes = Vec::new();
         let mut key_types = SmallVec::<[dir::GlobalTypeId; 2]>::new();
-
-        // keep every selected runtime arm
         for selection in selections {
             key_types.extend(selection.key_types);
             if let Some(read) = selection.read {
@@ -285,7 +285,7 @@ impl SubscriptSelection {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Decide one receiver against a structural index signature.
     pub(in crate::sema) fn decide_subscript_index_signature(
         &mut self,
@@ -329,6 +329,7 @@ impl BodyState<'_, '_> {
         is_optional: bool,
         use_: PlaceUse,
     ) -> CompilerResult<()> {
+        // read the index expression's node and origin
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let node = node.into_any();
@@ -348,7 +349,7 @@ impl BodyState<'_, '_> {
             return self.report_rejected_operator(node, origin, "[]".to_string(), &[target]);
         };
         let index_node = index.into_global_any(module);
-        let index_key = self.check.module(module).view().get(index).static_key();
+        let index_key = self.module(module).view().get(index).static_key();
         let index_site = self.visit_site(index_node)?;
         let index = self.infer_node_type(index_site, PlaceUse::Read)?;
 
@@ -435,7 +436,7 @@ impl BodyState<'_, '_> {
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
         // inspect the receiver's reduced shape for subscripts
-        let receiver_type = self.check.normalize(origin, receiver_type)?;
+        let receiver_type = self.normalize(origin, receiver_type)?;
 
         // prefer an existing member for a singleton key
         if let Some(key) = self.static_key_from_type(index)? {
@@ -443,7 +444,7 @@ impl BodyState<'_, '_> {
             let mut lookup = self.lookup_member(origin, module, subject, key)?;
 
             // keep a found static member authoritative over subscript protocols
-            if lookup.is_found() {
+            if !lookup.is_empty() {
                 self.adjust_narrowed_lookup(origin, receiver.ty, receiver_type, &mut lookup)?;
 
                 return self.select_member_subscript(origin, use_, receiver, key, lookup);
@@ -524,13 +525,17 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // select by the receiver's own head
         match self.ty(receiver_type)? {
+            // index a tuple by position
             dir::Type::Tuple(tuple) => {
                 self.select_tuple_subscript(receiver.ty, receiver_type, index, use_, tuple)
             }
+            // index a structural shape by key
             dir::Type::Object(shape) => {
                 self.select_shape_subscript(origin, receiver.ty, receiver_type, index, use_, &shape)
             }
+            // index every nominal receiver through the subscript protocols
             dir::Type::Application(_)
             | dir::Type::Reference(_)
             | dir::Type::Form(_)
@@ -573,10 +578,10 @@ impl BodyState<'_, '_> {
 
         // prefer index signatures declared by the selected interface
         for signature in requirements.index_signatures {
-            // keep the candidate alive on an undecided key relation, reject a decided mismatch
+            // keep the candidate alive on an undecided key relation
             let is_key_assignable = self.decide_relation(
                 origin,
-                Relation::Assignable,
+                Relation::Subtype,
                 index,
                 signature.signature.key_type,
             )? != Verdict::Fails;
@@ -658,6 +663,7 @@ impl BodyState<'_, '_> {
             PlaceUse::Read => None,
         };
 
+        // combine the selected halves into one selection
         match (read, write) {
             (Some(read), Some(write)) => Ok(Some(SubscriptSelection {
                 read: read.read,
@@ -811,7 +817,7 @@ impl BodyState<'_, '_> {
             let conversion = self.convert_value(
                 site,
                 cause,
-                Relation::Assignable,
+                Relation::Storable,
                 value,
                 target,
                 ValueUse::Argument,
@@ -845,7 +851,9 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         lookup: MemberLookup,
     ) -> CompilerResult<Option<SubscriptSelection>> {
+        // select by the requested place use
         match use_ {
+            // read through the found member
             PlaceUse::Read => {
                 let Some(resolution) = self.select_member_read(origin, receiver, key, &lookup)?
                 else {
@@ -855,6 +863,7 @@ impl BodyState<'_, '_> {
 
                 Ok(Some(selection))
             }
+            // write or update through the found member
             PlaceUse::Write | PlaceUse::Update => {
                 let Some(selection) =
                     self.select_member_assignment(origin, receiver, key, use_, lookup)?
@@ -923,7 +932,7 @@ impl BodyState<'_, '_> {
         for (position, signature) in index_signatures.into_iter().enumerate() {
             // keep the candidate alive on an undecided key relation, reject a decided mismatch
             let is_key_assignable =
-                self.decide_relation(origin, Relation::Assignable, index, signature.key_type)?
+                self.decide_relation(origin, Relation::Subtype, index, signature.key_type)?
                     != Verdict::Fails;
             if is_key_assignable {
                 let target = dir::MemberTarget::Index(dir::IndexResolution {
@@ -948,8 +957,7 @@ impl BodyState<'_, '_> {
 
         // keep the candidate alive on an undecided key relation, reject a decided mismatch
         let is_key_assignable =
-            self.decide_relation(origin, Relation::Assignable, index, key_domain)?
-                != Verdict::Fails;
+            self.decide_relation(origin, Relation::Subtype, index, key_domain)? != Verdict::Fails;
         if is_key_assignable {
             // collect the keys of every field the written key overlaps
             let fields: SmallVec<[_; 4]> = self
@@ -1012,6 +1020,7 @@ impl BodyState<'_, '_> {
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
+        // select by the requested place use
         match use_ {
             PlaceUse::Read => {
                 self.select_subscript_read(origin, receiver, lookup_receiver, index_node, index)
@@ -1052,6 +1061,15 @@ impl BodyState<'_, '_> {
         source: dir::ArgumentSource,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
+        // rebase the origin at the index expression
+        let origin = match source {
+            dir::ArgumentSource::Provided(node) => self.origin_at(origin, node)?,
+            dir::ArgumentSource::Static(_)
+            | dir::ArgumentSource::Write
+            | dir::ArgumentSource::Omitted
+            | dir::ArgumentSource::Rest { .. } => origin,
+        };
+
         // read the Index protocol key this receiver must carry
         let method = SubscriptProtocol::Index;
         let sources = [source];
@@ -1127,16 +1145,16 @@ impl BodyState<'_, '_> {
         let mut borrowed = None;
         let mut missing = SmallVec::<[dir::GlobalTypeId; 2]>::new();
         for arm in arms {
-            let mut arm = self.check.normalize(origin, arm)?;
+            let mut arm = self.normalize(origin, arm)?;
 
             // absorb the forms a stuck head still hides
             let chain = loop {
                 let chain = self.form_chain(origin, arm)?;
-                let head = self.check.structurally_normalize(origin, chain.base())?;
+                let head = self.structurally_normalize(origin, chain.base())?;
                 if head == chain.base() || !matches!(self.ty(head)?, dir::Type::Form(_)) {
                     break chain;
                 }
-                arm = self.check.replace_form_value(origin, arm, head)?;
+                arm = self.replace_form_value(origin, arm, head)?;
             };
 
             // keep the one borrow arm
@@ -1271,6 +1289,7 @@ impl BodyState<'_, '_> {
             _ => self.normalized_intersection_type(value_types)?,
         };
 
+        // carry the selected write calls with their key types
         let selection = SubscriptSelection::call_write(resolution, value, key_types.into())?;
 
         Ok(Some(selection))
@@ -1283,6 +1302,7 @@ impl BodyState<'_, '_> {
         resolution: &dir::MemberDecision,
         sources: &[dir::ArgumentSource],
     ) -> CompilerResult<Option<dir::CallDecision>> {
+        // select one write call per runtime arm
         match resolution {
             dir::OperationResolution::One(access) => {
                 let call = self.subscript_write_access_call(origin, access, sources)?;
@@ -1442,7 +1462,24 @@ impl BodyState<'_, '_> {
             return Ok(Verdict::Fails);
         };
 
-        self.decide_relation(origin, relation, call.return_type, read_type)
+        // read the selected place and its missing cases as the signature's value
+        let mut types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+        match call.resolution {
+            dir::OperationResolution::One(call) => {
+                types.push(self.project_index_call(origin, call)?.ty);
+            }
+            dir::OperationResolution::Union { arms, .. } => {
+                for call in arms {
+                    types.push(self.project_index_call(origin, call)?.ty);
+                }
+            }
+        }
+        let read = match types.as_slice() {
+            [single] => *single,
+            _ => self.normalized_union_type(types)?,
+        };
+
+        self.decide_relation(origin, relation, read, read_type)
     }
 
     /// Decide whether `IndexSet<I>` accepts values compatible with one signature.
@@ -1511,12 +1548,15 @@ fn project_subscript_receiver(
     receiver: dir::GlobalTypeId,
     steps: &[dir::ReceiverAdjustment],
 ) {
+    // require a subscript decision with receiver steps to attach
     if steps.is_empty() {
         return;
     }
     let dir::Decision::Subscript(resolution) = decision else {
         return;
     };
+
+    // attach the steps to every runtime arm
     let arms: &mut [dir::Subscript] = match resolution {
         dir::OperationResolution::One(subscript) => std::slice::from_mut(subscript),
         dir::OperationResolution::Union { arms, .. } => arms,
@@ -1541,6 +1581,7 @@ fn project_member_target(
     receiver: dir::GlobalTypeId,
     steps: &[dir::ReceiverAdjustment],
 ) {
+    // attach the steps to whichever receiver the target carries
     match target {
         dir::MemberTarget::Projection {
             receiver: adjusted, ..
@@ -1593,6 +1634,7 @@ fn project_adjusted_receiver(
     receiver: dir::GlobalTypeId,
     steps: &[dir::ReceiverAdjustment],
 ) {
+    // prepend the projection steps in written order
     adjusted.source = receiver;
     for step in steps.iter().rev() {
         adjusted.adjustments.insert(0, step.clone());

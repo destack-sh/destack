@@ -45,6 +45,7 @@ impl CheckState<'_> {
             }
         }
 
+        // join what the elements leave
         match kept.as_slice() {
             [] => self.intern_type(dir::Type::Unknown),
             [single] => Ok(*single),
@@ -130,7 +131,7 @@ impl CheckState<'_> {
                     return self.intern_type(dir::Type::Never);
                 }
             };
-            let verdict = self.decide_relation(origin, Relation::Assignable, narrow, wide)?;
+            let verdict = self.decide_relation(origin, Relation::Subtype, narrow, wide)?;
             if !verdict.holds() {
                 return self.intern_type(dir::Type::Never);
             }
@@ -261,6 +262,7 @@ impl CheckState<'_> {
             return Ok(shape);
         }
 
+        // rebuild the intersection around the merged shape
         let mut elements = vec![shape];
         elements.extend(others);
         let elements = self.intern_type_ids(&elements)?;
@@ -320,6 +322,7 @@ impl CheckState<'_> {
             .object_index_signatures(module, shape.index_signatures)?
             .to_vec();
 
+        // seed the merge from the first shape
         let Some(merged) = merged.as_mut() else {
             *merged = Some(ObjectMerge {
                 fields,
@@ -331,6 +334,7 @@ impl CheckState<'_> {
             return Ok(());
         };
 
+        // merge each field into the collected set
         for field in fields {
             let Some(index) = merged
                 .fields
@@ -366,6 +370,7 @@ impl CheckState<'_> {
             merged.fields[index].is_optional &= field.is_optional;
         }
 
+        // collect the signatures of every merged shape
         merged.call_signatures.extend(call_signatures);
         merged.construct_signatures.extend(construct_signatures);
         merged.index_signatures.extend(index_signatures);

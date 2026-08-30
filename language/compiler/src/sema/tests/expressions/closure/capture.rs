@@ -52,7 +52,7 @@ function make(): () => int64 {
     return next;
     /// @type.node source=next type=Function<(), int64>
     /// @resolution.name source=next target=make.next
-    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=next placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=next root=make.next
 
 }
@@ -201,7 +201,7 @@ function run(): void {
     /// @type.node source=foo() type=void
     /// @resolution.name source=foo target=run.foo
     /// @resolution.call source=foo() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=foo placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=foo placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=foo root=run.foo
 
     boo();
@@ -209,7 +209,7 @@ function run(): void {
     /// @type.node source=boo() type=void
     /// @resolution.name source=boo target=run.boo
     /// @resolution.call source=boo() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=boo placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=boo placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=boo root=run.boo
 
 }
@@ -245,9 +245,9 @@ function make(): () => int64 {
     let step: int64 = 2;
 
     @capture({
-        default: "manage" as CaptureMode,
-        step: "copy" as CaptureMode,
-    })
+        default: "manage",
+        step: "copy",
+    } as CaptureDirective)
     const next: () => int64 = (): int64 => count + step;
     return next;
 }
@@ -304,7 +304,7 @@ function make(): () => int64 {
     return next;
     /// @type.node source=next type=Function<(), int64>
     /// @resolution.name source=next target=make.next
-    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=next placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=next root=make.next
 
 }
@@ -352,13 +352,13 @@ function connect(): void {
     let socket: Socket = Socket {};
 
     @capture({
-        default: "manage" as CaptureMode,
-        socket: "move" as CaptureMode,
-    })
-    const send: ^((arg0: string) => void) = (message: string): void => {
+        default: "manage",
+        socket: "move",
+    } as CaptureDirective)
+    const send: ^((arg0: string) => void) = ((message: string): void => {
         count += 1;
-        socket.write<"local">(message);
-    };
+        socket.write(message);
+    }) as ^((arg0: string) => void);
 
     send("ping");
 }
@@ -367,11 +367,11 @@ function connect(): void {
 struct Socket {
 /// @type.symbol symbol=Socket type=Socket
 /// @definition.struct symbol=Socket
-/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a, Socket.write.P1: Place>(this: &Socket.write.'a readonly Socket, string) => void
+/// @definition.method symbol=Socket.write source="write(message: string): void {}" slot=write type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
 
     write(message: string): void {}
-    /// @generic.template symbol=Socket.write parameters=('a, P1: Place)
-    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a, Socket.write.P1: Place>(this: &Socket.write.'a readonly Socket, string) => void
+    /// @generic.template symbol=Socket.write parameters=('a)
+    /// @type.symbol symbol=Socket.write source="write(message: string): void {}" type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
     /// @type.symbol symbol=Socket.write.this type=&Socket.write.'a readonly Socket
     /// @capture.function function=Socket.write bindings=0
     /// @type.symbol symbol=Socket.write.message source="message: string" type=string
@@ -410,7 +410,7 @@ function connect(): void {
     /// @resolution.pattern source=send kind=binding target=connect.send
     /// @resolution.name source=Function target=Function
     /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void>
-    /// @type.node type=Owned<Function<(string,), void>>
+    /// @type.node type=Function<(string,), void>
     /// @capture.function function=connect.symbol8 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=connect.symbol8 symbol=count mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=connect.symbol8 symbol=socket mode=move type=Socket
@@ -432,15 +432,13 @@ function connect(): void {
 
         socket.write(message);
         /// @type.node source=socket type=Socket
-        /// @type.node source=socket.write type=<Socket.write.'a, Socket.write.P1: Place>(this: &Socket.write.'a readonly Socket, string) => void
+        /// @type.node source=socket.write type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void
         /// @type.node source=socket.write(message) type=void
         /// @resolution.name source=socket target=connect.socket
-        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a, Socket.write.P1: Place>(this: &Socket.write.'a readonly Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
-        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket)) instance="Socket.write<\"local\">"
+        /// @resolution.member source=socket.write receiver=Socket type=<Socket.write.'a>(this: &Socket.write.'a readonly Socket, string) => void kind=symbol target_receiver=Socket target=Socket.write
+        /// @resolution.call source=socket.write(message) parameters=(string) arguments=(provided(message) as string) return=void kind=symbol target=Socket.write receiver=Socket adjustments=(borrow(&'frame readonly Socket))
         /// @resolution.place source=socket placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=socket root=connect.socket
-        /// @generic.instantiation id="Socket.write<\"local\">" template=Socket.write arguments=("local")
-        /// @generic.instance id="Socket.write<\"local\">" template=Socket.write arguments=("local")
         /// @type.node source=message type=string
         /// @resolution.name source=message target=connect.symbol8.message
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
@@ -492,8 +490,8 @@ declare class Client {
 function make(): () => Promise<string> {
     let client: Client = new Client();
 
-    @capture("copy")
-    const load = async () => await client.read<"local">();
+    @capture("copy" as CaptureDirective)
+    const load = async () => await client.read();
     return load;
 }
 
@@ -568,7 +566,7 @@ function make(): () => Promise<string> {
     return load;
     /// @type.node source=load type=Function<(), Promise<string>>
     /// @resolution.name source=load target=make.load
-    /// @resolution.place source=load placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=load placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=load root=make.load
 
 }
@@ -683,7 +681,7 @@ const reset = () => ({ value: (current = 0) });
         r#"
 === annotated ===
 let current: int64 = 1;
-const reset: () => { value: 0 } = (): { value: 0 } => ({ value: (current = 0) });
+const reset: () => { value: int64 } = (): { value: int64 } => ({ value: (current = 0) });
 
 === dir ===
 let current = 1;
@@ -691,9 +689,9 @@ let current = 1;
 /// @resolution.pattern source=current kind=binding target=current
 
 const reset = () => ({ value: (current = 0) });
-/// @type.symbol symbol=reset source=reset type=Function<(), { value: 0 }>
+/// @type.symbol symbol=reset source=reset type=Function<(), { value: int64 }>
 /// @resolution.pattern source=reset kind=binding target=reset
-/// @type.symbol symbol=symbol2 source=() => ({ value: (current = 0) }) type=Function<(), { value: 0 }>
+/// @type.symbol symbol=symbol2 source=() => ({ value: (current = 0) }) type=Function<(), { value: int64 }>
 /// @resolution.name source=current target=current
 /// @resolution.pattern.assign source=current kind=place
 /// @resolution.access source=current root=current

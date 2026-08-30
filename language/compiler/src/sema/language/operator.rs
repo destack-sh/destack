@@ -74,6 +74,7 @@ impl OperatorMethod {
 
     /// Return the source member name for this protocol method.
     fn name(self) -> &'static str {
+        // name each protocol method
         match self {
             Self::Add => "add",
             Self::Subtract => "subtract",
@@ -144,7 +145,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<bool> {
         // decide the exact capability through the ordinary interface relation
         let target = self.language_type(dir::LanguageItem::StrictEqual, &[right])?;
-        if self.decide_relation(origin, Relation::Satisfies, left, target)? != Verdict::Fails {
+        if self.decide_relation(origin, Relation::Subtype, left, target)? != Verdict::Fails {
             return Ok(true);
         }
 
@@ -166,12 +167,11 @@ impl CheckState<'_> {
         if let Some(instance) = self.decompose_newtype(origin, left)? {
             return self.has_builtin_strict_equality(origin, instance.backing, right);
         }
-
         if let Some(instance) = self.decompose_newtype(origin, right)? {
             return self.has_builtin_strict_equality(origin, left, instance.backing);
         }
 
-        // accept disjoint types, the caller reports their empty overlap
+        // accept disjoint types and leave their empty overlap to the caller
         if !self.types_may_overlap(origin, left, right)? {
             return Ok(true);
         }
@@ -187,7 +187,6 @@ impl CheckState<'_> {
 
             return Ok(true);
         }
-
         if let dir::Type::Union(union) = self.ty(right)? {
             let elements = self.type_ids(right.module_id, union.elements)?.to_vec();
             for element in elements {
@@ -233,6 +232,7 @@ impl CheckState<'_> {
         protocol: &OperatorProtocol,
         type_arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<Protocol> {
+        // start from the written type arguments
         let module = origin.module();
         let mut arguments = Vec::with_capacity(type_arguments.len() + protocol.arguments.len());
         arguments.extend_from_slice(type_arguments);
@@ -256,6 +256,7 @@ pub(in crate::sema) fn unary_operator_protocols(
     operator: dir::UnaryOperator,
     access: dir::Access,
 ) -> SmallVec<[OperatorProtocol; 2]> {
+    // name the protocol each unary operator uses
     let protocol = match operator {
         dir::UnaryOperator::Negate => OperatorProtocol::new(
             dir::LanguageItem::Negate,
@@ -293,6 +294,7 @@ pub(in crate::sema) fn unary_operator_protocols(
 pub(in crate::sema) fn binary_operator_protocols(
     operator: dir::BinaryOperator,
 ) -> SmallVec<[OperatorProtocol; 2]> {
+    // name the protocols each binary operator uses
     match operator {
         dir::BinaryOperator::Add => {
             smallvec![OperatorProtocol::new(

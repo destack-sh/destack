@@ -235,7 +235,7 @@ parse("128");
 === annotated ===
 declare function parse<T: int8>(value: `${T}`): T;
 
-parse("128");
+parse<int8>("128");
 
 === dir ===
 declare function parse<T: int8>(value: `${T}`): T;
@@ -248,10 +248,11 @@ declare function parse<T: int8>(value: `${T}`): T;
 
 parse("128");
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"128\")" parameters=(`${<error>}`) arguments=(provided("128") as `${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @resolution.call source="parse(\"128\")" parameters=(`${int8}`) arguments=(provided("128") as `${int8}`) return=int8 kind=symbol target=parse instance=parse<int8>
+/// @generic.instantiation id=parse<int8> template=parse arguments=(int8)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '\"128\"' is not assignable to parameter of type '`${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"128\"' is not assignable to parameter of type '`${int8}`'"
 /// @diagnostic.label line=4 column=7 span="\"128\"" line_source="parse(\"128\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"128\")" line_source="parse(\"128\");" message="in this call"
 "#,

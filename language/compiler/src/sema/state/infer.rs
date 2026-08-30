@@ -1,18 +1,13 @@
-use std::backtrace::Backtrace;
-use std::sync::OnceLock;
-
 use destack_core::FxIndexMap;
 use destack_dir as dir;
-use rustc_hash::FxHashSet;
 
 use crate::sema::{
-    BoundSide, Cause, CauseArena, CauseId, CheckId, CheckOutcome, CheckTable, Fulfillment,
-    GenericParameterId, InferenceScope, Origin, OriginArena, OriginId, RelationStack, TypeBound,
-    Variable, VariableKind, VariableRole, VariableState, VariableTable,
+    Bound, BoundList, BoundSide, Cause, CauseArena, CauseId, GenericParameterId, Origin,
+    OriginArena, OriginId, RelationStack, Variable, VariableKind, VariableState, VariableTable,
 };
 use crate::{CompilerError, CompilerResult};
 
-/// One module's transient inference: variables, their trail, and pending work.
+/// One module's transient inference: variables, decisions, and pending work.
 pub(in crate::sema) struct InferContext {
     // open inference
     /// Inference variables and their bounds.
@@ -37,51 +32,33 @@ pub(in crate::sema) struct InferContext {
     /// Interned constraint causes.
     pub(in crate::sema) causes: CauseArena,
 
-    // speculation
-    /// Inference mutations pushed while speculation is active.
-    pub(in crate::sema) trail: Vec<InferUndo>,
-    /// The number of nested trail marks.
-    pub(in crate::sema) marks: usize,
-    /// Rollback-poisoned variables, tracked under the residue trap.
-    rollback_poisoned: FxHashSet<dir::TypeVariableId>,
+    // decisions
+    /// Open decision snapshots, outermost first.
+    pub(in crate::sema) snapshots: Vec<Snapshot>,
+    /// The writes the open decisions made to state older than themselves, in order.
+    pub(in crate::sema) trail: Vec<Undo>,
 }
 
-/// One inference trail entry.
-#[derive(Debug, Clone)]
-pub(in crate::sema) enum InferUndo {
-    /// Undo one variable mutation.
-    Variable {
-        /// The changed variable.
-        id: dir::TypeVariableId,
-        /// The previous variable and role, absent for undone allocations.
-        previous: Option<(Variable, VariableRole)>,
-    },
-    /// Undo one bound append.
-    Bound {
-        /// The bounded variable.
-        id: dir::TypeVariableId,
-        /// The appended side.
-        side: BoundSide,
-    },
-    /// Undo one declared default.
-    Default {
-        /// The defaulted variable.
-        id: dir::TypeVariableId,
-        /// The previous default.
-        previous: Option<dir::GlobalTypeId>,
-    },
-    /// Undo one check entry mutation.
-    Check {
-        /// The changed check.
-        id: CheckId,
-        /// The previous completed outcome.
-        previous: Option<CheckOutcome>,
-    },
-    /// Undo one stored instantiation.
-    Instantiation {
-        /// The typing position that opened the parameter.
-        key: (OriginId, GenericParameterId),
-    },
+/// One open decision's marks, restoring the state older than the decision on rollback.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::sema) struct Snapshot {
+    /// The trail length when the decision opened.
+    pub(in crate::sema) trail: usize,
+    /// The variable count when the decision opened.
+    pub(in crate::sema) variables: usize,
+    /// The bound count when the decision opened.
+    pub(in crate::sema) bounds: usize,
+    /// The check count when the decision opened.
+    pub(in crate::sema) checks: usize,
+}
+
+/// One write a decision made to state older than itself.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::sema) enum Undo {
+    /// One variable's entry before the write.
+    Variable(dir::TypeVariableId, Variable),
+    /// One node type the decision committed.
+    NodeType(dir::GlobalNodeIdAny),
 }
 
 impl InferContext {
@@ -96,84 +73,92 @@ impl InferContext {
             sealed: false,
             scope_depth: 0,
             symbol_variables: FxIndexMap::default(),
+            snapshots: Vec::new(),
             trail: Vec::new(),
-            marks: 0,
-            rollback_poisoned: FxHashSet::default(),
         }
     }
-}
 
-/// Mark of the inference trail before one speculative attempt.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) struct TrailMark {
-    /// The variable count at the mark.
-    variables: usize,
-    /// The check count at the mark.
-    checks: usize,
-    /// The trail length at the mark.
-    trail: usize,
-}
-
-impl TrailMark {
-    /// Return the inference scope opened by this mark.
-    pub(in crate::sema) fn inference_scope(&self) -> InferenceScope {
-        InferenceScope::open(self.variables)
+    /// Return whether a decision is open.
+    pub(in crate::sema) fn is_deciding(&self) -> bool {
+        !self.snapshots.is_empty()
     }
 
-    /// Return the check count at this mark.
-    pub(in crate::sema) fn check_count(&self) -> usize {
-        self.checks
-    }
-}
-
-impl InferContext {
-    /// Mark the trail before one speculative attempt.
-    pub(in crate::sema) fn mark(&mut self, fulfill: &mut Fulfillment) -> TrailMark {
-        self.marks += 1;
-
-        fulfill.open_speculation();
-
-        TrailMark {
-            variables: self.variables.count(),
-            checks: fulfill.checks.count(),
+    /// Open one decision snapshot.
+    pub(in crate::sema) fn snapshot(&mut self, checks: usize) -> Snapshot {
+        let snapshot = Snapshot {
             trail: self.trail.len(),
-        }
+            variables: self.variables.count(),
+            bounds: self.variables.bound_count(),
+            checks,
+        };
+        self.snapshots.push(snapshot);
+
+        snapshot
     }
 
-    /// Roll inference state back to one trail mark.
-    ///
-    /// Allocation is permanent, binding is speculative: interned entries may still reference a
-    /// rolled-back variable, so its slot stays allocated and poisons to the error type.
-    pub(in crate::sema) fn rollback(
-        &mut self,
-        mark: TrailMark,
-        poison: dir::GlobalTypeId,
-        fulfill: &mut Fulfillment,
-    ) -> CompilerResult<()> {
-        // undo every mutation pushed past the mark
-        while self.trail.len() > mark.trail {
-            let undo = self.trail.pop().ok_or_else(|| CompilerError::Internal {
-                message: "solver trail ended before its mark".into(),
-            })?;
+    /// Close the innermost decision, restoring the state older than it and returning the node
+    /// types it committed.
+    pub(in crate::sema) fn rollback(&mut self) -> CompilerResult<Vec<dir::GlobalNodeIdAny>> {
+        let Some(snapshot) = self.snapshots.pop() else {
+            return Err(CompilerError::Internal {
+                message: "rollback without an open decision".to_string(),
+            });
+        };
 
-            self.rollback_undo(undo, poison, fulfill)?;
+        // replay the writes in reverse
+        let mut nodes = Vec::new();
+        let mut restored = Vec::new();
+        while self.trail.len() > snapshot.trail {
+            let Some(undo) = self.trail.pop() else {
+                break;
+            };
+            match undo {
+                Undo::Variable(id, previous) => {
+                    *self.variables.get_mut(id)? = previous;
+                    restored.push(id);
+                }
+                Undo::NodeType(node) => nodes.push(node),
+            }
         }
 
-        // drop the speculative checks with their scheduling, then close the mark
-        fulfill.truncate(mark.checks);
-        fulfill.abandon_speculation();
-        self.marks -= 1;
+        // drop the bounds the decision appended, unlinking them from the restored tails
+        self.variables.truncate_bounds(snapshot.bounds);
+        for id in restored {
+            self.variables.seal_tails(id)?;
+        }
+
+        // drop the bounds the scratch variables collected, which the truncation dropped
+        for index in snapshot.variables..self.variables.count() {
+            let scratch = self.variables.get_mut(dir::TypeVariableId(index as u32))?;
+            scratch.lower = BoundList::new();
+            scratch.upper = BoundList::new();
+        }
+
+        Ok(nodes)
+    }
+
+    /// Log one write to a variable older than the open decision.
+    fn log_variable(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
+        if let Some(snapshot) = self.snapshots.last()
+            && (id.0 as usize) < snapshot.variables
+        {
+            let previous = *self.variables.get(id)?;
+            self.trail.push(Undo::Variable(id, previous));
+        }
 
         Ok(())
     }
 
-    /// Close one trail mark, keeping the mutations it pushed.
-    pub(in crate::sema) fn commit(&mut self, _mark: TrailMark, fulfill: &mut Fulfillment) {
-        fulfill.commit_speculation();
-        self.marks -= 1;
-        if self.marks == 0 {
-            self.trail.clear();
+    /// Log one node type the open decision commits.
+    pub(in crate::sema) fn log_node_type(&mut self, node: dir::GlobalNodeIdAny) {
+        if self.is_deciding() {
+            self.trail.push(Undo::NodeType(node));
         }
+    }
+
+    /// Return the number of checks the innermost open decision leaves alone.
+    pub(in crate::sema) fn decided_checks(&self) -> usize {
+        self.snapshots.last().map_or(0, |last| last.checks)
     }
 
     /// Open one inference variable.
@@ -181,25 +166,12 @@ impl InferContext {
         &mut self,
         origin: Origin,
         kind: VariableKind,
-        role: VariableRole,
     ) -> dir::TypeVariableId {
         let variable = dir::TypeVariableId(self.variables.count() as u32);
-        self.push_undo(InferUndo::Variable {
-            id: variable,
-            previous: None,
-        });
         let origin = self.origins.intern(origin);
-        self.variables.allocate(variable, origin, kind, role);
+        self.variables.allocate(variable, origin, kind);
 
         variable
-    }
-
-    /// Return one variable's role.
-    pub(in crate::sema) fn variable_role(
-        &self,
-        id: dir::TypeVariableId,
-    ) -> CompilerResult<VariableRole> {
-        self.variables.role(id)
     }
 
     /// Intern one check origin.
@@ -227,15 +199,12 @@ impl InferContext {
         &mut self,
         id: dir::TypeVariableId,
         side: BoundSide,
-        bound: TypeBound,
+        bound: Bound,
     ) -> CompilerResult<bool> {
         let id = self.alias_root(id)?;
-        let pushed = self.variables.push_bound(id, side, bound)?;
-        if pushed {
-            self.push_undo(InferUndo::Bound { id, side });
-        }
+        self.log_variable(id)?;
 
-        Ok(pushed)
+        self.variables.push_bound(id, side, bound)
     }
 
     /// Set the declared default completing one variable.
@@ -243,12 +212,10 @@ impl InferContext {
         &mut self,
         id: dir::TypeVariableId,
         default: dir::GlobalTypeId,
-    ) {
-        self.push_undo(InferUndo::Default {
-            id,
-            previous: self.variables.variable_default(id),
-        });
-        self.variables.set_default(id, default);
+    ) -> CompilerResult<()> {
+        self.variable_mut(id)?.default = Some(default);
+
+        Ok(())
     }
 
     /// Return one variable.
@@ -259,27 +226,14 @@ impl InferContext {
         self.variables.get(variable)
     }
 
-    /// Return one variable mutably.
+    /// Return one variable mutably, logging the write for the open decision.
     pub(in crate::sema) fn variable_mut(
         &mut self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<&mut Variable> {
-        self.push_variable_undo(variable)?;
+        self.log_variable(variable)?;
 
         self.variables.get_mut(variable)
-    }
-
-    /// Set one check's outcome, pushing its prior state on the trail.
-    pub(in crate::sema) fn set_check_result(
-        &mut self,
-        checks: &mut CheckTable,
-        id: CheckId,
-        outcome: Option<CheckOutcome>,
-    ) -> CompilerResult<()> {
-        self.push_check_undo(checks, id)?;
-        checks.set_result(id, outcome)?;
-
-        Ok(())
     }
 
     /// Return the root that one variable forwards to.
@@ -288,10 +242,7 @@ impl InferContext {
         variable: dir::TypeVariableId,
     ) -> CompilerResult<dir::TypeVariableId> {
         let mut current = variable;
-        loop {
-            let VariableState::Alias(next) = self.variable(current)?.state else {
-                break;
-            };
+        while let VariableState::Alias(next) = self.variable(current)?.state {
             current = next;
         }
 
@@ -303,32 +254,7 @@ impl InferContext {
         &self,
         variable: dir::TypeVariableId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let root = self.alias_root(variable)?;
-        self.trap_rollback_read(root);
-
-        Ok(self.variable(root)?.state.ty())
-    }
-
-    /// Report one live read of a rollback-poisoned variable under the residue trap.
-    pub(in crate::sema) fn trap_rollback_read(&self, variable: dir::TypeVariableId) {
-        if !residue_trap_enabled() || !self.rollback_poisoned.contains(&variable) {
-            return;
-        }
-
-        // render the reading frames past the trap's own machinery
-        let trace = Backtrace::force_capture().to_string();
-        let frames: Vec<&str> = trace
-            .lines()
-            .filter(|line| line.contains("destack_compiler::sema"))
-            .skip(TRAP_MACHINERY_FRAMES)
-            .take(TRAP_REPORTED_FRAMES)
-            .map(|line| line.trim())
-            .collect();
-        eprintln!(
-            "ROLLBACK-READ var={} frames={}",
-            variable.0,
-            frames.join(" << ")
-        );
+        Ok(self.variable(self.alias_root(variable)?)?.state.ty())
     }
 
     /// Return all variable entries.
@@ -338,32 +264,9 @@ impl InferContext {
         self.variables.iter()
     }
 
-    /// Return whether trail entries past one point solved a variable
-    /// allocated before it.
-    pub(in crate::sema) fn solves_variable_before(
-        &self,
-        trail_from: usize,
-        variables: usize,
-    ) -> bool {
-        self.trail[trail_from..].iter().any(|undo| match undo {
-            InferUndo::Variable {
-                id,
-                previous: Some((variable, _)),
-            } => (id.0 as usize) < variables && variable.state.is_open(),
-            _ => false,
-        })
-    }
-
     /// Return the number of allocated variables.
     pub(in crate::sema) fn variable_count(&self) -> usize {
         self.variables.count()
-    }
-
-    /// Push one trail entry if speculation is active.
-    fn push_undo(&mut self, undo: InferUndo) {
-        if self.marks > 0 {
-            self.trail.push(undo);
-        }
     }
 
     /// Seal typing positions once solutions are final, so later projections instantiate fresh.
@@ -392,95 +295,11 @@ impl InferContext {
         parameter: GenericParameterId,
         variable: dir::TypeVariableId,
     ) {
-        // sealed positions stay unclaimed
-        if self.sealed {
+        // sealed positions stay unclaimed, decisions own their instantiations
+        if self.sealed || self.is_deciding() {
             return;
         }
 
-        self.push_undo(InferUndo::Instantiation {
-            key: (origin, parameter),
-        });
         self.instantiations.insert((origin, parameter), variable);
     }
-
-    /// Push one variable's prior state if speculation is active.
-    fn push_variable_undo(&mut self, id: dir::TypeVariableId) -> CompilerResult<()> {
-        if self.marks > 0 {
-            let previous = *self.variables.get(id)?;
-            let role = self.variables.role(id)?;
-            self.trail.push(InferUndo::Variable {
-                id,
-                previous: Some((previous, role)),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Push one check entry if speculation is active.
-    fn push_check_undo(&mut self, checks: &CheckTable, id: CheckId) -> CompilerResult<()> {
-        if self.marks > 0 {
-            self.trail.push(InferUndo::Check {
-                id,
-                previous: checks.result(id)?.cloned(),
-            });
-        }
-
-        Ok(())
-    }
-
-    /// Undo one trail entry.
-    fn rollback_undo(
-        &mut self,
-        undo: InferUndo,
-        poison: dir::GlobalTypeId,
-        fulfill: &mut Fulfillment,
-    ) -> CompilerResult<()> {
-        match undo {
-            InferUndo::Variable { id, previous } => match previous {
-                Some((previous, role)) => {
-                    *self.variables.get_mut(id)? = previous;
-                    self.variables.set_role(id, role)?;
-                }
-                // poison undone allocations, keeping their slot
-                None => {
-                    self.variables.get_mut(id)?.state = VariableState::Error(poison);
-
-                    // remember the poisoned slot for the residue trap
-                    if residue_trap_enabled() {
-                        self.rollback_poisoned.insert(id);
-                    }
-                }
-            },
-            InferUndo::Bound { id, side } => {
-                self.variables.pop_bound(id, side)?;
-            }
-            InferUndo::Default { id, previous } => match previous {
-                Some(previous) => self.variables.set_default(id, previous),
-                None => self.variables.remove_default(id),
-            },
-            InferUndo::Check { id, previous } => fulfill.checks.set_result(id, previous)?,
-            InferUndo::Instantiation { key } => {
-                self.instantiations.swap_remove(&key);
-            }
-        }
-
-        Ok(())
-    }
-}
-
-/// The environment variable enabling the rollback-residue trap.
-const RESIDUE_TRAP_VARIABLE: &str = "DESTACK_RESIDUE_TRAP";
-
-/// The trap's own frames skipped from every reported backtrace.
-const TRAP_MACHINERY_FRAMES: usize = 2;
-
-/// The reading frames each trap report keeps.
-const TRAP_REPORTED_FRAMES: usize = 10;
-
-/// Return whether the rollback-residue trap is enabled for this process.
-fn residue_trap_enabled() -> bool {
-    static ENABLED: OnceLock<bool> = OnceLock::new();
-
-    *ENABLED.get_or_init(|| std::env::var(RESIDUE_TRAP_VARIABLE).is_ok())
 }

@@ -472,7 +472,7 @@ function classify(character: char): boolean {
         r#"
 === annotated ===
 function classify(character: char): boolean {
-    return character.isAsciiAlphabetic<"local">() || character.isAsciiDigit<"local">();
+    return character.isAsciiAlphabetic() || character.isAsciiDigit();
 }
 
 === dir ===
@@ -482,18 +482,16 @@ function classify(character: char): boolean {
 
     return character.isAsciiAlphabetic() || character.isAsciiDigit();
     /// @resolution.name source=character target=classify.character
-    /// @resolution.member source=character.isAsciiAlphabetic receiver=char type=<Character.isAsciiAlphabetic.'a, Character.isAsciiAlphabetic.P1: Place>(this: Borrowed<char, Character.isAsciiAlphabetic.'a & Character.isAsciiAlphabetic.P1, "readonly">) => boolean kind=symbol target_receiver=char target=Character.isAsciiAlphabetic
-    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean kind=symbol target=Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char)) instance="Character.isAsciiAlphabetic<\"local\">"
+    /// @resolution.member source=character.isAsciiAlphabetic receiver=char type=<Character.isAsciiAlphabetic.'a>(this: &Character.isAsciiAlphabetic.'a readonly char) => boolean kind=symbol target_receiver=char target=Character.isAsciiAlphabetic
+    /// @resolution.call source=character.isAsciiAlphabetic() parameters=() return=boolean kind=symbol target=Character.isAsciiAlphabetic receiver=char adjustments=(borrow(&'frame readonly char))
     /// @resolution.operator source="character.isAsciiAlphabetic() || character.isAsciiDigit()" type=boolean operator="||" kind=builtin operands=[character.isAsciiAlphabetic() as boolean families=(boolean), character.isAsciiDigit() as boolean families=(boolean)]
     /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=character root=classify.character
-    /// @generic.instantiation id="Character.isAsciiAlphabetic<\"local\">" template=Character.isAsciiAlphabetic arguments=("local")
     /// @resolution.name source=character target=classify.character
-    /// @resolution.member source=character.isAsciiDigit receiver=char type=<Character.isAsciiDigit.'a, Character.isAsciiDigit.P1: Place>(this: Borrowed<char, Character.isAsciiDigit.'a & Character.isAsciiDigit.P1, "readonly">) => boolean kind=symbol target_receiver=char target=Character.isAsciiDigit
-    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean kind=symbol target=Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char)) instance="Character.isAsciiDigit<\"local\">"
+    /// @resolution.member source=character.isAsciiDigit receiver=char type=<Character.isAsciiDigit.'a>(this: &Character.isAsciiDigit.'a readonly char) => boolean kind=symbol target_receiver=char target=Character.isAsciiDigit
+    /// @resolution.call source=character.isAsciiDigit() parameters=() return=boolean kind=symbol target=Character.isAsciiDigit receiver=char adjustments=(borrow(&'frame readonly char))
     /// @resolution.place source=character placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=character root=classify.character
-    /// @generic.instantiation id="Character.isAsciiDigit<\"local\">" template=Character.isAsciiDigit arguments=("local")
 
 }
 "#,
@@ -723,13 +721,13 @@ function prepare(values: [int32]): void {
 declare function fill<'a>(buffer: &'a exclusive [int32]): void;
 
 function prepare(values: [int32]): void {
-    fill<"local">(&exclusive values);
+    fill(&exclusive values);
 }
 
 === dir ===
 declare function fill(buffer: &exclusive [int32]): void;
-/// @generic.template symbol=fill parameters=('a, P1: Place)
-/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a, fill.P1: Place>(&fill.'a exclusive Slice<int32>) => void
+/// @generic.template symbol=fill parameters=('a)
+/// @type.symbol symbol=fill source="declare function fill(buffer: &exclusive [int32]): void" type=<fill.'a>(&fill.'a exclusive Slice<int32>) => void
 /// @flow.use symbol=fill uses=read
 /// @type.symbol symbol=fill.buffer source="buffer: &exclusive [int32]" type=&fill.'a exclusive Slice<int32>
 
@@ -740,8 +738,7 @@ function prepare(values: [int32]): void {
 
     fill(&exclusive values);
     /// @resolution.name source=fill target=fill
-    /// @resolution.call source="fill(&exclusive values)" parameters=(&'frame exclusive Slice<int32>) arguments=(provided(&exclusive values) as &'frame exclusive Slice<int32>) return=void kind=symbol target=fill instance="fill<\"local\">"
-    /// @generic.instantiation id="fill<\"local\">" template=fill arguments=("local")
+    /// @resolution.call source="fill(&exclusive values)" parameters=(&'frame exclusive Slice<int32>) arguments=(provided(&exclusive values) as &'frame exclusive Slice<int32>) return=void kind=symbol target=fill
     /// @resolution.name source=values target=prepare.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=prepare.values
@@ -775,8 +772,8 @@ function feed(output: Array<int32>, values: [int32]): void {
 declare function consume(values: Iterable<int32>): void;
 
 function feed(output: int32[], values: [int32]): void {
-    output.push<int32, "local">(1, ...[2, 3], 4);
-    consume([...values]);
+    output.push<int32>(1, ...[2, 3], 4);
+    consume([...values] as Iterable<int32>);
 }
 
 === dir ===
@@ -793,14 +790,13 @@ function feed(output: Array<int32>, values: [int32]): void {
 
     output.push(1, ...[2, 3], 4);
     /// @resolution.name source=output target=feed.output
-    /// @resolution.member source=output.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
+    /// @resolution.member source=output.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
     /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=output root=feed.output
-    /// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
+    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
     /// @resolution.call source=[2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
-    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 
     consume([...values]);
     /// @resolution.name source=consume target=consume

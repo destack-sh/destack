@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    Cause, CauseKind, Check, CheckState, Expectation, FlowSite, FlowState, InducedParameterOwner,
-    NodeCheck, Origin, Relation, RelationCheck, ValueUse, VariableRole,
+    Cause, CauseKind, CheckState, Expectation, FlowSite, FlowState, InducedParameterOwner, Origin,
+    Relation, RelationCheck, ValueUse, VariableKind,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -150,8 +150,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let site = self.node_site(id)?;
         let cause = self.check.intern_cause(Cause::root(site.origin(), kind));
         let expectation = Expectation::assignable(target, cause, use_);
-        self.check
-            .queue_check(Check::Node(NodeCheck { site, expectation }))?;
+        self.check.check_node(site, expectation)?;
 
         Ok(())
     }
@@ -199,73 +198,34 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Return the region one borrow with an elided region carries.
-    ///
-    /// Signature positions induce one hidden region parameter, return
-    /// positions track a placeholder for election, body positions close the
-    /// extent at the frame and leave the spaces to inference, and ambient
-    /// module bindings reference constant storage.
     pub(in crate::sema) fn elided_borrow_region(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // signatures and returns elide the whole region as one term
         match self.region_elision {
-            // signature positions induce one hidden region parameter per coordinate
-            ElisionSite::Signature => {
-                let extent = self.induce_memory_parameter(source, dir::MemoryParameter::Region)?;
-                let spaces = self.induce_memory_parameter(source, dir::MemoryParameter::Place)?;
-
-                self.check.intern_region(extent, spaces)
+            ElisionSite::Signature | ElisionSite::Member => {
+                return self.induce_memory_parameter(source, dir::MemoryParameter::Region);
             }
-
-            // return positions track one placeholder replaced by the elected input
-            ElisionSite::Return => {
-                let region = self.open_memory_hole(source, dir::MemoryParameter::Region)?;
-                if let Some(variable) = self.check.root_variable(region)? {
-                    self.elided_return_regions.push(variable);
-                }
-
-                Ok(region)
-            }
-
-            // body positions close the extent at the frame, spaces stay open
-            ElisionSite::Body => {
-                let extent = self.lifetime_literal(dir::Lifetime::Frame)?;
-                let spaces = self.open_memory_hole(source, dir::MemoryParameter::Place)?;
-
-                self.check.intern_region(extent, spaces)
-            }
-
-            // module bindings reference constant storage forever
-            ElisionSite::Module => {
-                let extent = self.lifetime_literal(dir::Lifetime::Static)?;
-                let spaces = self.check.place_literal(dir::Space::Constant)?;
-
-                self.check.intern_region(extent, spaces)
-            }
-
-            // member positions pair an induced extent with the instance's own place
-            ElisionSite::Member => {
-                let extent = self.induce_memory_parameter(source, dir::MemoryParameter::Region)?;
-                let this = self.intern_type(dir::Type::This)?;
-                let spaces = self.language_type_reference(dir::LanguageItem::PlaceOf, &[this])?;
-
-                self.check.intern_region(extent, spaces)
-            }
+            ElisionSite::Return => return self.elided_borrow_extent(source),
+            ElisionSite::Body | ElisionSite::Module => {}
         }
+        let extent = self.elided_borrow_extent(source)?;
+        let spaces = self.elided_memory_component(source, dir::MemoryParameter::Place)?;
+
+        self.check.intern_region(extent, spaces)
     }
 
-    /// Return the elided extent for one borrow region written spaces-only.
+    /// Return the elided extent for one borrow region.
     pub(in crate::sema) fn elided_borrow_extent(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // close an elided region by the site it stands in
         match self.region_elision {
-            // signature positions induce one hidden extent parameter
-            ElisionSite::Signature => {
+            ElisionSite::Signature | ElisionSite::Member => {
                 self.induce_memory_parameter(source, dir::MemoryParameter::Region)
             }
-
-            // return positions track one placeholder replaced by the elected input
             ElisionSite::Return => {
                 let extent = self.open_memory_hole(source, dir::MemoryParameter::Region)?;
                 if let Some(variable) = self.check.root_variable(extent)? {
@@ -274,17 +234,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
                 Ok(extent)
             }
-
-            // body positions close the extent at the frame
             ElisionSite::Body => self.lifetime_literal(dir::Lifetime::Frame),
-
-            // module bindings hold their values forever
             ElisionSite::Module => self.lifetime_literal(dir::Lifetime::Static),
-
-            // member positions induce their extent like signatures
-            ElisionSite::Member => {
-                self.induce_memory_parameter(source, dir::MemoryParameter::Region)
-            }
         }
     }
 
@@ -358,13 +309,10 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // induce the parameter on the owner's template
-        let constraint = self.memory_parameter_constraint(kind)?;
-        let role = VariableRole::Memory { kind, constraint };
         let template = self.check.open_generic_template(owner.declaration)?;
-
         let parameter = self
             .check
-            .push_induced_memory_parameter(template, site, role)?;
+            .push_induced_memory_parameter(template, site, kind)?;
 
         self.intern_type(dir::Type::Parameter(parameter))
     }
@@ -375,37 +323,15 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let constraint = self.memory_parameter_constraint(kind)?;
-        let role = VariableRole::Memory { kind, constraint };
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
 
-        self.open_type_hole(source, role)
-    }
-
-    /// Return one memory-domain constraint type.
-    fn memory_parameter_constraint(
-        &mut self,
-        kind: dir::MemoryParameter,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let Some(symbol) = self
-            .check
-            .environment_bound
-            .language
-            .symbol(kind.language_item())
-        else {
-            return Ok(None);
-        };
-        let arguments = self.intern_type_ids(&[])?;
-        let constraint = self.intern_type(dir::Type::Application(dir::GenericApplication {
-            symbol,
-            arguments,
-        }))?;
-
-        Ok(Some(constraint))
+        self.check.open_memory_type(origin, kind)
     }
 
     /// Report one written `_` a declaration position cannot infer, returning the error type.
-    ///
-    /// A declaration writes every type it carries, so only bodies infer.
     pub(in crate::sema) fn report_declaration_hole(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -427,13 +353,13 @@ impl<'check, 'state> WalkState<'check, 'state> {
     pub(in crate::sema) fn open_type_hole(
         &mut self,
         source: dir::LocalNodeIdAny,
-        role: VariableRole,
+        kind: VariableKind,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let origin = Origin::Node(
             source.into_global(self.module),
             self.flow().template_scope(),
         );
-        let variable = self.check.open_variable(origin, role);
+        let variable = self.check.open_variable_of(origin, kind);
 
         self.check.variable_type(variable)
     }
@@ -536,7 +462,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // infer declaration types when recursion and forward references need one
         let origin = Origin::Symbol(symbol);
-        let variable = self.check.open_variable(origin, VariableRole::Regular);
+        let variable = self.check.open_variable(origin);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_declaration_type(symbol, ty)?;
 
@@ -552,9 +478,8 @@ impl<'check, 'state> WalkState<'check, 'state> {
             return Ok(ty);
         }
 
-        // open one variable and commit it as the binding's type
-        let origin = Origin::Symbol(symbol);
-        let variable = self.check.open_variable(origin, VariableRole::Regular);
+        // open the symbol's variable and commit it as the binding's type
+        let variable = self.check.symbol_variable(symbol);
         let ty = self.check.variable_type(variable)?;
         self.check.commit_binding_type(symbol, ty)?;
 

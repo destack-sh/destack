@@ -7,7 +7,8 @@ use destack_source::ModuleId;
 use crate::CompilerResult;
 use crate::sema::{
     Cause, CauseKind, CheckState, GenericTemplateId, InferMode, Obligation, Origin, PlaceUse,
-    Relation, RelationCheck, TemplatePass, TypeSubstitution, WalkState, WellFormedTypeObligation,
+    Relation, RelationCheck, Settle, TemplatePass, TypeSubstitution, WalkState,
+    WellFormedTypeObligation,
 };
 
 impl CheckState<'_> {
@@ -46,6 +47,7 @@ impl CheckState<'_> {
         let expanded = input.expanded.clone();
         let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
 
+        // walk the module over its patched view
         let mut walk = WalkState::new(module, tree, self);
 
         // visit declaration templates before any body walks
@@ -93,8 +95,17 @@ impl CheckState<'_> {
                 .map(|(_, function)| function.clone());
             if let Some(function) = function {
                 next_body += 1;
+                let return_type = function.return_type;
                 walk.check
                     .with_body_scope(|check| function.check(check, InferMode::Regular, None))?;
+
+                // settle a declaration's inferred return hole from what its body returned
+                if let Some(return_type) = return_type {
+                    let roots = walk.check.collect_open_variables([return_type])?;
+                    if !roots.is_empty() {
+                        walk.check.settle_variables(&roots, Settle::All)?;
+                    }
+                }
                 walk.flush_flows()?;
 
                 continue;
@@ -107,8 +118,7 @@ impl CheckState<'_> {
             next_block += 1;
             walk.check.with_body_scope(|check| {
                 let site = check.visit_site(block)?;
-                let mut body = check.body();
-                body.attempt_node(site, PlaceUse::Read, None)
+                check.attempt_node(site, PlaceUse::Read, None)
             })?;
             walk.flush_flows()?;
         }
@@ -283,7 +293,7 @@ impl CheckState<'_> {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
             self.push_relation(RelationCheck::new(
                 origin,
-                Relation::Satisfies,
+                Relation::Subtype,
                 left,
                 right,
                 cause,
@@ -436,8 +446,7 @@ impl WalkState<'_, '_> {
         // type the root itself through the body visitor
         let root_node = node.into_global_any(module);
         let site = self.check.visit_site(root_node)?;
-        let mut body = self.check.body();
-        body.attempt_node(site, PlaceUse::Read, None)?;
+        self.check.attempt_node(site, PlaceUse::Read, None)?;
 
         Ok(())
     }

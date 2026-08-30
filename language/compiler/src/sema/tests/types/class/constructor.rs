@@ -208,7 +208,7 @@ class Base {
 
 class Derived extends Base {}
 
-const derived: Derived = new Derived<"local">(1);
+const derived: Derived = new Derived(1);
 
 === dir ===
 class Base {
@@ -294,7 +294,7 @@ class Counter {
     }
 }
 
-const counter: local Counter = new Counter<"local">(1);
+const counter: local Counter = new Counter(1);
 
 === dir ===
 class Counter {
@@ -383,8 +383,8 @@ class Box {
     }
 }
 
-const text: local Box = new Box<"local">("x");
-const number: local Box = new Box<"local">(1);
+const text: local Box = new Box("x");
+const number: local Box = new Box(1);
 
 === dir ===
 class Box {
@@ -720,7 +720,7 @@ class Dog extends Animal {
     }
 }
 
-const dog: local Dog = new Dog<"local">("rex", 3);
+const dog: local Dog = new Dog("rex", 3);
 
 === dir ===
 class Animal {
@@ -846,7 +846,7 @@ import { Animal } from "./base.ds";
 
 class Dog extends Animal<string> {}
 
-const dog: Dog = new Dog<"local">("rex");
+const dog: Dog = new Dog("rex");
 
 === dir ===
 import { Animal } from "./base.ds";
@@ -1002,7 +1002,7 @@ class Holder {
     state: State;
 
     constructor() {
-        this.state = new State<"local">();
+        this.state = new State();
     }
 }
 
@@ -1106,7 +1106,7 @@ class Box<in out T> {
 }
 
 const value: int32 = 1;
-const box: local Box<int32> = new Box<int32, "local">(value);
+const box: local Box<int32> = new Box<int32>(value);
 
 === dir ===
 class Box<T> {
@@ -1199,7 +1199,7 @@ class Box<in out T = string> {
     }
 }
 
-const box: local Box<string> = new Box<string, "local">();
+const box: local Box<string> = new Box<string>();
 
 === dir ===
 class Box<T = string> {

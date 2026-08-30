@@ -6,7 +6,9 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, GenericParameterId, Origin, Relation, TypeSubstitution, Verdict};
+use crate::sema::{
+    ActiveGoal, CheckState, GenericParameterId, Origin, Relation, TypeSubstitution, Verdict,
+};
 
 impl CheckState<'_> {
     /// Decompose two same-constructor types into fixed slot pairs.
@@ -15,6 +17,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
+        // decompose by the heads standing on both sides
         let pair_lists = match (self.ty(source)?, self.ty(target)?) {
             // nominal applications decompose by declaration with kind-aware pairing
             (dir::Type::Application(source_type), dir::Type::Application(target_type))
@@ -410,6 +413,7 @@ impl CheckState<'_> {
         qualifier: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
         let qualifier = self.shallow_resolve(qualifier)?;
+        // name the declaration the qualifier applies
         match self.ty(qualifier)? {
             dir::Type::Reference(reference) => Ok(Some(reference.symbol)),
             dir::Type::Application(instance) => Ok(Some(instance.symbol)),
@@ -432,15 +436,15 @@ impl CheckState<'_> {
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // matching is inductive, so reject a pair that recurses into its own question
-        let question = (pattern, actual, substitution_fingerprint(substitution));
-        if !self.active_matches.insert(question) {
+        let question = ActiveGoal::Match(pattern, actual, substitution_fingerprint(substitution));
+        if !self.active.insert(question) {
             return Ok(false);
         }
 
         // hold the question on the matching path across the step
         let matched =
             self.match_generic_type_step(origin, parameters, substitution, pattern, actual);
-        self.active_matches.swap_remove(&question);
+        self.active.swap_remove(&question);
 
         matched
     }
@@ -454,7 +458,7 @@ impl CheckState<'_> {
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // bind an open extension parameter directly, before reducing the authored argument
+        // bind an open extension parameter before reducing the authored argument
         let pattern = self.shallow_resolve(pattern)?;
         let actual = self.shallow_resolve(actual)?;
         if let dir::Type::Parameter(parameter) = self.ty(pattern)? {
@@ -506,6 +510,7 @@ impl CheckState<'_> {
             _ => None,
         };
 
+        // match two composite sets element by element
         if let Some((pattern_elements, actual_elements)) = sets {
             let pattern_elements =
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(pattern.module_id, pattern_elements)?);
@@ -521,7 +526,14 @@ impl CheckState<'_> {
             );
         }
 
+        // match by the heads standing on both sides
         match (self.ty(pattern)?, self.ty(actual)?) {
+            // match a literal actual against the primitive pattern of its own domain
+            (dir::Type::Primitive(primitive), dir::Type::Literal(literal))
+                if literal.widens_to_primitive(primitive) =>
+            {
+                Ok(true)
+            }
             // bind a union actual through whichever arm the pattern matches
             (_, dir::Type::Union(actual_union)) => {
                 let arms = SmallVec::<[_; 4]>::from_slice(
@@ -608,6 +620,7 @@ impl CheckState<'_> {
             _ => false,
         };
 
+        // normalize a head that folds into a plainer value
         if folds {
             return self.normalize(origin, reduced);
         }
@@ -705,6 +718,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // pair the arguments one for one
         Ok(Some(
             source_types
                 .iter()

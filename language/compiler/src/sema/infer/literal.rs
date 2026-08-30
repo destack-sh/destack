@@ -1,284 +1,94 @@
 use destack_dir as dir;
+use dir::NodeVisitor as _;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, Origin, Relation, Value, ValueUse, VariableKind, VariableRole};
+use crate::sema::{BoundSide, CheckState, Origin, Value, VariableKind};
 
 /// The context one expression is inferred in.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(in crate::sema) enum InferMode {
     /// Aggregate slots widen the fresh literals they store.
     Regular,
-    /// An `as const` context keeps literals and makes its aggregates readonly.
+    /// A literal context keeps the literals it stores.
+    Literal,
+    /// A const context keeps literals and makes its aggregates readonly.
     Const,
 }
 
+/// The syntax one node produces a value through.
+pub(in crate::sema) enum NodeForm {
+    /// A literal or template constant.
+    Literal,
+    /// An array, tuple, or object literal.
+    Composite,
+    /// A block, conditional, or match producing the values of its branches.
+    Branching(SmallVec<[dir::GlobalNodeIdAny; 4]>),
+    /// An expression producing another expression's value without a context of its own.
+    Forward(SmallVec<[dir::GlobalNodeIdAny; 4]>),
+    /// A function value.
+    FunctionValue,
+    /// A name read.
+    Name,
+    /// Every other expression.
+    Other,
+}
+
+/// The values the breaks of one loop carry.
+struct BreakValues {
+    /// The loop's label.
+    label: Option<dir::StringId>,
+    /// How many unlabeled loops enclose the visited node inside the loop.
+    nesting: u32,
+    /// The collected break values.
+    values: SmallVec<[dir::LocalNodeId<dir::Expression>; 4]>,
+}
+
+impl dir::NodeVisitor for BreakValues {
+    /// Collect the value of every break leaving the loop, skipping nested functions.
+    fn visit_expression(
+        &mut self,
+        tree: &dir::Tree,
+        id: dir::LocalNodeId<dir::Expression>,
+        expression: &dir::Expression,
+    ) {
+        match expression {
+            dir::Expression::Break { label, value } => {
+                let leaves = match label {
+                    Some(label) => Some(*label) == self.label,
+                    None => self.nesting == 0,
+                };
+                if leaves && let Some(value) = value {
+                    self.values.push(*value);
+                }
+            }
+            dir::Expression::Loop { .. }
+            | dir::Expression::While { .. }
+            | dir::Expression::For { .. }
+            | dir::Expression::ForEach { .. } => {
+                self.nesting += 1;
+                dir::walk_expression(self, tree, id, expression);
+                self.nesting -= 1;
+            }
+            dir::Expression::Declaration(_) => {}
+            _ => dir::walk_expression(self, tree, id, expression),
+        }
+    }
+}
+
 impl InferMode {
+    /// Return whether this mode keeps literals.
+    pub(in crate::sema) fn keeps_literals(self) -> bool {
+        self != Self::Regular
+    }
+
     /// Return whether aggregates inferred in this mode are readonly.
     pub(in crate::sema) fn is_readonly(self) -> bool {
         self == Self::Const
     }
 }
 
-impl BodyState<'_, '_> {
-    /// Return the numeric family one fresh value's literals belong to.
-    fn fresh_numeric_kind(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<VariableKind>> {
-        // read the arms the value carries
-        let ty = self.shallow_resolve(ty)?;
-        let arms = match self.ty(ty)? {
-            dir::Type::Union(union) => self.type_ids(ty.module_id, union.elements)?.to_vec(),
-            _ => vec![ty],
-        };
-
-        // join the numeric family across every arm
-        let mut kind = None;
-        for arm in arms {
-            let arm = self.shallow_resolve(arm)?;
-            let arm_kind = match self.ty(arm)? {
-                dir::Type::Literal(dir::Literal::Integer(_)) => VariableKind::Integer,
-                dir::Type::Literal(dir::Literal::Float(_)) => VariableKind::Float,
-                _ => return Ok(None),
-            };
-            kind = Some(kind.map_or(arm_kind, |kind: VariableKind| kind.join(arm_kind)));
-        }
-
-        Ok(kind)
-    }
-
-    /// Commit the widening one fresh literal node takes to its stored type.
-    fn commit_widening(&mut self, value: Value, target: dir::GlobalTypeId) -> CompilerResult<()> {
-        if let Some(node) = value.node
-            && target != value.ty
-        {
-            let coercion = dir::Coercion::new(
-                value.ty,
-                vec![dir::CoercionAdjustment::Widen { target }],
-                dir::CastOrigin::Implicit,
-            );
-            self.check.commit_coercion(node, coercion)?;
-        }
-
-        Ok(())
-    }
-
-    /// Widen one fresh value stored in a mutable slot.
-    pub(in crate::sema) fn widen_fresh(
-        &mut self,
-        value: Value,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if !value.is_fresh {
-            return Ok(value.ty);
-        }
-
-        // a numeric family widens to its fallback, every other literal to its base type
-        let widened = match self
-            .fresh_numeric_kind(value.ty)?
-            .and_then(VariableKind::fallback)
-        {
-            Some(fallback) => self.intern_type(fallback)?,
-            None => self.widen_type(value.ty)?,
-        };
-        self.commit_widening(value, widened)?;
-
-        Ok(widened)
-    }
-
-    /// Widen one fresh value into its binding slot.
-    pub(in crate::sema) fn widen_fresh_slot(
-        &mut self,
-        slot: dir::TypeVariableId,
-        value: Value,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if !value.is_fresh {
-            return Ok(value.ty);
-        }
-
-        // a value outside the numeric families widens to its base type
-        let Some(kind) = self.fresh_numeric_kind(value.ty)? else {
-            let widened = self.widen_type(value.ty)?;
-            self.commit_widening(value, widened)?;
-
-            return Ok(widened);
-        };
-
-        // join the slot's own family and take its type
-        self.join_variable_kind(slot, kind)?;
-        let ty = self.variable_type(slot)?;
-        self.commit_widening(value, ty)?;
-
-        Ok(ty)
-    }
-
-    /// Open one numeric variable for a fresh value meeting an inference destination.
-    pub(in crate::sema) fn fresh_variable(
-        &mut self,
-        origin: Origin,
-        value: Value,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if !value.is_fresh {
-            return Ok(value.ty);
-        }
-
-        // one literal node opens one variable, however often its conversion reruns
-        if let Some(Some(widened)) = value
-            .node
-            .and_then(|node| self.check.fresh_nodes.get(&node))
-        {
-            return Ok(*widened);
-        }
-
-        // a numeric family opens a variable, every other literal widens to its base type
-        let widened = match self.fresh_numeric_kind(value.ty)? {
-            Some(kind) => {
-                let variable = self.open_variable_of(origin, kind, VariableRole::Regular);
-                self.variable_type(variable)?
-            }
-            None => self.widen_type(value.ty)?,
-        };
-
-        // remember the node's variable for the reruns that follow
-        if let Some(node) = value.node {
-            self.check.fresh_nodes.insert(node, Some(widened));
-        }
-
-        Ok(widened)
-    }
-
-    /// Return the open variable one fresh literal's destination settles into.
-    ///
-    /// The variable sits beneath the destination's memory forms, standing alone or as the sole
-    /// arm of its literal family in a union.
-    fn destination_variable(
-        &mut self,
-        value: Value,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::TypeVariableId>> {
-        // read beneath the destination's memory forms
-        let mut target = self.shallow_resolve(target)?;
-        while let dir::Type::Form(form) = self.ty(target)? {
-            let payload = self.shallow_resolve(form.value)?;
-            if payload == target {
-                break;
-            }
-            target = payload;
-        }
-
-        // take the variable itself, or the first variable arm of a union
-        let destination = match self.ty(target)? {
-            dir::Type::Union(union) => {
-                let literal = self.shallow_resolve(value.ty)?;
-                let family = match self.ty(literal)? {
-                    dir::Type::Literal(literal) => literal.scalar_domain(),
-                    _ => None,
-                };
-                let arms = self.type_ids(target.module_id, union.elements)?.to_vec();
-                let mut destination = None;
-                for arm in arms {
-                    let arm = self.shallow_resolve(arm)?;
-                    match self.ty(arm)? {
-                        dir::Type::Literal(arm) if arm.scalar_domain() == family => {
-                            return Ok(None);
-                        }
-                        dir::Type::Variable(variable) if destination.is_none() => {
-                            destination = Some(variable);
-                        }
-                        _ => {}
-                    }
-                }
-                let Some(destination) = destination else {
-                    return Ok(None);
-                };
-                destination
-            }
-            dir::Type::Variable(variable) => variable,
-            _ => return Ok(None),
-        };
-
-        Ok(self
-            .open_root(destination)?
-            .is_some()
-            .then_some(destination))
-    }
-
-    /// Return the candidate one fresh literal contributes to its destination variable: the
-    /// literal itself where the destination keeps literals, else the variable the literal opens.
-    pub(in crate::sema) fn literal_candidate(
-        &mut self,
-        origin: Origin,
-        value: Value,
-        target: dir::GlobalTypeId,
-        use_: ValueUse,
-    ) -> CompilerResult<Value> {
-        if !value.is_fresh || use_ == ValueUse::Const {
-            return Ok(value);
-        }
-
-        // read the destination variable one fresh literal settles into
-        let Some(destination) = self.destination_variable(value, target)? else {
-            return Ok(value);
-        };
-
-        let keeps_literals = match self.infer.variable_role(destination)? {
-            VariableRole::Instantiation { parameter } => {
-                let binding = self.require_generic_parameter(parameter)?.clone();
-                let mut keeps = self.parameter_keeps_literals(origin, parameter)?;
-                let template =
-                    dir::GlobalGenericTemplateId::new(parameter.module_id, binding.template);
-                let owner = self
-                    .generic_template(template)
-                    .and_then(|template| template.symbol);
-
-                // a string or boolean literal keeps its type at a signature's top-level return
-                if use_ != ValueUse::Store
-                    && self.fresh_numeric_kind(value.ty)?.is_none()
-                    && let Some(owner) = owner
-                    && let Some(ty) = self.adopt_symbol_type_maybe(owner)?
-                    && let Some(head) = self.signature_head(ty)?
-                    && let Some(return_type) = head.return_type
-                {
-                    keeps |= self.has_exposed_type(return_type, binding.ty)?;
-                }
-                keeps
-            }
-            _ => false,
-        };
-        if keeps_literals {
-            return Ok(Value {
-                is_fresh: false,
-                ..value
-            });
-        }
-        let ty = self.fresh_variable(origin, value)?;
-
-        Ok(Value {
-            ty,
-            is_fresh: false,
-            ..value
-        })
-    }
-
-    /// Return the type one aggregate slot stores for a checked value.
-    pub(in crate::sema) fn slot_storage(
-        &mut self,
-        origin: Origin,
-        relation: Relation,
-        slot: dir::GlobalTypeId,
-        source: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // keep the precise value under a check-only relation or into an open slot
-        if relation == Relation::Satisfies {
-            return Ok(source);
-        }
-        let slot = self.deeply_resolve(origin, slot)?;
-        if self.type_flags(slot)?.has_variable() {
-            return Ok(source);
-        }
-
-        Ok(slot)
-    }
-
+impl CheckState<'_> {
     /// Return the type of one literal expression.
     pub(in crate::sema) fn literal_type(
         &mut self,
@@ -290,5 +100,311 @@ impl BodyState<'_, '_> {
             dir::Literal::Undefined => self.intern_type(dir::Type::Undefined),
             value => self.intern_type(dir::Type::Literal(value)),
         }
+    }
+
+    /// Return the numeric variable kind one literal widens into, none for every other literal.
+    pub(in crate::sema) fn numeric_literal_kind(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<VariableKind>> {
+        Ok(match self.ty(ty)? {
+            dir::Type::Literal(dir::Literal::Integer(_)) => Some(VariableKind::Integer),
+            dir::Type::Literal(dir::Literal::Float(_)) => Some(VariableKind::Float),
+            _ => None,
+        })
+    }
+
+    /// Widen one fresh type onto the base its leaves name.
+    ///
+    /// A numeric literal widens into an open kind its uses decide.
+    pub(in crate::sema) fn widen_fresh(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // widen by the head the type carries
+        let ty = self.shallow_resolve(ty)?;
+        match self.ty(ty)? {
+            // widen a numeric literal into a variable its uses decide
+            dir::Type::Literal(dir::Literal::Integer(_) | dir::Literal::Float(_)) => {
+                let kind = self.numeric_literal_kind(ty)?.expect("numeric literal");
+                let variable = self.open_variable_of(origin, kind);
+
+                self.variable_type(variable)
+            }
+            // widen a variant literal to its enum
+            dir::Type::Variant(variant) => Ok(variant.owner),
+            // widen a template expression to the string it prints
+            dir::Type::Operation(operation)
+                if matches!(
+                    self.type_operation(ty.module_id, operation)?,
+                    dir::TypeOperation::TemplateLiteral(_)
+                ) =>
+            {
+                self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))
+            }
+            // widen a union member-wise
+            dir::Type::Union(union) => {
+                let arms =
+                    SmallVec::<[_; 4]>::from_slice(self.type_ids(ty.module_id, union.elements)?);
+                let mut widened = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                for arm in arms {
+                    widened.push(self.widen_fresh(origin, arm)?);
+                }
+
+                self.normalized_union_type(widened)
+            }
+            // widen every other leaf onto its base
+            _ => self.widen_type(ty),
+        }
+    }
+
+    /// Return the candidate one value contributes to the open slot it stores into.
+    pub(in crate::sema) fn store_candidate(
+        &mut self,
+        origin: Origin,
+        value: Value,
+        slot: dir::GlobalTypeId,
+        keeps_literals: bool,
+    ) -> CompilerResult<Value> {
+        // widen fresh literal values alone
+        if !value.is_fresh || keeps_literals || !self.is_literal_shape(value.ty)? {
+            return Ok(value);
+        }
+
+        // keep the literals the slot's parameter, written type, or upper bounds name
+        let keeps = match self.root_variable(slot)? {
+            Some(variable) => match self.infer.variable(variable)?.parameter {
+                Some(parameter) => {
+                    self.parameter_keeps_literals(origin, parameter, value.ty, false)?
+                }
+                None => {
+                    let uppers = self
+                        .infer
+                        .variables
+                        .side_bounds(variable, BoundSide::Upper)?
+                        .map(|bound| bound.ty)
+                        .collect::<SmallVec<[_; 2]>>();
+                    let mut keeps = false;
+                    for upper in uppers {
+                        keeps |= self.type_keeps_literal(origin, value.ty, upper, false)?;
+                    }
+
+                    keeps
+                }
+            },
+            None => self.type_keeps_literal(origin, value.ty, slot, false)?,
+        };
+        if keeps {
+            return Ok(value);
+        }
+
+        self.widen_candidate(origin, value, false)
+    }
+
+    /// Widen one fresh literal-shaped value unless its destination keeps literals.
+    pub(in crate::sema) fn widen_candidate(
+        &mut self,
+        origin: Origin,
+        value: Value,
+        keeps_literals: bool,
+    ) -> CompilerResult<Value> {
+        // widen fresh literal values alone
+        if !value.is_fresh || keeps_literals || !self.is_literal_shape(value.ty)? {
+            return Ok(value);
+        }
+
+        // widen the value onto its base
+        let ty = self.widen_fresh(origin, value.ty)?;
+
+        Ok(Value { ty, ..value })
+    }
+
+    /// Read the syntax one node produces a value through.
+    pub(in crate::sema) fn node_syntax(&self, node: dir::GlobalNodeIdAny) -> NodeForm {
+        // read the syntax standing at the node
+        let module = node.module_id;
+        let view = self.module(module).view();
+        match node.local_id.ty {
+            // a block produces its tail expression
+            dir::NodeType::Block => {
+                let block = view.get(node.local_id.into_typed::<dir::Block>());
+                let mut values = SmallVec::new();
+                values.extend(
+                    block
+                        .tail_expression
+                        .map(|tail| tail.into_global_any(module)),
+                );
+
+                NodeForm::Branching(values)
+            }
+            // an expression produces a value by its own form
+            dir::NodeType::Expression => {
+                let expression = node.local_id.into_typed::<dir::Expression>();
+                match view.get(expression) {
+                    dir::Expression::Literal(_) | dir::Expression::TemplateExpression { .. } => {
+                        NodeForm::Literal
+                    }
+                    dir::Expression::ArrayExpression { .. }
+                    | dir::Expression::FixedArrayExpression { .. }
+                    | dir::Expression::TupleExpression { .. }
+                    | dir::Expression::ObjectExpression { .. } => NodeForm::Composite,
+                    dir::Expression::Declaration(declaration) => {
+                        match self.is_function_value_declaration(node, *declaration) {
+                            Ok(true) => NodeForm::FunctionValue,
+                            _ => NodeForm::Other,
+                        }
+                    }
+                    dir::Expression::Identifier { .. } => NodeForm::Name,
+                    // produce the values a loop's breaks carry
+                    dir::Expression::Loop { label, body } => {
+                        let mut breaks = BreakValues {
+                            label: *label,
+                            nesting: 0,
+                            values: SmallVec::new(),
+                        };
+                        let tree = view.tree();
+                        breaks.visit_block(tree, *body, tree.get(*body));
+
+                        NodeForm::Forward(
+                            breaks
+                                .values
+                                .into_iter()
+                                .map(|value| value.into_global_any(module))
+                                .collect(),
+                        )
+                    }
+                    // produce the value an assignment assigns
+                    dir::Expression::Assign { right, .. } => {
+                        let mut values = SmallVec::new();
+                        values.push(right.into_global_any(module));
+
+                        NodeForm::Forward(values)
+                    }
+                    // produce a block's tail expression
+                    dir::Expression::Block(block) => {
+                        let block = view.get(*block);
+                        let mut values = SmallVec::new();
+                        values.extend(
+                            block
+                                .tail_expression
+                                .map(|tail| tail.into_global_any(module)),
+                        );
+
+                        NodeForm::Branching(values)
+                    }
+                    // produce the values of both branches
+                    dir::Expression::If {
+                        then_expression,
+                        else_expression,
+                        ..
+                    } => {
+                        let mut values = SmallVec::new();
+                        values.push(then_expression.into_global_any(module));
+                        values.extend(else_expression.map(|node| node.into_global_any(module)));
+
+                        NodeForm::Branching(values)
+                    }
+                    // produce the value of every match arm
+                    dir::Expression::Match { arms, .. } => {
+                        let mut values = SmallVec::new();
+                        for arm in arms {
+                            values.push(match view.get(*arm) {
+                                dir::MatchArm::Expression { body, .. } => {
+                                    body.into_global_any(module)
+                                }
+                                dir::MatchArm::Block { body, .. } => body.into_global_any(module),
+                            });
+                        }
+
+                        NodeForm::Branching(values)
+                    }
+                    _ => NodeForm::Other,
+                }
+            }
+            _ => NodeForm::Other,
+        }
+    }
+
+    /// Return the values one branching node produces through its branches.
+    pub(in crate::sema) fn branching_value_nodes(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<SmallVec<[dir::GlobalNodeIdAny; 4]>> {
+        match self.node_syntax(node) {
+            NodeForm::Branching(values) => Some(values),
+            _ => None,
+        }
+    }
+
+    /// Return whether one node produces a fresh value, open to widening at its destination.
+    pub(in crate::sema) fn is_fresh_node(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<bool> {
+        Ok(match self.node_syntax(node) {
+            NodeForm::Literal | NodeForm::Composite | NodeForm::FunctionValue => true,
+            NodeForm::Name => self.is_fresh_const_read(node)?,
+            // keep a branching node fresh while every branch value is fresh
+            NodeForm::Branching(values) | NodeForm::Forward(values) => {
+                let mut is_fresh = true;
+                for value in values {
+                    is_fresh &= self.is_fresh_node(value)?;
+                }
+
+                is_fresh
+            }
+            // read a variant access as the literal syntax of its variant
+            NodeForm::Other => match self.own_node_type(node) {
+                Some(ty) => matches!(self.ty_raw(ty)?, dir::Type::Variant(_)),
+                None => false,
+            },
+        })
+    }
+
+    /// Return whether one node checks under its destination as context.
+    pub(in crate::sema) fn is_composite_node(&self, node: dir::GlobalNodeIdAny) -> bool {
+        matches!(
+            self.node_syntax(node),
+            NodeForm::Composite | NodeForm::Branching(_)
+        )
+    }
+
+    /// Return whether one name reads an unannotated const binding initialized by a fresh value.
+    fn is_fresh_const_read(&mut self, node: dir::GlobalNodeIdAny) -> CompilerResult<bool> {
+        // require a unique const binding behind the name
+        let module = node.module_id;
+        let symbols = match self.name_decision(node) {
+            Some(resolution) => resolution.symbols().to_vec(),
+            None => match self.module(module).resolved.references.get(node) {
+                Some(dir::Reference::Bound(symbols)) => self.present_symbols(symbols).to_vec(),
+                _ => return Ok(false),
+            },
+        };
+        let [symbol] = symbols.as_slice() else {
+            return Ok(false);
+        };
+        let symbol = *symbol;
+        let binding = self
+            .binding_table(symbol.module_id)
+            .get_symbol(symbol.local_id)
+            .clone();
+        if binding.binding_mutability != Some(dir::Mutability::Immutable) {
+            return Ok(false);
+        }
+
+        // read a foreign const's committed type, a local one's recorded freshness
+        let Some(declaration) = binding.declaration else {
+            return Ok(false);
+        };
+        if self.module_maybe(declaration.module_id).is_none() {
+            return Ok(self
+                .symbol_type_maybe(symbol)
+                .map(|ty| self.is_literal_shape(ty))
+                .transpose()?
+                .unwrap_or(false));
+        }
+
+        Ok(self.fresh_consts.contains(&symbol))
     }
 }

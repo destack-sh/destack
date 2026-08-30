@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, GenericTemplateId,
-    ObligationEntry, Origin, PlaceUse, Relation, TypeSubstitution, Verdict,
+    ObligationEntry, Origin, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -34,16 +34,28 @@ pub(in crate::sema) enum Check {
     Declared(ObligationEntry),
 
     // blocked steps resuming into the walker
-    /// A node blocked by an inference barrier resumes its whole check.
-    Node(NodeCheck),
     /// A checked value resumes its conversion once its expected type closes.
     Conversion(ConversionCheck),
-    /// A flow narrowing resumes once its consulted operation decides.
-    Narrowing(NarrowingCheck),
-    /// A node's selection resumes once its blocking variable solves.
-    Selection(SelectionCheck),
-    /// A switch equality selection resumes once its open operand solves.
-    Equality(EqualityCheck),
+    /// A function value body checks once its parameter slots settle.
+    Body(BodyCheck),
+    /// A destructuring pattern takes its input apart once the input closes.
+    Pattern(PatternCheck),
+}
+
+/// One destructuring pattern pending its input.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct PatternCheck {
+    /// The pattern's flow site.
+    pub(in crate::sema) site: FlowSite,
+    /// The input type the pattern takes apart.
+    pub(in crate::sema) target: dir::GlobalTypeId,
+}
+
+/// One function value body pending its parameter slots.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct BodyCheck {
+    /// The function value node whose body checks.
+    pub(in crate::sema) node: dir::GlobalNodeIdAny,
 }
 
 /// One relation checked between two types.
@@ -103,22 +115,13 @@ impl RelationCheck {
     ) -> Self {
         Self {
             origin,
-            relation: Relation::Satisfies,
+            relation: Relation::Subtype,
             source: argument,
             target: bound,
             cause,
             application: Some(application),
         }
     }
-}
-
-/// One node awaiting its whole check once an inference barrier opens.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::sema) struct NodeCheck {
-    /// The blocked site.
-    pub(in crate::sema) site: FlowSite,
-    /// The expectation the node re-checks under.
-    pub(in crate::sema) expectation: Expectation,
 }
 
 /// One checked value awaiting its expected type to convert.
@@ -130,49 +133,6 @@ pub(in crate::sema) struct ConversionCheck {
     pub(in crate::sema) source: Value,
     /// The conversion expectation.
     pub(in crate::sema) expectation: Expectation,
-}
-
-/// One flow narrowing awaiting its consulted operation's decision.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(in crate::sema) struct NarrowingCheck {
-    /// The narrowed site.
-    pub(in crate::sema) site: FlowSite,
-    /// The narrowed access path.
-    pub(in crate::sema) path: dir::AccessPath,
-    /// The equality operation the narrowing consults.
-    pub(in crate::sema) operation: dir::GlobalNodeIdAny,
-    /// The unnarrowed base type.
-    pub(in crate::sema) source: dir::GlobalTypeId,
-    /// The hole standing for the narrowed result until this check completes.
-    pub(in crate::sema) hole: dir::TypeVariableId,
-}
-
-/// One node selection awaiting a blocking variable to solve.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(in crate::sema) struct SelectionCheck {
-    /// The reselected site.
-    pub(in crate::sema) site: FlowSite,
-    /// The value use reattempted at the site.
-    pub(in crate::sema) use_: PlaceUse,
-    /// The open variable the selection stalled on, when known.
-    pub(in crate::sema) stalled_on: Option<dir::TypeVariableId>,
-}
-
-/// One switch equality selection stalled on an open operand.
-#[derive(Debug, Clone)]
-pub(in crate::sema) struct EqualityCheck {
-    /// The switch value node the selection reports through.
-    pub(in crate::sema) value: dir::GlobalNodeIdAny,
-    /// The scrutinee type.
-    pub(in crate::sema) scrutinee: dir::GlobalTypeId,
-    /// The admitted cases with their selector nodes and types.
-    pub(in crate::sema) cases: Vec<(
-        dir::GlobalNodeIdAny,
-        dir::GlobalNodeIdAny,
-        dir::GlobalTypeId,
-    )>,
-    /// The open variable the selection waits for.
-    pub(in crate::sema) stalled_on: dir::TypeVariableId,
 }
 
 /// One contextual value role.
@@ -192,6 +152,8 @@ pub(in crate::sema) enum ValueUse {
     Condition,
     /// Value related against a written type without taking it.
     Satisfies,
+    /// Value cast explicitly to a written type.
+    Cast,
 }
 
 impl ValueUse {
@@ -199,15 +161,21 @@ impl ValueUse {
     pub(in crate::sema) fn requires_storage(self) -> bool {
         match self {
             Self::Store | Self::Argument | Self::Output => true,
-            Self::Operand | Self::Const | Self::Condition | Self::Satisfies => false,
+            Self::Operand | Self::Const | Self::Condition | Self::Satisfies | Self::Cast => false,
         }
     }
 
-    /// Return whether this use requires a runtime coercion.
+    /// Return whether this use converts its value.
     pub(in crate::sema) fn requires_runtime_coercion(self) -> bool {
+        // convert at every value position but a logical check
         match self {
-            Self::Store | Self::Argument | Self::Operand | Self::Output => true,
-            Self::Const | Self::Condition | Self::Satisfies => false,
+            Self::Store
+            | Self::Argument
+            | Self::Operand
+            | Self::Output
+            | Self::Cast
+            | Self::Const => true,
+            Self::Condition | Self::Satisfies => false,
         }
     }
 }
@@ -232,8 +200,6 @@ pub(in crate::sema) struct CheckEntry {
     pub(in crate::sema) result: Option<CheckOutcome>,
     /// The stepping state.
     pub(in crate::sema) state: WorkState,
-    /// The open variables this check's completion can still bound.
-    pub(in crate::sema) produces: SmallVec<[dir::TypeVariableId; 2]>,
 }
 
 /// Collected checks with their outcomes and scheduling state, in allocation order.
@@ -243,14 +209,8 @@ pub(in crate::sema) struct CheckTable {
     pub(in crate::sema) entries: Vec<CheckEntry>,
     /// Ids of collected relation checks by value, so one task collects once.
     relations: FxIndexMap<RelationCheck, CheckId>,
-    /// Ids of collected node checks by value, so one task collects once.
-    nodes: FxIndexMap<NodeCheck, CheckId>,
     /// Ids of collected conversion checks by value, so one task collects once.
     conversions: FxIndexMap<ConversionCheck, CheckId>,
-    /// Ids of collected narrowing checks by value, so one task collects once.
-    narrowings: FxIndexMap<NarrowingCheck, CheckId>,
-    /// Ids of collected selection checks by value, so one task collects once.
-    selections: FxIndexMap<SelectionCheck, CheckId>,
 }
 
 impl CheckTable {
@@ -261,14 +221,13 @@ impl CheckTable {
 
     /// Allocate one check, interning it when its kind collects by value.
     pub(in crate::sema) fn allocate(&mut self, check: Check) -> CheckId {
+        // intern the kinds that collect by value
         match check {
             Check::Relation(relation) => self.allocate_relation(relation),
             Check::Declared(entry) => self.push(Check::Declared(entry)),
-            Check::Node(node) => self.allocate_node(node),
             Check::Conversion(conversion) => self.allocate_conversion(conversion),
-            Check::Narrowing(narrowing) => self.allocate_narrowing(narrowing),
-            Check::Selection(selection) => self.allocate_selection(selection),
-            Check::Equality(equality) => self.push(Check::Equality(equality)),
+            Check::Body(body) => self.push(Check::Body(body)),
+            Check::Pattern(pattern) => self.push(Check::Pattern(pattern)),
         }
     }
 
@@ -280,18 +239,6 @@ impl CheckTable {
 
         let id = self.push(Check::Relation(relation));
         self.relations.insert(relation, id);
-
-        id
-    }
-
-    /// Intern one node check, returning its existing id when already collected.
-    fn allocate_node(&mut self, node: NodeCheck) -> CheckId {
-        if let Some(id) = self.nodes.get(&node) {
-            return *id;
-        }
-
-        let id = self.push(Check::Node(node));
-        self.nodes.insert(node, id);
 
         id
     }
@@ -308,30 +255,6 @@ impl CheckTable {
         id
     }
 
-    /// Intern one narrowing check, returning its existing id when already collected.
-    fn allocate_narrowing(&mut self, narrowing: NarrowingCheck) -> CheckId {
-        if let Some(id) = self.narrowings.get(&narrowing) {
-            return *id;
-        }
-
-        let id = self.push(Check::Narrowing(narrowing.clone()));
-        self.narrowings.insert(narrowing, id);
-
-        id
-    }
-
-    /// Intern one selection check, returning its existing id when already collected.
-    fn allocate_selection(&mut self, selection: SelectionCheck) -> CheckId {
-        if let Some(id) = self.selections.get(&selection) {
-            return *id;
-        }
-
-        let id = self.push(Check::Selection(selection));
-        self.selections.insert(selection, id);
-
-        id
-    }
-
     /// Append one check at the next id, leaving it unscheduled.
     fn push(&mut self, check: Check) -> CheckId {
         let id = CheckId::at(self.entries.len());
@@ -339,22 +262,18 @@ impl CheckTable {
             check,
             result: None,
             state: WorkState::Done,
-            produces: SmallVec::new(),
         });
 
         id
     }
 
-    /// Truncate checks undone by one probe rollback.
+    /// Truncate checks past one count.
     pub(in crate::sema) fn truncate(&mut self, count: usize) {
         self.entries.truncate(count);
 
         // drop the interned entries naming truncated checks
         self.relations.retain(|_, id| id.index() < count);
-        self.nodes.retain(|_, id| id.index() < count);
         self.conversions.retain(|_, id| id.index() < count);
-        self.narrowings.retain(|_, id| id.index() < count);
-        self.selections.retain(|_, id| id.index() < count);
     }
 
     /// Return one check.
@@ -407,8 +326,8 @@ impl CheckTable {
 
     /// Replace one check's completed outcome.
     ///
-    /// The table stores decided outcomes only, an undecided check keeps its
-    /// empty slot and its queued work.
+    /// The table stores decided outcomes alone.
+    /// An undecided check keeps its empty slot and its queued work.
     pub(in crate::sema) fn set_result(
         &mut self,
         id: CheckId,
@@ -429,14 +348,7 @@ impl CheckTable {
             })?;
 
         // refuse a resumption completing with a verdict
-        if matches!(
-            row.check,
-            Check::Node(_)
-                | Check::Conversion(_)
-                | Check::Narrowing(_)
-                | Check::Selection(_)
-                | Check::Equality(_)
-        ) {
+        if matches!(row.check, Check::Conversion(_)) {
             return Err(CompilerError::Internal {
                 message: format!("resumption {id:?} cannot complete with a result"),
             });
@@ -477,14 +389,12 @@ pub(in crate::sema) struct FailedCheck {
     pub(in crate::sema) target: dir::GlobalTypeId,
     /// The failure reason.
     pub(in crate::sema) failure: CheckFailure,
-    /// Whether the check decided over open variables, so its failure decides again once they close.
-    pub(in crate::sema) is_provisional: bool,
 }
 
-/// Reason one closed check did not hold.
+/// The reason one closed check failed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum CheckFailure {
-    /// The relation itself did not hold.
+    /// The relation itself failed.
     Relation,
     /// The check stayed ambiguous once inference closed: an annotation decides it.
     Undecided,
@@ -527,8 +437,6 @@ pub(in crate::sema) enum CheckOutcome {
 pub(in crate::sema) struct ValueCheck {
     /// The checked source type at its flow site.
     pub(in crate::sema) source: dir::GlobalTypeId,
-    /// The type a slot stores for the value: the source as converted.
-    pub(in crate::sema) stored: dir::GlobalTypeId,
     /// Whether value checking held.
     pub(in crate::sema) outcome: CheckOutcome,
     /// The concrete contextual target.
@@ -581,7 +489,7 @@ impl CheckOutcome {
 /// Applicability of one target-sensitive check path.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum CheckAttempt {
-    /// The expression form does not use this target directly.
+    /// The expression form ignores this target.
     NotApplicable,
     /// The expression form checked against this target.
     Checked(ValueCheck),
@@ -643,7 +551,7 @@ impl CheckState<'_> {
 
             // try rigid arguments through their declared bounds for transitive relations
             if !satisfied
-                && check.relation == Relation::Satisfies
+                && check.relation == Relation::Subtype
                 && let dir::Type::Parameter(parameter) =
                     self.ty(self.shallow_resolve(check.source)?)?
                 && let Some(declared) = self
@@ -730,7 +638,7 @@ impl CheckState<'_> {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
             checks.push(RelationCheck::new(
                 origin,
-                Relation::Satisfies,
+                Relation::Subtype,
                 argument,
                 bound,
                 cause,

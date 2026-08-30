@@ -3,14 +3,14 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, CheckFailure, CheckOutcome, Expectation, FlowSite, NewtypeMatch,
-    NewtypeOverload, NewtypeRejection, NewtypeSignature, Origin, PlaceUse, SignatureFamily,
-    SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
-    TypeSubstitution, ValueCheck, ValueUse, Verdict,
+    CallableArgument, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite, NewtypeMatch,
+    NewtypeSignature, Origin, OverloadRule, PlaceUse, Selection, SignatureFamily, SignatureMatch,
+    SignatureRejection, SignatureSelection, TypeArgumentInference, TypeSubstitution, ValueCheck,
+    ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select the target type named by one construct head.
     pub(in crate::sema) fn select_construct_target(
         &mut self,
@@ -26,7 +26,7 @@ impl BodyState<'_, '_> {
         self.walk_body_construct_type(module, ty)?;
 
         // return the committed construct target
-        if let Some(target) = self.node_types.get(&source) {
+        if let Some(target) = self.own_node_type(source) {
             return Ok(target);
         }
 
@@ -77,7 +77,7 @@ impl BodyState<'_, '_> {
         let source = ty.into_global_any(module);
 
         // return the committed construct head
-        if let Some(target) = self.node_types.get(&source) {
+        if let Some(target) = self.own_node_type(source) {
             return Ok(target);
         }
 
@@ -260,7 +260,7 @@ impl BodyState<'_, '_> {
         for constraint in
             self.substitute_application_constraints(origin, template, &substitution)?
         {
-            self.check.push_relation(constraint)?;
+            self.push_relation(constraint)?;
         }
 
         // apply the instantiated arguments to the nominal head
@@ -404,108 +404,61 @@ impl BodyState<'_, '_> {
         });
 
         // select the first applicable constructor in declaration order
-        let is_single_candidate = constructors.len() == 1;
-        let mut selected = None;
-        let mut rejections = Vec::new();
-        for constructor in constructors {
-            if is_single_candidate {
-                selected = Some(constructor);
-                break;
-            }
-            let (verdict, rejection) = self.probe_candidate_with_note(
-                |state| {
-                    let outcome = state.probe_construct(
-                        origin,
-                        target.module_id,
-                        &instance,
-                        target,
-                        constructor.ty,
-                        &arguments,
-                        expectation,
-                        receiver,
-                    )?;
-                    Ok(outcome.into_candidate())
-                },
-                |state, rejection| {
-                    state
-                        .check
-                        .format_signature_rejection(module, constructor.ty, rejection)
-                },
-            )?;
-            match verdict {
-                Verdict::Fails => rejections.extend(rejection),
-                Verdict::Holds | Verdict::Ambiguous => {
-                    selected = Some(constructor);
+        let selection = self.select_callable(
+            origin,
+            &constructors,
+            OverloadRule::Ordered,
+            |constructor| constructor.ty,
+            |state, constructor| {
+                state.match_construct(
+                    origin,
+                    target.module_id,
+                    &instance,
+                    target,
+                    constructor.ty,
+                    &arguments,
+                    expectation,
+                    receiver,
+                )
+            },
+        )?;
 
-                    break;
+        // commit or report the constructor the match selected
+        match selection {
+            // commit the selected construction under the constructor's declared visibility
+            Selection::Selected {
+                candidate: constructor,
+                signature,
+                ..
+            } => {
+                if let Some(symbol) = constructor.constructor.call_symbol() {
+                    self.check_symbol_access(origin, symbol, "constructor")?;
                 }
+
+                self.commit_construct(
+                    node,
+                    module,
+                    target.module_id,
+                    argument_nodes,
+                    &instance,
+                    constructor.constructor.clone(),
+                    signature,
+                    &forms,
+                )
             }
+            Selection::Refused => {
+                self.commit_decision(node, dir::Decision::Rejected)?;
+
+                self.commit_error_node(node)
+            }
+            Selection::Rejected(rejections) => {
+                self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
+            }
+            Selection::Ambiguous => Err(CompilerError::Internal {
+                message: "ordered construct selection reported an ambiguous constructor"
+                    .to_string(),
+            }),
         }
-
-        // confirm the selected declaration outside any probe
-        if let Some(constructor) = selected {
-            // deny a construction the constructor's declared visibility rejects
-            if let Some(symbol) = constructor.constructor.call_symbol() {
-                self.check_symbol_access(origin, symbol, "constructor")?;
-            }
-
-            let attempt = self.probe_construct(
-                origin,
-                target.module_id,
-                &instance,
-                target,
-                constructor.ty,
-                &arguments,
-                expectation,
-                receiver,
-            )?;
-
-            match attempt {
-                SignatureMatch::Selected(signature) | SignatureMatch::ReturnMismatch(signature) => {
-                    return self.commit_construct(
-                        node,
-                        module,
-                        target.module_id,
-                        argument_nodes,
-                        &instance,
-                        constructor.constructor,
-                        signature,
-                        &forms,
-                    );
-                }
-                SignatureMatch::Invalid { key, rejection } if is_single_candidate => {
-                    self.report_signature_rejection(origin, rejection)?;
-                    let produced = self.commit_construct(
-                        node,
-                        module,
-                        target.module_id,
-                        argument_nodes,
-                        &instance,
-                        constructor.constructor,
-                        key,
-                        &forms,
-                    )?;
-
-                    return Ok(produced);
-                }
-                SignatureMatch::Inapplicable(rejection)
-                    if is_single_candidate && rejection.is_precise() =>
-                {
-                    self.report_signature_rejection(origin, rejection)?;
-                    self.commit_decision(node, dir::Decision::Rejected)?;
-                    let error = self.commit_error_node(node)?;
-
-                    return Ok(error);
-                }
-                SignatureMatch::Invalid { .. } => {}
-                SignatureMatch::Inapplicable(_) => {}
-            }
-        }
-
-        // reject the construction with the first few candidate notes
-        rejections.truncate(4);
-
-        self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
     }
 
     /// Return construct candidates for one class instance.
@@ -611,8 +564,8 @@ impl BodyState<'_, '_> {
         self.intern_signature(function)
     }
 
-    /// Probe one constructor candidate against collected arguments.
-    pub(in crate::sema) fn probe_construct(
+    /// Match one constructor candidate against collected arguments.
+    pub(in crate::sema) fn match_construct(
         &mut self,
         origin: Origin,
         instance_module: ModuleId,
@@ -671,6 +624,7 @@ impl BodyState<'_, '_> {
         let return_type = function.return_type.or(Some(target));
         let carried = self.resolved_argument_bindings(&substitution.bindings)?;
 
+        // match the constructor signature against the written arguments
         self.match_signature(
             origin,
             function_type.module_id,
@@ -703,59 +657,43 @@ impl BodyState<'_, '_> {
             argument_nodes,
             type_arguments,
             expectation,
-            NewtypeOverload::Ordered,
+            OverloadRule::Ordered,
             ValueUse::Argument,
         )?;
 
-        // read the selected signature and the outcome it produced
+        // commit the selected backing, or fail the rejected construction
         let (signature, outcome) = match matched {
-            NewtypeMatch::Selected(signature) => (signature, CheckOutcome::Holds),
-            NewtypeMatch::ReturnMismatch(signature) => {
-                (signature, CheckOutcome::Fails(CheckFailure::Relation))
+            NewtypeMatch::Selected(signature, outcome) => (signature, outcome),
+            NewtypeMatch::Refused => {
+                self.commit_decision(node, dir::Decision::Rejected)?;
+                let source = self.commit_error_node(node)?;
+                let target = expectation.map_or(source, |expectation| expectation.target);
+
+                return Ok(ValueCheck {
+                    source,
+                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
+                    target,
+                });
             }
-            NewtypeMatch::Invalid {
-                signature,
-                rejection,
-            } => {
-                self.report_signature_rejection(origin, rejection)?;
+            NewtypeMatch::Rejected(notes) => {
+                let source =
+                    self.report_rejected_construct(site, node, origin, argument_nodes, &notes)?;
+                let target = expectation.map_or(source, |expectation| expectation.target);
 
-                (signature, CheckOutcome::Fails(CheckFailure::Relation))
+                return Ok(ValueCheck {
+                    source,
+                    outcome: CheckOutcome::Fails(CheckFailure::Relation),
+                    target,
+                });
             }
-            NewtypeMatch::Rejected(rejection) => match rejection {
-                NewtypeRejection::Signature(rejection) => {
-                    self.report_signature_rejection(origin, rejection)?;
-                    self.commit_decision(node, dir::Decision::Rejected)?;
-                    let source = self.commit_error_node(node)?;
-                    let target = expectation.map_or(source, |expectation| expectation.target);
-
-                    return Ok(ValueCheck {
-                        source,
-                        stored: source,
-                        outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                        target,
-                    });
-                }
-                NewtypeRejection::NoMatch(notes) => {
-                    let source =
-                        self.report_rejected_construct(site, node, origin, argument_nodes, &notes)?;
-                    let target = expectation.map_or(source, |expectation| expectation.target);
-
-                    return Ok(ValueCheck {
-                        source,
-                        stored: source,
-                        outcome: CheckOutcome::Fails(CheckFailure::Relation),
-                        target,
-                    });
-                }
-                NewtypeRejection::Ambiguous => {
-                    return Err(CompilerError::Internal {
-                        message: "ordered newtype selection rejected an ambiguous backing"
-                            .to_string(),
-                    });
-                }
-            },
+            NewtypeMatch::Ambiguous => {
+                return Err(CompilerError::Internal {
+                    message: "ordered newtype selection reported an ambiguous backing".to_string(),
+                });
+            }
         };
 
+        // commit the selected newtype construction
         self.commit_newtype_construct(
             node,
             origin,
@@ -805,7 +743,6 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source: signature.return_type,
-            stored: signature.return_type,
             outcome,
             target: expected,
         })
@@ -895,99 +832,53 @@ impl BodyState<'_, '_> {
         }
 
         // select the first applicable construct signature in declaration order
-        let is_single_candidate = signatures.len() == 1;
-        let mut selected = None;
-        let mut rejections = Vec::new();
-        for signature in signatures {
-            if is_single_candidate {
-                selected = Some(signature);
-                break;
-            }
-            let (verdict, rejection) = self.probe_candidate_with_note(
-                |state| {
-                    let outcome = state.probe_construct(
-                        origin,
-                        constraint_module,
-                        &instance,
-                        target,
-                        signature.ty,
-                        arguments,
-                        None,
-                        None,
-                    )?;
-                    Ok(outcome.into_candidate())
-                },
-                |state, rejection| {
-                    state
-                        .check
-                        .format_signature_rejection(module, signature.ty, rejection)
-                },
-            )?;
-            match verdict {
-                Verdict::Fails => rejections.extend(rejection),
-                Verdict::Holds | Verdict::Ambiguous => {
-                    selected = Some(signature);
+        let selection = self.select_callable(
+            origin,
+            &signatures,
+            OverloadRule::Ordered,
+            |signature| signature.ty,
+            |state, signature| {
+                state.match_construct(
+                    origin,
+                    constraint_module,
+                    &instance,
+                    target,
+                    signature.ty,
+                    arguments,
+                    None,
+                    None,
+                )
+            },
+        )?;
 
-                    break;
-                }
-            }
-        }
-
-        // confirm the selected signature outside any probe
-        if let Some(signature) = selected {
-            let attempt = self.probe_construct(
-                origin,
-                constraint_module,
-                &instance,
+        // commit or report the construct signature the match selected
+        match selection {
+            Selection::Selected {
+                candidate,
+                signature,
+                ..
+            } => self.commit_dynamic_construct(
+                node,
+                module,
                 target,
-                signature.ty,
-                arguments,
-                None,
-                None,
-            )?;
+                constraint,
+                candidate.source,
+                argument_nodes,
+                signature,
+                forms,
+            ),
+            Selection::Refused => {
+                self.commit_decision(node, dir::Decision::Rejected)?;
 
-            match attempt {
-                SignatureMatch::Selected(key) | SignatureMatch::ReturnMismatch(key) => {
-                    return self.commit_dynamic_construct(
-                        node,
-                        module,
-                        target,
-                        constraint,
-                        signature.source,
-                        argument_nodes,
-                        key,
-                        forms,
-                    );
-                }
-                // report a lone signature's rejection but keep its committed shape
-                SignatureMatch::Invalid { key, rejection } if is_single_candidate => {
-                    self.report_signature_rejection(origin, rejection)?;
-
-                    return self.commit_dynamic_construct(
-                        node,
-                        module,
-                        target,
-                        constraint,
-                        signature.source,
-                        argument_nodes,
-                        key,
-                        forms,
-                    );
-                }
-                SignatureMatch::Invalid { rejection, .. } => {
-                    let description =
-                        self.format_signature_rejection(module, signature.ty, &rejection)?;
-                    rejections.push(description);
-                }
-                SignatureMatch::Inapplicable(rejection) => {
-                    let description =
-                        self.format_signature_rejection(module, signature.ty, &rejection)?;
-                    rejections.push(description);
-                }
+                self.commit_error_node(node)
             }
+            Selection::Rejected(rejections) => {
+                self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
+            }
+            Selection::Ambiguous => Err(CompilerError::Internal {
+                message: "ordered construct selection reported an ambiguous signature".to_string(),
+            }),
         }
-
-        self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
     }
 
     /// Commit one selected dynamic construction.
@@ -1016,6 +907,7 @@ impl BodyState<'_, '_> {
             function: dir::DynamicFunction::ConstructSignature(source),
         };
 
+        // commit the erased construct decision
         self.commit_construct_decision(
             node,
             module,
@@ -1072,85 +964,50 @@ impl BodyState<'_, '_> {
         )?;
 
         // select the first applicable base constructor in declaration order
-        let is_single_candidate = constructors.len() == 1;
-        let mut selected = None;
-        let mut rejections = Vec::new();
-        for constructor in constructors {
-            if is_single_candidate {
-                selected = Some(constructor);
-                break;
-            }
-            let (verdict, rejection) = self.probe_candidate_with_note(
-                |state| {
-                    let outcome = state.probe_construct(
-                        origin,
-                        base_module,
-                        &instance,
-                        super_ty,
-                        constructor.ty,
-                        &arguments,
-                        None,
-                        None,
-                    )?;
-                    Ok(outcome.into_candidate())
-                },
-                |state, rejection| {
-                    state
-                        .check
-                        .format_signature_rejection(module, constructor.ty, rejection)
-                },
-            )?;
-            match verdict {
-                Verdict::Fails => rejections.extend(rejection),
-                Verdict::Holds | Verdict::Ambiguous => {
-                    selected = Some(constructor);
+        let selection = self.select_callable(
+            origin,
+            &constructors,
+            OverloadRule::Ordered,
+            |constructor| constructor.ty,
+            |state, constructor| {
+                state.match_construct(
+                    origin,
+                    base_module,
+                    &instance,
+                    super_ty,
+                    constructor.ty,
+                    &arguments,
+                    None,
+                    None,
+                )
+            },
+        )?;
 
-                    break;
-                }
-            }
-        }
-
-        // confirm the selected constructor outside any probe
-        if let Some(constructor) = selected {
-            let attempt = self.probe_construct(
-                origin,
+        // commit or report the constructor the match selected
+        match selection {
+            Selection::Selected {
+                candidate: constructor,
+                signature,
+                ..
+            } => self.commit_super_construct(
+                node,
+                module,
                 base_module,
                 &instance,
-                super_ty,
-                constructor.ty,
-                &arguments,
-                None,
-                None,
-            )?;
+                constructor.constructor.clone(),
+                argument_nodes,
+                signature,
+            ),
+            Selection::Refused => self.commit_rejected_call(node, None, None),
+            Selection::Rejected(rejections) => {
+                self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)?;
 
-            match attempt {
-                SignatureMatch::Selected(signature)
-                | SignatureMatch::ReturnMismatch(signature)
-                | SignatureMatch::Invalid { key: signature, .. } => {
-                    return self.commit_super_construct(
-                        node,
-                        module,
-                        base_module,
-                        &instance,
-                        constructor.constructor,
-                        argument_nodes,
-                        signature,
-                    );
-                }
-                SignatureMatch::Inapplicable(rejection) => {
-                    let description =
-                        self.format_signature_rejection(module, constructor.ty, &rejection)?;
-                    rejections.push(description);
-                }
+                self.commit_rejected_call(node, None, None)
             }
+            Selection::Ambiguous => Err(CompilerError::Internal {
+                message: "ordered super selection reported an ambiguous constructor".to_string(),
+            }),
         }
-
-        // reject the super call once every base constructor rejected the arguments
-        rejections.truncate(4);
-
-        self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)?;
-
-        self.commit_rejected_call(node, None, None)
     }
 
     /// Commit one selected base constructor as the super initialization.
@@ -1195,7 +1052,6 @@ impl BodyState<'_, '_> {
 
         Ok(ValueCheck {
             source: produced,
-            stored: produced,
             outcome: CheckOutcome::Holds,
             target: produced,
         })

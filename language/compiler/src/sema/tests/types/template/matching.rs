@@ -22,8 +22,8 @@ posts satisfies Route;
 === annotated ===
 type Route = `api:${"users" | "posts"}`;
 
-const users: "api:users" | "api:posts" = "api:users" as "api:users" | "api:posts";
-const posts: "api:users" | "api:posts" = "api:posts" as "api:users" | "api:posts";
+const users: "api:users" | "api:posts" = "api:users";
+const posts: "api:users" | "api:posts" = "api:posts";
 
 users satisfies "api:users" | "api:posts";
 posts satisfies Route;
@@ -77,14 +77,8 @@ const bad: Route = "fr-users";
 === annotated ===
 type Route = `${"en" | "de"}-${"users" | "posts"}`;
 
-const enUsers: "en-users" | "en-posts" | "de-users" | "de-posts" = "en-users" as | "en-users"
-| "en-posts"
-| "de-users"
-| "de-posts";
-const dePosts: "en-users" | "en-posts" | "de-users" | "de-posts" = "de-posts" as | "en-users"
-| "en-posts"
-| "de-users"
-| "de-posts";
+const enUsers: "en-users" | "en-posts" | "de-users" | "de-posts" = "en-users";
+const dePosts: "en-users" | "en-posts" | "de-users" | "de-posts" = "de-posts";
 const bad: "en-users" | "en-posts" | "de-users" | "de-posts" = "fr-users";
 
 === dir ===
@@ -172,8 +166,7 @@ const bad: PrimitiveText = "yes-null-undefined";
 === annotated ===
 type PrimitiveText = `${boolean}-${null}-${undefined}`;
 
-const ok: "false-null-undefined" | "true-null-undefined" =
-    "true-null-undefined" as "false-null-undefined" | "true-null-undefined";
+const ok: "false-null-undefined" | "true-null-undefined" = "true-null-undefined";
 const bad: "false-null-undefined" | "true-null-undefined" = "yes-null-undefined";
 
 === dir ===

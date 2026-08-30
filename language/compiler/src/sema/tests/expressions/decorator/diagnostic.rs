@@ -122,7 +122,7 @@ const value = 1;
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
-@expect("constant-condition", { reason: "intentional assertion" })
+@expect("constant-condition", { reason: "intentional assertion" } as DiagnosticControlOptions)
 const value: 1 = 1;
 
 === dir ===
@@ -164,10 +164,7 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@deny("constant-condition", {
-    if: false,
-    otherwise: "allow" as "allow" | "warn" | "deny" | "forbid",
-})
+@deny("constant-condition", { if: false, otherwise: "allow" } as DiagnosticControlOptions)
 if (true) {
 }
 

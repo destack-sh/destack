@@ -88,6 +88,7 @@ impl CheckState<'_> {
         target: &dir::WriteResolution,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
+        // check by the write target's own kind
         match target {
             dir::WriteResolution::Binding { symbol, .. } => {
                 self.check_writable_binding(source, *symbol)
@@ -145,10 +146,11 @@ impl CheckState<'_> {
         target: &dir::MemberTarget,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
+        // check by the member target's own kind
         match target {
             // require a writable projection and a writable slot for a field write
             dir::MemberTarget::Field(field) => {
-                if self.body().is_readonly_receiver_projection(receiver)? {
+                if self.is_readonly_receiver_projection(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
@@ -178,7 +180,7 @@ impl CheckState<'_> {
             dir::MemberTarget::Call(_) => Ok(ObligationCheck::holds()),
             // require a writable projection and writable fields for an index write
             dir::MemberTarget::Index(index) => {
-                if self.body().is_readonly_receiver_projection(receiver)? {
+                if self.is_readonly_receiver_projection(receiver)? {
                     let failure = ObligationFailure::CannotAssignReadonlyMember {
                         source,
                         member: target.clone(),
@@ -351,6 +353,7 @@ impl CheckState<'_> {
         field: &dir::FieldResolution,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
+        // check by the field target's own kind
         match field.target {
             dir::FieldTarget::Structural { owner, key } => {
                 self.check_writable_structural_field(source, field, owner, key)

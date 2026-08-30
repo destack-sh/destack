@@ -36,7 +36,7 @@ struct Circle {
     radius: int32;
 }
 
-function read<'a>(shape: Borrowed<Rectangle | Circle, 'a, "mutable">): int32 {
+function read<'a>(shape: &'a (Rectangle | Circle)): int32 {
     if (shape is Borrowed<Rectangle, 'a>) {
         return shape.width;
     }
@@ -262,8 +262,8 @@ struct Text {
 }
 
 function value<'a, 'b>(
-    left: Borrowed<Text, 'a, "mutable">,
-    right: Borrowed<Text, 'b, "mutable">,
+    left: &'a Text,
+    right: &'b Text,
     flag: boolean,
 ): Borrowed<string, 'a | 'b, "mutable"> {
     return flag ? &left.value : &right.value;
@@ -312,7 +312,7 @@ function value<'a, 'b>(
     /// @resolution.name source=flag target=value.flag
     /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=value.flag
-    /// @type.node source=&left.value type=Borrowed<string, 'a & 'a, "mutable">
+    /// @type.node source=&left.value type=&'a string
     /// @type.node source=left type=&'a Text
     /// @type.node source=left.value type=Managed<string, 'a>
     /// @resolution.name source=left target=value.left
@@ -321,7 +321,7 @@ function value<'a, 'b>(
     /// @resolution.access source=left root=value.left
     /// @resolution.place source=left.value placement='a lifetime='a access="mutable"
     /// @resolution.access source=left.value root=value.left keys=[value]
-    /// @type.node source=&right.value type=Borrowed<string, 'b & 'b, "mutable">
+    /// @type.node source=&right.value type=&'b string
     /// @type.node source=right type=&'b Text
     /// @type.node source=right.value type=Managed<string, 'b>
     /// @resolution.name source=right target=value.right

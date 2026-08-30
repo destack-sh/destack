@@ -35,11 +35,11 @@ declare const values: int32[];
 
 let [head, ...tail] = values;
 /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
-/// @generic.instantiation id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-/// @generic.instance id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head

@@ -28,6 +28,9 @@ impl CheckState<'_> {
                 false => resolved,
             };
             self.node_types.insert(node, resolved);
+            if self.is_checking() {
+                self.commit_array_construction(node)?;
+            }
             let written = self
                 .module
                 .types_tail
@@ -35,19 +38,6 @@ impl CheckState<'_> {
                 .or_else(|| self.module.types.get_node_type_id(node));
             if written != Some(resolved) {
                 self.module.types_tail.set_node_type(node, resolved);
-            }
-        }
-
-        // resolve contextual expectations that differ from their node types
-        for node in self.expected_types.nodes() {
-            let ty = self
-                .expected_types
-                .get(&node)
-                .expect("collected expected type");
-            let resolved = self.fully_resolve(ty)?;
-            self.expected_types.insert(node, resolved);
-            if self.node_types.get(&node) != Some(resolved) {
-                self.module.types_tail.set_expected_type(node, resolved);
             }
         }
 
@@ -121,7 +111,7 @@ impl CheckState<'_> {
 
     /// Commit every instantiation the committed decisions and conversions perform.
     fn commit_instantiations(&mut self) -> CompilerResult<()> {
-        // collect selections that bind generic arguments, with their governing template
+        // collect the selections that bind generic arguments under their template
         let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
         for (node, decision) in self.module.decisions.decision_entries() {
@@ -173,10 +163,8 @@ impl CheckState<'_> {
             }
         }
 
-        // drop instantiations poisoned by inference, reporting sites without a diagnostic
-        let mut committed = Vec::with_capacity(instantiations.len());
+        // keep the whole instantiations, withholding records that carry a reported failure
         for instantiation in instantiations {
-            // scan the receiver and every argument for a poisoned type
             let mut poisoned = false;
             let receiver = instantiation.key.receiver.into_iter();
             let arguments = instantiation.key.arguments.iter();
@@ -187,21 +175,8 @@ impl CheckState<'_> {
                 }
             }
             if !poisoned {
-                committed.push(instantiation);
-                continue;
+                self.module.generics_tail.push_instantiation(instantiation);
             }
-
-            // report sites this module's own inference gave up on
-            if self.poisoned_nodes.contains(&instantiation.source)
-                && !self.reported_nodes.contains(&instantiation.source)
-            {
-                self.report_cannot_infer_node(instantiation.source)?;
-            }
-        }
-
-        // write the surviving instantiations into this pass's segment
-        for instantiation in committed {
-            self.module.generics_tail.push_instantiation(instantiation);
         }
 
         Ok(())
@@ -244,13 +219,13 @@ impl CheckState<'_> {
         None
     }
 
-    /// Resolve every type one written module segment carries.
+    /// Settle every type one written module segment carries.
     fn resolve_segment_types<S: TypeFold>(
         &mut self,
         replacement: S,
         select: impl Fn(&mut CheckModuleState) -> &mut S,
     ) -> CompilerResult<()> {
-        // fold the segment outside the module, where resolving reads the rest of the state
+        // fold the segment outside the module, where resolving reads the whole state
         let mut segment = std::mem::replace(select(&mut self.module), replacement);
 
         // selections keep the types they chose, so only their variables resolve
@@ -272,7 +247,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Resolve one committed type into the canonical form writeback requires.
+    /// Settle one committed type into the canonical form writeback requires.
     pub(in crate::sema) fn fully_resolve(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -288,7 +263,13 @@ impl CheckState<'_> {
             let survivors = self.type_variables(resolved)?;
             let roles = survivors
                 .iter()
-                .map(|variable| format!("{:?}={:?}", variable, self.infer.variable_role(*variable)))
+                .map(|variable| {
+                    format!(
+                        "{:?}={:?}",
+                        variable,
+                        self.infer.variable(*variable).map(|v| v.kind)
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(", ");
 
@@ -303,7 +284,7 @@ impl CheckState<'_> {
         Ok(resolved)
     }
 
-    /// Resolve one open type graph, cycling through solved variable roots.
+    /// Settle one open type graph, cycling through solved variable roots.
     fn resolve_open_type(
         &mut self,
         id: dir::GlobalTypeId,
@@ -450,6 +431,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
         named: &mut FxIndexSet<dir::GlobalSymbolId>,
     ) -> CompilerResult<bool> {
+        // read whether the value computes
         match self.ty(value)? {
             // projections and operations compute, names compute through their value
             dir::Type::Operation(_) | dir::Type::Member(_) => Ok(true),

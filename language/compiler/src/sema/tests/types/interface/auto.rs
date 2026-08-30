@@ -48,9 +48,9 @@ declare function requireHash<T: Hash>(value: T): T;
 declare function requireEqual<T: Equal<T>>(value: T): T;
 
 const point: Point = Point { x: 1, y: 2 };
-const cloned: Point = point.clone<"constant">();
+const cloned: Point = point.clone();
 const defaulted: Point = Point.default();
-const same: boolean = point.equal<Point, "constant", "constant">(cloned as &'static readonly Point);
+const same: boolean = point.equal<Point>(cloned as &'static readonly Point);
 const viaClone: Point = requireClone<Point>(point);
 const viaDefault: Point = requireDefault<Point>();
 const viaHash: Point = requireHash<Point>(point);
@@ -118,11 +118,11 @@ const cloned = point.clone();
 /// @type.symbol symbol=cloned source=cloned type=Point
 /// @resolution.pattern source=cloned kind=binding target=cloned
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a, Clone.clone.P1: Place>(this: Borrowed<Point, Clone.clone.'a & Clone.clone.P1, "readonly">) => Owned<Point> kind=symbol target_receiver=Point target=Clone.clone
-/// @resolution.call source=point.clone() parameters=() return=Owned<Point> kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="Clone.clone<\"constant\">"
+/// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a>(this: &Clone.clone.'a readonly Point) => Owned<Point> kind=symbol target_receiver=Point target=Clone.clone
+/// @resolution.call source=point.clone() parameters=() return=Owned<Point> kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point))
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
-/// @generic.instantiation id="Clone.clone<Point, \"constant\">" template=Clone.clone arguments=("constant")
+/// @generic.instantiation id=Clone.clone<Point> template=Clone.clone arguments=()
 
 const defaulted = Point.default();
 /// @type.symbol symbol=defaulted source=defaulted type=Point
@@ -135,11 +135,11 @@ const same = point.equal(cloned);
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.equal receiver=Point type=<PartialEqual.equal.'a, PartialEqual.equal.P1: Place, PartialEqual.equal.'b, PartialEqual.equal.P3: Place>(this: Borrowed<Point, PartialEqual.equal.'a & PartialEqual.equal.P1, "readonly">, Borrowed<Point, PartialEqual.equal.'b & PartialEqual.equal.P3, "readonly">) => boolean kind=symbol target_receiver=Point target=PartialEqual.equal
-/// @resolution.call source=point.equal(cloned) parameters=(&'static readonly constant Point) arguments=(provided(cloned) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="PartialEqual<Point>.equal<\"constant\", \"constant\">"
+/// @resolution.member source=point.equal receiver=Point type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly Point, &PartialEqual.equal.'b readonly Point) => boolean kind=symbol target_receiver=Point target=PartialEqual.equal
+/// @resolution.call source=point.equal(cloned) parameters=(&'static readonly constant Point) arguments=(provided(cloned) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
-/// @generic.instantiation id="PartialEqual.equal<Point, Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
+/// @generic.instantiation id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
 /// @generic.instantiation id=PartialEqual.equal<Point> template=PartialEqual.equal arguments=(Point)
 /// @resolution.name source=cloned target=cloned
 /// @resolution.place source=cloned placement="constant" lifetime="static" access="readonly"
@@ -369,10 +369,10 @@ import { Clone } from "destack:memory";
 declare function requireClone<T: Clone>(value: T): T;
 
 const number: 1 = 1;
-const clonedNumber: int64 = number.clone<"constant">();
+const clonedNumber: int64 = number.clone();
 const viaBound: int64 = requireClone<int64>(2);
 const text: string = "a";
-const clonedText: string = text.clone<"local">() as string;
+const clonedText: string = text.clone() as string;
 
 === dir ===
 import { Clone } from "destack:memory";
@@ -394,11 +394,11 @@ const clonedNumber = number.clone();
 /// @type.symbol symbol=clonedNumber source=clonedNumber type=int64
 /// @resolution.pattern source=clonedNumber kind=binding target=clonedNumber
 /// @resolution.name source=number target=number
-/// @resolution.member source=number.clone receiver=1 type=<Clone.clone.'a, Clone.clone.P1: Place>(this: Borrowed<int64, Clone.clone.'a & Clone.clone.P1, "readonly">) => Owned<int64> kind=symbol target_receiver=1 target=Clone.clone
-/// @resolution.call source=number.clone() parameters=() return=Owned<int64> kind=symbol target=Clone.clone receiver=1 adjustments=(borrow(&'static readonly constant 1)) instance="Clone.clone<\"constant\">"
+/// @resolution.member source=number.clone receiver=1 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int64) => Owned<int64> kind=symbol target_receiver=1 target=Clone.clone
+/// @resolution.call source=number.clone() parameters=() return=Owned<int64> kind=symbol target=Clone.clone receiver=1 adjustments=(borrow(&'static readonly constant 1))
 /// @resolution.place source=number placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=number root=number
-/// @generic.instantiation id="Clone.clone<int64, \"constant\">" template=Clone.clone arguments=("constant")
+/// @generic.instantiation id=Clone.clone<int64> template=Clone.clone arguments=()
 
 const viaBound = requireClone(2);
 /// @type.symbol symbol=viaBound source=viaBound type=int64
@@ -415,11 +415,11 @@ const clonedText = text.clone();
 /// @type.symbol symbol=clonedText source=clonedText type=string
 /// @resolution.pattern source=clonedText kind=binding target=clonedText
 /// @resolution.name source=text target=text
-/// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a, Clone.clone.P1: Place>(this: Borrowed<string, Clone.clone.'a & Clone.clone.P1, "readonly">) => Owned<string> kind=symbol target_receiver=string target=Clone.clone
-/// @resolution.call source=text.clone() parameters=() return=Owned<string> kind=symbol target=Clone.clone receiver=string adjustments=(borrow(&'static readonly string)) instance="Clone.clone<\"local\">"
+/// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a>(this: &Clone.clone.'a readonly string) => Owned<string> kind=symbol target_receiver=string target=Clone.clone
+/// @resolution.call source=text.clone() parameters=() return=Owned<string> kind=symbol target=Clone.clone receiver=string adjustments=(borrow(&'static readonly string))
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=text root=text
-/// @generic.instantiation id="Clone.clone<string, \"local\">" template=Clone.clone arguments=("local")
+/// @generic.instantiation id=Clone.clone<string> template=Clone.clone arguments=()
 "#,
         r#"
 
@@ -478,7 +478,7 @@ function witness<T: Copy>(value: T): T {
 declare const handle: Handle;
 declare const cursor: Cursor;
 
-witness(handle);
+witness<Handle>(handle);
 witness<Cursor>(cursor);
 
 === dir ===
@@ -538,7 +538,7 @@ declare const repeatable: () => void;
 declare const once: () => void;
 
 witness<() => void>(repeatable);
-witness(once);
+witness<() => void>(once);
 
 === dir ===
 function witness<T: Copy>(value: T): T {
@@ -576,7 +576,8 @@ witness(repeatable);
 
 witness(once);
 /// @resolution.name source=witness target=witness
-/// @resolution.call source=witness(once) parameters=(<error>) arguments=(provided(once) as <error>) return=<error> kind=symbol target=witness instance=witness<<error>>
+/// @resolution.call source=witness(once) parameters=(Function<(), void>) arguments=(provided(once) as Function<(), void>) return=Function<(), void> kind=symbol target=witness instance="witness<Function<(), void>>"
+/// @generic.instantiation id="witness<Function<(), void>>" template=witness arguments=(Function<(), void>)
 /// @resolution.name source=once target=once
 /// @resolution.place source=once placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=once root=once
@@ -683,7 +684,7 @@ function duplicate(value: int32): int32 {
         r#"
 === annotated ===
 function duplicate(value: int32): int32 {
-    return value.clone<"local">();
+    return value.clone();
 }
 
 === dir ===
@@ -693,11 +694,11 @@ function duplicate(value: int32): int32 {
 
     return value.clone();
     /// @resolution.name source=value target=duplicate.value
-    /// @resolution.member source=value.clone receiver=int32 type=<Clone.clone.'a, Clone.clone.P1: Place>(this: Borrowed<int32, Clone.clone.'a & Clone.clone.P1, "readonly">) => Owned<int32> kind=symbol target_receiver=int32 target=Clone.clone
-    /// @resolution.call source=value.clone() parameters=() return=Owned<int32> kind=symbol target=Clone.clone receiver=int32 adjustments=(borrow(&'frame readonly int32)) instance="Clone.clone<\"local\">"
+    /// @resolution.member source=value.clone receiver=int32 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int32) => Owned<int32> kind=symbol target_receiver=int32 target=Clone.clone
+    /// @resolution.call source=value.clone() parameters=() return=Owned<int32> kind=symbol target=Clone.clone receiver=int32 adjustments=(borrow(&'frame readonly int32))
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=duplicate.value
-    /// @generic.instantiation id="Clone.clone<int32, \"local\">" template=Clone.clone arguments=("local")
+    /// @generic.instantiation id=Clone.clone<int32> template=Clone.clone arguments=()
 
 }
 "#,

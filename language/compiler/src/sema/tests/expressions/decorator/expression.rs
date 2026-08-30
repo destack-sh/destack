@@ -271,7 +271,7 @@ declare function consume(value: int32): void;
 
 function run(): void {
     consume(@mark("call") 1);
-    const sink: local Sink = new Sink<"local">(@mark("construct") 2);
+    const sink: local Sink = new Sink(@mark("construct") 2);
     const array: int64[] = [@mark("array") 3,];
 }
 
@@ -336,7 +336,7 @@ function run(): void {
     /// @type.node source=[@mark("array") 3] type=int64[]
     /// @resolution.call source=[@mark("array") 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
     /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-    /// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+    /// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -538,6 +538,7 @@ newtype mark = (string,) | ("value",);
 @mark("value")
 /// @type.node source=mark type=mark
 /// @resolution.name source=mark target=mark
+/// @type.node source="\"value\"" type="value"
 
 const value = 1;
 /// @type.symbol symbol=value source=value type=1
@@ -581,8 +582,8 @@ newtype mark<T> = (T,);
 /// @resolution.name source=T target=mark.T
 
 @mark(1)
-/// @generic.instance id=mark<1> template=mark arguments=(1)
-/// @decorator.node source=@mark(1) owner="const value = 1" expression=mark target=mark type=mark<1> kind=newtype parameters=(1) arguments=(provided(1) as 1) newtype=mark backing=(1,) generic_arguments=(1) value=mark<1>(1)
+/// @generic.instance id=mark<int64> template=mark arguments=(int64)
+/// @decorator.node source=@mark(1) owner="const value = 1" expression=mark target=mark type=mark<int64> kind=newtype parameters=(int64) arguments=(provided(1) as int64) newtype=mark backing=(int64,) generic_arguments=(int64) value=mark<int64>(1)
 /// @type.node source=mark type=mark
 /// @resolution.name source=mark target=mark
 /// @type.node source=1 type=1

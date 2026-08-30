@@ -154,8 +154,6 @@ const isEmpty = "".isEmpty;
 /// @type.node source="\"\"" type=""
 /// @type.node source="\"\".isEmpty" type=boolean
 /// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-/// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
-/// @generic.instance id="isEmpty<\"local\">" template=isEmpty arguments=("local")
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
@@ -206,8 +204,6 @@ const isEmpty = value.isEmpty;
 /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
-/// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
-/// @generic.instance id="isEmpty<\"local\">" template=isEmpty arguments=("local")
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean

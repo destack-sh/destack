@@ -4,12 +4,11 @@ use destack_dir as dir;
 use destack_source::{
     Applicability, DiagnosticSuggestion, FilePatch, ModuleId, Patch, PatchSet, Span,
 };
-use smallvec::SmallVec;
 
 use crate::sema::{
-    BoundSide, CauseKind, CheckFailure, CheckState, FailedCheck, MixedObjectSignature,
-    ObligationFailure, OperatorOperands, Origin, Relation, SignatureRejection, TypeBound,
-    UncoveredValue, ValueUse, Variance,
+    Bound, BoundSide, CauseKind, CheckFailure, CheckState, FailedCheck, MixedObjectSignature,
+    ObligationFailure, OperatorOperands, Origin, Relation, SignatureRejection, UncoveredValue,
+    ValueUse, Variance,
 };
 use crate::{CheckError, CheckWarning, CompilerError, CompilerResult, DiagnosticAnchor};
 
@@ -20,6 +19,12 @@ impl CheckState<'_> {
         module: ModuleId,
         diagnostic: impl Into<DiagnosticBuilder<CheckError>>,
     ) {
+        // leave decisions unreported
+        if self.infer.is_deciding() {
+            return;
+        }
+
+        // read the module's diagnostic list
         let diagnostic = diagnostic.into();
         let diagnostics = &mut self.module_mut(module).diagnostics;
 
@@ -369,7 +374,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one body read of a parameter value the signature never fixes.
+    /// Report one body read of a parameter value the signature leaves open.
     pub(in crate::sema) fn report_value_read_not_fixed(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -521,7 +526,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report a decorator target that does not name one newtype declaration.
+    /// Report a decorator target naming no newtype declaration.
     pub(in crate::sema) fn report_invalid_decorator_target(
         &mut self,
         module: ModuleId,
@@ -533,7 +538,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report decorator arguments that do not prove one unique backing.
+    /// Report decorator arguments proving no unique backing.
     pub(in crate::sema) fn report_ambiguous_decorator(
         &mut self,
         origin: Origin,
@@ -843,7 +848,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report an expression pattern that did not close to a literal.
+    /// Report an expression pattern whose value stays open.
     pub(in crate::sema) fn report_expression_pattern_not_literal(
         &mut self,
         module: ModuleId,
@@ -867,7 +872,7 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
-    /// Report one source occurrence whose type could not be inferred.
+    /// Report one source occurrence whose type stays open.
     pub(in crate::sema) fn report_cannot_infer_type(
         &mut self,
         origin: Origin,
@@ -879,6 +884,7 @@ impl CheckState<'_> {
             return Ok(());
         }
 
+        // build the diagnostic at the occurrence
         let error = CheckError::CannotInferType {
             anchor: anchor.clone(),
             module,
@@ -905,7 +911,6 @@ impl CheckState<'_> {
         }
 
         self.report(module, diagnostic);
-        self.record_reported_origin(origin)?;
 
         Ok(())
     }
@@ -914,7 +919,7 @@ impl CheckState<'_> {
     fn variable_bound_list(
         &self,
         variable: dir::TypeVariableId,
-    ) -> CompilerResult<Vec<(BoundSide, TypeBound)>> {
+    ) -> CompilerResult<Vec<(BoundSide, Bound)>> {
         // collect both sides, then cap the list for display
         let mut bounds = Vec::new();
         for side in [BoundSide::Lower, BoundSide::Upper] {
@@ -930,7 +935,7 @@ impl CheckState<'_> {
         Ok(bounds)
     }
 
-    /// Report one source node whose type could not be inferred.
+    /// Report one source node whose type stays open.
     pub(in crate::sema) fn report_cannot_infer_node(
         &mut self,
         source: dir::GlobalNodeIdAny,
@@ -939,12 +944,11 @@ impl CheckState<'_> {
         let error = CheckError::CannotInferType { anchor, module };
 
         self.report(module, error);
-        self.record_reported_node(source);
 
         Ok(())
     }
 
-    /// Report one borrow expression whose access the source never grants.
+    /// Report one borrow expression asking more access than its source grants.
     pub(in crate::sema) fn report_borrow_access_not_granted(
         &mut self,
         origin: Origin,
@@ -959,7 +963,8 @@ impl CheckState<'_> {
             access: access.text().to_string(),
             source: self.format_type_at(module, source),
         };
-        // name the access the source does grant
+
+        // name the access the source grants
         let mut diagnostic = DiagnosticBuilder::new(error);
         if let Some(granted) = granted {
             diagnostic = diagnostic.note(format!(
@@ -968,6 +973,7 @@ impl CheckState<'_> {
             ));
         }
 
+        // suggest a source that grants the access
         let diagnostic =
             diagnostic.help("request the granted access or use a source that grants more");
 
@@ -1127,7 +1133,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one value that is not callable.
+    /// Report one value used as a callable.
     pub(in crate::sema) fn report_not_callable(
         &mut self,
         origin: Origin,
@@ -1206,9 +1212,6 @@ impl CheckState<'_> {
                     ),
                     _ => match relation {
                         Relation::Equal => format!("requires '{source}' to equal '{target}'"),
-                        Relation::Satisfies => {
-                            format!("requires '{source}' to satisfy '{target}'")
-                        }
                         _ => format!("rejects '{source}' as '{target}'"),
                     },
                 }
@@ -1247,7 +1250,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one argument that does not name a derivable interface.
+    /// Report one argument naming no derivable interface.
     pub(in crate::sema) fn report_invalid_derive_interface(
         &mut self,
         origin: Origin,
@@ -1419,7 +1422,6 @@ impl CheckState<'_> {
                     source,
                     target,
                     failure,
-                    is_provisional: false,
                 })?;
             }
 
@@ -1498,7 +1500,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one inferred construction target that is not a concrete newtype.
+    /// Report one inferred construction target outside the concrete newtypes.
     pub(in crate::sema) fn report_invalid_inferred_construct_target(
         &mut self,
         origin: Origin,
@@ -1739,7 +1741,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one pattern member that is not a field.
+    /// Report one pattern member that resolves to something other than a field.
     pub(in crate::sema) fn report_pattern_member_not_field(
         &mut self,
         origin: Origin,
@@ -1827,7 +1829,7 @@ impl CheckState<'_> {
         self.report(module, error);
     }
 
-    /// Report one pattern whose tag is not nominal.
+    /// Report one pattern whose tag names no nominal declaration.
     pub(in crate::sema) fn report_invalid_pattern_tag(
         &mut self,
         origin: Origin,
@@ -1845,7 +1847,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Report one variant pattern whose owner does not match the input.
+    /// Report one variant pattern whose owner differs from the input.
     pub(in crate::sema) fn report_pattern_variant_not_in_type(
         &mut self,
         origin: Origin,
@@ -1971,18 +1973,33 @@ impl CheckState<'_> {
         } = *check;
 
         // skip reporting once source or target already reported an error
-        if self.has_error_operand(&[source, target])? {
+        let origin = self.cause_origin(cause);
+        let resolved_source = self.deeply_resolve(origin, source)?;
+        let resolved_target = self.deeply_resolve(origin, target)?;
+        if self.has_error_operand(&[resolved_source, resolved_target])? {
             return Ok(false);
         }
 
         // anchor the diagnostic at the site the cause names
-        let origin = self.cause_origin(cause);
         let root_kind = self.root_cause(cause).kind;
-        let (module, anchor) = match (root_kind, value_use) {
-            // anchor initializers and stores at their own node
-            (CauseKind::Initializer { .. }, _) | (_, Some(ValueUse::Store)) => {
-                self.origin_node_anchor(origin)?
+        let value_use = value_use.or(match root_kind {
+            CauseKind::Argument { .. } => Some(ValueUse::Argument),
+            CauseKind::Return { .. } | CauseKind::ReturnSlot => Some(ValueUse::Output),
+            CauseKind::Initializer { .. }
+            | CauseKind::Field { .. }
+            | CauseKind::Element { .. }
+            | CauseKind::Write { .. } => Some(ValueUse::Store),
+            _ => None,
+        });
+        let failure = match failure {
+            CheckFailure::Relation if self.is_dynamic_safe_target(target)? => {
+                CheckFailure::NotErasable
             }
+            failure => failure,
+        };
+        let (module, anchor) = match (root_kind, value_use) {
+            // anchor converted values at their whole node
+            (_, Some(_)) => self.origin_node_anchor(origin)?,
             // anchor every other cause at its diagnostic site
             _ => self.origin_diagnostic_anchor(origin)?,
         };
@@ -2013,7 +2030,7 @@ impl CheckState<'_> {
                 );
                 let diagnostic = DiagnosticBuilder::new(error);
 
-                // explain that a value keeps the storage placement it was created in
+                // explain that a value keeps its original space
                 if is_place_relabel {
                     diagnostic.note("a value never changes its space").help(
                         "use a value in the destination placement or create a new value there",
@@ -2104,45 +2121,8 @@ impl CheckState<'_> {
         let diagnostic = self.format_cause(diagnostic, cause, &anchor, blame.as_ref())?;
 
         self.report(module, diagnostic);
-        self.record_reported_origin(origin)?;
 
         Ok(true)
-    }
-
-    /// Record one reported origin's source node and its structural ancestors.
-    pub(in crate::sema) fn record_reported_origin(&mut self, origin: Origin) -> CompilerResult<()> {
-        let reported = self
-            .origin_source_node(origin)?
-            .into_global(origin.module());
-        self.record_reported_node(reported);
-
-        Ok(())
-    }
-
-    /// Record one reported source node and its structural ancestors.
-    pub(in crate::sema) fn record_reported_node(&mut self, node: dir::GlobalNodeIdAny) {
-        let lineage = self.node_lineage(node);
-        self.reported_nodes.extend(lineage);
-    }
-
-    /// Collect one node and its structural ancestors.
-    pub(in crate::sema) fn node_lineage(
-        &self,
-        node: dir::GlobalNodeIdAny,
-    ) -> SmallVec<[dir::GlobalNodeIdAny; 8]> {
-        let mut lineage = SmallVec::new();
-        lineage.push(node);
-        if node.module_id != self.module_id {
-            return lineage;
-        }
-        let tree = &self.module.parsed.tree;
-        let mut current = node.local_id.id;
-        while let Some(parent) = tree.get_parent(current) {
-            lineage.push(parent.into_global(node.module_id));
-            current = parent.id;
-        }
-
-        lineage
     }
 
     /// Build the diagnostic for one unstable overwrite.
@@ -2726,6 +2706,19 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return whether one relation target is the dynamic safety interface.
+    fn is_dynamic_safe_target(&mut self, target: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let target = self.shallow_resolve(target)?;
+        let Some((_, instance)) = self.nominal_application_maybe(target)? else {
+            return Ok(false);
+        };
+        let interface = self
+            .language_item(instance.symbol)?
+            .and_then(dir::AutoInterface::from_language_item);
+
+        Ok(interface == Some(dir::AutoInterface::DynamicSafe))
+    }
+
     /// Return the diagnostic for one ordinary relation failure.
     fn constraint_relation_error(
         &self,
@@ -2745,20 +2738,7 @@ impl CheckState<'_> {
                 right: target,
             },
             // report explicit casts with their own failure shape
-            (Relation::Castable, _) => CheckError::InvalidCast {
-                anchor,
-                module,
-                source,
-                target,
-            },
-            // report check-only relations by relation kind
-            (Relation::Satisfies, _) => CheckError::ConstraintNotSatisfied {
-                anchor,
-                module,
-                source,
-                target,
-            },
-            (Relation::Extends, _) => CheckError::DoesNotExtend {
+            (_, Some(ValueUse::Cast)) => CheckError::InvalidCast {
                 anchor,
                 module,
                 source,
@@ -2771,6 +2751,15 @@ impl CheckState<'_> {
                 source,
                 target,
             },
+            // report bound requirements and predicates as constraints
+            (Relation::Subtype, None | Some(ValueUse::Operand | ValueUse::Const)) => {
+                CheckError::ConstraintNotSatisfied {
+                    anchor,
+                    module,
+                    source,
+                    target,
+                }
+            }
             // specialize assignability diagnostics by value role
             (_, Some(ValueUse::Condition)) => CheckError::NonBooleanCondition {
                 anchor,
@@ -2831,6 +2820,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
     ) -> CompilerResult<()> {
+        // report once the checking pass evaluates the instantiation
+        if self.is_declaring() {
+            return Ok(());
+        }
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
         let error = CheckError::ExcessiveTypeInstantiation { anchor, module };
 
@@ -2854,6 +2847,7 @@ impl CheckState<'_> {
             None => "this declaration".to_string(),
         };
 
+        // report the elision against the declaration that names its lifetimes
         let error = CheckError::ElidedLifetimeInNamedDeclaration {
             anchor,
             module,
@@ -3085,7 +3079,7 @@ impl CheckState<'_> {
         self.report(module, error);
     }
 
-    /// Report one class inheritance clause that does not extend its target symbol.
+    /// Report one class inheritance clause that misses its target symbol.
     pub(in crate::sema) fn report_does_not_extend_symbol(
         &mut self,
         source: dir::GlobalTypeId,
@@ -3103,7 +3097,7 @@ impl CheckState<'_> {
         self.report(module, error);
     }
 
-    /// Report one class inheritance clause that does not extend its target type.
+    /// Report one class inheritance clause that misses its target type.
     pub(in crate::sema) fn report_does_not_extend_type(
         &mut self,
         source: dir::GlobalTypeId,

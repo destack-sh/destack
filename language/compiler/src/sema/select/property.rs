@@ -4,8 +4,8 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckFailure, CheckOutcome, FlowSite, InferMode, Origin, PlaceUse,
-    Relation, ValueCheck, ValueUse, WalkState,
+    Cause, CauseKind, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite, Origin,
+    PlaceUse, ValueCheck, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -27,7 +27,7 @@ enum MergeEntry {
     },
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select the merged shape of one literal with spread properties.
     pub(in crate::sema) fn select_property_merge(
         &mut self,
@@ -59,8 +59,7 @@ impl BodyState<'_, '_> {
                         signature.role,
                         Some(dir::FunctionRole::Getter | dir::FunctionRole::Setter)
                     ) {
-                        self.check
-                            .report_invalid_struct_accessor(property.into_global_any(module));
+                        self.report_invalid_struct_accessor(property.into_global_any(module));
                     }
 
                     // keep ordinary method shorthand and diagnosed accessors for checking
@@ -79,7 +78,7 @@ impl BodyState<'_, '_> {
                             &parsed.tree,
                             std::slice::from_ref(&expanded.patch),
                         );
-                        let mut walk = WalkState::new(module, tree, self.check);
+                        let mut walk = WalkState::new(module, tree, self);
                         walk.walk_property(*property, &tree.get(*property).clone())?;
                         walk.flush_flows()?;
                     }
@@ -116,7 +115,7 @@ impl BodyState<'_, '_> {
 
         // name the construct's write obligation as the parent cause of each field check
         let write_cause = target.map(|_| {
-            self.check.intern_cause(Cause::root(
+            self.intern_cause(Cause::root(
                 origin,
                 CauseKind::Write {
                     place: node.into_any(),
@@ -136,19 +135,19 @@ impl BodyState<'_, '_> {
                         Some(field) if source.local_id.ty == dir::NodeType::Expression => {
                             let source_site = self.visit_site(source)?;
                             let field_origin = Origin::Node(source, site.scope);
-                            let field_cause = self.check.intern_cause(match write_cause {
+                            let field_cause = self.intern_cause(match write_cause {
                                 Some(parent) => {
                                     Cause::child(field_origin, CauseKind::Field { key }, parent)
                                 }
                                 None => Cause::root(field_origin, CauseKind::Field { key }),
                             });
-                            let field_check = self.check_node_expected(
+                            let field_check = self.check_node(
                                 source_site,
-                                field.access.store(),
-                                Relation::Assignable,
-                                field_cause,
-                                ValueUse::Store,
-                                InferMode::Regular,
+                                Expectation::assignable(
+                                    field.access.store(),
+                                    field_cause,
+                                    ValueUse::Store,
+                                ),
                             )?;
 
                             // fold in the mismatch the field site already reported
@@ -159,7 +158,10 @@ impl BodyState<'_, '_> {
                                 outcome => outcome,
                             });
 
-                            field_check.stored
+                            match field_check.outcome {
+                                CheckOutcome::Holds => field_check.target,
+                                _ => field_check.source,
+                            }
                         }
                         _ => self.merge_entry_type(source)?,
                     };
@@ -180,17 +182,7 @@ impl BodyState<'_, '_> {
                     let source_site = self.visit_site(source)?;
                     let spread = self.infer_node_type(source_site, PlaceUse::Read)?;
 
-                    // defer the literal until an open spread source solves
-                    if let Some(variable) = self.root_variable(spread)? {
-                        let hole = self.defer_selection(site, variable)?;
-
-                        return Ok(ValueCheck {
-                            source: hole,
-                            stored: hole,
-                            outcome: CheckOutcome::Holds,
-                            target: target.unwrap_or(hole),
-                        });
-                    }
+                    let spread = self.resolve_structurally(site, spread)?;
 
                     // poison the literal when its spread source already reported an error
                     if self.has_error_operand(&[spread])? {
@@ -199,7 +191,6 @@ impl BodyState<'_, '_> {
 
                         return Ok(ValueCheck {
                             source,
-                            stored: source,
                             outcome: CheckOutcome::Fails(CheckFailure::Reported),
                             target,
                         });
@@ -215,7 +206,6 @@ impl BodyState<'_, '_> {
 
                         return Ok(ValueCheck {
                             source,
-                            stored: source,
                             outcome: CheckOutcome::Fails(CheckFailure::Relation),
                             target,
                         });
@@ -233,6 +223,7 @@ impl BodyState<'_, '_> {
         let fields: Vec<dir::TypeProperty> = fields.into_values().collect();
         let shape = self.intern_object(&fields)?;
 
+        // check the merged shape against the construction target
         match target {
             // struct literals must fill their declared fields
             Some(target) => {
@@ -268,14 +259,13 @@ impl BodyState<'_, '_> {
                 self.commit_node_type(node.into_any(), target)?;
                 Ok(ValueCheck {
                     source: target,
-                    stored: target,
                     outcome: check,
                     target,
                 })
             }
             // object literals bind their managed merged shape
             None => {
-                let place = self.check.local_place()?;
+                let place = self.local_place()?;
                 let managed = self.intern_type(dir::Type::Form(dir::FormType {
                     form: dir::Form::Managed { place },
                     value: shape,
@@ -283,7 +273,6 @@ impl BodyState<'_, '_> {
                 self.commit_node_type(node.into_any(), managed)?;
                 Ok(ValueCheck {
                     source: managed,
-                    stored: managed,
                     outcome: check,
                     target: managed,
                 })
@@ -337,6 +326,7 @@ impl BodyState<'_, '_> {
             current = self.shallow_resolve(form.value)?;
         }
 
+        // read the fields each head spreads
         match self.ty(current)? {
             // object shapes spread their fields directly
             dir::Type::Object(shape) => Ok(Some(

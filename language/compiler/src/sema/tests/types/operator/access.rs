@@ -317,9 +317,9 @@ const text: Value = "hello";
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const missing: float64 | undefined | string = undefined as float64 | undefined | string;
-const number: float64 | undefined | string = 1 as float64 | undefined | string;
-const text: float64 | undefined | string = "hello" as float64 | undefined | string;
+const missing: float64 | string | undefined = undefined as float64 | string | undefined;
+const number: float64 | string | undefined = 1 as float64 | string | undefined;
+const text: float64 | string | undefined = "hello" as float64 | string | undefined;
 
 === dir ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -331,22 +331,22 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input.value#2 source="value: string" type=string
 
 type Value = Input["value"];
-/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
-/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | undefined | string
+/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | string | undefined
+/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | string | undefined
 /// @resolution.name source=Input target=Input
 
 const missing: Value = undefined;
-/// @type.symbol symbol=missing source=missing type=float64 | undefined | string
+/// @type.symbol symbol=missing source=missing type=float64 | string | undefined
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=Value target=Value
 
 const number: Value = 1;
-/// @type.symbol symbol=number source=number type=float64 | undefined | string
+/// @type.symbol symbol=number source=number type=float64 | string | undefined
 /// @resolution.pattern source=number kind=binding target=number
 /// @resolution.name source=Value target=Value
 
 const text: Value = "hello";
-/// @type.symbol symbol=text source=text type=float64 | undefined | string
+/// @type.symbol symbol=text source=text type=float64 | string | undefined
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=Value target=Value
 "#,
@@ -373,7 +373,7 @@ const bad: Value = true;
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 type Value = Input["value"];
 
-const bad: float64 | undefined | string = true;
+const bad: float64 | string | undefined = true;
 
 === dir ===
 type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
@@ -385,17 +385,17 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input.value#2 source="value: string" type=string
 
 type Value = Input["value"];
-/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
-/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | undefined | string
+/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | string | undefined
+/// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=float64 | string | undefined
 /// @resolution.name source=Input target=Input
 
 const bad: Value = true;
-/// @type.symbol symbol=bad source=bad type=float64 | undefined | string
+/// @type.symbol symbol=bad source=bad type=float64 | string | undefined
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'float64 | undefined | string'"
+/// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'float64 | string | undefined'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
 "#,
@@ -647,7 +647,7 @@ type User = {
 };
 
 function get<K: keyof User>(user: { readonly name: string; readonly age: int32 }, key: K): User[K] {
-    return user[key as "name" | "age"];
+    return user[key];
 }
 
 declare const user: { readonly name: string; readonly age: int32 };

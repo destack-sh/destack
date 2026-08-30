@@ -45,6 +45,7 @@ impl CheckState<'_> {
             }
         }
 
+        // require the arms the union declares
         let Some(mut members) = arms else {
             return Ok(None);
         };
@@ -79,8 +80,8 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // membership tags the value into the union representation, which widening refuses
-        if relation == Relation::Widens {
+        // membership tags the value into the union representation, which storage refuses
+        if relation == Relation::Storable {
             return Ok(Verdict::Fails);
         }
         let dir::Type::Union(union) = self.ty(target)? else {

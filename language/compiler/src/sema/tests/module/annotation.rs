@@ -160,7 +160,7 @@ function build(): void {
         r#"
 === annotated ===
 function build(): void {
-    const value: int64 = 1;
+    const value: 1 = 1;
 }
 
 === dir ===
@@ -168,7 +168,7 @@ function build(): void {
 /// @type.symbol symbol=build type=() => void
 
     const value: _ = 1;
-    /// @type.symbol symbol=build.value source=value type=int64
+    /// @type.symbol symbol=build.value source=value type=1
     /// @resolution.pattern source=value kind=binding target=build.value
 
 }

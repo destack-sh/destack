@@ -32,7 +32,7 @@ type ReadonlyOwned = WithAccess<^Cell, "readonly">;
 type ExclusiveBorrow = WithAccess<Borrowed<Cell, "static">, "exclusive">;
 
 declare const readonlyOwned: readonly Cell;
-declare const exclusiveBorrow: Borrowed<Cell, "static", "exclusive">;
+declare const exclusiveBorrow: &'static exclusive Cell;
 
 readonlyOwned satisfies ^readonly Cell;
 exclusiveBorrow satisfies Borrowed<Cell, "static", "exclusive">;
@@ -114,7 +114,7 @@ struct Cell {
 
 type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
 
-declare const borrow: Borrowed<Cell, "static", "readonly">;
+declare const borrow: &'static readonly Cell;
 
 borrow satisfies Borrowed<Cell, "static", "readonly">;
 

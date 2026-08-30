@@ -184,7 +184,7 @@ const state: { reactions: int32[] } = { reactions: [] };
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 "#,
     );
 }
@@ -223,9 +223,9 @@ const counts: Counts = { apples: 1, oranges: 2 };
 /// @type.node source={ apples: 1, oranges: 2 } type={ apples: int32; oranges: int32 }
 /// @coercion.node source={ apples: 1, oranges: 2 } from={ apples: int32; oranges: int32 } adjustments=[{ kind: erase, target: { [key: string]: int32 } }] origin=implicit
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: widen, target: int32 }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 /// @type.node source=2 type=2
-/// @coercion.node source=2 from=2 adjustments=[{ kind: widen, target: int32 }] origin=implicit
+/// @coercion.node source=2 from=2 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 "#,
     );
 }
@@ -580,7 +580,7 @@ class User {
     }
 }
 
-const user: local User = new User<"local">("Ada");
+const user: local User = new User("Ada");
 const object: { name: string } = { ...user };
 
 === dir ===
@@ -903,6 +903,7 @@ const store: Store = {
 /// @diagnostic.error id=not-assignable message="type '{ readonly value: int32 }' is not assignable to type 'Store'"
 /// @diagnostic.label line=5 column=22 span="{\n    get value(): int32 { return 1; },\n}" line_source="const store: Store = {"
 /// @diagnostic.related line=5 column=14 span="Store" line_source="const store: Store = {" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in field 'value': expected 'string', found 'int32'"
 "#,
     );
 }
@@ -957,6 +958,7 @@ const store: Store = {
 /// @diagnostic.error id=not-assignable message="type '{ set value(value: int32) }' is not assignable to type 'Store'"
 /// @diagnostic.label line=5 column=22 span="{\n    set value(next: int32): void {},\n}" line_source="const store: Store = {"
 /// @diagnostic.related line=5 column=14 span="Store" line_source="const store: Store = {" message="expected due to this annotation"
+/// @diagnostic.note message="the mismatch is in field 'value': expected 'int32', found 'string'"
 "#,
     );
 }
@@ -1339,11 +1341,7 @@ const merge = (input) => ({ ...input, active: true });
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=2 column=15 span="(input) => ({ ...input, active: true })" line_source="const merge = (input) => ({ ...input, active: true });"
-/// @diagnostic.related line=2 column=27 span="{ ...input, active: true }" line_source="const merge = (input) => ({ ...input, active: true });" message="'_' flows into it here"
-/// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=2 column=16 span="input" line_source="const merge = (input) => ({ ...input, active: true });"
+/// @diagnostic.label line=2 column=27 span="{ ...input, active: true }" line_source="const merge = (input) => ({ ...input, active: true });"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
     );

@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{BodyState, Cause, CauseKind, FlowPointId, Origin, Relation};
+use crate::sema::{Cause, CauseKind, CheckState, FlowPointId, Origin, Relation};
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one newtype pattern, unwrapping the substituted backing.
     pub(in crate::sema) fn select_newtype_pattern(
         &mut self,
@@ -37,6 +37,7 @@ impl BodyState<'_, '_> {
         // deny an unwrap the backing's declared visibility rejects
         self.check_backing_access(origin, instance.symbol)?;
 
+        // read the backing the newtype wraps
         let backing = instance.backing;
         let projection = instance.into_projection();
 
@@ -51,6 +52,7 @@ impl BodyState<'_, '_> {
             self.check_pattern_projection(flow, scope, backing, value.into_global_any(module))?;
         }
 
+        // commit the newtype projection
         self.commit_pattern(
             node,
             dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
@@ -114,6 +116,7 @@ impl BodyState<'_, '_> {
         )
         .with_narrowed(narrowed);
 
+        // commit the selected variant case
         self.commit_pattern(
             node,
             dir::PatternDecision::Variant(Box::new(dir::PatternVariantResolution {

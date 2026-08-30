@@ -48,22 +48,22 @@ class Account {
 /// @type.symbol symbol=Account type=Account
 /// @definition.class symbol=Account
 /// @definition.field symbol=Account.balance source="private balance: int32 = 0" key=balance visibility=private type=int32
-/// @definition.method symbol=Account.total slot=total type=<Account.total.'a, Account.total.P1: Place>(this: &Account.total.'a readonly this) => int32
+/// @definition.method symbol=Account.total slot=total type=<Account.total.'a>(this: &Account.total.'a readonly this) => int32
 
     private balance: int32 = 0;
     /// @type.symbol symbol=Account.balance source="private balance: int32 = 0" type=int32
 
     total(&readonly this): int32 {
-    /// @generic.template symbol=Account.total parameters=('a, P1: Place)
-    /// @type.symbol symbol=Account.total type=<Account.total.'a, Account.total.P1: Place>(this: &Account.total.'a readonly this) => int32
+    /// @generic.template symbol=Account.total parameters=('a)
+    /// @type.symbol symbol=Account.total type=<Account.total.'a>(this: &Account.total.'a readonly this) => int32
     /// @type.symbol symbol=Account.total.this source="&readonly this" type=&Account.total.'a readonly this
 
         return this.balance;
         /// @resolution.member source=this.balance receiver=&Account.total.'a readonly Account type=int32 kind=field target_receiver=&Account.total.'a readonly Account key=balance target=Account.balance target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Account type=&Account.total.'a readonly Account
-        /// @resolution.place source=this placement=Account.total.P1 lifetime=Account.total.'a access="readonly"
+        /// @resolution.place source=this placement=Account.total.'a lifetime=Account.total.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.balance placement=Account.total.P1 lifetime=Account.total.'a access="readonly"
+        /// @resolution.place source=this.balance placement=Account.total.'a lifetime=Account.total.'a access="readonly"
         /// @resolution.access source=this.balance root=this keys=[balance]
 
     }
@@ -71,20 +71,20 @@ class Account {
 
 extension of Account {
 /// @definition.extension symbol=<module>#2 form=local target=Account
-/// @definition.method symbol=audit slot=audit type=<audit.'a, audit.P1: Place>(this: &audit.'a readonly this) => int32
+/// @definition.method symbol=audit slot=audit type=<audit.'a>(this: &audit.'a readonly this) => int32
 /// @resolution.name source=Account target=Account
 
     audit(&readonly this): int32 {
-    /// @generic.template symbol=audit parameters=('a, P1: Place)
-    /// @type.symbol symbol=audit type=<audit.'a, audit.P1: Place>(this: &audit.'a readonly this) => int32
+    /// @generic.template symbol=audit parameters=('a)
+    /// @type.symbol symbol=audit type=<audit.'a>(this: &audit.'a readonly this) => int32
     /// @type.symbol symbol=audit.this source="&readonly this" type=&audit.'a readonly this
 
         return this.balance;
         /// @resolution.member source=this.balance receiver=&audit.'a readonly Account type=int32 kind=field target_receiver=&audit.'a readonly Account key=balance target=Account.balance target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&audit.'a readonly Account
-        /// @resolution.place source=this placement=audit.P1 lifetime=audit.'a access="readonly"
+        /// @resolution.place source=this placement=audit.'a lifetime=audit.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.balance placement=audit.P1 lifetime=audit.'a access="readonly"
+        /// @resolution.place source=this.balance placement=audit.'a lifetime=audit.'a access="readonly"
         /// @resolution.access source=this.balance root=this keys=[balance]
 
     }
@@ -207,20 +207,20 @@ class Circle extends Shape {
 /// @type.symbol symbol=Circle type=Circle
 /// @definition.class symbol=Circle
 /// @definition.extends symbol=Circle source=Shape target=base.Shape
-/// @definition.method symbol=Circle.measure slot=measure type=<Circle.measure.'a, Circle.measure.P1: Place>(this: &Circle.measure.'a readonly this) => int32
+/// @definition.method symbol=Circle.measure slot=measure type=<Circle.measure.'a>(this: &Circle.measure.'a readonly this) => int32
 /// @resolution.name source=Shape target=base.Shape
 
     measure(&readonly this): int32 {
-    /// @generic.template symbol=Circle.measure parameters=('a, P1: Place)
-    /// @type.symbol symbol=Circle.measure type=<Circle.measure.'a, Circle.measure.P1: Place>(this: &Circle.measure.'a readonly this) => int32
+    /// @generic.template symbol=Circle.measure parameters=('a)
+    /// @type.symbol symbol=Circle.measure type=<Circle.measure.'a>(this: &Circle.measure.'a readonly this) => int32
     /// @type.symbol symbol=Circle.measure.this source="&readonly this" type=&Circle.measure.'a readonly this
 
         return this.area;
         /// @resolution.member source=this.area receiver=&Circle.measure.'a readonly Circle type=int32 kind=field target_receiver=&Circle.measure.'a readonly Circle key=area target=base.Shape.area target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Circle type=&Circle.measure.'a readonly Circle
-        /// @resolution.place source=this placement=Circle.measure.P1 lifetime=Circle.measure.'a access="readonly"
+        /// @resolution.place source=this placement=Circle.measure.'a lifetime=Circle.measure.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.area placement=Circle.measure.P1 lifetime=Circle.measure.'a access="readonly"
+        /// @resolution.place source=this.area placement=Circle.measure.'a lifetime=Circle.measure.'a access="readonly"
         /// @resolution.access source=this.area root=this keys=[area]
 
     }
@@ -275,20 +275,20 @@ class Account {
 /// @type.symbol symbol=Account type=Account
 /// @definition.class symbol=Account
 /// @definition.field symbol=Account.balance source="private balance: int32 = 0" key=balance visibility=private type=int32
-/// @definition.method symbol=Account.deposit slot=deposit type=<Account.deposit.'a, Account.deposit.P1: Place>(this: &Account.deposit.'a this, int32) => void
+/// @definition.method symbol=Account.deposit slot=deposit type=<Account.deposit.'a>(this: &Account.deposit.'a this, int32) => void
 
     private balance: int32 = 0;
     /// @type.symbol symbol=Account.balance source="private balance: int32 = 0" type=int32
 
     deposit(&this, amount: int32): void {
-    /// @generic.template symbol=Account.deposit parameters=('a, P1: Place)
-    /// @type.symbol symbol=Account.deposit type=<Account.deposit.'a, Account.deposit.P1: Place>(this: &Account.deposit.'a this, int32) => void
+    /// @generic.template symbol=Account.deposit parameters=('a)
+    /// @type.symbol symbol=Account.deposit type=<Account.deposit.'a>(this: &Account.deposit.'a this, int32) => void
     /// @type.symbol symbol=Account.deposit.this source=&this type=&Account.deposit.'a this
     /// @type.symbol symbol=Account.deposit.amount source="amount: int32" type=int32
 
         this.balance = amount;
         /// @resolution.receiver source=this kind=this declaration=Account type=&Account.deposit.'a Account
-        /// @resolution.place source=this placement=Account.deposit.P1 lifetime=Account.deposit.'a access="mutable"
+        /// @resolution.place source=this placement=Account.deposit.'a lifetime=Account.deposit.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.balance kind=place
         /// @resolution.access source=this.balance root=this keys=[balance]
@@ -401,7 +401,6 @@ account.total = 1;
 /// @resolution.access source=account root=account
 /// @resolution.pattern.assign source=account.total kind=place
 /// @resolution.assignment source=account.total write="receiver=account.Account, target=account.Account.total(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
-/// @generic.instantiation id="account.Account.total<\"local\">" template=account.Account.total arguments=("local")
 "#, r#"
 /// @diagnostic.error id=inaccessible-member message="member 'total' is private"
 /// @diagnostic.label line=5 column=9 span="total" line_source="account.total = 1;"
@@ -429,7 +428,7 @@ class Session {
     private constructor() {}
 
     static open(): Session {
-        return new Session<"local">();
+        return new Session();
     }
 }
 
@@ -486,7 +485,7 @@ const session = new Session();
 === annotated ===
 import { Session } from "./session.ds";
 
-const session: local Session = new Session<"local">();
+const session: local Session = new Session();
 
 === dir ===
 import { Session } from "./session.ds";
@@ -530,7 +529,7 @@ const shape = new Shape();
 === annotated ===
 import { Shape } from "./base.ds";
 
-const shape: local Shape = new Shape<"local">();
+const shape: local Shape = new Shape();
 
 === dir ===
 import { Shape } from "./base.ds";
@@ -609,21 +608,19 @@ const read = gauge.level;
 /// @resolution.member source=gauge.level receiver=gauge.Gauge type=int32 kind=call target="gauge.Gauge.level#1(parameters=(), arguments=(), return=int32)"
 /// @resolution.place source=gauge placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=gauge root=gauge
-/// @generic.instantiation id="gauge.Gauge.level#1<\"local\">" template=gauge.Gauge.level#1 arguments=("local")
 
 function drain(gauge: &Gauge): void {
-/// @generic.template symbol=drain parameters=('a, P1: Place)
-/// @type.symbol symbol=drain type=<drain.'a, drain.P1: Place>(&drain.'a gauge.Gauge) => void
+/// @generic.template symbol=drain parameters=('a)
+/// @type.symbol symbol=drain type=<drain.'a>(&drain.'a gauge.Gauge) => void
 /// @type.symbol symbol=drain.gauge source="gauge: &Gauge" type=&drain.'a gauge.Gauge
 /// @resolution.name source=Gauge target=gauge.Gauge
 
     gauge.level = 0;
     /// @resolution.name source=gauge target=drain.gauge
-    /// @resolution.place source=gauge placement=drain.P1 lifetime=drain.'a access="mutable"
+    /// @resolution.place source=gauge placement=drain.'a lifetime=drain.'a access="mutable"
     /// @resolution.access source=gauge root=drain.gauge
     /// @resolution.pattern.assign source=gauge.level kind=place
     /// @resolution.assignment source=gauge.level write="receiver=&drain.'a gauge.Gauge, target=gauge.Gauge.level#2(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
-    /// @generic.instantiation id=gauge.Gauge.level#2<drain.P1> template=gauge.Gauge.level#2 arguments=(drain.P1)
 
 }
 "#, r#"

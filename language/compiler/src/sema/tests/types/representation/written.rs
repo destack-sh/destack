@@ -530,7 +530,7 @@ const shapes: Array<Shape> = [
 /// @resolution.name source=Shape target=Shape
 /// @resolution.call parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<Shape>
 /// @generic.instantiation id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
-/// @generic.instance id="arrayFromSlice<Shape, \"local\">" template=arrayFromSlice arguments=(Shape, "local")
+/// @generic.instance id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
 
     Circle { radius: 1.0 },
     /// @resolution.name source=Circle target=Circle
@@ -548,10 +548,10 @@ const first = shapes[0];
 /// @resolution.access source=shapes root=shapes
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
 /// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static Shape, \"exclusive\">)"
-/// @generic.instantiation id="index#1<Shape, \"exclusive\", \"local\">" template=index#1 arguments=(Shape, "exclusive", "local")
+/// @generic.instantiation id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive")
 /// @generic.instance id="WithAccess<&'frame Shape, \"exclusive\">" template=WithAccess arguments=(&'frame Shape, "exclusive")
 /// @generic.instance id="WithAccess<&'frame Shape[], \"exclusive\">" template=WithAccess arguments=(&'frame Shape[], "exclusive")
-/// @generic.instance id="index#1<Shape, \"exclusive\", \"local\">" template=index#1 arguments=(Shape, "exclusive", "local")
+/// @generic.instance id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive")
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
@@ -593,7 +593,7 @@ struct Player {
 }
 
 const player: Player = Player {
-    mode: "active" as Mode,
+    mode: "active",
 };
 
 player.mode satisfies Mode;

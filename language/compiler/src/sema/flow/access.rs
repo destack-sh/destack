@@ -8,6 +8,7 @@ impl CheckState<'_> {
         &self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::AccessPath> {
+        // build the path by the expression's own syntax
         match self.module(self.module_id).view().get(id) {
             // value
             dir::Expression::Identifier { .. } => {
@@ -74,6 +75,7 @@ impl CheckState<'_> {
         &mut self,
         id: dir::LocalNodeId<dir::Expression>,
     ) {
+        // require a lexical path for the mutated expression
         let Some(path) = self.lexical_access_path(id) else {
             return;
         };
@@ -87,9 +89,7 @@ impl CheckState<'_> {
     /// Return the receiver type place assignments write through.
     pub(in crate::sema) fn assigned_receiver_type(&self) -> Option<dir::GlobalTypeId> {
         // take the lexical receiver inside the function that captured it
-        let receiver = if let Some((index, receiver)) = self.flow.lexical_receiver()
-            && self.flow.is_current_function(index)
-        {
+        let receiver = if let Some((true, receiver)) = self.flow.lexical_receiver() {
             receiver.receiver
         }
         // take the contextual receiver outside any function body
@@ -104,13 +104,24 @@ impl CheckState<'_> {
         Some(receiver.ty)
     }
 
+    /// Return whether one expression names the current function's receiver.
+    pub(in crate::sema) fn is_receiver_expression(
+        &self,
+        id: dir::LocalNodeId<dir::Expression>,
+    ) -> bool {
+        matches!(
+            self.module(self.module_id).view().get(id),
+            dir::Expression::This | dir::Expression::Super
+        )
+    }
+
     /// Derive the assigned place one expression writes, when trackable.
     pub(in crate::sema) fn assigned_place(
         &self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<AssignedPlace> {
+        // derive the place by the expression's own syntax
         let expression = self.module(self.module_id).view().get(id).clone();
-
         match expression {
             // x
             dir::Expression::Identifier { .. } => {
@@ -132,8 +143,7 @@ impl CheckState<'_> {
                 ..
             } => {
                 // keep writes that go through the receiver instance
-                let left = self.module(self.module_id).view().get(left).clone();
-                if !matches!(left, dir::Expression::This | dir::Expression::Super) {
+                if !self.is_receiver_expression(left) {
                     return None;
                 }
 
@@ -149,6 +159,7 @@ impl CheckState<'_> {
             dir::Expression::As { expression, .. }
             | dir::Expression::Satisfies { expression, .. } => self.assigned_place(expression),
 
+            // leave every other target untracked
             _ => None,
         }
     }

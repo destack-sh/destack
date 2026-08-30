@@ -17,6 +17,7 @@ impl CheckState<'_> {
         &mut self,
         selection: SelectedDecorator,
     ) -> CompilerResult<()> {
+        // read the module owning the decorated declaration
         let module = selection.application.owner.module_id;
 
         // require one concrete compile-time annotation value
@@ -54,8 +55,7 @@ impl CheckState<'_> {
                 Err(dir::LanguageItem::ReprDecorator) => {
                     self.apply_representation_decorator(module, &application, &value)?;
                 }
-                // capture directives apply in check, where walked captures
-                //  live; elaborate entries reach check through the segment
+                // apply capture directives in check, where the walked captures live
                 Err(dir::LanguageItem::Capture) => {
                     if self.is_checking() {
                         let source = application.expression.decorator.into_global(module);
@@ -83,8 +83,8 @@ impl CheckState<'_> {
     }
 
     /// Select and apply the decorator uses this pass's walk owns.
-    /// its own body walk collected.
     pub(in crate::sema) fn apply_decorators(&mut self) -> CompilerResult<()> {
+        // require the module's declared decorator uses
         let Some(declared) = self.module.declared.clone() else {
             return Ok(());
         };
@@ -140,9 +140,8 @@ impl CheckState<'_> {
         let mut selections = Vec::<SelectedDecorator>::with_capacity(applications.len());
         for application in applications {
             let source = application.expression.decorator.into_global(module);
-            let mut body = self.body();
-            let site = body.node_site(source.into_any())?;
-            if let Some(selection) = body.select_decorator(site, application)? {
+            let site = self.node_site(source.into_any())?;
+            if let Some(selection) = self.select_decorator(site, application)? {
                 selections.push(selection);
             }
         }
@@ -157,6 +156,7 @@ impl CheckState<'_> {
 
     /// Apply capture directives from elaborated decorator applications.
     pub(in crate::sema) fn apply_capture_directives(&mut self) -> CompilerResult<()> {
+        // collect the elaborated capture applications
         let module = self.module_id;
         let applications = self
             .module(module)
@@ -168,6 +168,7 @@ impl CheckState<'_> {
             .map(|(_, application)| application.clone())
             .collect::<Vec<_>>();
 
+        // apply each recorded capture directive
         for application in applications {
             let value = self
                 .module(module)

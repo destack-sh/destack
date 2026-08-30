@@ -378,7 +378,7 @@ run((value, extra) => {
 === annotated ===
 declare function run(callback: (arg0: int32) => void): void;
 
-run((value: int32, extra): void => {
+run((value, extra): void => {
     value;
     extra;
 });
@@ -394,17 +394,27 @@ run((value, extra) => {
 /// @type.node type=void
 /// @resolution.name source=run target=run
 /// @resolution.call parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=void kind=symbol target=run
-/// @type.symbol symbol=symbol4 type=Function<(int32, <error>), void>
-/// @type.node type=Function<(int32, <error>), void>
-/// @type.symbol symbol=symbol4.value source=value type=int32
+/// @type.symbol symbol=symbol4 type=Function<(<error>, <error>), void>
+/// @type.node type=Function<(<error>, <error>), void>
+/// @type.symbol symbol=symbol4.value source=value type=<error>
 /// @type.symbol symbol=symbol4.extra source=extra type=<error>
 
     value;
+    /// @type.node source=value type=<error>
+    /// @resolution.name source=value target=symbol4.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol4.value
+
     extra;
+    /// @type.node source=extra type=<error>
+    /// @resolution.name source=extra target=symbol4.extra
+    /// @resolution.place source=extra placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=extra root=symbol4.extra
+
 });
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: int32, extra: _) => void' is not assignable to parameter of type '(value: int32) => void'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: _, extra: _) => void' is not assignable to parameter of type '(value: int32) => void'"
 /// @diagnostic.label line=4 column=5 span="(value, extra) => {\n    value;\n    extra;\n}" line_source="run((value, extra) => {"
 /// @diagnostic.related line=4 column=1 span="run((value, extra) => {\n    value;\n    extra;\n})" line_source="run((value, extra) => {" message="in this call"
 "#,
@@ -437,7 +447,7 @@ declare function run(callback: (arg0: int32 | string) => void): void;
 run((value: int32 | string): void => {
     value;
 });
-run((value: boolean) => {
+run((value: boolean): void => {
     value;
 });
 
@@ -468,15 +478,20 @@ run((value: boolean) => {
 /// @type.node type=void
 /// @resolution.name source=run target=run
 /// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
-/// @type.symbol symbol=symbol6 type=Function<(boolean,), <error>>
-/// @type.node type=Function<(boolean,), <error>>
+/// @type.symbol symbol=symbol6 type=Function<(boolean,), void>
+/// @type.node type=Function<(boolean,), void>
 /// @type.symbol symbol=symbol6.value source="value: boolean" type=boolean
 
     value;
+    /// @type.node source=value type=boolean
+    /// @resolution.name source=value target=symbol6.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=symbol6.value
+
 });
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: boolean) => _' is not assignable to parameter of type '(value: int32 | string) => void'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: boolean) => void' is not assignable to parameter of type '(value: int32 | string) => void'"
 /// @diagnostic.label line=7 column=5 span="(value: boolean) => {\n    value;\n}" line_source="run((value: boolean) => {"
 /// @diagnostic.related line=7 column=1 span="run((value: boolean) => {\n    value;\n})" line_source="run((value: boolean) => {" message="in this call"
 "#,
@@ -507,12 +522,12 @@ const choose = () => {
 === annotated ===
 declare const flag: boolean;
 
-const choose: () => string = (): string => {
+const choose: () => string | int64 = (): string | int64 => {
     if (flag) {
-        return "text";
+        return "text" as string | int64;
     }
 
-    return 1;
+    return 1 as string | int64;
 };
 
 === dir ===
@@ -521,10 +536,10 @@ declare const flag: boolean;
 /// @resolution.pattern source=flag kind=binding target=flag
 
 const choose = () => {
-/// @type.symbol symbol=choose source=choose type=Function<(), string>
+/// @type.symbol symbol=choose source=choose type=Function<(), string | int64>
 /// @resolution.pattern source=choose kind=binding target=choose
-/// @type.symbol symbol=symbol2 type=Function<(), string>
-/// @type.node type=Function<(), string>
+/// @type.symbol symbol=symbol2 type=Function<(), string | int64>
+/// @type.node type=Function<(), string | int64>
 
     if (flag) {
     /// @type.node source=flag type=boolean
@@ -543,8 +558,7 @@ const choose = () => {
 };
 "#,
         r#"
-/// @diagnostic.error id=return-not-assignable message="type '1' is not assignable to the declared result type 'string'"
-/// @diagnostic.label line=9 column=12 span="1" line_source="return 1;"
+
 "#,
     );
 }

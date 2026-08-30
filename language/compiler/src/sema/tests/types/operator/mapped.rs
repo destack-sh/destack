@@ -496,9 +496,9 @@ function build(): int64 {
     return point.x;
     /// @resolution.name source=point target=build.point
     /// @resolution.member source=point.x receiver={ x: int64; y: int64 } type=int64 kind=field target_receiver={ x: int64; y: int64 } key=x target_type=int64
-    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=point placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=point root=build.point
-    /// @resolution.place source=point.x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=point.x placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=point.x root=build.point keys=[x]
 
 }

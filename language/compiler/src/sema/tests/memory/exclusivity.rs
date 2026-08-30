@@ -32,7 +32,7 @@ struct Guard implements Drop {
 declare function duplicate<T: Copy>(value: T): void;
 declare const guard: Guard;
 
-duplicate(guard);
+duplicate<Guard>(guard);
 
 === dir ===
 import { Copy, Drop } from "destack:memory";
@@ -42,13 +42,13 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
+/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
-    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
+    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
     /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
 
 }
@@ -68,7 +68,8 @@ declare const guard: Guard;
 
 duplicate(guard);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(guard) parameters=(<error>) arguments=(provided(guard) as <error>) return=void kind=symbol target=duplicate instance=duplicate<<error>>
+/// @resolution.call source=duplicate(guard) parameters=(Guard) arguments=(provided(guard) as Guard) return=void kind=symbol target=duplicate instance=duplicate<Guard>
+/// @generic.instantiation id=duplicate<Guard> template=duplicate arguments=(Guard)
 /// @resolution.name source=guard target=guard
 /// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=guard root=guard
@@ -121,7 +122,7 @@ extension of Guard implements Drop {
 declare function duplicate<T: Copy>(value: T): void;
 declare const guard: Guard;
 
-duplicate(guard);
+duplicate<Guard>(guard);
 
 === dir ===
 import { Copy, Drop } from "destack:memory";
@@ -139,14 +140,14 @@ struct Guard {
 extension of Guard implements Drop {
 /// @definition.extension symbol=<module>#2 form=local target=Guard
 /// @definition.implements symbol=<module>#2 source=Drop target=Drop
-/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a, drop.P1: Place>(this: &drop.'a exclusive this) => void
+/// @definition.method symbol=drop source="drop(&exclusive this): void {}" slot=drop type=<drop.'a>(this: &drop.'a exclusive this) => void
 /// @definition.conformance symbol=<module>#2 member=drop requirement=Drop.drop
 /// @resolution.name source=Guard target=Guard
 /// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
-    /// @generic.template symbol=drop parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a, drop.P1: Place>(this: &drop.'a exclusive this) => void
+    /// @generic.template symbol=drop parent=template#0 parameters=('a)
+    /// @type.symbol symbol=drop source="drop(&exclusive this): void {}" type=<drop.'a>(this: &drop.'a exclusive this) => void
     /// @type.symbol symbol=drop.this source="&exclusive this" type=&drop.'a exclusive this
 
 }
@@ -166,7 +167,8 @@ declare const guard: Guard;
 
 duplicate(guard);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(guard) parameters=(<error>) arguments=(provided(guard) as <error>) return=void kind=symbol target=duplicate instance=duplicate<<error>>
+/// @resolution.call source=duplicate(guard) parameters=(Guard) arguments=(provided(guard) as Guard) return=void kind=symbol target=duplicate instance=duplicate<Guard>
+/// @generic.instantiation id=duplicate<Guard> template=duplicate arguments=(Guard)
 /// @resolution.name source=guard target=guard
 /// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=guard root=guard
@@ -229,13 +231,13 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
+/// @definition.method symbol=Guard.drop source="drop(&exclusive this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
     drop(&exclusive this): void {}
-    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a, Guard.drop.P1: Place>(this: &Guard.drop.'a exclusive this) => void
+    /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Guard.drop source="drop(&exclusive this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a exclusive this) => void
     /// @type.symbol symbol=Guard.drop.this source="&exclusive this" type=&Guard.drop.'a exclusive this
 
 }

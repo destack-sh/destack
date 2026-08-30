@@ -2,18 +2,19 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 
 use crate::sema::{
-    BodyState, DecoratorApplication, FlowSite, NewtypeMatch, NewtypeOverload, NewtypeRejection,
-    Origin, PlaceUse, SelectedDecorator, ValueUse,
+    CheckState, DecoratorApplication, FlowSite, NewtypeMatch, Origin, OverloadRule, PlaceUse,
+    SelectedDecorator, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select the backing for one decorator application.
     pub(in crate::sema) fn select_decorator(
         &mut self,
         site: FlowSite,
         application: DecoratorApplication,
     ) -> CompilerResult<Option<SelectedDecorator>> {
+        // read the decorating module
         let module = site.node.module_id;
 
         // collect explicit decorator type arguments
@@ -33,8 +34,7 @@ impl BodyState<'_, '_> {
 
         // decide the target reference for its own resolution fact
         if self.resolutions(module).name_resolution(target).is_none() {
-            self.check
-                .commit_name(target, dir::NameResolution::new(application.symbol))?;
+            self.commit_name(target, dir::NameResolution::new(application.symbol))?;
         }
 
         // dispatch compiler-owned derive to its intrinsic backing
@@ -51,36 +51,43 @@ impl BodyState<'_, '_> {
             &application.expression.arguments,
             &type_arguments,
             None,
-            NewtypeOverload::Unambiguous,
+            OverloadRule::Exclusive,
             ValueUse::Const,
         )?;
         let (key, backing, signature) = match matched {
-            NewtypeMatch::Selected(signature) | NewtypeMatch::ReturnMismatch(signature) => {
+            NewtypeMatch::Selected(signature, _) => {
                 (signature.key, signature.backing, signature.signature)
             }
-            NewtypeMatch::Invalid { rejection, .. } => {
-                self.report_decorator_rejection(
-                    site.origin(),
-                    NewtypeRejection::Signature(rejection),
-                )?;
+            NewtypeMatch::Refused => {
                 self.commit_error_node(site.node)?;
 
                 return Ok(None);
             }
-            NewtypeMatch::Rejected(rejection) => {
-                self.report_decorator_rejection(site.origin(), rejection)?;
+            NewtypeMatch::Rejected(notes) => {
+                self.report_no_matching_decorator(site.origin(), &notes)?;
+                self.commit_error_node(site.node)?;
+
+                return Ok(None);
+            }
+            NewtypeMatch::Ambiguous => {
+                self.report_ambiguous_decorator(site.origin())?;
                 self.commit_error_node(site.node)?;
 
                 return Ok(None);
             }
         };
 
+        // commit the coercions the selected backing matched
+        for (source, coercion) in &signature.coercions {
+            self.commit_coercion(*source, coercion.clone())?;
+        }
+
         // type argument values their selection left uncommitted
         for argument in &application.expression.arguments {
             if let Some(value) = self.argument_expression(module, *argument)
-                && self.check.committed_node_type(value).is_none()
+                && self.committed_node_type(value).is_none()
             {
-                let value_site = self.check.visit_site(value)?;
+                let value_site = self.visit_site(value)?;
                 self.attempt_node(value_site, PlaceUse::Read, None)?;
             }
         }
@@ -127,6 +134,7 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         application: DecoratorApplication,
     ) -> CompilerResult<Option<SelectedDecorator>> {
+        // read the decorating module
         let module = site.node.module_id;
 
         // reject written generic arguments, derive takes none
@@ -211,20 +219,5 @@ impl BodyState<'_, '_> {
             application,
             resolution,
         }))
-    }
-
-    /// Report one rejected decorator newtype selection.
-    fn report_decorator_rejection(
-        &mut self,
-        origin: Origin,
-        rejection: NewtypeRejection,
-    ) -> CompilerResult<()> {
-        match rejection {
-            NewtypeRejection::Signature(rejection) => {
-                self.report_signature_rejection(origin, rejection)
-            }
-            NewtypeRejection::NoMatch(notes) => self.report_no_matching_decorator(origin, &notes),
-            NewtypeRejection::Ambiguous => self.report_ambiguous_decorator(origin),
-        }
     }
 }

@@ -6,73 +6,34 @@ use destack_dir as dir;
 pub(in crate::sema) enum Relation {
     /// Both operands solve to the same type.
     Equal,
-    /// Every inhabitant of the source type inhabits the target type.
+    /// Every inhabitant of the source inhabits the target.
     Subtype,
-    /// The source operand is assignable to the target operand.
-    Assignable,
-    /// The source operand is assignable to the target operand without
-    /// requiring any coercion.
-    Widens,
-    /// The source operand is castable to the target operand.
-    Castable,
-    /// The source operand satisfies the target operand without influencing it.
-    Satisfies,
-    /// The source operand extends the target operand.
-    Extends,
+    /// The source stores in a target slot without changing representation.
+    Storable,
 }
 
 impl From<dir::WhereRelation> for Relation {
     fn from(relation: dir::WhereRelation) -> Self {
         match relation {
-            dir::WhereRelation::Satisfies => Self::Satisfies,
+            dir::WhereRelation::Satisfies => Self::Subtype,
             dir::WhereRelation::Equal => Self::Equal,
         }
     }
 }
 
 impl Relation {
-    /// Return the transitive relation through one inference variable.
-    pub(in crate::sema) fn transitive_with(self, next: Relation) -> Option<Relation> {
-        match (self, next) {
-            (Self::Equal, relation) | (relation, Self::Equal) => Some(relation),
-            (Self::Widens, Self::Widens) => Some(Self::Widens),
-            (Self::Assignable | Self::Widens, Self::Assignable | Self::Widens) => {
-                Some(Self::Assignable)
-            }
-            // predicates decide the variable's solution, never inflowing bounds
-            _ => None,
-        }
-    }
-
-    /// Return the relation for slots inside one related value.
-    pub(in crate::sema) fn interior(self) -> Relation {
-        match self {
-            Self::Assignable | Self::Widens => Self::Widens,
-            Self::Equal => Self::Equal,
-            Self::Subtype => Self::Subtype,
-            _ => Self::Assignable,
+    /// Return the relation two bounds compose to through one variable, the weaker one.
+    pub(in crate::sema) fn join(self, other: Relation) -> Relation {
+        match (self, other) {
+            (Self::Equal, relation) | (relation, Self::Equal) => relation,
+            (Self::Subtype, _) | (_, Self::Subtype) => Self::Subtype,
+            (Self::Storable, Self::Storable) => Self::Storable,
         }
     }
 
     /// Return whether this relation flows the source operand into the target operand.
     pub(in crate::sema) fn is_directed(self) -> bool {
-        matches!(
-            self,
-            Self::Assignable | Self::Widens | Self::Castable | Self::Extends
-        )
-    }
-
-    /// Return whether this relation distributes over a union target.
-    pub(in crate::sema) fn is_union_distributive(self) -> bool {
-        matches!(
-            self,
-            Self::Subtype
-                | Self::Assignable
-                | Self::Castable
-                | Self::Satisfies
-                | Self::Extends
-                | Self::Widens
-        )
+        self != Self::Equal
     }
 }
 
@@ -141,11 +102,6 @@ impl RelationStack {
         }
     }
 
-    /// Return whether no decision attempt is in flight.
-    pub(in crate::sema) fn is_idle(&self) -> bool {
-        self.stack.is_empty()
-    }
-
     /// Return the in-flight answer for one pair, noting cycle use.
     pub(in crate::sema) fn lookup(&mut self, key: &RelationKey, cycle: Cycle) -> Option<bool> {
         let verdict = *self.decisions.get(key)?;
@@ -177,6 +133,7 @@ impl RelationStack {
     pub(in crate::sema) fn enter(&mut self, key: RelationKey) -> RelationAttempt {
         let index = self.stack.len();
 
+        // record the pair as in flight
         self.decisions
             .insert(key, RelationDecision::InProgress(index));
         self.stack.push(RelationStackEntry {
@@ -196,6 +153,7 @@ impl RelationStack {
     ) -> Option<bool> {
         let entry = self.pop(attempt);
 
+        // drop a failed pair and wake what waited on it
         if !holds {
             self.resolve_dependents(attempt.index, None);
             self.decisions.swap_remove(&attempt.key);
@@ -248,7 +206,7 @@ impl RelationStack {
         }
     }
 
-    /// Resolve every provisional decision depending on one closing attempt.
+    /// Settle every provisional decision depending on one closing attempt.
     fn resolve_dependents(&mut self, index: usize, outcome: Option<usize>) {
         let mut position = 0;
         while position < self.provisional.len() {

@@ -50,10 +50,9 @@ impl CheckState<'_> {
         let id = self.shallow_resolve(id)?;
         let next = depth - 1;
 
+        // render by the type's own head
         let rendered = match self.ty(id)? {
             dir::Type::Error => "<error>".to_string(),
-            dir::Type::Hole(hole) => format!("?{hole}"),
-            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
             dir::Type::Void => "void".to_string(),
@@ -62,7 +61,7 @@ impl CheckState<'_> {
             dir::Type::Intrinsic => "intrinsic".to_string(),
             dir::Type::This => "this".to_string(),
             dir::Type::Variable(variable) => match self.infer.variable(variable)?.kind {
-                VariableKind::Type => "_".to_string(),
+                VariableKind::Type | VariableKind::Memory(_) => "_".to_string(),
                 VariableKind::Integer => "{integer}".to_string(),
                 VariableKind::Float => "{float}".to_string(),
             },
@@ -434,6 +433,7 @@ impl CheckState<'_> {
             None => "void".to_string(),
         };
 
+        // render the signature with its tail argument
         Ok(match tail {
             Some(tail) => format!("{head}<{parameters}, {result}, {tail}>"),
             None => format!("{head}<{parameters}, {result}>"),
@@ -474,6 +474,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<String> {
         let value = self.format_depth_at(module, form.value, depth)?;
 
+        // render by the form's own constructor
         let rendered = match &form.form {
             dir::Form::Managed { place } => {
                 let place = self.shallow_resolve(*place)?;
@@ -502,17 +503,19 @@ impl CheckState<'_> {
 
                 // render named and static provenance, eliding the frame default
                 let lifetime = match self.ty(self.shallow_resolve(extent)?)? {
-                    dir::Type::Parameter(parameter) => {
+                    dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
+                        let binding = self.generic_parameter(parameter);
                         let name = self.format_parameter(parameter);
-                        let is_tick = name
+                        let is_tick = binding.is_some_and(|binding| {
+                            binding.memory_parameter() == Some(dir::MemoryParameter::Region)
+                        }) || name
                             .rsplit('.')
                             .next()
                             .is_some_and(|name| name.starts_with('\''));
-                        let is_induced = self
-                            .generic_parameter(parameter)
+                        let is_induced = binding
                             .is_some_and(|binding| binding.induced_memory_parameter().is_some());
                         match (is_tick, is_induced) {
-                            (true, _) => format!("{name} "),
+                            (true, _) => format!("{} ", self.format_type(extent)),
                             (false, true) => String::new(),
                             // written non-tick extents render the full borrow application
                             (false, false) => {
@@ -577,6 +580,7 @@ impl CheckState<'_> {
         operation: &dir::TypeOperation,
         depth: usize,
     ) -> CompilerResult<String> {
+        // render by the operation's own kind
         let rendered = match operation {
             dir::TypeOperation::Conditional(conditional) => format!(
                 "{} extends {} ? {} : {}",
@@ -678,11 +682,13 @@ impl CheckState<'_> {
             return self.node_label(value);
         }
 
+        // render the reference path the value names
         let id = value.into_typed::<dir::Expression>().local_id;
         let Some(path) = self.module(value.module_id).view().reference_path(id) else {
             return self.node_label(value);
         };
 
+        // join the path segments
         path.segments
             .iter()
             .map(|segment| self.text(*segment))
@@ -692,6 +698,7 @@ impl CheckState<'_> {
 
     /// Format one scalar literal type.
     pub(in crate::sema) fn format_scalar_literal(&self, literal: &dir::Literal) -> String {
+        // render each literal in its written form
         match literal {
             dir::Literal::String(value) => format!("\"{}\"", self.text(*value)),
             dir::Literal::Character(value) => format!("'{value}'"),
@@ -737,6 +744,7 @@ impl CheckState<'_> {
 
     /// Format one static term with its structural payload.
     fn format_static_term(&self, term: &dir::StaticTerm) -> String {
+        // render each static term in its written form
         match term {
             dir::StaticTerm::Literal { value } => self.format_scalar_literal(value),
             dir::StaticTerm::Object { properties } => {
@@ -784,11 +792,15 @@ impl CheckState<'_> {
     }
 
     /// Format one generic parameter by its declared name.
-    fn format_parameter(&self, parameter: dir::GlobalGenericParameterId) -> String {
+    pub(in crate::sema) fn format_parameter(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> String {
         let Some(binding) = self.generic_parameter(parameter) else {
             return "_".to_string();
         };
 
+        // render the key the binding declares
         match binding.key {
             dir::GenericParameterKey::Symbol(symbol) => self.format_symbol(symbol),
             dir::GenericParameterKey::Generated(name) => self.text(name),
@@ -812,6 +824,7 @@ impl CheckState<'_> {
         let bindings = self.binding_table(symbol.module_id);
         let key = bindings.get_symbol(symbol.local_id).key;
 
+        // render each key in its written form
         match key {
             Some(key) => self.format_static_key(&key),
             None => "<anonymous>".to_string(),
@@ -903,6 +916,7 @@ impl CheckState<'_> {
             return module.module.uri.as_ref().starts_with("destack://");
         }
 
+        // read the module from the repository
         if let Ok(Some(module)) = self
             .compiler
             .repository
@@ -1018,6 +1032,7 @@ impl CheckState<'_> {
             return trim_module_uri(module.module.uri.as_ref());
         }
 
+        // read the module from the repository
         if let Ok(Some(module)) = self
             .compiler
             .repository

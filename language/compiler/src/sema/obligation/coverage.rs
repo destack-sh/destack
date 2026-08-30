@@ -112,7 +112,7 @@ impl CheckState<'_> {
             return Ok(covered);
         }
 
-        // cover variant domains case by case, arms sharing a case covering its payload jointly
+        // cover variant domains case by case
         if let Some(domain) = self.variant_discriminant_domain(value)? {
             let mut covered = Verdict::Holds;
             for discriminant in domain {
@@ -204,13 +204,14 @@ impl CheckState<'_> {
             _ => None,
         };
 
+        // build the arm from a tuple of the requested width
         match fields {
             Some(fields) => self.coverage_arm(module, &fields),
             None => Ok(None),
         }
     }
 
-    /// Build one coverage arm from tuple pattern fields, or none when a rest field breaks positions.
+    /// Build one coverage arm from tuple pattern fields, or none past a rest field.
     fn coverage_arm(
         &mut self,
         module: ModuleId,
@@ -735,6 +736,7 @@ impl CheckState<'_> {
             }
         };
 
+        // decide coverage by the pattern's own resolution
         let covers = match &resolution {
             // wildcard shapes cover every discriminant
             dir::PatternDecision::Ignore
@@ -807,6 +809,7 @@ impl CheckState<'_> {
             return Ok(covered);
         }
 
+        // decide coverage by the pattern's own syntax
         let view = self.module(module).view();
         match view.get(pattern.local_id) {
             // wildcards and bare bindings always cover
@@ -839,7 +842,7 @@ impl CheckState<'_> {
                 let expression = *expression;
                 let expected = self.require_node_type(expression.into_global_any(module))?;
 
-                self.decide_relation(origin, Relation::Assignable, value, expected)
+                self.decide_relation(origin, Relation::Subtype, value, expected)
             }
             // range patterns cover scalar values inside their interval
             dir::Pattern::Range {
@@ -969,6 +972,7 @@ impl CheckState<'_> {
             .pattern_decision(pattern.into_any())
             .cloned();
 
+        // read coverage out of a predicate-backed resolution
         match resolution {
             Some(dir::PatternDecision::Test(resolution)) => {
                 let covered = self.decide_predicate_covers(&resolution.predicate, value)?;
@@ -1060,14 +1064,10 @@ impl CheckState<'_> {
                         self.module(module).view().get(pattern),
                         dir::Pattern::Default { .. }
                     );
-                    let subject = self.body().member_subject(
-                        origin,
-                        value,
-                        value,
-                        dir::MemberSpace::Instance,
-                    )?;
-                    let lookup = self.body().lookup_member(origin, module, subject, key)?;
-                    let member = self.body().member_read_type(&lookup)?;
+                    let subject =
+                        self.member_subject(origin, value, value, dir::MemberSpace::Instance)?;
+                    let lookup = self.lookup_member(origin, module, subject, key)?;
+                    let member = self.member_read_type(&lookup)?;
 
                     match member {
                         Some(member) => {
@@ -1105,8 +1105,9 @@ impl CheckState<'_> {
         Ok(covered)
     }
 
-    /// Return the first uncovered interval left after pattern subtraction, with the verdict of
-    /// the patterns whose intervals do not read statically.
+    /// Return the first uncovered interval left after pattern subtraction.
+    ///
+    /// The verdict reports the patterns whose intervals stay unreadable.
     fn uncovered_range(
         &mut self,
         patterns: &[dir::GlobalNodeId<dir::Pattern>],
@@ -1148,6 +1149,7 @@ impl CheckState<'_> {
         let module = pattern.module_id;
         let pattern_node = self.module(module).view().get(pattern.local_id).clone();
 
+        // read the interval coverage by the pattern's own syntax
         let coverage = match pattern_node {
             // wildcards and bare bindings cover every interval value
             dir::Pattern::Wildcard | dir::Pattern::Binding { pattern: None, .. } => {
@@ -1232,7 +1234,7 @@ impl CheckState<'_> {
         value: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
         // test the written interval against a scalar literal value
-        // TODO #Incomplete: an interval value needs interval subtraction to decide
+        // TODO #Incomplete: interval values need interval subtraction to decide
         let dir::Type::Literal(literal) = self.ty(value)? else {
             return Ok(Verdict::Fails);
         };

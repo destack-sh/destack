@@ -5,18 +5,8 @@ use crate::sema::{CheckEvent, EventFormatter, VariableKind};
 impl EventFormatter<'_, '_> {
     /// Format this event for a provider trace.
     pub(in crate::sema) fn format(&self, event: &CheckEvent) -> TraceEvent {
+        // label by the event's own kind
         match event {
-            CheckEvent::ProbeStarted { variables } => {
-                TraceEvent::new("probe.started").usize("variables", *variables)
-            }
-            CheckEvent::ProbeFinished { verdict } => {
-                let verdict = match verdict {
-                    Some(verdict) => format!("{verdict:?}"),
-                    None => "none".to_string(),
-                };
-
-                TraceEvent::new("probe.finished").text("verdict", verdict)
-            }
             CheckEvent::VariableAllocated { variable, kind } => {
                 TraceEvent::new("variable.allocated")
                     .text("variable", self.variable_label(*variable))
@@ -61,6 +51,7 @@ impl EventFormatter<'_, '_> {
             VariableKind::Type => "type",
             VariableKind::Integer => "integer",
             VariableKind::Float => "float",
+            VariableKind::Memory(_) => "memory",
         }
     }
 }

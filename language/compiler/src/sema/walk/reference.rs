@@ -24,6 +24,7 @@ impl WalkState<'_, '_> {
             .references
             .get(source)
             .cloned();
+        // resolve by the reference the resolver bound
         match reference {
             // a bound name gives one declaration or a callable overload set
             Some(dir::Reference::Bound(symbols)) => {
@@ -31,7 +32,7 @@ impl WalkState<'_, '_> {
                 match symbols.as_slice() {
                     [symbol] => {
                         let symbol = *symbol;
-                        self.capture_symbol_reference(source, symbol);
+                        self.capture_symbol_reference(source, symbol)?;
                         self.check
                             .commit_name(source, dir::NameResolution::new(symbol))?;
                     }
@@ -39,7 +40,7 @@ impl WalkState<'_, '_> {
                     // overload sets resolve at their call sites
                     _ => {
                         for symbol in symbols.iter().copied() {
-                            self.capture_symbol_reference(source, symbol);
+                            self.capture_symbol_reference(source, symbol)?;
                         }
                         self.check.commit_name(
                             source,
@@ -114,12 +115,13 @@ impl WalkState<'_, '_> {
             .get(source)
             .cloned();
 
+        // resolve by the reference the resolver bound
         match reference {
             // a name path resolves to its declaration like an identifier
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.check.present_symbols(&symbols);
                 for symbol in symbols.iter().copied() {
-                    self.capture_symbol_reference(source, symbol);
+                    self.capture_symbol_reference(source, symbol)?;
                 }
                 match symbols.as_slice() {
                     [symbol] => {

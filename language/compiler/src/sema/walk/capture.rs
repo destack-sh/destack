@@ -11,9 +11,9 @@ impl CheckState<'_> {
         kind: dir::ReceiverKind,
     ) -> CompilerResult<Option<Receiver>> {
         // prefer receiver from an active function frame
-        if let Some((index, receiver)) = self.flow.lexical_receiver() {
+        if let Some((is_own, receiver)) = self.flow.lexical_receiver() {
             // capture the receiver of an outer function
-            if !self.flow.is_current_function(index) {
+            if !is_own {
                 self.flow.capture_receiver(receiver);
 
                 // name the captured binding `this` reads
@@ -49,15 +49,15 @@ impl CheckState<'_> {
         &mut self,
         source: dir::GlobalNodeIdAny,
         symbol: dir::GlobalSymbolId,
-    ) {
+    ) -> CompilerResult<()> {
         // ignore references outside function bodies
         let Some(function) = self.flow.current_function_symbol() else {
-            return;
+            return Ok(());
         };
 
         // keep references crossing into an outer function
         if !self.is_captured_symbol_reference(symbol, function) {
-            return;
+            return Ok(());
         }
 
         // capture the outer symbol
@@ -67,6 +67,8 @@ impl CheckState<'_> {
             symbol,
             dir::BindingUse::CAPTURE,
         );
+
+        Ok(())
     }
 
     /// Return whether one value reference crosses into an outer function.
@@ -88,7 +90,7 @@ impl CheckState<'_> {
 
     /// Return whether one symbol lives inside some function body.
     ///
-    /// Module and namespace bindings are static storage, never captures.
+    /// Module and namespace bindings are static storage.
     fn is_function_scoped_symbol(&self, symbol: dir::GlobalSymbolId) -> bool {
         // start at the scope declaring the symbol
         let bindings = self.module(self.module_id).binding_table();
@@ -130,6 +132,7 @@ impl CheckState<'_> {
             return self.commit_access(source, dir::AccessPath::receiver());
         };
 
+        // commit the receiver the capture reads
         self.commit_receiver_decision(
             source,
             Receiver {

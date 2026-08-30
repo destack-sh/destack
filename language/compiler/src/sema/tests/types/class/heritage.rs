@@ -1097,7 +1097,7 @@ class Animal {
 
 class Dog extends Animal {
     override speak(): string {
-        return super.speak<"local">();
+        return super.speak();
     }
 }
 
@@ -1176,7 +1176,7 @@ class Animal {
 
 class Dog extends Animal {
     override speak(): string {
-        const inherited: () => string = (): string => super.speak<"local">();
+        const inherited: () => string = (): string => super.speak();
 
         return inherited();
     }
@@ -1228,7 +1228,7 @@ class Dog extends Animal {
         return inherited();
         /// @resolution.name source=inherited target=Dog.speak.inherited
         /// @resolution.call source=inherited() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=inherited placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=inherited placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=inherited root=Dog.speak.inherited
 
     }

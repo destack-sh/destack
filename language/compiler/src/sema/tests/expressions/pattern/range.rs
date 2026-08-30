@@ -159,7 +159,7 @@ type LowerAscii = 'a'..='z';
 
 declare const value: 'a'..='z';
 
-const isEarly: true | false = match (value) {
+const isEarly: boolean = match (value) {
     'a'..='m' => true
     'n'..='z' => false
 };
@@ -175,9 +175,9 @@ declare const value: LowerAscii;
 /// @resolution.name source=LowerAscii target=LowerAscii
 
 const isEarly = match (value) {
-/// @type.symbol symbol=isEarly source=isEarly type=true | false
+/// @type.symbol symbol=isEarly source=isEarly type=boolean
 /// @resolution.pattern source=isEarly kind=binding target=isEarly
-/// @type.node type=true | false
+/// @type.node type=boolean
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type='a'..='z'
 /// @resolution.name source=value target=value

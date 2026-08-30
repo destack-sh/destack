@@ -3,7 +3,7 @@ use destack_dir::TypeFold;
 use destack_repository::ArtifactAttemptRecorder;
 use destack_source::ModuleId;
 
-use crate::sema::{CheckState, Origin, VariableRole};
+use crate::sema::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -57,17 +57,7 @@ impl CheckState<'_> {
             .map(|(symbol, _)| symbol)
             .collect::<Vec<_>>();
         for symbol in classes {
-            if self.symbol_static_id(symbol).is_some() {
-                continue;
-            }
-
-            // push one type static naming the class
-            let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
-            let state = self.module_mut(module);
-            let id = state.statics_tail.push_static(dir::StaticTerm::Type { ty });
-            state
-                .statics_tail
-                .set_symbol_static(symbol, id.into_global(module));
+            self.class_static_id(symbol)?;
         }
 
         // evaluate module constants the check phase left undecided
@@ -105,8 +95,8 @@ impl CheckState<'_> {
 
     /// Evaluate module const initializers into static terms after solving.
     ///
-    /// Constants a same-module const generic argument forced commit at check
-    /// time; this pass evaluates the rest over the solved types.
+    /// Constants a same-module const generic argument forced commit at check time.
+    /// This pass evaluates the rest over the solved types.
     fn static_module_constants(
         &mut self,
         module: ModuleId,
@@ -242,8 +232,7 @@ impl CheckState<'_> {
         mut id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         for variable in self.type_variables(id)? {
-            let VariableRole::Instantiation { parameter } = self.infer.variable_role(variable)?
-            else {
+            let Some(parameter) = self.infer.variable(variable)?.parameter else {
                 continue;
             };
             let from = self.intern_type(dir::Type::Variable(variable))?;
@@ -290,7 +279,6 @@ impl CheckState<'_> {
         if let Some(instance) = instance
             && !is_newtype
             && self
-                .body()
                 .member_bindings(instance.symbol, subject.space)?
                 .is_some()
         {
@@ -306,14 +294,20 @@ impl CheckState<'_> {
 
             // reference the matching extensions as sources beside the owner
             let core = self.strip_form(origin, subject.key_source)?;
-            let sources = self.body().decided_extension_sources(
-                origin,
-                module,
-                subject.receiver,
-                core,
-                dir::TypeRoot::Declaration(instance.symbol),
-            )?;
-            for source in sources {
+            let root = dir::TypeRoot::Declaration(instance.symbol);
+            let extensions =
+                self.subject_extensions(origin, module, subject.receiver, core, root)?;
+            for extension in extensions {
+                let Some(source) = self.decide_extension_source(
+                    origin,
+                    module,
+                    subject.receiver,
+                    core,
+                    extension,
+                )?
+                else {
+                    continue;
+                };
                 let arguments = self.intern_type_ids(&source.arguments)?;
                 membership.sources.push(dir::MemberSource {
                     owner: source.extension,
@@ -326,7 +320,7 @@ impl CheckState<'_> {
 
         // merge generic parameter subjects over their bounds' sources
         if let dir::Type::Parameter(parameter) = self.ty(subject.key_source)? {
-            let bounds = self.body().parameter_bounds(origin, parameter)?;
+            let bounds = self.parameter_bounds(origin, parameter)?;
             let mut membership = dir::Membership {
                 receiver,
                 sources: Vec::new(),
@@ -356,12 +350,12 @@ impl CheckState<'_> {
             return Ok(membership);
         }
 
-        // fall back to keyed lookups for the remaining subject heads
-        let keys = self.body().subject_member_keys(origin, module, &subject)?;
+        // project structural subjects through keyed lookups
+        let keys = self.subject_member_keys(origin, module, &subject)?;
         let mut structural = Vec::with_capacity(keys.len());
         for key in keys {
-            let lookup = self.body().lookup_member(origin, module, subject, key)?;
-            if let Some(binding) = self.body().member_binding(key, &lookup)? {
+            let lookup = self.lookup_member(origin, module, subject, key)?;
+            if let Some(binding) = self.member_binding(key, &lookup)? {
                 structural.push(binding);
             }
         }
@@ -385,6 +379,7 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
 
+        // resolve each written path site
         for (node, segment) in sites {
             let site = dir::MemberSite::Path { node, segment };
 
@@ -423,7 +418,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Resolve each source member type expression to its selected symbol.
+    /// Settle each source member type expression to its selected symbol.
     fn write_member_type_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
         // collect the member type expressions the walk stored subjects for
         let sites = self
@@ -439,6 +434,7 @@ impl CheckState<'_> {
             })
             .collect::<Vec<_>>();
 
+        // resolve each written node site
         for node in sites {
             let site = dir::MemberSite::Node(node);
 
@@ -493,7 +489,7 @@ impl CheckState<'_> {
 
         // answer from each source owner's declared bindings
         for source in membership.sources {
-            let Some(bindings) = self.body().member_bindings(source.owner, subject.space)? else {
+            let Some(bindings) = self.member_bindings(source.owner, subject.space)? else {
                 continue;
             };
             if let Some(binding) = bindings.iter().find(|binding| binding.key == key) {
@@ -517,7 +513,7 @@ impl CheckState<'_> {
             .resolutions
             .path_resolution(node, segment);
 
-        // collapse identical re-derivations, reject conflicting ones
+        // collapse identical re-derivations and reject conflicting ones
         if let Some(previous) = previous {
             if previous == &resolution {
                 return Ok(());
@@ -531,6 +527,7 @@ impl CheckState<'_> {
             });
         }
 
+        // commit the resolution at the path segment
         self.module_mut(node.module_id)
             .resolutions
             .set_path_resolution(node, segment, resolution);
@@ -555,7 +552,7 @@ impl CheckState<'_> {
         })
     }
 
-    /// Resolve one module's literal symbol values.
+    /// Settle one module's literal symbol values.
     fn static_symbol_literals(
         &mut self,
         module: ModuleId,

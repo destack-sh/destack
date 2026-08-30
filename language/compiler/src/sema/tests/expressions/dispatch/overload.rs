@@ -251,20 +251,20 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a, capacity.P1: Place>(this: &capacity.'a readonly this) => usize
-/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a, trailing.P1: Place>(this: &trailing.'a readonly this) => usize
+/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a>(this: &capacity.'a readonly this) => usize
+/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a>(this: &trailing.'a readonly this) => usize
 /// @resolution.name source=Buffer target=Buffer
 
     @intrinsic("buffer.capacity")
     /// @resolution.name source=intrinsic target=intrinsic
 
     get capacity(): usize;
-    /// @generic.template symbol=capacity parameters=('a, P1: Place)
-    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'a, capacity.P1: Place>(this: &capacity.'a readonly this) => usize
+    /// @generic.template symbol=capacity parameters=('a)
+    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'a>(this: &capacity.'a readonly this) => usize
 
     trailing(): usize;
-    /// @generic.template symbol=trailing parameters=('a, P1: Place)
-    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a, trailing.P1: Place>(this: &trailing.'a readonly this) => usize
+    /// @generic.template symbol=trailing parameters=('a)
+    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a>(this: &trailing.'a readonly this) => usize
 
 }
 "#,
@@ -572,10 +572,6 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
 /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
 /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
-/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32>, int32>)
-/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32>, int32>)
-/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32>, int32>)
-/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32>, int32>)
 /// @generic.instance id="Result<int32, string>" template=Result arguments=(int32, string)
 /// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
@@ -896,9 +892,9 @@ function total(...values: int32[]): int32 {
 }
 
 function append(values: int32[], more: ^int32[]): int32 {
-    values.push<int32, "local">(1, 2);
-    values.push<int32, "local">(...more);
-    values.push<int32, "local">(1, ...more, 3);
+    values.push<int32>(1, 2);
+    values.push<int32>(...more);
+    values.push<int32>(1, ...more, 3);
 
     return total(1, ...more, 3);
 }
@@ -923,26 +919,25 @@ function append(values: int32[], more: ^int32[]): int32 {
 
     values.push(1, 2);
     /// @type.node source="values.push(1, 2)" type=isize
-    /// @type.node source=values.push type=<push.'a, push.P1: Place>(this: &push.'a exclusive int32[], ...int32[]) => isize
+    /// @type.node source=values.push type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize
     /// @resolution.name source=values target=append.values
-    /// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(1, 2) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(1, 2) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
-    /// @generic.instantiation id="push<int32, \"local\">" template=push arguments=(int32, "local")
     /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-    /// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
-    /// @generic.instance id="push<int32, \"local\">" template=push arguments=(int32, "local")
+    /// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+    /// @generic.instance id=push<int32> template=push arguments=(int32)
     /// @type.node source=1 type=1
     /// @type.node source=2 type=2
 
     values.push(...more);
-    /// @type.node source=values.push type=<push.'a, push.P1: Place>(this: &push.'a exclusive int32[], ...int32[]) => isize
+    /// @type.node source=values.push type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize
     /// @type.node source=values.push(...more) type=isize
     /// @resolution.name source=values target=append.values
-    /// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(...more) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(...more) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
     /// @resolution.name source=more target=append.more
@@ -951,10 +946,10 @@ function append(values: int32[], more: ^int32[]): int32 {
 
     values.push(1, ...more, 3);
     /// @type.node source="values.push(1, ...more, 3)" type=isize
-    /// @type.node source=values.push type=<push.'a, push.P1: Place>(this: &push.'a exclusive int32[], ...int32[]) => isize
+    /// @type.node source=values.push type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize
     /// @resolution.name source=values target=append.values
-    /// @resolution.member source=values.push receiver=int32[] type=<push.'a, push.P1: Place>(this: Borrowed<int32[], push.'a & push.P1, "exclusive">, ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance="Array<int32>.<extension#5>.push<\"local\">"
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(1, ...more, 3) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
     /// @type.node source=1 type=1
@@ -1033,6 +1028,7 @@ function fails(more: ^int32[]): int32 {
         r#"
 /// @diagnostic.error id=no-matching-call message="no overload matches arguments ('^int32[]')"
 /// @diagnostic.label line=7 column=12 span="pick(...more)" line_source="return pick(...more);"
+/// @diagnostic.note message="the candidate '(first: int32) => int32' does not apply"
 "#,
     );
 }
@@ -1114,7 +1110,7 @@ extension of Counter implements It<int32> {
 }
 
 function finish(wrapped: Wrap<Counter>): boolean {
-    return wrapped.next<int32, Counter, "local">();
+    return wrapped.next<int32, Counter>();
 }
 
 === dir ===
@@ -1161,7 +1157,7 @@ extension<T, I: It<T>> of Wrap<I> implements It<T> {
 /// @definition.extension symbol=<module>#2 form=local target=Wrap<I#2>
 /// @definition.implements symbol=<module>#2 source=It<T> target=It<T#2>
 /// @definition.associated.type symbol=Return#1 source="type Return = I.Return" key=Return value=I#2.Return
-/// @definition.method symbol=next#1 slot=next type=<next#1.'a, next#1.P1: Place>(this: &next#1.'a readonly this) => I#2.Return
+/// @definition.method symbol=next#1 slot=next type=<next#1.'a>(this: &next#1.'a readonly this) => I#2.Return
 /// @definition.conformance symbol=<module>#2 member=Return#1 requirement=It.Return
 /// @definition.conformance symbol=<module>#2 member=next#1 requirement=It.next
 /// @type.symbol symbol=T source=T type=T#2
@@ -1179,8 +1175,8 @@ extension<T, I: It<T>> of Wrap<I> implements It<T> {
     /// @resolution.path source=I.Return index=1 target=It.Return
 
     next(): I.Return {
-    /// @generic.template symbol=next#1 parent=template#2 parameters=('a, P1: Place)
-    /// @type.symbol symbol=next#1 type=<next#1.'a, next#1.P1: Place>(this: &next#1.'a readonly this) => I#2.Return
+    /// @generic.template symbol=next#1 parent=template#2 parameters=('a)
+    /// @type.symbol symbol=next#1 type=<next#1.'a>(this: &next#1.'a readonly this) => I#2.Return
     /// @type.symbol symbol=next.this#1 type=&next#1.'a readonly Wrap<I#2>
     /// @resolution.name source=I.Return target=I
     /// @resolution.path source=I.Return index=1 target=It.Return
@@ -1209,7 +1205,7 @@ extension of Counter implements It<int32> {
 /// @definition.extension symbol=<module>#3 form=local target=Counter
 /// @definition.implements symbol=<module>#3 source=It<int32> target=It<int32>
 /// @definition.associated.type symbol=Return#2 source="type Return = boolean" key=Return value=boolean
-/// @definition.method symbol=next#2 slot=next type=<next#2.'a, next#2.P1: Place>(this: &next#2.'a readonly Counter) => boolean
+/// @definition.method symbol=next#2 slot=next type=<next#2.'a>(this: &next#2.'a readonly Counter) => boolean
 /// @definition.conformance symbol=<module>#3 member=Return#2 requirement=It.Return
 /// @definition.conformance symbol=<module>#3 member=next#2 requirement=It.next
 /// @resolution.name source=Counter target=Counter
@@ -1219,8 +1215,8 @@ extension of Counter implements It<int32> {
     /// @type.symbol symbol=Return#2 source="type Return = boolean" type=boolean
 
     next(): boolean {
-    /// @generic.template symbol=next#2 parent=template#3 parameters=('a, P1: Place)
-    /// @type.symbol symbol=next#2 type=<next#2.'a, next#2.P1: Place>(this: &next#2.'a readonly Counter) => boolean
+    /// @generic.template symbol=next#2 parent=template#3 parameters=('a)
+    /// @type.symbol symbol=next#2 type=<next#2.'a>(this: &next#2.'a readonly Counter) => boolean
     /// @type.symbol symbol=next.this#2 type=&next#2.'a readonly Counter
 
         todo("next")
@@ -1240,16 +1236,15 @@ function finish(wrapped: Wrap<Counter>): boolean {
 /// @resolution.name source=Counter target=Counter
 
     return wrapped.next();
-    /// @type.node source=wrapped.next type=<next#1.'a, next#1.P1: Place>(this: &next#1.'a readonly Wrap<Counter>) => boolean
+    /// @type.node source=wrapped.next type=<next#1.'a>(this: &next#1.'a readonly Wrap<Counter>) => boolean
     /// @type.node source=wrapped.next() type=boolean
     /// @resolution.name source=wrapped target=finish.wrapped
-    /// @resolution.member source=wrapped.next receiver=Wrap<Counter> type=<next#1.'a, next#1.P1: Place>(this: &next#1.'a readonly Wrap<Counter>) => boolean kind=symbol target_receiver=Wrap<Counter> target=next#1
-    /// @resolution.call source=wrapped.next() parameters=() return=boolean kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance="Wrap<Counter>.<extension#1>.next#1<\"local\">"
+    /// @resolution.member source=wrapped.next receiver=Wrap<Counter> type=<next#1.'a>(this: &next#1.'a readonly Wrap<Counter>) => boolean kind=symbol target_receiver=Wrap<Counter> target=next#1
+    /// @resolution.call source=wrapped.next() parameters=() return=boolean kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance=Wrap<Counter>.<extension#1>.next#1
     /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=finish.wrapped
-    /// @generic.instantiation id="next#1<int32, Counter, \"local\">" template=next#1 arguments=(int32, Counter, "local")
     /// @generic.instantiation id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
-    /// @generic.instance id="next#1<int32, Counter, \"local\">" template=next#1 arguments=(int32, Counter, "local")
+    /// @generic.instance id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
 
 }
 "#);

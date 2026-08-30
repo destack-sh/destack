@@ -79,10 +79,10 @@ declare const values: [int32; 1];
 /// @type.node source="[value = fallback] = values" type=FixedArray<int32, 1>
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
 /// @resolution.access source=[value = fallback] root=values
-/// @generic.instantiation id="index#1<int32, 1, \"exclusive\", \"local\">" template=index#1 arguments=(int32, 1, "exclusive", "local")
+/// @generic.instantiation id="index#1<int32, 1, \"exclusive\">" template=index#1 arguments=(int32, 1, "exclusive")
 /// @generic.instance id="WithAccess<&'frame FixedArray<int32, 1>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<int32, 1>, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="index#1<int32, 1, \"exclusive\", \"local\">" template=index#1 arguments=(int32, 1, "exclusive", "local")
+/// @generic.instance id="index#1<int32, 1, \"exclusive\">" template=index#1 arguments=(int32, 1, "exclusive")
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression

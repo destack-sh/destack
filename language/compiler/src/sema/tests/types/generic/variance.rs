@@ -892,6 +892,9 @@ take(increment);
 /// @resolution.function source=increment type=Function<(int32,), int32> target=increment
 "#,
         r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: int32) => int32' is not assignable to parameter of type '(value: int32) => int32 | undefined'"
+/// @diagnostic.label line=8 column=6 span="increment" line_source="take(increment);"
+/// @diagnostic.related line=8 column=1 span="take(increment)" line_source="take(increment);" message="in this call"
 "#,
     );
 }

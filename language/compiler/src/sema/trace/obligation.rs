@@ -18,6 +18,7 @@ impl EventFormatter<'_, '_> {
             .text("at", self.node_source_label(obligation.source()))
             .bool("finished", finished);
 
+        // add the fields each obligation carries
         match obligation {
             Obligation::PatternCoverage(obligation) => event
                 .text("value", self.expected_type_label(obligation.value))
@@ -35,9 +36,6 @@ impl EventFormatter<'_, '_> {
             Obligation::ForInSource(obligation) => {
                 event.text("type", self.type_label(obligation.ty))
             }
-            Obligation::FieldInitialization(obligation) => event
-                .text("symbol", self.symbol_label(obligation.symbol))
-                .text("receiver", self.type_label(obligation.receiver)),
             Obligation::WellFormedType(obligation) => {
                 event.text("type", self.type_label(obligation.ty))
             }
@@ -54,7 +52,6 @@ impl EventFormatter<'_, '_> {
             Obligation::WritableTarget(_) => "writable.target",
             Obligation::RuntimePredicate(_) => "runtime.predicate",
             Obligation::ForInSource(_) => "for.in.source",
-            Obligation::FieldInitialization(_) => "field.initialization",
             Obligation::WellFormedType(_) => "wellformed.type",
             Obligation::RangeElement(_) => "range.element",
         }

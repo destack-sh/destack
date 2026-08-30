@@ -11,6 +11,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        // serve the memo
         if let Some(known) = self.drop_conformers.get(&symbol) {
             return Ok(*known);
         }
@@ -58,6 +59,7 @@ impl CheckState<'_> {
         member: dir::GlobalSymbolId,
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<Vec<dir::GenericArgumentBinding>>> {
+        // read the hook owner's parameters
         let Some((owner, parameters)) = self.hook_owner_parameters(member)? else {
             return Ok(Some(Vec::new()));
         };
@@ -100,6 +102,7 @@ impl CheckState<'_> {
         &mut self,
         member: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<(dir::GlobalSymbolId, Vec<dir::GlobalGenericParameterId>)>> {
+        // require the hook's own template
         let Some(template) = self.symbol_template(member)? else {
             return Ok(None);
         };
@@ -133,6 +136,7 @@ impl CheckState<'_> {
         owner: dir::GlobalSymbolId,
         parameters: &[dir::GlobalGenericParameterId],
     ) -> CompilerResult<bool> {
+        // require an extension whose target applies a declaration
         let Some(dir::Definition::Extension(extension)) = self.definition(owner)?.cloned() else {
             return Ok(false);
         };
@@ -163,6 +167,7 @@ impl CheckState<'_> {
         &mut self,
         implementations: &[dir::NominalConformance],
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        // find the conformance naming the Drop interface
         for conformance in implementations {
             let Some(symbol) = self.ty(conformance.interface)?.symbol() else {
                 continue;
@@ -218,7 +223,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        // owned payloads drop through their value, views and handles keep theirs
+        // drop through an owned form, stopping at every other form
         if let dir::Type::Form(form) = self.ty(ty)? {
             return match form.form {
                 dir::Form::Owned => self.decide_drop(origin, form.value, active),
@@ -234,9 +239,10 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         }
 
+        // decide by the value's own storage
         match self.ty(ty)? {
             // leave an open variable or canonical hole undecided
-            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // hooks declared on the nominal drop, else any stored member drops
             dir::Type::Application(instance) => {
                 if self.drop_hook_member(instance.symbol)?.is_some() {

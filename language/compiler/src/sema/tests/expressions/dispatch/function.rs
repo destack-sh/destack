@@ -16,12 +16,12 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
         r#"
 === annotated ===
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
-    values.iterator<int32 | undefined, "local">().map<int32 | undefined, int32 | undefined>(
+    values.iterator<int32 | undefined>().map<int32 | undefined, int32 | undefined>(
         (value: int32 | undefined): int32 | undefined => value,
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
         (value: &'a readonly (int32 | undefined)): boolean =>
             value !== (undefined as int32 | undefined) && (value as int32) > 0,
-    )
+    ) as int32 | undefined
 }
 
 === dir ===
@@ -34,10 +34,10 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 
     values.iterator().map((value) => value).find((value) => value !== undefined && value > 0)
     /// @resolution.name source=values target=firstPositive.values
-    /// @resolution.member source="values.iterator().map((value) => value).find" receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> type=(this: MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>, Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => int32 | undefined kind=symbol target_receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> target=Iterator.find
+    /// @resolution.member source="values.iterator().map((value) => value).find" receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> type=(this: MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => int32 | undefined kind=symbol target_receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> target=Iterator.find
     /// @resolution.member source=values.iterator receiver=int32 | undefined[] type=<iterator#2.P0: Place>(this: Managed<int32 | undefined[], iterator#2.P0>) => Iterator<int32 | undefined> kind=symbol target_receiver=int32 | undefined[] target=iterator#2
     /// @resolution.member source=values.iterator().map receiver=Iterator<int32 | undefined> type=<Iterator.map.U>(this: Iterator<int32 | undefined>, Function<(int32 | undefined, isize), Iterator.map.U>) => MapIterator<Iterator<int32 | undefined>, int32 | undefined, Iterator.map.U> kind=symbol target_receiver=Iterator<int32 | undefined> dispatch=dynamic constraint=Iterator<int32 | undefined> target=Iterator.map
-    /// @resolution.call parameters=(Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value !== undefined && value > 0) as Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=int32 | undefined kind=symbol target=Iterator.find receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find"
+    /// @resolution.call parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined && value > 0) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=int32 | undefined kind=symbol target=Iterator.find receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find"
     /// @resolution.call source="values.iterator().map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> kind=dynamic target=Iterator.map receiver=Iterator<int32 | undefined> constraint=Iterator<int32 | undefined> generic_arguments=(int32 | undefined, int32 | undefined)
     /// @resolution.call source=values.iterator() parameters=() return=Iterator<int32 | undefined> kind=symbol target=iterator#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.iterator#2<\"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
@@ -61,10 +61,6 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="IteratorYield<int32 | undefined>" template=IteratorYield arguments=(int32 | undefined)
     /// @generic.instance id="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=MapIterator arguments=(Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
     /// @generic.instance id="PeekableIterator<Iterator<int32 | undefined>, int32 | undefined>" template=PeekableIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32 | undefined>, int32 | undefined>)
-    /// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32 | undefined>, int32 | undefined>)
-    /// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32 | undefined>, int32 | undefined>)
-    /// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>)
     /// @generic.instance id="TakeIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
@@ -79,11 +75,11 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
 
 }

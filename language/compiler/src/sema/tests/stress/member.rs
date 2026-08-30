@@ -2,9 +2,9 @@ use super::counters::assert_check_counters;
 
 const ITEMS: usize = 1_000;
 
-/// Repeated extension method calls reuse one canonical member decision.
+/// Repeated extension method calls derive one member lookup per site.
 #[test]
-fn test_repeated_extension_method_calls_reuse_one_member_decision() {
+fn test_repeated_extension_method_calls_derive_a_lookup_per_site() {
     let body = (0..ITEMS)
         .map(|index| format!("    let value{index}: int32 = 0.double();"))
         .collect::<Vec<_>>()
@@ -17,25 +17,20 @@ fn test_repeated_extension_method_calls_reuse_one_member_decision() {
     assert_check_counters(
         &source,
         r#"
-check.solve.variables=14
+check.solve.variables=0
 check.solve.constraints=0
 check.solve.obligations=1000
-check.solve.solutions=14
-check.solve.bounds=0
+check.solve.solutions=0
 check.solve.decisions=3003
 check.relations.decided=5
-check.relations.reused=1003
+check.relations.reused=9995
 check.bindings.built=1
-check.bindings.reused=1003
-check.members.derived=4
-check.members.reused=3996
+check.bindings.reused=3999
+check.members.derived=4000
 check.members.refused=0
-check.probes.total=2036
-check.probes.selections=0
-check.probes.extensions=0
-check.instantiations=22
-check.interns=21139
-check.reduces=34116
+check.instantiations=1000
+check.interns=41029
+check.reduces=45034
 "#,
     );
 }

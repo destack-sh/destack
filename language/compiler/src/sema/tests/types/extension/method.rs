@@ -37,7 +37,7 @@ extension of Point {
 }
 
 declare const point: Point;
-const value: int32 = point.sum<"constant">();
+const value: int32 = point.sum();
 
 === dir ===
 struct Point {
@@ -56,12 +56,12 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
 /// @resolution.name source=Point target=Point
 
     sum(&readonly this): int32 {
-    /// @generic.template symbol=sum parameters=('a, P1: Place)
-    /// @type.symbol symbol=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32
+    /// @generic.template symbol=sum parameters=('a)
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
     /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly this
 
         return this.x + this.y;
@@ -71,17 +71,17 @@ extension of Point {
         /// @resolution.member source=this.x receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
-        /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this.x placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
         /// @type.node source=this type=&sum.'a readonly Point
         /// @type.node source=this.y type=int32
         /// @resolution.member source=this.y receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=y target=Point.y target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
-        /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.y placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this.y placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.y root=this keys=[y]
 
     }
@@ -96,15 +96,13 @@ const value = point.sum();
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=point type=Point
-/// @type.node source=point.sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32
+/// @type.node source=point.sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
 /// @type.node source=point.sum() type=int32
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.sum receiver=Point type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Point target=sum
-/// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="Point.<extension#1>.sum<\"constant\">"
+/// @resolution.member source=point.sum receiver=Point type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Point target=sum
+/// @resolution.call source=point.sum() parameters=() return=int32 kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly constant Point))
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
-/// @generic.instantiation id="sum<\"constant\">" template=sum arguments=("constant")
-/// @generic.instance id="sum<\"constant\">" template=sum arguments=("constant")
 "#);
 }
 
@@ -164,12 +162,12 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {
-    /// @generic.template symbol=sum parameters=('a, P1: Place)
-    /// @type.symbol symbol=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
+    /// @generic.template symbol=sum parameters=('a)
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
     /// @type.symbol symbol=sum.this type=&sum.'a readonly Point
 
         return this.x + this.y;
@@ -179,17 +177,17 @@ extension of Point {
         /// @resolution.member source=this.x receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
-        /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this.x placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
         /// @type.node source=this type=&sum.'a readonly Point
         /// @type.node source=this.y type=int32
         /// @resolution.member source=this.y receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=y target=Point.y target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
-        /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.y placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this.y placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.y root=this keys=[y]
 
     }
@@ -272,15 +270,15 @@ struct Slice<in out T> {
 extension<T> of Slice<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Slice<T#2>
-/// @definition.method symbol=first slot=first type=<first.'a, first.P1: Place>(this: &first.'a readonly Slice<T#2>) => usize
-/// @definition.method symbol=size slot=size role=getter type=<size.'a, size.P1: Place>(this: &size.'a readonly Slice<T#2>) => usize
+/// @definition.method symbol=first slot=first type=<first.'a>(this: &first.'a readonly Slice<T#2>) => usize
+/// @definition.method symbol=size slot=size role=getter type=<size.'a>(this: &size.'a readonly Slice<T#2>) => usize
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Slice target=Slice
 /// @resolution.name source=T target=T
 
     get size(this: &readonly Slice<T>): usize {
-    /// @generic.template symbol=size parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=size type=<size.'a, size.P1: Place>(this: &size.'a readonly Slice<T#2>) => usize
+    /// @generic.template symbol=size parent=template#1 parameters=('a)
+    /// @type.symbol symbol=size type=<size.'a>(this: &size.'a readonly Slice<T#2>) => usize
     /// @type.symbol symbol=size.this source="this: &readonly Slice<T>" type=&size.'a readonly Slice<T#2>
     /// @resolution.name source=Slice target=Slice
     /// @resolution.name source=T target=T
@@ -288,16 +286,16 @@ extension<T> of Slice<T> {
         this.length
         /// @resolution.member source=this.length receiver=&size.'a readonly Slice<T#2> type=usize kind=field target_receiver=&size.'a readonly Slice<T#2> key=length target=Slice.length target_type=usize
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&size.'a readonly Slice<T#2>
-        /// @resolution.place source=this placement=size.P1 lifetime=size.'a access="readonly"
+        /// @resolution.place source=this placement=size.'a lifetime=size.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.length placement=size.P1 lifetime=size.'a access="readonly"
+        /// @resolution.place source=this.length placement=size.'a lifetime=size.'a access="readonly"
         /// @resolution.access source=this.length root=this keys=[length]
 
     }
 
     first(this: &readonly Slice<T>): usize {
-    /// @generic.template symbol=first parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=first type=<first.'a, first.P1: Place>(this: &first.'a readonly Slice<T#2>) => usize
+    /// @generic.template symbol=first parent=template#1 parameters=('a)
+    /// @type.symbol symbol=first type=<first.'a>(this: &first.'a readonly Slice<T#2>) => usize
     /// @type.symbol symbol=first.this source="this: &readonly Slice<T>" type=&first.'a readonly Slice<T#2>
     /// @resolution.name source=Slice target=Slice
     /// @resolution.name source=T target=T
@@ -305,9 +303,9 @@ extension<T> of Slice<T> {
         this.size
         /// @resolution.member source=this.size receiver=&first.'a readonly Slice<T#2> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
-        /// @resolution.place source=this placement=first.P1 lifetime=first.'a access="readonly"
+        /// @resolution.place source=this placement=first.'a lifetime=first.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id="size<T#2, first.P1>" template=size arguments=(T#2, first.P1) owner=first
+        /// @generic.instantiation id=size<T#2> template=size arguments=(T#2) owner=first
 
     }
 }
@@ -349,7 +347,7 @@ extension of Buffer {
     grow(this: &exclusive Buffer): void {}
 
     peek(this: &readonly Buffer): void {
-        this.grow<P1>();
+        this.grow();
     }
 }
 
@@ -366,29 +364,28 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=grow source="grow(this: &exclusive Buffer): void {}" slot=grow type=<grow.'a, grow.P1: Place>(this: &grow.'a exclusive Buffer) => void
-/// @definition.method symbol=peek slot=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly Buffer) => void
+/// @definition.method symbol=grow source="grow(this: &exclusive Buffer): void {}" slot=grow type=<grow.'a>(this: &grow.'a exclusive Buffer) => void
+/// @definition.method symbol=peek slot=peek type=<peek.'a>(this: &peek.'a readonly Buffer) => void
 /// @resolution.name source=Buffer target=Buffer
 
     grow(this: &exclusive Buffer): void {}
-    /// @generic.template symbol=grow parameters=('a, P1: Place)
-    /// @type.symbol symbol=grow source="grow(this: &exclusive Buffer): void {}" type=<grow.'a, grow.P1: Place>(this: &grow.'a exclusive Buffer) => void
+    /// @generic.template symbol=grow parameters=('a)
+    /// @type.symbol symbol=grow source="grow(this: &exclusive Buffer): void {}" type=<grow.'a>(this: &grow.'a exclusive Buffer) => void
     /// @type.symbol symbol=grow.this source="this: &exclusive Buffer" type=&grow.'a exclusive Buffer
     /// @resolution.name source=Buffer target=Buffer
 
     peek(this: &readonly Buffer): void {
-    /// @generic.template symbol=peek parameters=('a, P1: Place)
-    /// @type.symbol symbol=peek type=<peek.'a, peek.P1: Place>(this: &peek.'a readonly Buffer) => void
+    /// @generic.template symbol=peek parameters=('a)
+    /// @type.symbol symbol=peek type=<peek.'a>(this: &peek.'a readonly Buffer) => void
     /// @type.symbol symbol=peek.this source="this: &readonly Buffer" type=&peek.'a readonly Buffer
     /// @resolution.name source=Buffer target=Buffer
 
         this.grow()
-        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer type=<grow.'a, grow.P1: Place>(this: &grow.'a exclusive Buffer) => void kind=symbol target_receiver=&peek.'a readonly Buffer target=grow
-        /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=&peek.'a readonly Buffer instance=Buffer.<extension#1>.grow<peek.P1>
+        /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer type=<grow.'a>(this: &grow.'a exclusive Buffer) => void kind=symbol target_receiver=&peek.'a readonly Buffer target=grow
+        /// @resolution.call source=this.grow() parameters=() return=void kind=symbol target=grow receiver=&peek.'a readonly Buffer
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Buffer
-        /// @resolution.place source=this placement=peek.P1 lifetime=peek.'a access="readonly"
+        /// @resolution.place source=this placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=grow<peek.P1> template=grow arguments=(peek.P1)
 
     }
 }

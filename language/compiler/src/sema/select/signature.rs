@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::sema::infer::InferMode;
 use crate::sema::{
-    BodyState, CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    Expectation, Origin, PlaceUse, ReceiverSteps, Relation, RelationCheck, TypeArgumentInference,
-    TypeSubstitution, Value, ValueUse, VariableRole, Verdict,
+    CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, CheckState,
+    Expectation, Origin, REPORTED_REJECTIONS, ReceiverSteps, Relation, RelationCheck, Settle,
+    TypeArgumentInference, TypeSubstitution, Value, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -47,15 +47,6 @@ impl ParameterSelection {
     }
 }
 
-/// One canonical signature decision instantiated across call sites.
-#[derive(Debug, Clone)]
-pub(in crate::sema) struct SignatureInstance {
-    /// The selected overload position within the callee's candidates.
-    pub(in crate::sema) overload: usize,
-    /// The instantiated selection, leaving coercions to each call site.
-    pub(in crate::sema) key: SignatureSelection,
-}
-
 /// One invocation constrained against a candidate signature.
 struct Invocation {
     /// The rejection the constraints produced, set when the candidate fails.
@@ -66,6 +57,38 @@ struct Invocation {
     receiver_steps: Option<ReceiverSteps>,
     /// The coercions selected for the supplied arguments.
     coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
+}
+
+/// The callable one selection settled on, with the outcome its site commits.
+/// FUGU #Architecture: "Selection", "Invocation", .. selecT/signature,.rs is full of terrible nouns
+#[allow(clippy::large_enum_variant)]
+pub(in crate::sema) enum Selection<'candidate, C> {
+    /// One candidate accepts the invocation, or a sole one rejects it with a reported reason.
+    Selected {
+        /// The candidate position.
+        position: usize,
+        /// The selected candidate.
+        candidate: &'candidate C,
+        /// The matched signature.
+        signature: SignatureSelection,
+        /// The outcome the site commits against its expectation.
+        outcome: CheckOutcome,
+    },
+    /// Every candidate rejects the invocation, described for the report.
+    Rejected(Vec<String>),
+    /// A sole candidate refuses the invocation with a reason already reported.
+    Refused,
+    /// Several candidates accept an exclusive invocation.
+    Ambiguous,
+}
+
+/// How several candidates resolve one invocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) enum OverloadRule {
+    /// Select the first viable candidate in declaration order.
+    Ordered,
+    /// Require exactly one viable candidate.
+    Exclusive,
 }
 
 /// Result of matching one callable signature.
@@ -104,7 +127,8 @@ impl SignatureMatch {
 pub(in crate::sema) struct CallableArgument {
     /// Source node used for origins and diagnostics.
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
-    /// Known argument type, left open while the source expression still needs checking.
+    /// The argument type, typed once ahead of every candidate.
+    /// A composite has none until the selected parameter checks it in context.
     pub(in crate::sema) ty: Option<dir::GlobalTypeId>,
     /// Relation selected from the authored argument expression.
     pub(in crate::sema) relation: Relation,
@@ -192,6 +216,7 @@ impl SignatureSelection {
             },
         };
 
+        // build the call over the selected target
         dir::Call {
             target,
             callable_type: self.callable,
@@ -209,7 +234,148 @@ impl SignatureRejection {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
+    /// Select one callable candidate and constrain the invocation against it.
+    pub(in crate::sema) fn select_callable<'candidate, C>(
+        &mut self,
+        origin: Origin,
+        candidates: &'candidate [C],
+        rule: OverloadRule,
+        candidate_type: impl Fn(&C) -> dir::GlobalTypeId,
+        attempt: impl Fn(&mut Self, &C) -> CompilerResult<SignatureMatch>,
+    ) -> CompilerResult<Selection<'candidate, C>> {
+        // decide the candidate the rule selects
+        let module = origin.module();
+        let selected =
+            self.select_signature(module, candidates, rule, &candidate_type, &attempt)?;
+        let (position, candidate, mut rejections) = match selected {
+            Ok((position, candidate, rejections)) => (position, candidate, rejections),
+            Err(rejected) => return Ok(rejected),
+        };
+
+        // constrain the invocation against the selected candidate
+        let is_single = candidates.len() == 1;
+        let selection = match attempt(self, candidate)? {
+            // commit the accepted invocation
+            SignatureMatch::Selected(signature) => Selection::Selected {
+                position,
+                candidate,
+                signature,
+                outcome: CheckOutcome::Holds,
+            },
+            // commit the invocation and fail it against the expected result
+            SignatureMatch::ReturnMismatch(signature) => Selection::Selected {
+                position,
+                candidate,
+                signature,
+                outcome: CheckOutcome::Fails(CheckFailure::Relation),
+            },
+            // report a sole candidate's own invocation rejection and still commit
+            SignatureMatch::Invalid { key, rejection } if is_single => {
+                self.report_signature_rejection(origin, rejection)?;
+
+                Selection::Selected {
+                    position,
+                    candidate,
+                    signature: key,
+                    outcome: CheckOutcome::Holds,
+                }
+            }
+            // report a sole candidate's own precise refusal
+            SignatureMatch::Inapplicable(rejection) if is_single && rejection.is_precise() => {
+                self.report_signature_rejection(origin, rejection)?;
+
+                Selection::Refused
+            }
+            // leave a refused candidate to the shared report
+            SignatureMatch::Invalid { rejection, .. } | SignatureMatch::Inapplicable(rejection) => {
+                let described =
+                    self.format_signature_rejection(module, candidate_type(candidate), &rejection)?;
+                rejections.push(described);
+                rejections.truncate(REPORTED_REJECTIONS);
+
+                Selection::Rejected(rejections)
+            }
+        };
+
+        Ok(selection)
+    }
+
+    /// Select one signature candidate under the overload rule, describing the rejected ones.
+    pub(in crate::sema) fn select_signature<'candidate, C>(
+        &mut self,
+        module: ModuleId,
+        candidates: &'candidate [C],
+        rule: OverloadRule,
+        candidate_type: impl Fn(&C) -> dir::GlobalTypeId,
+        attempt: impl Fn(&mut Self, &C) -> CompilerResult<SignatureMatch>,
+    ) -> CompilerResult<Result<(usize, &'candidate C, Vec<String>), Selection<'candidate, C>>> {
+        if let [single] = candidates {
+            return Ok(Ok((0, single, Vec::new())));
+        }
+
+        // decide each candidate in declaration order
+        let mut selected = None;
+        let mut undecided = None;
+        let mut rejections = Vec::new();
+        for (position, candidate) in candidates.iter().enumerate() {
+            let (verdict, rejection) =
+                self.decide_signature(module, candidate_type(candidate), |state| {
+                    attempt(state, candidate)
+                })?;
+            match (verdict, rule) {
+                (Verdict::Fails, _) => rejections.extend(rejection),
+                (Verdict::Holds, OverloadRule::Ordered) => {
+                    return Ok(Ok((position, candidate, rejections)));
+                }
+                (Verdict::Holds, OverloadRule::Exclusive) if selected.is_some() => {
+                    return Ok(Err(Selection::Ambiguous));
+                }
+                (Verdict::Holds, OverloadRule::Exclusive) => selected = Some((position, candidate)),
+                (Verdict::Ambiguous, OverloadRule::Ordered) => {
+                    undecided.get_or_insert((position, candidate));
+                }
+                (Verdict::Ambiguous, OverloadRule::Exclusive) => {
+                    return Ok(Err(Selection::Ambiguous));
+                }
+            }
+        }
+
+        // take the exclusive winner, else the first undecided ordered candidate
+        Ok(match selected.or(undecided) {
+            Some((position, candidate)) => Ok((position, candidate, rejections)),
+            None => {
+                rejections.truncate(REPORTED_REJECTIONS);
+
+                Err(Selection::Rejected(rejections))
+            }
+        })
+    }
+
+    /// Decide one signature candidate, describing its rejection.
+    pub(in crate::sema) fn decide_signature(
+        &mut self,
+        module: ModuleId,
+        candidate: dir::GlobalTypeId,
+        attempt: impl FnOnce(&mut Self) -> CompilerResult<SignatureMatch>,
+    ) -> CompilerResult<(Verdict, Option<String>)> {
+        let (outcome, verdict) = self.decide(|state| {
+            let outcome = attempt(state)?.into_candidate();
+            let note = match &outcome {
+                CandidateOutcome::Rejected(rejection) => {
+                    Some(state.format_signature_rejection(module, candidate, rejection)?)
+                }
+                CandidateOutcome::Accepted(_) => None,
+            };
+
+            Ok((outcome, note))
+        })?;
+        Ok(match outcome {
+            (CandidateOutcome::Accepted(_), note) => (verdict, note),
+            (CandidateOutcome::Rejected(_), note) => (Verdict::Fails, note),
+        })
+    }
+
     /// Return the signature type behind one callable type.
     pub(in crate::sema) fn callable_signature_type(
         &mut self,
@@ -250,14 +416,14 @@ impl BodyState<'_, '_> {
 
         // read the substituted rest as a closed tuple
         let rest = self.substitute_type(parameters[rest_index].ty, substitution)?;
-        let rest = self.check.normalize(origin, rest)?;
-        let dir::Type::Tuple(tuple) = self.check.ty(rest)? else {
+        let rest = self.normalize(origin, rest)?;
+        let dir::Type::Tuple(tuple) = self.ty(rest)? else {
             return Ok(parameters);
         };
 
         // rebuild positional parameters from the tuple elements
         let mut expanded = parameters[..rest_index].to_vec();
-        for element in self.check.tuple_elements(rest.module_id, tuple.elements)? {
+        for element in self.tuple_elements(rest.module_id, tuple.elements)? {
             expanded.push(dir::FunctionParameterType {
                 name: None,
                 ty: element.ty,
@@ -338,6 +504,7 @@ impl BodyState<'_, '_> {
             ..parameter
         };
 
+        // carry the selected parameter with its argument type
         Ok(ParameterSelection {
             parameter,
             argument_type,
@@ -358,6 +525,7 @@ impl BodyState<'_, '_> {
             .map(|selected| selected.parameter)
             .collect::<Vec<_>>();
 
+        // bind each written argument to its selected parameter
         self.argument_bindings(
             Origin::Node(node, None),
             module,
@@ -412,7 +580,7 @@ impl BodyState<'_, '_> {
         element: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::InstanceKey>> {
         // slice parameters pack in place
-        let reduced = self.check.deeply_resolve(origin, rest)?;
+        let reduced = self.deeply_resolve(origin, rest)?;
         if matches!(self.ty(reduced)?, dir::Type::Slice(_)) {
             return Ok(None);
         }
@@ -426,15 +594,13 @@ impl BodyState<'_, '_> {
         element: dir::GlobalTypeId,
     ) -> CompilerResult<dir::InstanceKey> {
         // read the element parameter of the array pack constructor
-        let symbol = self
-            .check
-            .language_symbol(dir::LanguageItem::ArrayFromSlice)?;
-        let Some(template) = self.check.symbol_template(symbol)? else {
+        let symbol = self.language_symbol(dir::LanguageItem::ArrayFromSlice)?;
+        let Some(template) = self.symbol_template(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "the array pack constructor declares no template".to_string(),
             });
         };
-        let parameters = self.check.generic_template_parameters(template)?;
+        let parameters = self.generic_template_parameters(template)?;
         let Some(parameter) = parameters.first().copied() else {
             return Err(CompilerError::Internal {
                 message: "the array pack constructor declares no element parameter".to_string(),
@@ -451,27 +617,27 @@ impl BodyState<'_, '_> {
         origin: Origin,
         rest: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let reduced = self.check.deeply_resolve(origin, rest)?;
+        let reduced = self.deeply_resolve(origin, rest)?;
 
         // resolve the element of a placed collection in the collection's place
-        if let dir::Type::Form(form) = self.check.ty(reduced)?
+        if let dir::Type::Form(form) = self.ty(reduced)?
             && let dir::Form::Managed { place } = form.form
         {
             let Some(element) = self.rest_element_type(origin, form.value)? else {
                 return Ok(None);
             };
 
-            let element = self.check.resolve_relative_place(origin, element, place)?;
+            let element = self.resolve_relative_place(origin, element, place)?;
 
             return Ok(Some(element));
         }
 
         // project the element from the collection the annotation names
-        match self.check.ty(reduced)? {
+        match self.ty(reduced)? {
             dir::Type::Slice(slice) => Ok(Some(slice.element)),
             dir::Type::FixedArray(array) => Ok(Some(array.element)),
             dir::Type::Application(instance) => {
-                let item = self.check.language_item(instance.symbol)?;
+                let item = self.language_item(instance.symbol)?;
                 let is_array = matches!(
                     item,
                     Some(dir::LanguageItem::Array | dir::LanguageItem::ReadonlyArray)
@@ -488,8 +654,8 @@ impl BodyState<'_, '_> {
         }
     }
 
-    /// Probe one callable candidate against the supplied arguments.
-    pub(in crate::sema) fn probe_callable(
+    /// Match one callable candidate against the supplied arguments.
+    pub(in crate::sema) fn match_callable(
         &mut self,
         origin: Origin,
         function_type: dir::GlobalTypeId,
@@ -509,7 +675,7 @@ impl BodyState<'_, '_> {
             dir::Type::Function(function) => {
                 let function = function.signature;
 
-                return self.probe_callable(
+                return self.match_callable(
                     origin,
                     function,
                     owner,
@@ -524,7 +690,7 @@ impl BodyState<'_, '_> {
             dir::Type::FunctionPointer(function) => {
                 let function = function.signature;
 
-                return self.probe_callable(
+                return self.match_callable(
                     origin,
                     function,
                     owner,
@@ -543,6 +709,7 @@ impl BodyState<'_, '_> {
             }
         };
 
+        // constrain the invocation against the declared signature
         let return_type = function.return_type;
 
         self.constrain_signature(
@@ -689,7 +856,10 @@ impl BodyState<'_, '_> {
 
         // point this at the applied extension target for bare type receivers
         if let Some(receiver_value) = receiver
-            && matches!(self.ty(receiver_value.ty)?, dir::Type::Reference(_))
+            && matches!(
+                self.ty(self.shallow_resolve(receiver_value.ty)?)?,
+                dir::Type::Reference(_)
+            )
             && let Some(owner) = owner
             && let Some(dir::Definition::Extension(extension)) = self.definition(owner)?
         {
@@ -735,7 +905,7 @@ impl BodyState<'_, '_> {
         )?;
         key.coercions = coercions;
 
-        // classify the candidate by what rejected it, if anything
+        // classify the candidate by what rejected it
         let matched = match rejection {
             Some(rejection) => SignatureMatch::Invalid { key, rejection },
             None if is_return_mismatch => SignatureMatch::ReturnMismatch(key),
@@ -876,14 +1046,13 @@ impl BodyState<'_, '_> {
 
         // queue obligations, rejecting on decided failures only
         for bound in bounds {
-            let id = self.check.push_relation(bound)?;
-            let Some(outcome) = self.check.fulfill.checks.result(id)?.copied() else {
+            let id = self.push_relation(bound)?;
+            let Some(outcome) = self.fulfill.checks.result(id)?.copied() else {
                 continue;
             };
 
             if let CheckOutcome::Fails(failure) = outcome {
                 let rejection = self.mismatch_rejection(
-                    bound.origin,
                     bound.cause,
                     bound.relation,
                     None,
@@ -905,34 +1074,17 @@ impl BodyState<'_, '_> {
         let mut const_variables = SmallVec::<[dir::TypeVariableId; 2]>::new();
         for parameter in parameters {
             if self
-                .check
                 .generic_parameter(*parameter)
                 .is_some_and(|binding| binding.is_const && binding.memory_parameter().is_none())
                 && let Some(instance) = substitution.argument(*parameter)
-                && let Some(variable) = self.check.root_variable(instance)?
+                && let Some(variable) = self.root_variable(instance)?
             {
                 const_variables.push(variable);
             }
         }
 
-        // split plain arguments from contextual closures
-        let mut plain = Vec::new();
-        let mut contextual = Vec::new();
+        // match every argument in order, refusing the candidate on the first rejection
         for entry in argument_parameters {
-            let (_, argument, _) = &entry;
-            if self.check.lambdas.contains_key(&argument.source) {
-                contextual.push(entry);
-            } else {
-                plain.push(entry);
-            }
-        }
-
-        // match the plain arguments, fixing the shapes the closures read
-        let fixed = plain
-            .iter()
-            .map(|(_, _, parameter_type)| *parameter_type)
-            .collect::<Vec<_>>();
-        for entry in plain {
             if let Some(rejection) =
                 self.constrain_argument(origin, entry, &const_variables, &mut coercions)?
             {
@@ -945,32 +1097,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        // fix the shapes the contextual closures read, widening their literal candidates
-        if !contextual.is_empty() {
-            let roots = self.check.collect_open_variables(fixed.iter().copied())?;
-            for root in &roots {
-                let ty = self.check.variable_type(*root)?;
-                self.check.fix_literal_candidates(ty)?;
-            }
-            if !roots.is_empty() {
-                self.check.resolve_variables(&roots)?;
-            }
-        }
-
-        // match the contextual closure arguments
-        for entry in contextual {
-            if let Some(rejection) =
-                self.constrain_argument(origin, entry, &const_variables, &mut coercions)?
-            {
-                return Ok(Some(Invocation {
-                    rejection: Some(rejection),
-                    is_return_mismatch,
-                    receiver_steps,
-                    coercions,
-                }));
-            }
-        }
-
+        // carry the accepted invocation with its steps
         Ok(Some(Invocation {
             rejection: None,
             is_return_mismatch,
@@ -982,7 +1109,6 @@ impl BodyState<'_, '_> {
     /// Build one mismatch rejection over a failed relation.
     fn mismatch_rejection(
         &mut self,
-        origin: Origin,
         cause: CauseId,
         relation: Relation,
         use_: Option<ValueUse>,
@@ -991,9 +1117,7 @@ impl BodyState<'_, '_> {
         failure: CheckFailure,
     ) -> CompilerResult<SignatureRejection> {
         Ok(SignatureRejection::Mismatch {
-            verdict: self
-                .check
-                .decide_outcome(false, origin, relation, source, target)?,
+            verdict: self.decide_outcome(false, source, target)?,
             cause,
             relation,
             use_,
@@ -1022,15 +1146,15 @@ impl BodyState<'_, '_> {
 
         // resolve staged const parameters as their arguments settle
         for variable in const_variables {
-            if self.check.infer.variable(*variable)?.state.is_open() {
-                self.check.resolve_variables(&[*variable])?;
+            if self.infer.variable(*variable)?.state.is_open() {
+                self.settle_variables(&[*variable], Settle::All)?;
             }
         }
 
         Ok(None)
     }
 
-    /// Resolve one relative member type in the receiver's concrete place.
+    /// Settle one relative member type in the receiver's concrete place.
     fn receiver_relative_type(
         &mut self,
         origin: Origin,
@@ -1089,6 +1213,7 @@ impl BodyState<'_, '_> {
         let function_type =
             self.instantiate_signature_type(function, substitution, &parameters, return_type)?;
 
+        // carry the instantiated signature with its slots
         Ok(SignatureSelection {
             callable: function_type,
             parameters,
@@ -1112,7 +1237,7 @@ impl BodyState<'_, '_> {
         let call = self.origin_source(origin)?;
         let origin = self.origin_at(origin, source)?;
         let relation = argument.relation;
-        let cause = self.check.intern_cause(Cause::root(
+        let cause = self.intern_cause(Cause::root(
             origin,
             CauseKind::Argument {
                 call,
@@ -1120,16 +1245,52 @@ impl BodyState<'_, '_> {
             },
         ));
 
+        // read a const parameter's argument as const, widening every other argument mutably
+        let mut mode = InferMode::Regular;
+        for variable in self.type_variables(parameter_type)? {
+            if let Some(parameter) = self.infer.variable(variable)?.parameter
+                && self.require_generic_parameter(parameter)?.is_const
+            {
+                mode = InferMode::Const;
+            }
+        }
+        let site = self.visit_site(source)?;
+
+        // check a composite's values against the parameter, recording its own conversions
+        let Some(ty) = argument.ty else {
+            let check = self.check_node(
+                site,
+                Expectation {
+                    target: parameter_type,
+                    relation,
+                    cause,
+                    use_: argument.use_,
+                    mode,
+                },
+            )?;
+            if let CheckOutcome::Fails(failure) = check.outcome {
+                let rejection = self.mismatch_rejection(
+                    cause,
+                    relation,
+                    Some(argument.use_),
+                    check.source,
+                    parameter_type,
+                    failure,
+                )?;
+
+                return Ok(Err(rejection));
+            }
+
+            return Ok(Ok(None));
+        };
+
         // constrain a spread element against the rest parameter
         if argument.is_spread {
-            let site = self.visit_site(source)?;
-            let ty = self.infer_node_type(site, PlaceUse::Read)?;
             let element = self.spread_element_type(ty)?;
             if self.constrain_type(origin, cause, relation, element, parameter_type)?
                 == Verdict::Fails
             {
                 let rejection = self.mismatch_rejection(
-                    origin,
                     cause,
                     relation,
                     Some(argument.use_),
@@ -1144,51 +1305,7 @@ impl BodyState<'_, '_> {
             return Ok(Ok(None));
         }
 
-        // read a const parameter's argument as const, widening every other argument mutably
-        let mut mode = InferMode::Regular;
-        for variable in self.type_variables(parameter_type)? {
-            if let VariableRole::Instantiation { parameter } = self.infer.variable_role(variable)?
-                && self.require_generic_parameter(parameter)?.is_const
-            {
-                mode = InferMode::Const;
-            }
-        }
-
-        // check the written argument against its target before converting the resulting value
-        let ty = match argument.ty {
-            Some(ty) => ty,
-            None => {
-                let site = self.visit_site(source)?;
-                let expectation = Expectation {
-                    target: parameter_type,
-                    relation,
-                    cause,
-                    use_: argument.use_,
-                    mode,
-                };
-                let check = self.check_node_target(site, expectation)?;
-                let ty = check.source;
-
-                if let CheckOutcome::Fails(failure) = check.outcome {
-                    let rejection = self.mismatch_rejection(
-                        origin,
-                        cause,
-                        relation,
-                        Some(argument.use_),
-                        ty,
-                        check.target,
-                        failure,
-                    )?;
-
-                    return Ok(Err(rejection));
-                }
-
-                ty
-            }
-        };
-
         // select the complete runtime conversion for this candidate
-        let site = self.visit_site(source)?;
         let value = self.expression_value(site, ty)?;
         let conversion = self.convert_value(
             site,
@@ -1200,9 +1317,9 @@ impl BodyState<'_, '_> {
             mode,
         )?;
 
+        // record the rejection a failed conversion reports
         if let CheckOutcome::Fails(failure) = conversion.outcome {
             let rejection = self.mismatch_rejection(
-                origin,
                 cause,
                 relation,
                 Some(argument.use_),
@@ -1217,16 +1334,6 @@ impl BodyState<'_, '_> {
         let coercion = conversion.coercion.map(|coercion| *coercion);
 
         Ok(Ok(coercion))
-    }
-}
-
-impl dir::TypeFold for SignatureInstance {
-    /// Map every type this decision carries.
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        self.key.map_types(map)
     }
 }
 

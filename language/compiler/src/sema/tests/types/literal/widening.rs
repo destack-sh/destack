@@ -28,7 +28,7 @@ let values = [1, 2];
 /// @type.node source=[1, 2] type=int64[]
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -42,10 +42,10 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int64 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int64, \"exclusive\">)"
-/// @generic.instantiation id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instantiation id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int64, \"exclusive\">" template=WithAccess arguments=(&'frame int64, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int64[], \"exclusive\">" template=WithAccess arguments=(&'frame int64[], "exclusive")
-/// @generic.instance id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instance id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive")
 /// @type.node source=0 type=0
 "#,
     );
@@ -66,7 +66,7 @@ const first = values[0];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const values: (1 | 2)[] = [1 as 1 | 2, 2 as 1 | 2];
+const values: (1 | 2)[] = [1, 2];
 const first: 1 | 2 = values[0];
 
 === dir ===
@@ -79,7 +79,7 @@ const values: (1 | 2)[] = [1, 2];
 /// @type.node source=[1, 2] type=1 | 2[]
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<1 | 2>"
 /// @generic.instantiation id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
-/// @generic.instance id="arrayFromSlice<1 | 2, \"local\">" template=arrayFromSlice arguments=(1 | 2, "local")
+/// @generic.instance id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 
@@ -93,10 +93,10 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static 1 | 2, \"exclusive\">)"
-/// @generic.instantiation id="index#1<1 | 2, \"exclusive\", \"local\">" template=index#1 arguments=(1 | 2, "exclusive", "local")
+/// @generic.instantiation id="index#1<1 | 2, \"exclusive\">" template=index#1 arguments=(1 | 2, "exclusive")
 /// @generic.instance id="WithAccess<&'frame 1 | 2, \"exclusive\">" template=WithAccess arguments=(&'frame 1 | 2, "exclusive")
 /// @generic.instance id="WithAccess<&'frame 1 | 2[], \"exclusive\">" template=WithAccess arguments=(&'frame 1 | 2[], "exclusive")
-/// @generic.instance id="index#1<1 | 2, \"exclusive\", \"local\">" template=index#1 arguments=(1 | 2, "exclusive", "local")
+/// @generic.instance id="index#1<1 | 2, \"exclusive\">" template=index#1 arguments=(1 | 2, "exclusive")
 /// @type.node source=0 type=0
 "#,
     );
@@ -126,7 +126,7 @@ const value: number | boolean = 1;
 /// @type.symbol symbol=value source=value type=float64 | boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
-/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: widen, target: float64 }] }) }] origin=implicit
+/// @coercion.node source=1 from=1 adjustments=[{ kind: union, target: float64 | boolean, cases: ({ source: 1, target: float64, adjustments: [{ kind: materialize, target: float64 }] }) }] origin=implicit
 "#,
     );
 }
@@ -154,8 +154,8 @@ function widen(value: 1 | Flag): int32 | Flag {
 === annotated ===
 newtype Flag = boolean;
 
-function widen(value: 1 | Flag): int32 | Flag {
-    return value as int32 | Flag;
+function widen(value: Flag | 1): Flag | int32 {
+    return value as Flag | int32;
 }
 
 === dir ===
@@ -164,17 +164,17 @@ newtype Flag = boolean;
 /// @definition.newtype symbol=Flag source="newtype Flag = boolean" backing=boolean constructors=[(boolean) => Flag]
 
 function widen(value: 1 | Flag): int32 | Flag {
-/// @type.symbol symbol=widen type=(1 | Flag) => int32 | Flag
-/// @type.symbol symbol=widen.value source="value: 1 | Flag" type=1 | Flag
+/// @type.symbol symbol=widen type=(Flag | 1) => Flag | int32
+/// @type.symbol symbol=widen.value source="value: 1 | Flag" type=Flag | 1
 /// @resolution.name source=Flag target=Flag
 /// @resolution.name source=Flag target=Flag
 
     return value;
-    /// @type.node source=value type=1 | Flag
+    /// @type.node source=value type=Flag | 1
     /// @resolution.name source=value target=widen.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=widen.value
-    /// @coercion.node source=value from=1 | Flag adjustments=[{ kind: union, target: int32 | Flag, cases: ({ source: 1, target: int32, adjustments: [{ kind: widen, target: int32 }] }, { source: Flag, target: Flag }) }] origin=implicit
+    /// @coercion.node source=value from=Flag | 1 adjustments=[{ kind: union, target: Flag | int32, cases: ({ source: Flag, target: Flag }, { source: 1, target: int32, adjustments: [{ kind: materialize, target: int32 }] }) }] origin=implicit
 
 }
 "#,
@@ -214,7 +214,7 @@ function widen(value: 1 | 2): int32 {
     /// @resolution.name source=value target=widen.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=widen.value
-    /// @coercion.node source=value from=1 | 2 adjustments=[{ kind: union, target: int32, cases: ({ source: 1, target: int32, adjustments: [{ kind: widen, target: int32 }] }, { source: 2, target: int32, adjustments: [{ kind: widen, target: int32 }] }) }] origin=implicit
+    /// @coercion.node source=value from=1 | 2 adjustments=[{ kind: union, target: int32, cases: ({ source: 1, target: int32, adjustments: [{ kind: materialize, target: int32 }] }, { source: 2, target: int32, adjustments: [{ kind: materialize, target: int32 }] }) }] origin=implicit
 
 }
 "#,
@@ -273,7 +273,7 @@ let value: int64 = true ? 1 : 2;
 let value = true ? 1 : 2;
 /// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
-/// @type.node source="true ? 1 : 2" type=1 | 2
+/// @type.node source="true ? 1 : 2" type=int64
 /// @type.node source=true type=true
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
@@ -365,7 +365,7 @@ const direct: { name: string } = { name: "Ada", extra: 1 };
 /// @type.symbol symbol=direct source=direct type={ name: string }
 /// @resolution.pattern source=direct kind=binding target=direct
 /// @type.symbol symbol=name#2 source="name: string" type=string
-/// @type.node source={ name: "Ada", extra: 1 } type={ name: string }
+/// @type.node source={ name: "Ada", extra: 1 } type={ name: string; extra: int64 }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=1 type=1
 "#,

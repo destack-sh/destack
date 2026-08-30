@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
-use crate::sema::{BodyState, FlowPointId, Origin, Value, unary_operator_protocols};
+use crate::sema::{CheckState, FlowPointId, Origin, Value, unary_operator_protocols};
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one dereference operation.
     pub(in crate::sema) fn select_dereference(
         &mut self,
@@ -17,10 +17,9 @@ impl BodyState<'_, '_> {
         {
             if let dir::Form::Borrowed(borrow) = form.form {
                 // require the requested access from the selected borrow
-                let borrow = self.check.type_borrow(input.ty.module_id, borrow)?;
+                let borrow = self.type_borrow(input.ty.module_id, borrow)?;
                 let requested = self.access_literal(access)?;
                 if !self
-                    .check
                     .constrain_access_assignable(origin, borrow.access, requested)?
                     .holds()
                 {
@@ -28,7 +27,7 @@ impl BodyState<'_, '_> {
                 }
             }
 
-            // the referent's own type carries its places, the resolution its placement
+            // read the referent's places from its own type
             let dereference = dir::Dereference {
                 receiver: input.ty,
                 target: dir::DereferenceTarget::Direct,
@@ -126,14 +125,16 @@ impl BodyState<'_, '_> {
             dir::Type::Form(form) if let dir::Form::Managed { place } = form.form => {
                 (place, form.value)
             }
-            _ => (self.check.local_place()?, input),
+            _ => (self.local_place()?, input),
         };
-        let region = self.check.intern_region(lifetime, place)?;
+        let region = self.intern_region(lifetime, place)?;
         let form = self.intern_borrow(region, access_type)?;
         let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value }))?;
 
+        // check the wrapped pattern against the borrowed value
         self.check_pattern_projection(flow, scope, projected, pattern.into_global_any(module))?;
 
+        // commit the borrow projection
         self.commit_pattern(
             node,
             dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
@@ -160,8 +161,10 @@ impl BodyState<'_, '_> {
         let module = node.module_id;
         let access = mutability.map(dir::Mutability::access);
 
+        // check the wrapped pattern against the moved value
         self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
 
+        // commit the move projection
         self.commit_pattern(
             node,
             dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {
@@ -202,6 +205,7 @@ impl BodyState<'_, '_> {
             pattern.into_global_any(module),
         )?;
 
+        // commit the dereference projection
         self.commit_pattern(
             node,
             dir::PatternDecision::Project(Box::new(dir::PatternProjectionResolution {

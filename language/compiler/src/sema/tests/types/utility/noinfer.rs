@@ -20,7 +20,7 @@ ok satisfies "red" | "blue";
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
 const ok: "red" | "blue" = choose<"red" | "blue">(
-    ["red" as "red" | "blue", "blue" as "red" | "blue"],
+    ["red", "blue"],
     "red" as "red" | "blue" | undefined,
 );
 ok satisfies "red" | "blue";
@@ -50,7 +50,7 @@ const ok = choose(["red", "blue"], "red");
 /// @generic.instance id="new<MaybeUninit<\"red\" | \"blue\">>" template=new arguments=(MaybeUninit<"red" | "blue">)
 /// @resolution.call source=["red", "blue"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")
-/// @generic.instance id="arrayFromSlice<\"red\" | \"blue\", \"local\">" template=arrayFromSlice arguments=("red" | "blue", "local")
+/// @generic.instance id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")
 
 ok satisfies "red" | "blue";
 /// @resolution.name source=ok target=ok
@@ -196,8 +196,8 @@ const kept = keep(values, ["green"]);
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @resolution.call source=["green"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("green") as "red") return="red"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\">"
-/// @generic.instantiation id="arrayFromSlice<\"red\">" template=arrayFromSlice arguments=("red")
+/// @resolution.call source=["green"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("green") as string) return=string[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<string>
+/// @generic.instantiation id=arrayFromSlice<string> template=arrayFromSlice arguments=(string)
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type="red"[]
@@ -207,10 +207,10 @@ const reds: "red"[] = values;
 /// @resolution.access source=values root=values
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '\"green\"' is not assignable to type '\"red\"'"
-/// @diagnostic.label line=6 column=28 span="\"green\"" line_source="const kept = keep(values, [\"green\"]);"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'string[]' is not assignable to parameter of type '\"red\"[]'"
+/// @diagnostic.label line=6 column=27 span="[\"green\"]" line_source="const kept = keep(values, [\"green\"]);"
 /// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
-/// @diagnostic.note message="the mismatch is in element 0"
+/// @diagnostic.note message="the mismatch is in type argument 0 of 'Array': expected '\"red\"', found 'string'"
 "#,
     );
 }
@@ -255,10 +255,7 @@ const value = first((1, "text"));
 /// @generic.instantiation id="first<int64, string>" template=first arguments=(int64, string)
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'NoInfer<string>' is not assignable to type 'string'"
-/// @diagnostic.label line=4 column=25 span="\"text\"" line_source="const value = first((1, \"text\"));"
-/// @diagnostic.related line=4 column=15 span="first((1, \"text\"))" line_source="const value = first((1, \"text\"));" message="in this call"
-/// @diagnostic.note message="the mismatch is in element 1"
+
 "#,
     );
 }
@@ -332,9 +329,7 @@ const reds: "red"[] = seeds;
 /// @resolution.access source=seeds root=seeds
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'NoInfer<(value: \"red\") => void>' is not assignable to parameter of type '(value: \"red\") => void'"
-/// @diagnostic.label line=6 column=11 span="(value) => {}" line_source="on(seeds, (value) => {});"
-/// @diagnostic.related line=6 column=1 span="on(seeds, (value) => {})" line_source="on(seeds, (value) => {});" message="in this call"
+
 "#,
     );
 }
@@ -357,7 +352,7 @@ choose(["red", "blue"], "green");
 === annotated ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 
-choose<"red" | "blue">(["red" as "red" | "blue", "blue" as "red" | "blue"], "green");
+choose<"red" | "blue">(["red", "blue"], "green");
 
 === dir ===
 declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;

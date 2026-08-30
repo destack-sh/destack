@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::smallvec;
 
 use crate::sema::{
-    AssignmentSelection, BodyState, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin,
-    PlaceUse, Value, WriteMode,
+    AssignmentSelection, CheckState, FlowSite, MemberCandidate, MemberLookup, MemberRole,
+    MemberSource, Origin, PlaceUse, Value, WriteMode, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -25,7 +25,7 @@ impl MemberAssignmentSelection {
     }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Return one checked expression value with its selected storage.
     pub(in crate::sema) fn expression_value(
         &mut self,
@@ -42,7 +42,7 @@ impl BodyState<'_, '_> {
             ty,
             node: Some(site.node),
             place,
-            is_fresh: self.check.fresh_nodes.contains_key(&site.node),
+            is_fresh: self.is_fresh_node(site.node)?,
         })
     }
 
@@ -77,6 +77,7 @@ impl BodyState<'_, '_> {
             .view()
             .get(expression.local_id)
             .clone();
+        // place by the expression's own syntax
         let place = match expression_kind {
             dir::Expression::Identifier { .. } => self.binding_place(site, ty)?,
             dir::Expression::This | dir::Expression::Super => Some(self.this_place(site, ty)?),
@@ -174,19 +175,18 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::PlaceResolution> {
         let origin = site.origin();
-        let chain = self.check.form_chain(origin, ty)?;
+        let chain = self.form_chain(origin, ty)?;
 
-        // concrete places root in their own space, bare receivers in their declared
-        //  nominal space or in local
+        // root a concrete place in its own space, a bare receiver in its declared space
         let space = match chain.place() {
-            Some(place) => self.check.place_space(place)?,
+            Some(place) => self.place_space(place)?,
             None => {
                 let symbol = match self.ty(chain.base())? {
                     dir::Type::Application(instance) => Some(instance.symbol),
                     _ => None,
                 };
                 let declared_space = match symbol {
-                    Some(symbol) => self.check.nominal_space(symbol)?,
+                    Some(symbol) => self.nominal_space(symbol)?,
                     None => None,
                 };
 
@@ -233,8 +233,8 @@ impl BodyState<'_, '_> {
             }
         };
         let access = match exclusive {
-            true => self.check.access_literal(dir::Access::Exclusive)?,
-            false => self.check.access_literal(dir::Access::Mutable)?,
+            true => self.access_literal(dir::Access::Exclusive)?,
+            false => self.access_literal(dir::Access::Mutable)?,
         };
         let place = dir::PlaceResolution {
             placement,
@@ -255,6 +255,7 @@ impl BodyState<'_, '_> {
             return Ok(place);
         }
 
+        // root the place at the value's own storage
         self.root_place(
             origin,
             origin.module(),
@@ -301,7 +302,7 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
         mut place: dir::PlaceResolution,
     ) -> CompilerResult<dir::PlaceResolution> {
-        let chain = self.check.form_chain(origin, qualifier)?;
+        let chain = self.form_chain(origin, qualifier)?;
 
         // project explicit placement
         if let Some(placement) = chain.place() {
@@ -321,10 +322,10 @@ impl BodyState<'_, '_> {
         if let Some(form) = chain.ownership_form()
             && let dir::Form::Borrowed(borrow) = form.form
         {
-            let borrow = self.check.type_borrow(qualifier.module_id, borrow)?;
+            let borrow = self.type_borrow(qualifier.module_id, borrow)?;
             place.access = borrow.access;
-            let region = self.check.shallow_resolve(borrow.region)?;
-            match self.check.ty(region)? {
+            let region = self.shallow_resolve(borrow.region)?;
+            match self.ty(region)? {
                 dir::Type::Region(pair) => {
                     place.lifetime = pair.extent;
                     place.placement = pair.space;
@@ -362,6 +363,7 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
+        // commit the selected place
         self.module_mut(node.module_id)
             .decisions
             .set_place_resolution(node, place);
@@ -382,6 +384,7 @@ impl BodyState<'_, '_> {
         let expression_id = expression;
         let expression = self.module(module).view().get(expression).clone();
 
+        // build the path by the expression's own syntax
         match expression {
             // value
             dir::Expression::Identifier { name } => {
@@ -431,9 +434,13 @@ impl BodyState<'_, '_> {
 
                 // the receiver split its nullish arms above, so the subject rejects nothing here
                 let key = dir::StaticKey::Name(name);
-                let (subject, _) =
+                let (subject, _, [receiver, _]) =
                     self.resolve_member_subject(origin, receiver_node, receiver, receiver)?;
-                let lookup = self.probe_member(
+                let receiver_value = Value {
+                    ty: receiver,
+                    ..receiver_value
+                };
+                let lookup = self.match_member(
                     origin,
                     module,
                     receiver_value,
@@ -547,7 +554,7 @@ impl BodyState<'_, '_> {
                         .select_dereference(origin, receiver_value, dir::Access::Readonly)?
                         .is_some()
                     {
-                        self.check.report_borrow_access_not_granted(
+                        self.report_borrow_access_not_granted(
                             origin,
                             dir::Access::Mutable,
                             Some(dir::Access::Readonly),
@@ -597,125 +604,76 @@ impl BodyState<'_, '_> {
         use_: PlaceUse,
         lookup: MemberLookup,
     ) -> CompilerResult<Option<MemberAssignmentSelection>> {
-        match lookup {
-            MemberLookup::Field(field) => {
-                let read = if use_ != PlaceUse::Write {
-                    field
-                        .read_access(receiver.ty, key, self)?
-                        .map(dir::OperationResolution::One)
-                } else {
-                    None
-                };
-
-                // require a write access from the property
-                let Some(write) = field.write_access(receiver.ty, key) else {
-                    return Ok(None);
-                };
-                let write = dir::OperationResolution::One(write);
-
-                Ok(Some(MemberAssignmentSelection { read, write }))
-            }
-            MemberLookup::Found(candidates) => {
-                self.select_member_candidate_write(origin, receiver, key, use_, candidates)
-            }
-            MemberLookup::Union(lookups) => {
-                // select one exact place for every runtime arm
-                let mut reads = Vec::with_capacity(lookups.len());
-                let mut writes = Vec::with_capacity(lookups.len());
-                for arm in lookups {
-                    let Some(selection) = self.select_member_assignment(
-                        origin,
-                        Value {
-                            ty: arm.receiver,
-                            ..receiver
-                        },
-                        key,
-                        use_,
-                        arm.lookup,
-                    )?
-                    else {
-                        return Ok(None);
-                    };
-                    if let Some(read) = selection.read {
-                        let dir::OperationResolution::One(read) = read else {
-                            return Err(CompilerError::Internal {
-                                message: "union member place contains a nested union".to_string(),
-                            });
-                        };
-                        reads.push(read);
-                    }
-                    let dir::OperationResolution::One(write) = selection.write else {
-                        return Err(CompilerError::Internal {
-                            message: "union member place contains a nested union".to_string(),
-                        });
-                    };
-                    writes.push(write);
-                }
-
-                // accept a value every arm's write accepts, and read their union
-                let write_types = writes.iter().map(|write| write.ty).collect::<Vec<_>>();
-                let write_type = self.normalized_intersection_type(write_types)?;
-                let write = dir::OperationResolution::Union {
-                    arms: writes,
-                    ty: write_type,
-                };
-                let read = if use_ != PlaceUse::Write {
-                    let types = reads.iter().map(|read| read.ty).collect::<Vec<_>>();
-                    let ty = self.normalized_union_type(types)?;
-                    Some(dir::OperationResolution::Union { arms: reads, ty })
-                } else {
-                    None
-                };
-
-                Ok(Some(MemberAssignmentSelection { read, write }))
-            }
-            MemberLookup::Intersection(lookups) => {
-                let mut reads = Vec::with_capacity(lookups.len());
-                let mut writes = Vec::with_capacity(lookups.len());
-                for lookup in lookups {
-                    let Some(selection) =
-                        self.select_member_assignment(origin, receiver, key, use_, lookup)?
-                    else {
-                        return Ok(None);
-                    };
-                    reads.extend(selection.read);
-                    writes.push(selection.write);
-                }
-                let write = self.intersect_member_decisions(writes)?;
-                let read = if reads.is_empty() {
-                    None
-                } else {
-                    Some(self.intersect_member_decisions(reads)?)
-                };
-
-                Ok(Some(MemberAssignmentSelection { read, write }))
-            }
-            MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
+        // select one exact place for every runtime arm
+        let arms = member_arms(&lookup);
+        let is_union = arms.iter().any(|(arm, _)| arm.is_some());
+        let mut reads = Vec::with_capacity(arms.len());
+        let mut writes = Vec::with_capacity(arms.len());
+        for (arm, group) in arms {
+            let arm_receiver = match arm {
+                Some(arm) => Value {
+                    ty: arm.receiver,
+                    ..receiver
+                },
+                None => receiver,
+            };
+            let Some((read, write)) =
+                self.select_arm_write(origin, arm_receiver, key, use_, &group)?
+            else {
+                return Ok(None);
+            };
+            reads.extend(read);
+            writes.push(write);
         }
+
+        // place one arm directly; accept what every write accepts and read their union for several
+        if !is_union && writes.len() == 1 {
+            return Ok(Some(MemberAssignmentSelection {
+                read: reads.pop().map(dir::OperationResolution::One),
+                write: dir::OperationResolution::One(writes.remove(0)),
+            }));
+        }
+        let write_types = writes.iter().map(|write| write.ty).collect::<Vec<_>>();
+        let write = dir::OperationResolution::Union {
+            arms: writes,
+            ty: self.normalized_intersection_type(write_types)?,
+        };
+        let read = if reads.is_empty() {
+            None
+        } else {
+            let types = reads.iter().map(|read| read.ty).collect::<Vec<_>>();
+            let ty = self.normalized_union_type(types)?;
+            Some(dir::OperationResolution::Union { arms: reads, ty })
+        };
+
+        Ok(Some(MemberAssignmentSelection { read, write }))
     }
 
-    /// Select one writable declaration-backed member.
-    fn select_member_candidate_write(
+    /// Select the read and write accesses one runtime arm's candidates expose for a write.
+    fn select_arm_write(
         &mut self,
         origin: Origin,
         receiver: Value,
         key: dir::StaticKey,
         use_: PlaceUse,
-        candidates: Vec<MemberCandidate>,
-    ) -> CompilerResult<Option<MemberAssignmentSelection>> {
+        candidates: &[&MemberCandidate],
+    ) -> CompilerResult<Option<(Option<dir::MemberAccess>, dir::MemberAccess)>> {
         let written_key = self.format_static_key(&key);
 
         // split the candidates by the role each declares
         let fields = candidates
             .iter()
+            .copied()
             .filter(|candidate| candidate.role == MemberRole::Field)
             .collect::<Vec<_>>();
         let getters = candidates
             .iter()
+            .copied()
             .filter(|candidate| candidate.role == MemberRole::Getter)
             .collect::<Vec<_>>();
         let setters = candidates
             .iter()
+            .copied()
             .filter(|candidate| candidate.role == MemberRole::Setter)
             .collect::<Vec<_>>();
 
@@ -729,21 +687,34 @@ impl BodyState<'_, '_> {
         // write a field into its own storage directly
         if let Some(field) = fields.into_iter().next() {
             // deny a write the field's declared visibility rejects
-            self.check_symbol_access(origin, field.symbol, &written_key)?;
+            if let Some(symbol) = field.symbol() {
+                self.check_symbol_access(origin, symbol, &written_key)?;
+            }
 
+            // write a field once from its declaring constructor, else through its write access
             let read_type = field.read_type(self)?;
+            let initializes = match &field.source {
+                MemberSource::Declared(declared) => {
+                    self.current_initializes() == Some(declared.owner)
+                }
+                _ => false,
+            };
+            let write = match (field.access.write(), initializes, read_type) {
+                (Some(write), _, _) => write,
+                (None, true, Some(read)) => read,
+                (None, ..) => {
+                    self.report_readonly_member(origin, written_key)?;
+
+                    return Ok(None);
+                }
+            };
             let read = match (use_, read_type) {
                 (PlaceUse::Write, _) | (_, None) => None,
-                (_, Some(ty)) => Some(dir::OperationResolution::One(field.access(
-                    receiver.ty,
-                    key,
-                    ty,
-                ))),
+                (_, Some(ty)) => Some(field.access(receiver.ty, key, ty)),
             };
-            let write =
-                dir::OperationResolution::One(field.access(receiver.ty, key, field.access_type));
+            let write = field.access(receiver.ty, key, write);
 
-            return Ok(Some(MemberAssignmentSelection { read, write }));
+            return Ok(Some((read, write)));
         }
 
         // otherwise the write goes through a setter call
@@ -756,31 +727,37 @@ impl BodyState<'_, '_> {
         };
 
         // deny a write the setter's declared visibility rejects
-        self.check_symbol_access(origin, setter.symbol, &written_key)?;
+        if let Some(symbol) = setter.symbol() {
+            self.check_symbol_access(origin, symbol, &written_key)?;
+        }
 
+        // reopen the winning setter at this use site
+        let setter = &setter.instantiate(origin, self)?;
         let call = self.select_setter_call(origin, receiver, setter)?;
         let write = dir::MemberAccess::new(
             receiver.ty,
             dir::MemberTarget::Call(Box::new(call)),
-            setter.access_type,
+            setter.access.store(),
         );
-        let write = dir::OperationResolution::One(write);
         let read = match use_ {
             PlaceUse::Update => match getters.as_slice() {
                 [getter] => {
                     // deny the update's read when the getter's visibility rejects it
-                    self.check_symbol_access(origin, getter.symbol, &written_key)?;
+                    if let Some(symbol) = getter.symbol() {
+                        self.check_symbol_access(origin, symbol, &written_key)?;
+                    }
 
+                    // reopen the winning getter at this use site
+                    let getter = &getter.instantiate(origin, self)?;
                     let Some(call) = self.select_getter_call(origin, receiver, getter)? else {
                         return Ok(None);
                     };
-                    let read = dir::MemberAccess::new(
+
+                    Some(dir::MemberAccess::new(
                         receiver.ty,
                         dir::MemberTarget::Call(Box::new(call)),
-                        getter.access_type,
-                    );
-
-                    Some(dir::OperationResolution::One(read))
+                        getter.access.store(),
+                    ))
                 }
                 [] => {
                     self.report_write_only_member(origin, written_key)?;
@@ -797,7 +774,7 @@ impl BodyState<'_, '_> {
             PlaceUse::Read => return Ok(None),
         };
 
-        Ok(Some(MemberAssignmentSelection { read, write }))
+        Ok(Some((read, write)))
     }
 
     /// Build one write target with the stability its place requires.
@@ -836,7 +813,7 @@ impl BodyState<'_, '_> {
         receiver: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::GlobalSymbolId> {
         match self.module(module).view().get(receiver) {
-            dir::Expression::This | dir::Expression::Super => self.initializes,
+            dir::Expression::This | dir::Expression::Super => self.current_initializes(),
             _ => None,
         }
     }
@@ -852,6 +829,7 @@ impl BodyState<'_, '_> {
             return Ok(receiver);
         }
 
+        // view the receiver through a readonly form
         let readonly = self.intern_type(dir::Type::Form(dir::FormType {
             form: dir::Form::Readonly,
             value: receiver,
@@ -874,6 +852,7 @@ impl BodyState<'_, '_> {
             .get(source)
             .cloned();
 
+        // read the binding the reference names
         match reference {
             Some(dir::Reference::Bound(symbols)) => {
                 let symbols = self.present_symbols(&symbols);
@@ -890,9 +869,8 @@ impl BodyState<'_, '_> {
                     .name_resolution(source)
                     .is_none()
                 {
-                    self.check.capture_symbol_reference(source, *symbol);
-                    self.check
-                        .commit_name(source, dir::NameResolution::new(*symbol))?;
+                    self.capture_symbol_reference(source, *symbol)?;
+                    self.commit_name(source, dir::NameResolution::new(*symbol))?;
                 }
 
                 let ty = self.symbol_type(*symbol)?;

@@ -1,41 +1,44 @@
-use std::slice;
-
 use destack_dir as dir;
 use destack_dir::MemberRole;
-use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CallableArgument, Check, FlowSite, InferMode, MemberCandidate, MemberLookup,
-    NullishPart, Origin, PlaceUse, Relation, SelectionCheck, SignatureMatch, Value, ValueUse,
-    VariableRole,
+    CallableArgument, CheckState, DeclaredCandidate, FlowSite, InferMode, MemberCandidate,
+    MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle, SignatureMatch, Value, ValueUse,
+    VariableKind, is_optional_member, member_arms, member_kind, selected_candidates,
 };
-use crate::{CompilerError, CompilerResult};
+use crate::{CheckError, CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
-    /// Resolve the subject one member access looks its key up in, with the nullish arms it rejects.
+impl CheckState<'_> {
+    /// Settle the subject one member access looks its key up in, with the nullish arms it rejects.
     pub(in crate::sema) fn resolve_member_subject(
         &mut self,
         origin: Origin,
         receiver_node: dir::GlobalNodeIdAny,
         receiver: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<(dir::MemberSubject, Option<NullishPart>)> {
+    ) -> CompilerResult<(
+        dir::MemberSubject,
+        Option<NullishPart>,
+        [dir::GlobalTypeId; 2],
+    )> {
         // split the nullish part off the lookup target
+        let written = target;
         let split = self.split_nullish_type(origin, target)?;
         let rejected = split.map(|split| split.rejected);
         let target = split.map_or(target, |split| split.value);
 
-        // resolve an open target's value variables before member lookup
+        // resolve an open target's shape variables before member lookup
         if self.type_flags(target)?.has_variable() {
             let mut variables = self.type_variables(target)?;
             variables.retain(|variable| {
-                !matches!(
-                    self.infer.variable_role(*variable),
-                    Ok(VariableRole::Memory { .. })
-                )
+                self.root_kind(*variable)
+                    .is_ok_and(|kind| kind == VariableKind::Type)
             });
-            self.resolve_variables(&variables)?;
+            self.settle_variables(&variables, Settle::All)?;
         }
+        let target = self.shallow_resolve(target)?;
+        let receiver = self.shallow_resolve(receiver)?;
+        let settled = [receiver, self.shallow_resolve(written)?];
 
         // static type aliases look up statics through their declaration reference
         if let Some(symbol) = self.receiver_declaration(receiver_node)
@@ -46,17 +49,21 @@ impl BodyState<'_, '_> {
             let subject =
                 self.member_subject(origin, receiver, reference, dir::MemberSpace::Static)?;
 
-            return Ok((subject, rejected));
+            return Ok((subject, rejected, settled));
         }
 
         // look the member up in the receiver's own space by default
         let space = self.member_receiver_space(receiver_node, target)?;
-        let subject = self.member_subject(origin, receiver, target, space)?;
+        let mut subject = self.member_subject(origin, receiver, target, space)?;
+        if let dir::Type::Literal(_) = self.ty(self.shallow_resolve(target)?)? {
+            let primitive = self.widen_type(target)?;
+            subject = subject.with_key_source(primitive);
+        }
 
-        Ok((subject, rejected))
+        Ok((subject, rejected, settled))
     }
 
-    /// Resolve one member lookup subject searched in a decided space.
+    /// Settle one member lookup subject searched in a decided space.
     pub(in crate::sema) fn member_subject(
         &mut self,
         origin: Origin,
@@ -133,10 +140,11 @@ impl BodyState<'_, '_> {
         member: dir::GlobalSymbolId,
         key: &str,
     ) -> CompilerResult<()> {
-        let Some((owner, visibility)) = self.check.member_visibility(member)? else {
+        let Some((owner, visibility)) = self.member_visibility(member)? else {
             return Ok(());
         };
 
+        // admit the site by the member's declared visibility
         match visibility {
             // public members admit every site
             dir::Visibility::Public => Ok(()),
@@ -146,17 +154,15 @@ impl BodyState<'_, '_> {
                     return Ok(());
                 }
 
-                self.check
-                    .report_inaccessible_member(origin, key.to_string(), visibility)
+                self.report_inaccessible_member(origin, key.to_string(), visibility)
             }
             // private members admit their declaring module
             dir::Visibility::Private => {
-                if member.module_id == self.check.module_id {
+                if member.module_id == self.module_id {
                     return Ok(());
                 }
 
-                self.check
-                    .report_inaccessible_member(origin, key.to_string(), visibility)
+                self.report_inaccessible_member(origin, key.to_string(), visibility)
             }
         }
     }
@@ -176,23 +182,21 @@ impl BodyState<'_, '_> {
         let admits = match visibility {
             dir::Visibility::Public => true,
             dir::Visibility::Protected => self.protected_access_admits(newtype)?,
-            dir::Visibility::Private => newtype.module_id == self.check.module_id,
+            dir::Visibility::Private => newtype.module_id == self.module_id,
         };
         if admits {
             return Ok(());
         }
 
-        let name = self.check.format_symbol(newtype);
+        let name = self.format_symbol(newtype);
 
-        self.check
-            .report_inaccessible_newtype_backing(origin, name, visibility)
+        self.report_inaccessible_newtype_backing(origin, name, visibility)
     }
 
     /// Return whether the checking scope derives from one protected owner.
     fn protected_access_admits(&mut self, owner: dir::GlobalSymbolId) -> CompilerResult<bool> {
         // find the declaring construct enclosing this site
         let declaration = self
-            .check
             .flow
             .current_function_receiver()
             .and_then(|binding| binding.receiver.declaration);
@@ -203,7 +207,7 @@ impl BodyState<'_, '_> {
             return Ok(true);
         }
 
-        self.check.reaches_heritage(declaration, owner)
+        self.reaches_heritage(declaration, owner)
     }
 
     /// Return the receiver closing one this-polymorphic interface member, absent elsewhere.
@@ -233,6 +237,7 @@ impl BodyState<'_, '_> {
 
     /// Return the declaration one receiver expression names.
     fn receiver_declaration(&self, receiver: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
+        // read the declaration the receiver name resolves to
         match self.name_decision(receiver) {
             Some(resolution) => match resolution.symbols() {
                 [symbol] => Some(*symbol),
@@ -252,55 +257,41 @@ impl BodyState<'_, '_> {
         &mut self,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        match lookup {
-            MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
-            MemberLookup::Field(field) => field.read_type(self),
-            MemberLookup::Found(candidates) => {
-                // keep the first single-slot declaration among the selected candidates
-                let candidates = MemberLookup::selected_candidates(candidates);
-                let single_slot = candidates
-                    .iter()
-                    .position(|candidate| candidate.role != MemberRole::Method);
-                let candidates = match single_slot {
-                    Some(first) => vec![candidates[first]],
-                    None => candidates,
-                };
+        // every runtime arm reads, and the read is their union
+        let mut types = Vec::new();
+        for (_, group) in member_arms(lookup) {
+            let candidates = Self::read_candidates(&group);
 
-                // intersect what every surviving candidate reads
-                let mut types = Vec::with_capacity(candidates.len());
-                for candidate in candidates {
-                    types.extend(candidate.read_type(self)?);
-                }
-
-                if types.is_empty() {
-                    return Ok(None);
-                }
-
-                self.normalized_intersection_type(types).map(Some)
+            // intersect what every surviving candidate reads
+            let mut reads = Vec::with_capacity(candidates.len());
+            for candidate in candidates {
+                reads.extend(candidate.read_type(self)?);
             }
-            MemberLookup::Union(arms) => {
-                let mut types = Vec::with_capacity(arms.len());
-                for arm in arms {
-                    let Some(ty) = self.member_read_type(&arm.lookup)? else {
-                        return Ok(None);
-                    };
-                    types.push(ty);
-                }
-
-                self.normalized_union_type(types).map(Some)
+            if reads.is_empty() {
+                return Ok(None);
             }
-            MemberLookup::Intersection(lookups) => {
-                let mut types = Vec::with_capacity(lookups.len());
-                for lookup in lookups {
-                    types.extend(self.member_read_type(lookup)?);
-                }
+            types.push(self.normalized_intersection_type(reads)?);
+        }
+        if types.is_empty() {
+            return Ok(None);
+        }
 
-                if types.is_empty() {
-                    return Ok(None);
-                }
+        self.normalized_union_type(types).map(Some)
+    }
 
-                self.normalized_intersection_type(types).map(Some)
-            }
+    /// Keep the selected candidates one read joins: the first single-slot one, else every method.
+    fn read_candidates<'candidate>(
+        candidates: &[&'candidate MemberCandidate],
+    ) -> Vec<&'candidate MemberCandidate> {
+        let candidates = selected_candidates(candidates);
+        let single_slot = candidates
+            .iter()
+            .position(|candidate| candidate.role != MemberRole::Method);
+
+        // keep the single slot a field or accessor fills
+        match single_slot {
+            Some(first) => vec![candidates[first]],
+            None => candidates,
         }
     }
 
@@ -309,44 +300,22 @@ impl BodyState<'_, '_> {
         &mut self,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        match lookup {
-            MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
-            MemberLookup::Field(field) => Ok(field.write_type()),
-            MemberLookup::Found(candidates) => {
-                // require exactly one writable candidate
-                let writable = MemberLookup::selected_candidates(candidates)
-                    .into_iter()
-                    .filter(|candidate| candidate.is_writable)
-                    .collect::<Vec<_>>();
-                let [candidate] = writable.as_slice() else {
-                    return Ok(None);
-                };
-
-                Ok(Some(candidate.access_type))
-            }
-            MemberLookup::Union(arms) => {
-                let mut types = Vec::with_capacity(arms.len());
-                for arm in arms {
-                    let Some(type_id) = self.member_write_type(&arm.lookup)? else {
-                        return Ok(None);
-                    };
-                    types.push(type_id);
-                }
-
-                self.normalized_intersection_type(types).map(Some)
-            }
-            MemberLookup::Intersection(lookups) => {
-                let mut types = Vec::with_capacity(lookups.len());
-                for lookup in lookups {
-                    let Some(type_id) = self.member_write_type(lookup)? else {
-                        return Ok(None);
-                    };
-                    types.push(type_id);
-                }
-
-                self.normalized_intersection_type(types).map(Some)
-            }
+        let mut types = Vec::new();
+        for (_, group) in member_arms(lookup) {
+            let writable = selected_candidates(&group)
+                .into_iter()
+                .filter_map(|candidate| candidate.access.write())
+                .collect::<Vec<_>>();
+            let [write] = writable.as_slice() else {
+                return Ok(None);
+            };
+            types.push(*write);
         }
+        if types.is_empty() {
+            return Ok(None);
+        }
+
+        self.normalized_intersection_type(types).map(Some)
     }
 
     /// Return the durable binding represented by one completed member lookup.
@@ -366,29 +335,34 @@ impl BodyState<'_, '_> {
         };
 
         // keep each selected declaration once
-        let mut declarations = Vec::new();
-        for candidate in lookup.declaration_candidates() {
-            if declarations
-                .iter()
-                .any(|declaration: &dir::MemberDeclaration| declaration.symbol == candidate.symbol)
-            {
-                continue;
-            }
+        let mut declarations = Vec::<dir::MemberDeclaration>::new();
+        for (_, group) in member_arms(lookup) {
+            for candidate in selected_candidates(&group) {
+                let Some(declared) = candidate.declaration() else {
+                    continue;
+                };
+                if declarations
+                    .iter()
+                    .any(|declaration| declaration.symbol == declared.symbol)
+                {
+                    continue;
+                }
 
-            declarations.push(dir::MemberDeclaration {
-                symbol: candidate.symbol,
-                owner: candidate.owner,
-                origin: candidate.origin,
-                role: candidate.role,
-                callable_type: candidate.callable,
-            });
+                declarations.push(dir::MemberDeclaration {
+                    symbol: declared.symbol,
+                    owner: declared.owner,
+                    origin: declared.origin,
+                    role: candidate.role,
+                    callable_type: candidate.callable,
+                });
+            }
         }
 
         Ok(Some(dir::MemberBinding::new(
             key,
-            lookup.kind(),
+            member_kind(lookup),
             access,
-            lookup.is_optional(),
+            is_optional_member(lookup),
             declarations,
         )))
     }
@@ -401,217 +375,201 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::MemberDecision>> {
-        match lookup {
-            MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
-            MemberLookup::Field(field) => Ok(field
-                .read_access(receiver.ty, key, self)?
-                .map(dir::OperationResolution::One)),
-            MemberLookup::Found(candidates) => {
-                // keep the candidates the selection precedence ranks first
-                let best = candidates.iter().map(MemberCandidate::precedence).min();
-                let candidates = candidates
-                    .iter()
-                    .filter(|candidate| Some(candidate.precedence()) == best)
-                    .collect::<Vec<_>>();
+        // read every runtime arm, joining several as one union resolution
+        let mut accesses = Vec::new();
+        let mut types = Vec::new();
+        let arms = member_arms(lookup);
+        let is_union = arms.iter().any(|(arm, _)| arm.is_some());
+        for (arm, group) in arms {
+            let arm_receiver = match arm {
+                Some(arm) => Value {
+                    ty: arm.receiver,
+                    ..receiver
+                },
+                None => receiver,
+            };
+            let Some(access) = self.select_arm_read(origin, arm_receiver, key, &group)? else {
+                return Ok(None);
+            };
+            types.push(access.ty);
+            accesses.push(access);
+        }
 
-                // report survivors from several blocks or interfaces as ambiguous
-                let first = candidates[0].declaring_block();
-                let is_split = candidates
-                    .iter()
-                    .any(|candidate| candidate.declaring_block() != first);
-                let candidates = if is_split {
-                    let key = self.format_static_key(&key);
-                    self.report_ambiguous_member(origin, key)?;
-                    candidates
-                        .into_iter()
-                        .filter(|candidate| candidate.declaring_block() == first)
-                        .collect::<Vec<_>>()
-                } else {
-                    candidates
-                };
-
-                // keep the first single-slot declaration among the survivors
-                let single_slot = candidates
-                    .iter()
-                    .position(|candidate| candidate.role != MemberRole::Method);
-                let candidates = match single_slot {
-                    Some(first) => vec![candidates[first]],
-                    None => candidates,
-                };
-
-                // build one access per surviving candidate
-                let mut targets = Vec::new();
-                let mut types = Vec::new();
-                for candidate in candidates {
-                    let Some(ty) = candidate.read_type(self)? else {
-                        continue;
-                    };
-
-                    let access = if candidate.role == MemberRole::Getter {
-                        // skip a rejecting receiver to the next declared candidate
-                        let Some(call) = self.select_getter_call(origin, receiver, candidate)?
-                        else {
-                            continue;
-                        };
-
-                        dir::MemberAccess::new(
-                            receiver.ty,
-                            dir::MemberTarget::Call(Box::new(call)),
-                            ty,
-                        )
-                    } else {
-                        candidate.access(receiver.ty, key, ty)
-                    };
-
-                    // commit the surviving candidate's site constraints
-                    for constraint in &candidate.bounds {
-                        self.check.push_relation(*constraint)?;
-                    }
-                    if let Some(target) = candidate.target {
-                        self.constrain_type(
-                            target.origin,
-                            target.cause,
-                            target.relation,
-                            target.source,
-                            target.target,
-                        )?;
-                    }
-
-                    targets.push(access.target);
-                    types.push(access.ty);
-                }
-
-                // several accesses on one key read as their intersection
-                let target = match targets.as_slice() {
-                    [] => return Ok(None),
-                    [target] => target.clone(),
-                    _ => dir::MemberTarget::OverloadSet(targets),
-                };
-                let ty = self.normalized_intersection_type(types)?;
-                let access = dir::MemberAccess::new(receiver.ty, target, ty);
-
-                Ok(Some(dir::OperationResolution::One(access)))
-            }
-            MemberLookup::Union(lookups) => {
-                let mut accesses = Vec::with_capacity(lookups.len());
-                let mut types = Vec::with_capacity(lookups.len());
-                for arm in lookups {
-                    let arm_receiver = Value {
-                        ty: arm.receiver,
-                        ..receiver
-                    };
-                    let Some(resolution) =
-                        self.select_member_read(origin, arm_receiver, key, &arm.lookup)?
-                    else {
-                        return Ok(None);
-                    };
-
-                    let dir::OperationResolution::One(access) = resolution else {
-                        return Err(CompilerError::Internal {
-                            message: "union member lookup contains a nested union".to_string(),
-                        });
-                    };
-
-                    types.push(access.ty);
-                    accesses.push(access);
-                }
-
+        Ok(Some(match (is_union, accesses.as_slice()) {
+            (false, [_]) => dir::OperationResolution::One(accesses.remove(0)),
+            _ => {
                 let ty = self.normalized_union_type(types)?;
 
-                Ok(Some(dir::OperationResolution::Union { arms: accesses, ty }))
+                dir::OperationResolution::Union { arms: accesses, ty }
             }
-            MemberLookup::Intersection(lookups) => {
-                let mut resolutions = Vec::with_capacity(lookups.len());
-                for lookup in lookups {
-                    let Some(resolution) =
-                        self.select_member_read(origin, receiver, key, lookup)?
-                    else {
-                        return Ok(None);
-                    };
-
-                    resolutions.push(resolution);
-                }
-
-                let resolution = self.intersect_member_decisions(resolutions)?;
-
-                Ok(Some(resolution))
-            }
-        }
+        }))
     }
 
-    /// Intersect simultaneous member resolutions, distributing runtime union arms.
-    pub(in crate::sema) fn intersect_member_decisions(
+    /// Select the readable access one runtime arm's candidates expose.
+    fn select_arm_read(
         &mut self,
-        resolutions: Vec<dir::MemberDecision>,
-    ) -> CompilerResult<dir::MemberDecision> {
-        // expand each resolution into the runtime combinations it contributes
-        let has_union = resolutions
+        origin: Origin,
+        receiver: Value,
+        key: dir::StaticKey,
+        candidates: &[&MemberCandidate],
+    ) -> CompilerResult<Option<dir::MemberAccess>> {
+        // keep the candidates the selection precedence ranks first
+        let candidates = selected_candidates(candidates);
+        let [first, ..] = candidates.as_slice() else {
+            return Ok(None);
+        };
+
+        // report survivors from several blocks or interfaces as ambiguous
+        let block = |candidate: &MemberCandidate| {
+            candidate
+                .declaration()
+                .map(DeclaredCandidate::declaring_block)
+        };
+        // equally typed data requirements of distinct interfaces meet as one member
+        let first_type = first.access.store();
+        let first = block(first);
+        let mut is_split = false;
+        for candidate in &candidates {
+            let candidate_block = block(candidate);
+            if candidate_block == first {
+                continue;
+            }
+            let merges = match (first, candidate_block) {
+                (Some(known), Some(other)) => {
+                    !candidate.role.is_callable()
+                        && self.symbol_kind(known)?.is_interface()
+                        && self.symbol_kind(other)?.is_interface()
+                        && candidate.access.store() == first_type
+                }
+                _ => false,
+            };
+            is_split |= !merges;
+        }
+        let candidates = if is_split {
+            let key = self.format_static_key(&key);
+            self.report_ambiguous_member(origin, key)?;
+            candidates
+                .into_iter()
+                .filter(|candidate| block(candidate) == first)
+                .collect::<Vec<_>>()
+        } else {
+            candidates
+        };
+
+        // keep the first single-slot declaration among the survivors
+        let single_slot = candidates
             .iter()
-            .any(|resolution| matches!(resolution, dir::OperationResolution::Union { .. }));
-        let mut combinations = vec![Vec::new()];
-        for resolution in resolutions {
-            let accesses = match &resolution {
-                dir::OperationResolution::One(access) => slice::from_ref(access),
-                dir::OperationResolution::Union { arms, .. } => arms.as_slice(),
+            .position(|candidate| candidate.role != MemberRole::Method);
+        let candidates = match single_slot {
+            Some(first) => vec![candidates[first]],
+            None => candidates,
+        };
+
+        // build one access per surviving candidate at this use site
+        let mut targets = Vec::new();
+        let mut types = Vec::new();
+        for candidate in candidates {
+            let candidate = &candidate.instantiate(origin, self)?;
+            let Some(ty) = candidate.read_type(self)? else {
+                continue;
             };
 
-            let mut next = Vec::with_capacity(combinations.len() * accesses.len());
-            for combination in combinations {
-                for access in accesses {
-                    let mut combined = combination.clone();
-                    combined.push(access.clone());
-                    next.push(combined);
+            let access = if candidate.role == MemberRole::Getter {
+                // skip a rejecting receiver to the next declared candidate
+                let Some(call) = self.select_getter_call(origin, receiver, candidate)? else {
+                    continue;
+                };
+
+                dir::MemberAccess::new(receiver.ty, dir::MemberTarget::Call(Box::new(call)), ty)
+            } else {
+                candidate.access(receiver.ty, key, ty)
+            };
+
+            // commit the surviving candidate's site constraints
+            if let Some(declared) = candidate.declaration() {
+                for constraint in &declared.bounds {
+                    self.push_relation(*constraint)?;
+                }
+                if let Some(target) = declared.target {
+                    self.constrain_type(
+                        target.origin,
+                        target.cause,
+                        target.relation,
+                        target.source,
+                        target.target,
+                    )?;
                 }
             }
 
-            combinations = next;
+            targets.push(access.target);
+            types.push(access.ty);
         }
 
-        // intersect the accesses of every combination into one arm
-        let mut arms = Vec::with_capacity(combinations.len());
-        for accesses in combinations {
-            arms.push(self.intersect_member_accesses(accesses)?);
-        }
+        // several accesses on one key read as their intersection
+        let target = match targets.as_slice() {
+            [] => return Ok(None),
+            [target] => target.clone(),
+            _ => dir::MemberTarget::OverloadSet(targets),
+        };
+        let ty = self.normalized_intersection_type(types)?;
 
-        if !has_union && arms.len() == 1 {
-            return Ok(dir::OperationResolution::One(arms.remove(0)));
-        }
-
-        // join the surviving arms into one runtime union
-        let types = arms.iter().map(|access| access.ty).collect::<Vec<_>>();
-        let ty = self.normalized_union_type(types)?;
-
-        Ok(dir::OperationResolution::Union { arms, ty })
+        Ok(Some(dir::MemberAccess::new(receiver.ty, target, ty)))
     }
 
-    /// Intersect simultaneous member accesses into one runtime access.
-    fn intersect_member_accesses(
+    /// Select one call of a declared member candidate on its adjusted receiver.
+    pub(in crate::sema) fn select_member_call(
         &mut self,
-        mut accesses: Vec<dir::MemberAccess>,
-    ) -> CompilerResult<dir::MemberAccess> {
-        // take a lone access as it stands
-        if accesses.len() == 1 {
-            return Ok(accesses.remove(0));
-        }
+        origin: Origin,
+        receiver: Value,
+        candidate: &MemberCandidate,
+        arguments: &[CallableArgument],
+        sources: &[dir::ArgumentSource],
+    ) -> CompilerResult<Option<dir::Call>> {
+        let Some(declared) = candidate.declaration() else {
+            return Ok(None);
+        };
+        let Some(callable) = candidate.callable else {
+            return Err(CompilerError::Internal {
+                message: format!("member {:?} has no callable type", declared.symbol),
+            });
+        };
 
-        // flatten every access into one intersected receiver, target, and type
-        let mut receivers = Vec::with_capacity(accesses.len());
-        let mut targets = Vec::with_capacity(accesses.len());
-        let mut types = Vec::with_capacity(accesses.len());
-        for access in accesses {
-            receivers.push(access.receiver);
-            types.push(access.ty);
-            match access.target {
-                dir::MemberTarget::Intersection(nested) => targets.extend(nested),
-                target => targets.push(target),
-            }
-        }
+        // select against the adjusted receiver the lookup resolved
+        let resolution = candidate.receiver.resolve(receiver.ty);
+        let selection_type = match &resolution {
+            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
+            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
+        };
+        let selection_receiver = Value {
+            ty: selection_type,
+            ..receiver
+        };
+        let selected = self.match_callable(
+            origin,
+            callable,
+            Some(declared.owner),
+            Some(selection_receiver),
+            &declared.generic_arguments,
+            &[],
+            arguments,
+            None,
+        )?;
+        let SignatureMatch::Selected(signature) = selected else {
+            return Ok(None);
+        };
 
-        let receiver = self.normalized_intersection_type(receivers)?;
-        let ty = self.normalized_intersection_type(types)?;
-        let target = dir::MemberTarget::Intersection(targets);
+        // bind the sources and the receiver the signature selected
+        let bound = self.bind_argument_sources(origin, &signature, sources)?;
+        let key_receiver = self.interface_member_receiver(declared.owner, signature.callable)?;
+        let call = signature.member_call(
+            resolution,
+            declared.owner,
+            declared.symbol,
+            key_receiver,
+            bound,
+        );
 
-        Ok(dir::MemberAccess::new(receiver, target, ty))
+        Ok(Some(call))
     }
 
     /// Select one getter invocation from a readable member candidate.
@@ -621,102 +579,35 @@ impl BodyState<'_, '_> {
         receiver: Value,
         candidate: &MemberCandidate,
     ) -> CompilerResult<Option<dir::Call>> {
-        // select against the adjusted receiver the lookup resolved
-        let symbol = candidate.symbol;
-        let resolution = candidate.receiver.resolve(receiver.ty);
-        let selection_type = match &resolution {
-            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
-            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
-        };
-        let selection_receiver = Value {
-            ty: selection_type,
-            ..receiver
-        };
-
-        // call a getter without arguments
-        let arguments = SmallVec::<[CallableArgument; 4]>::new();
-        let callable = candidate.callable.ok_or_else(|| CompilerError::Internal {
-            message: format!("getter {symbol:?} has no callable type"),
-        })?;
-        let selected = self.probe_callable(
-            origin,
-            callable,
-            Some(candidate.owner),
-            Some(selection_receiver),
-            &candidate.generic_arguments,
-            &[],
-            &arguments,
-            None,
-        )?;
-
-        // skip a rejecting receiver to the next declared candidate
-        let SignatureMatch::Selected(signature) = selected else {
-            return Ok(None);
-        };
-
-        let arguments = self.bind_argument_sources(origin, &signature, &[])?;
-        let key_receiver = self.interface_member_receiver(candidate.owner, signature.callable)?;
-        let resolution =
-            signature.member_call(resolution, candidate.owner, symbol, key_receiver, arguments);
-
-        Ok(Some(resolution))
+        self.select_member_call(origin, receiver, candidate, &[], &[])
     }
 
-    /// Select one setter invocation from a writable member candidate.
+    /// Select one setter invocation from a writable member candidate, passing the written value.
     pub(in crate::sema) fn select_setter_call(
         &mut self,
         origin: Origin,
         receiver: Value,
         candidate: &MemberCandidate,
     ) -> CompilerResult<dir::Call> {
-        // select against the adjusted receiver the lookup resolved
-        let symbol = candidate.symbol;
-        let resolution = candidate.receiver.resolve(receiver.ty);
-        let selection_type = match &resolution {
-            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
-            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
-        };
-        let selection_receiver = Value {
-            ty: selection_type,
-            ..receiver
-        };
-
-        // pass the written value as a setter's sole argument
-        let sources = [dir::ArgumentSource::Write];
         let source = self
             .origin_source_node(origin)?
             .into_global(origin.module());
         let arguments = [CallableArgument {
             source,
-            ty: Some(candidate.access_type),
-            relation: Relation::Assignable,
+            ty: Some(candidate.access.store()),
+            relation: Relation::Storable,
             use_: ValueUse::Argument,
             is_spread: false,
         }];
-        let selected = self.probe_callable(
-            origin,
-            candidate.callable.ok_or_else(|| CompilerError::Internal {
-                message: format!("setter {symbol:?} has no callable type"),
-            })?,
-            Some(candidate.owner),
-            Some(selection_receiver),
-            &candidate.generic_arguments,
-            &[],
-            &arguments,
-            None,
-        )?;
-        let SignatureMatch::Selected(signature) = selected else {
-            return Err(CompilerError::Internal {
-                message: format!("selected setter {symbol:?} rejects its declared value type"),
-            });
-        };
+        let sources = [dir::ArgumentSource::Write];
+        let call = self.select_member_call(origin, receiver, candidate, &arguments, &sources)?;
 
-        let arguments = self.bind_argument_sources(origin, &signature, &sources)?;
-        let key_receiver = self.interface_member_receiver(candidate.owner, signature.callable)?;
-        let resolution =
-            signature.member_call(resolution, candidate.owner, symbol, key_receiver, arguments);
-
-        Ok(resolution)
+        call.ok_or_else(|| CompilerError::Internal {
+            message: format!(
+                "selected setter {:?} rejects its declared value type",
+                candidate.symbol()
+            ),
+        })
     }
 
     /// Select the member meaning of one member access node.
@@ -740,15 +631,10 @@ impl BodyState<'_, '_> {
         let written_receiver = self.flow_type_at(receiver_site, receiver)?;
         self.commit_expression_place(receiver_site, written_receiver)?;
 
-        // defer selection on an unknown receiver until its value settles
-        if let Some(stalled_on) = self.check.root_variable(written_receiver)? {
-            self.defer_selection(site, stalled_on)?;
-
-            return Ok(());
-        }
+        let written_receiver = self.resolve_structurally(site, written_receiver)?;
 
         // strip the nullish arms the access reads through
-        let (subject, rejected) =
+        let (subject, rejected, [receiver, written_receiver]) =
             self.resolve_member_subject(origin, receiver_node, receiver, written_receiver)?;
         if let Some(rejected) = rejected
             && !is_optional
@@ -773,7 +659,7 @@ impl BodyState<'_, '_> {
         let key = dir::StaticKey::Name(name);
         let receiver_site = self.visit_site(receiver_node)?;
         let receiver_value = self.expression_value(receiver_site, receiver)?;
-        let mut lookup = self.probe_member(
+        let mut lookup = self.match_member(
             origin,
             module,
             receiver_value,
@@ -787,18 +673,14 @@ impl BodyState<'_, '_> {
             self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
         }
 
-        match lookup {
-            // report a key the receiver exposes nowhere
-            MemberLookup::Missing => {
-                let key = self.strings().get(name).to_string();
+        // report a key the receiver exposes nowhere, else commit what the lookup found
+        if lookup.is_empty() {
+            let key = self.strings().get(name).to_string();
 
-                self.report_rejected_member(node, origin, written_receiver, key)
-            }
-            // commit whatever the lookup found
-            found => {
-                self.commit_member_lookup(node, receiver_node, origin, receiver, key, name, &found)
-            }
+            return self.report_rejected_member(node, origin, written_receiver, key);
         }
+
+        self.commit_member_lookup(node, receiver_node, origin, receiver, key, name, &lookup)
     }
 
     /// Commit one member lookup.
@@ -817,7 +699,10 @@ impl BodyState<'_, '_> {
         let receiver_site = self.visit_site(receiver_node)?;
         let receiver = self.expression_value(receiver_site, receiver)?;
         let Some(resolution) = self.select_member_read(origin, receiver, key, lookup)? else {
-            if lookup.has_setter() {
+            if lookup
+                .iter()
+                .any(|candidate| candidate.role == MemberRole::Setter)
+            {
                 self.report_write_only_member(origin, written_key)?;
                 self.commit_decision(node, dir::Decision::Rejected)?;
                 self.commit_error_node(node)?;
@@ -867,11 +752,6 @@ impl BodyState<'_, '_> {
         let ty = self.flow_type_at(site, ty)?;
         self.commit_node_type(node, ty)?;
 
-        // an enum variant reads as a fresh literal of its enum
-        if matches!(self.ty(ty)?, dir::Type::Variant(_)) {
-            self.check.fresh_nodes.insert(node, None);
-        }
-
         Ok(())
     }
 
@@ -901,35 +781,58 @@ impl BodyState<'_, '_> {
         false
     }
 
-    /// Defer one selection until the stalled variable solves, returning the committed open hole.
-    pub(in crate::sema) fn defer_selection(
+    /// Settle one selection operand structurally, reporting a head nothing decides.
+    pub(in crate::sema) fn resolve_structurally(
         &mut self,
         site: FlowSite,
-        stalled_on: dir::TypeVariableId,
+        ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // commit an open hole so enclosing checks proceed
-        let node = site.node;
-        let hole = match self.committed_node_type(node) {
-            // reuse the hole this node already committed
-            Some(hole) => hole,
-            // allocate one for a node that has none
-            None => {
-                let variable = self.open_variable(site.origin(), VariableRole::Regular);
-                let hole = self.variable_type(variable)?;
-                self.commit_node_type(node, hole)?;
-
-                hole
-            }
+        let Some(variable) = self.root_variable(ty)? else {
+            return Ok(ty);
         };
 
-        // re-select once the stalled variable solves
-        self.check.queue_check(Check::Selection(SelectionCheck {
-            site,
-            use_: PlaceUse::Read,
-            stalled_on: Some(stalled_on),
-        }))?;
+        // keep a numeric variable's width open for its later uses
+        let root = self.infer.alias_root(variable)?;
+        let widens_now = self.root_kind(variable)? == VariableKind::Type;
+        if !widens_now {
+            return Ok(ty);
+        }
 
-        Ok(hole)
+        // solve what the pending work decides to a fixpoint
+        while self.solve_where_possible(Settle::Possible)? {}
+        let mut root = root;
+        loop {
+            self.settle_variables(&[root], Settle::All)?;
+            if let Some(solution) = self.infer.solution(root)? {
+                return Ok(solution);
+            }
+            let settled = self.infer.alias_root(root)?;
+            if settled == root {
+                break;
+            }
+            root = settled;
+        }
+        if self.root_kind(root)?.is_numeric() {
+            return self.variable_type(self.infer.alias_root(root)?);
+        }
+
+        // close an undecided head at the error type
+        let error = self.report_cannot_infer(site)?;
+        self.commit_error_solution(root, error)?;
+
+        Ok(error)
+    }
+
+    /// Report one site whose type nothing infers, returning the error type.
+    pub(in crate::sema) fn report_cannot_infer(
+        &mut self,
+        site: FlowSite,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let module = site.node.module_id;
+        let anchor = self.diagnostic_anchor(module, site.node.local_id);
+        self.report(module, CheckError::CannotInferType { anchor, module });
+
+        self.intern_type(dir::Type::Error)
     }
 
     /// Report one rejected member access with a diagnostic.

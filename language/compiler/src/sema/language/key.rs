@@ -26,10 +26,12 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<bool> {
+        // close recursive definitions coinductively
         if !active.insert(ty) {
             return Ok(false);
         }
 
+        // test the constructor under the active set
         let answer = self.constructor_may_have_additional_member(origin, ty, key, active);
         active.swap_remove(&ty);
 
@@ -44,6 +46,7 @@ impl CheckState<'_> {
         key: dir::StaticKey,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<bool> {
+        // test by the type constructor
         match self.ty(ty)? {
             // accept every open type, its values may hold additional members
             dir::Type::Unknown
@@ -64,12 +67,7 @@ impl CheckState<'_> {
                     .to_vec();
                 for signature in signatures {
                     if self
-                        .decide_relation(
-                            origin,
-                            Relation::Assignable,
-                            key_type,
-                            signature.key_type,
-                        )?
+                        .decide_relation(origin, Relation::Subtype, key_type, signature.key_type)?
                         .holds()
                     {
                         return Ok(true);
@@ -140,7 +138,8 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
     ) -> CompilerResult<Option<dir::StaticKey>> {
-        let ty = self.body().infer_node_type(site, PlaceUse::Read)?;
+        // read the key the checked expression names
+        let ty = self.infer_node_type(site, PlaceUse::Read)?;
         let key = self.static_key_from_type(ty)?;
 
         Ok(key)
@@ -152,9 +151,9 @@ impl CheckState<'_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // read the written key directly
         let input = self.module(module);
         let view = input.view();
-
         if let Some(key) = view.get(expression).static_key() {
             return Ok(Some(key));
         }
@@ -173,6 +172,7 @@ impl CheckState<'_> {
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<dir::StaticKey>> {
+        // read the key the referenced declaration denotes
         let source = expression.into_global_any(module);
         let Some(symbol) = self.reference_symbol(source) else {
             return Ok(None);

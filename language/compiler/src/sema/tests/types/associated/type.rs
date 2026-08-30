@@ -337,6 +337,8 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 }
 "#,
         r#"
+/// @diagnostic.error id=return-not-assignable message="type 'I.Item' is not assignable to the declared result type 'uint8'"
+/// @diagnostic.label line=9 column=12 span="iter.next()" line_source="return iter.next();"
 "#,
     );
 }

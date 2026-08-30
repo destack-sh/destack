@@ -14,8 +14,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, FlowPoint,
-    FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck, StaticPresence, VariableRole,
-    Wake,
+    FlowPointId, FlowSite, Origin, Pass, Relation, RelationCheck, StaticPresence,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -314,6 +313,7 @@ impl CheckModuleState {
         let coercions = dir::CoercionSegment::new(module.id);
         let captures = dir::CaptureSegment::new(module.id);
         let flows = dir::FlowSegment::new(module.id);
+        // carry the diagnostic controls the latest stage wrote
         let controls = match (&checked, &elaborated) {
             (Some(checked), _) => (*checked.controls).clone(),
             (None, Some(elaborated)) => (*elaborated.controls).clone(),
@@ -440,7 +440,7 @@ impl CheckModuleState {
         self.generics.get_parameter_maybe(id)
     }
 
-    /// Return the template written for one source node, reading the pass tail over the declared stage.
+    /// Return the template written for one source node, taking the pass tail first.
     pub(in crate::sema) fn written_template_by_source(
         &self,
         source: dir::GlobalNodeIdAny,
@@ -569,10 +569,12 @@ impl CheckModuleState {
             return value;
         }
 
+        // read the value from the pass segment
         if let Some(value) = self.statics.get_static_maybe(static_id) {
             return value;
         }
 
+        // read the value from the expanded stage
         if let Some(value) = self.expanded.statics.get_static_maybe(static_id) {
             return value;
         }
@@ -742,7 +744,7 @@ impl CheckState<'_> {
         (module == self.module_id).then_some(&mut self.module)
     }
 
-    /// Return the symbols whose static guards did not decide false.
+    /// Return the symbols their static guards leave present.
     pub(in crate::sema) fn present_symbols(
         &self,
         symbols: &[dir::GlobalSymbolId],
@@ -819,7 +821,7 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
         // read this pass's own commits first
-        if let Some(ty) = self.node_types.get(&node) {
+        if let Some(ty) = self.own_node_type(node) {
             return Some(ty);
         }
 
@@ -857,12 +859,16 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one source node type without flow narrowing or fail on an invariant break.
+    /// Return one source node type through its solution, without flow narrowing.
     pub(in crate::sema) fn require_node_type(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(ty) = self.committed_node_type(node) else {
+        let Some(ty) = self
+            .committed_node_type(node)
+            .map(|ty| self.shallow_resolve(ty))
+            .transpose()?
+        else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "required node has no checked type: {}; decision={:?}",
@@ -875,50 +881,26 @@ impl CheckState<'_> {
         Ok(ty)
     }
 
+    /// Return one node type this pass committed, a hole reading through its solution.
+    pub(in crate::sema) fn own_node_type(
+        &self,
+        node: dir::GlobalNodeIdAny,
+    ) -> Option<dir::GlobalTypeId> {
+        let ty = self.node_types.get(&node)?;
+
+        self.shallow_resolve(ty).ok()
+    }
+
     /// Commit one source node type.
     pub(in crate::sema) fn commit_node_type(
         &mut self,
         node: dir::GlobalNodeIdAny,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        // compare only against this pass's own commits
+        // write each node once
         if let Some(previous) = self.node_types.get(&node) {
             if previous == ty {
                 return Ok(());
-            }
-
-            // solve a committed hole, or require re-derivations to agree
-            if let dir::Type::Variable(variable) = self.ty_raw(previous)? {
-                if self.infer.variable(variable)?.state.is_open() {
-                    // commit a closed derivation and equate an open one as a bound
-                    if self.type_variables(ty)?.is_empty() {
-                        self.commit_solution(variable, ty)?;
-                    } else if let Some(origin) = self.node_origin_maybe(node) {
-                        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                        self.constrain_type(origin, cause, Relation::Equal, previous, ty)?;
-                    } else {
-                        self.commit_solution(variable, ty)?;
-                    }
-
-                    return Ok(());
-                }
-                if self.shallow_resolve(previous)? == self.shallow_resolve(ty)? {
-                    return Ok(());
-                }
-
-                // equate a solved hole with its re-derivation through the solver
-                if let Some(origin) = self.node_origin_maybe(node) {
-                    let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                    self.queue_relation(RelationCheck::new(
-                        origin,
-                        Relation::Equal,
-                        ty,
-                        previous,
-                        cause,
-                    ))?;
-
-                    return Ok(());
-                }
             }
 
             let previous = self.format_type(previous);
@@ -930,8 +912,8 @@ impl CheckState<'_> {
             });
         }
 
+        self.infer.log_node_type(node);
         self.node_types.insert(node, ty);
-        self.fulfill.wake(Wake::Node(node));
 
         Ok(())
     }
@@ -968,6 +950,7 @@ impl CheckState<'_> {
             return Ok(FlowSite { node, flow, scope });
         }
 
+        // record this node's flow point and template scope
         let flow = self.flow.point();
         let scope = self.flow.template_scope();
         let state = self.module_mut(node.module_id);
@@ -1187,6 +1170,7 @@ impl CheckState<'_> {
             self.import_external_module(symbol.module_id)?;
         }
 
+        // adopt the type the symbol declares
         if let Some(ty) = self.adopt_symbol_type_maybe(symbol)? {
             return Ok(ty);
         }
@@ -1216,7 +1200,7 @@ impl CheckState<'_> {
             return *variable;
         }
 
-        let variable = self.open_variable(Origin::Symbol(symbol), VariableRole::Symbol { symbol });
+        let variable = self.open_variable(Origin::Symbol(symbol));
         self.infer.symbol_variables.insert(symbol, variable);
 
         variable
@@ -1231,13 +1215,17 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // bind own declared-stage values once, types stay written
+        // copy own declared-stage values into the check tables once, types stay written
         if self.is_own_module(symbol.module_id)
             && self.binding_type_maybe(symbol).is_none()
             && self.declaration_type_maybe(symbol).is_none()
             && !self.symbol_kind(symbol)?.is_type_definition()
         {
-            self.commit_symbol_type(symbol, ty)?;
+            if self.symbol_kind(symbol)?.is_binding() {
+                self.binding_types.insert(symbol, ty);
+            } else {
+                self.declaration_types.insert(symbol, ty);
+            }
         }
 
         Ok(Some(ty))
@@ -1288,6 +1276,7 @@ impl CheckState<'_> {
         &self,
         member: &dir::DefinitionMember,
     ) -> bool {
+        // read whether the member declares a default
         match member {
             dir::DefinitionMember::Method(method) => {
                 method.implementation == dir::MethodImplementation::Default
@@ -1315,6 +1304,24 @@ impl CheckState<'_> {
     }
 
     /// Return one symbol's committed static id, if declared.
+    /// Return the type static naming one class as a value, pushing it on first use.
+    pub(in crate::sema) fn class_static_id(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::GlobalStaticId> {
+        if let Some(id) = self.symbol_static_id(symbol) {
+            return Ok(id);
+        }
+        let ty = self.intern_type(dir::Type::Reference(dir::TypeReference { symbol }))?;
+        let state = self.module_mut(symbol.module_id);
+        let id = state.statics_tail.push_static(dir::StaticTerm::Type { ty });
+        let id = id.into_global(symbol.module_id);
+        state.statics_tail.set_symbol_static(symbol, id);
+
+        Ok(id)
+    }
+
+    /// Return the static id one symbol's evaluated value carries.
     pub(in crate::sema) fn symbol_static_id(
         &self,
         symbol: dir::GlobalSymbolId,
@@ -1468,6 +1475,7 @@ impl CheckState<'_> {
             return None;
         }
 
+        // read the kind the symbol declares
         Some(
             self.binding_table(symbol.module_id)
                 .get_symbol(symbol.local_id)
@@ -1524,7 +1532,7 @@ impl CheckState<'_> {
             }
 
             for space in [dir::MemberSpace::Instance, dir::MemberSpace::Static] {
-                let bindings = self.body().member_bindings(symbol, space)?;
+                let bindings = self.member_bindings(symbol, space)?;
                 let Some(bindings) = bindings else {
                     continue;
                 };
@@ -1545,6 +1553,9 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         resolution: dir::Decision,
     ) -> CompilerResult<()> {
+        if self.infer.is_deciding() {
+            return Ok(());
+        }
         let uses = resolution.binding_uses();
 
         // refuse refinements that would invalidate already committed uses
@@ -1569,7 +1580,7 @@ impl CheckState<'_> {
             );
         }
 
-        // later derivations refine the same targets, the last committed payload stays
+        // keep the last committed payload as later derivations refine the same targets
         self.module_mut(node.module_id)
             .decisions
             .set_decision(node, resolution);
@@ -1593,6 +1604,7 @@ impl CheckState<'_> {
             );
         }
 
+        // commit the name resolution at the node
         self.module_mut(node.module_id)
             .resolutions
             .set_name_resolution(node, resolution);

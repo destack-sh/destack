@@ -104,12 +104,12 @@ class Foo {}
 /// @definition.class symbol=Foo source="class Foo {}"
 
 extension of Foo implements Add<&readonly Foo>, Hash {
-/// @generic.template symbol=<module>#2 parameters=('a, P1: Place)
+/// @generic.template symbol=<module>#2 parameters=('a)
 /// @definition.extension symbol=<module>#2 form=local target=Foo
 /// @definition.implements symbol=<module>#2 source="Add<&readonly Foo>" target="Add<&<module>#2.'a readonly Foo>"
 /// @definition.implements symbol=<module>#2 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#1 source="type Output = Foo" key=Output value=Foo
-/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.P1: Place, add#1.'b, add#1.P3: Place>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
+/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
 /// @definition.method symbol=hash#1 slot=hash type=<hash#1.P0: Place>(this: Managed<this, hash#1.P0>) => int32
 /// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add#1 requirement=Add.add
@@ -124,8 +124,8 @@ extension of Foo implements Add<&readonly Foo>, Hash {
     /// @resolution.name source=Foo target=Foo
 
     add(&readonly this, other: &readonly Foo): Foo {
-    /// @generic.template symbol=add#1 parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
-    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.P1: Place, add#1.'b, add#1.P3: Place>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
+    /// @generic.template symbol=add#1 parent=template#0 parameters=('a, 'b)
+    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
     /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly this
     /// @type.symbol symbol=add.other#1 source="other: &readonly Foo" type=&add#1.'b readonly Foo
     /// @resolution.name source=Foo target=Foo
@@ -151,12 +151,12 @@ newtype Name = string;
 /// @definition.newtype symbol=Name source="newtype Name = string" backing=string constructors=[(string) => Name]
 
 extension of Name implements Add<&readonly Name>, Hash {
-/// @generic.template symbol=<module>#3 parameters=('a, P1: Place)
+/// @generic.template symbol=<module>#3 parameters=('a)
 /// @definition.extension symbol=<module>#3 form=local target=Name
 /// @definition.implements symbol=<module>#3 source="Add<&readonly Name>" target="Add<&<module>#3.'a readonly Name>"
 /// @definition.implements symbol=<module>#3 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#2 source="type Output = Name" key=Output value=Name
-/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.P1: Place, add#2.'b, add#2.P3: Place>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
+/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
 /// @definition.method symbol=hash#2 slot=hash type=<hash#2.P0: Place>(this: Managed<this, hash#2.P0>) => int32
 /// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Add.Output
 /// @definition.conformance symbol=<module>#3 member=add#2 requirement=Add.add
@@ -171,8 +171,8 @@ extension of Name implements Add<&readonly Name>, Hash {
     /// @resolution.name source=Name target=Name
 
     add(&readonly this, other: &readonly Name): Name {
-    /// @generic.template symbol=add#2 parent=template#1 parameters=('a, P1: Place, 'b, P3: Place)
-    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.P1: Place, add#2.'b, add#2.P3: Place>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
+    /// @generic.template symbol=add#2 parent=template#1 parameters=('a, 'b)
+    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
     /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly this
     /// @type.symbol symbol=add.other#2 source="other: &readonly Name" type=&add#2.'b readonly Name
     /// @resolution.name source=Name target=Name
@@ -180,7 +180,7 @@ extension of Name implements Add<&readonly Name>, Hash {
 
         return this;
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&add#2.'a readonly Name
-        /// @resolution.place source=this placement=add#2.P1 lifetime=add#2.'a access="readonly"
+        /// @resolution.place source=this placement=add#2.'a lifetime=add#2.'a access="readonly"
         /// @resolution.access source=this root=this
 
     }

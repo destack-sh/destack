@@ -57,32 +57,42 @@ const count = tuple[1];
         DirRows::checked(),
         r#"
 === annotated ===
-const tuple: readonly ["id", 42] = ["id", 42] as const;
-const name: "id" = tuple[0];
-const count: 42 = tuple[1];
+const tuple: readonly ("id" | 42)[] = ["id" as "id" | 42, 42 as "id" | 42] as const;
+const name: "id" | 42 = tuple[0];
+const count: "id" | 42 = tuple[1];
 
 === dir ===
 const tuple = ["id", 42] as const;
-/// @type.symbol symbol=tuple source=tuple type=readonly ["id", 42]
+/// @type.symbol symbol=tuple source=tuple type=readonly "id" | 42[]
 /// @resolution.pattern source=tuple kind=binding target=tuple
+/// @generic.instance id="Array<\"id\" | 42>" template=Array arguments=("id" | 42)
+/// @generic.instance id="MaybeUninit<\"id\" | 42>" template=MaybeUninit arguments=("id" | 42)
+/// @generic.instance id="new<MaybeUninit<\"id\" | 42>>" template=new arguments=(MaybeUninit<"id" | 42>)
+/// @resolution.call source=["id", 42] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("id", 42) as "id" | 42) return="id" | 42[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"id\" | 42>"
+/// @generic.instantiation id="arrayFromSlice<\"id\" | 42>" template=arrayFromSlice arguments=("id" | 42)
+/// @generic.instance id="arrayFromSlice<\"id\" | 42>" template=arrayFromSlice arguments=("id" | 42)
 
 const name = tuple[0];
-/// @type.symbol symbol=name source=name type="id"
+/// @type.symbol symbol=name source=name type="id" | 42
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=tuple target=tuple
-/// @resolution.place source=tuple placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=tuple placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=tuple root=tuple
 /// @resolution.access source=tuple[0] root=tuple keys=[0]
-/// @resolution.subscript source=tuple[0] type="id" kind=member target="receiver=readonly [\"id\", 42], target=field(receiver=[\"id\", 42], target=0, type=\"id\"), type=\"id\""
+/// @resolution.subscript source=tuple[0] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static \"id\" | 42, \"readonly\">)"
+/// @generic.instantiation id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
+/// @generic.instance id="WithAccess<&'frame \"id\" | 42, \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42, "readonly")
+/// @generic.instance id="WithAccess<&'frame \"id\" | 42[], \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42[], "readonly")
+/// @generic.instance id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
 
 const count = tuple[1];
-/// @type.symbol symbol=count source=count type=42
+/// @type.symbol symbol=count source=count type="id" | 42
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=tuple target=tuple
-/// @resolution.place source=tuple placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=tuple placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=tuple root=tuple
 /// @resolution.access source=tuple[1] root=tuple keys=[1]
-/// @resolution.subscript source=tuple[1] type=42 kind=member target="receiver=readonly [\"id\", 42], target=field(receiver=[\"id\", 42], target=1, type=42), type=42"
+/// @resolution.subscript source=tuple[1] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static \"id\" | 42, \"readonly\">)"
 "#,
     );
 }

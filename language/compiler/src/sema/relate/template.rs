@@ -7,7 +7,7 @@ use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 
 /// One numeric template capture attempt under a constraint head.
 enum NumericCapture {
-    /// The constraint is not numeric.
+    /// The constraint sits outside the numeric domains.
     NotNumeric,
     /// The text falls outside the numeric domain.
     OutOfDomain,
@@ -86,8 +86,16 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // repeated spans must capture identical text
+            // match the text against a span the solver already closed
             let root = self.shallow_resolve(span)?;
+            if !self.type_flags(root)?.has_variable() {
+                match self.match_template_span(origin, &captured, root)? {
+                    true => continue,
+                    false => return Ok(Verdict::Fails),
+                }
+            }
+
+            // repeated spans must capture identical text
             if let Some((_, previous)) = seen.iter().find(|(other, _)| *other == root) {
                 if *previous != captured {
                     return Ok(Verdict::Fails);
@@ -105,13 +113,8 @@ impl CheckState<'_> {
         // relate every collected bound into its span
         let mut verdict = Verdict::Holds;
         for (bound, span) in pairs {
-            verdict = verdict.and(self.constrain_type(
-                origin,
-                cause,
-                Relation::Assignable,
-                bound,
-                span,
-            )?);
+            verdict =
+                verdict.and(self.constrain_type(origin, cause, Relation::Storable, bound, span)?);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -153,7 +156,7 @@ impl CheckState<'_> {
             verdict = verdict.and(self.constrain_type(
                 origin,
                 cause,
-                Relation::Assignable,
+                Relation::Storable,
                 source,
                 span,
             )?);
@@ -250,8 +253,8 @@ impl CheckState<'_> {
         for variable in [immediate, root].into_iter().flatten() {
             hint = self
                 .infer
-                .variable_role(variable)?
-                .parameter()
+                .variable(variable)?
+                .parameter
                 .and_then(|parameter| self.generic_parameter(parameter))
                 .and_then(|binding| binding.constraint);
             if hint.is_some() {
@@ -294,6 +297,7 @@ impl CheckState<'_> {
             });
         }
 
+        // capture the text in the constraint's numeric domain
         Ok(
             match self.numeric_template_capture(origin.module(), &kind, text)? {
                 NumericCapture::Captured(literal) => Some(literal),
@@ -310,6 +314,7 @@ impl CheckState<'_> {
         text: &str,
     ) -> CompilerResult<NumericCapture> {
         let text = TemplateText(text);
+        // parse the text in the constraint's own domain
         let literal = match constraint {
             dir::Type::Primitive(dir::PrimitiveType::Float(_)) => {
                 let Some(value) = text.number() else {
@@ -363,6 +368,7 @@ impl CheckState<'_> {
         let span = self.template_span_head(origin, span)?;
         let template = TemplateText(text);
 
+        // match the text against the span's own domain
         let matched = match self.ty(span)? {
             dir::Type::Primitive(dir::PrimitiveType::String) => true,
             dir::Type::Primitive(dir::PrimitiveType::Float(_)) => template.number().is_some(),
@@ -482,6 +488,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
+        // split the text across the spans in order
         let mut parts = Vec::with_capacity(spans.len());
         for (index, span) in spans.iter().copied().enumerate() {
             let is_last = index + 1 == spans.len();
@@ -542,6 +549,7 @@ impl CheckState<'_> {
         &self,
         span: dir::GlobalTypeId,
     ) -> CompilerResult<Option<String>> {
+        // print the span in the written form its literal takes
         let text = match self.ty(span)? {
             // numeric literals take many written forms
             dir::Type::Literal(
@@ -730,6 +738,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // print every scalar span into a string span
         match (self.ty(source)?, self.ty(target)?) {
             (_, dir::Type::Primitive(dir::PrimitiveType::String)) => Ok(true),
             (
@@ -742,7 +751,7 @@ impl CheckState<'_> {
             ) => Ok(true),
             _ => {
                 // match the span unless the domain relation is proven false
-                let verdict = self.decide_relation(origin, Relation::Assignable, source, target)?;
+                let verdict = self.decide_relation(origin, Relation::Subtype, source, target)?;
 
                 Ok(verdict != Verdict::Fails)
             }
@@ -831,6 +840,7 @@ impl TemplateText<'_> {
 
     /// Parse this text in one interval's scalar domain.
     fn range(self, range: &dir::RangeType) -> Option<dir::Literal> {
+        // parse the text in the interval's scalar domain
         let literal = match range.scalar_domain()? {
             dir::ScalarDomain::Integer => dir::Literal::Integer(self.integer()?),
             dir::ScalarDomain::Bigint => dir::Literal::Bigint(self.integer()?),

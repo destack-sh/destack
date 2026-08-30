@@ -85,10 +85,10 @@ function first([head]: int32[]): int32 {
 /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @resolution.pattern source=[head] kind=sequence element=int32 arity=1 fields=(first.head)
-/// @generic.instantiation id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-/// @generic.instance id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @type.symbol symbol=first.head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=first.head
 

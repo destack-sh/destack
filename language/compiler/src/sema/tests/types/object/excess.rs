@@ -29,7 +29,7 @@ const value: Person = { name: "Ada", extra: true };
 /// @type.symbol symbol=value source=value type={ name: string }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Person target=Person
-/// @type.node source={ name: "Ada", extra: true } type={ name: string }
+/// @type.node source={ name: "Ada", extra: true } type={ name: string; extra: boolean }
 /// @type.node source="\"Ada\"" type="Ada"
 /// @type.node source=true type=true
 "#,

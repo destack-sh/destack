@@ -29,14 +29,14 @@ impl CheckState<'_> {
         }
 
         // preserve the receiver exactly for declared members
-        let lookup = self.body().lookup_inherent_member(
+        let lookup = self.lookup_inherent_member(
             origin,
             origin.module(),
             receiver,
             dir::MemberSpace::Instance,
             key,
         )?;
-        if self.body().member_read_type(&lookup)?.is_some() {
+        if self.member_read_type(&lookup)?.is_some() {
             return Ok(receiver);
         }
 
@@ -51,7 +51,7 @@ impl CheckState<'_> {
         let unknown = self.intern_type(dir::Type::Unknown)?;
         let member = self.field_shape_type(key, unknown)?;
         let member_is_narrower = self
-            .decide_relation(origin, Relation::Satisfies, member, receiver)?
+            .decide_relation(origin, Relation::Subtype, member, receiver)?
             .holds();
         let narrowed = if member_is_narrower {
             member
@@ -90,7 +90,7 @@ impl CheckState<'_> {
         }
         // enumerate the physical arms every other source carries
         else {
-            let (payload, steps) = self.body().project_newtype_receiver(origin, subject)?;
+            let (payload, steps) = self.project_newtype_receiver(origin, subject)?;
             let Some(arms) = self.union_arms(origin, payload)? else {
                 return Ok(Ok(None));
             };
@@ -99,6 +99,7 @@ impl CheckState<'_> {
             arms.into_vec()
         };
 
+        // count the arms before narrowing
         let arm_count = arms.len();
 
         // keep original arms whose tested member remains inhabited
@@ -164,6 +165,7 @@ impl CheckState<'_> {
             }
         }
 
+        // require an enumerated domain
         let Some(enumerated) = enumerated else {
             return Ok(None);
         };
@@ -349,14 +351,14 @@ impl CheckState<'_> {
         };
 
         // project the tested member, comparing values beneath memory forms
-        let lookup = self.body().lookup_inherent_member(
+        let lookup = self.lookup_inherent_member(
             origin,
             origin.module(),
             source,
             dir::MemberSpace::Instance,
             *key,
         )?;
-        if let Some(projected) = self.body().member_read_type(&lookup)? {
+        if let Some(projected) = self.member_read_type(&lookup)? {
             let projected = self.strip_form(origin, projected)?;
             let projected = self.normalize(origin, projected)?;
 

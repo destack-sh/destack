@@ -121,7 +121,7 @@ declare function read(): Result<string, { code: int32; message: string }>;
 /// @type.symbol symbol=read.message source="message: string" type=string
 
 try {
-/// @type.node type=string | void
+/// @type.node type=void | string
 
     read()?
     /// @type.node source=read type=() => Result<string, { code: int32; message: string }>
@@ -191,7 +191,7 @@ declare function read(): Result<string, string>;
 /// @resolution.name source=Result target=Result
 
 try {
-/// @type.node type=string | void
+/// @type.node type=void | string
 
     read()?
     /// @type.node source=read type=() => Result<string, string>
@@ -249,7 +249,7 @@ declare function read(): Result<string, { message: string }>;
 /// @type.symbol symbol=read.message source="message: string" type=string
 
 try {
-/// @type.node type=string | void
+/// @type.node type=void | string
 
     read()?
     /// @type.node source=read type=() => Result<string, { message: string }>
@@ -310,7 +310,7 @@ declare function read(): Result<string, "missing" | "denied">;
 /// @resolution.name source=Result target=Result
 
 try {
-/// @type.node type=string | void
+/// @type.node type=void | string
 
     read()?
     /// @type.node source=read type=() => Result<string, "missing" | "denied">

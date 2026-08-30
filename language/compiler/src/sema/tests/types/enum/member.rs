@@ -293,7 +293,7 @@ enum Status {
     }
 }
 
-const value: boolean = Status.Active.isActive<"local">();
+const value: boolean = Status.Active.isActive();
 
 === dir ===
 enum Status {
@@ -301,7 +301,7 @@ enum Status {
 /// @definition.enum symbol=Status
 /// @definition.variant symbol=Status.Active source="Active = 1" key=Active value=1
 /// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive value=2
-/// @definition.method symbol=Status.isActive slot=isActive type=<Status.isActive.'a, Status.isActive.P1: Place>(this: &Status.isActive.'a readonly Status) => boolean
+/// @definition.method symbol=Status.isActive slot=isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status) => boolean
 
     Active = 1,
     /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
@@ -312,8 +312,8 @@ enum Status {
     /// @type.node source=2 type=2
 
     isActive(): boolean {
-    /// @generic.template symbol=Status.isActive parameters=('a, P1: Place)
-    /// @type.symbol symbol=Status.isActive type=<Status.isActive.'a, Status.isActive.P1: Place>(this: &Status.isActive.'a readonly Status) => boolean
+    /// @generic.template symbol=Status.isActive parameters=('a)
+    /// @type.symbol symbol=Status.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status) => boolean
     /// @type.symbol symbol=Status.isActive.this type=&Status.isActive.'a readonly Status
 
         return this == Status.Active;
@@ -321,7 +321,7 @@ enum Status {
         /// @type.node source=this type=&Status.isActive.'a readonly Status
         /// @resolution.operator source="this == Status.Active" type=boolean operator="==" kind=builtin operands=[this as Status families=(Status), Status.Active as Status.Active families=(Status)]
         /// @resolution.receiver source=this kind=this declaration=Status type=&Status.isActive.'a readonly Status
-        /// @resolution.place source=this placement=Status.isActive.P1 lifetime=Status.isActive.'a access="readonly"
+        /// @resolution.place source=this placement=Status.isActive.'a lifetime=Status.isActive.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @type.node source=Status type=Status
         /// @type.node source=Status.Active type=Status.Active
@@ -336,14 +336,12 @@ const value = Status.Active.isActive();
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=Status type=Status
 /// @type.node source=Status.Active type=Status.Active
-/// @type.node source=Status.Active.isActive type=<Status.isActive.'a, Status.isActive.P1: Place>(this: &Status.isActive.'a readonly Status.Active) => boolean
+/// @type.node source=Status.Active.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status.Active) => boolean
 /// @type.node source=Status.Active.isActive() type=boolean
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
-/// @resolution.member source=Status.Active.isActive receiver=Status.Active type=<Status.isActive.'a, Status.isActive.P1: Place>(this: &Status.isActive.'a readonly Status.Active) => boolean kind=symbol target_receiver=Status.Active target=Status.isActive
-/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame readonly Status.Active)) instance="Status.isActive<\"local\">"
-/// @generic.instantiation id="Status.isActive<\"local\">" template=Status.isActive arguments=("local")
-/// @generic.instance id="Status.isActive<\"local\">" template=Status.isActive arguments=("local")
+/// @resolution.member source=Status.Active.isActive receiver=Status.Active type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status.Active) => boolean kind=symbol target_receiver=Status.Active target=Status.isActive
+/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame readonly Status.Active))
 "#,
     );
 }

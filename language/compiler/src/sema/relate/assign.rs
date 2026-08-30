@@ -5,8 +5,8 @@ use crate::CompilerResult;
 use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
 
 impl CheckState<'_> {
-    /// Relate assignability from one reduced source to one reduced target.
-    pub(in crate::sema) fn relate_assignable(
+    /// Relate one directed pair under subtype inclusion or under storage.
+    pub(in crate::sema) fn relate_directed(
         &mut self,
         origin: Origin,
         cause: CauseId,
@@ -14,22 +14,20 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        let widens = relation == Relation::Widens;
+        // distinguish inclusion from storage
+        let is_inclusion = relation == Relation::Subtype;
 
         // read the callable signature behind each side, when one stands there
         let source_signature = self.callable_signature(source)?;
         let target_signature = self.callable_signature(target)?;
 
+        // decide the pair by the heads standing on both sides
         let decision = match (self.ty(source)?, self.ty(target)?) {
-            // error types absorb everything
+            // empty and indeterminate domains
             (dir::Type::Error, _) | (_, dir::Type::Error) => Verdict::Holds,
-            // box erasable values into an erased top target
-            (_, dir::Type::Unknown) => match widens {
-                true => Verdict::Fails,
-                false => self.erasable_source(origin, source)?,
-            },
-            // an uninhabited source flows into every target
             (dir::Type::Never, _) => Verdict::Holds,
+            (_, dir::Type::Unknown) => Verdict::decided(is_inclusion),
+            (dir::Type::Unknown, _) if !self.is_conformance_target(target)? => Verdict::Fails,
 
             // string literals inhabit matching template literal patterns
             (
@@ -41,13 +39,11 @@ impl CheckState<'_> {
             {
                 let text = self.strings().get(text).to_string();
 
-                // bind open spans to the text they capture
+                // capture the text into open spans, else match the closed pattern
                 let mut is_open = false;
                 for &span in self.type_ids(target.module_id, template.spans)? {
                     is_open = is_open || self.type_flags(span)?.has_variable();
                 }
-
-                // capture the text into the open spans
                 if is_open {
                     self.relate_template_captures(
                         origin,
@@ -56,13 +52,11 @@ impl CheckState<'_> {
                         target.module_id,
                         &template,
                     )?
-                }
-                // otherwise match the text against the closed pattern
-                else {
+                } else {
                     self.relate_template_string(origin, &text, target.module_id, &template)?
                 }
             }
-            // accept every template literal instance as a string
+            // every template literal instance is a string
             (dir::Type::Operation(operation), dir::Type::Primitive(dir::PrimitiveType::String))
                 if matches!(
                     self.type_operation(source.module_id, operation)?,
@@ -99,10 +93,9 @@ impl CheckState<'_> {
                     &target_template,
                 )?
             }
-
-            // exact property keys flow into their primitive key domains
+            // exact property keys inhabit their primitive key domains
             (_, dir::Type::Primitive(primitive))
-                if !widens
+                if is_inclusion
                     && self
                         .static_key_from_type(source)?
                         .is_some_and(|key| key.widens_to_primitive(primitive)) =>
@@ -110,7 +103,7 @@ impl CheckState<'_> {
                 Verdict::Holds
             }
 
-            // require every element of an intersection target
+            // intersections
             (_, dir::Type::Intersection(intersection)) => {
                 let elements: SmallVec<[_; 8]> = self
                     .type_ids(target.module_id, intersection.elements)?
@@ -118,98 +111,43 @@ impl CheckState<'_> {
 
                 self.relate_all_targets(origin, cause, relation, source, &elements)?
             }
-            // an intersection source enters a memory-form target as one whole payload
-            (dir::Type::Intersection(_), dir::Type::Form(_))
-                if let Some(decision) =
-                    self.constrain_form_assignable(origin, cause, relation, source, target)? =>
-            {
-                decision
-            }
-            // intersection sources assign through any element
+            // prove the target from one member of an intersection source
             (dir::Type::Intersection(intersection), _) => {
                 let elements: SmallVec<[_; 8]> = self
                     .type_ids(source.module_id, intersection.elements)?
                     .into();
-
-                self.relate_any_source(origin, cause, relation, &elements, target)?
+                let by_member =
+                    self.relate_any_source(origin, cause, relation, &elements, target)?;
+                if by_member.holds() || !matches!(self.ty(target)?, dir::Type::Form(_)) {
+                    by_member
+                } else {
+                    self.relate_form(origin, cause, relation, source, target)?
+                        .unwrap_or(by_member)
+                }
             }
-            // assign parameters and erased arguments through their bounds, then their form
+
+            // relate a rigid parameter through the union arm it enters, else through its bounds
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
                 let decision = self
-                    .relate_parameter_bounds(origin, cause, relation, parameter, target)?
-                    .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?;
+                    .relate_into_union(origin, cause, relation, source, target)?
+                    .or_else(|| {
+                        self.relate_parameter_bounds(origin, cause, relation, parameter, target)
+                    })?;
                 match decision {
                     Verdict::Holds => Verdict::Holds,
                     decision => self
-                        .constrain_form_assignable(origin, cause, relation, source, target)?
+                        .relate_form(origin, cause, relation, source, target)?
                         .unwrap_or(decision),
                 }
             }
-            // decide memory forms through their placement and readonly views
-            _ if let Some(decision) =
-                self.constrain_form_assignable(origin, cause, relation, source, target)? =>
-            {
-                decision
-            }
-
-            // widen union representations only through exact set equality
-            (dir::Type::Union(source_union), dir::Type::Union(target_union)) if widens => {
-                let source_elements: SmallVec<[_; 8]> = self
-                    .type_ids(source.module_id, source_union.elements)?
-                    .into();
-                let target_elements: SmallVec<[_; 8]> = self
-                    .type_ids(target.module_id, target_union.elements)?
-                    .into();
-
-                self.relate_type_sets_equal(origin, cause, &source_elements, &target_elements)?
-            }
-            // distribute a union source over its elements, which widen one by one
-            (dir::Type::Union(union), _) if widens => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(source.module_id, union.elements)?.into();
-
-                self.relate_all_sources(origin, cause, relation, &elements, target)?
-            }
-            // widen literal, constructed, and scalar values into a union target by membership
-            (
-                dir::Type::Literal(_) | dir::Type::Object(_) | dir::Type::Primitive(_),
-                dir::Type::Union(union),
-            ) if widens => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(target.module_id, union.elements)?.into();
-
-                self.relate_any_target(origin, cause, relation, source, &elements)?
-            }
-            // try union membership for a nominal value while the target still solves a parameter
-            (dir::Type::Application(_), dir::Type::Union(union))
-                if widens && self.type_flags(target)?.has_variable() =>
-            {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(target.module_id, union.elements)?.into();
-
-                self.relate_any_target(origin, cause, relation, source, &elements)?
-            }
-            // reject every other widening into a union
-            (_, dir::Type::Union(_)) if widens => Verdict::Fails,
-
-            // require every element of a union source to assign
-            (dir::Type::Union(union), _) => {
-                let elements: SmallVec<[_; 8]> =
-                    self.type_ids(source.module_id, union.elements)?.into();
-
-                self.relate_all_sources(origin, cause, relation, &elements, target)?
-            }
-            // reject concrete writes into an erased parameter target
-            (_, dir::Type::Erased(_)) => Verdict::Fails,
-            // assign this through its enclosing interface hypotheses or a union target
+            // relate contextual this through its assumed bounds
             (dir::Type::This, _) => self
                 .relate_this_bounds(origin, cause, relation, target)?
                 .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?,
-            // rigid projections assign through their declared constraint
+            // relate a stuck projection through its declared constraint
             (dir::Type::Member(member), _) => {
                 let member = self.type_member(source.module_id, member)?;
-                let constraint = self.body().projection_constraint(origin, &member)?;
-                let decision = match constraint {
+                let decision = match self.projection_constraint(origin, &member)? {
                     Some(constraint) => {
                         self.constrain_type(origin, cause, relation, constraint, target)?
                     }
@@ -219,18 +157,125 @@ impl CheckState<'_> {
                 decision
                     .or_else(|| self.relate_into_union(origin, cause, relation, source, target))?
             }
-            // accept a union target when one element is viable
-            (_, dir::Type::Union(union)) => {
+            // relate a stuck key domain through the property key domain
+            (dir::Type::Operation(operation), _)
+                if self.type_flags(source)?.has_parameter()
+                    && matches!(
+                        self.type_operation(source.module_id, operation)?,
+                        dir::TypeOperation::KeyOf(_)
+                    ) =>
+            {
+                let keys = self.language_type(dir::LanguageItem::PropertyKey, &[])?;
+
+                self.constrain_type(origin, cause, relation, keys, target)?
+            }
+
+            // memory forms decide through their placement and readonly views
+            _ if let Some(decision) =
+                self.relate_form(origin, cause, relation, source, target)? =>
+            {
+                decision
+            }
+
+            // store a union as the exact arm set it already is
+            (dir::Type::Union(source_union), dir::Type::Union(target_union)) if !is_inclusion => {
+                let source_elements: SmallVec<[_; 8]> = self
+                    .type_ids(source.module_id, source_union.elements)?
+                    .into();
+                let target_elements: SmallVec<[_; 8]> = self
+                    .type_ids(target.module_id, target_union.elements)?
+                    .into();
+                let is_open = self.type_flags(source)?.has_variable()
+                    || self.type_flags(target)?.has_variable();
+                match is_open {
+                    // closed sets compare as sets
+                    false => self.relate_type_sets_equal(
+                        origin,
+                        cause,
+                        &source_elements,
+                        &target_elements,
+                    )?,
+                    // bind each open source arm into one target arm of the same count
+                    true if source_elements.len() != target_elements.len() => Verdict::Fails,
+                    true => {
+                        let shared: SmallVec<[_; 8]> = source_elements
+                            .iter()
+                            .copied()
+                            .filter(|arm| target_elements.contains(arm))
+                            .collect();
+                        let source_elements: SmallVec<[_; 8]> = source_elements
+                            .into_iter()
+                            .filter(|arm| !shared.contains(arm))
+                            .collect();
+                        let target_elements: SmallVec<[_; 8]> = target_elements
+                            .into_iter()
+                            .filter(|arm| !shared.contains(arm))
+                            .collect();
+                        let mut verdict = Verdict::Holds;
+                        for arm in source_elements {
+                            let candidates = target_elements
+                                .iter()
+                                .map(|target| (arm, *target))
+                                .collect::<SmallVec<[_; 4]>>();
+                            let armed =
+                                self.constrain_any_relation(origin, cause, relation, &candidates)?;
+                            verdict = verdict.and(armed);
+                            if verdict == Verdict::Fails {
+                                break;
+                            }
+                        }
+
+                        verdict
+                    }
+                }
+            }
+            // relate every arm of a union source
+            (dir::Type::Union(union), _) => {
+                let elements: SmallVec<[_; 8]> =
+                    self.type_ids(source.module_id, union.elements)?.into();
+
+                self.relate_all_sources(origin, cause, relation, &elements, target)?
+            }
+            // include a value in any arm of a union target
+            (_, dir::Type::Union(union)) if is_inclusion => {
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(target.module_id, union.elements)?.into();
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
             }
-            // relate two erased representations through their constraints, which rebuild the fat pointer
+            // store a literal untagged in a union of its own scalar domain
+            (dir::Type::Literal(literal), dir::Type::Union(union))
+                if self.stores_untagged(literal, target, union)? =>
+            {
+                let arms: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
+                self.relate_any_target(origin, cause, Relation::Subtype, source, &arms)?
+            }
+            // store a value in the one inhabited arm of a union slot
+            (_, dir::Type::Union(union)) => {
+                let arms: SmallVec<[_; 8]> =
+                    self.type_ids(target.module_id, union.elements)?.into();
+                let mut inhabited = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                for arm in arms {
+                    let arm = self.normalize(origin, arm)?;
+                    if !matches!(self.ty(arm)?, dir::Type::Never) {
+                        inhabited.push(arm);
+                    }
+                }
+                match inhabited.as_slice() {
+                    [arm] => self.constrain_type(origin, cause, relation, source, *arm)?,
+                    _ => Verdict::Fails,
+                }
+            }
+
+            // erased targets refuse concrete writes
+            (_, dir::Type::Erased(_)) => Verdict::Fails,
+
+            // relate two dynamic values through their constraints
             (dir::Type::Dynamic(source_dynamic), dir::Type::Dynamic(target_dynamic)) => {
-                let constraint_relation = match widens {
-                    true => Relation::Equal,
-                    false => Relation::Assignable,
+                let constraint_relation = match is_inclusion {
+                    true => relation,
+                    false => Relation::Equal,
                 };
 
                 self.constrain_type(
@@ -241,80 +286,60 @@ impl CheckState<'_> {
                     target_dynamic.constraint,
                 )?
             }
-            // widen between erased values only through equal constraints
-            _ if widens
-                && let Some(source_constraint) = self.erased_constraint(source)?
-                && let Some(target_constraint) = self.erased_constraint(target)? =>
-            {
-                self.constrain_type(
-                    origin,
-                    cause,
-                    Relation::Equal,
-                    source_constraint,
-                    target_constraint,
-                )?
-            }
-            // erased representations refuse widening, the literal materializes first
-            _ if widens && (self.is_erased_value(source)? || self.is_erased_value(target)?) => {
-                Verdict::Fails
-            }
-            // erase compatible values into dynamic targets
-            (_, dir::Type::Dynamic(dynamic)) => {
+            // include a value behind a dynamic constraint it satisfies
+            (_, dir::Type::Dynamic(dynamic)) if is_inclusion => {
                 self.relate_dynamic_assignable(origin, cause, source, dynamic.constraint)?
             }
-            // relate a dynamic source through its constraint
-            (dir::Type::Dynamic(dynamic), _) => self.constrain_type(
-                origin,
-                cause,
-                Relation::Assignable,
-                dynamic.constraint,
-                target,
-            )?,
-
-            // reject widening for literals without a uniform representation
-            (dir::Type::Literal(literal), _) if widens && !literal.has_uniform_representation() => {
-                Verdict::Fails
+            // include a dynamic value by the constraint it carries
+            (dir::Type::Dynamic(dynamic), _)
+                if is_inclusion && !self.is_conformance_target(target)? =>
+            {
+                self.constrain_type(origin, cause, relation, dynamic.constraint, target)?
             }
-            // reject widening for intervals
-            (dir::Type::Range(_), _) if widens => Verdict::Fails,
+            // storage changes representation across a dynamic boundary
+            (_, dir::Type::Dynamic(_)) => Verdict::Fails,
+            (dir::Type::Dynamic(_), _) if !self.is_conformance_target(target)? => Verdict::Fails,
 
-            // adapt a const literal to a parameter its scalar-family admits
+            // adapt a literal to a rigid parameter whose scalar bound represents it
             (dir::Type::Literal(_), dir::Type::Parameter(_)) => {
                 Verdict::decided(self.is_builtin_scalar_representable(origin, source, target)?)
             }
 
-            // relate literal and interval sources to interface targets
+            // scalar sources decide interface targets before literal widening
             (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
-                if self
-                    .symbol_kind(instance.symbol)
-                    .map(|kind| kind.is_interface())? =>
+                if self.symbol_kind(instance.symbol)?.is_interface() =>
             {
-                self.relate_erased_assignable(origin, cause, source, target)?
+                self.relate_interface(origin, cause, relation, source, target)?
+            }
+            // include a literal in the base that holds it
+            (dir::Type::Literal(literal), target) => {
+                Verdict::decided(is_inclusion && literal.widens_to(&target))
+            }
+            // include an interval in the base holding it
+            (dir::Type::Range(range), target) => {
+                Verdict::decided(is_inclusion && range.widens_to(&target))
             }
 
-            // literals and intervals widen by value
-            (dir::Type::Literal(literal), target) => Verdict::decided(literal.widens_to(&target)),
-            (dir::Type::Range(range), target) => Verdict::decided(range.widens_to(&target)),
-
-            // precise variants assign through their declared owner
-            (dir::Type::Variant(member), _)
+            // precise variants share their declared owner's representation
+            (dir::Type::Variant(variant), _)
                 if !matches!(self.ty(target)?, dir::Type::Variant(_)) =>
             {
-                self.constrain_type(origin, cause, relation, member.owner, target)?
+                self.constrain_type(origin, cause, relation, variant.owner, target)?
             }
 
-            // keep array views over slices and fixed arrays element-invariant
+            // view an array through a slice of the same element
             (dir::Type::Application(_), dir::Type::Slice(target))
                 if let Some(element) = self.array_element(source)? =>
             {
                 self.constrain_type(origin, cause, Relation::Equal, element, target.element)?
             }
+            // refuse an array as fixed storage
             (dir::Type::Application(_), dir::Type::FixedArray(_))
                 if self.array_element(source)?.is_some() =>
             {
                 Verdict::Fails
             }
-            // keep slice views element-invariant
+            // alias slices over the same element
             (dir::Type::Slice(source), dir::Type::Slice(target)) => self.constrain_type(
                 origin,
                 cause,
@@ -322,15 +347,10 @@ impl CheckState<'_> {
                 source.element,
                 target.element,
             )?,
-            // widen value container elements, which the container copies whole
+            // copy fixed storage element by element at the same count
             (dir::Type::FixedArray(source), dir::Type::FixedArray(target)) => {
-                let element = self.constrain_type(
-                    origin,
-                    cause,
-                    relation.interior(),
-                    source.element,
-                    target.element,
-                )?;
+                let element =
+                    self.constrain_type(origin, cause, relation, source.element, target.element)?;
                 let count = self.constrain_type(
                     origin,
                     cause,
@@ -341,22 +361,21 @@ impl CheckState<'_> {
 
                 element.and(count)
             }
-            // view a fixed array through a slice of the same element
-            (dir::Type::FixedArray(source), dir::Type::Slice(target)) if !widens => self
-                .constrain_type(
-                    origin,
-                    cause,
-                    Relation::Equal,
-                    source.element,
-                    target.element,
-                )?,
-            // reject growing into a managed array, which allocates and copies
+            // view fixed storage through a slice of the same element
+            (dir::Type::FixedArray(source), dir::Type::Slice(target)) => self.constrain_type(
+                origin,
+                cause,
+                Relation::Equal,
+                source.element,
+                target.element,
+            )?,
+            // refuse fixed storage as an array
             (dir::Type::FixedArray(_), dir::Type::Application(_))
                 if self.array_element(target)?.is_some() =>
             {
                 Verdict::Fails
             }
-            // relate two tuples position by position
+            // relate tuples position by position
             (dir::Type::Tuple(_), dir::Type::Tuple(_)) => {
                 self.relate_tuple_assignable(origin, cause, relation, source, target)?
             }
@@ -367,24 +386,17 @@ impl CheckState<'_> {
                 self.constrain_type(origin, cause, relation, source, rest)?
             }
 
-            // anonymous classes and nominal declarations
-            (dir::Type::Object(_), dir::Type::Object(target_shape)) => {
-                match target_shape.declares_signatures() {
-                    // an object type declaring signatures reads its members structurally
-                    true => {
-                        self.relate_shape(origin, cause, Relation::Assignable, source, target)?
-                    }
-                    // a written field set stores at its exact member set
-                    false => self.relate_shape_equal(origin, cause, source, target)?,
-                }
+            // relate object types exactly by their member sets
+            (dir::Type::Object(_), dir::Type::Object(_)) => {
+                self.relate_shape(origin, cause, relation, false, source, target)?
             }
-            // satisfy an object type declaring signatures from a static declaration reference
+            // declaration references satisfy signatures and keyed shapes
             (dir::Type::Reference(_), dir::Type::Object(target_shape))
                 if target_shape.declares_signatures() =>
             {
                 self.relate_reference_shape_assignable(origin, cause, source, target)?
             }
-            // satisfy a bare construct signature from the declared constructors
+            // construct a declaration through a construct signature
             (dir::Type::Reference(_), dir::Type::FunctionSignature(_))
                 if self
                     .signature_head(target)?
@@ -392,14 +404,14 @@ impl CheckState<'_> {
             {
                 self.relate_reference_construct_assignable(origin, cause, relation, source, target)?
             }
-            // satisfy a target from a struct static's representation type
+            // relate a static struct term by the type it holds
             (dir::Type::Static(value), _)
                 if !matches!(self.ty(target)?, dir::Type::Static(_))
                     && let dir::StaticTerm::Struct { ty, .. } = self.r#static(value).clone() =>
             {
                 self.constrain_type(origin, cause, relation, ty, target)?
             }
-            // satisfy a bare construct signature from a class value's static side
+            // construct the declaration a static type term names
             (dir::Type::Static(value), dir::Type::FunctionSignature(_))
                 if self
                     .signature_head(target)?
@@ -409,45 +421,48 @@ impl CheckState<'_> {
             {
                 self.relate_reference_construct_assignable(origin, cause, relation, ty, target)?
             }
-            // satisfy a keyed object type from a nominal instance
+            // relate an instance against the signatures a shape declares
             (dir::Type::Application(reference), dir::Type::Object(target_shape))
                 if target_shape.declares_signatures() =>
             {
                 self.relate_reference_against_target(
                     origin,
                     cause,
-                    Relation::Assignable,
+                    relation,
                     source.module_id,
                     &reference,
                     target,
                 )?
             }
-            // relate structural, callable, and scalar values to interface targets
-            (
-                dir::Type::Object(_)
-                | dir::Type::FunctionSignature(_)
-                | dir::Type::Function(_)
-                | dir::Type::FunctionPointer(_)
-                | dir::Type::Primitive(_)
-                | dir::Type::Slice(_)
-                | dir::Type::FixedArray(_),
-                dir::Type::Application(instance),
-            ) if self
-                .symbol_kind(instance.symbol)
-                .map(|kind| kind.is_interface())? =>
+            // store a struct or class value as its own representation
+            (dir::Type::Application(instance), dir::Type::Object(_))
+                if relation == Relation::Storable
+                    && matches!(
+                        self.definition(instance.symbol)?,
+                        Some(dir::Definition::Struct(_) | dir::Definition::Class(_))
+                    ) =>
             {
-                self.relate_erased_assignable(origin, cause, source, target)?
+                Verdict::Fails
             }
-            // relate callable applications to interface targets
+            // relate every other instance against the members the shape declares
+            (dir::Type::Application(instance), dir::Type::Object(_)) => self
+                .relate_reference_against_target(
+                    origin,
+                    cause,
+                    relation,
+                    source.module_id,
+                    &instance,
+                    target,
+                )?,
+
+            // reach an interface from a callable instance
             (dir::Type::Application(callable), dir::Type::Application(instance))
-                if self
-                    .symbol_kind(instance.symbol)
-                    .map(|kind| kind.is_interface())?
+                if self.symbol_kind(instance.symbol)?.is_interface()
                     && self.is_function_language_item(callable.symbol)? =>
             {
-                self.relate_erased_assignable(origin, cause, source, target)?
+                self.relate_interface(origin, cause, relation, source, target)?
             }
-            // relate argument pairs of one declaration by their parameter variances
+            // relate one declaration's arguments by variance
             (dir::Type::Application(source_instance), dir::Type::Application(target_instance))
                 if source_instance.symbol == target_instance.symbol =>
             {
@@ -465,81 +480,68 @@ impl CheckState<'_> {
                     cause,
                     symbol,
                     form,
-                    relation.interior(),
+                    relation,
                     &source_arguments,
                     &target_arguments,
                 )?
             }
-            // box erasable values only behind an erased interface target
-            (dir::Type::Application(_), dir::Type::Application(instance))
-                if self
-                    .symbol_kind(instance.symbol)
-                    .map(|kind| kind.is_interface())? =>
-            {
-                match self.erasable_source(origin, source)? {
-                    Verdict::Holds => {
-                        self.relate_application_assignable(origin, cause, source, target)?
-                    }
-                    verdict @ (Verdict::Fails | Verdict::Ambiguous) => verdict,
-                }
-            }
-            // relate the remaining nominal instances through their declarations
-            (dir::Type::Application(_), dir::Type::Application(_)) => {
-                self.relate_application_assignable(origin, cause, source, target)?
+            // relate two declarations through their heritage
+            (dir::Type::Application(source_instance), dir::Type::Application(target_instance)) => {
+                self.relate_application(
+                    origin,
+                    cause,
+                    relation,
+                    source,
+                    &source_instance,
+                    target,
+                    &target_instance,
+                )?
             }
 
-            // functions assign by signature variance
+            // callables relate by signature variance
             (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
-            // reach the signature behind a callable source
             (_, dir::Type::FunctionSignature(_)) if let Some(source) = source_signature => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
-            // reach the signature behind a callable target
             (dir::Type::FunctionSignature(_), _) if let Some(target) = target_signature => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
-            // reach the signatures behind two callable values
             (_, _) if let (Some(source), Some(target)) = (source_signature, target_signature) => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
             }
 
-            // resolve a keyof stuck on a parameter through the property key domain
+            // type a static arithmetic operation as each of its operands
             (dir::Type::Operation(operation), _)
-                if !widens
-                    && self.type_flags(source)?.has_parameter()
-                    && matches!(
-                        self.type_operation(source.module_id, operation)?,
-                        dir::TypeOperation::KeyOf(_)
-                    ) =>
+                if let dir::TypeOperation::StaticBinary(binary) =
+                    self.type_operation(source.module_id, operation)?
+                    && !binary.operator.yields_boolean() =>
             {
-                let keys = self.language_type(dir::LanguageItem::PropertyKey, &[])?;
+                let left = self.constrain_type(origin, cause, relation, binary.left, target)?;
+                let right = self.constrain_type(origin, cause, relation, binary.right, target)?;
 
-                self.constrain_type(origin, cause, relation, keys, target)?
+                left.and(right)
+            }
+            (dir::Type::Operation(operation), _)
+                if let dir::TypeOperation::StaticUnary(unary) =
+                    self.type_operation(source.module_id, operation)?
+                    && !unary.operator.yields_boolean() =>
+            {
+                self.constrain_type(origin, cause, relation, unary.target, target)?
+            }
+
+            // every other value relates to an interface target by conformance
+            (_, dir::Type::Application(instance))
+                if self.symbol_kind(instance.symbol)?.is_interface() =>
+            {
+                self.relate_interface(origin, cause, relation, source, target)?
             }
             // reject every remaining pair
             _ => Verdict::Fails,
         };
 
         Ok(decision)
-    }
-
-    /// Relate one erasable source value into an erased interface target.
-    pub(in crate::sema) fn relate_erased_assignable(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        // require the source to erase behind a dynamic payload
-        match self.erasable_source(origin, source)? {
-            Verdict::Holds => {}
-            verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
-        }
-
-        self.relate_interface(origin, cause, Relation::Assignable, source, target)
     }
 
     /// Return whether one source value erases behind a dynamic payload.
@@ -571,7 +573,7 @@ impl CheckState<'_> {
             verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(verdict),
         }
 
-        self.constrain_type(origin, cause, Relation::Assignable, source, constraint)
+        self.constrain_type(origin, cause, Relation::Subtype, source, constraint)
     }
 
     /// Return the rest container of a tuple written as `...T[]`.
@@ -580,6 +582,7 @@ impl CheckState<'_> {
         tuple_id: dir::GlobalTypeId,
         tuple: dir::TupleType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read the sole rest element of the tuple
         let elements = self.tuple_elements(tuple_id.module_id, tuple.elements)?;
         let rest = match elements {
             [element] if element.is_rest => Some(element.ty),
@@ -589,7 +592,7 @@ impl CheckState<'_> {
         Ok(rest)
     }
 
-    /// Relate one parameter's bounds against a target.
+    /// Relate one parameter's bounds against a target, accepting any bound.
     pub(in crate::sema) fn relate_parameter_bounds(
         &mut self,
         origin: Origin,
@@ -600,34 +603,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<Verdict> {
         let bounds = self.parameter_bounds(origin, parameter)?;
 
-        // choose one open bound by constraint over the whole candidate set
-        let mut is_open = self.type_flags(target)?.has_variable();
-        for bound in &bounds {
-            is_open = is_open || self.type_flags(*bound)?.has_variable();
-        }
-
-        if is_open {
-            let candidates = bounds
-                .iter()
-                .map(|bound| (*bound, target))
-                .collect::<SmallVec<[_; 4]>>();
-
-            return self.constrain_any_relation(origin, cause, relation, &candidates);
-        }
-
-        // accept any declared or assumed bound
-        let mut verdict = Verdict::Fails;
-        for bound in bounds {
-            verdict = verdict.or(self.constrain_type(origin, cause, relation, bound, target)?);
-            if verdict == Verdict::Holds {
-                return Ok(Verdict::Holds);
-            }
-        }
-
-        Ok(verdict)
+        self.relate_bounds(origin, cause, relation, &bounds, target)
     }
 
-    /// Relate the assumed `this` bounds against a target.
+    /// Relate the assumed `this` bounds against a target, accepting any bound.
     pub(in crate::sema) fn relate_this_bounds(
         &mut self,
         origin: Origin,
@@ -637,12 +616,25 @@ impl CheckState<'_> {
     ) -> CompilerResult<Verdict> {
         let bounds = self.this_bounds(origin)?;
 
-        // choose one open bound by constraint over the whole candidate set
+        self.relate_bounds(origin, cause, relation, &bounds, target)
+    }
+
+    /// Relate a bound set against a target: one open pair decides as an alternative set.
+    fn relate_bounds(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        relation: Relation,
+        bounds: &[dir::GlobalTypeId],
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        // read whether the target or any bound stays open
         let mut is_open = self.type_flags(target)?.has_variable();
-        for bound in &bounds {
+        for bound in bounds {
             is_open = is_open || self.type_flags(*bound)?.has_variable();
         }
 
+        // choose one open bound by constraint over the whole candidate set
         if is_open {
             let candidates = bounds
                 .iter()
@@ -652,10 +644,10 @@ impl CheckState<'_> {
             return self.constrain_any_relation(origin, cause, relation, &candidates);
         }
 
-        // accept any assumed this bound
+        // accept any bound
         let mut verdict = Verdict::Fails;
         for bound in bounds {
-            verdict = verdict.or(self.constrain_type(origin, cause, relation, bound, target)?);
+            verdict = verdict.or(self.constrain_type(origin, cause, relation, *bound, target)?);
             if verdict == Verdict::Holds {
                 return Ok(Verdict::Holds);
             }

@@ -1,9 +1,9 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::sema::{BodyState, FlowSite, PlaceUse};
+use crate::sema::{CheckState, FlowSite, PlaceUse};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Infer one borrow expression from its borrowed value and lifetime.
     pub(in crate::sema) fn infer_borrow_expression(
         &mut self,
@@ -29,7 +29,6 @@ impl BodyState<'_, '_> {
         // require the requested access from the selected place
         let origin = site.origin();
         let mut is_granted = self
-            .check
             .constrain_access_assignable(origin, place.access, access)?
             .holds();
 
@@ -43,9 +42,8 @@ impl BodyState<'_, '_> {
 
         // report a place that withholds the requested access
         if !is_granted {
-            let granted = self.check.access_of(place.access)?;
-            self.check
-                .report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
+            let granted = self.access_of(place.access)?;
+            self.report_borrow_access_not_granted(origin, requested, granted, value.ty)?;
         }
 
         // commit the access this borrow requires from the lent place
@@ -55,14 +53,14 @@ impl BodyState<'_, '_> {
         }
 
         // build the borrow form from the lent place's lifetime and placement
-        let placement = self.check.shallow_resolve(place.placement)?;
-        let region = self.check.intern_region(lifetime, placement)?;
-        let form = self.check.intern_borrow(region, access)?;
+        let placement = self.shallow_resolve(place.placement)?;
+        let region = self.intern_region(lifetime, placement)?;
+        let form = self.intern_borrow(region, access)?;
         let borrowed = self.intern_type(dir::Type::Form(dir::FormType {
             form,
             value: value.ty,
         }))?;
-        let borrowed = self.check.normalize(origin, borrowed)?;
+        let borrowed = self.normalize(origin, borrowed)?;
 
         self.commit_node_type(node.into_any(), borrowed)?;
 
@@ -91,7 +89,6 @@ impl BodyState<'_, '_> {
         let [symbol] = resolution.symbols() else {
             return Ok(false);
         };
-
         if !self.symbol_kind(*symbol)?.is_binding() {
             return Ok(false);
         }

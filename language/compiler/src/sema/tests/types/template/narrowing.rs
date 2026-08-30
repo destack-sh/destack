@@ -146,7 +146,7 @@ section satisfies "users" | "posts";
 === annotated ===
 type Route = `api:${"users" | "posts"}`;
 
-const route: "api:users" | "api:posts" = "api:users" as "api:users" | "api:posts";
+const route: "api:users" | "api:posts" = "api:users";
 
 const section: "users" | "posts" = match (route) {
     "api:users" => "users"

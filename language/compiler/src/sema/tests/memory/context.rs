@@ -407,7 +407,7 @@ values[0] satisfies shared int32;
 /// @resolution.place source=values[0] placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, \"readonly\">)"
-/// @generic.instantiation id="index#1<int32, 2, \"readonly\", \"constant\">" template=index#1 arguments=(int32, 2, "readonly", "constant")
+/// @generic.instantiation id="index#1<int32, 2, \"readonly\">" template=index#1 arguments=(int32, 2, "readonly")
 "#,
         r#"
 

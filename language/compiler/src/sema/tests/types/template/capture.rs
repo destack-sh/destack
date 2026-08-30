@@ -66,7 +66,7 @@ parse("row-col");
 === annotated ===
 declare function parse<T: string>(value: `${T}-${T}`): T;
 
-parse("row-col");
+parse<string>("row-col");
 
 === dir ===
 declare function parse<T: string>(value: `${T}-${T}`): T;
@@ -80,10 +80,11 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 
 parse("row-col");
 /// @resolution.name source=parse target=parse
-/// @resolution.call source="parse(\"row-col\")" parameters=(`${<error>}-${<error>}`) arguments=(provided("row-col") as `${<error>}-${<error>}`) return=<error> kind=symbol target=parse instance=parse<<error>>
+/// @resolution.call source="parse(\"row-col\")" parameters=(`${string}-${string}`) arguments=(provided("row-col") as `${string}-${string}`) return=string kind=symbol target=parse instance=parse<string>
+/// @generic.instantiation id=parse<string> template=parse arguments=(string)
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '\"row-col\"' is not assignable to parameter of type '`${_}-${_}`'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '\"row-col\"' is not assignable to parameter of type '`${string}-${string}`'"
 /// @diagnostic.label line=4 column=7 span="\"row-col\"" line_source="parse(\"row-col\");"
 /// @diagnostic.related line=4 column=1 span="parse(\"row-col\")" line_source="parse(\"row-col\");" message="in this call"
 "#,

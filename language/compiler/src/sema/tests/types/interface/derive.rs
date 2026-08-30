@@ -127,7 +127,7 @@ function requirePartial<T: PartialEqual>(value: T): T {
 }
 
 const partial: Sample = requirePartial<Sample>(Sample { label: "a", weight: 1.0 });
-const total = requireEqual(Sample { label: "a", weight: 1.0 });
+const total: Sample = requireEqual<Sample>(Sample { label: "a", weight: 1.0 });
 
 === dir ===
 struct Sample {
@@ -185,14 +185,15 @@ const partial = requirePartial(Sample { label: "a", weight: 1.0 });
 /// @resolution.name source=Sample target=Sample
 
 const total = requireEqual(Sample { label: "a", weight: 1.0 });
-/// @type.symbol symbol=total source=total type=<error>
+/// @type.symbol symbol=total source=total type=Sample
 /// @resolution.pattern source=total kind=binding target=total
 /// @resolution.name source=requireEqual target=requireEqual
-/// @resolution.call source="requireEqual(Sample { label: \"a\", weight: 1.0 })" parameters=(<error>) arguments=(provided(Sample { label: "a", weight: 1.0 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
+/// @resolution.call source="requireEqual(Sample { label: \"a\", weight: 1.0 })" parameters=(Sample) arguments=(provided(Sample { label: "a", weight: 1.0 }) as Sample) return=Sample kind=symbol target=requireEqual instance=requireEqual<Sample>
+/// @generic.instantiation id=requireEqual<Sample> template=requireEqual arguments=(Sample)
 /// @resolution.name source=Sample target=Sample
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Sample' does not satisfy 'Equal'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Sample' does not satisfy 'Equal<this>'"
 /// @diagnostic.label line=16 column=15 span="requireEqual(Sample { label: \"a\", weight: 1.0 })" line_source="const total = requireEqual(Sample { label: \"a\", weight: 1.0 });"
 /// @diagnostic.related line=7 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): T {" message="required by this bound on 'T'"
 "#,
@@ -330,7 +331,7 @@ function requireHash<T: Hash>(value: T): T {
 }
 
 const key: Key = requireHash<Key>(Key { id: 1, name: "a" });
-const measure = requireHash(Measure { value: 1.0 });
+const measure: Measure = requireHash<Measure>(Measure { value: 1.0 });
 
 === dir ===
 struct Key {
@@ -382,10 +383,11 @@ const key = requireHash(Key { id: 1, name: "a" });
 /// @resolution.name source=Key target=Key
 
 const measure = requireHash(Measure { value: 1.0 });
-/// @type.symbol symbol=measure source=measure type=<error>
+/// @type.symbol symbol=measure source=measure type=Measure
 /// @resolution.pattern source=measure kind=binding target=measure
 /// @resolution.name source=requireHash target=requireHash
-/// @resolution.call source="requireHash(Measure { value: 1.0 })" parameters=(<error>) arguments=(provided(Measure { value: 1.0 }) as <error>) return=<error> kind=symbol target=requireHash instance=requireHash<<error>>
+/// @resolution.call source="requireHash(Measure { value: 1.0 })" parameters=(Measure) arguments=(provided(Measure { value: 1.0 }) as Measure) return=Measure kind=symbol target=requireHash instance=requireHash<Measure>
+/// @generic.instantiation id=requireHash<Measure> template=requireHash arguments=(Measure)
 /// @resolution.name source=Measure target=Measure
 "#,
         r#"
@@ -428,7 +430,7 @@ function requireCompare<T: Compare>(value: T): T {
     return value;
 }
 
-const value = requireCompare(Point { x: 1, y: 2 });
+const value: Point = requireCompare<Point>(Point { x: 1, y: 2 });
 
 === dir ===
 struct Point {
@@ -462,14 +464,15 @@ function requireCompare<T: Compare>(value: T): T {
 }
 
 const value = requireCompare(Point { x: 1, y: 2 });
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=Point
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireCompare target=requireCompare
-/// @resolution.call source="requireCompare(Point { x: 1, y: 2 })" parameters=(<error>) arguments=(provided(Point { x: 1, y: 2 }) as <error>) return=<error> kind=symbol target=requireCompare instance=requireCompare<<error>>
+/// @resolution.call source="requireCompare(Point { x: 1, y: 2 })" parameters=(Point) arguments=(provided(Point { x: 1, y: 2 }) as Point) return=Point kind=symbol target=requireCompare instance=requireCompare<Point>
+/// @generic.instantiation id=requireCompare<Point> template=requireCompare arguments=(Point)
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Compare'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Compare<this>'"
 /// @diagnostic.label line=11 column=15 span="requireCompare(Point { x: 1, y: 2 })" line_source="const value = requireCompare(Point { x: 1, y: 2 });"
 /// @diagnostic.related line=7 column=25 span="T" line_source="function requireCompare<T: Compare>(value: T): T {" message="required by this bound on 'T'"
 "#,
@@ -758,8 +761,8 @@ struct Point {
 function requireClone<T: Clone>(value: T): void {}
 function requireEqual<T: Equal>(value: T): void {}
 
-requireClone(Point { x: 1 });
-requireEqual(Point { x: 1 });
+requireClone<Point>(Point { x: 1 });
+requireEqual<Point>(Point { x: 1 });
 
 === dir ===
 const invalid = 1;
@@ -799,18 +802,20 @@ function requireEqual<T: Equal>(value: T): void {}
 
 requireClone(Point { x: 1 });
 /// @resolution.name source=requireClone target=requireClone
-/// @resolution.call source="requireClone(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireClone instance=requireClone<<error>>
+/// @resolution.call source="requireClone(Point { x: 1 })" parameters=(Point) arguments=(provided(Point { x: 1 }) as Point) return=void kind=symbol target=requireClone instance=requireClone<Point>
+/// @generic.instantiation id=requireClone<Point> template=requireClone arguments=(Point)
 /// @resolution.name source=Point target=Point
 
 requireEqual(Point { x: 1 });
 /// @resolution.name source=requireEqual target=requireEqual
-/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=void kind=symbol target=requireEqual instance=requireEqual<<error>>
+/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(Point) arguments=(provided(Point { x: 1 }) as Point) return=void kind=symbol target=requireEqual instance=requireEqual<Point>
+/// @generic.instantiation id=requireEqual<Point> template=requireEqual arguments=(Point)
 /// @resolution.name source=Point target=Point
 "#, r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Clone'"
 /// @diagnostic.label line=12 column=1 span="requireClone(Point { x: 1 })" line_source="requireClone(Point { x: 1 });"
 /// @diagnostic.related line=9 column=23 span="T" line_source="function requireClone<T: Clone>(value: T): void {}" message="required by this bound on 'T'"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal<this>'"
 /// @diagnostic.label line=13 column=1 span="requireEqual(Point { x: 1 })" line_source="requireEqual(Point { x: 1 });"
 /// @diagnostic.related line=10 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): void {}" message="required by this bound on 'T'"
 /// @diagnostic.error id=invalid-derive-interface message="derive argument must name a derivable interface"
@@ -860,7 +865,7 @@ function requireEqual<T: Equal>(value: T): T {
 }
 
 const cloned: Point = requireClone<Point>(Point { x: 1 });
-const value = requireEqual(Point { x: 1 });
+const value: Point = requireEqual<Point>(Point { x: 1 });
 
 === dir ===
 @derive(Copy)
@@ -919,14 +924,15 @@ const cloned = requireClone(Point { x: 1 });
 /// @resolution.name source=Point target=Point
 
 const value = requireEqual(Point { x: 1 });
-/// @type.symbol symbol=value source=value type=<error>
+/// @type.symbol symbol=value source=value type=Point
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=requireEqual target=requireEqual
-/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(<error>) arguments=(provided(Point { x: 1 }) as <error>) return=<error> kind=symbol target=requireEqual instance=requireEqual<<error>>
+/// @resolution.call source="requireEqual(Point { x: 1 })" parameters=(Point) arguments=(provided(Point { x: 1 }) as Point) return=Point kind=symbol target=requireEqual instance=requireEqual<Point>
+/// @generic.instantiation id=requireEqual<Point> template=requireEqual arguments=(Point)
 /// @resolution.name source=Point target=Point
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal'"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'Point' does not satisfy 'Equal<this>'"
 /// @diagnostic.label line=16 column=15 span="requireEqual(Point { x: 1 })" line_source="const value = requireEqual(Point { x: 1 });"
 /// @diagnostic.related line=11 column=23 span="T" line_source="function requireEqual<T: Equal>(value: T): T {" message="required by this bound on 'T'"
 "#,
@@ -1020,11 +1026,11 @@ const same = a == b;
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=a target=a
-/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly constant Point) arguments=(provided(b) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance="PartialEqual<Point>.equal<\"constant\", \"constant\">"
+/// @resolution.operator source="a == b" type=boolean operator="==" kind=call parameters=(&'static readonly constant Point) arguments=(provided(b) as &'static readonly constant Point) return=boolean kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
 /// @resolution.place source=a placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=a root=a
-/// @generic.instantiation id="PartialEqual.equal<Point, Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
-/// @generic.instance id="PartialEqual.equal<Point, Point, \"constant\", \"constant\">" template=PartialEqual.equal arguments=(Point, "constant", "constant")
+/// @generic.instantiation id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
+/// @generic.instance id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
 /// @resolution.name source=b target=b
 /// @resolution.place source=b placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=b root=b
@@ -1050,11 +1056,11 @@ const csame = s1 == s2;
 /// @type.symbol symbol=csame source=csame type=boolean
 /// @resolution.pattern source=csame kind=binding target=csame
 /// @resolution.name source=s1 target=s1
-/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance="PartialEqual<Session>.equal<\"local\", \"local\">"
+/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance=PartialEqual<Session>.equal
 /// @resolution.place source=s1 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s1 root=s1
-/// @generic.instantiation id="PartialEqual.equal<Session, Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
-/// @generic.instance id="PartialEqual.equal<Session, Session, \"local\", \"local\">" template=PartialEqual.equal arguments=(Session, "local", "local")
+/// @generic.instantiation id="PartialEqual.equal<Session, Session>" template=PartialEqual.equal arguments=(Session)
+/// @generic.instance id="PartialEqual.equal<Session, Session>" template=PartialEqual.equal arguments=(Session)
 /// @resolution.name source=s2 target=s2
 /// @resolution.place source=s2 placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=s2 root=s2
@@ -1190,7 +1196,7 @@ function requireClone<T: Clone>(value: T, seed: T): T {
     return value;
 }
 
-const cloned = requireClone(hold<Blocker>(), holdBlocker());
+const cloned: Holder<Blocker> = requireClone<Holder<Blocker>>(hold<Blocker>(), holdBlocker());
 
 === dir ===
 struct Blocker {
@@ -1248,10 +1254,11 @@ function requireClone<T: Clone>(value: T, seed: T): T {
 }
 
 const cloned = requireClone(hold(), holdBlocker());
-/// @type.symbol symbol=cloned source=cloned type=<error>
+/// @type.symbol symbol=cloned source=cloned type=Holder<Blocker>
 /// @resolution.pattern source=cloned kind=binding target=cloned
 /// @resolution.name source=requireClone target=requireClone
-/// @resolution.call source="requireClone(hold(), holdBlocker())" parameters=(<error>, <error>) arguments=(provided(hold()) as <error>, provided(holdBlocker()) as <error>) return=<error> kind=symbol target=requireClone instance=requireClone<<error>>
+/// @resolution.call source="requireClone(hold(), holdBlocker())" parameters=(Holder<Blocker>, Holder<Blocker>) arguments=(provided(hold()) as Holder<Blocker>, provided(holdBlocker()) as Holder<Blocker>) return=Holder<Blocker> kind=symbol target=requireClone instance=requireClone<Holder<Blocker>>
+/// @generic.instantiation id=requireClone<Holder<Blocker>> template=requireClone arguments=(Holder<Blocker>)
 /// @resolution.name source=hold target=hold
 /// @resolution.call source=hold() parameters=() return=Holder<Blocker> kind=symbol target=hold instance=hold<Blocker>
 /// @generic.instantiation id=hold<Blocker> template=hold arguments=(Blocker)
@@ -1305,7 +1312,7 @@ function requireClone<T: Clone>(value: T): T {
     return value;
 }
 
-const cloned = requireClone(held);
+const cloned: Holder<Blocker> = requireClone<Holder<Blocker>>(held);
 
 === dir ===
 struct Blocker {
@@ -1355,10 +1362,11 @@ function requireClone<T: Clone>(value: T): T {
 }
 
 const cloned = requireClone(held);
-/// @type.symbol symbol=cloned source=cloned type=<error>
+/// @type.symbol symbol=cloned source=cloned type=Holder<Blocker>
 /// @resolution.pattern source=cloned kind=binding target=cloned
 /// @resolution.name source=requireClone target=requireClone
-/// @resolution.call source=requireClone(held) parameters=(<error>) arguments=(provided(held) as <error>) return=<error> kind=symbol target=requireClone instance=requireClone<<error>>
+/// @resolution.call source=requireClone(held) parameters=(Holder<Blocker>) arguments=(provided(held) as Holder<Blocker>) return=Holder<Blocker> kind=symbol target=requireClone instance=requireClone<Holder<Blocker>>
+/// @generic.instantiation id=requireClone<Holder<Blocker>> template=requireClone arguments=(Holder<Blocker>)
 /// @resolution.name source=held target=held
 /// @resolution.place source=held placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=held root=held

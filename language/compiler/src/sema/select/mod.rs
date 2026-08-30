@@ -31,16 +31,17 @@ mod variant;
 
 pub(in crate::sema) use destack_dir::MemberRole;
 
-pub(in crate::sema) use extension::{ExtensionMatch, OpenBounds, UnboundParameters};
+pub(in crate::sema) use extension::{ExtensionHead, ExtensionMatch, OpenBounds, UnboundParameters};
 pub(in crate::sema) use instantiation::TypeArgumentInference;
-pub(in crate::sema) use lookup::{DeclaredMember, LookupReceiver, MemberCandidate, MemberLookup};
-pub(in crate::sema) use newtype::{
-    NewtypeInstance, NewtypeMatch, NewtypeOverload, NewtypeRejection, NewtypeSignature,
-    REPORTED_REJECTIONS,
+pub(in crate::sema) use lookup::{
+    DeclaredCandidate, DeclaredMember, LookupReceiver, MemberCandidate, MemberLookup, MemberSource,
+    is_optional_member, member_arms, member_kind, prepend_adjustment, selected_candidates,
 };
+pub(in crate::sema) use newtype::{NewtypeMatch, NewtypeSignature, REPORTED_REJECTIONS};
 pub(in crate::sema) use operator::OperatorOperands;
 pub(in crate::sema) use protocol::*;
 pub(in crate::sema) use receiver::ReceiverSteps;
 pub(in crate::sema) use signature::{
-    CallableArgument, SignatureInstance, SignatureMatch, SignatureRejection, SignatureSelection,
+    CallableArgument, OverloadRule, Selection, SignatureMatch, SignatureRejection,
+    SignatureSelection,
 };

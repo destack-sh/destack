@@ -231,6 +231,8 @@ person.name = "Grace";
 /// @resolution.rejected source=person.name
 "#,
         r#"
+/// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
+/// @diagnostic.label line=7 column=8 span="name" line_source="person.name = \"Grace\";"
 "#,
     );
 }

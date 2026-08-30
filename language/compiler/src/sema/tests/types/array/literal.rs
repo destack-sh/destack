@@ -24,7 +24,7 @@ let values = [1, 2];
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 "#,
     );
 }
@@ -53,7 +53,7 @@ const values: int32[] = [1, 2];
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 "#,
     );
 }
@@ -71,8 +71,7 @@ const first = [1].iterator().next();
         DirRows::checked(),
         r#"
 === annotated ===
-const first: IteratorResult<int64, Iterator<int64>.Return> = [1].iterator<int64, "local">()
-    .next<int64>();
+const first: IteratorResult<int64, Iterator<int64>.Return> = [1].iterator<int64>().next<int64>();
 
 === dir ===
 const first = [1].iterator().next();
@@ -87,10 +86,6 @@ const first = [1].iterator().next();
 /// @generic.instance id="IteratorResult<int64, Iterator<int64>.Return>" template=IteratorResult arguments=(int64, Iterator<int64>.Return)
 /// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
 /// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64)
-/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int64>, int64>)
-/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(FilterIterator<Iterator<int64>, int64>)
-/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(InspectIterator<Iterator<int64>, int64>)
-/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int64>, int64>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int64>, int64>)
 /// @generic.instance id="TakeIterator<Iterator<int64>, int64>" template=TakeIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id="TakeWhileIterator<Iterator<int64>, int64>" template=TakeWhileIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id=FromIterator.fromIterator<int64> template=FromIterator.fromIterator arguments=(int64)
@@ -107,11 +102,11 @@ const first = [1].iterator().next();
 /// @generic.instantiation id=Iterator.next<int64> template=Iterator.next arguments=(int64)
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instantiation id=iterator#2<int64> template=iterator#2 arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @generic.instance id="iterator#2<int64, \"local\">" template=iterator#2 arguments=(int64, "local")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=Iterator.next<int64> template=Iterator.next arguments=(int64)
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 "#,
     );
@@ -147,7 +142,7 @@ function extend(values: int32[]): int32[] {
     [...values, 1]
     /// @resolution.call source=[...values, 1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-    /// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+    /// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
     /// @resolution.name source=values target=extend.values
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=extend.values
@@ -179,6 +174,9 @@ let values = [1, , 3];
 /// @generic.instance id="Array<int64 | undefined>" template=Array arguments=(int64 | undefined)
 /// @generic.instance id="MaybeUninit<int64 | undefined>" template=MaybeUninit arguments=(int64 | undefined)
 /// @generic.instance id="new<MaybeUninit<int64 | undefined>>" template=new arguments=(MaybeUninit<int64 | undefined>)
+/// @resolution.call source=[1, , 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 3) as int64 | undefined) return=int64 | undefined[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<int64 | undefined>"
+/// @generic.instantiation id="arrayFromSlice<int64 | undefined>" template=arrayFromSlice arguments=(int64 | undefined)
+/// @generic.instance id="arrayFromSlice<int64 | undefined>" template=arrayFromSlice arguments=(int64 | undefined)
 "#,
     );
 }
@@ -365,7 +363,7 @@ const values: [1 | 2 | 3; 3] = [1, 2, 3];
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-const values: [1 | 2 | 3; 3] = [1 as 1 | 2 | 3, 2 as 1 | 2 | 3, 3 as 1 | 2 | 3];
+const values: [1 | 2 | 3; 3] = [1, 2, 3];
 
 === dir ===
 const values: [1 | 2 | 3; 3] = [1, 2, 3];
@@ -401,8 +399,11 @@ const values = [1, 2, 3] as [_; _];
 /// @type.node source=[1, 2, 3] as [_; _] type=FixedArray<int64, 3>
 /// @type.node source=[1, 2, 3] type=FixedArray<int64, 3>
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=3 type=3
+/// @coercion.node source=3 from=3 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 "#,
     );
 }
@@ -431,13 +432,16 @@ const values = [1, 2, 3] as Slice<_>;
 /// @type.node source=[1, 2, 3] type=int64[]
 /// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=3 type=3
+/// @coercion.node source=3 from=3 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @resolution.name source=Slice target=Slice
 "#,
     );
@@ -466,13 +470,16 @@ const values = [1, 2, 3] as [_];
 /// @type.node source=[1, 2, 3] type=int64[]
 /// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=1 type=1
+/// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
+/// @coercion.node source=2 from=2 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=3 type=3
+/// @coercion.node source=3 from=3 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 "#,
     );
 }
@@ -614,7 +621,7 @@ const items: Iterable<int32> = [1, 2];
         DirRows::checked(),
         r#"
 === annotated ===
-const items: Iterable<int32> = [1, 2];
+const items: Iterable<int32> = [1, 2] as Iterable<int32>;
 
 === dir ===
 const items: Iterable<int32> = [1, 2];
@@ -629,10 +636,6 @@ const items: Iterable<int32> = [1, 2];
 /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
 /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
 /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
-/// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32>, int32>)
-/// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32>, int32>)
-/// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32>, int32>)
-/// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32>, int32>)
 /// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id=FromIterator.fromIterator<int32> template=FromIterator.fromIterator arguments=(int32)
@@ -644,9 +647,9 @@ const items: Iterable<int32> = [1, 2];
 /// @resolution.name source=Iterable target=Iterable
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 "#,
     );

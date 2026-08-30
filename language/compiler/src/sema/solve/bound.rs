@@ -7,7 +7,7 @@ pub(in crate::sema) const EMPTY: u32 = u32::MAX;
 
 /// One bound collected for an inference variable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) struct TypeBound {
+pub(in crate::sema) struct Bound {
     /// The type evaluation site.
     pub(in crate::sema) origin: Origin,
     /// The bound type.
@@ -18,7 +18,7 @@ pub(in crate::sema) struct TypeBound {
     pub(in crate::sema) cause: CauseId,
 }
 
-impl TypeBound {
+impl Bound {
     /// Return one type bound from its cause.
     pub(in crate::sema) fn new(
         origin: Origin,
@@ -39,7 +39,7 @@ impl TypeBound {
 #[derive(Debug, Clone, Copy)]
 pub(in crate::sema) struct BoundEntry {
     /// The collected bound.
-    pub(in crate::sema) bound: TypeBound,
+    pub(in crate::sema) bound: Bound,
     /// The next bound of the same variable and side.
     pub(in crate::sema) next: u32,
 }
@@ -80,6 +80,16 @@ pub(in crate::sema) enum BoundSide {
     Upper,
 }
 
+impl BoundSide {
+    /// Return the side one bound takes seen from its other end.
+    pub(in crate::sema) fn opposite(self) -> Self {
+        match self {
+            Self::Lower => Self::Upper,
+            Self::Upper => Self::Lower,
+        }
+    }
+}
+
 /// Iterator over one variable side's bounds in insertion order.
 pub(in crate::sema) struct BoundIter<'a> {
     /// The shared bounds.
@@ -89,7 +99,7 @@ pub(in crate::sema) struct BoundIter<'a> {
 }
 
 impl Iterator for BoundIter<'_> {
-    type Item = TypeBound;
+    type Item = Bound;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.current == EMPTY {

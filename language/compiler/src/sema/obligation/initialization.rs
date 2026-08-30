@@ -7,12 +7,27 @@ use crate::sema::{
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
+    /// Report the fields the checked constructors leave uninitialized.
+    pub(in crate::sema) fn report_field_initializations(&mut self) -> CompilerResult<()> {
+        // report each declaration's uninitialized fields
+        for obligation in std::mem::take(&mut self.field_initializations) {
+            let origin = Origin::Node(obligation.source, obligation.scope);
+            let check = self.check_field_initialization(origin, &obligation)?;
+            for failure in check.into_failures() {
+                self.report_obligation_failure(failure)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Check one declaration's required field initialization.
-    pub(in crate::sema) fn check_field_initialization(
+    fn check_field_initialization(
         &mut self,
         origin: Origin,
         obligation: &FieldInitializationObligation,
     ) -> CompilerResult<ObligationCheck> {
+        // collect the fields that may require initialization
         let fields = self.initialization_fields(obligation.symbol)?;
         let mut failures = Vec::new();
 
@@ -38,6 +53,7 @@ impl CheckState<'_> {
             }
         }
 
+        // gather the collected failures into one check
         let check = ObligationCheck::from_failures(failures);
 
         Ok(check)
@@ -48,6 +64,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::FieldDefinition>> {
+        // read the declaration's definition
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
                 message: format!("field initialization has no definition: {symbol:?}"),
@@ -79,10 +96,11 @@ impl CheckState<'_> {
         origin: Origin,
         field: &dir::FieldDefinition,
     ) -> CompilerResult<bool> {
+        // require a field whose declared type excludes undefined
         let ty = self.symbol_type(field.symbol)?;
         let undefined = self.intern_type(dir::Type::Undefined)?;
         let is_assignable = self
-            .decide_relation(origin, Relation::Assignable, undefined, ty)?
+            .decide_relation(origin, Relation::Subtype, undefined, ty)?
             .holds();
 
         Ok(!is_assignable)
@@ -94,13 +112,13 @@ impl CheckState<'_> {
         obligation: &FieldInitializationObligation,
         field: &dir::FieldDefinition,
     ) -> bool {
+        // name the place every constructor must assign
         let place = AssignedPlace::Member {
             receiver: obligation.receiver,
             key: field.key,
         };
 
-        // read the exit branches constructors wrote at check; a class
-        //  without any checked constructor initializes nothing
+        // require every checked constructor branch to assign the place
         match self.constructor_branches.get(&obligation.symbol) {
             Some(branches) => branches.iter().all(|branch| branch.is_assigned(place)),
             None => false,

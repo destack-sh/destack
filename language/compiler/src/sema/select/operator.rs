@@ -1,13 +1,12 @@
-use std::sync::Arc;
-use std::{iter, slice};
+use std::iter;
 
 use destack_dir as dir;
 
 use crate::sema::{
-    Answer, BodyState, Callee, Canonical, CanonicalGoal, Cause, CauseKind, Check, Dispatch,
-    EqualityCheck, Expectation, FlowSite, InferMode, Obligation, OperatorExpressionResult, Origin,
-    PlaceUse, ProtocolCall, Relation, RelationCheck, ValueUse, VariableKind, Verdict,
-    WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
+    Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Obligation,
+    OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation, RelationCheck, ValueUse,
+    VariableKind, Verdict, WritableTargetObligation, binary_operator_protocols,
+    unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -26,7 +25,7 @@ pub(in crate::sema) enum OperatorOperands<'a> {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one binary operation from known operand types.
     pub(in crate::sema) fn select_binary_operation(
         &mut self,
@@ -46,76 +45,14 @@ impl BodyState<'_, '_> {
         let right = self.deeply_resolve(origin, right)?;
 
         // poison the node when either operand carries a reported error
+        let left = self.resolve_structurally(site, left)?;
+        let right = self.resolve_structurally(site, right)?;
         if matches!(self.ty(left)?, dir::Type::Error) || matches!(self.ty(right)?, dir::Type::Error)
         {
             self.poison_node(node)?;
 
             return Ok(());
         }
-
-        // an operand open in a type variable defers selection to its settle point
-        for variable in self.collect_open_variables([left, right])? {
-            if self.root_kind(variable)? == VariableKind::Type {
-                self.defer_selection(site, variable)?;
-
-                return Ok(());
-            }
-        }
-
-        // goal the canonical operator question once per equal operand pair
-        let question =
-            self.check
-                .selection_goal(origin, Callee::Operator(operator), None, &[left, right])?;
-
-        // instantiate the decided answer at this site's live roots
-        if let Some((canonicalized, canonical)) = &question
-            && let Some(Answer::Selection(response)) =
-                self.check.answers.get(canonicalized).cloned()
-        {
-            return match self
-                .check
-                .instantiate_response(origin, canonical, &response)?
-            {
-                // instantiate a builtin application over the decided operand types
-                Dispatch::Builtin { result, operands } => self.commit_builtin_operands(
-                    origin,
-                    node,
-                    operator,
-                    (left_source, left),
-                    (right_source, right),
-                    operands,
-                    result,
-                    writeback,
-                ),
-                // rebind the decided protocol call onto this site's operand
-                Dispatch::Protocol(mut call, expression_result) => {
-                    rebind_call_arguments(&mut call.resolution, right_source);
-
-                    self.commit_operator_call(
-                        origin,
-                        node,
-                        operator,
-                        expression_result,
-                        call,
-                        writeback,
-                    )
-                }
-                // report the operands the decision already refused
-                Dispatch::Rejected => self.report_rejected_operator(
-                    node,
-                    origin,
-                    operator.text().to_string(),
-                    &[left, right],
-                ),
-                // fail loudly on a callable answer stored under an operator
-                Dispatch::Callable(_) | Dispatch::Newtype(_) => Err(CompilerError::Internal {
-                    message: "operator selection stored an instantiated signature".to_string(),
-                }),
-            };
-        }
-
-        // the decision starts here; its queued checks feed the stored response
-        let checks_before = self.check.fulfill.checks.count();
 
         // classify nullish and never operands, which compare structurally
         let is_nullish_or_never = matches!(
@@ -231,15 +168,6 @@ impl BodyState<'_, '_> {
             _ => None,
         };
         if let Some((result, left_target, right_target)) = builtin {
-            self.decide_operator(
-                &question,
-                checks_before,
-                Dispatch::Builtin {
-                    result,
-                    operands: [left_target, right_target],
-                },
-            )?;
-
             return self.commit_builtin_operands(
                 origin,
                 node,
@@ -256,12 +184,6 @@ impl BodyState<'_, '_> {
         if let Some((result, operands)) =
             self.builtin_numeric_result(origin, operator, left, right)?
         {
-            self.decide_operator(
-                &question,
-                checks_before,
-                Dispatch::Builtin { result, operands },
-            )?;
-
             // operands check as arguments of the builtin operation
             return self.commit_builtin_operands(
                 origin,
@@ -280,7 +202,7 @@ impl BodyState<'_, '_> {
         let left_value = self.expression_value(left_site, left)?;
 
         // an owned operand selects the protocol of its family-default form
-        let protocol_operand = self.check.family_default_of_owned(right)?.unwrap_or(right);
+        let protocol_operand = self.family_default_of_owned(right)?.unwrap_or(right);
         let protocols = binary_operator_protocols(operator);
         for protocol in protocols.iter() {
             let key = protocol.method.key(self.strings());
@@ -300,12 +222,6 @@ impl BodyState<'_, '_> {
                 continue;
             };
 
-            self.decide_operator(
-                &question,
-                checks_before,
-                Dispatch::Protocol(call.clone(), protocol.expression_result),
-            )?;
-
             return self.commit_operator_call(
                 origin,
                 node,
@@ -324,19 +240,10 @@ impl BodyState<'_, '_> {
             let left_operand = self.strip_form(origin, left)?;
             let right = self.strip_form(origin, right)?;
             let target = self.language_type(dir::LanguageItem::PartialEqual, &[right])?;
-            if self.decide_relation(origin, Relation::Satisfies, left_operand, target)?
-                != Verdict::Fails
-            {
+            let decided = self.decide_relation(origin, Relation::Subtype, left_operand, target)?;
+            if decided != Verdict::Fails {
                 // commit the selection so later passes reuse this dispatch
                 let result = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::Boolean))?;
-                self.decide_operator(
-                    &question,
-                    checks_before,
-                    Dispatch::Builtin {
-                        result,
-                        operands: [left_operand, right],
-                    },
-                )?;
 
                 return self.commit_builtin_operands(
                     origin,
@@ -351,29 +258,7 @@ impl BodyState<'_, '_> {
             }
         }
 
-        self.decide_operator(&question, checks_before, Dispatch::Rejected)?;
-
         self.report_rejected_operator(node, origin, operator.text().to_string(), &[left, right])
-    }
-
-    /// Commit one decided operator selection for its canonical question.
-    fn decide_operator(
-        &mut self,
-        question: &Option<(CanonicalGoal, Arc<Canonical>)>,
-        checks_before: usize,
-        selected: Dispatch,
-    ) -> CompilerResult<()> {
-        if let Some((canonicalized, canonical)) = question {
-            self.check.commit_answer(
-                canonicalized,
-                canonical,
-                checks_before,
-                selected,
-                Answer::Selection,
-            )?;
-        }
-
-        Ok(())
     }
 
     /// Check and lower both operands as builtin values, committing the result.
@@ -408,6 +293,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<()> {
         let result = self.operator_expression_type(origin, expression_result, call.return_type)?;
 
+        // build the operator decision from the selected call
         let resolution = match call.resolution {
             dir::OperationResolution::One(call) => {
                 let application = dir::OperatorApplication::Binary {
@@ -456,19 +342,10 @@ impl BodyState<'_, '_> {
         let scrutinee_value = self.strip_form(origin, scrutinee)?;
         let mut selected = Vec::with_capacity(cases.len());
 
-        // wait for open operands before selecting a common representation
+        // resolve open operands structurally before selecting a common representation
         for operand in iter::once(scrutinee).chain(cases.iter().map(|(_, _, ty)| *ty)) {
             let value = self.strip_form(origin, operand)?;
-            if let Some(stalled_on) = self.check.root_variable(value)? {
-                self.check.queue_check(Check::Equality(EqualityCheck {
-                    value: value_source,
-                    scrutinee,
-                    cases: cases.to_vec(),
-                    stalled_on,
-                }))?;
-
-                return Ok(());
-            }
+            self.resolve_structurally(value_site, value)?;
         }
 
         // reject cases outside builtin strict equality
@@ -598,7 +475,7 @@ impl BodyState<'_, '_> {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
                 self.push_relation(RelationCheck::new(
                     origin,
-                    Relation::Assignable,
+                    Relation::Storable,
                     operand,
                     write_type,
                     cause,
@@ -619,6 +496,7 @@ impl BodyState<'_, '_> {
             );
         }
 
+        // read the operand's own type
         let operand = self.operand_type(origin, operand_site)?;
 
         // poison the node when the operand carries a reported error
@@ -882,6 +760,7 @@ impl BodyState<'_, '_> {
             }
         }
 
+        // type the result by the operator's own family
         match operator {
             // shifts move bits through integers, keeping the left type
             dir::BinaryOperator::ShiftLeft
@@ -975,6 +854,7 @@ impl BodyState<'_, '_> {
             return Ok(());
         }
 
+        // visit the operand at its own site
         let operand_site = self.visit_site(source)?;
 
         // parametric literal adaptation belongs only to the selected builtin
@@ -996,7 +876,7 @@ impl BodyState<'_, '_> {
         let cause = self.intern_cause(Cause::root(operand_site.origin(), CauseKind::Expression));
         let expectation = Expectation {
             target,
-            relation: Relation::Assignable,
+            relation: Relation::Storable,
             cause,
             use_: ValueUse::Operand,
             mode: InferMode::Regular,
@@ -1100,8 +980,8 @@ impl BodyState<'_, '_> {
         right: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // expose the value domain behind computation heads before joining
-        let left = self.check.normalize_computation(origin, left)?;
-        let right = self.check.normalize_computation(origin, right)?;
+        let left = self.normalize_computation(origin, left)?;
+        let right = self.normalize_computation(origin, right)?;
 
         // interval operands widen to their base scalar under arithmetic
         let left = self.operand_as_base_scalar(left)?;
@@ -1143,6 +1023,7 @@ impl BodyState<'_, '_> {
             _ => None,
         };
 
+        // widen the operands by the literals they carry
         match (left_literal, right_literal) {
             // literal pairs widen to their base numeric type
             (Some(left), Some(_)) => {
@@ -1156,7 +1037,7 @@ impl BodyState<'_, '_> {
                         self.is_builtin_scalar_representable(origin, left, right)?
                     }
                     _ => self
-                        .decide_relation(origin, Relation::Assignable, left, right)?
+                        .decide_relation(origin, Relation::Subtype, left, right)?
                         .holds(),
                 };
 
@@ -1168,7 +1049,7 @@ impl BodyState<'_, '_> {
                         self.is_builtin_scalar_representable(origin, right, left)?
                     }
                     _ => self
-                        .decide_relation(origin, Relation::Assignable, right, left)?
+                        .decide_relation(origin, Relation::Subtype, right, left)?
                         .holds(),
                 };
 
@@ -1230,9 +1111,10 @@ impl BodyState<'_, '_> {
         site: FlowSite,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let ty = self.infer_node_type(site, PlaceUse::Read)?;
-        let ty = self.deeply_resolve(origin, ty)?;
+        let resolved = self.deeply_resolve(origin, ty)?;
+        let normalized = self.normalize(origin, resolved)?;
 
-        self.normalize(origin, ty)
+        Ok(normalized)
     }
 
     /// Commit one builtin binary operator selection.
@@ -1287,6 +1169,7 @@ impl BodyState<'_, '_> {
         operator: dir::UnaryOperator,
         resolution: dir::DereferenceResolution,
     ) -> CompilerResult<dir::OperatorDecision> {
+        // build the operator decision from the selected dereference
         match resolution {
             dir::OperationResolution::One(dereference) => {
                 let application =
@@ -1322,6 +1205,7 @@ impl BodyState<'_, '_> {
         operator: dir::UnaryOperator,
         dereference: dir::Dereference,
     ) -> CompilerResult<dir::OperatorApplication> {
+        // build the application each dereference target names
         let application = match dereference.target {
             // direct pointer forms use the compiler-defined operator
             dir::DereferenceTarget::Direct => {
@@ -1378,7 +1262,7 @@ impl BodyState<'_, '_> {
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
         let expectation = Expectation {
             target: writeback,
-            relation: Relation::Assignable,
+            relation: Relation::Storable,
             cause,
             use_: ValueUse::Store,
             mode: InferMode::Regular,
@@ -1407,20 +1291,5 @@ impl BodyState<'_, '_> {
         self.commit_error_node(node)?;
 
         Ok(())
-    }
-}
-
-/// Rebind every provided argument in one memoized call onto a new operand.
-fn rebind_call_arguments(resolution: &mut dir::CallDecision, operand: dir::GlobalNodeIdAny) {
-    let calls = match resolution {
-        dir::OperationResolution::One(call) => slice::from_mut(call),
-        dir::OperationResolution::Union { arms, .. } => arms.as_mut_slice(),
-    };
-    for call in calls {
-        for argument in &mut call.arguments {
-            if matches!(argument.source, dir::ArgumentSource::Provided(_)) {
-                argument.source = dir::ArgumentSource::Provided(operand);
-            }
-        }
     }
 }

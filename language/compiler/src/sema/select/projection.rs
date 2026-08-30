@@ -1,16 +1,32 @@
 use destack_dir as dir;
-use destack_dir::MemberRole;
+use destack_dir::{MemberRole, TypeFold};
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CandidateOutcome, ExtensionMatch, MemberLookup, OpenBounds, Origin, Relation,
-    TypeSubstitution, UnboundParameters, Verdict,
+    CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, MemberCandidate, MemberLookup,
+    OpenBounds, Origin, Relation, TypeSubstitution, UnboundParameters, Verdict, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Return the use-site type projected by one declaration member.
+    pub(in crate::sema) fn projected_member_access(
+        &mut self,
+        origin: Origin,
+        receiver: Option<dir::GlobalTypeId>,
+        member: &DeclaredMember,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::PropertyAccess> {
+        let access = member.access(self, ty)?;
+        let mut projected = access;
+        projected
+            .map_types(&mut |ty| self.projected_member_type(origin, receiver, member.role, ty))?;
+
+        Ok(projected)
+    }
+
+    /// Project one member's value type through the receiver it is read on.
     pub(in crate::sema) fn projected_member_type(
         &mut self,
         origin: Origin,
@@ -61,6 +77,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<bool> {
         let mut current = receiver;
 
+        // peel the forms above the receiver
         loop {
             let form = match self.ty(current)? {
                 dir::Type::Form(form) => form,
@@ -124,14 +141,13 @@ impl BodyState<'_, '_> {
         let subject =
             self.member_subject(origin, member.owner, member.owner, dir::MemberSpace::Static)?;
         let lookup = self.lookup_member(origin, module, subject, member.key)?;
-        let projected = match lookup {
-            // fall back to the qualifying interface's declared default
-            MemberLookup::Missing => self.project_default_member(origin, member)?,
-            // project whatever the lookup found
-            found => self.project_member_lookup(module, member, found)?,
-        };
 
-        Ok(projected)
+        // project what the lookup found, else the qualifying interface's declared default
+        if lookup.is_empty() {
+            return self.project_default_member(origin, member);
+        }
+
+        self.project_member_lookup(module, member, lookup)
     }
 
     /// Project one associated member through its selected interface implementation.
@@ -166,8 +182,8 @@ impl BodyState<'_, '_> {
         // enumerate candidate extensions by receiver family
         let apparent = self.intern_apparent_type(owner)?;
         let extensions =
-            self.visible_implementation_extensions(origin, module, apparent, interface.symbol)?;
-        for extension_symbol in extensions {
+            self.implementations_over(origin, module, Some(apparent), interface.symbol)?;
+        for (extension_symbol, _) in extensions {
             let Some(dir::Definition::Extension(extension)) = self.definition(extension_symbol)?
             else {
                 continue;
@@ -187,13 +203,11 @@ impl BodyState<'_, '_> {
             let members = extension.members.clone();
             let template = self.symbol_template(extension_symbol)?;
 
-            // classify the candidate's bounds in a probe before committing:
-            //  a rejected match must roll its inference bindings back, so the
-            //  probe runs first and only a holding candidate reruns to commit
-            let verdict = self.probe_candidate(|state| {
+            // decide the candidate, constraining only a holding one
+            let verdict = self.decide_candidate(|state| {
                 let matched = state.match_extension_implementation(
                     origin,
-                    Relation::Assignable,
+                    Relation::Storable,
                     interface_module,
                     owner,
                     owner,
@@ -201,7 +215,7 @@ impl BodyState<'_, '_> {
                     template,
                     target_type,
                     &interfaces,
-                    OpenBounds::Probe,
+                    OpenBounds::Decide,
                 )?;
 
                 Ok(match matched {
@@ -220,7 +234,7 @@ impl BodyState<'_, '_> {
             // rerun the match to commit its substitution
             let matched = self.match_extension_implementation(
                 origin,
-                Relation::Assignable,
+                Relation::Storable,
                 interface_module,
                 owner,
                 owner,
@@ -228,7 +242,7 @@ impl BodyState<'_, '_> {
                 template,
                 target_type,
                 &interfaces,
-                OpenBounds::Probe,
+                OpenBounds::Decide,
             )?;
             let ExtensionMatch::Matched(substitution, _) = matched else {
                 continue;
@@ -260,7 +274,7 @@ impl BodyState<'_, '_> {
                     self.instance_substitution(application_module, &application)?;
                 let matched = self.match_implemented_interface(
                     origin,
-                    Relation::Assignable,
+                    Relation::Storable,
                     interface_module,
                     &[],
                     &mut substitution,
@@ -375,6 +389,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         };
 
+        // apply the interface arguments to its declared members
         let members = definition.members().to_vec();
         let substitution =
             self.qualified_instance_substitution(interface_module, &interface, member.owner)?;
@@ -389,84 +404,78 @@ impl BodyState<'_, '_> {
         member: &dir::MemberType,
         lookup: MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        match lookup {
-            MemberLookup::Field(field) => field.read_type(self),
-            MemberLookup::Found(candidates) => match candidates.as_slice() {
-                [candidate] => {
-                    // keep nominal singleton identity for variant values
-                    if candidate.role == MemberRole::VariantValue {
-                        return candidate.read_type(self);
-                    }
-
-                    // project associated values through their applied arguments
-                    if candidate.value_type.is_some() {
-                        let written = self.static_value(candidate.symbol).ok_or_else(|| {
-                            CompilerError::Internal {
-                                message: format!(
-                                    "associated member {:?} lost its declared value",
-                                    candidate.symbol,
-                                ),
-                            }
-                        })?;
-                        let substitution = TypeSubstitution {
-                            bindings: candidate.generic_arguments.iter().copied().collect(),
-                            receiver: Some(member.owner),
-                        };
-                        let written = self.project_associated_value(
-                            module,
-                            member,
-                            candidate.symbol,
-                            written,
-                            &substitution,
-                        )?;
-
-                        return Ok(Some(written));
-                    }
-
-                    // static values project as their own singleton
-                    if let Some(value) = candidate.value {
-                        let ty = self.intern_type(dir::Type::Static(value))?;
-
-                        return Ok(Some(ty));
-                    }
-
-                    // keep a member projecting back onto itself symbolic
-                    if let Some(projected) = self.member_head(candidate.access_type)?
-                        && projected.owner == member.owner
-                        && projected.key == member.key
-                    {
-                        return Ok(None);
-                    }
-
-                    candidate.read_type(self)
-                }
-                // zero or several candidates project no single type
-                [] | [_, _, ..] => Ok(None),
-            },
-            MemberLookup::Union(lookups) => {
-                let mut types = Vec::with_capacity(lookups.len());
-                for arm in lookups {
-                    let Some(ty) = self.project_member_lookup(module, member, arm.lookup)? else {
-                        return Ok(None);
-                    };
-                    types.push(ty);
-                }
-
-                self.normalized_union_type(types).map(Some)
-            }
-            MemberLookup::Intersection(lookups) => {
-                let mut types = Vec::with_capacity(lookups.len());
-                for lookup in lookups {
-                    let Some(ty) = self.project_member_lookup(module, member, lookup)? else {
-                        return Ok(None);
-                    };
-                    types.push(ty);
-                }
-
-                self.normalized_intersection_type(types).map(Some)
-            }
-            MemberLookup::Missing | MemberLookup::Ambiguous => Ok(None),
+        // project every runtime arm as one candidate each, and join the arms
+        let mut types = Vec::new();
+        for (_, group) in member_arms(&lookup) {
+            let [candidate] = group.as_slice() else {
+                return Ok(None);
+            };
+            let Some(ty) = self.project_member_candidate(module, member, candidate)? else {
+                return Ok(None);
+            };
+            types.push(ty);
         }
+
+        self.normalized_union_type(types).map(Some)
+    }
+
+    /// Return the type one selected member candidate projects.
+    fn project_member_candidate(
+        &mut self,
+        module: ModuleId,
+        member: &dir::MemberType,
+        candidate: &MemberCandidate,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(declared) = candidate.declaration() else {
+            return candidate.read_type(self);
+        };
+
+        // keep nominal singleton identity for variant values
+        if candidate.role == MemberRole::VariantValue {
+            return candidate.read_type(self);
+        }
+
+        // project associated values through their applied arguments
+        if declared.value_type.is_some() {
+            let written =
+                self.static_value(declared.symbol)
+                    .ok_or_else(|| CompilerError::Internal {
+                        message: format!(
+                            "associated member {:?} lost its declared value",
+                            declared.symbol,
+                        ),
+                    })?;
+            let substitution = TypeSubstitution {
+                bindings: declared.generic_arguments.iter().copied().collect(),
+                receiver: Some(member.owner),
+            };
+            let written = self.project_associated_value(
+                module,
+                member,
+                declared.symbol,
+                written,
+                &substitution,
+            )?;
+
+            return Ok(Some(written));
+        }
+
+        // static values project as their own singleton
+        if let Some(value) = declared.value {
+            let ty = self.intern_type(dir::Type::Static(value))?;
+
+            return Ok(Some(ty));
+        }
+
+        // keep a member projecting back onto itself symbolic
+        if let Some(projected) = self.member_head(candidate.access.store())?
+            && projected.owner == member.owner
+            && projected.key == member.key
+        {
+            return Ok(None);
+        }
+
+        candidate.read_type(self)
     }
 
     /// Project one interface default through a qualified owner.
@@ -562,7 +571,7 @@ impl BodyState<'_, '_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut interfaces = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-        let owner = self.check.shallow_resolve(owner)?;
+        let owner = self.shallow_resolve(owner)?;
 
         // parameter projections select from their declared bounds
         if let dir::Type::Parameter(parameter) = self.ty(owner)? {
@@ -614,6 +623,7 @@ impl BodyState<'_, '_> {
             return Ok(false);
         };
 
+        // read whether the interface declares that associated type
         let declares = definition.members.iter().any(|member| {
             matches!(
                 member,
@@ -636,6 +646,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         };
 
+        // search the parameter's declared bounds
         for bound in self.parameter_bounds(origin, parameter)? {
             // read projected members from interface bounds only
             let dir::Type::Application(instance) = self.ty(bound)? else {
@@ -687,7 +698,7 @@ impl BodyState<'_, '_> {
         self.normalize(origin, ty)
     }
 
-    /// Resolve one relative member type in a projected receiver place.
+    /// Settle one relative member type in a projected receiver place.
     pub(in crate::sema) fn place_relative_type(
         &mut self,
         origin: Origin,
@@ -695,7 +706,7 @@ impl BodyState<'_, '_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // bare members of local receivers stay bare
-        if self.check.place_space(place)? == Some(dir::Space::Local) {
+        if self.place_space(place)? == Some(dir::Space::Local) {
             return Ok(ty);
         }
 
@@ -707,14 +718,14 @@ impl BodyState<'_, '_> {
         &mut self,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut current = receiver;
+        let mut current = self.shallow_resolve(receiver)?;
         loop {
             let dir::Type::Form(form) = self.ty(current)? else {
                 // bare nominal instances live in their declared or inherited space
                 if let dir::Type::Application(instance) = self.ty(current)?
-                    && let Some(space) = self.check.nominal_space(instance.symbol)?
+                    && let Some(space) = self.nominal_space(instance.symbol)?
                 {
-                    let place = self.check.place_literal(space)?;
+                    let place = self.place_literal(space)?;
 
                     return Ok(Some(place));
                 }
@@ -764,10 +775,9 @@ impl BodyState<'_, '_> {
             return Ok(false);
         }
 
+        // decide by the type's own head
         let result = match self.ty(ty)? {
             dir::Type::Error
-            | dir::Type::Hole(_)
-            | dir::Type::Rigid(_)
             | dir::Type::Never
             | dir::Type::Unknown
             | dir::Type::Void

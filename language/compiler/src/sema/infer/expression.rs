@@ -3,19 +3,21 @@ use smallvec::SmallVec;
 
 use super::InferMode;
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckOutcome, Expectation, FailedCheck, FlowSite, PlaceUse,
+    Cause, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite, PlaceUse,
     Relation, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Infer one expression node.
     pub(in crate::sema) fn infer_expression(
         &mut self,
         site: FlowSite,
         use_: PlaceUse,
         mode: InferMode,
+        context: Option<Expectation>,
     ) -> CompilerResult<()> {
+        // read the expression standing at this site
         let node = site.node.into_typed::<dir::Expression>();
         let expression = self
             .module(node.module_id)
@@ -23,9 +25,10 @@ impl BodyState<'_, '_> {
             .get(node.local_id)
             .clone();
 
+        // infer by the expression's own syntax
         match expression {
             dir::Expression::Identifier { name } => {
-                // reuse a committed resolution, or resolve the reference now
+                // reuse a committed resolution, else resolve the reference
                 let resolution = match self
                     .resolutions(node.module_id)
                     .name_resolution(node.into_any())
@@ -39,24 +42,23 @@ impl BodyState<'_, '_> {
                 };
 
                 // require local bindings assigned before this first-visit read
-                if self.check.committed_node_type(node.into_any()).is_none()
+                if self.committed_node_type(node.into_any()).is_none()
                     && let [symbol] = resolution.symbols()
                 {
                     // read the binding scope out of the module under check
-                    let is_module_binding = if self.check.is_own_module(symbol.module_id) {
-                        let module = &self.check.module;
+                    let is_module_binding = if self.is_own_module(symbol.module_id) {
+                        let module = &self.module;
                         module.symbol(symbol.local_id).scope.id == module.bindings.module_scope().id
                     }
                     // otherwise read it from the imported module's binding table
                     else {
-                        let bindings = self.check.binding_table(symbol.module_id);
+                        let bindings = self.binding_table(symbol.module_id);
                         bindings.get_symbol(symbol.local_id).scope.id == bindings.module_scope().id
                     };
 
                     // reuse a module read at any point, a local read inside its frame
-                    if is_module_binding || self.check.flow.current_function().is_some() {
-                        self.check
-                            .report_unassigned_read(node.local_id.into_any(), *symbol);
+                    if is_module_binding || self.flow.current_function().is_some() {
+                        self.report_unassigned_read(node.local_id.into_any(), *symbol);
                     }
                 }
 
@@ -75,7 +77,13 @@ impl BodyState<'_, '_> {
             } => {
                 self.check_condition_operands(node.module_id, &condition)?;
 
-                self.infer_if_expression(site, &condition, then_expression, else_expression)
+                self.infer_if_expression(
+                    site,
+                    &condition,
+                    then_expression,
+                    else_expression,
+                    context,
+                )
             }
             dir::Expression::Try {
                 body,
@@ -85,7 +93,6 @@ impl BodyState<'_, '_> {
             dir::Expression::Literal(value) => {
                 let ty = self.literal_type(value)?;
                 self.commit_node_type(node.into_any(), ty)?;
-                self.check.fresh_nodes.insert(node.into_any(), None);
 
                 Ok(())
             }
@@ -93,14 +100,11 @@ impl BodyState<'_, '_> {
             dir::Expression::Type { value } => {
                 self.walk_body_guard_type_expression(node.module_id, value)?;
                 let represented = self
-                    .check
                     .committed_node_type(value.into_global_any(node.module_id))
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!("type expression {value:?} committed no type"),
                     })?;
-                let reflected = self
-                    .check
-                    .language_type(dir::LanguageItem::Type, &[represented])?;
+                let reflected = self.language_type(dir::LanguageItem::Type, &[represented])?;
                 self.commit_node_type(node.into_any(), reflected)?;
 
                 Ok(())
@@ -108,7 +112,6 @@ impl BodyState<'_, '_> {
             dir::Expression::TemplateExpression { value } => {
                 let ty = self.template_expression_type(site, value, mode == InferMode::Const)?;
                 self.commit_node_type(node.into_any(), ty)?;
-                self.check.fresh_nodes.insert(node.into_any(), None);
 
                 Ok(())
             }
@@ -117,6 +120,7 @@ impl BodyState<'_, '_> {
                     site,
                     &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
                     mode,
+                    context,
                 )?;
                 self.commit_node_type(node.into_any(), ty)?;
 
@@ -126,13 +130,14 @@ impl BodyState<'_, '_> {
                 // type the written length at its first visit
                 let count = self.walk_body_static_term(node.module_id, length)?;
 
-                self.infer_fixed_array_expression(site, value, count, mode)
+                self.infer_fixed_array_expression(site, value, count, mode, context)
             }
             dir::Expression::TupleExpression { elements } => {
                 let ty = self.infer_tuple_expression(
                     site,
                     &elements.into_iter().collect::<SmallVec<[_; 4]>>(),
                     mode,
+                    context,
                 )?;
                 self.commit_node_type(node.into_any(), ty)?;
 
@@ -142,6 +147,7 @@ impl BodyState<'_, '_> {
                 site,
                 value,
                 &arms.into_iter().collect::<SmallVec<[_; 4]>>(),
+                context,
             ),
             dir::Expression::Switch { value, cases } => self.infer_switch_statement(
                 site,
@@ -195,6 +201,7 @@ impl BodyState<'_, '_> {
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     mode,
+                    context,
                 )?;
                 self.commit_node_type(node.into_any(), ty)?;
 
@@ -207,7 +214,7 @@ impl BodyState<'_, '_> {
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),
                     Some(target),
                 )?;
-                let cause = self.check.intern_cause(Cause::root(
+                let cause = self.intern_cause(Cause::root(
                     site.origin(),
                     CauseKind::Write {
                         place: node.into_any(),
@@ -215,7 +222,7 @@ impl BodyState<'_, '_> {
                 ));
                 let expectation = Expectation {
                     target,
-                    relation: Relation::Assignable,
+                    relation: Relation::Storable,
                     cause,
                     use_: ValueUse::Store,
                     mode,
@@ -231,12 +238,11 @@ impl BodyState<'_, '_> {
                     CheckOutcome::Fails(failure) => {
                         self.push_failure(FailedCheck {
                             cause,
-                            relation: Relation::Assignable,
+                            relation: Relation::Storable,
                             use_: Some(ValueUse::Store),
                             source: check.source,
                             target,
                             failure,
-                            is_provisional: false,
                         })?;
                     }
                 }
@@ -364,12 +370,11 @@ impl BodyState<'_, '_> {
             | dir::Expression::AwaitMust { expression: left } => {
                 // require the enclosing body's asynchrony
                 if self
-                    .check
                     .flow
                     .current_function()
                     .is_none_or(|function| function.asynchrony != dir::Asynchrony::Async)
                 {
-                    self.check.report_await_outside_async_context(
+                    self.report_await_outside_async_context(
                         node.module_id,
                         node.local_id.into_any(),
                     );
@@ -395,22 +400,20 @@ impl BodyState<'_, '_> {
             | dir::Expression::Loop { .. }
             | dir::Expression::For { .. }
             | dir::Expression::Break { .. }
-            | dir::Expression::Continue { .. }) => self.infer_statement(site, &expression),
+            | dir::Expression::Continue { .. }) => self.infer_statement(site, &expression, mode),
             dir::Expression::Declaration(declaration) => {
                 self.infer_declaration_statement(site, declaration)
             }
             // read the receiver visible at the current frame
             dir::Expression::This => {
-                let receiver = self
-                    .check
-                    .commit_active_receiver_decision(node.into_any(), dir::ReceiverKind::This)?;
+                let receiver =
+                    self.commit_active_receiver_decision(node.into_any(), dir::ReceiverKind::This)?;
                 match receiver {
                     Some(receiver) => {
-                        self.check.commit_node_type(node.into_any(), receiver.ty)?;
+                        self.commit_node_type(node.into_any(), receiver.ty)?;
                     }
                     None => {
-                        self.check
-                            .report_this_outside_receiver(node.module_id, node.local_id.into_any());
+                        self.report_this_outside_receiver(node.module_id, node.local_id.into_any());
                         self.commit_error_node(node.into_any())?;
                     }
                 }
@@ -420,15 +423,13 @@ impl BodyState<'_, '_> {
             // read the receiver's declared heritage
             dir::Expression::Super => {
                 let receiver = self
-                    .check
                     .commit_active_receiver_decision(node.into_any(), dir::ReceiverKind::Super)?;
                 match receiver.and_then(|receiver| receiver.super_ty) {
                     Some(super_ty) => {
-                        self.check.commit_node_type(node.into_any(), super_ty)?;
+                        self.commit_node_type(node.into_any(), super_ty)?;
                     }
                     None => {
-                        self.check
-                            .report_super_outside_class(node.module_id, node.local_id.into_any());
+                        self.report_super_outside_class(node.module_id, node.local_id.into_any());
                         self.commit_error_node(node.into_any())?;
                     }
                 }
@@ -437,8 +438,8 @@ impl BodyState<'_, '_> {
             }
             // type module-form statements as void
             dir::Expression::Export { .. } | dir::Expression::Import { .. } => {
-                let void = self.check.intern_type(dir::Type::Void)?;
-                self.check.commit_node_type(node.into_any(), void)?;
+                let void = self.intern_type(dir::Type::Void)?;
+                self.commit_node_type(node.into_any(), void)?;
 
                 Ok(())
             }
@@ -450,15 +451,16 @@ impl BodyState<'_, '_> {
 
     /// Return the type of one template expression after checking its arguments.
     ///
-    /// A template without substitutions reduces to a string literal. A template with substitutions
-    /// reduces to `string`, unless the expectation asks for a template literal, in which case it
-    /// keeps its text around the span types.
+    /// A template without substitutions reduces to a string literal.
+    /// A template with substitutions reduces to `string`, keeping its text around the span types
+    /// where the expectation asks for a template literal.
     pub(in crate::sema) fn template_expression_type(
         &mut self,
         site: FlowSite,
         value: dir::TemplateLiteral,
         keeps_template: bool,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the template's chunks and interpolations
         let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
         let (chunks, arguments) = match value {
             dir::TemplateLiteral::String { chunk } => {
@@ -479,6 +481,8 @@ impl BodyState<'_, '_> {
             let span = self.infer_argument_type(site, argument)?;
             spans.push(self.template_span_type(span, string)?);
         }
+
+        // print an unrequested template as a plain string
         if !keeps_template {
             return Ok(string);
         }
@@ -491,13 +495,14 @@ impl BodyState<'_, '_> {
             };
             strings.push(text);
         }
-        let strings = self.check.intern_strings(&strings)?;
-        let spans = self.check.intern_type_ids(&spans)?;
+        let strings = self.intern_strings(&strings)?;
+        let spans = self.intern_type_ids(&spans)?;
+        let template = self.intern_operation(dir::TypeOperation::TemplateLiteral(
+            dir::TemplateLiteralType { strings, spans },
+        ))?;
 
-        self.check
-            .intern_operation(dir::TypeOperation::TemplateLiteral(
-                dir::TemplateLiteralType { strings, spans },
-            ))
+        // concatenate the template once every span prints
+        self.normalize(site.origin(), template)
     }
 
     /// Return the type one interpolated value contributes to a template literal type.
@@ -507,14 +512,14 @@ impl BodyState<'_, '_> {
         string: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // read the printed value beneath ownership and access forms
-        let mut value = self.check.shallow_resolve(span)?;
-        while let dir::Type::Form(form) = self.check.ty(value)? {
-            value = self.check.shallow_resolve(form.value)?;
+        let mut value = self.shallow_resolve(span)?;
+        while let dir::Type::Form(form) = self.ty(value)? {
+            value = self.shallow_resolve(form.value)?;
         }
 
         // print values outside the template span domain as plain strings
         let prints = matches!(
-            self.check.ty(value)?,
+            self.ty(value)?,
             dir::Type::Literal(_)
                 | dir::Type::Null
                 | dir::Type::Undefined
@@ -533,16 +538,17 @@ impl BodyState<'_, '_> {
         &mut self,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let target = self.check.shallow_resolve(target)?;
-        let contextualizes = match self.check.ty(target)? {
+        // ask by the target's own head
+        let target = self.shallow_resolve(target)?;
+        let contextualizes = match self.ty(target)? {
             dir::Type::Literal(dir::Literal::String(_)) => true,
             dir::Type::Operation(operation) => matches!(
-                self.check.type_operation(target.module_id, operation)?,
+                self.type_operation(target.module_id, operation)?,
                 dir::TypeOperation::TemplateLiteral(_)
             ),
             dir::Type::Union(union) => {
                 let elements: SmallVec<[_; 4]> =
-                    SmallVec::from_slice(self.check.type_ids(target.module_id, union.elements)?);
+                    SmallVec::from_slice(self.type_ids(target.module_id, union.elements)?);
                 let mut any = false;
                 for element in elements {
                     any |= self.contextualizes_template(element)?;
@@ -565,21 +571,12 @@ impl BodyState<'_, '_> {
         // narrow to the selected symbols, reflecting a type literal into Type<T>
         let symbols = match resolution {
             dir::NameResolution::Type(denoted) => {
-                let reflected = self
-                    .check
-                    .language_type(dir::LanguageItem::Type, &[*denoted])?;
+                let reflected = self.language_type(dir::LanguageItem::Type, &[*denoted])?;
 
                 return self.commit_node_type(site.node, reflected);
             }
             dir::NameResolution::Symbols(symbols) => symbols.as_slice(),
         };
-
-        // read of a const bound to a fresh literal stays fresh
-        if let [symbol] = symbols
-            && self.check.fresh_bindings.contains(symbol)
-        {
-            self.check.fresh_nodes.insert(site.node, None);
-        }
 
         // reject a plural declaration group referenced without a selecting call
         let [symbol] = symbols else {
@@ -588,7 +585,7 @@ impl BodyState<'_, '_> {
                     message: format!("name resolution at {:?} selects no symbols", site.node),
                 });
             };
-            self.check.report_ambiguous_overload(site.node, symbol)?;
+            self.report_ambiguous_overload(site.node, symbol)?;
             let ty = self.intern_type(dir::Type::Error)?;
             self.commit_node_type(site.node, ty)?;
 
@@ -611,16 +608,15 @@ impl BodyState<'_, '_> {
         }
 
         // read a const parameter as its representation type
-        if let Some(parameter) = self.check.parameter_by_symbol(*symbol)
-            && let Some(binding) = self.check.generic_parameter(parameter)
+        if let Some(parameter) = self.parameter_by_symbol(*symbol)
+            && let Some(binding) = self.generic_parameter(parameter)
             && binding.is_const
             && binding.memory_parameter().is_none()
             && let Some(representation) = binding.constraint
         {
             // body reads consume the value the signature must fix
-            if self.check.resolved_cardinality(parameter).is_none() {
-                self.check
-                    .report_value_read_not_fixed(site.node, parameter)?;
+            if self.resolved_cardinality(parameter).is_none() {
+                self.report_value_read_not_fixed(site.node, parameter)?;
             }
             self.commit_access(site.node, dir::AccessPath::symbol(*symbol))?;
             self.commit_access_use(site.node, dir::BindingUse::READ);
@@ -652,7 +648,7 @@ impl BodyState<'_, '_> {
         let ty = if matches!(self.symbol_kind(*symbol)?, dir::SymbolKind::Function)
             && matches!(self.ty(ty)?, dir::Type::FunctionSignature(_))
         {
-            let place = self.check.local_place()?;
+            let place = self.local_place()?;
             self.intern_type(dir::Type::Function(dir::FunctionType {
                 signature: ty,
                 multiplicity: dir::Multiplicity::Repeatable,
@@ -687,6 +683,7 @@ impl BodyState<'_, '_> {
             )?;
         }
 
+        // commit the narrowed value at this site
         let ty = self.flow_type_at(site, ty)?;
         self.commit_node_type(site.node, ty)?;
 
@@ -699,24 +696,26 @@ impl BodyState<'_, '_> {
         site: FlowSite,
         child: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // infer the child value
         let module = site.node.module_id;
         let child_site = self.visit_site(child.into_global_any(module))?;
         let ty = self.infer_node(child_site, PlaceUse::Read, InferMode::Regular)?;
 
-        // commit the raw child type; the parent read narrows it
+        // commit the raw child type, which the parent read narrows
         self.commit_node_type(site.node, ty)?;
 
         Ok(())
     }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Decide the bound qualifier segments of one reference chain.
     pub(in crate::sema) fn decide_qualifier_segments(
         &mut self,
         module: destack_source::ModuleId,
         left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // walk the qualifier chain outward
         let mut current = Some(left);
         while let Some(segment) = current {
             // read the segment's own name and its next qualifier
@@ -761,10 +760,12 @@ impl BodyState<'_, '_> {
         &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<dir::NameResolution>> {
+        // reuse a committed resolution
         if let Some(resolution) = self.name_decision(node) {
             return Ok(Some(resolution.clone()));
         }
 
+        // decide by the reference's own syntax
         let module = node.module_id;
         let local = node.into_typed::<dir::Expression>().local_id;
         match self.module(module).view().get(local).clone() {
@@ -779,6 +780,7 @@ impl BodyState<'_, '_> {
                 self.decide_qualifier_segments(module, left)?;
                 self.decide_name_reference(node.into_typed(), name)
             }
+            // leave every other expression undecided
             _ => Ok(None),
         }
     }
@@ -789,22 +791,24 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeId<dir::Expression>,
         name: dir::StringId,
     ) -> CompilerResult<Option<dir::NameResolution>> {
+        // read the reference the resolver bound at this name
         let module = node.module_id;
         let source = node.into_any();
         let reference = self.module(module).resolved.references.get(source).cloned();
 
+        // decide by the bound reference
         match reference {
             // take one declaration or the callable overload set
             Some(dir::Reference::Bound(symbols)) => {
-                let symbols = self.check.present_symbols(&symbols);
+                let symbols = self.present_symbols(&symbols);
                 let resolution = match symbols.as_slice() {
                     [symbol] => dir::NameResolution::new(*symbol),
                     _ => dir::NameResolution::from_symbols(symbols.to_vec()),
                 };
                 for symbol in resolution.symbols().iter().copied() {
-                    self.check.capture_symbol_reference(source, symbol);
+                    self.capture_symbol_reference(source, symbol)?;
                 }
-                self.check.commit_name(source, resolution.clone())?;
+                self.commit_name(source, resolution.clone())?;
 
                 Ok(Some(resolution))
             }
@@ -813,8 +817,7 @@ impl BodyState<'_, '_> {
                 let path = dir::Path {
                     segments: smallvec::smallvec![name],
                 };
-                self.check
-                    .report_ambiguous_reference(module, source.local_id, &path)?;
+                self.report_ambiguous_reference(module, source.local_id, &path)?;
                 self.commit_error_node(source)?;
 
                 Ok(None)
@@ -823,7 +826,7 @@ impl BodyState<'_, '_> {
             Some(dir::Reference::TypeLiteral(literal)) => {
                 let denoted = self.intern_type(dir::Type::from(literal))?;
                 let resolution = dir::NameResolution::new_type(denoted);
-                self.check.commit_name(source, resolution.clone())?;
+                self.commit_name(source, resolution.clone())?;
 
                 Ok(Some(resolution))
             }
@@ -838,8 +841,7 @@ impl BodyState<'_, '_> {
                     .unwrap_or(dir::Path {
                         segments: smallvec::smallvec![name],
                     });
-                self.check
-                    .report_unresolved_reference(module, source.local_id, &path)?;
+                self.report_unresolved_reference(module, source.local_id, &path)?;
                 self.commit_error_node(source)?;
 
                 Ok(None)
@@ -854,8 +856,7 @@ impl BodyState<'_, '_> {
                     .unwrap_or(dir::Path {
                         segments: smallvec::smallvec![name],
                     });
-                self.check
-                    .report_unresolved_reference(module, source.local_id, &path)?;
+                self.report_unresolved_reference(module, source.local_id, &path)?;
                 self.commit_error_node(source)?;
 
                 Ok(None)

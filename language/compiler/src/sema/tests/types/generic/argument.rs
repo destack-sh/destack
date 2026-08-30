@@ -264,7 +264,7 @@ function makeCircle(): Shape {
 fn test_infer_a_bounded_parameter_from_literal_elements() {
     let session = TestSession::single(
         r#"
-declare function first<T: unknown[]>(items: T[]): T;
+declare function first<T: readonly unknown[]>(items: T[]): T;
 declare function box<T: unknown>(value: T): T;
 
 const row = first([[1, 2]]);
@@ -278,18 +278,20 @@ const mixed = first([["a", 1]]);
         DirRows::checked(),
         r#"
 === annotated ===
-declare function first<T: unknown[]>(items: T[]): T;
+declare function first<T: readonly unknown[]>(items: T[]): T;
 declare function box<T: unknown>(value: T): T;
 
-const row: unknown[] = first<unknown[]>([[1 as unknown, 2 as unknown]]);
+const row: int64[] = first<int64[]>([[1, 2]]);
 const boxed: int64 = box<int64>(1);
-const mixed: unknown[] = first<unknown[]>([["a" as unknown, 1 as unknown]]);
+const mixed: (string | int64)[] = first<(string | int64)[]>([
+    ["a" as string | int64, 1 as string | int64],
+]);
 
 === dir ===
-declare function first<T: unknown[]>(items: T[]): T;
-/// @generic.template symbol=first parameters=(T#1: unknown[])
-/// @type.symbol symbol=first source="declare function first<T: unknown[]>(items: T[]): T" type=<T#1: unknown[]>(T#1[]) => T#1
-/// @type.symbol symbol=first.T source="T: unknown[]" type=T#1
+declare function first<T: readonly unknown[]>(items: T[]): T;
+/// @generic.template symbol=first parameters=(T#1: readonly unknown[])
+/// @type.symbol symbol=first source="declare function first<T: readonly unknown[]>(items: T[]): T" type=<T#1: readonly unknown[]>(T#1[]) => T#1
+/// @type.symbol symbol=first.T source="T: readonly unknown[]" type=T#1
 /// @type.symbol symbol=first.items source="items: T[]" type=T#1[]
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
@@ -303,15 +305,15 @@ declare function box<T: unknown>(value: T): T;
 /// @resolution.name source=T target=box.T
 
 const row = first([[1, 2]]);
-/// @type.symbol symbol=row source=row type=unknown[]
+/// @type.symbol symbol=row source=row type=int64[]
 /// @resolution.pattern source=row kind=binding target=row
 /// @resolution.name source=first target=first
-/// @resolution.call source="first([[1, 2]])" parameters=(unknown[][]) arguments=(provided([[1, 2]]) as unknown[][]) return=unknown[] kind=symbol target=first instance=first<unknown[]>
-/// @generic.instantiation id=first<unknown[]> template=first arguments=(unknown[])
-/// @resolution.call source=[[1, 2]] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest([1, 2]) as unknown[]) return=unknown[][] kind=symbol target=arrayFromSlice instance=arrayFromSlice<unknown[]>
-/// @generic.instantiation id=arrayFromSlice<unknown[]> template=arrayFromSlice arguments=(unknown[])
-/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as unknown) return=unknown[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<unknown>
-/// @generic.instantiation id=arrayFromSlice<unknown> template=arrayFromSlice arguments=(unknown)
+/// @resolution.call source="first([[1, 2]])" parameters=(int64[][]) arguments=(provided([[1, 2]]) as int64[][]) return=int64[] kind=symbol target=first instance=first<int64[]>
+/// @generic.instantiation id=first<int64[]> template=first arguments=(int64[])
+/// @resolution.call source=[[1, 2]] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest([1, 2]) as int64[]) return=int64[][] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64[]>
+/// @generic.instantiation id=arrayFromSlice<int64[]> template=arrayFromSlice arguments=(int64[])
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
+/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 
 const boxed = box(1);
 /// @type.symbol symbol=boxed source=boxed type=int64
@@ -321,12 +323,15 @@ const boxed = box(1);
 /// @generic.instantiation id=box<int64> template=box arguments=(int64)
 
 const mixed = first([["a", 1]]);
-/// @type.symbol symbol=mixed source=mixed type=unknown[]
+/// @type.symbol symbol=mixed source=mixed type=string | int64[]
 /// @resolution.pattern source=mixed kind=binding target=mixed
 /// @resolution.name source=first target=first
-/// @resolution.call source="first([[\"a\", 1]])" parameters=(unknown[][]) arguments=(provided([["a", 1]]) as unknown[][]) return=unknown[] kind=symbol target=first instance=first<unknown[]>
-/// @resolution.call source=[["a", 1]] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(["a", 1]) as unknown[]) return=unknown[][] kind=symbol target=arrayFromSlice instance=arrayFromSlice<unknown[]>
-/// @resolution.call source=["a", 1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("a", 1) as unknown) return=unknown[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<unknown>
+/// @resolution.call source="first([[\"a\", 1]])" parameters=(string | int64[][]) arguments=(provided([["a", 1]]) as string | int64[][]) return=string | int64[] kind=symbol target=first instance="first<string | int64[]>"
+/// @generic.instantiation id="first<string | int64[]>" template=first arguments=(string | int64[])
+/// @resolution.call source=[["a", 1]] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(["a", 1]) as string | int64[]) return=string | int64[][] kind=symbol target=arrayFromSlice instance="arrayFromSlice<string | int64[]>"
+/// @generic.instantiation id="arrayFromSlice<string | int64[]>" template=arrayFromSlice arguments=(string | int64[])
+/// @resolution.call source=["a", 1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("a", 1) as string | int64) return=string | int64[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<string | int64>"
+/// @generic.instantiation id="arrayFromSlice<string | int64>" template=arrayFromSlice arguments=(string | int64)
 "#,
         r#"
 "#,

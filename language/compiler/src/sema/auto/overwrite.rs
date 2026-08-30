@@ -29,12 +29,13 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
+        // read the head standing on the type
         let kind = self.ty(ty)?;
 
         // decide each stored representation
         match kind {
             // leave an open variable or canonical hole undecided
-            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // accept region terms outright, they carry no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
@@ -69,12 +70,11 @@ impl CheckState<'_> {
             | dir::Type::Function(_)
             | dir::Type::Union(_) => Ok(Verdict::Fails),
             // generic heads resolve before this decision runs
-            dir::Type::Parameter(_)
-            | dir::Type::Rigid(_)
-            | dir::Type::Erased(_)
-            | dir::Type::This => Err(CompilerError::Internal {
-                message: format!("generic type {ty:?} reached structural overwrite stability"),
-            }),
+            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This => {
+                Err(CompilerError::Internal {
+                    message: format!("generic type {ty:?} reached structural overwrite stability"),
+                })
+            }
             // decide a form through its qualifier
             dir::Type::Form(form) => match form.form {
                 dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
@@ -139,10 +139,12 @@ impl CheckState<'_> {
         instance: dir::GenericApplication,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
+        // read the declaration the instance applies
         let Some(definition) = self.definition(instance.symbol)?.cloned() else {
             return Ok(Verdict::Fails);
         };
 
+        // decide by the declaration's own storage
         match definition {
             // decide an alias through its written value
             dir::Definition::TypeAlias(definition) => {

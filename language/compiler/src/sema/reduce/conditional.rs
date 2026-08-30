@@ -2,8 +2,9 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::solve::VariableRole;
-use crate::sema::{CandidateOutcome, Cause, CauseKind, CheckState, Origin, Relation, Verdict};
+use crate::sema::{
+    BoundSide, CandidateOutcome, Cause, CauseKind, CheckState, Origin, Relation, Settle, Verdict,
+};
 
 use super::substitute::InferSubstitution;
 
@@ -23,7 +24,7 @@ struct InferBinder {
     occurrences: SmallVec<[dir::GlobalTypeId; 2]>,
 }
 
-/// Why one conditional arm did not select its then branch.
+/// The reason one conditional arm skips its then branch.
 enum InferRejection {
     /// The element fails the pattern.
     Else,
@@ -45,6 +46,7 @@ impl CheckState<'_> {
             return Ok(Some(self.intern_type(dir::Type::Error)?));
         }
 
+        // evaluate the chain one nesting level deeper
         self.instantiation_depth += 1;
         let reduced = self.reduce_conditional_chain(origin, conditional);
         self.instantiation_depth -= 1;
@@ -58,8 +60,10 @@ impl CheckState<'_> {
         origin: Origin,
         mut conditional: dir::ConditionalType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // follow the chain of tail conditionals
         let mut steps = 0;
         loop {
+            // select the branches this conditional chooses
             let Some(branches) = self.select_conditional_branches(origin, conditional)? else {
                 return Ok(None);
             };
@@ -88,6 +92,7 @@ impl CheckState<'_> {
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::ConditionalType>> {
+        // walk through alias applications to the head the type reaches
         let mut current = self.shallow_resolve(id)?;
         let mut expanded = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         loop {
@@ -103,24 +108,26 @@ impl CheckState<'_> {
                         None => return Ok(None),
                     }
                 }
+                // read the conditional out of a type operation
                 dir::Type::Operation(operation) => {
                     return Ok(match self.type_operation(current.module_id, operation)? {
                         dir::TypeOperation::Conditional(conditional) => Some(conditional),
                         _ => None,
                     });
                 }
+                // stop at every other head
                 _ => return Ok(None),
             }
         }
     }
 
-    /// Choose each distributed element's branch with the element substituted in, or none while
-    /// the conditional stays open.
+    /// Choose each distributed element's branch, or none while the conditional stays open.
     fn select_conditional_branches(
         &mut self,
         origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        // normalize the checked type before reading its head
         let left = self.normalize(origin, conditional.left)?;
 
         // distribute over union-valued checked types
@@ -149,6 +156,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // choose each element's branch with the element substituted in
         let binders = self.collect_infer_binders(conditional.right)?;
         let module = origin.module();
         let mut branches = SmallVec::with_capacity(elements.len());
@@ -163,12 +171,13 @@ impl CheckState<'_> {
         Ok(Some(branches))
     }
 
-    /// Normalize and join the chosen branches, dropping never like any union.
+    /// Normalize the chosen branches and join them into one type.
     fn join_conditional_branches(
         &mut self,
         origin: Origin,
         branches: &[dir::GlobalTypeId],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // normalize each branch and keep the distinct ones
         let mut kept = Vec::with_capacity(branches.len());
         for &branch in branches {
             let branch = self.normalize(origin, branch)?;
@@ -180,6 +189,7 @@ impl CheckState<'_> {
             }
         }
 
+        // join what the branches leave
         match kept.as_slice() {
             [] => self.intern_type(dir::Type::Never),
             [single] => Ok(*single),
@@ -195,9 +205,10 @@ impl CheckState<'_> {
         conditional: dir::ConditionalType,
         binders: &[InferBinder],
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // decide a pattern without binders by the subtype relation alone
         if binders.is_empty() {
             let verdict =
-                self.decide_relation(origin, Relation::Extends, element, conditional.right)?;
+                self.decide_relation(origin, Relation::Subtype, element, conditional.right)?;
 
             return Ok(match verdict {
                 Verdict::Holds => Some(conditional.then_type),
@@ -206,18 +217,22 @@ impl CheckState<'_> {
             });
         }
 
-        let outcome = self.decide_candidate(|state| {
-            state.match_infer_pattern(origin, element, conditional, binders)
-        })?;
+        // decide the binder match, taking the branch it accepts
+        let (outcome, verdict) =
+            self.decide(|state| state.match_infer_pattern(origin, element, conditional, binders))?;
 
-        Ok(match outcome {
-            CandidateOutcome::Accepted(branch) => Some(branch),
-            CandidateOutcome::Rejected(InferRejection::Else) => Some(conditional.else_type),
-            CandidateOutcome::Rejected(InferRejection::Open) => None,
+        Ok(match (verdict, outcome) {
+            (Verdict::Fails, _) => Some(conditional.else_type),
+            (_, CandidateOutcome::Accepted(branch)) => Some(branch),
+            (_, CandidateOutcome::Rejected(InferRejection::Else)) => Some(conditional.else_type),
+            (_, CandidateOutcome::Rejected(InferRejection::Open)) => None,
         })
     }
 
     /// Match one element against the extends pattern with its binders as inference variables.
+    ///
+    /// Covariant captures join and contravariant captures meet.
+    /// The join wins where the meet includes it.
     fn match_infer_pattern(
         &mut self,
         origin: Origin,
@@ -225,13 +240,14 @@ impl CheckState<'_> {
         conditional: dir::ConditionalType,
         binders: &[InferBinder],
     ) -> CompilerResult<CandidateOutcome<dir::GlobalTypeId, InferRejection>> {
+        // spell the pattern in the origin module
         let module = origin.module();
 
         // open one variable per binder and spell the pattern with them
         let mut variables = SmallVec::<[_; 2]>::with_capacity(binders.len());
         let mut pattern = conditional.right;
         for binder in binders {
-            let variable = self.open_variable(origin, VariableRole::Binder);
+            let variable = self.open_variable(origin);
             let variable_type = self.variable_type(variable)?;
             for &occurrence in &binder.occurrences {
                 pattern = self.replace_type(module, pattern, occurrence, variable_type)?;
@@ -241,16 +257,76 @@ impl CheckState<'_> {
 
         // relate the element to the pattern, inferring the binders from the relation
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        match self.constrain_type(origin, cause, Relation::Extends, element, pattern)? {
+        match self.constrain_type(origin, cause, Relation::Subtype, element, pattern)? {
             Verdict::Holds => {}
             Verdict::Fails => return Ok(CandidateOutcome::Rejected(InferRejection::Else)),
             Verdict::Ambiguous => return Ok(CandidateOutcome::Rejected(InferRejection::Open)),
         }
-        self.resolve_variables(&variables)?;
+
+        // combine each binder's captures by variance
+        for &variable in &variables {
+            // read the bounds recorded on both sides of the variable
+            let mut lower = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+            let mut upper = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+            for bound in self
+                .infer
+                .variables
+                .side_bounds(variable, BoundSide::Lower)?
+            {
+                lower.push(bound.ty);
+            }
+            for bound in self
+                .infer
+                .variables
+                .side_bounds(variable, BoundSide::Upper)?
+            {
+                upper.push(bound.ty);
+            }
+
+            // leave binders whose bounds stay open or absent for a later pass
+            if upper.is_empty()
+                || !self
+                    .collect_open_variables(lower.iter().chain(&upper).copied())?
+                    .is_empty()
+            {
+                continue;
+            }
+
+            // meet the contravariant captures
+            let meet = match upper.as_slice() {
+                [single] => *single,
+                _ => self.normalized_intersection_type(upper.iter().copied())?,
+            };
+
+            // prefer the join of the covariant captures where the meet includes it
+            let solution = match lower.as_slice() {
+                [] => meet,
+                _ => {
+                    let join = match lower.as_slice() {
+                        [single] => *single,
+                        _ => self.normalized_union_type(lower.iter().copied())?,
+                    };
+                    match self
+                        .decide_relation(origin, Relation::Subtype, join, meet)?
+                        .holds()
+                    {
+                        true => join,
+                        false => meet,
+                    }
+                }
+            };
+
+            // commit the combined capture as the binder's solution
+            self.commit_solution(variable, solution)?;
+        }
+
+        // settle every binder variable before reading it back
+        self.settle_variables(&variables, Settle::All)?;
 
         // read the binder solutions back under their declared constraints
         let mut captures = SmallVec::<[InferSubstitution; 2]>::new();
         for (binder, &variable) in binders.iter().zip(&variables) {
+            // resolve the solution, stalling while it stays open
             let solution = match self.infer.solution(variable)? {
                 Some(solution) => self.deeply_resolve(origin, solution)?,
                 None => self.intern_type(dir::Type::Unknown)?,
@@ -258,6 +334,8 @@ impl CheckState<'_> {
             if !self.collect_open_variables([solution])?.is_empty() {
                 return Ok(CandidateOutcome::Rejected(InferRejection::Open));
             }
+
+            // hold the solution to the binder's declared constraint
             let solution = match binder.constraint {
                 Some(constraint) => match self.constrain_binder(origin, solution, constraint)? {
                     Some(solution) => solution,
@@ -265,6 +343,8 @@ impl CheckState<'_> {
                 },
                 None => solution,
             };
+
+            // capture the solution under the binder's symbol
             if let Some(symbol) = binder.symbol {
                 captures.push(InferSubstitution {
                     symbol,
@@ -273,12 +353,13 @@ impl CheckState<'_> {
             }
         }
 
-        // substitute the solved binders into the chosen branch, instantiating it in full
-        // unless it tails into another conditional
+        // instantiate the branch in full where it settles at this conditional
         let tails = self
             .conditional_head(origin, conditional.then_type)?
             .is_some();
         let instantiation = (!tails).then_some(origin);
+
+        // substitute the solved binders into the chosen branch
         let branch = self.substitute_infer_captures(
             instantiation,
             module,
@@ -289,8 +370,9 @@ impl CheckState<'_> {
         Ok(CandidateOutcome::Accepted(branch))
     }
 
-    /// Hold one binder solution to its declared constraint, reading captured text as the
-    /// constraint's literal kind.
+    /// Hold one binder solution to its declared constraint.
+    ///
+    /// Captured text reads as the constraint's literal kind.
     fn constrain_binder(
         &mut self,
         origin: Origin,
@@ -305,8 +387,9 @@ impl CheckState<'_> {
             }
         }
 
+        // keep the solution the constraint includes
         let is_holds = self
-            .decide_relation(origin, Relation::Extends, solution, constraint)?
+            .decide_relation(origin, Relation::Subtype, solution, constraint)?
             .holds();
 
         Ok(is_holds.then_some(solution))
@@ -317,13 +400,16 @@ impl CheckState<'_> {
         &self,
         pattern: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[InferBinder; 2]>> {
+        // seed the walk at the pattern root
         let mut binders = SmallVec::<[InferBinder; 2]>::new();
         let mut pending = SmallVec::<[dir::GlobalTypeId; 8]>::new();
         pending.push(pattern);
 
+        // collect each infer occurrence, grouping repeats under one symbol
         while let Some(id) = pending.pop() {
             let id = self.shallow_resolve(id)?;
             match self.ty(id)? {
+                // record each infer binder, merging repeated symbols
                 dir::Type::Operation(operation)
                     if let dir::TypeOperation::Infer(infer) =
                         self.type_operation(id.module_id, operation)? =>
@@ -347,12 +433,14 @@ impl CheckState<'_> {
                         }),
                     }
                 }
+                // stop at a nested conditional, which owns its own binders
                 dir::Type::Operation(operation)
                     if id != pattern
                         && matches!(
                             self.type_operation(id.module_id, operation)?,
                             dir::TypeOperation::Conditional(_)
                         ) => {}
+                // walk into every other type's children
                 ty => self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?,
             }
         }

@@ -29,14 +29,14 @@ type Mode = "fast" | "slow";
 
 declare const quick: boolean;
 
-const ternary: "fast" | "slow" = quick ? ("fast" as "fast" | "slow") : ("slow" as "fast" | "slow");
+const ternary: "fast" | "slow" = quick ? "fast" : "slow";
 const closure: () => Mode = (): Mode => {
     if (quick) {
-        return "fast" as Mode;
+        return "fast";
     }
-    return "slow" as Mode;
+    return "slow";
 };
-const tail: () => Mode = (): Mode => "fast" as Mode;
+const tail: () => Mode = (): Mode => "fast";
 
 === dir ===
 type Mode = "fast" | "slow";
@@ -120,7 +120,7 @@ function count<'a>(values: &'a readonly int32[]): int32 {
 
 function fallback(result: Result<int32, string>): int32 {
     let value: int32 = 0;
-    if (result.isOk<int32, string, "local">()) {
+    if (result.isOk<int32, string>()) {
         value = result.unwrap<int32, string>();
     }
     return value;
@@ -128,8 +128,8 @@ function fallback(result: Result<int32, string>): int32 {
 
 === dir ===
 function count(values: &readonly int32[]): int32 {
-/// @generic.template symbol=count parameters=('a, P1: Place)
-/// @type.symbol symbol=count type=<count.'a, count.P1: Place>(&count.'a readonly int32[]) => int32
+/// @generic.template symbol=count parameters=('a)
+/// @type.symbol symbol=count type=<count.'a>(&count.'a readonly int32[]) => int32
 /// @type.symbol symbol=count.values source="values: &readonly int32[]" type=&count.'a readonly int32[]
 
     let total = 0;
@@ -172,11 +172,10 @@ function fallback(result: Result<int32, string>): int32 {
 
     if (result.isOk()) {
     /// @resolution.name source=result target=fallback.result
-    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a, isOk.P1: Place>(this: Borrowed<Result<int32, string>, isOk.'a & isOk.P1, "readonly">) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
-    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'frame readonly Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk<\"local\">"
+    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a>(this: &isOk.'a readonly Result<int32, string>) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
+    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'frame readonly Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=fallback.result
-    /// @generic.instantiation id="isOk<int32, string, \"local\">" template=isOk arguments=(int32, string, "local")
     /// @generic.instantiation id="isOk<int32, string>" template=isOk arguments=(int32, string)
 
         value = result.unwrap();
@@ -466,12 +465,11 @@ function sequence(depth: isize): string {
 
         output += index == 0 ? "a" : "b";
         /// @resolution.name source=output target=sequence.output
-        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"local\">"
+        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
         /// @resolution.pattern.assign source=output kind=place
         /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=output read=binding(sequence.output) write=binding(sequence.output) type=string
         /// @resolution.access source=output root=sequence.output
-        /// @generic.instantiation id="add<\"local\">" template=add arguments=("local")
         /// @resolution.name source=index target=sequence.index
         /// @resolution.operator source="index == 0" type=boolean operator="==" kind=builtin operands=[index as isize families=(integer), 0 as isize families=(integer)]
         /// @resolution.place source=index placement="local" lifetime="frame" access="readonly"
@@ -486,6 +484,7 @@ function sequence(depth: isize): string {
 }
 "#,
         r#"
+
 "#,
     );
 }
@@ -566,7 +565,7 @@ const compared = counter < 10;
         r#"
 === annotated ===
 const sum: 2 = 1 + 1;
-const text: MaybeOwned<string> = (1).toString<"local">();
+const text: MaybeOwned<string> = (1).toString();
 const mixed: float64[] = [1, 2.5];
 let counter: int64 = 1;
 counter += 2;
@@ -581,9 +580,8 @@ const sum = 1 + 1;
 const text = (1).toString();
 /// @type.symbol symbol=text source=text type=MaybeOwned<string>
 /// @resolution.pattern source=text kind=binding target=text
-/// @resolution.member source=(1).toString receiver=1 type=<Number.toString.'a, Number.toString.P1: Place>(this: Borrowed<1, Number.toString.'a & Number.toString.P1, "readonly">, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=1 target=Number.toString
-/// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1)) instance="Number.toString<\"local\">"
-/// @generic.instantiation id="Number.toString<\"local\">" template=Number.toString arguments=("local")
+/// @resolution.member source=(1).toString receiver=1 type=<Number.toString.'a>(this: &Number.toString.'a readonly 1, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=1 target=Number.toString
+/// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1))
 
 const mixed = [1, 2.5];
 /// @type.symbol symbol=mixed source=mixed type=float64[]

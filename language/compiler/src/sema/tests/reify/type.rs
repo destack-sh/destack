@@ -63,9 +63,32 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         &mut self,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
-        let arguments = dir::GenericArgumentBinding::values(bindings).collect::<Vec<_>>();
+        // elide trailing place arguments solved to the local space
+        let mut kept = bindings.len();
+        while kept > 0 && self.is_local_place_binding(&bindings[kept - 1])? {
+            kept -= 1;
+        }
+        if kept == 0 {
+            return Ok(None);
+        }
+        let arguments = dir::GenericArgumentBinding::values(&bindings[..kept]).collect::<Vec<_>>();
 
         self.reify_arguments(&arguments, REIFY_DEPTH)
+    }
+
+    /// Return whether one binding fills a place parameter with the local space.
+    fn is_local_place_binding(
+        &self,
+        binding: &dir::GenericArgumentBinding,
+    ) -> CompilerResult<bool> {
+        let is_place = self
+            .check
+            .generic_parameter(binding.parameter)
+            .is_some_and(|parameter| {
+                parameter.memory_parameter() == Some(dir::MemoryParameter::Place)
+            });
+
+        Ok(is_place && self.check.place_space(binding.argument)? == Some(dir::Space::Local))
     }
 
     /// Fill selected generic arguments on one reified type reference.
@@ -273,11 +296,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         let expression = match ty {
             // skip open variables, holes, rigid and erased parameters, and errors
-            dir::Type::Variable(_)
-            | dir::Type::Hole(_)
-            | dir::Type::Rigid(_)
-            | dir::Type::Erased(_)
-            | dir::Type::Error => {
+            dir::Type::Variable(_) | dir::Type::Erased(_) | dir::Type::Error => {
                 return Ok(None);
             }
             // refinements print as their base application
@@ -584,7 +603,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                         else if space == Some(dir::Space::Shared) {
                             dir::TypeExpression::Shared { target_type }
                         }
-                        // an open or constant place reifies through `Placed`
+                        // reify an open or constant place through `Managed` with its place
                         else if space.is_none() || space == Some(dir::Space::Constant) {
                             let Some(place) = self.reify_depth(place, next)? else {
                                 return Ok(None);
@@ -592,7 +611,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                             let target =
                                 self.insert(dir::GenericArgument::Type { value: target_type });
                             let place = self.insert(dir::GenericArgument::Type { value: place });
-                            let name = self.language_item_name(dir::LanguageItem::Placed);
+                            let name = self.language_item_name(dir::LanguageItem::Managed);
 
                             dir::TypeExpression::Reference {
                                 path: dir::Path {
@@ -654,13 +673,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                             None => (None, false),
                         };
 
-                        // fold a known space back into the borrow target, induced spaces eliding
+                        // fold a known space back into the borrow target, induced spaces and
+                        //  bare regions eliding
                         let sugared = match space {
                             Some(dir::Space::Local | dir::Space::Constant) => Some(target_type),
                             Some(dir::Space::Shared) => {
                                 Some(self.insert(dir::TypeExpression::Shared { target_type }))
                             }
-                            None if is_induced_space => Some(target_type),
+                            None if is_induced_space || spaces.is_none() => Some(target_type),
                             None => None,
                         };
 

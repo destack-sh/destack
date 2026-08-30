@@ -1,5 +1,3 @@
-use std::iter;
-
 use destack_core::ensure_sufficient_stack;
 use destack_dir as dir;
 use smallvec::SmallVec;
@@ -80,7 +78,7 @@ impl CheckState<'_> {
         let target = self.shallow_resolve(target)?;
 
         // property relations explain themselves through their first bad field
-        let is_property_relation = matches!(relation, Relation::Assignable | Relation::Satisfies);
+        let is_property_relation = relation == Relation::Storable;
         let check = match (verdict.holds(), is_property_relation) {
             // complete successful relations
             (true, _) => CheckOutcome::Holds,
@@ -133,7 +131,14 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
+        // relate an inference barrier as what it erases to once closed
+        let erased = self.erase_inference_barriers_if_closed(target)?;
+        if erased != target {
+            return self.constrain_type(origin, cause, relation, source, erased);
+        }
+
         // bring each operand to its comparison root
+        let (written_source, written_target) = (source, target);
         let (source, source_variable) = self.relate_root(origin, source)?;
         let (target, target_variable) = self.relate_root(origin, target)?;
         if source == target {
@@ -145,6 +150,7 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, relation, source, variable);
         }
 
+        // relate by the open sides and the relation
         match (source_variable, target_variable, relation) {
             // alias one open side onto the other for variable equality
             (Some(source_variable), Some(target_variable), Relation::Equal) => {
@@ -159,7 +165,7 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 }
                 if variables.is_empty() {
-                    self.commit_solution(variable, target)?;
+                    self.commit_solution(variable, written_target)?;
                 } else {
                     self.push_upper_bound(variable, origin, cause, target, Relation::Equal)?;
                 }
@@ -173,44 +179,27 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 }
                 if variables.is_empty() {
-                    self.commit_solution(variable, source)?;
+                    self.commit_solution(variable, written_source)?;
                 } else {
                     self.push_lower_bound(variable, origin, cause, source, Relation::Equal)?;
                 }
 
                 Ok(Verdict::Holds)
             }
-            // directed relations bound open sides directionally
-            (source_variable @ Some(_), target_variable, relation)
-            | (source_variable, target_variable @ Some(_), relation)
-                if relation.is_directed() =>
-            {
-                if let Some(variable) = target_variable {
-                    self.push_lower_bound(variable, origin, cause, source, relation)?;
-                } else if let Some(variable) = source_variable {
-                    self.push_upper_bound(variable, origin, cause, target, relation)?;
+            // bound the open side of a directed relation from the closed side
+            (Some(variable), _, _) | (_, Some(variable), _) => {
+                let pushed = match target_variable {
+                    Some(target_variable) => {
+                        self.push_lower_bound(target_variable, origin, cause, source, relation)?
+                    }
+                    None => self.push_upper_bound(variable, origin, cause, target, relation)?,
+                };
+                if pushed == Verdict::Fails {
+                    return Ok(Verdict::Fails);
                 }
 
                 Ok(Verdict::Holds)
             }
-            // bound an open target from below
-            (None, Some(variable), Relation::Satisfies) => {
-                self.push_lower_bound(variable, origin, cause, source, relation)?;
-
-                Ok(Verdict::Holds)
-            }
-            // restrict an open source with the constraint as an upper bound
-            (Some(variable), _, Relation::Satisfies) => {
-                self.push_upper_bound(variable, origin, cause, target, relation)?;
-
-                Ok(Verdict::Holds)
-            }
-            // check-only relations require both sides to be closed
-            (Some(_), _, _) | (_, Some(_), _) => Err(CompilerError::Internal {
-                message: format!(
-                    "open variable reached the {relation:?} relation: {source:?} against {target:?}"
-                ),
-            }),
             // dispatch the shared decision matrix, binding through open children
             (None, None, _) => {
                 let verdict = ensure_sufficient_stack(|| {
@@ -220,7 +209,8 @@ impl CheckState<'_> {
                     return Ok(Verdict::Holds);
                 }
 
-                let stuck = self.constrain_stuck(origin, cause, relation, source, target)?;
+                // leave a failed relation over an open head undecided
+                let stuck = self.decide_stuck_relation(source, target)?;
 
                 Ok(stuck.join_undecided(verdict))
             }
@@ -243,25 +233,6 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Retry one stuck relation over reduced heads once the written ones fail to relate.
-    fn constrain_stuck(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        relation: Relation,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        let reduced_source = self.structurally_normalize(origin, source)?;
-        let reduced_target = self.structurally_normalize(origin, target)?;
-        if reduced_source == source && reduced_target == target {
-            // leave a relation over open heads undecided
-            return self.decide_stuck_relation(source, target);
-        }
-
-        self.constrain_type(origin, cause, relation, reduced_source, reduced_target)
-    }
-
     /// Constrain one relation through exactly one applicable alternative.
     pub(in crate::sema) fn constrain_any_relation(
         &mut self,
@@ -270,17 +241,16 @@ impl CheckState<'_> {
         relation: Relation,
         candidates: &[(dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Verdict> {
-        // take a single alternative without speculative selection
+        // take a single alternative directly
         if let [candidate] = candidates {
             return self.constrain_type(origin, cause, relation, candidate.0, candidate.1);
         }
 
-        // classify every arm without retaining speculative bounds
-        let mut viables = SmallVec::<[_; 4]>::new();
-        let mut indeterminate = None;
-        let mut is_indeterminate_ambiguous = false;
+        // decide every arm
+        let mut holding = SmallVec::<[_; 4]>::new();
+        let mut viable = SmallVec::<[_; 4]>::new();
         for candidate in candidates.iter().copied() {
-            let verdict = self.probe_candidate(|state| {
+            let verdict = self.decide_candidate(|state| {
                 match state
                     .constrain_type(origin, cause, relation, candidate.0, candidate.1)?
                     .holds()
@@ -290,93 +260,21 @@ impl CheckState<'_> {
                 }
             })?;
             match verdict {
-                Verdict::Holds => viables.push(candidate),
-                Verdict::Ambiguous if indeterminate.replace(candidate).is_some() => {
-                    is_indeterminate_ambiguous = true;
+                Verdict::Holds => {
+                    holding.push(candidate);
+                    viable.push(candidate);
                 }
-                Verdict::Ambiguous | Verdict::Fails => {}
+                Verdict::Ambiguous => viable.push(candidate),
+                Verdict::Fails => {}
             }
         }
 
-        // disambiguate tied arms by matching constructors first
-        if viables.len() > 1 {
-            let mut matching = SmallVec::<[_; 4]>::new();
-            for (source, target) in viables.iter().copied() {
-                if self.is_same_type_constructor(source, target)? {
-                    matching.push((source, target));
-                }
-            }
-            match matching.as_slice() {
-                // take the one arm whose constructors match
-                [matched] => viables = SmallVec::from_slice(&[*matched]),
-                // fall back to the one arm targeting a naked variable
-                [] => {
-                    let mut naked = SmallVec::<[_; 4]>::new();
-                    for (source, target) in viables.iter().copied() {
-                        if self.root_variable(target)?.is_some() {
-                            naked.push((source, target));
-                        }
-                    }
-                    if let [matched] = naked.as_slice() {
-                        viables = SmallVec::from_slice(&[*matched]);
-                    }
-                }
-                // keep several matching arms tied
-                _ => {}
-            }
-        }
-
-        // commit only one unambiguous arm, preferring established bounds
-        let selected = match (
-            viables.as_slice(),
-            is_indeterminate_ambiguous,
-            indeterminate,
-        ) {
-            ([selected], _, _) => Some(*selected),
-            ([], false, Some(selected)) => Some(selected),
-            _ => None,
-        };
-        if let Some(selected) = selected {
-            return self.constrain_type(origin, cause, relation, selected.0, selected.1);
-        }
-
-        // wait for open variables to close before disambiguating applicable arms
-        let open = self.collect_open_variables(
-            candidates
-                .iter()
-                .flat_map(|(source, target)| iter::once(*source).chain(iter::once(*target))),
-        )?;
-        if !open.is_empty() {
-            return Ok(Verdict::Ambiguous);
-        }
-
-        // decide from the closed arms that proved the relation
-        Ok(Verdict::decided(!viables.is_empty()))
-    }
-
-    /// Return whether one pair shares its top type constructor.
-    fn is_same_type_constructor(
-        &self,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
-
-        match (self.ty(source)?, self.ty(target)?) {
-            (dir::Type::Form(source), dir::Type::Form(target)) => {
-                Ok(source.form.same_constructor(&target.form))
-            }
-            (dir::Type::Application(source), dir::Type::Application(target)) => {
-                Ok(source.symbol == target.symbol)
-            }
-            (dir::Type::Reference(source), dir::Type::Reference(target)) => {
-                Ok(source.symbol == target.symbol)
-            }
-            (dir::Type::Primitive(source), dir::Type::Primitive(target)) => Ok(source == target),
-            (source, target) => {
-                Ok(std::mem::discriminant(&source) == std::mem::discriminant(&target))
-            }
+        // constrain through the sole viable arm
+        match (viable.as_slice(), holding.as_slice()) {
+            ([selected], _) => self.constrain_type(origin, cause, relation, selected.0, selected.1),
+            ([], _) => Ok(Verdict::Fails),
+            (_, []) => Ok(Verdict::Ambiguous),
+            _ => Ok(Verdict::Holds),
         }
     }
 
@@ -398,7 +296,7 @@ impl CheckState<'_> {
         Ok(variables)
     }
 
-    /// Resolve one solved variable root, keeping children as written.
+    /// Settle one solved variable root, keeping children as written.
     pub(in crate::sema) fn shallow_resolve(
         &self,
         id: dir::GlobalTypeId,
@@ -430,15 +328,12 @@ impl CheckState<'_> {
     }
 
     /// Bring one relate operand to its comparison root.
-    ///
-    /// Resolve solved variables, shed family-default ownership constructors,
-    /// and classify the root's open variable in one read.
-    fn relate_root(
+    pub(in crate::sema) fn relate_root(
         &mut self,
         origin: Origin,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<(dir::GlobalTypeId, Option<dir::TypeVariableId>)> {
-        let id = self.shallow_resolve(id)?;
+        let id = self.structurally_normalize(origin, id)?;
         match self.ty(id)? {
             // an open variable stands as the comparison root
             dir::Type::Variable(variable) => Ok((id, self.open_root(variable)?)),

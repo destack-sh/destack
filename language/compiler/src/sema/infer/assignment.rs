@@ -1,12 +1,11 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    BodyState, Cause, CauseKind, CheckOutcome, FlowSite, InferMode, Origin, PlaceUse, Relation,
-    ValueUse,
+    Cause, CauseKind, CheckOutcome, CheckState, Expectation, FlowSite, Origin, PlaceUse, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Infer one assignment expression and check the written value.
     pub(in crate::sema) fn infer_assignment_expression(
         &mut self,
@@ -15,9 +14,12 @@ impl BodyState<'_, '_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // check a plain store against its target
         if operator == dir::AssignOperator::Assign {
             self.infer_plain_assignment_expression(site, left, right)
-        } else {
+        }
+        // check an update through its operator
+        else {
             self.infer_update_assignment_expression(site, left, operator, right)
         }
     }
@@ -29,13 +31,16 @@ impl BodyState<'_, '_> {
         left: dir::LocalNodeId<dir::AssignPattern>,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // read the assignment's own nodes
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
         let right_node = right.into_global_any(module);
 
-        // check place assignments against the selected write target
+        // read the written pattern
         let pattern = self.module(module).view().get(left).clone();
+
+        // check a place assignment against the selected write target
         let value = if let dir::AssignPattern::Place { expression } = &pattern {
             let expression_site = self.visit_site(expression.into_global_any(module))?;
             let Some(place) =
@@ -51,26 +56,23 @@ impl BodyState<'_, '_> {
                     place: expression.into_global_any(module),
                 },
             ));
-            let check = self.check_node_expected(
+            let check = self.check_node(
                 right_site,
-                target,
-                Relation::Assignable,
-                cause,
-                ValueUse::Store,
-                InferMode::Regular,
+                Expectation::assignable(target, cause, ValueUse::Store),
             )?;
             let value = check.source;
             self.commit_assign_pattern_place(site.origin(), left_node, place)?;
             self.commit_node_type(left_node.into_any(), value)?;
 
             // mark the written place assigned and drop stale narrowings
-            if let Some(assigned) = self.check.assigned_place(*expression) {
-                self.check.assign_place(assigned);
+            if let Some(assigned) = self.assigned_place(*expression) {
+                self.assign_place(assigned);
             }
-            self.check.clear_mutated_expression_narrowings(*expression);
+            self.clear_mutated_expression_narrowings(*expression);
 
             value
         } else {
+            // infer the right value on its own
             let right_site = self.visit_site(right_node)?;
             self.infer_node_type(right_site, PlaceUse::Read)?
         };
@@ -89,6 +91,7 @@ impl BodyState<'_, '_> {
                 self.commit_access(left_node.into_any(), access.path().clone())?;
             }
 
+            // select the pattern against the inferred value
             let selected = self.select_assign_pattern(
                 left_node,
                 site.flow,
@@ -101,6 +104,8 @@ impl BodyState<'_, '_> {
             }
             self.commit_node_type(left_node.into_any(), value)?;
         }
+
+        // commit the assignment's own value type
         self.commit_node_type(node.into_any(), value)?;
 
         Ok(())
@@ -114,6 +119,7 @@ impl BodyState<'_, '_> {
         operator: dir::AssignOperator,
         right: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
+        // read the assignment's own nodes
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
         let left_node = left.into_global(module);
@@ -132,6 +138,7 @@ impl BodyState<'_, '_> {
             return self.commit_rejected_assignment(node, left_node);
         };
 
+        // read the place's read and write types
         let read_type = place
             .read
             .as_ref()
@@ -168,13 +175,9 @@ impl BodyState<'_, '_> {
                 place: target.into_global_any(module),
             },
         ));
-        let check = self.check_node_expected(
+        let check = self.check_node(
             right_site,
-            write_type,
-            Relation::Assignable,
-            cause,
-            ValueUse::Store,
-            InferMode::Regular,
+            Expectation::assignable(write_type, cause, ValueUse::Store),
         )?;
         if matches!(check.outcome, CheckOutcome::Fails(_)) {
             return self.commit_rejected_assignment(node, left_node);
@@ -191,6 +194,7 @@ impl BodyState<'_, '_> {
         node: dir::GlobalNodeId<dir::Expression>,
         left: dir::GlobalNodeId<dir::AssignPattern>,
     ) -> CompilerResult<()> {
+        // commit the rejection and its error types
         self.commit_decision(left.into_any(), dir::Decision::Rejected)?;
         let error = self.commit_error_node(node.into_any())?;
         self.commit_node_type(left.into_any(), error)?;

@@ -137,7 +137,7 @@ number satisfies int32;
 === annotated ===
 import { value } from "./value.ds";
 
-const number: int32 = value().open<int32, "local">();
+const number: int32 = value().open<int32>();
 number satisfies int32;
 
 === dir ===

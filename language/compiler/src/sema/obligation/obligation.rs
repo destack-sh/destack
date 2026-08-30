@@ -2,7 +2,6 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-
 use crate::sema::{
     AssignmentSelection, Check, CheckId, CheckState, ExpectedType, GenericTemplateId, Origin,
     Variance,
@@ -41,45 +40,21 @@ pub(in crate::sema) enum Obligation {
     RuntimePredicate(Box<RuntimePredicateObligation>),
     /// A for-in source must be enumerable.
     ForInSource(ForInSourceObligation),
-    /// A concrete declaration must initialize required fields.
-    FieldInitialization(FieldInitializationObligation),
     /// A written type operation must be well-formed once its operands close.
     WellFormedType(WellFormedTypeObligation),
     /// A range's written endpoints share one element type.
     RangeElement(RangeElementObligation),
 }
 
-/// When one obligation decides.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(in crate::sema) enum ObligationPhase {
-    /// Solves control-flow holes as soon as its node checks.
-    Produce,
-    /// Decides remaining obligations at the final round, like borrowck.
-    Final,
-}
-
 impl Obligation {
-    /// Return when this obligation decides.
-    pub(in crate::sema) fn phase(&self) -> ObligationPhase {
-        match self {
-            Self::PatternCoverage(_)
-            | Self::RuntimePredicate(_)
-            | Self::ForInSource(_)
-            | Self::RangeElement(_) => ObligationPhase::Produce,
-            Self::WritableTarget(_) | Self::FieldInitialization(_) | Self::WellFormedType(_) => {
-                ObligationPhase::Final
-            }
-        }
-    }
-
     /// Return the source node anchoring diagnostics.
     pub(in crate::sema) fn source(&self) -> dir::GlobalNodeIdAny {
+        // read the anchor each obligation names
         match self {
             Self::PatternCoverage(obligation) => obligation.source,
             Self::WritableTarget(obligation) => obligation.target.source,
             Self::RuntimePredicate(obligation) => obligation.source,
             Self::ForInSource(obligation) => obligation.source,
-            Self::FieldInitialization(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
             Self::RangeElement(obligation) => obligation.source,
         }
@@ -87,6 +62,7 @@ impl Obligation {
 
     /// Return the checked operand types stored on this obligation.
     pub(in crate::sema) fn operand_types(&self) -> SmallVec<[dir::GlobalTypeId; 2]> {
+        // read the operand types each obligation stores
         match self {
             Self::PatternCoverage(obligation) => match obligation.value {
                 ExpectedType::Type(ty) => SmallVec::from_slice(&[ty]),
@@ -95,7 +71,6 @@ impl Obligation {
             Self::WritableTarget(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
-            Self::FieldInitialization(obligation) => SmallVec::from_slice(&[obligation.receiver]),
             Self::RangeElement(obligation) => SmallVec::from_slice(&[obligation.element]),
             Self::RuntimePredicate(_) => SmallVec::new(),
         }
@@ -145,7 +120,7 @@ impl ObligationCheck {
 /// Reason one completed obligation failed.
 #[derive(Debug, Clone, PartialEq)]
 pub(in crate::sema) enum ObligationFailure {
-    /// A match expression did not cover one remaining value.
+    /// A match expression leaves one value uncovered.
     NonExhaustivePattern {
         /// The source holding the patterns.
         source: dir::GlobalNodeIdAny,
@@ -166,7 +141,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// A representative uncovered value.
         missing: UncoveredValue,
     },
-    /// A for-in source does not expose object keys.
+    /// A for-in source exposes no object keys.
     ForInSourceNotObjectShaped {
         /// The for-in expression.
         source: dir::GlobalNodeIdAny,
@@ -178,7 +153,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The unified element type of the written endpoints.
         element: dir::GlobalTypeId,
     },
-    /// A type predicate can never hold.
+    /// A type predicate holds for no value.
     ImpossibleIs {
         /// The predicate expression.
         source: dir::GlobalNodeIdAny,
@@ -187,7 +162,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The tested target type.
         target: dir::GlobalTypeId,
     },
-    /// An instanceof predicate can never hold.
+    /// An instanceof predicate holds for no value.
     ImpossibleInstanceOf {
         /// The predicate expression.
         source: dir::GlobalNodeIdAny,
@@ -212,7 +187,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The indexed receiver type.
         receiver: dir::GlobalTypeId,
     },
-    /// An indexed access key does not project from its receiver.
+    /// An indexed access key projects from no receiver member.
     InvalidIndexKey {
         /// The written index type expression.
         source: dir::GlobalNodeIdAny,
@@ -267,7 +242,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The overwritten value type.
         ty: dir::GlobalTypeId,
     },
-    /// A type does not have finite by-value storage.
+    /// A type lacks finite by-value storage.
     CircularType {
         /// The source exposing the cycle.
         source: dir::GlobalNodeIdAny,
@@ -277,7 +252,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The stored type or field keeping the local reference.
         source: dir::GlobalNodeIdAny,
     },
-    /// A type does not satisfy a compiler-known interface.
+    /// A type fails a compiler-known interface.
     AutoInterfaceNotSatisfied {
         /// The source requiring the interface.
         source: dir::GlobalNodeIdAny,
@@ -286,7 +261,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The required interface.
         interface: dir::AutoInterface,
     },
-    /// An extension does not implement one declared interface.
+    /// An extension leaves one declared interface unimplemented.
     InterfaceNotImplemented {
         /// The implementation clause source.
         source: dir::GlobalNodeIdAny,
@@ -395,14 +370,14 @@ pub(in crate::sema) enum ObligationFailure {
         /// The member key.
         member: dir::StaticKey,
     },
-    /// Override target is not virtual or abstract.
+    /// An override target lacks a virtual or abstract modifier.
     OverrideNotVirtual {
         /// The member declaration source.
         source: dir::GlobalNodeIdAny,
         /// The member key.
         member: dir::StaticKey,
     },
-    /// Override type is not assignable to the inherited member type.
+    /// An override type fails to store into the inherited member type.
     IncompatibleOverride {
         /// The member declaration source.
         source: dir::GlobalNodeIdAny,
@@ -427,7 +402,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The member key.
         member: dir::StaticKey,
     },
-    /// Concrete class does not implement one inherited abstract member.
+    /// A concrete class leaves one inherited abstract member unimplemented.
     UnimplementedAbstractMember {
         /// The class declaration source.
         source: dir::GlobalNodeIdAny,
@@ -441,7 +416,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The final base symbol.
         base: dir::GlobalSymbolId,
     },
-    /// Class field is not definitely initialized.
+    /// A class field stays uninitialized on some constructor path.
     FieldNotDefinitelyInitialized {
         /// The field declaration source.
         source: dir::GlobalNodeIdAny,
@@ -455,7 +430,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The field symbol.
         field: dir::GlobalSymbolId,
     },
-    /// Declared generic parameter never occurs in its definition.
+    /// A declared generic parameter is absent from its definition.
     UnusedGenericParameter {
         /// The parameter declaration source.
         source: dir::GlobalNodeIdAny,
@@ -551,6 +526,8 @@ pub(in crate::sema) struct WritableTargetObligation {
 pub(in crate::sema) struct FieldInitializationObligation {
     /// The declaration node.
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
+    /// The declaration's generic template, assumed while checking.
+    pub(in crate::sema) scope: Option<GenericTemplateId>,
     /// The checked declaration symbol.
     pub(in crate::sema) symbol: dir::GlobalSymbolId,
     /// The declaration receiver type.
@@ -693,6 +670,7 @@ impl CheckState<'_> {
         for failure in check.into_failures() {
             self.report_obligation_failure(failure)?;
         }
+
         // record the check as finished
         self.record_check_event(id, true)?;
 
@@ -722,9 +700,6 @@ impl CheckState<'_> {
                 self.check_runtime_predicate(origin, obligation)
             }
             Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
-            Obligation::FieldInitialization(obligation) => {
-                self.check_field_initialization(origin, obligation)
-            }
             Obligation::WellFormedType(obligation) => {
                 self.check_well_formed_type(origin, obligation)
             }
@@ -788,6 +763,7 @@ impl CheckState<'_> {
             return Ok(ObligationCheck::holds());
         }
 
+        // report the endpoints that disagree
         let failure = ObligationFailure::IncompatibleRangeEndpoints {
             source: obligation.source,
             element,
@@ -807,6 +783,7 @@ impl CheckState<'_> {
             return Ok(ObligationCheck::holds());
         }
 
+        // report a source without enumerable keys
         let failure = ObligationFailure::ForInSourceNotObjectShaped {
             source: obligation.source,
         };

@@ -43,6 +43,7 @@ impl CheckState<'_> {
         primary: &DiagnosticAnchor,
         blame: Option<&Blame>,
     ) -> CompilerResult<DiagnosticBuilder<T>> {
+        // read the cause chain and the module it reports in
         let chain = self.cause_chain(cause);
         let module = self.cause_origin(cause).module();
 
@@ -73,9 +74,13 @@ impl CheckState<'_> {
             (_, false) => Some(format!("the mismatch is in {}", join_path(&slots))),
             (_, true) => None,
         };
+
+        // note the mismatch the slots name
         if let Some(note) = note {
             diagnostic = diagnostic.note(note);
         }
+
+        // note each reduction the blamed sides went through
         if let Some(Blame::Reduced { notes }) = blame {
             for reduction in notes {
                 diagnostic = diagnostic.note(reduction.clone());
@@ -106,6 +111,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // descend to the mismatched leaf
         let leaf = self.blame_leaf(origin, relation, source, target, 0)?;
 
         // name the mismatched slot when the walk descended
@@ -132,7 +138,7 @@ impl CheckState<'_> {
         }
 
         // hint at interfaces when only class exactness refused a storage pair
-        let is_storage = matches!(relation, Relation::Assignable | Relation::Widens);
+        let is_storage = relation == Relation::Storable;
         let is_value_class = is_storage
             && match self.ty(leaf.source)? {
                 dir::Type::Object(_) => true,
@@ -158,6 +164,7 @@ impl CheckState<'_> {
             ));
         }
 
+        // leave a pair with nothing to note unblamed
         if notes.is_empty() {
             return Ok(None);
         }
@@ -174,6 +181,7 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         depth: u32,
     ) -> CompilerResult<BlameLeaf> {
+        // stop the descent at the depth limit
         let leaf = BlameLeaf {
             path: Vec::new(),
             source,
@@ -186,13 +194,13 @@ impl CheckState<'_> {
 
         // resolve both sides and expand their written aliases before pairing their slots
         let source = self.deeply_resolve(origin, source)?;
-        let source = self.normalize_alias_head(origin, source)?;
+        let source = self.structurally_normalize(origin, source)?;
         let target = self.deeply_resolve(origin, target)?;
-        let target = self.normalize_alias_head(origin, target)?;
+        let target = self.structurally_normalize(origin, target)?;
 
         // descend into the first slot whose relation fails
         for (slot, child_relation, child_source, child_target) in
-            self.blame_pairs(relation, source, target)?
+            self.blame_pairs(origin, relation, source, target)?
         {
             if self
                 .decide_relation(origin, child_relation, child_source, child_target)?
@@ -225,6 +233,7 @@ impl CheckState<'_> {
     /// Decompose one closed pair into its labeled slot relations.
     fn blame_pairs(
         &mut self,
+        origin: Origin,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
@@ -236,16 +245,18 @@ impl CheckState<'_> {
             dir::GlobalTypeId,
         )>,
     > {
+        // decompose the pair by the heads on both sides
         let mut pairs = Vec::new();
         match (self.ty(source)?, self.ty(target)?) {
             // blame matching shape fields under their storage relations
-            (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) => {
-                let source_fields = self
-                    .object_properties(source.module_id, source_shape.properties)?
-                    .to_vec();
-                let target_fields = self
-                    .object_properties(target.module_id, target_shape.properties)?
-                    .to_vec();
+            (
+                dir::Type::Object(_) | dir::Type::Application(_),
+                dir::Type::Object(_) | dir::Type::Application(_),
+            ) if let (Some((source_fields, _)), Some((target_fields, _))) = (
+                self.apparent_object_members(origin, source)?,
+                self.apparent_object_members(origin, target)?,
+            ) =>
+            {
                 for target_field in target_fields {
                     let source_field = source_fields
                         .iter()
@@ -254,7 +265,7 @@ impl CheckState<'_> {
                         continue;
                     };
                     let Some(relations) =
-                        self.shape_property_relations(relation, false, source_field, &target_field)
+                        self.shape_property_relations(relation, source_field, &target_field)
                     else {
                         continue;
                     };
@@ -291,7 +302,7 @@ impl CheckState<'_> {
                         self.format_slot(CauseKind::Element {
                             index: index as u32,
                         }),
-                        relation.interior(),
+                        relation,
                         source_element.ty,
                         target_element.ty,
                     ));
@@ -321,7 +332,7 @@ impl CheckState<'_> {
                         self.format_slot(CauseKind::Parameter {
                             index: index as u32,
                         }),
-                        relation.interior(),
+                        relation,
                         target_parameter.ty,
                         source_parameter.ty,
                     ));
@@ -331,7 +342,7 @@ impl CheckState<'_> {
                 {
                     pairs.push((
                         self.format_slot(CauseKind::ReturnSlot),
-                        relation.interior(),
+                        relation,
                         source_return,
                         target_return,
                     ));
@@ -350,7 +361,7 @@ impl CheckState<'_> {
             (dir::Type::FixedArray(source_array), dir::Type::FixedArray(target_array)) => {
                 pairs.push((
                     Some("the element type".to_string()),
-                    relation.interior(),
+                    relation,
                     source_array.element,
                     target_array.element,
                 ));
@@ -389,7 +400,7 @@ impl CheckState<'_> {
                 let target_arguments = self
                     .type_ids(target.module_id, target_instance.arguments)?
                     .to_vec();
-                let relation = self.instance_argument_relation(symbol, Relation::Widens)?;
+                let relation = Relation::Storable;
                 let form = self.default_variance_form(symbol)?;
                 for (index, (source_argument, target_argument)) in source_arguments
                     .iter()
@@ -416,6 +427,7 @@ impl CheckState<'_> {
                 }
             }
 
+            // leave every other pair whole
             _ => {}
         }
 
@@ -424,6 +436,7 @@ impl CheckState<'_> {
 
     /// Collect one cause chain from the constraint to its root.
     fn cause_chain(&self, cause: CauseId) -> Vec<Cause> {
+        // walk from the constraint up to its root
         let mut chain = Vec::new();
         let mut current = Some(cause);
         while let Some(id) = current {
@@ -437,6 +450,7 @@ impl CheckState<'_> {
 
     /// Return the root of one constraint's cause chain.
     pub(in crate::sema) fn root_cause(&self, cause: CauseId) -> Cause {
+        // walk to the top of the chain
         let mut root = self.infer.cause(cause);
         while let Some(parent) = root.parent {
             root = self.infer.cause(parent);
@@ -447,6 +461,7 @@ impl CheckState<'_> {
 
     /// Format one slot the constraint descended into.
     fn format_slot(&self, kind: CauseKind) -> Option<String> {
+        // name the slot the constraint descended into
         let description = match kind {
             CauseKind::Field { key } => format!("field '{}'", self.format_static_key(&key)),
             CauseKind::Element { index } => format!("element {index}"),
@@ -464,6 +479,7 @@ impl CheckState<'_> {
 
     /// Return the label pointing at one root cause's written syntax.
     fn root_label(&self, kind: CauseKind) -> CompilerResult<Option<(DiagnosticAnchor, String)>> {
+        // point at the syntax each root cause names
         let label = match kind {
             CauseKind::Initializer {
                 annotation: Some(annotation),
@@ -524,6 +540,7 @@ impl CheckState<'_> {
 
 /// Join slot labels from the mismatch outward, eliding deep paths.
 fn join_path(slots: &[String]) -> String {
+    // elide the middle of a deep path
     match slots {
         [.., _, _, _, _, last] => {
             let head = slots[..3].join(" of ");

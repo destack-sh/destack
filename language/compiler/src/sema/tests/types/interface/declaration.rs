@@ -82,14 +82,14 @@ struct Value {}
 extension of Value implements ForeignProtocol {
 /// @definition.extension symbol=<module>#2 form=local target=Value
 /// @definition.implements symbol=<module>#2 source=ForeignProtocol target=ForeignProtocol
-/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a, snake_name.P1: Place>(this: &snake_name.'a readonly Value) => void
+/// @definition.method symbol=snake_name source="snake_name(): void {}" slot=snake_name type=<snake_name.'a>(this: &snake_name.'a readonly Value) => void
 /// @definition.conformance symbol=<module>#2 member=snake_name requirement=ForeignProtocol.snake_name
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=ForeignProtocol target=ForeignProtocol
 
     snake_name(): void {}
-    /// @generic.template symbol=snake_name parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a, snake_name.P1: Place>(this: &snake_name.'a readonly Value) => void
+    /// @generic.template symbol=snake_name parent=template#1 parameters=('a)
+    /// @type.symbol symbol=snake_name source="snake_name(): void {}" type=<snake_name.'a>(this: &snake_name.'a readonly Value) => void
     /// @type.symbol symbol=snake_name.this type=&snake_name.'a readonly Value
 
 }
@@ -250,7 +250,7 @@ export newtype interface Table<T, Context> {
     (name: string, body?: (value: &readonly T, context: &Context) => void): void;
     /// @type.symbol symbol=Table.name#1 source="name: string" type=string
     /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
-    /// @generic.template source=type_expression parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
+    /// @generic.template source=type_expression parent=template#0 parameters=('a, 'b)
     /// @type.symbol symbol=Table.value#1 source="value: &readonly T" type=&type_expression.'a readonly T
     /// @resolution.name source=T target=Table.T
     /// @type.symbol symbol=Table.context#1 source="context: &Context" type=&type_expression.'b Context
@@ -260,7 +260,7 @@ export newtype interface Table<T, Context> {
     /// @type.symbol symbol=Table.name#2 source="name: string" type=string
     /// @type.symbol symbol=Table.options source="options: int32" type=int32
     /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
-    /// @generic.template source=type_expression parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
+    /// @generic.template source=type_expression parent=template#0 parameters=('a, 'b)
     /// @type.symbol symbol=Table.value#2 source="value: &readonly T" type=&type_expression.'a readonly T
     /// @resolution.name source=T target=Table.T
     /// @type.symbol symbol=Table.context#2 source="context: &Context" type=&type_expression.'b Context
@@ -296,7 +296,7 @@ newtype interface Duplicate {
     clone(&readonly this): ^this;
 
     cloneFrom(&exclusive this, source: &'b readonly this): void {
-        *this = source.clone<P3>() as this;
+        *this = source.clone() as this;
     }
 }
 
@@ -305,17 +305,17 @@ newtype interface Duplicate {
 /// @type.symbol symbol=Duplicate type=Duplicate
 /// @definition.interface symbol=Duplicate nominal=true
 /// @definition.where symbol=Duplicate relation=satisfies left=this right=Duplicate
-/// @definition.method symbol=Duplicate.clone source="clone(&readonly this): ^this" slot=clone type=<Duplicate.clone.'a, Duplicate.clone.P1: Place>(this: &Duplicate.clone.'a readonly this) => Owned<this>
-/// @definition.method symbol=Duplicate.cloneFrom slot=cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.P1: Place, Duplicate.cloneFrom.'b, Duplicate.cloneFrom.P3: Place>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
+/// @definition.method symbol=Duplicate.clone source="clone(&readonly this): ^this" slot=clone type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => Owned<this>
+/// @definition.method symbol=Duplicate.cloneFrom slot=cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.'b>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
 
     clone(&readonly this): ^this;
-    /// @generic.template symbol=Duplicate.clone parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=Duplicate.clone source="clone(&readonly this): ^this" type=<Duplicate.clone.'a, Duplicate.clone.P1: Place>(this: &Duplicate.clone.'a readonly this) => Owned<this>
+    /// @generic.template symbol=Duplicate.clone parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Duplicate.clone source="clone(&readonly this): ^this" type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => Owned<this>
     /// @type.symbol symbol=Duplicate.clone.this source="&readonly this" type=&Duplicate.clone.'a readonly this
 
     cloneFrom(&exclusive this, source: &readonly this): void {
-    /// @generic.template symbol=Duplicate.cloneFrom parent=template#0 parameters=('a, P1: Place, 'b, P3: Place)
-    /// @type.symbol symbol=Duplicate.cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.P1: Place, Duplicate.cloneFrom.'b, Duplicate.cloneFrom.P3: Place>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
+    /// @generic.template symbol=Duplicate.cloneFrom parent=template#0 parameters=('a, 'b)
+    /// @type.symbol symbol=Duplicate.cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.'b>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
     /// @type.symbol symbol=Duplicate.cloneFrom.this source="&exclusive this" type=&Duplicate.cloneFrom.'a exclusive this
     /// @type.symbol symbol=Duplicate.cloneFrom.source source="source: &readonly this" type=&Duplicate.cloneFrom.'b readonly this
 
@@ -323,14 +323,14 @@ newtype interface Duplicate {
         /// @resolution.pattern.assign source=*this kind=place
         /// @resolution.assignment source=*this write="&Duplicate.cloneFrom.'a exclusive this => direct -> this" type=this
         /// @resolution.name source=this target=Duplicate.cloneFrom.this
-        /// @resolution.place source=this placement=Duplicate.cloneFrom.P1 lifetime=Duplicate.cloneFrom.'a access="exclusive"
+        /// @resolution.place source=this placement=Duplicate.cloneFrom.'a lifetime=Duplicate.cloneFrom.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.name source=source target=Duplicate.cloneFrom.source
-        /// @resolution.member source=source.clone receiver=&Duplicate.cloneFrom.'b readonly this type=<Duplicate.clone.'a, Duplicate.clone.P1: Place>(this: &Duplicate.clone.'a readonly this) => Owned<this> kind=symbol target_receiver=&Duplicate.cloneFrom.'b readonly this target=Duplicate.clone
-        /// @resolution.call source=source.clone() parameters=() return=Owned<&Duplicate.cloneFrom.'b readonly this> kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this adjustments=(&Duplicate.cloneFrom.'b readonly this => direct -> this, borrow(&Duplicate.cloneFrom.'b readonly this)) instance=Duplicate.clone<Duplicate.cloneFrom.P3>
-        /// @resolution.place source=source placement=Duplicate.cloneFrom.P3 lifetime=Duplicate.cloneFrom.'b access="readonly"
+        /// @resolution.member source=source.clone receiver=&Duplicate.cloneFrom.'b readonly this type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => Owned<this> kind=symbol target_receiver=&Duplicate.cloneFrom.'b readonly this target=Duplicate.clone
+        /// @resolution.call source=source.clone() parameters=() return=Owned<&Duplicate.cloneFrom.'b readonly this> kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this adjustments=(&Duplicate.cloneFrom.'b readonly this => direct -> this, borrow(&Duplicate.cloneFrom.'b readonly this))
+        /// @resolution.place source=source placement=Duplicate.cloneFrom.'b lifetime=Duplicate.cloneFrom.'b access="readonly"
         /// @resolution.access source=source root=Duplicate.cloneFrom.source
-        /// @generic.instantiation id="Duplicate.clone<this, Duplicate.cloneFrom.P3>" template=Duplicate.clone arguments=(Duplicate.cloneFrom.P3)
+        /// @generic.instantiation id=Duplicate.clone<this> template=Duplicate.clone arguments=()
 
     }
 }

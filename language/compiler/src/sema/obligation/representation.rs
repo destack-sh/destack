@@ -11,7 +11,7 @@ use crate::{CompilerError, CompilerResult};
 enum RepresentationCheck {
     /// Every stored value must have a fixed representation.
     Concrete {
-        /// The `Concrete` interface used to prove generic slots.
+        /// The `Concrete` interface that proves generic slots.
         interface: dir::GlobalTypeId,
     },
     /// Inline storage must terminate.
@@ -47,7 +47,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // reuse the decision recorded by an earlier walk
-        if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
+        if self.has_decided_representation(origin, ty, dir::AutoInterface::Concrete)? {
             return Ok(true);
         }
 
@@ -63,7 +63,7 @@ impl CheckState<'_> {
             &mut visited,
         )?;
         if failure.is_none() {
-            self.prove_representation(origin, ty, dir::AutoInterface::Concrete)?;
+            self.commit_representation(origin, ty, dir::AutoInterface::Concrete)?;
         }
 
         Ok(failure.is_none())
@@ -76,7 +76,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // reuse the decision recorded by an earlier walk
-        if self.is_representation_proven(origin, ty, dir::AutoInterface::SharedSafe)? {
+        if self.has_decided_representation(origin, ty, dir::AutoInterface::SharedSafe)? {
             return Ok(true);
         }
 
@@ -107,7 +107,7 @@ impl CheckState<'_> {
             &mut visited,
         )?;
         if failure.is_none() {
-            self.prove_representation(origin, ty, dir::AutoInterface::SharedSafe)?;
+            self.commit_representation(origin, ty, dir::AutoInterface::SharedSafe)?;
         }
 
         Ok(failure.is_none())
@@ -120,7 +120,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // reuse the decision recorded by an earlier walk
-        if self.is_representation_proven(origin, ty, dir::AutoInterface::SuspendSafe)? {
+        if self.has_decided_representation(origin, ty, dir::AutoInterface::SuspendSafe)? {
             return Ok(true);
         }
 
@@ -135,7 +135,7 @@ impl CheckState<'_> {
             &mut visited,
         )?;
         if failure.is_none() {
-            self.prove_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
+            self.commit_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
         }
 
         Ok(failure.is_none())
@@ -172,12 +172,12 @@ impl CheckState<'_> {
             None => {
                 let chain = self.form_chain(origin, ty)?;
                 let Some(place) = chain.place() else {
-                    self.prove_storage(origin, ty)?;
+                    self.commit_storage(origin, ty)?;
 
                     return Ok(ObligationCheck::holds());
                 };
                 if self.place_space(place)? != Some(dir::Space::Shared) {
-                    self.prove_storage(origin, ty)?;
+                    self.commit_storage(origin, ty)?;
 
                     return Ok(ObligationCheck::holds());
                 }
@@ -227,7 +227,7 @@ impl CheckState<'_> {
             None => {
                 // prove storage outside the field's own declaration site
                 if !is_declaration_site {
-                    self.prove_storage(origin, ty)?;
+                    self.commit_storage(origin, ty)?;
                 }
 
                 return Ok(ObligationCheck::holds());
@@ -238,7 +238,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type already proved a representation interface.
-    fn is_representation_proven(
+    fn has_decided_representation(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -251,8 +251,8 @@ impl CheckState<'_> {
         Ok(self.conformances.get(&key) == Some(&true))
     }
 
-    /// Commit one proven representation interface.
-    fn prove_representation(
+    /// Remember one decided representation interface.
+    fn commit_representation(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -265,8 +265,8 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Commit one proven storable representation.
-    fn prove_storage(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<()> {
+    /// Remember one decided storable representation.
+    fn commit_storage(&mut self, origin: Origin, ty: dir::GlobalTypeId) -> CompilerResult<()> {
         if let Some(key) = self.storage_key(origin, ty)? {
             self.storables.insert(key);
         }
@@ -274,7 +274,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Key one proven storable representation by type identity, for resolved types only.
+    /// Key one decided storable representation by type identity, for resolved types only.
     fn storage_key(
         &mut self,
         origin: Origin,
@@ -354,7 +354,7 @@ impl CheckState<'_> {
         // reuse the decisions recorded by the walks that ignore the place
         match check {
             RepresentationCheck::Concrete { .. } => {
-                if self.is_representation_proven(origin, ty, dir::AutoInterface::Concrete)? {
+                if self.has_decided_representation(origin, ty, dir::AutoInterface::Concrete)? {
                     return Ok(None);
                 }
             }
@@ -367,7 +367,7 @@ impl CheckState<'_> {
             }
             RepresentationCheck::Shared { .. } => {}
             RepresentationCheck::Suspend => {
-                if self.is_representation_proven(origin, ty, dir::AutoInterface::SuspendSafe)? {
+                if self.has_decided_representation(origin, ty, dir::AutoInterface::SuspendSafe)? {
                     return Ok(None);
                 }
             }
@@ -398,14 +398,14 @@ impl CheckState<'_> {
         if let Ok(None) = &failure {
             match check {
                 RepresentationCheck::Concrete { .. } => {
-                    self.prove_representation(origin, ty, dir::AutoInterface::Concrete)?;
+                    self.commit_representation(origin, ty, dir::AutoInterface::Concrete)?;
                 }
                 RepresentationCheck::Finite => {
-                    self.prove_storage(origin, ty)?;
+                    self.commit_storage(origin, ty)?;
                 }
                 RepresentationCheck::Shared { .. } => {}
                 RepresentationCheck::Suspend => {
-                    self.prove_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
+                    self.commit_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
                 }
             }
         }
@@ -430,7 +430,7 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
                 let is_proven = self
-                    .decide_relation(origin, Relation::Satisfies, ty, interface)?
+                    .decide_relation(origin, Relation::Subtype, ty, interface)?
                     .holds();
 
                 return Ok((!is_proven).then_some(RepresentationFailure::Abstract));
@@ -451,7 +451,7 @@ impl CheckState<'_> {
             }
             // follow direct forms, which shared checking already stripped
             dir::Type::Form(form) => match form.form {
-                // bound inline layout at owned indirection, like a managed handle
+                // bound inline layout at owned indirection
                 dir::Form::Owned if matches!(check, RepresentationCheck::Finite) => {
                     return Ok(None);
                 }
@@ -462,8 +462,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(_) if matches!(check, RepresentationCheck::Suspend) => {
                     return Ok(Some(RepresentationFailure::BorrowedStorage));
                 }
-                // accept managed storage, borrows that escaped to the heap
-                //  already satisfied the heap escape lifetime rules
+                // accept managed storage and heap escaped borrows
                 dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
                     return Ok(None);
                 }
@@ -521,6 +520,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // collect the storage the declaration holds
         let storage = match self.definition(instance.symbol)?.cloned() {
             Some(dir::Definition::Newtype(definition)) => {
                 SmallVec::<[_; 4]>::from_slice(&[(definition.backing, source)])

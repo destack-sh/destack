@@ -1397,10 +1397,10 @@ match (packet) {
 
         labels: [first, second],
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
-        /// @generic.instantiation id="index#1<string, 2, \"exclusive\", \"local\">" template=index#1 arguments=(string, 2, "exclusive", "local")
+        /// @generic.instantiation id="index#1<string, 2, \"exclusive\">" template=index#1 arguments=(string, 2, "exclusive")
         /// @generic.instance id="WithAccess<&'frame FixedArray<string, 2>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<string, 2>, "exclusive")
         /// @generic.instance id="WithAccess<&'frame string, \"exclusive\">" template=WithAccess arguments=(&'frame string, "exclusive")
-        /// @generic.instance id="index#1<string, 2, \"exclusive\", \"local\">" template=index#1 arguments=(string, 2, "exclusive", "local")
+        /// @generic.instance id="index#1<string, 2, \"exclusive\">" template=index#1 arguments=(string, 2, "exclusive")
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1588,11 +1588,11 @@ match (values) {
 
     [head, ...tail] => {
     /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
-    /// @generic.instantiation id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+    /// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
     /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
     /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
     /// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-    /// @generic.instance id="index#1<int32, \"exclusive\", \"local\">" template=index#1 arguments=(int32, "exclusive", "local")
+    /// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
     /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head
@@ -1695,7 +1695,7 @@ const label = match (status) {
 === annotated ===
 declare const status: "ready" | "error";
 
-const label: "go" | "error" = match (status) {
+const label: "error" | "go" = match (status) {
     "ready" => "go"
     _ => status
 };
@@ -1706,9 +1706,9 @@ declare const status: "ready" | "error";
 /// @resolution.pattern source=status kind=binding target=status
 
 const label = match (status) {
-/// @type.symbol symbol=label source=label type="go" | "error"
+/// @type.symbol symbol=label source=label type="error" | "go"
 /// @resolution.pattern source=label kind=binding target=label
-/// @type.node type="go" | "error"
+/// @type.node type="error" | "go"
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=status type="ready" | "error"
 /// @resolution.name source=status target=status

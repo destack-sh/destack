@@ -210,16 +210,16 @@ let borrowed: int32 = 0;
 &borrowed;
 
 let passed: int32 = 0;
-modify<"local">(passed as &'static int32);
+modify(passed as &'static int32);
 
 let field: Counter = Counter { value: 0 };
 field.value = 1;
 
 let called: Counter = Counter { value: 0 };
-called.increment<"local">();
+called.increment();
 
 let referenced: Service = new Service();
-referenced.increment<"local">();
+referenced.increment();
 
 === dir ===
 struct Counter {

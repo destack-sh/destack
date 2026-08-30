@@ -86,7 +86,7 @@ struct Index<out T: int> {
 }
 
 const wide: Index<int64> = Index<int64> { value: 1 as int64 };
-const narrow = Index { value: 1 as int32 };
+const narrow: Index<int32> = Index<int32> { value: 1 as int32 };
 
 === dir ===
 struct Index<T: int> {
@@ -108,11 +108,14 @@ const wide = Index { value: 1 as int64 };
 /// @resolution.name source=Index target=Index
 
 const narrow = Index { value: 1 as int32 };
-/// @type.symbol symbol=narrow source=narrow type=Index<<error>>
+/// @type.symbol symbol=narrow source=narrow type=Index<int32>
 /// @resolution.pattern source=narrow kind=binding target=narrow
 /// @resolution.name source=Index target=Index
 "#,
         r#"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
+/// @diagnostic.label line=7 column=16 span="Index" line_source="const narrow = Index { value: 1 as int32 };"
+/// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'int32' does not satisfy 'int64'"
 /// @diagnostic.label line=7 column=16 span="Index { value: 1 as int32 }" line_source="const narrow = Index { value: 1 as int32 };"
 /// @diagnostic.related line=2 column=14 span="T" line_source="struct Index<T: int> {" message="required by this bound on 'T'"

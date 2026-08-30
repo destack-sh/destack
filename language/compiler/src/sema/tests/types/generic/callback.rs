@@ -101,7 +101,7 @@ const unwrapped = parsed.andThen((value) => Ok { value });
 /// @resolution.call source="parsed.andThen((value) => Ok { value })" parameters=(Function<(int32,), Result<<error>, <error>>>) arguments=(provided((value) => Ok { value }) as Function<(int32,), Result<<error>, <error>>>) return=Result<<error>, string | <error>> kind=symbol target=andThen receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.andThen<<error>, <error>>"
 /// @resolution.place source=parsed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parsed root=parsed
-/// @type.symbol symbol=symbol13 source="(value) => Ok { value }" type=Function<(int32,), <error>>
+/// @type.symbol symbol=symbol13 source="(value) => Ok { value }" type=Function<(int32,), Result<<error>, <error>>>
 /// @type.symbol symbol=symbol13.value source=value type=int32
 /// @resolution.name source=Ok target=Ok
 /// @resolution.name source=value target=symbol13.value
@@ -110,20 +110,14 @@ const unwrapped = parsed.andThen((value) => Ok { value });
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=6 column=43 span="Result.ok(value * 2)" line_source="const doubled = parsed.andThen((value) => Result.ok(value * 2));"
-/// @diagnostic.related line=6 column=32 span="(value) => Result.ok(value * 2)" line_source="const doubled = parsed.andThen((value) => Result.ok(value * 2));" message="'_' flows into it here"
+/// @diagnostic.label line=6 column=32 span="(value) => Result.ok(value * 2)" line_source="const doubled = parsed.andThen((value) => Result.ok(value * 2));"
 /// @diagnostic.help message="annotate the type explicitly"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=7 column=43 span="Result(Ok { value: value * 2 })" line_source="const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));"
-/// @diagnostic.related line=7 column=32 span="(value) => Result(Ok { value: value * 2 })" line_source="const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));" message="'_' flows into it here"
+/// @diagnostic.label line=7 column=32 span="(value) => Result(Ok { value: value * 2 })" line_source="const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));"
 /// @diagnostic.help message="annotate the type explicitly"
-/// @diagnostic.error id=not-assignable message="type 'Ok<int32>' is not assignable to type 'Result<_, _>'"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=9 column=34 span="(value) => Ok { value }" line_source="const unwrapped = parsed.andThen((value) => Ok { value });"
-/// @diagnostic.related line=9 column=19 span="parsed.andThen((value) => Ok { value })" line_source="const unwrapped = parsed.andThen((value) => Ok { value });" message="in this call"
-/// @diagnostic.note message="the mismatch is in the return type"
-/// @diagnostic.error id=not-assignable message="type 'Ok<int32>' is not assignable to type 'Result<_, _>'"
-/// @diagnostic.label line=9 column=45 span="Ok { value }" line_source="const unwrapped = parsed.andThen((value) => Ok { value });"
-/// @diagnostic.related line=9 column=19 span="parsed.andThen((value) => Ok { value })" line_source="const unwrapped = parsed.andThen((value) => Ok { value });" message="in this call"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }
@@ -366,26 +360,27 @@ test.each([("a", 2)])("pairs", (text, count) => {
 === annotated ===
 import { describe, test } from "destack:test";
 
-test.each<{}, {}, {}, (int32,)>([(1,)]).only(
+test.each<{}, {}, {}, (int32,)>([(1,)] as Iterable<(int32,)>).only(
     "parameterized case",
-    ((value: int32): BodyResult => {}) as ((arg0: int32) => BodyResult) | undefined,
+    ((value: int32): BodyResult => {}) as Function<(int32,), BodyResult> | undefined,
 );
-test.for<{}, {}, {}, int64>([1]).only(
+test.for<{}, {}, {}, int64>([1] as Iterable<int64>).only(
     "table case",
     <'a,>(value: &'a readonly int64): BodyResult => {},
 );
-describe.each<(int32,)>([(1,)])("parameterized suite", ((value: int32): void => {}) as | ((
+describe.each<(int32,)>([(1,)] as Iterable<(int32,)>)("parameterized suite", ((
+    value: int32
+): void => {}) as Function<(int32,), void> | undefined);
+describe.for<int32>([1] as Iterable<int32>)("table suite", ((value: int32): void => {}) as | ((
       arg0: int32,
   ) => void)
 | undefined);
-describe.for<int32>([1])("table suite", ((value: int32): void => {}) as | ((arg0: int32) => void)
-| undefined);
-test.each<{}, {}, {}, (string, int64)>([("a", 2)])("pairs", ((
+test.each<{}, {}, {}, (string, int64)>([("a", 2)] as Iterable<(string, int64)>)("pairs", ((
     text: string,
     count: int64,
 ): BodyResult => {
     const pair: (string, int64) = (text, count);
-}) as ((arg0: string, arg1: int64) => BodyResult) | undefined);
+}) as Function<(string, int64), BodyResult> | undefined);
 
 === dir ===
 import { describe, test } from "destack:test";
@@ -408,14 +403,14 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @resolution.name source=test target=test
 /// @resolution.member source=test.for receiver=Test<{}, {}, {}> type=<Test.for.T>(this: Test<{}, {}, {}>, Iterable<Test.for.T>) => TableTest<Test.for.T, {}, {}, {}> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.for
 /// @resolution.member source=test.for([1]).only receiver=TableTest<int64, {}, {}, {}> type=TableTest<int64, {}, {}, {}> kind=field target_receiver=TableTest<int64, {}, {}, {}> dispatch=dynamic constraint=TableTest<int64, {}, {}, {}> key=only target=TableTest.only target_type=TableTest<int64, {}, {}, {}>
-/// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, Function<(Borrowed<int64, type_expression.'a & type_expression.P1, "readonly">, Borrowed<CaseContext & {}, type_expression.'b & type_expression.P3, "mutable">), BodyResult> | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as Function<(Borrowed<int64, type_expression.'a & type_expression.P1, "readonly">, Borrowed<CaseContext & {}, type_expression.'b & type_expression.P3, "mutable">), BodyResult> | undefined) return=void kind=dynamic target=call(type_member) receiver=TableTest<int64, {}, {}, {}> constraint=TableTest<int64, {}, {}, {}>
+/// @resolution.call source="test.for([1]).only(\"table case\", (value: &readonly int64) => {})" parameters=(string, Function<(&type_expression.'a readonly int64, &type_expression.'b CaseContext & {}), BodyResult> | undefined) arguments=(provided("table case") as string, provided((value: &readonly int64) => {}) as Function<(&type_expression.'a readonly int64, &type_expression.'b CaseContext & {}), BodyResult> | undefined) return=void kind=dynamic target=call(type_member) receiver=TableTest<int64, {}, {}, {}> constraint=TableTest<int64, {}, {}, {}>
 /// @resolution.call source=test.for([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=TableTest<int64, {}, {}, {}> kind=dynamic target=Test.for receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, int64)
 /// @resolution.place source=test placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=test root=test
 /// @generic.instantiation id="Test.for<{}, {}, {}>" template=Test.for arguments=({}, {}, {})
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.template symbol=symbol5 parameters=('a, P1: Place)
+/// @generic.template symbol=symbol5 parameters=('a)
 /// @type.symbol symbol=symbol5 source="(value: &readonly int64) => {}" type=Function<(&symbol5.'a readonly int64,), BodyResult>
 /// @type.symbol symbol=symbol5.value source="value: &readonly int64" type=&symbol5.'a readonly int64
 
@@ -540,7 +535,6 @@ function parse(result: Result<string, string>): Result<int32, string> {
         /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=parse.symbol3.value
-        /// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.err receiver=Result type=(E#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=err#1
         /// @resolution.call source="Result.err(\"empty\")" parameters=(string) arguments=(provided("empty") as string) return=Result<int32, string> kind=symbol target=err#1 instance="Result<int32, string>.<extension#1>.err#1"
@@ -628,30 +622,31 @@ declare function plain<P: (...unknown[],)>(
 ): (name: string, body: Function<P, void>) => void;
 declare function table<T>(
     values: T[],
-): <'a>(name: string, body: (arg0: Borrowed<T, 'a, "readonly">) => void) => void;
+): <'a>(name: string, body: (arg0: &'a readonly T) => void) => void;
 declare function optionalTable<T>(
     values: T[],
-): <'a, 'b>(
-    name: string,
-    body?: (arg0: Borrowed<T, 'a, "readonly">, arg1: Borrowed<string, 'b, "mutable">) => void,
-) => void;
+): <'a, 'b>(name: string, body?: (arg0: &'a readonly T, arg1: &'b string) => void) => void;
 declare function iterTable<T>(
     values: Iterable<T>,
-): <'a>(name: string, body: (arg0: Borrowed<T, 'a, "readonly">) => void) => void;
+): <'a>(name: string, body: (arg0: &'a readonly T) => void) => void;
 declare function contextTable<T>(
     values: T[],
-): <'a, 'b>(
-    name: string,
-    body: (arg0: Borrowed<T, 'a, "readonly">, arg1: Borrowed<string, 'b, "mutable">) => void,
-) => void;
+): <'a, 'b>(name: string, body: (arg0: &'a readonly T, arg1: &'b string) => void) => void;
 
-run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | ((arg0: int32) => void)
+run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | Function<(int32,), void>
 | undefined);
 plain<(int32,)>([(1,)])("plain", (value: int32): void => {});
-table<int64>([1])("table", <'a,>(value: &'a readonly int32): void => {});
-optionalTable<int64>([1])("optional table", <'a,>(value: &'a readonly int32): void => {});
-contextTable<int64>([1])("context table", <'a,>(value: &'a readonly int32): void => {});
-iterTable<int64>([1])("iter table", <'a,>(value: &'a readonly int32): void => {});
+table<int32>([1])("table", <'a,>(value: &'a readonly int32): void => {});
+optionalTable<int32>([1])("optional table", (<'a,>(value: &'a readonly int32): void => {}) as | ((
+      arg0: &'frame readonly int32,
+      arg1: &'frame string,
+  ) => void)
+| undefined);
+contextTable<int32>([1])("context table", <'a,>(value: &'a readonly int32): void => {});
+iterTable<int32>([1] as Iterable<int32>)(
+    "iter table",
+    <'a,>(value: &'a readonly int32): void => {},
+);
 
 === dir ===
 declare function run<P: (...unknown[],)>(cases: P[]): (name: string, body?: Function<P, void>) => void;
@@ -760,58 +755,47 @@ plain([(1,)])("plain", (value: int32) => {});
 
 table([1])("table", (value: &readonly int32) => {});
 /// @resolution.name source=table target=table
-/// @resolution.call source="table([1])(\"table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int64,), void>) arguments=(provided("table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int64,), void>) return=void kind=expression target=expression
-/// @resolution.call source=table([1]) parameters=(int64[]) arguments=(provided([1]) as int64[]) return=Function<(string, Function<(&'a#1 readonly int64,), void>), void> kind=symbol target=table instance=table<int64>
-/// @generic.instantiation id=table<int64> template=table arguments=(int64)
-/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
-/// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.template symbol=symbol47 parameters=('a, P1: Place)
+/// @resolution.call source="table([1])(\"table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void kind=expression target=expression
+/// @resolution.call source=table([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#1 readonly int32,), void>), void> kind=symbol target=table instance=table<int32>
+/// @generic.instantiation id=table<int32> template=table arguments=(int32)
+/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @generic.template symbol=symbol47 parameters=('a)
 /// @type.symbol symbol=symbol47 source="(value: &readonly int32) => {}" type=Function<(&symbol47.'a readonly int32,), void>
 /// @type.symbol symbol=symbol47.value source="value: &readonly int32" type=&symbol47.'a readonly int32
 
 optionalTable([1])("optional table", (value: &readonly int32) => {});
 /// @resolution.name source=optionalTable target=optionalTable
-/// @resolution.call source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int64, &'frame string), void> | undefined) arguments=(provided("optional table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int64, &'frame string), void> | undefined) return=void kind=expression target=expression
-/// @resolution.call source=optionalTable([1]) parameters=(int64[]) arguments=(provided([1]) as int64[]) return=Function<(string, Function<(&'a#2 readonly int64, &'b#1 string), void> | undefined?), void> kind=symbol target=optionalTable instance=optionalTable<int64>
-/// @generic.instantiation id=optionalTable<int64> template=optionalTable arguments=(int64)
-/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
-/// @generic.template symbol=symbol49 parameters=('a, P1: Place)
+/// @resolution.call source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void> | undefined) arguments=(provided("optional table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void> | undefined) return=void kind=expression target=expression
+/// @resolution.call source=optionalTable([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#2 readonly int32, &'b#1 string), void> | undefined?), void> kind=symbol target=optionalTable instance=optionalTable<int32>
+/// @generic.instantiation id=optionalTable<int32> template=optionalTable arguments=(int32)
+/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.template symbol=symbol49 parameters=('a)
 /// @type.symbol symbol=symbol49 source="(value: &readonly int32) => {}" type=Function<(&symbol49.'a readonly int32,), void>
 /// @type.symbol symbol=symbol49.value source="value: &readonly int32" type=&symbol49.'a readonly int32
 
 contextTable([1])("context table", (value: &readonly int32) => {});
 /// @resolution.name source=contextTable target=contextTable
-/// @resolution.call source="contextTable([1])(\"context table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int64, &'frame string), void>) arguments=(provided("context table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int64, &'frame string), void>) return=void kind=expression target=expression
-/// @resolution.call source=contextTable([1]) parameters=(int64[]) arguments=(provided([1]) as int64[]) return=Function<(string, Function<(&'a#4 readonly int64, &'b#2 string), void>), void> kind=symbol target=contextTable instance=contextTable<int64>
-/// @generic.instantiation id=contextTable<int64> template=contextTable arguments=(int64)
-/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
-/// @generic.template symbol=symbol51 parameters=('a, P1: Place)
+/// @resolution.call source="contextTable([1])(\"context table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32, &'frame string), void>) arguments=(provided("context table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32, &'frame string), void>) return=void kind=expression target=expression
+/// @resolution.call source=contextTable([1]) parameters=(int32[]) arguments=(provided([1]) as int32[]) return=Function<(string, Function<(&'a#4 readonly int32, &'b#2 string), void>), void> kind=symbol target=contextTable instance=contextTable<int32>
+/// @generic.instantiation id=contextTable<int32> template=contextTable arguments=(int32)
+/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.template symbol=symbol51 parameters=('a)
 /// @type.symbol symbol=symbol51 source="(value: &readonly int32) => {}" type=Function<(&symbol51.'a readonly int32,), void>
 /// @type.symbol symbol=symbol51.value source="value: &readonly int32" type=&symbol51.'a readonly int32
 
 iterTable([1])("iter table", (value: &readonly int32) => {});
 /// @resolution.name source=iterTable target=iterTable
-/// @resolution.call source="iterTable([1])(\"iter table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int64,), void>) arguments=(provided("iter table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int64,), void>) return=void kind=expression target=expression
-/// @resolution.call source=iterTable([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=Function<(string, Function<(&'a#3 readonly int64,), void>), void> kind=symbol target=iterTable instance=iterTable<int64>
-/// @generic.instantiation id=iterTable<int64> template=iterTable arguments=(int64)
-/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
-/// @generic.template symbol=symbol53 parameters=('a, P1: Place)
+/// @resolution.call source="iterTable([1])(\"iter table\", (value: &readonly int32) => {})" parameters=(string, Function<(&'frame readonly int32,), void>) arguments=(provided("iter table") as string, provided((value: &readonly int32) => {}) as Function<(&'frame readonly int32,), void>) return=void kind=expression target=expression
+/// @resolution.call source=iterTable([1]) parameters=(Iterable<int32>) arguments=(provided([1]) as Iterable<int32>) return=Function<(string, Function<(&'a#3 readonly int32,), void>), void> kind=symbol target=iterTable instance=iterTable<int32>
+/// @generic.instantiation id=iterTable<int32> template=iterTable arguments=(int32)
+/// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+/// @generic.template symbol=symbol53 parameters=('a)
 /// @type.symbol symbol=symbol53 source="(value: &readonly int32) => {}" type=Function<(&symbol53.'a readonly int32,), void>
 /// @type.symbol symbol=symbol53.value source="value: &readonly int32" type=&symbol53.'a readonly int32
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '<'a, P1: Place>(value: &'a readonly int32) => void' is not assignable to parameter of type '(value: &readonly int64) => void'"
-/// @diagnostic.label line=11 column=21 span="(value: &readonly int32) => {}" line_source="table([1])(\"table\", (value: &readonly int32) => {});"
-/// @diagnostic.related line=11 column=1 span="table([1])(\"table\", (value: &readonly int32) => {})" line_source="table([1])(\"table\", (value: &readonly int32) => {});" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '<'a, P1: Place>(value: &'a readonly int32) => void' is not assignable to parameter of type '(value: &readonly …, context: &…) => void | undefined'"
-/// @diagnostic.label line=12 column=38 span="(value: &readonly int32) => {}" line_source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {});"
-/// @diagnostic.related line=12 column=1 span="optionalTable([1])(\"optional table\", (value: &readonly int32) => {})" line_source="optionalTable([1])(\"optional table\", (value: &readonly int32) => {});" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '<'a, P1: Place>(value: &'a readonly int32) => void' is not assignable to parameter of type '(value: &readonly int64, context: &string) => void'"
-/// @diagnostic.label line=13 column=36 span="(value: &readonly int32) => {}" line_source="contextTable([1])(\"context table\", (value: &readonly int32) => {});"
-/// @diagnostic.related line=13 column=1 span="contextTable([1])(\"context table\", (value: &readonly int32) => {})" line_source="contextTable([1])(\"context table\", (value: &readonly int32) => {});" message="in this call"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '<'a, P1: Place>(value: &'a readonly int32) => void' is not assignable to parameter of type '(value: &readonly int64) => void'"
-/// @diagnostic.label line=14 column=30 span="(value: &readonly int32) => {}" line_source="iterTable([1])(\"iter table\", (value: &readonly int32) => {});"
-/// @diagnostic.related line=14 column=1 span="iterTable([1])(\"iter table\", (value: &readonly int32) => {})" line_source="iterTable([1])(\"iter table\", (value: &readonly int32) => {});" message="in this call"
+
 "#,
     );
 }
@@ -855,8 +839,8 @@ each<(int64, string, boolean)>([(1, "a", true)])(
     },
 );
 
-each<(int64, string)>([(1, "a")])("rest", (...args: string): void => {
-    const pack: string = args;
+each<(int64, string)>([(1, "a")])("rest", (...args: (int64, string)): void => {
+    const pack: (int64, string) = args;
 });
 
 each<(int64, string)>([(1, "a")])("partial", (count: int64, text: string): void => {
@@ -913,11 +897,11 @@ each([(1, "a")])("rest", (...args) => {
 /// @generic.instantiation id="each<(int64, string)>" template=each arguments=((int64, string))
 /// @resolution.call source=[(1, "a")] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1, "a")) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(int64, string)>"
 /// @generic.instantiation id="arrayFromSlice<(int64, string)>" template=arrayFromSlice arguments=((int64, string))
-/// @type.symbol symbol=symbol12 type=Function<(...string,), void>
-/// @type.symbol symbol=symbol12.args source=...args type=string
+/// @type.symbol symbol=symbol12 type=Function<(...(int64, string),), void>
+/// @type.symbol symbol=symbol12.args source=...args type=(int64, string)
 
     const pack = args;
-    /// @type.symbol symbol=symbol12.pack source=pack type=string
+    /// @type.symbol symbol=symbol12.pack source=pack type=(int64, string)
     /// @resolution.pattern source=pack kind=binding target=symbol12.pack
     /// @resolution.name source=args target=symbol12.args
     /// @resolution.access source=args root=symbol12.args
@@ -964,10 +948,7 @@ each([(2,)])("typed again", (count: int32) => {});
 /// @type.symbol symbol=symbol21.count source="count: int32" type=int32
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'int64' is not assignable to type 'string'"
-/// @diagnostic.label line=8 column=26 span="(...args) => {\n    const pack = args;\n}" line_source="each([(1, \"a\")])(\"rest\", (...args) => {"
-/// @diagnostic.related line=8 column=1 span="each([(1, \"a\")])(\"rest\", (...args) => {\n    const pack = args;\n})" line_source="each([(1, \"a\")])(\"rest\", (...args) => {" message="in this call"
-/// @diagnostic.note message="the mismatch is in parameter 0"
+
 "#,
     );
 }
@@ -1002,7 +983,7 @@ function parse(result: Result<string, string>): Result<int32, string> {
         const parsed: Result<int32, string> = value.isEmpty
             ? Result.err<int32, string>("empty")
             : Result.ok<int32, string>(1);
-        return parsed as Result<int32, string>;
+        return parsed;
     });
 }
 
@@ -1041,7 +1022,6 @@ function parse(result: Result<string, string>): Result<int32, string> {
         /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=parse.symbol3.value
-        /// @generic.instantiation id="isEmpty<\"local\">" template=isEmpty arguments=("local")
         /// @resolution.name source=Result target=Result
         /// @resolution.member source=Result.err receiver=Result type=(E#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=err#1
         /// @resolution.call source="Result.err(\"empty\")" parameters=(string) arguments=(provided("empty") as string) return=Result<int32, string> kind=symbol target=err#1 instance="Result<int32, string>.<extension#1>.err#1"

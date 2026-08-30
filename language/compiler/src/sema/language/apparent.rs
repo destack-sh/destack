@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{BodyState, CheckState, Origin, TypeSubstitution};
+use crate::sema::{CheckState, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 /// One declaration instance used for apparent member lookup.
@@ -19,6 +19,7 @@ impl ApparentInstance {
         &self,
         check: &mut CheckState<'_>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // intern the applied declaration
         let arguments = check.intern_type_ids(&self.arguments)?;
         let instance = dir::GenericApplication {
             symbol: self.symbol,
@@ -33,11 +34,11 @@ impl ApparentInstance {
         &self,
         check: &mut CheckState<'_>,
     ) -> CompilerResult<TypeSubstitution> {
+        // keep an unapplied bare declaration's parameters rigid
+        if self.arguments.is_empty() {
+            return Ok(TypeSubstitution::default());
+        }
         let Some(template) = check.symbol_template(self.symbol)? else {
-            if self.arguments.is_empty() {
-                return Ok(TypeSubstitution::default());
-            }
-
             return Err(CompilerError::Internal {
                 message: format!(
                     "nongeneric apparent owner {:?} has applied type arguments",
@@ -56,6 +57,7 @@ impl CheckState<'_> {
         &mut self,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // apply the Array declaration over the element
         let symbol = self.language_symbol(dir::LanguageItem::Array)?;
         if !self.is_own_module(symbol.module_id) {
             self.import_external_module(symbol.module_id)?;
@@ -73,7 +75,8 @@ impl CheckState<'_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let dir::Type::Application(instance) = self.ty(ty)? else {
+        // require a canonical Array application
+        let dir::Type::Application(instance) = self.ty_raw(ty)? else {
             return Ok(None);
         };
         if self.language_item(instance.symbol)? != Some(dir::LanguageItem::Array) {
@@ -98,21 +101,38 @@ impl CheckState<'_> {
         instance.intern(self)
     }
 
-    /// Return the root an undeclared structural type keys its extensions at: a primitive, or
-    /// the tuple constructor.
+    /// Return the primitive or tuple root an undeclared structural type keys its extensions at.
     pub(in crate::sema) fn structural_root(
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeRoot>> {
+        // key by the structural head
         Ok(match self.ty(ty)? {
             dir::Type::Primitive(primitive) => Some(dir::TypeRoot::Primitive(primitive)),
+            // key a scalar literal at the primitive it widens to
+            dir::Type::Literal(literal) => match literal {
+                dir::Literal::String(_) => {
+                    Some(dir::TypeRoot::Primitive(dir::PrimitiveType::String))
+                }
+                dir::Literal::Character(_) => {
+                    Some(dir::TypeRoot::Primitive(dir::PrimitiveType::Character))
+                }
+                dir::Literal::Boolean(_) => {
+                    Some(dir::TypeRoot::Primitive(dir::PrimitiveType::Boolean))
+                }
+                dir::Literal::Bigint(_) => {
+                    Some(dir::TypeRoot::Primitive(dir::PrimitiveType::Bigint))
+                }
+                _ => None,
+            },
             dir::Type::Tuple(_) => Some(dir::TypeRoot::Tuple),
             _ => None,
         })
     }
 
-    /// Return the declaration instance owning one receiver's apparent members: its nominal
-    /// declaration, or the language item a structural type roots at (tsc's apparent type).
+    /// Return the declaration instance owning one receiver's apparent members.
+    ///
+    /// A structural type roots at the language item its representation names.
     pub(in crate::sema) fn apparent_instance(
         &mut self,
         receiver: dir::GlobalTypeId,
@@ -120,6 +140,7 @@ impl CheckState<'_> {
         // read the receiver through its solution
         let receiver = self.shallow_resolve(receiver)?;
 
+        // name the owner by the receiver's head
         let instance = match self.ty(receiver)? {
             dir::Type::Form(form) => return self.apparent_instance(form.value),
             dir::Type::Variant(variant) => {
@@ -167,25 +188,30 @@ impl CheckState<'_> {
 
                 instance
             }
+            // leave every other receiver without an owner
             _ => return Ok(None),
         };
 
         Ok(Some(instance))
     }
 
-    /// Return the `Function` instance one signature writes: its parameter tuple, return type,
-    /// and multiplicity.
+    /// Return the `Function` instance one signature writes.
+    ///
+    /// Its arguments are the parameter tuple, the return type, and the multiplicity.
     fn function_instance(
         &mut self,
         signature: dir::GlobalTypeId,
         multiplicity: Option<dir::Multiplicity>,
     ) -> CompilerResult<Option<ApparentInstance>> {
+        // require a signature that declares a return type
         let Some(function) = self.signature_head(signature)? else {
             return Ok(None);
         };
         let Some(return_type) = function.return_type else {
             return Ok(None);
         };
+
+        // write the parameters as one tuple argument
         let elements = self
             .signature_parameters(signature.module_id, function.parameters)?
             .iter()
@@ -202,6 +228,8 @@ impl CheckState<'_> {
             form: dir::TupleForm::Tuple,
             elements,
         }))?;
+
+        // write the multiplicity as a literal argument
         let multiplicity = match multiplicity.unwrap_or(dir::Multiplicity::Repeatable) {
             dir::Multiplicity::Repeatable => "repeatable",
             dir::Multiplicity::Once => "once",
@@ -217,7 +245,7 @@ impl CheckState<'_> {
     }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Return the apparent object members one construction target accepts.
     pub(in crate::sema) fn apparent_object_members(
         &mut self,
@@ -229,6 +257,7 @@ impl BodyState<'_, '_> {
             SmallVec<[dir::TypeIndexSignature; 2]>,
         )>,
     > {
+        // read the members by the target's own head
         match self.ty(target)? {
             // read fields and index signatures straight off a structural target
             dir::Type::Object(shape) => {
@@ -242,18 +271,6 @@ impl BodyState<'_, '_> {
                 Ok(Some((fields, indexes)))
             }
 
-            // read fields accepted by nominal struct construction
-            dir::Type::Application(instance)
-                if matches!(
-                    self.definition(instance.symbol)?,
-                    Some(dir::Definition::Struct(_))
-                ) =>
-            {
-                let fields = self.struct_constructor_fields(origin, target)?;
-
-                Ok(Some((fields, SmallVec::new())))
-            }
-
             // read fields from structural interfaces
             dir::Type::Application(instance)
                 if matches!(
@@ -261,7 +278,7 @@ impl BodyState<'_, '_> {
                     Some(dir::Definition::Interface(interface)) if !interface.is_nominal
                 ) =>
             {
-                let fields = self.check.interface_instance_fields(target, target)?;
+                let fields = self.interface_instance_fields(target, target)?;
                 let fields = fields.map(|fields| (SmallVec::from_vec(fields), SmallVec::new()));
 
                 Ok(fields)
@@ -270,14 +287,13 @@ impl BodyState<'_, '_> {
             // merge the fields accepted by every intersection arm
             dir::Type::Intersection(intersection) => {
                 let elements = self
-                    .check
                     .type_ids(target.module_id, intersection.elements)?
                     .to_vec();
                 let mut fields = SmallVec::<[dir::TypeProperty; 8]>::new();
                 let mut indexes = SmallVec::new();
                 for element in elements {
                     // read the members this arm accepts
-                    let element = self.check.structurally_normalize(origin, element)?;
+                    let element = self.structurally_normalize(origin, element)?;
                     let Some((arm_fields, arm_indexes)) =
                         self.apparent_object_members(origin, element)?
                     else {
@@ -311,6 +327,7 @@ impl BodyState<'_, '_> {
         existing: dir::TypeProperty,
         field: dir::TypeProperty,
     ) -> CompilerResult<dir::TypeProperty> {
+        // intersect the read and write slots of both fields
         let read = self.intersect_access_values(existing.access.read(), field.access.read())?;
         let write = self.intersect_access_values(existing.access.write(), field.access.write())?;
         let access = match (read, write) {
@@ -333,12 +350,13 @@ impl BodyState<'_, '_> {
         left: Option<dir::GlobalTypeId>,
         right: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // intersect two present values, else take the one present
         match (left, right) {
             (Some(left), Some(right)) if left != right => {
-                let elements = self.check.intern_type_ids(&[left, right])?;
+                let elements = self.intern_type_ids(&[left, right])?;
                 let ty = dir::Type::Intersection(dir::IntersectionType { elements });
 
-                Ok(Some(self.check.intern_type(ty)?))
+                Ok(Some(self.intern_type(ty)?))
             }
             (Some(left), _) => Ok(Some(left)),
             (None, right) => Ok(right),

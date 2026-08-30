@@ -29,6 +29,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
+        // read the head standing on the type
         let kind = self.ty(ty)?;
 
         // decide explicit memory representations before their payload types
@@ -41,7 +42,7 @@ impl CheckState<'_> {
                 dir::Form::Borrowed(borrow) => {
                     let access = self.type_borrow(ty.module_id, borrow)?.access;
 
-                    Ok(Verdict::decided(self.body().is_readonly_access(access)?))
+                    Ok(Verdict::decided(self.is_readonly_access(access)?))
                 }
             };
         }
@@ -69,9 +70,10 @@ impl CheckState<'_> {
         kind: dir::Type,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
+        // decide by the value's own storage
         match kind {
             // leave an open variable or canonical hole undecided
-            dir::Type::Variable(_) | dir::Type::Hole(_) => Ok(Verdict::Ambiguous),
+            dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
             // accept region terms outright, they carry no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
@@ -111,11 +113,9 @@ impl CheckState<'_> {
             // fail the interface for type parameters that survived substitution
             dir::Type::Parameter(_) => Ok(Verdict::Fails),
             // fail loudly on generic forms that survived substitution
-            dir::Type::Rigid(_) | dir::Type::Erased(_) | dir::Type::This => {
-                Err(CompilerError::Internal {
-                    message: format!("generic type {ty:?} reached structural copy"),
-                })
-            }
+            dir::Type::Erased(_) | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("generic type {ty:?} reached structural copy"),
+            }),
             // fail loudly on memory forms decided before this point
             dir::Type::Form(_) => Err(CompilerError::Internal {
                 message: format!("memory form {ty:?} reached structural copy"),
@@ -190,6 +190,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
+        // read the head standing on the payload
         let kind = self.ty(ty)?;
 
         // decide indirect scalar representations through their library storage
@@ -274,12 +275,13 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         }
 
+        // decide by the declaration's own storage
         match definition {
             // normalization unfolds aliases before this decision
             dir::Definition::TypeAlias(_) => Err(CompilerError::Internal {
                 message: format!("alias {:?} reached structural copy", instance.symbol),
             }),
-            // copy a struct once every field copies, a raw pointer field under a written derive
+            // copy a struct once every field copies
             dir::Definition::Struct(definition) => {
                 let fields = self.stored_field_types(&definition.members)?;
                 let derives = definition.derives.as_deref().unwrap_or_default();
@@ -299,7 +301,7 @@ impl CheckState<'_> {
             }
             // copy an enum at its integer tag or managed string reference
             dir::Definition::Enum(_) => Ok(Verdict::Holds),
-            // copy a newtype through its backing type, a raw pointer backing under a written derive
+            // copy a newtype through its backing type
             dir::Definition::Newtype(definition) => {
                 let derives = definition.derives.as_deref().unwrap_or_default();
                 if !derives.contains(&dir::AutoInterface::Copy)

@@ -30,10 +30,10 @@ const byte = bytes[1];
 /// @resolution.access source=bytes root=bytes
 /// @resolution.access source=bytes[1] root=bytes keys=[1]
 /// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static constant uint8, \"readonly\">)"
-/// @generic.instantiation id="index#1<uint8, 4, \"readonly\", \"constant\">" template=index#1 arguments=(uint8, 4, "readonly", "constant")
+/// @generic.instantiation id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly")
 /// @generic.instance id="WithAccess<&'frame FixedArray<uint8, 4>, \"readonly\">" template=WithAccess arguments=(&'frame FixedArray<uint8, 4>, "readonly")
 /// @generic.instance id="WithAccess<&'frame uint8, \"readonly\">" template=WithAccess arguments=(&'frame uint8, "readonly")
-/// @generic.instance id="index#1<uint8, 4, \"readonly\", \"constant\">" template=index#1 arguments=(uint8, 4, "readonly", "constant")
+/// @generic.instance id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly")
 "#,
     );
 }
@@ -117,9 +117,9 @@ const size = bytes.size;
 /// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="size(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=bytes root=bytes
-/// @generic.instantiation id="size<uint8, 4, \"constant\">" template=size arguments=(uint8, 4, "constant")
+/// @generic.instantiation id="size<uint8, 4>" template=size arguments=(uint8, 4)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="size<uint8, 4, \"constant\">" template=size arguments=(uint8, 4, "constant")
+/// @generic.instance id="size<uint8, 4>" template=size arguments=(uint8, 4)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 "#,
     );

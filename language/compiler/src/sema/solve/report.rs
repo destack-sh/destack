@@ -1,11 +1,8 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 
-use crate::sema::{
-    BoundSide, Check, CheckOutcome, CheckState, FailedCheck, InferenceScope, Origin, VariableRole,
-    VariableState, Verdict,
-};
-use crate::{CompilerError, CompilerResult};
+use crate::sema::{BoundSide, Check, CheckOutcome, CheckState, FailedCheck, Origin, VariableState};
+use crate::{CheckError, CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Report one failure for every terminal failed cause past the given counts.
@@ -38,7 +35,6 @@ impl CheckState<'_> {
                 });
             };
 
-            // keep completed failures provisional, deciding them again over solved types
             failures.push(FailedCheck {
                 cause: relation.cause,
                 relation: relation.relation,
@@ -46,9 +42,12 @@ impl CheckState<'_> {
                 source: relation.source,
                 target: relation.target,
                 failure,
-                is_provisional: true,
             });
         }
+
+        // report each cause once
+        let mut reported = FxIndexSet::default();
+        failures.retain(|failure| reported.insert(failure.cause));
 
         // suppress every failed cause with a failed descendant
         let mut suppressed = FxIndexSet::default();
@@ -60,29 +59,18 @@ impl CheckState<'_> {
             }
         }
 
-        // report the first retained failure at each terminal cause
+        // report the first standing failure at each terminal cause
         let mut explained = FxIndexSet::default();
         let mut causes = FxIndexSet::default();
         for failure in failures {
-            if suppressed.contains(&failure.cause) || !causes.insert(failure.cause) {
+            if suppressed.contains(&failure.cause) || causes.contains(&failure.cause) {
                 continue;
             }
-            if failure.is_provisional {
-                let origin = self.cause_origin(failure.cause);
-                let verdict = self.constrain_type(
-                    origin,
-                    failure.cause,
-                    failure.relation,
-                    failure.source,
-                    failure.target,
-                )?;
-                if verdict == Verdict::Holds {
-                    continue;
-                }
-            }
+            causes.insert(failure.cause);
 
             // explain the open variables each emitted failure contains
-            if self.emit_failure(&failure)? {
+            let emitted = self.emit_failure(&failure)?;
+            if emitted {
                 explained.extend(self.type_variables(failure.source)?);
                 explained.extend(self.type_variables(failure.target)?);
             }
@@ -94,12 +82,13 @@ impl CheckState<'_> {
     /// Report every unresolved symbol and inference variable one scope owns.
     pub(in crate::sema) fn report_unresolved(
         &mut self,
-        scope: InferenceScope,
+        scope: usize,
+        diagnostics_from: usize,
         explained: &FxIndexSet<dir::TypeVariableId>,
     ) -> CompilerResult<()> {
-        // close every remaining open root, reported or not
+        // close every remaining open root
         let mut unresolved = Vec::new();
-        for index in scope.indices(self.infer.variable_count()) {
+        for index in scope..self.infer.variable_count() {
             let variable = dir::TypeVariableId(index as u32);
             let state = *self.infer.variable(variable)?;
             if state.state.is_open() {
@@ -108,7 +97,7 @@ impl CheckState<'_> {
         }
 
         // report the failures while their bounds still show as open
-        let origins = self.anchor_unresolved_groups(scope, explained)?;
+        let origins = self.anchor_unresolved_groups(scope, diagnostics_from, explained)?;
         self.report_inference_failures(origins)?;
 
         // close failed inference graphs with the compiler error type
@@ -118,9 +107,20 @@ impl CheckState<'_> {
     /// Anchor each unexplained inference graph one scope owns at one origin.
     fn anchor_unresolved_groups(
         &mut self,
-        scope: InferenceScope,
+        scope: usize,
+        diagnostics_from: usize,
         explained: &FxIndexSet<dir::TypeVariableId>,
     ) -> CompilerResult<FxIndexMap<Origin, Option<dir::TypeVariableId>>> {
+        // explain what inference left open by an error reported in this scope
+        let is_tainted = self.module.diagnostics[diagnostics_from..]
+            .iter()
+            .any(|diagnostic| {
+                !matches!(diagnostic.diagnostic(), CheckError::CannotInferType { .. })
+            });
+        if is_tainted {
+            return Ok(FxIndexMap::default());
+        }
+
         // report each failure graph once, anchored at its first source member
         let groups = self.unresolved_variable_groups(scope)?;
         let mut origins = FxIndexMap::default();
@@ -130,34 +130,10 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // prefer annotatable return variables as anchors
-            let annotatable = group
-                .iter()
-                .filter(|variable| {
-                    matches!(
-                        self.infer.variable_role(**variable),
-                        Ok(VariableRole::Return)
-                    )
-                })
-                .copied()
-                .collect::<Vec<_>>();
-            let candidates = match annotatable.is_empty() {
-                true => &group,
-                false => &annotatable,
-            };
-
             // anchor at the earliest source occurrence
             let mut anchor = None;
-            for variable in candidates {
-                // skip a variable already explained by a committed origin type
+            for variable in &group {
                 let origin = self.infer.origin(self.infer.variable(*variable)?.origin);
-                if let Origin::Node(node, _) = origin
-                    && self.node_types.contains(node)
-                    && let Some(committed) = self.committed_node_type(node)
-                    && !self.type_variables(committed)?.contains(variable)
-                {
-                    continue;
-                }
                 let source = self.origin_source_node(origin)?;
                 let key = (origin.module(), source.id);
                 if anchor.is_none_or(|(best, _)| key < best) {
@@ -188,18 +164,9 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // remember own poisoned sites for the instantiation writeback
-            let origin = self.infer.origin(self.infer.variable(variable)?.origin);
-            if let Origin::Node(node, _) = origin
-                && node.module_id == self.module_id
-            {
-                let lineage = self.node_lineage(node);
-                self.poisoned_nodes.extend(lineage);
-            }
-
             // poison the symbol standing behind the variable
             let error = self.intern_type(dir::Type::Error)?;
-            if let Some(symbol) = self.infer.variable_role(variable)?.symbol()
+            if let Origin::Symbol(symbol) = self.infer.origin(self.infer.variable(variable)?.origin)
                 && self.symbol_type_maybe(symbol).is_none()
             {
                 self.commit_symbol_type(symbol, error)?;
@@ -237,6 +204,7 @@ impl CheckState<'_> {
         }
         keyed.sort_by_key(|(module, id, _, _)| (*module, *id));
 
+        // report each open variable once at its site
         let mut reported = FxIndexSet::default();
         for (_, _, origin, variable) in keyed {
             self.report_cannot_infer_type(origin, variable, &mut reported)?;
@@ -248,13 +216,13 @@ impl CheckState<'_> {
     /// Group one scope's open variables into weakly connected graphs.
     fn unresolved_variable_groups(
         &self,
-        scope: InferenceScope,
+        scope: usize,
     ) -> CompilerResult<Vec<Vec<dir::TypeVariableId>>> {
         let count = self.infer.variable_count();
         let mut parents: Vec<u32> = (0..count as u32).collect();
 
         // union open variables with the open variables in their bounds
-        for index in scope.indices(count) {
+        for index in scope..count {
             let variable = dir::TypeVariableId(index as u32);
             if !self.infer.variable(variable)?.state.is_open() {
                 continue;
@@ -273,7 +241,7 @@ impl CheckState<'_> {
         }
 
         // union aliased variables into their forwarded root's graph
-        for index in scope.indices(count) {
+        for index in scope..count {
             let variable = dir::TypeVariableId(index as u32);
             if let VariableState::Alias(_) = self.infer.variable(variable)?.state {
                 let forwarded = self.infer.alias_root(variable)?;
@@ -287,7 +255,7 @@ impl CheckState<'_> {
 
         // collect groups in first-member order, aliased members included
         let mut groups = FxIndexMap::<u32, Vec<dir::TypeVariableId>>::default();
-        for index in scope.indices(count) {
+        for index in scope..count {
             let variable = dir::TypeVariableId(index as u32);
             let is_member = match self.infer.variable(variable)?.state {
                 VariableState::Open => true,

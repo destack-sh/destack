@@ -790,10 +790,9 @@ impl<'a, 'b> SourceReifier<'a, 'b> {
             }
 
             // keep numeric literal widening implicit
-            let renders = coercion
-                .adjustments
-                .iter()
-                .any(|adjustment| !matches!(adjustment, dir::CoercionAdjustment::Widen { .. }));
+            let renders = coercion.adjustments.iter().any(|adjustment| {
+                !matches!(adjustment, dir::CoercionAdjustment::Materialize { .. })
+            });
             if !renders {
                 continue;
             }

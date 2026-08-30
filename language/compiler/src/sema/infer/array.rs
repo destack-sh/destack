@@ -1,160 +1,194 @@
 use destack_dir as dir;
-use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, Cause, CauseId, CauseKind, CheckAttempt, CheckOutcome, Expectation, FlowSite,
-    InferMode, Origin, PlaceUse, Relation, RelationCheck, ValueCheck, ValueUse, VariableRole,
-    Verdict,
+    Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Origin, PlaceUse, Relation,
+    RelationCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+/// The sequence one stored literal fills from its context.
+enum Sequence {
+    /// An array or slice element.
+    Element(dir::GlobalTypeId),
+    /// A fixed array with its declared element and count.
+    Fixed {
+        /// The declared element type.
+        element: dir::GlobalTypeId,
+        /// The declared element count.
+        count: dir::GlobalTypeId,
+    },
+    /// A tuple with its declared elements.
+    Tuple(Vec<dir::TypeElement>),
+}
+
+impl CheckState<'_> {
     /// Infer one array literal from its elements.
+    ///
+    /// A stored literal fills the sequence its context declares.
     pub(in crate::sema) fn infer_array_expression(
         &mut self,
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
         mode: InferMode,
+        context: Option<Expectation>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the literal's node and origin
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
+        let origin = site.origin();
 
         // walk the element decorators, keeping the statically present elements
         let elements = self.walk_body_arguments(module, elements)?;
         let elements = elements.as_slice();
 
-        let mut values = SmallVec::<[(Option<dir::GlobalNodeIdAny>, dir::GlobalTypeId); 8]>::new();
-        let mut spreads =
-            SmallVec::<[(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId); 2]>::new();
-        let element_mode = mode;
+        // read the sequence the context declares
+        let declared = self.contextual_sequence(origin, context)?;
 
-        // infer explicit elements and spread sources
-        for argument in elements {
+        // type the literal as the fixed array its context declares
+        if let Some((Sequence::Fixed { element, count }, expectation)) = declared {
+            return self.infer_fixed_array_literal(site, elements, element, count, expectation);
+        }
+
+        // read the element slot the context declares, or open one
+        let declared = match declared {
+            Some((Sequence::Element(element), expectation)) => Some((element, expectation)),
+            _ => None,
+        };
+        let element = match declared {
+            Some((element, _)) => element,
+            None if elements.is_empty() => {
+                let variable = self.open_join_variable(origin)?;
+                let never = self.intern_type(dir::Type::Never)?;
+                self.set_variable_default(variable, never)?;
+
+                self.variable_type(variable)?
+            }
+            None => {
+                let variable = self.open_join_variable(origin)?;
+
+                self.variable_type(variable)?
+            }
+        };
+
+        // store each element into the slot, a spread through its item, a hole as undefined
+        let mut has_hole = false;
+        for (index, argument) in elements.iter().enumerate() {
+            let cause = Cause::child_maybe(
+                Origin::Node(argument.into_global_any(module), site.scope),
+                CauseKind::Element {
+                    index: index as u32,
+                },
+                declared.map(|(_, expectation)| expectation.cause),
+            );
+            let cause = self.intern_cause(cause);
             match self.module(module).view().get(*argument) {
-                dir::Argument::Spread { value } => {
-                    let value = *value;
-                    let value_site = self.visit_site(value.into_global_any(module))?;
-                    let ty = self.infer_node_type(value_site, PlaceUse::Read)?;
-                    spreads.push((value, ty));
-                }
                 dir::Argument::Positional { value } => {
-                    let value = *value;
                     let value_site = self.visit_site(value.into_global_any(module))?;
-                    let ty = self.infer_node(value_site, PlaceUse::Read, element_mode)?;
-                    let ty = self.flow_type_at(value_site, ty)?;
-                    values.push((Some(value.into_global_any(module)), ty));
+                    let expectation = match declared {
+                        Some((element, expectation)) => Expectation {
+                            target: element,
+                            cause,
+                            use_: ValueUse::Store,
+                            ..expectation
+                        },
+                        None => Expectation {
+                            target: element,
+                            relation: Relation::Storable,
+                            cause,
+                            use_: ValueUse::Store,
+                            mode,
+                        },
+                    };
+                    self.check_node(value_site, expectation)?;
                 }
-                dir::Argument::Elision => {
-                    let undefined = self.intern_type(dir::Type::Undefined)?;
-                    values.push((None, undefined));
+                dir::Argument::Spread { value } => {
+                    let value_site = self.visit_site(value.into_global_any(module))?;
+                    let spread = self.infer_node_type(value_site, PlaceUse::Read)?;
+                    let item = self.spread_element_type(spread)?;
+                    self.push_relation(RelationCheck::new(
+                        value_site.origin(),
+                        Relation::Subtype,
+                        item,
+                        element,
+                        cause,
+                    ))?;
                 }
+                dir::Argument::Elision => has_hole = true,
                 dir::Argument::Error => {}
             }
         }
 
-        // preserve const array literals as readonly tuples
-        if mode == InferMode::Const && spreads.is_empty() {
-            let elements = values
-                .iter()
-                .map(|(_, ty)| dir::TypeElement {
-                    label: None,
-                    ty: *ty,
-                    is_optional: false,
-                    is_readonly: false,
-                    is_rest: false,
-                })
-                .collect::<Vec<_>>();
-            let elements = self.intern_elements(&elements)?;
-            let tuple = self.intern_type(dir::Type::Tuple(dir::TupleType {
-                form: dir::TupleForm::Array,
-                elements,
-            }))?;
-            let readonly = self.intern_type(dir::Type::Form(dir::FormType {
-                form: dir::Form::Readonly,
-                value: tuple,
-            }))?;
-
-            return Ok(readonly);
+        // holes read as undefined, joining the slot the elements store into
+        if has_hole {
+            let undefined = self.intern_type(dir::Type::Undefined)?;
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Element { index: 0 }));
+            self.constrain_type(origin, cause, Relation::Subtype, undefined, element)?;
         }
 
-        // an empty literal constructs the never array
-        let element = if values.is_empty() && spreads.is_empty() {
-            self.intern_type(dir::Type::Never)?
-        }
-        // open one element variable and relate every element into it
-        else {
-            let origin = site.origin();
-            let variable = self.open_variable(origin, VariableRole::Regular);
-            let element = self.variable_type(variable)?;
-
-            for (source, value) in &values {
-                // a hole adds undefined beside the inferred element below
-                let Some(source) = source else {
-                    continue;
-                };
-                let origin = Origin::Node(*source, site.scope);
-                let source_site = self.visit_site(*source)?;
-                let value = self.expression_value(source_site, *value)?;
-                let value = self.fresh_variable(origin, value)?;
-                let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.push_relation(RelationCheck::new(
-                    origin,
-                    Relation::Assignable,
-                    value,
-                    element,
-                    cause,
-                ))?;
-            }
-
-            // holes read as undefined
-            if values.iter().any(|(source, _)| source.is_none()) {
-                let undefined = self.intern_type(dir::Type::Undefined)?;
-                self.normalized_union_type([element, undefined])?
-            } else {
-                element
-            }
-        };
+        // build the array over the element slot
         let array = self.array_type(element)?;
 
-        // constrain each spread item to the array element type
-        let has_spreads = !spreads.is_empty();
-        for (value, spread) in spreads {
-            let item = self.spread_element_type(spread)?;
-            let cause = self.intern_cause(Cause::root(
-                Origin::Node(value.into_global_any(module), site.scope),
-                CauseKind::Expression,
-            ));
-            self.push_relation(RelationCheck::new(
-                Origin::Node(value.into_global_any(module), site.scope),
-                Relation::Assignable,
-                item,
-                element,
-                cause,
-            ))?;
+        // freeze a const literal, else take the forms the context declares
+        match (mode, declared) {
+            (InferMode::Const, None) => self.intern_type(dir::Type::Form(dir::FormType {
+                form: dir::Form::Readonly,
+                value: array,
+            })),
+            (_, Some((_, expectation))) if expectation.use_ != ValueUse::Satisfies => {
+                self.replace_form_value(origin, expectation.target, array)
+            }
+            _ => Ok(array),
         }
+    }
 
-        // commit the pack constructor call over the literal elements
-        let sources: Vec<_> = values.iter().filter_map(|(source, _)| *source).collect();
-        if self.check.is_checking() && !has_spreads && sources.len() == values.len() {
-            let origin = Origin::Node(node.into_any(), site.scope);
-            self.commit_array_construction(origin, node.into_any(), element, array, sources)?;
-        }
-        // convert each authored value into the selected element type
-        for (source, source_type) in values {
-            let Some(source) = source else {
-                continue;
+    /// Type one array literal as the fixed array its context declares.
+    fn infer_fixed_array_literal(
+        &mut self,
+        site: FlowSite,
+        elements: &[dir::LocalNodeId<dir::Argument>],
+        element: dir::GlobalTypeId,
+        count: dir::GlobalTypeId,
+        expectation: Expectation,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the literal's module and origin
+        let module = site.node.module_id;
+        let origin = site.origin();
+
+        // check each element against the declared element
+        for (index, argument) in elements.iter().enumerate() {
+            let dir::Argument::Positional { value } = self.module(module).view().get(*argument)
+            else {
+                return Err(CompilerError::Internal {
+                    message: "a fixed array literal holds positional elements only".to_string(),
+                });
             };
-
-            let cause = self.intern_cause(Cause::root(
-                Origin::Node(source, site.scope),
-                CauseKind::Expression,
+            let child_site = self.visit_site(value.into_global_any(module))?;
+            let cause = self.intern_cause(Cause::child(
+                Origin::Node(child_site.node, site.scope),
+                CauseKind::Element {
+                    index: index as u32,
+                },
+                expectation.cause,
             ));
-            let source_site = self.visit_site(source)?;
-            let expectation = Expectation::assignable(element, cause, ValueUse::Store);
-            self.check_value(source_site, source_type, expectation)?;
+            self.check_node(
+                child_site,
+                Expectation {
+                    target: element,
+                    cause,
+                    use_: ValueUse::Store,
+                    ..expectation
+                },
+            )?;
         }
 
-        Ok(array)
+        // bind an open count to the literal's length, checking a written one against it
+        let length = self.literal_type(dir::Literal::Integer(elements.len() as i64))?;
+        self.constrain_type(origin, expectation.cause, Relation::Equal, length, count)?;
+
+        self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
+            element,
+            count: length,
+        }))
     }
 
     /// Infer one fixed array literal from its repeated value.
@@ -164,53 +198,64 @@ impl BodyState<'_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         count: dir::GlobalTypeId,
         mode: InferMode,
+        context: Option<Expectation>,
     ) -> CompilerResult<()> {
+        // read the repeated value's site
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
-
-        // infer the repeated value under the element mode
         let value_site = self.visit_site(value.into_global_any(module))?;
-        let element_mode = mode;
-        let source_element = self.infer_node(value_site, PlaceUse::Read, element_mode)?;
-        let source_element = self.flow_type_at(value_site, source_element)?;
 
-        // commit the fixed array over the selected element type
-        let element = match mode {
-            InferMode::Regular => {
-                let value = self.expression_value(value_site, source_element)?;
-                self.widen_fresh(value)?
+        // store the repeated value into the declared element, or into its own slot
+        let element = match self.contextual_sequence(site.origin(), context)? {
+            Some((Sequence::Fixed { element, .. }, expectation)) => {
+                let cause = self.intern_cause(Cause::child(
+                    Origin::Node(value_site.node, site.scope),
+                    CauseKind::Element { index: 0 },
+                    expectation.cause,
+                ));
+                self.check_node(
+                    value_site,
+                    Expectation {
+                        target: element,
+                        cause,
+                        use_: ValueUse::Store,
+                        ..expectation
+                    },
+                )?;
+
+                element
             }
-            InferMode::Const => source_element,
+            _ => {
+                let ty = self.infer_node(value_site, PlaceUse::Read, mode)?;
+                let ty = self.flow_type_at(value_site, ty)?;
+                match mode {
+                    InferMode::Const => ty,
+                    mode => self.store_into_slot(value_site, ty, mode)?,
+                }
+            }
         };
+
+        // intern the fixed array over that element
         let array = self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
             element,
             count,
         }))?;
         self.commit_node_type(node.into_any(), array)?;
 
-        // convert the repeated value into the selected element type
-        if source_element == element {
-            return Ok(());
-        }
-
-        let source = value.into_global_any(module);
-        let cause = self.intern_cause(Cause::root(
-            Origin::Node(source, site.scope),
-            CauseKind::Expression,
-        ));
-        let expectation = Expectation::assignable(element, cause, ValueUse::Store);
-        self.check_value(value_site, source_element, expectation)?;
-
         Ok(())
     }
 
     /// Infer one tuple literal from its elements.
+    ///
+    /// A stored literal fills the elements its context declares.
     pub(in crate::sema) fn infer_tuple_expression(
         &mut self,
         site: FlowSite,
         elements: &[dir::LocalNodeId<dir::Argument>],
         mode: InferMode,
+        context: Option<Expectation>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the literal's node
         let node = site.node.into_typed::<dir::Expression>();
         let module = node.module_id;
 
@@ -218,15 +263,18 @@ impl BodyState<'_, '_> {
         let elements = self.walk_body_arguments(module, elements)?;
         let elements = elements.as_slice();
 
-        let mut fields = Vec::with_capacity(elements.len());
-        let mut sources = Vec::with_capacity(elements.len());
-        let element_mode = mode;
+        // read the tuple slots the context declares
+        let declared = match self.contextual_sequence(site.origin(), context)? {
+            Some((Sequence::Tuple(slots), expectation)) => Some((slots, expectation)),
+            _ => None,
+        };
 
-        // infer each tuple field under the current literal mode
-        for element in elements {
+        // store each element into the declared element at its position, or into its own slot
+        let mut fields = Vec::with_capacity(elements.len());
+        for (index, element) in elements.iter().enumerate() {
             let (value, is_rest) = match self.module(module).view().get(*element) {
-                dir::Argument::Positional { value } => (Some(*value), false),
-                dir::Argument::Spread { value } => (Some(*value), true),
+                dir::Argument::Positional { value } => (*value, false),
+                dir::Argument::Spread { value } => (*value, true),
                 dir::Argument::Elision => {
                     let ty = self.intern_type(dir::Type::Undefined)?;
                     fields.push(dir::TypeElement {
@@ -236,27 +284,48 @@ impl BodyState<'_, '_> {
                         is_readonly: false,
                         is_rest: false,
                     });
-                    sources.push(None);
                     continue;
                 }
-                dir::Argument::Error => (None, false),
+                dir::Argument::Error => continue,
             };
-            let Some(value) = value else {
-                continue;
+            let value_site = self.visit_site(value.into_global_any(module))?;
+            let slot = match &declared {
+                Some((slots, expectation)) if !is_rest => slots
+                    .get(index)
+                    .filter(|slot| !slot.is_rest)
+                    .map(|slot| (slot.ty, *expectation)),
+                _ => None,
             };
+            let ty = match slot {
+                Some((slot, expectation)) => {
+                    let cause = self.intern_cause(Cause::child(
+                        Origin::Node(value_site.node, site.scope),
+                        CauseKind::Element {
+                            index: index as u32,
+                        },
+                        expectation.cause,
+                    ));
+                    self.check_node(
+                        value_site,
+                        Expectation {
+                            target: slot,
+                            cause,
+                            use_: ValueUse::Store,
+                            ..expectation
+                        },
+                    )?;
 
-            let source = value.into_global_any(module);
-            let value_site = self.visit_site(source)?;
-            let ty = self.infer_node(value_site, PlaceUse::Read, element_mode)?;
-            let ty = self.flow_type_at(value_site, ty)?;
-
-            // a fresh literal element opens its numeric variable, a const tuple keeps it
-            let ty = match mode {
-                InferMode::Const => ty,
-                InferMode::Regular if is_rest => ty,
-                InferMode::Regular => {
-                    let value = self.expression_value(value_site, ty)?;
-                    self.fresh_variable(Origin::Node(source, site.scope), value)?
+                    slot
+                }
+                None => {
+                    let ty = self.infer_node(value_site, PlaceUse::Read, mode)?;
+                    let ty = self.flow_type_at(value_site, ty)?;
+                    match mode {
+                        InferMode::Regular if !is_rest => {
+                            self.store_into_slot(value_site, ty, InferMode::Regular)?
+                        }
+                        _ => ty,
+                    }
                 }
             };
             fields.push(dir::TypeElement {
@@ -266,445 +335,104 @@ impl BodyState<'_, '_> {
                 is_readonly: false,
                 is_rest,
             });
-            sources.push(Some(source));
         }
 
-        // intern the authored tuple
+        // intern the authored tuple, freezing a const literal its context leaves open
         let fields = self.intern_elements(&fields)?;
         let tuple = self.intern_type(dir::Type::Tuple(dir::TupleType {
             form: dir::TupleForm::Tuple,
             elements: fields,
         }))?;
-
-        // freeze the tuple value under const inference
-        let ty = if mode == InferMode::Const {
-            self.intern_type(dir::Type::Form(dir::FormType {
+        match (mode, declared) {
+            (InferMode::Const, None) => self.intern_type(dir::Type::Form(dir::FormType {
                 form: dir::Form::Readonly,
                 value: tuple,
-            }))?
+            })),
+            _ => Ok(tuple),
         }
-        // otherwise keep the authored tuple
-        else {
-            tuple
-        };
-
-        // read the tuple back out of the selected type
-        let target = match self.ty(ty)? {
-            dir::Type::Tuple(tuple) => Some((ty, tuple)),
-            dir::Type::Form(form) if form.form == dir::Form::Readonly => {
-                match self.ty(form.value)? {
-                    dir::Type::Tuple(tuple) => Some((form.value, tuple)),
-                    _ => None,
-                }
-            }
-            _ => None,
-        };
-
-        // convert authored fields into the selected tuple slots
-        if let Some((target_id, target)) = target {
-            let target_fields: SmallVec<[_; 4]> = self
-                .tuple_elements(target_id.module_id, target.elements)?
-                .into();
-            for (source, target) in sources.into_iter().zip(target_fields) {
-                if target.is_rest {
-                    continue;
-                }
-                let Some(source) = source else {
-                    continue;
-                };
-                let source_type = self.require_node_type(source)?;
-                if source_type == target.ty {
-                    continue;
-                }
-
-                let cause = self.intern_cause(Cause::root(
-                    Origin::Node(source, site.scope),
-                    CauseKind::Expression,
-                ));
-                let source_site = self.visit_site(source)?;
-                let expectation = Expectation::assignable(target.ty, cause, ValueUse::Store);
-                self.check_value(source_site, source_type, expectation)?;
-            }
-        }
-
-        Ok(ty)
     }
 
-    /// Check one array literal under an expected array or slice type.
-    pub(in crate::sema) fn check_array_expression(
-        &mut self,
-        site: FlowSite,
-        elements: &[dir::LocalNodeId<dir::Argument>],
-        representation: dir::GlobalTypeId,
-        target_value: dir::GlobalTypeId,
-        expectation: Expectation,
-    ) -> CompilerResult<CheckAttempt> {
-        let node = site.node.into_typed::<dir::Expression>();
-        let target = expectation.target;
-
-        // take the literal's own element types for an open destination
-        if self.root_variable(target_value)?.is_some() {
-            return Ok(CheckAttempt::NotApplicable);
-        }
-
-        // walk the element decorators, keeping the statically present elements
-        let elements = self.walk_body_arguments(node.module_id, elements)?;
-        let elements = elements.as_slice();
-
-        // read the expected element type and any declared length
-        let mut adapts_interface = false;
-        let expected = if let Some(element) = self.check.array_element(target_value)? {
-            Some((element, None))
-        } else {
-            match self.ty(target_value)? {
-                dir::Type::Slice(slice) => Some((slice.element, None)),
-                dir::Type::FixedArray(array) => Some((array.element, Some(array.count))),
-                // erased iterable expectations type elements at the yielded value
-                _ if self.is_erased_value(target_value)? => self
-                    .iterable_value_argument(target_value)?
-                    .map(|element| (element, None)),
-                // an interface the array implements types elements through that implementation
-                _ => {
-                    let element = self.implemented_array_element(
-                        site.origin(),
-                        expectation.cause,
-                        target_value,
-                    )?;
-                    adapts_interface = element.is_some();
-                    element.map(|element| (element, None))
-                }
-            }
-        };
-        let Some((element, count)) = expected else {
-            return Ok(CheckAttempt::NotApplicable);
-        };
-
-        let mut source_elements = SmallVec::<[(dir::GlobalNodeIdAny, dir::GlobalTypeId); 8]>::new();
-        let mut check = CheckOutcome::Holds;
-
-        // check every element against the expected element type, a spread through its own element
-        for (index, argument) in elements.iter().enumerate() {
-            let value = match self.module(node.module_id).view().get(*argument) {
-                dir::Argument::Positional { value } => *value,
-                dir::Argument::Spread { value } => {
-                    let value = *value;
-                    let spread_site = self.visit_site(value.into_global_any(node.module_id))?;
-                    let spread = self.infer_node_type(spread_site, PlaceUse::Read)?;
-                    let item = self.spread_element_type(spread)?;
-                    let cause = self.intern_cause(Cause::child(
-                        Origin::Node(value.into_global_any(node.module_id), site.scope),
-                        CauseKind::Element {
-                            index: index as u32,
-                        },
-                        expectation.cause,
-                    ));
-                    let verdict = self.constrain_type(
-                        spread_site.origin(),
-                        cause,
-                        Relation::Assignable,
-                        item,
-                        element,
-                    )?;
-                    check = check.and(self.complete_constraint_check(
-                        spread_site.origin(),
-                        Relation::Assignable,
-                        item,
-                        element,
-                        verdict,
-                    )?);
-
-                    continue;
-                }
-                _ => return Ok(CheckAttempt::NotApplicable),
-            };
-            let child = value.into_global_any(node.module_id);
-            let child_site = self.visit_site(child)?;
-            let cause = self.intern_cause(Cause::child(
-                Origin::Node(child, site.scope),
-                CauseKind::Element {
-                    index: index as u32,
-                },
-                expectation.cause,
-            ));
-            let child_expectation = Expectation {
-                target: element,
-                cause,
-                use_: ValueUse::Store,
-                ..expectation
-            };
-            let child_check = self.check_node(child_site, child_expectation)?;
-            let storage = self.slot_storage(
-                site.origin(),
-                expectation.relation,
-                element,
-                child_check.stored,
-            )?;
-            source_elements.push((child, storage));
-            check = check.and(child_check.outcome);
-        }
-
-        // preserve the authored elements for a check-only expression
-        let (representation, constructed) = if expectation.relation == Relation::Satisfies {
-            let source_element =
-                self.normalized_union_type(source_elements.iter().map(|(_, storage)| *storage))?;
-            let array = self.array_type(source_element)?;
-
-            (array, Some((source_element, array)))
-        }
-        // commit the authored length against a fixed array target
-        else if count.is_some() {
-            let actual_count = self.intern_type(dir::Type::Literal(dir::Literal::Integer(
-                elements.len() as i64,
-            )))?;
-            let value = self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
-                element,
-                count: actual_count,
-            }))?;
-
-            (
-                self.replace_form_value(site.origin(), representation, value)?,
-                None,
-            )
-        }
-        // commit an array behind a slice target
-        else if matches!(self.ty(target_value)?, dir::Type::Slice(_)) {
-            let value = self.array_type(element)?;
-
-            (
-                self.replace_form_value(site.origin(), representation, value)?,
-                Some((element, value)),
-            )
-        }
-        // commit the array itself for an implemented interface target, converting it below
-        else if adapts_interface {
-            let value = self.array_type(element)?;
-
-            (value, Some((element, value)))
-        }
-        // otherwise keep the checked representation
-        else {
-            let value = self.array_type(element)?;
-
-            (representation, Some((element, value)))
-        };
-        self.commit_node_type(node.into_any(), representation)?;
-
-        // commit the pack constructor call over the literal elements
-        if let Some((element, array)) = constructed
-            && self.check.is_checking()
-        {
-            let sources = source_elements.iter().map(|(child, _)| *child).collect();
-            self.commit_array_construction(
-                site.origin(),
-                node.into_any(),
-                element,
-                array,
-                sources,
-            )?;
-        }
-
-        // convert the array into the interface it adapted to
-        if adapts_interface {
-            let checked = self.check_value(site, representation, expectation)?;
-
-            return Ok(CheckAttempt::Checked(checked));
-        }
-
-        Ok(CheckAttempt::Checked(ValueCheck {
-            source: representation,
-            stored: representation,
-            outcome: check,
-            target,
-        }))
-    }
-
-    /// Open the element variable of an array assignable to one expected interface.
-    fn implemented_array_element(
+    /// Return the sequence one stored literal fills from its context.
+    fn contextual_sequence(
         &mut self,
         origin: Origin,
-        cause: CauseId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let dir::Type::Application(instance) = self.ty(target)? else {
+        context: Option<Expectation>,
+    ) -> CompilerResult<Option<(Sequence, Expectation)>> {
+        // read the sequence head the context's target constructs
+        let Some(expectation) = context else {
             return Ok(None);
         };
-        if !matches!(
-            self.definition(instance.symbol)?,
-            Some(dir::Definition::Interface(_))
-        ) {
+        let Some(value) = self.construction_value(origin, expectation.target)? else {
             return Ok(None);
-        }
-        let variable = self.open_variable(origin, VariableRole::Regular);
-        let element = self.variable_type(variable)?;
-        let array = self.array_type(element)?;
-        if self.constrain_type(origin, cause, Relation::Assignable, array, target)?
-            == Verdict::Fails
-        {
-            return Ok(None);
-        }
-
-        Ok(Some(element))
-    }
-
-    /// Check one repeated fixed array literal under an expected fixed array.
-    pub(in crate::sema) fn check_fixed_array_expression(
-        &mut self,
-        site: FlowSite,
-        value: dir::LocalNodeId<dir::Expression>,
-        length: dir::LocalNodeId<dir::Expression>,
-        representation: dir::GlobalTypeId,
-        target_value: dir::GlobalTypeId,
-        expectation: Expectation,
-    ) -> CompilerResult<CheckAttempt> {
-        let node = site.node.into_typed::<dir::Expression>();
-        let module = node.module_id;
-        let target = expectation.target;
-        let dir::Type::FixedArray(array) = self.ty(target_value)? else {
-            return Ok(CheckAttempt::NotApplicable);
         };
-
-        // check the repeated value against the expected element type
-        let child = value.into_global_any(module);
-        let child_site = self.visit_site(child)?;
-        let element_cause = self.check.intern_cause(Cause::child(
-            Origin::Node(child, site.scope),
-            CauseKind::Element { index: 0 },
-            expectation.cause,
-        ));
-        let child_expectation = Expectation {
-            target: array.element,
-            cause: element_cause,
-            use_: ValueUse::Store,
-            ..expectation
-        };
-        let check = self.check_node(child_site, child_expectation)?;
-
-        // type the written length at its first visit
-        let count = self.walk_body_static_term(module, length)?;
-        let element = match expectation.relation {
-            Relation::Satisfies => check.source,
-            _ => array.element,
-        };
-        let value = self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {
-            element,
-            count,
-        }))?;
-
-        // preserve the authored value for a check-only expression
-        let ty = match expectation.relation {
-            Relation::Satisfies => value,
-            _ => self.replace_form_value(site.origin(), representation, value)?,
-        };
-        self.commit_node_type(node.into_any(), ty)?;
-
-        Ok(CheckAttempt::Checked(ValueCheck {
-            source: ty,
-            stored: ty,
-            outcome: check.outcome,
-            target,
-        }))
-    }
-
-    /// Check one tuple literal under an expected tuple type.
-    pub(in crate::sema) fn check_tuple_expression(
-        &mut self,
-        site: FlowSite,
-        elements: &[dir::LocalNodeId<dir::Argument>],
-        representation: dir::GlobalTypeId,
-        target_value: dir::GlobalTypeId,
-        expectation: Expectation,
-    ) -> CompilerResult<CheckAttempt> {
-        let node = site.node.into_typed::<dir::Expression>();
-        let target = expectation.target;
-
-        // walk the element decorators, keeping the statically present elements
-        let elements = self.walk_body_arguments(node.module_id, elements)?;
-        let elements = elements.as_slice();
-
-        // require a tuple target of the authored length
-        let dir::Type::Tuple(tuple) = self.ty(target_value)? else {
-            return Ok(CheckAttempt::NotApplicable);
-        };
-        if tuple.elements.len() as usize != elements.len() {
-            return Ok(CheckAttempt::NotApplicable);
-        }
-
-        let tuple_elements: SmallVec<[_; 4]> = self
-            .tuple_elements(target_value.module_id, tuple.elements)?
-            .into();
-        let mut source_elements = Vec::with_capacity(elements.len());
-        let mut check = CheckOutcome::Holds;
-
-        // check each tuple element against its matching expected element type
-        for (index, (argument, element)) in elements.iter().zip(tuple_elements.iter()).enumerate() {
-            let value = match self.module(node.module_id).view().get(*argument) {
-                dir::Argument::Positional { value } => *value,
-                _ => return Ok(CheckAttempt::NotApplicable),
-            };
-            let child = value.into_global_any(node.module_id);
-            let child_site = self.visit_site(child)?;
-            let element_cause = self.check.intern_cause(Cause::child(
-                Origin::Node(child, site.scope),
-                CauseKind::Element {
-                    index: index as u32,
+        let sequence = match self.array_element(value)? {
+            Some(element) => Sequence::Element(element),
+            None => match self.ty(value)? {
+                dir::Type::Slice(slice) => Sequence::Element(slice.element),
+                dir::Type::FixedArray(array) => Sequence::Fixed {
+                    element: array.element,
+                    count: array.count,
                 },
-                expectation.cause,
-            ));
-            let child_expectation = Expectation {
-                target: element.ty,
-                cause: element_cause,
-                use_: ValueUse::Store,
-                ..expectation
-            };
-            let child_check = self.check_node(child_site, child_expectation)?;
-            source_elements.push(dir::TypeElement {
-                label: None,
-                ty: child_check.stored,
-                is_optional: false,
-                is_readonly: expectation.mode.is_readonly(),
-                is_rest: false,
-            });
-            check = check.and(child_check.outcome);
-        }
-
-        // preserve the authored elements for a check-only expression
-        let representation = if expectation.relation == Relation::Satisfies {
-            let elements = self.intern_elements(&source_elements)?;
-
-            self.intern_type(dir::Type::Tuple(dir::TupleType {
-                form: dir::TupleForm::Tuple,
-                elements,
-            }))?
-        }
-        // otherwise keep the checked representation
-        else {
-            representation
+                dir::Type::Tuple(tuple) => Sequence::Tuple(
+                    self.tuple_elements(value.module_id, tuple.elements)?
+                        .to_vec(),
+                ),
+                _ => return Ok(None),
+            },
         };
-        self.commit_node_type(node.into_any(), representation)?;
 
-        Ok(CheckAttempt::Checked(ValueCheck {
-            source: representation,
-            stored: representation,
-            outcome: check,
-            target,
-        }))
+        // take the slots a stored value fills without their inference barriers
+        let sequence = match sequence {
+            Sequence::Element(element) => {
+                Sequence::Element(self.erase_inference_barriers(origin.module(), element)?)
+            }
+            Sequence::Fixed { element, count } => Sequence::Fixed {
+                element: self.erase_inference_barriers(origin.module(), element)?,
+                count,
+            },
+            Sequence::Tuple(mut slots) => {
+                for slot in &mut slots {
+                    slot.ty = self.erase_inference_barriers(origin.module(), slot.ty)?;
+                }
+
+                Sequence::Tuple(slots)
+            }
+        };
+
+        Ok(Some((sequence, expectation)))
     }
 
-    /// Commit one array literal as its selected pack constructor call.
-    fn commit_array_construction(
+    /// Commit one array literal typed as an array as its pack constructor call.
+    pub(in crate::sema) fn commit_array_construction(
         &mut self,
-        origin: Origin,
         node: dir::GlobalNodeIdAny,
-        element: dir::GlobalTypeId,
-        array: dir::GlobalTypeId,
-        elements: Vec<dir::GlobalNodeIdAny>,
     ) -> CompilerResult<()> {
+        // require an array literal of this module without a decision
+        if node.local_id.ty != dir::NodeType::Expression
+            || !self.is_own_module(node.module_id)
+            || self.decision(node).is_some()
+        {
+            return Ok(());
+        }
+
+        // read the array literal and the element it holds
+        let module = node.module_id;
+        let expression = node.local_id.into_typed::<dir::Expression>();
+        let dir::Expression::ArrayExpression { elements } =
+            self.module(module).view().get(expression).clone()
+        else {
+            return Ok(());
+        };
+        let array = self.strip_forms(self.require_node_type(node)?)?;
+        let Some(element) = self.array_element(array)? else {
+            return Ok(());
+        };
+
         // select the constructor over the element type
+        let origin = self.visit_site(node)?.origin();
         let key = self.array_pack_selection(element)?;
         let symbol = key.symbol;
-
-        // bind the elements against the constructor's slice parameter
-        let Some(callable) = self.check.adopt_symbol_type_maybe(symbol)? else {
+        let Some(callable) = self.adopt_symbol_type_maybe(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "the array pack constructor declares no type".to_string(),
             });
@@ -716,7 +444,6 @@ impl BodyState<'_, '_> {
             });
         };
         let parameters = self
-            .check
             .signature_parameters(signature_type.module_id, signature.parameters)?
             .to_vec();
         let Some(parameter_type) = parameters.first().map(|parameter| parameter.ty) else {
@@ -724,15 +451,22 @@ impl BodyState<'_, '_> {
                 message: "the array pack constructor declares no slice parameter".to_string(),
             });
         };
+
+        // bind the elements against the constructor's slice parameter
+        let mut sources = Vec::with_capacity(elements.len());
+        for argument in elements {
+            if let dir::Argument::Positional { value } = self.module(module).view().get(argument) {
+                sources.push(value.into_global_any(module));
+            }
+        }
         let arguments = vec![dir::ArgumentBinding {
             parameter_type,
             argument_type: element,
             source: dir::ArgumentSource::Rest {
-                elements,
+                elements: sources,
                 pack: None,
             },
         }];
-
         let call = dir::Call {
             target: dir::CallableTarget::Symbol {
                 function: dir::FunctionTarget {

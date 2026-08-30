@@ -29,12 +29,15 @@ impl SignatureInstantiation {
     }
 }
 
+// FUGU #Cleanup: this whole file relate/shape.rs is awful and must be compressed yuck 2k lines???
+
 impl CheckState<'_> {
     /// Return whether one type can be used as a property key.
     pub(in crate::sema) fn is_property_key_type(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        // key a type by the head standing on it
         let result = match self.ty(ty)? {
             dir::Type::Parameter(_) => true,
             dir::Type::Primitive(primitive) => matches!(
@@ -60,6 +63,7 @@ impl CheckState<'_> {
 
                 is_key
             }
+            // reject every other type
             _ => false,
         };
 
@@ -75,6 +79,7 @@ impl CheckState<'_> {
         // inspect the keyed shape over the normalized head
         let ty = self.normalize(origin, ty)?;
 
+        // key a type by the head standing on it
         let result = match self.ty(ty)? {
             dir::Type::Parameter(_) => true,
             dir::Type::Object(_) => true,
@@ -101,6 +106,7 @@ impl CheckState<'_> {
 
                 is_keyed
             }
+            // reject every other type
             _ => false,
         };
 
@@ -116,113 +122,123 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // compare element shapes and collect type pairs in one pure pass
-        let pairs = {
-            let (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple)) =
-                (self.ty(source)?, self.ty(target)?)
-            else {
-                return Ok(Verdict::Fails);
-            };
-            if source_tuple.form != target_tuple.form {
-                return Ok(Verdict::Fails);
-            }
-
-            let source_elements = self
-                .tuple_elements(source.module_id, source_tuple.elements)?
-                .to_vec();
-            let target_elements = self
-                .tuple_elements(target.module_id, target_tuple.elements)?
-                .to_vec();
-            let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
-
-            // consume source elements from the end for fixed targets after a rest
-            let rest_index = target_elements.iter().position(|target| target.is_rest);
-            let (target_elements, trailing_targets) = match rest_index {
-                Some(rest_index) => target_elements.split_at(rest_index + 1),
-                None => (target_elements.as_slice(), &[][..]),
-            };
-            let mut source_end = source_elements.len();
-            for target in trailing_targets.iter().rev() {
-                let Some(source) = source_end
-                    .checked_sub(1)
-                    .map(|index| &source_elements[index])
-                else {
-                    return Ok(Verdict::Fails);
-                };
-                if source.is_rest || source.is_optional || source.is_readonly && !target.is_readonly
-                {
-                    return Ok(Verdict::Fails);
-                }
-
-                pairs.push((source.ty, target.ty));
-                source_end -= 1;
-            }
-
-            // pair the leading target elements with source elements in order
-            let mut source_index = 0usize;
-            for target in target_elements {
-                // rest targets consume every remaining source element
-                if target.is_rest {
-                    let remaining = &source_elements[source_index.min(source_end)..source_end];
-                    if remaining
-                        .iter()
-                        .any(|source| source.is_readonly && !target.is_readonly)
-                    {
-                        return Ok(Verdict::Fails);
-                    }
-
-                    // bind the remaining elements as one tuple for an open rest binder
-                    let rest = self.shallow_resolve(target.ty)?;
-                    if matches!(self.ty(rest)?, dir::Type::Variable(_)) {
-                        let tuple = self.intern_tuple(remaining)?;
-                        pairs.push((tuple, rest));
-
-                        return self.relate_each(origin, cause, relation.interior(), &pairs);
-                    }
-
-                    let target_element = self.spread_element_type(target.ty)?;
-                    for source in remaining {
-                        let target = if source.is_rest {
-                            target.ty
-                        } else {
-                            target_element
-                        };
-                        pairs.push((source.ty, target));
-                    }
-
-                    return self.relate_each(origin, cause, relation.interior(), &pairs);
-                }
-
-                // omitted source elements satisfy optional target elements
-                let Some(source) = source_elements[..source_end].get(source_index) else {
-                    if target.is_optional {
-                        continue;
-                    }
-
-                    return Ok(Verdict::Fails);
-                };
-
-                // reject an open source rest against individual fixed elements
-                if source.is_rest
-                    || source.is_readonly && !target.is_readonly
-                    || source.is_optional && !target.is_optional
-                {
-                    return Ok(Verdict::Fails);
-                }
-
-                pairs.push((source.ty, target.ty));
-                source_index += 1;
-            }
-
-            // reject source elements the target left unconsumed
-            if source_index != source_end {
-                return Ok(Verdict::Fails);
-            }
-
-            pairs
+        // pair the elements, then relate each pair
+        let Some(pairs) = self.tuple_pairs(source, target)? else {
+            return Ok(Verdict::Fails);
         };
 
-        self.relate_each(origin, cause, relation.interior(), &pairs)
+        self.relate_each(origin, cause, relation, &pairs)
+    }
+
+    /// Pair the elements of one tuple with the slots of another, `None` when their shapes disagree.
+    pub(in crate::sema) fn tuple_pairs(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>>> {
+        // require two tuples written in the same form
+        let (dir::Type::Tuple(source_tuple), dir::Type::Tuple(target_tuple)) =
+            (self.ty(source)?, self.ty(target)?)
+        else {
+            return Ok(None);
+        };
+        if source_tuple.form != target_tuple.form {
+            return Ok(None);
+        }
+
+        // read both element lists
+        let source_elements = self
+            .tuple_elements(source.module_id, source_tuple.elements)?
+            .to_vec();
+        let target_elements = self
+            .tuple_elements(target.module_id, target_tuple.elements)?
+            .to_vec();
+        let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>::new();
+
+        // consume source elements from the end for fixed targets after a rest
+        let rest_index = target_elements.iter().position(|target| target.is_rest);
+        let (target_elements, trailing_targets) = match rest_index {
+            Some(rest_index) => target_elements.split_at(rest_index + 1),
+            None => (target_elements.as_slice(), &[][..]),
+        };
+        let mut source_end = source_elements.len();
+        for target in trailing_targets.iter().rev() {
+            let Some(source) = source_end
+                .checked_sub(1)
+                .map(|index| &source_elements[index])
+            else {
+                return Ok(None);
+            };
+            if source.is_rest || source.is_optional || source.is_readonly && !target.is_readonly {
+                return Ok(None);
+            }
+
+            pairs.push((source.ty, target.ty));
+            source_end -= 1;
+        }
+
+        // pair the leading target elements with source elements in order
+        let mut source_index = 0usize;
+        for target in target_elements {
+            // rest targets consume every remaining source element
+            if target.is_rest {
+                let remaining = &source_elements[source_index.min(source_end)..source_end];
+                if remaining
+                    .iter()
+                    .any(|source| source.is_readonly && !target.is_readonly)
+                {
+                    return Ok(None);
+                }
+
+                // bind the remaining elements as one tuple for an open rest binder
+                let rest = self.shallow_resolve(target.ty)?;
+                if matches!(self.ty(rest)?, dir::Type::Variable(_)) {
+                    let tuple = self.intern_tuple(remaining)?;
+                    pairs.push((tuple, rest));
+
+                    return Ok(Some(pairs));
+                }
+
+                let target_element = self.spread_element_type(target.ty)?;
+                for source in remaining {
+                    let target = if source.is_rest {
+                        target.ty
+                    } else {
+                        target_element
+                    };
+                    pairs.push((source.ty, target));
+                }
+
+                return Ok(Some(pairs));
+            }
+
+            // omitted source elements satisfy optional target elements
+            let Some(source) = source_elements[..source_end].get(source_index) else {
+                if target.is_optional {
+                    continue;
+                }
+
+                return Ok(None);
+            };
+
+            // reject an open source rest against individual fixed elements
+            if source.is_rest
+                || source.is_readonly && !target.is_readonly
+                || source.is_optional && !target.is_optional
+            {
+                return Ok(None);
+            }
+
+            pairs.push((source.ty, target.ty));
+            source_index += 1;
+        }
+
+        // reject source elements the target left unconsumed
+        if source_index != source_end {
+            return Ok(None);
+        }
+
+        Ok(Some(pairs))
     }
 
     /// Return the item type yielded when one spread or rest container expands.
@@ -236,6 +252,7 @@ impl CheckState<'_> {
             value = self.shallow_resolve(form.value)?;
         }
 
+        // read the element the container yields
         let element = match self.ty(value)? {
             dir::Type::Application(_) if let Some(element) = self.array_element(value)? => element,
             dir::Type::Slice(slice) => slice.element,
@@ -248,220 +265,160 @@ impl CheckState<'_> {
         Ok(element)
     }
 
-    /// Relate two structural shapes under exact equality.
-    pub(in crate::sema) fn relate_shape_equal(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
-    ) -> CompilerResult<Verdict> {
-        // compare member shapes and collect type pairs in one pure pass
-        let pairs = {
-            let (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) =
-                (self.ty(source)?, self.ty(target)?)
-            else {
-                return Ok(Verdict::Fails);
-            };
-
-            // require identical member counts for equal shapes
-            if source_shape.properties.len() != target_shape.properties.len()
-                || source_shape.call_signatures.len() != target_shape.call_signatures.len()
-                || source_shape.construct_signatures.len()
-                    != target_shape.construct_signatures.len()
-                || source_shape.index_signatures.len() != target_shape.index_signatures.len()
-            {
-                return Ok(Verdict::Fails);
-            }
-
-            // pair the access modes of each property in turn
-            let mut pairs = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-            let source_fields =
-                self.object_properties(source.module_id, source_shape.properties)?;
-            let target_fields =
-                self.object_properties(target.module_id, target_shape.properties)?;
-            for (source, target) in source_fields.iter().zip(target_fields) {
-                if source.key != target.key || source.is_optional != target.is_optional {
-                    return Ok(Verdict::Fails);
-                }
-                match (source.access, target.access) {
-                    (
-                        dir::PropertyAccess::Read(source_ty),
-                        dir::PropertyAccess::Read(target_ty),
-                    )
-                    | (
-                        dir::PropertyAccess::Write(source_ty),
-                        dir::PropertyAccess::Write(target_ty),
-                    ) => pairs.push((source_ty, target_ty)),
-                    (
-                        dir::PropertyAccess::ReadWrite {
-                            read: source_read,
-                            write: source_write,
-                        },
-                        dir::PropertyAccess::ReadWrite {
-                            read: target_read,
-                            write: target_write,
-                        },
-                    ) => {
-                        pairs.push((source_read, target_read));
-                        pairs.push((source_write, target_write));
-                    }
-                    _ => return Ok(Verdict::Fails),
-                }
-            }
-
-            // pair the call and construct signatures positionally
-            let source_calls = self.type_ids(source.module_id, source_shape.call_signatures)?;
-            let target_calls = self.type_ids(target.module_id, target_shape.call_signatures)?;
-            for (source, target) in source_calls.iter().zip(target_calls) {
-                pairs.push((*source, *target));
-            }
-            let source_constructs =
-                self.type_ids(source.module_id, source_shape.construct_signatures)?;
-            let target_constructs =
-                self.type_ids(target.module_id, target_shape.construct_signatures)?;
-            for (source, target) in source_constructs.iter().zip(target_constructs) {
-                pairs.push((*source, *target));
-            }
-
-            // pair the key and value types of each index signature
-            let source_indexes =
-                self.object_index_signatures(source.module_id, source_shape.index_signatures)?;
-            let target_indexes =
-                self.object_index_signatures(target.module_id, target_shape.index_signatures)?;
-            for (source, target) in source_indexes.iter().zip(target_indexes) {
-                if source.is_optional != target.is_optional
-                    || source.is_readonly != target.is_readonly
-                {
-                    return Ok(Verdict::Fails);
-                }
-                pairs.push((source.key_type, target.key_type));
-                pairs.push((source.value_type, target.value_type));
-            }
-
-            pairs
-        };
-
-        self.relate_each(origin, cause, Relation::Equal, &pairs)
-    }
-
-    /// Relate one structural pair under storage or read rules.
+    /// Relate two object shapes member by member over an exact member set.
     pub(in crate::sema) fn relate_shape(
         &mut self,
         origin: Origin,
         cause: CauseId,
         relation: Relation,
+        constructed: bool,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // match members and collect signature requirements
-        let (pairs, signature_requirements, index_signatures) = {
-            let (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) =
-                (self.ty(source)?, self.ty(target)?)
-            else {
-                return Ok(Verdict::Fails);
-            };
-
-            // NOTE #Broken: source destructured as Object above, so this is always
-            //  true and the write-slot comparison behind !is_constructed never runs
-            let is_constructed = matches!(self.ty(source)?, dir::Type::Object(_));
-
-            // require each target field from the source shape
-            let source_fields =
-                self.object_properties(source.module_id, source_shape.properties)?;
-            let target_fields =
-                self.object_properties(target.module_id, target_shape.properties)?;
-            let mut pairs =
-                SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
-            for target_field in target_fields {
-                let source_field = source_fields
-                    .iter()
-                    .find(|source| source.key == target_field.key);
-
-                match source_field {
-                    // missing members satisfy optional targets only
-                    None => {
-                        if !target_field.is_optional {
-                            return Ok(Verdict::Fails);
-                        }
-                    }
-                    Some(source_field) => {
-                        let Some(relations) = self.shape_property_relations(
-                            relation,
-                            is_constructed,
-                            source_field,
-                            target_field,
-                        ) else {
-                            return Ok(Verdict::Fails);
-                        };
-                        pairs.extend(relations);
-                    }
-                }
-            }
-
-            // require each target signature from any source signature
-            let source_calls = self.type_ids(source.module_id, source_shape.call_signatures)?;
-            let target_calls = self.type_ids(target.module_id, target_shape.call_signatures)?;
-            let source_constructs =
-                self.type_ids(source.module_id, source_shape.construct_signatures)?;
-            let target_constructs =
-                self.type_ids(target.module_id, target_shape.construct_signatures)?;
-            let mut signature_requirements =
-                SmallVec::<[(SmallVec<[dir::GlobalTypeId; 2]>, dir::GlobalTypeId); 2]>::new();
-            for target_signature in target_calls.iter().copied() {
-                let candidates = source_calls.iter().copied().collect();
-                signature_requirements.push((candidates, target_signature));
-            }
-            for target_signature in target_constructs.iter().copied() {
-                let candidates = source_constructs.iter().copied().collect();
-                signature_requirements.push((candidates, target_signature));
-            }
-
-            // collect the index signatures the target requires
-            let index_signatures = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
-                self.object_index_signatures(target.module_id, target_shape.index_signatures)?,
-            );
-
-            (pairs, signature_requirements, index_signatures)
+        // require two object shapes
+        let (dir::Type::Object(source_shape), dir::Type::Object(target_shape)) =
+            (self.ty(source)?, self.ty(target)?)
+        else {
+            return Ok(Verdict::Fails);
         };
+        let is_directed = relation.is_directed();
 
-        // decide matched field pairs
-        let mut verdict = self.relate_shape_fields(origin, cause, &pairs)?;
-        if verdict == Verdict::Fails {
+        // pair each source property with the target property of its key
+        let source_fields = self.object_properties(source.module_id, source_shape.properties)?;
+        let target_fields = self.object_properties(target.module_id, target_shape.properties)?;
+        let target_indexes = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
+            self.object_index_signatures(target.module_id, target_shape.index_signatures)?,
+        );
+        let mut pairs = SmallVec::<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
+        let mut has_extra = false;
+        for source_field in source_fields {
+            match target_fields
+                .iter()
+                .find(|field| field.key == source_field.key)
+            {
+                Some(target_field) => {
+                    if source_field.is_optional && !target_field.is_optional
+                        || (!is_directed && source_field.is_optional != target_field.is_optional)
+                    {
+                        return Ok(Verdict::Fails);
+                    }
+
+                    // keep the target's exact access for a stored object
+                    if relation == Relation::Storable
+                        && !constructed
+                        && source_field.access.write().is_some()
+                            != target_field.access.write().is_some()
+                    {
+                        return Ok(Verdict::Fails);
+                    }
+                    let Some(relations) =
+                        self.shape_property_relations(relation, source_field, target_field)
+                    else {
+                        return Ok(Verdict::Fails);
+                    };
+                    pairs.extend(relations);
+                }
+                None => has_extra = true,
+            }
+        }
+
+        // require every target member, optional ones only under a directed relation
+        for target_field in target_fields {
+            let is_present = source_fields
+                .iter()
+                .any(|field| field.key == target_field.key);
+            if !is_present && !(is_directed && target_field.is_optional) {
+                return Ok(Verdict::Fails);
+            }
+        }
+
+        // allow extra keys on an included value
+        if has_extra && target_indexes.is_empty() && relation != Relation::Subtype {
             return Ok(Verdict::Fails);
         }
 
-        // decide each signature requirement against its candidates
-        for (candidates, target_signature) in signature_requirements {
-            let mut matched = Verdict::Fails;
-            for candidate in candidates {
-                matched = matched.or(self.constrain_type(
-                    origin,
-                    cause,
-                    relation,
-                    candidate,
-                    target_signature,
-                )?);
-                if matched == Verdict::Holds {
-                    break;
-                }
+        // pair the call and construct signatures positionally
+        let source_calls = self.type_ids(source.module_id, source_shape.call_signatures)?;
+        let target_calls = self.type_ids(target.module_id, target_shape.call_signatures)?;
+        let source_constructs =
+            self.type_ids(source.module_id, source_shape.construct_signatures)?;
+        let target_constructs =
+            self.type_ids(target.module_id, target_shape.construct_signatures)?;
+        // require the source signatures to cover the target set
+        let is_covered = match is_directed {
+            true => {
+                source_calls.len() >= target_calls.len()
+                    && source_constructs.len() >= target_constructs.len()
             }
-            verdict = verdict.and(matched);
-            if verdict == Verdict::Fails {
+            false => {
+                source_calls.len() == target_calls.len()
+                    && source_constructs.len() == target_constructs.len()
+            }
+        };
+        if !is_covered {
+            return Ok(Verdict::Fails);
+        }
+
+        // pair each signature with the one at its position
+        for (source, target) in source_calls.iter().zip(target_calls) {
+            pairs.push((relation, *source, *target));
+        }
+        for (source, target) in source_constructs.iter().zip(target_constructs) {
+            pairs.push((relation, *source, *target));
+        }
+
+        // pair equal index signatures exactly
+        let source_indexes = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
+            self.object_index_signatures(source.module_id, source_shape.index_signatures)?,
+        );
+        if !is_directed {
+            if source_indexes.len() != target_indexes.len() {
                 return Ok(Verdict::Fails);
+            }
+            for (source, target) in source_indexes.iter().zip(&target_indexes) {
+                if source.is_optional != target.is_optional
+                    || source.is_readonly != target.is_readonly
+                {
+                    return Ok(Verdict::Fails);
+                }
+                pairs.push((relation, source.key_type, target.key_type));
+                pairs.push((relation, source.value_type, target.value_type));
             }
         }
 
-        // require each target index signature from the source
-        for signature in index_signatures {
-            verdict = verdict
-                .and(self.relate_index_signature(origin, cause, relation, source, &signature)?);
-            if verdict == Verdict::Fails {
-                return Ok(Verdict::Fails);
+        // relate the paired members
+        let mut verdict = self.relate_shape_fields(origin, cause, &pairs)?;
+
+        // cover each target index signature under a directed relation
+        if is_directed {
+            for index in target_indexes {
+                if verdict == Verdict::Fails {
+                    break;
+                }
+                verdict = verdict
+                    .and(self.relate_index_signature(origin, cause, relation, source, &index)?);
             }
         }
 
         Ok(verdict)
+    }
+
+    /// Return the value beneath one type's forms.
+    pub(in crate::sema) fn strip_forms(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // peel each form down to the value beneath it
+        let mut ty = self.shallow_resolve(ty)?;
+        while let dir::Type::Form(form) = self.ty(ty)? {
+            let payload = self.shallow_resolve(form.value)?;
+            if payload == ty {
+                break;
+            }
+            ty = payload;
+        }
+
+        Ok(ty)
     }
 
     /// Return the structural property operations exposed by one member.
@@ -471,12 +428,16 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         is_readonly: bool,
     ) -> CompilerResult<Option<dir::PropertyAccess>> {
+        // expose the operations each member role supports
         let access = match role {
+            // readonly fields and methods read alone
             MemberRole::Field | MemberRole::Method if is_readonly => dir::PropertyAccess::Read(ty),
+            // fields and methods read and write one type
             MemberRole::Field | MemberRole::Method => dir::PropertyAccess::ReadWrite {
                 read: ty,
                 write: ty,
             },
+            // accessors expose the slots of their signature
             MemberRole::Getter | MemberRole::Setter => {
                 // skip an accessor whose signature is still an open variable
                 if matches!(self.ty(ty)?, dir::Type::Variable(_)) {
@@ -516,6 +477,7 @@ impl CheckState<'_> {
                     dir::PropertyAccess::Write(parameter.ty)
                 }
             }
+            // associated members and variant values expose no property
             MemberRole::Associated | MemberRole::VariantValue => {
                 return Ok(None);
             }
@@ -528,36 +490,15 @@ impl CheckState<'_> {
     pub(in crate::sema) fn shape_property_relations(
         &self,
         relation: Relation,
-        is_constructed_source: bool,
         source: &dir::TypeProperty,
         target: &dir::TypeProperty,
     ) -> Option<SmallVec<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 2]>> {
-        // reject optional sources against required targets
-        if source.is_optional && !target.is_optional {
-            return None;
-        }
-
+        // pair the read and write slots the relation requires
         let mut relations = SmallVec::new();
+        let is_stored = |access: dir::PropertyAccess| matches!(access, dir::PropertyAccess::ReadWrite { read, write } if read == write);
         match relation {
-            // reads widen out and writes narrow back
-            Relation::Assignable | Relation::Widens => {
-                if let Some(target_read) = target.access.read() {
-                    relations.push((Relation::Widens, source.access.read()?, target_read));
-                }
-
-                // compare reads alone for constructed entries, which adopt the target's storage
-                if !is_constructed_source && let Some(target_write) = target.access.write() {
-                    relations.push((Relation::Widens, target_write, source.access.write()?));
-                }
-            }
-            // satisfies compares reads alone
-            Relation::Satisfies => {
-                if let Some(target_read) = target.access.read() {
-                    relations.push((Relation::Satisfies, source.access.read()?, target_read));
-                }
-            }
-            // exact relations pair each supported operation
-            _ => {
+            // equal shapes pair each supported operation exactly
+            Relation::Equal => {
                 match (source.access.read(), target.access.read()) {
                     (Some(source_read), Some(target_read)) => {
                         relations.push((relation, source_read, target_read));
@@ -573,6 +514,25 @@ impl CheckState<'_> {
                     _ => return None,
                 }
             }
+            // aliased mutable storage keeps its exact type
+            Relation::Storable if is_stored(source.access) && is_stored(target.access) => {
+                relations.push((
+                    Relation::Equal,
+                    source.access.read()?,
+                    target.access.read()?,
+                ));
+            }
+            // flow reads out covariantly and writes in contravariantly
+            Relation::Subtype | Relation::Storable => {
+                if let Some(target_read) = target.access.read() {
+                    relations.push((relation, source.access.read()?, target_read));
+                }
+                if let Some(target_write) = target.access.write()
+                    && (relation == Relation::Storable || target.access.read().is_none())
+                {
+                    relations.push((relation, target_write, source.access.write()?));
+                }
+            }
         }
 
         Some(relations)
@@ -585,6 +545,7 @@ impl CheckState<'_> {
         cause: CauseId,
         fields: &[(Relation, dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Verdict> {
+        // relate each pair under the relation it carries
         let mut verdict = Verdict::Holds;
         for (relation, source, target) in fields.iter().copied() {
             verdict = verdict.and(self.constrain_type(origin, cause, relation, source, target)?);
@@ -601,10 +562,12 @@ impl CheckState<'_> {
         &mut self,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::TypeIndexSignature>> {
+        // require an object shape
         let dir::Type::Object(shape) = self.ty(target)? else {
             return Ok(None);
         };
 
+        // take the first index signature that writes
         let signature = self
             .object_index_signatures(target.module_id, shape.index_signatures)?
             .iter()
@@ -630,6 +593,7 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         };
 
+        // read the members the target declares
         let target_fields = SmallVec::<[dir::TypeProperty; 8]>::from_slice(
             self.object_properties(target.module_id, target_shape.properties)?,
         );
@@ -641,13 +605,9 @@ impl CheckState<'_> {
         // require each target field from the static declaration
         let mut verdict = Verdict::Holds;
         for field in target_fields {
-            let subject =
-                self.body()
-                    .member_subject(origin, source, source, dir::MemberSpace::Static)?;
-            let lookup = self
-                .body()
-                .lookup_member(origin, module, subject, field.key)?;
-            let found = self.body().member_read_type(&lookup)?;
+            let subject = self.member_subject(origin, source, source, dir::MemberSpace::Static)?;
+            let lookup = self.lookup_member(origin, module, subject, field.key)?;
+            let found = self.member_read_type(&lookup)?;
             let Some(found) = found else {
                 if field.is_optional {
                     continue;
@@ -660,7 +620,7 @@ impl CheckState<'_> {
             verdict = verdict.and(self.constrain_type(
                 origin,
                 cause,
-                Relation::Assignable,
+                Relation::Storable,
                 found,
                 store,
             )?);
@@ -674,7 +634,7 @@ impl CheckState<'_> {
             verdict = verdict.and(self.relate_reference_construct_assignable(
                 origin,
                 cause,
-                Relation::Assignable,
+                Relation::Storable,
                 source,
                 target_signature,
             )?);
@@ -763,28 +723,17 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Verdict> {
+        // relate a structural source directly, every other source by subscript
         match self.ty(source)? {
-            // compare reads alone for constructed entries, which adopt the target's storage
-            dir::Type::Object(shape) => {
-                let relation = match relation {
-                    Relation::Assignable | Relation::Widens | Relation::Equal => {
-                        Relation::Satisfies
-                    }
-                    relation => relation,
-                };
-
-                self.relate_shape_index_signature(
-                    origin,
-                    cause,
-                    relation,
-                    source.module_id,
-                    shape,
-                    target,
-                )
-            }
-            _ => self
-                .body()
-                .decide_subscript_index_signature(origin, relation, source, target),
+            dir::Type::Object(shape) => self.relate_shape_index_signature(
+                origin,
+                cause,
+                relation,
+                source.module_id,
+                shape,
+                target,
+            ),
+            _ => self.decide_subscript_index_signature(origin, relation, source, target),
         }
     }
 
@@ -798,12 +747,6 @@ impl CheckState<'_> {
         source: dir::ObjectType,
         target: &dir::TypeIndexSignature,
     ) -> CompilerResult<Verdict> {
-        // compare covered value types exactly outside satisfies
-        let value_relation = match relation {
-            Relation::Satisfies => Relation::Satisfies,
-            _ => Relation::Equal,
-        };
-
         // prefer the source's own declared index signatures
         let source_indexes = SmallVec::<[dir::TypeIndexSignature; 2]>::from_slice(
             self.object_index_signatures(module, source.index_signatures)?,
@@ -817,16 +760,23 @@ impl CheckState<'_> {
                 if source.is_readonly && !target.is_readonly {
                     continue;
                 }
-                let key =
-                    self.decide_relation(origin, relation, target.key_type, source.key_type)?;
+
+                // cover one key domain by another through inclusion
+                let key = self.decide_relation(
+                    origin,
+                    Relation::Subtype,
+                    target.key_type,
+                    source.key_type,
+                )?;
                 if key == Verdict::Fails {
                     continue;
                 }
 
+                // relate the value the two domains carry
                 let value = self.constrain_type(
                     origin,
                     cause,
-                    value_relation,
+                    relation,
                     source.value_type,
                     target.value_type,
                 )?;
@@ -845,8 +795,9 @@ impl CheckState<'_> {
         );
         let mut verdict = Verdict::Holds;
         for field in source_fields {
+            // cover a declared key by the key domain through inclusion
             let key = self.static_key_type(field.key)?;
-            let covered = self.decide_relation(origin, relation, key, target.key_type)?;
+            let covered = self.decide_relation(origin, Relation::Subtype, key, target.key_type)?;
             if covered == Verdict::Fails {
                 continue;
             }
@@ -860,9 +811,9 @@ impl CheckState<'_> {
                 continue;
             }
 
+            // relate the field's stored type to the value domain
             let store = field.access.store();
-            let value =
-                self.constrain_type(origin, cause, value_relation, store, target.value_type)?;
+            let value = self.constrain_type(origin, cause, relation, store, target.value_type)?;
             verdict = verdict.and(value.join_undecided(covered));
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
@@ -899,14 +850,22 @@ impl CheckState<'_> {
         };
 
         // relate every interior slot under its own cause
-        let relation = relation.interior();
         let mut verdict = Verdict::Holds;
-        for (kind, source, target) in pairs {
+        for (kind, left, right) in pairs {
             let child = match kind {
                 Some(kind) => self.intern_cause(Cause::child(origin, kind, cause)),
                 None => cause,
             };
-            verdict = verdict.and(self.constrain_type(origin, child, relation, source, target)?);
+            let own_slot = match kind {
+                Some(CauseKind::ReturnSlot) => left,
+                _ => right,
+            };
+            let slot_relation = match self.root_variable(own_slot)?.is_some() {
+                true => Relation::Equal,
+                false => relation,
+            };
+            verdict =
+                verdict.and(self.constrain_type(origin, child, slot_relation, left, right)?);
             if verdict == Verdict::Fails {
                 return Ok(Verdict::Fails);
             }
@@ -981,6 +940,7 @@ impl CheckState<'_> {
             }
         }
 
+        // substitute the bound arguments into the written signature
         let substituted = self.substitute_type(signature, &substitution)?;
         if substituted == signature {
             return Ok(Some(SignatureInstantiation::concrete(signature)));
@@ -1040,66 +1000,52 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 };
 
-                // reduce the required parameters as a retry, shedding redundant forms
-                let mut reduced_pairs = SmallVec::<[_; 8]>::new();
+                // reduce the required slots, shedding redundant forms
+                let mut pairs = SmallVec::<[_; 8]>::new();
                 for (source_slot, target_slot) in written_pairs.iter().copied() {
                     let reduced = self.normalize(origin, target_slot)?;
                     let reduced = self.reduce_redundant_forms(origin, reduced)?;
-                    reduced_pairs.push((source_slot, reduced));
+                    pairs.push((source_slot, reduced));
                 }
 
-                // bind over the written parameters, falling back to the reduced ones
-                let mut matched = None;
-                for pairs in [written_pairs, reduced_pairs] {
-                    // relate under the receiver, binding this-projected bounds
-                    let mut substitution = TypeSubstitution::default();
-                    if let Some(receiver) = receiver {
-                        substitution = substitution.with_receiver(receiver);
-                    }
+                // relate under the receiver, binding this-projected bounds
+                let mut substitution = TypeSubstitution::default();
+                if let Some(receiver) = receiver {
+                    substitution = substitution.with_receiver(receiver);
+                }
 
-                    // bind receivers when the two receiver shapes align
-                    if let (Some(signature), Some(required)) =
-                        (self.signature_head(source)?, self.signature_head(target)?)
-                        && let (Some(source_this), Some(target_this)) =
-                            (signature.this_parameter, required.this_parameter)
-                    {
-                        let mut scratch = substitution.clone();
-                        let this_pairs = [(source_this, target_this)];
-                        if self.extend_generic_substitution(
-                            origin,
-                            &parameters,
-                            &mut scratch,
-                            &this_pairs,
-                        )? {
-                            substitution = scratch;
-                        }
-                    }
-
-                    // match the slot pairs, moving to the next round when they disagree
-                    if !self.extend_generic_substitution(
+                // bind receivers when the two receiver shapes align
+                if let (Some(signature), Some(required)) =
+                    (self.signature_head(source)?, self.signature_head(target)?)
+                    && let (Some(source_this), Some(target_this)) =
+                        (signature.this_parameter, required.this_parameter)
+                {
+                    let mut scratch = substitution.clone();
+                    let this_pairs = [(source_this, target_this)];
+                    if self.extend_generic_substitution(
                         origin,
                         &parameters,
-                        &mut substitution,
-                        &pairs,
+                        &mut scratch,
+                        &this_pairs,
                     )? {
-                        continue;
+                        substitution = scratch;
                     }
-
-                    // require the declared constraints of the bound arguments
-                    if !self.relate_substitution_constraints(origin, template, &substitution)? {
-                        return Ok(Verdict::Fails);
-                    }
-
-                    // keep the first substitution that binds every slot
-                    matched = Some(substitution);
-                    break;
                 }
 
-                let Some(mut substitution) = matched else {
+                // match the slot pairs and require the declared constraints of the bound arguments
+                let is_bound = self.extend_generic_substitution(
+                    origin,
+                    &parameters,
+                    &mut substitution,
+                    &pairs,
+                )?;
+                if !is_bound
+                    || !self.relate_substitution_constraints(origin, template, &substitution)?
+                {
                     return Ok(Verdict::Fails);
-                };
+                }
 
-                // memory parameters the match left open ground at the ambient election
+                // ground the memory parameters the match left open
                 self.ground_ambient_memory_parameters(&parameters, &mut substitution)?;
 
                 // compare the instantiated source from here on
@@ -1114,15 +1060,13 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         };
 
-        // relate each pair with redundant forms shed and closed readonly borrows stripped
+        // relate each pair with redundant forms shed
         let mut verdict = Verdict::Holds;
         for (_, source, target) in pairs {
             let source = self.normalize(origin, source)?;
             let source = self.reduce_redundant_forms(origin, source)?;
-            let source = self.strip_borrows(origin, source)?;
             let target = self.normalize(origin, target)?;
             let target = self.reduce_redundant_forms(origin, target)?;
-            let target = self.strip_borrows(origin, target)?;
             let decided = self.constrain_type(origin, cause, relation, source, target)?;
             verdict = verdict.and(decided);
             if verdict == Verdict::Fails {
@@ -1139,7 +1083,7 @@ impl CheckState<'_> {
         parameters: &[GenericParameterId],
         substitution: &mut TypeSubstitution,
     ) -> CompilerResult<()> {
-        // extents erase at the frame, spaces elect local, accesses elect mutable
+        // fill each unbound memory parameter at its ambient election
         for parameter in parameters.iter().copied() {
             if substitution.argument(parameter).is_some() {
                 continue;
@@ -1167,71 +1111,13 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Strip readonly borrows from one type, mapping union arms one level deep.
-    fn strip_borrows(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // strip union arms one by one, a single level deep
-        if let dir::Type::Union(union) = self.ty(ty)? {
-            let elements =
-                SmallVec::<[_; 4]>::from_slice(self.type_ids(ty.module_id, union.elements)?);
-            let mut stripped = Vec::with_capacity(elements.len());
-            let mut changed = false;
-            for element in elements {
-                let payload = self.lent_borrow_payload(origin, element)?;
-                changed |= payload != element;
-                stripped.push(payload);
-            }
-            if !changed {
-                return Ok(ty);
-            }
-
-            return self.normalized_union_type(stripped);
-        }
-
-        self.lent_borrow_payload(origin, ty)
-    }
-
-    /// Return the payload behind one closed readonly borrow of a copyable value.
-    fn lent_borrow_payload(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // require a borrow form
-        let dir::Type::Form(dir::FormType {
-            form: dir::Form::Borrowed(borrow),
-            value,
-        }) = self.ty(ty)?
-        else {
-            return Ok(ty);
-        };
-
-        // require readonly access over a copyable payload
-        let access = self.type_borrow(ty.module_id, borrow)?.access;
-        if self.access_of(access)? != Some(dir::Access::Readonly) {
-            return Ok(ty);
-        }
-
-        // keep the borrowed form as the compared shape while the copy is undecided
-        if !self
-            .decide_auto_interface(origin, value, dir::AutoInterface::Copy)?
-            .holds()
-        {
-            return Ok(ty);
-        }
-
-        Ok(value)
-    }
-
     /// Return positional signature pairs for generic parameter matching.
     pub(in crate::sema) fn signature_match_pairs(
         &self,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>>> {
+        // require two signature heads
         let (Some(source_signature), Some(target_signature)) =
             (self.signature_head(source)?, self.signature_head(target)?)
         else {
@@ -1281,6 +1167,7 @@ impl CheckState<'_> {
             return Ok(None);
         }
 
+        // collect the directed pairs the two signatures compare through
         let mut pairs = SmallVec::<[FunctionAssignabilityPair; 8]>::new();
 
         // compare receiver input contravariantly for function values
@@ -1318,7 +1205,7 @@ impl CheckState<'_> {
 
             // spread the target rest over every remaining source slot
             if target.is_rest {
-                // bind the remaining source parameters as one tuple for an open rest binder
+                // bind an open rest binder as one tuple of the remaining source slots
                 let rest = self.shallow_resolve(target.ty)?;
                 if matches!(self.ty(rest)?, dir::Type::Variable(_)) {
                     let elements = source_parameters[source_index..]
@@ -1332,11 +1219,12 @@ impl CheckState<'_> {
                         })
                         .collect::<SmallVec<[_; 4]>>();
                     let tuple = self.intern_tuple(&elements)?;
-                    pairs.push((cause, tuple, rest));
+                    pairs.push((cause, rest, tuple));
                     break;
                 }
 
-                let element = self.rest_element_type(target.ty)?;
+                // spread the target rest element over every remaining source slot
+                let element = self.spread_element_type(target.ty)?;
                 while let Some(source) = source_parameters.get(source_index) {
                     let target = if source.is_rest { target.ty } else { element };
                     let cause = Some(CauseKind::Parameter {
@@ -1355,11 +1243,12 @@ impl CheckState<'_> {
 
             // spread the source rest element over every remaining target slot
             if source.is_rest {
-                let element = self.rest_element_type(source.ty)?;
+                let element = self.spread_element_type(source.ty)?;
                 pairs.push((cause, target.ty, element));
                 continue;
             }
 
+            // pair the written slot
             pairs.push((cause, target.ty, source.ty));
             source_index += 1;
         }
@@ -1445,26 +1334,5 @@ impl CheckState<'_> {
         }
 
         Ok(expanded)
-    }
-
-    /// Return the type one rest container supplies to each position it spreads over.
-    pub(in crate::sema) fn rest_element_type(
-        &self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // read the sequence head beneath ownership and access forms
-        let mut value = self.shallow_resolve(ty)?;
-        while let dir::Type::Form(form) = self.ty(value)? {
-            value = self.shallow_resolve(form.value)?;
-        }
-
-        let element = match self.ty(value)? {
-            dir::Type::Application(_) if let Some(element) = self.array_element(value)? => element,
-            dir::Type::Slice(slice) => slice.element,
-            dir::Type::FixedArray(array) => array.element,
-            _ => value,
-        };
-
-        Ok(element)
     }
 }

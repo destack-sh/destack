@@ -31,8 +31,33 @@ impl CheckState<'_> {
             }
         }
 
-        // meet lifetime variables instead of joining them
+        // meet region variables over their one shared space
         if self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Region) {
+            let mut extents = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+            let mut space = None;
+            for bound in resolved.iter().copied() {
+                let dir::Type::Region(region) = self.ty(bound)? else {
+                    extents.clear();
+                    break;
+                };
+                if space.is_some_and(|space| space != region.space) {
+                    extents.clear();
+                    break;
+                }
+                space = Some(region.space);
+                extents.push(region.extent);
+            }
+            if let Some(space) = space
+                && !extents.is_empty()
+            {
+                let survivors = self.meet_lifetime_survivors(extents)?;
+                let extent = match survivors.as_slice() {
+                    [single] => *single,
+                    _ => self.normalized_union_type(survivors.iter().copied())?,
+                };
+
+                return self.intern_region(extent, space);
+            }
             let survivors = self.meet_lifetime_survivors(resolved)?;
 
             return match survivors.as_slice() {
@@ -55,7 +80,7 @@ impl CheckState<'_> {
                 }
 
                 absorbed = self
-                    .decide_relation(origin, Relation::Assignable, bound, other)?
+                    .decide_relation(origin, Relation::Storable, bound, other)?
                     .holds();
                 if absorbed {
                     break;
@@ -66,17 +91,26 @@ impl CheckState<'_> {
             }
         }
 
-        // join the survivors, collapsing mutually absorbed bounds to their first
+        // join the survivors, mutually absorbed bounds collapsing to the value they read as
         match survivors.as_slice() {
             [single] => Ok(*single),
-            [] => match resolved.first() {
-                Some(first) => Ok(*first),
-                None => {
-                    let _module = origin.module();
-
-                    self.intern_type(dir::Type::Never)
+            [] => {
+                let mut read = None;
+                for bound in resolved.iter().copied() {
+                    let is_borrow = matches!(
+                        self.ty(bound)?,
+                        dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed(_))
+                    );
+                    if !is_borrow {
+                        read = Some(bound);
+                        break;
+                    }
                 }
-            },
+                match read.or_else(|| resolved.first().copied()) {
+                    Some(bound) => Ok(bound),
+                    None => self.intern_type(dir::Type::Never),
+                }
+            }
             _ => self.normalized_union_type(survivors),
         }
     }
@@ -168,11 +202,7 @@ impl CheckState<'_> {
                 self.meet_lifetime_survivors(lifetimes.into_iter().collect::<SmallVec<[_; 4]>>())?;
             let lifetime = match lifetimes.as_slice() {
                 [single] => *single,
-                _ => {
-                    let elements = self.intern_type_ids(&lifetimes)?;
-
-                    self.intern_type(dir::Type::Union(dir::UnionType { elements }))?
-                }
+                _ => self.normalized_union_type(lifetimes.iter().copied())?,
             };
             let joined_form = self.intern_borrow(lifetime, borrow.access)?;
             let rebuilt = self.intern_type(dir::Type::Form(dir::FormType {
@@ -266,6 +296,7 @@ impl CheckState<'_> {
         id: dir::GlobalTypeId,
         active: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // widen by the head the type carries
         match self.ty(id)? {
             // widen literal leaves to their base types, integers to the integer default
             dir::Type::Literal(literal) => {
@@ -438,6 +469,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<(dir::GlobalTypeId, bool)> {
         let ty = self.shallow_resolve(ty)?;
 
+        // report whether the tree widened
         match self.widen_tree(module, ty, active)? {
             Some(widened) => Ok((widened, true)),
             None => Ok((ty, false)),

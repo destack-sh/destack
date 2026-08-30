@@ -164,19 +164,16 @@ const value = use(() => make());
 /// @type.node source=use type=(Function<(), Box<<error>> | Box<Box<<error>>>>) => <error>
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => make())" parameters=(Function<(), Box<<error>> | Box<Box<<error>>>>) arguments=(provided(() => make()) as Function<(), Box<<error>> | Box<Box<<error>>>>) return=<error> kind=symbol target=use instance=use<<error>>
-/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), <error>>
-/// @type.node source=() => make() type=Function<(), <error>>
+/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), Box<<error>> | Box<Box<<error>>>>
+/// @type.node source=() => make() type=Function<(), Box<<error>> | Box<Box<<error>>>>
 /// @type.node source=make type=() => Box<Box<int32>>
 /// @type.node source=make() type=Box<Box<int32>>
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=Box<Box<int32>> kind=symbol target=make
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'Box<Box<int32>>' is not assignable to type 'Box<_> | Box<Box<_>>'"
-/// @diagnostic.label line=6 column=19 span="() => make()" line_source="const value = use(() => make());"
-/// @diagnostic.related line=6 column=15 span="use(() => make())" line_source="const value = use(() => make());" message="in this call"
-/// @diagnostic.note message="inference cannot decide this relation"
-/// @diagnostic.note message="the mismatch is in the return type"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
+/// @diagnostic.label line=6 column=25 span="make()" line_source="const value = use(() => make());"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
@@ -259,7 +256,7 @@ declare class Box<out T> {
 }
 
 declare const box: Box<int32>;
-const mapped: Box<int32> = box.map<int32, int32, "local">((value: int32): int32 => value);
+const mapped: Box<int32> = box.map<int32, int32>((value: int32): int32 => value);
 
 === dir ===
 declare class Box<T> {
@@ -404,7 +401,7 @@ declare class Box<out T> {
 }
 
 declare const box: Box<int32>;
-const value: int32 = box.map<int32, int32, "local">(
+const value: int32 = box.map<int32, int32>(
     (item: int32): int32 | Box<int32> => item as int32 | Box<int32>,
 );
 
@@ -546,7 +543,7 @@ export type Handler = ((value: int32) => void) | ((value: string) => void);
 export function run(handler: ((arg0: int32) => void) | ((arg0: string) => void)): void {}
 
 function call(): void {
-    run((value) => {});
+    run(((value): void => {}) as Handler);
 }
 
 === dir ===
@@ -567,15 +564,15 @@ function call(): void {
     run((value) => {});
     /// @resolution.name source=run target=run
     /// @resolution.call source="run((value) => {})" parameters=(Handler) arguments=(provided((value) => {}) as Handler) return=void kind=symbol target=run
-    /// @type.symbol symbol=call.symbol7 source="(value) => {}" type=Function<(<error>,), <error>>
+    /// @type.symbol symbol=call.symbol7 source="(value) => {}" type=Function<(<error>,), void>
     /// @type.symbol symbol=call.symbol7.value source=value type=<error>
 
 }
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: _) => _' is not assignable to parameter of type 'Handler'"
+/// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
 /// @diagnostic.label line=7 column=9 span="(value) => {}" line_source="run((value) => {});"
-/// @diagnostic.related line=7 column=5 span="run((value) => {})" line_source="run((value) => {});" message="in this call"
+/// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
 }

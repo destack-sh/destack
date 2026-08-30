@@ -385,7 +385,7 @@ const value = _(1);
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=2 column=15 span="_(1)" line_source="const value = _(1);"
+/// @diagnostic.label line=2 column=15 span="_" line_source="const value = _(1);"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
     );

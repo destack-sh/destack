@@ -137,7 +137,7 @@ impl CheckState<'_> {
         Ok(Some(self.external_module(module)))
     }
 
-    /// Resolve one symbol through import alias chains.
+    /// Settle one symbol through import alias chains.
     pub(in crate::sema) fn resolve_symbol_alias(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -203,6 +203,7 @@ impl CheckState<'_> {
         let key = binding.key;
         drop(table);
 
+        // require an import symbol
         if kind != dir::SymbolKind::Import {
             return Ok(None);
         }
@@ -416,6 +417,7 @@ impl CheckState<'_> {
         let mut references = declared.references.clone();
         references.extend(elaborated.references.iter().copied());
 
+        // read the module's declared and elaborated rows
         CheckExternalModuleState {
             bindings: elaborated.binding_table(bound.as_ref(), expanded.as_ref(), &declared),
             types: elaborated.type_table(bound.as_ref(), expanded.as_ref(), &declared),
@@ -445,6 +447,7 @@ impl CheckState<'_> {
         references.extend(elaborated.references.iter().copied());
         references.extend(checked.references.iter().copied());
 
+        // read the module's checked rows over its earlier stages
         CheckExternalModuleState {
             bindings: checked.binding_table(
                 bound.as_ref(),

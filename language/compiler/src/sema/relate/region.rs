@@ -45,11 +45,43 @@ impl CheckState<'_> {
             return Ok(Some(Verdict::Holds));
         }
 
-        // relate bare extent terms freely
+        // let a bare region term abstract every region, pairs included
         if self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
             && self.memory_kind(target)? == Some(dir::MemoryParameter::Region)
         {
             return Ok(Some(Verdict::Holds));
+        }
+
+        // hold a predicate over a bare region term for every space it may name
+        if relation == Relation::Subtype
+            && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
+            && self.memory_kind(target)? == Some(dir::MemoryParameter::Place)
+        {
+            return Ok(Some(Verdict::Holds));
+        }
+
+        // relate a region pair to a bare space term through its space
+        if let dir::Type::Region(source_region) = self.ty(source)?
+            && self.memory_kind(target)? == Some(dir::MemoryParameter::Place)
+        {
+            return Ok(Some(self.constrain_type(
+                origin,
+                cause,
+                relation,
+                source_region.space,
+                target,
+            )?));
+        }
+        if let dir::Type::Region(target_region) = self.ty(target)?
+            && self.memory_kind(source)? == Some(dir::MemoryParameter::Place)
+        {
+            return Ok(Some(self.constrain_type(
+                origin,
+                cause,
+                relation,
+                source,
+                target_region.space,
+            )?));
         }
 
         // decide bare space terms where both spaces are concrete
@@ -109,7 +141,18 @@ impl CheckState<'_> {
             return Ok(Some(true));
         }
 
-        // match bare extent terms freely
+        // bind a free bare region pattern to the whole actual region
+        if let dir::Type::Parameter(parameter) = self.ty(pattern)?
+            && parameters.contains(&parameter)
+            && substitution.argument(parameter).is_none()
+            && self.memory_kind(actual)? == Some(dir::MemoryParameter::Region)
+        {
+            self.bind_generic_argument(origin, substitution, parameter, actual)?;
+
+            return Ok(Some(true));
+        }
+
+        // match bare region terms freely
         if self.memory_kind(pattern)? == Some(dir::MemoryParameter::Region)
             && self.memory_kind(actual)? == Some(dir::MemoryParameter::Region)
         {

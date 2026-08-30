@@ -58,8 +58,8 @@ const second: Value = "b";
 === annotated ===
 type Value = ReturnType<() => "a" | "b">;
 
-const first: "a" | "b" = "a" as "a" | "b";
-const second: "a" | "b" = "b" as "a" | "b";
+const first: "a" | "b" = "a";
+const second: "a" | "b" = "b";
 
 === dir ===
 type Value = ReturnType<() => "a" | "b">;

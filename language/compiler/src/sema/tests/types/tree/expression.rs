@@ -1274,7 +1274,7 @@ function render(): Panel {
     /// @resolution.tree source="<img {...shared}/>" builder=Panel form=element tag=img call=element attributes=(...: { src: string }) children=() type=Panel
     /// @generic.instantiation id="element<\"img\", ()>" template=element arguments=("img", ())
     /// @resolution.name source=shared target=render.shared
-    /// @resolution.place source=shared placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=shared placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=shared root=render.shared
 
     return page;

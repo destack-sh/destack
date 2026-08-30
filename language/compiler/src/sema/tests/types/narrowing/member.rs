@@ -28,7 +28,7 @@ import { Result } from "destack:error";
 declare const result: Result<int32, string>;
 
 function run(): int32 {
-    if (result.isOk<int32, string, "constant">()) {
+    if (result.isOk<int32, string>()) {
         return result.unwrap<int32, string>();
     }
     return result.unwrapOr<int32, string>(0);
@@ -47,11 +47,10 @@ function run(): int32 {
 
     if (result.isOk()) {
     /// @resolution.name source=result target=result
-    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a, isOk.P1: Place>(this: Borrowed<Result<int32, string>, isOk.'a & isOk.P1, "readonly">) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
-    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'static readonly constant Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk<\"constant\">"
+    /// @resolution.member source=result.isOk receiver=Result<int32, string> type=<isOk.'a>(this: &isOk.'a readonly Result<int32, string>) => boolean kind=symbol target_receiver=Result<int32, string> target=isOk
+    /// @resolution.call source=result.isOk() parameters=() return=boolean kind=symbol target=isOk receiver=Result<int32, string> adjustments=(borrow(&'static readonly constant Result<int32, string>)) instance="Result<int32, string>.<extension#1>.isOk"
     /// @resolution.place source=result placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=result root=result
-    /// @generic.instantiation id="isOk<int32, string, \"constant\">" template=isOk arguments=(int32, string, "constant")
     /// @generic.instantiation id="isOk<int32, string>" template=isOk arguments=(int32, string)
 
         return result.unwrap();
@@ -123,9 +122,9 @@ class Derived extends Base {
 
 function run(value: Base): int32 {
     if (value instanceof Derived) {
-        return value.extra<"local">() + value.shared<"local">();
+        return value.extra() + value.shared();
     }
-    return value.shared<"local">();
+    return value.shared();
 }
 
 === dir ===
@@ -221,7 +220,7 @@ function value(result: Result<int32, string>): int32 {
         r#"
 === annotated ===
 function value(result: Result<int32, string>): int32 {
-    if (result.kind === ("Ok" as "Ok" | "Err")) {
+    if (result.kind === "Ok") {
         return result.value;
     }
     return result.unwrap<int32, string>();
@@ -296,7 +295,7 @@ function pick(values: Array<Result<int32, string>>): int32 {
         r#"
 === annotated ===
 function describe(result: Result<int32, string>): int32 {
-    if (result.kind === ("Err" as "Ok" | "Err")) {
+    if (result.kind === "Err") {
         return result.unwrap<int32, string>();
     }
     return result.unwrap<int32, string>() + 1;
@@ -304,7 +303,7 @@ function describe(result: Result<int32, string>): int32 {
 
 function pick(values: Result<int32, string>[]): int32 {
     const first: Result<int32, string> = values[0];
-    if (first.kind === ("Ok" as "Ok" | "Err")) {
+    if (first.kind === "Ok") {
         return first.unwrap<int32, string>();
     }
     return 0;
@@ -359,7 +358,7 @@ function pick(values: Array<Result<int32, string>>): int32 {
     /// @resolution.access source=values root=pick.values
     /// @resolution.access source=values[0] root=pick.values keys=[0]
     /// @resolution.subscript source=values[0] type=Result<int32, string> kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame Result<int32, string>, \"exclusive\">)"
-    /// @generic.instantiation id="index#1<Result<int32, string>, \"exclusive\", \"local\">" template=index#1 arguments=(Result<int32, string>, "exclusive", "local")
+    /// @generic.instantiation id="index#1<Result<int32, string>, \"exclusive\">" template=index#1 arguments=(Result<int32, string>, "exclusive")
 
     if (first.kind === "Ok") {
     /// @resolution.name source=first target=pick.first

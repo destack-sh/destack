@@ -112,6 +112,20 @@ pub(in crate::sema) struct FlowCheckpoint {
     point: FlowPointId,
 }
 
+/// The flow data captured at one point, read by a body checked later.
+/// NOTE #Performance: a deferred body copies the flow points built so far.
+#[derive(Debug, Clone)]
+pub(in crate::sema) struct FlowSnapshot {
+    /// Places definitely assigned at the point.
+    assigned: FxIndexSet<AssignedPlace>,
+    /// Flow narrowings visible at the point.
+    narrowings: FxIndexMap<dir::AccessPath, SmallVec<[FlowPredicate; 2]>>,
+    /// Durable flow points built up to the point.
+    points: Vec<FlowPoint>,
+    /// The durable flow point.
+    current: FlowPointId,
+}
+
 /// Flow changes produced by one branch after a checkpoint.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub(in crate::sema) struct FlowBranch {
@@ -232,6 +246,7 @@ impl FlowState {
 
     /// Append one durable flow point.
     fn push_point(&mut self, change: FlowPointChange) {
+        // link the new point to the current one
         let point = FlowPointId {
             index: self.points.len() as u32,
         };
@@ -348,6 +363,7 @@ impl FlowState {
 
     /// Leave the current break or continue target.
     pub(in crate::sema) fn pop_target(&mut self) -> ControlTarget {
+        // require an active control target
         let Some(target) = self.targets.pop() else {
             unreachable!("control target stack underflow");
         };
@@ -386,6 +402,7 @@ impl FlowState {
         &self,
         label: Option<dir::StringId>,
     ) -> Option<usize> {
+        // search the visible targets from the innermost outward
         let start = self.current_target_start();
         self.targets
             .iter()
@@ -409,6 +426,7 @@ impl FlowState {
         &self,
         label: Option<dir::StringId>,
     ) -> Option<usize> {
+        // search the visible targets from the innermost outward
         let start = self.current_target_start();
         self.targets
             .iter()
@@ -460,6 +478,7 @@ impl FlowState {
 
     /// Take continue branches collected by the current control target.
     pub(in crate::sema) fn take_continue_branches(&mut self) -> Vec<FlowBranch> {
+        // require an active control target
         let Some(target) = self.targets.last_mut() else {
             unreachable!("continue branch collection requires an active control target");
         };
@@ -469,6 +488,7 @@ impl FlowState {
 
     /// Capture one symbol in the current function body.
     pub(in crate::sema) fn capture_symbol(&mut self, symbol: dir::GlobalSymbolId) {
+        // require an active function frame
         let Some(function) = self.functions.last_mut() else {
             unreachable!("symbol capture requires an active function");
         };
@@ -478,6 +498,7 @@ impl FlowState {
 
     /// Capture one receiver in the current function body.
     pub(in crate::sema) fn capture_receiver(&mut self, receiver: ReceiverBinding) {
+        // require an active function frame
         let Some(function) = self.functions.last_mut() else {
             unreachable!("receiver capture requires an active function");
         };
@@ -486,12 +507,21 @@ impl FlowState {
     }
 
     /// Return the lexical receiver visible to the current function.
-    pub(in crate::sema) fn lexical_receiver(&self) -> Option<(usize, ReceiverBinding)> {
+    ///
+    /// The flag reports whether the current function binds it itself.
+    pub(in crate::sema) fn lexical_receiver(&self) -> Option<(bool, ReceiverBinding)> {
         self.functions
             .iter()
             .enumerate()
             .rev()
-            .find_map(|(index, function)| function.receiver.map(|receiver| (index, receiver)))
+            .find_map(|(index, function)| {
+                function
+                    .receiver
+                    .map(|receiver| (self.is_current_function(index), receiver))
+                    .or(function
+                        .enclosing_receiver
+                        .map(|receiver| (false, receiver)))
+            })
     }
 
     /// Return whether one function frame is the innermost active function.
@@ -537,6 +567,7 @@ impl FlowState {
         path: dir::AccessPath,
         predicate: FlowPredicate,
     ) {
+        // record the narrowing in the change log and the durable graph
         self.changes.push(FlowChange::Narrowing {
             path: Box::new(path.clone()),
         });
@@ -557,10 +588,9 @@ impl FlowState {
 
     /// Return the branch changes made after one checkpoint.
     pub(in crate::sema) fn branch(&self, checkpoint: FlowCheckpoint) -> FlowBranch {
+        // collect flow state touched since the checkpoint
         let mut assigned = FxIndexSet::default();
         let mut narrowing_paths = FxIndexSet::default();
-
-        // collect flow state touched since the checkpoint
         for change in &self.changes[checkpoint.change_count..] {
             match change {
                 FlowChange::Assign { place, .. } => {
@@ -593,8 +623,30 @@ impl FlowState {
         }
     }
 
+    /// Capture the flow data at the current point.
+    pub(in crate::sema) fn snapshot(&self) -> FlowSnapshot {
+        FlowSnapshot {
+            assigned: self.assigned.clone(),
+            narrowings: self.narrowings.clone(),
+            points: self.points.clone(),
+            current: self.current,
+        }
+    }
+
+    /// Return the flow state one snapshot captured, outside every frame.
+    pub(in crate::sema) fn from_snapshot(snapshot: FlowSnapshot) -> Self {
+        Self {
+            assigned: snapshot.assigned,
+            narrowings: snapshot.narrowings,
+            points: snapshot.points,
+            current: snapshot.current,
+            ..Self::default()
+        }
+    }
+
     /// Restore the flow state to one checkpoint.
     pub(in crate::sema) fn restore(&mut self, checkpoint: FlowCheckpoint) {
+        // take the changes made after the checkpoint
         let changes = self.changes.split_off(checkpoint.change_count);
 
         // roll back changes in reverse order
@@ -631,6 +683,8 @@ impl FlowState {
                 }
             }
         }
+
+        // return the cursor to the checkpoint's point
         self.current = checkpoint.point;
     }
 
@@ -696,6 +750,7 @@ impl FlowState {
 
     /// Replace the current narrowings of one path.
     fn set_narrowings(&mut self, path: dir::AccessPath, target: &[FlowPredicate]) {
+        // leave an unchanged conjunction alone
         let current = self
             .narrowings
             .get(&path)
@@ -723,11 +778,13 @@ impl FlowState {
 
     /// Clear one current narrowing list.
     fn clear_narrowings(&mut self, path: dir::AccessPath) {
+        // stop where the path carries no narrowing
         let previous = self.narrowings.shift_remove(&path).unwrap_or_default();
         if previous.is_empty() {
             return;
         }
 
+        // record the clear in the change log and the durable graph
         self.changes.push(FlowChange::Clear {
             path: Box::new(path.clone()),
             previous,

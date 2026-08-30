@@ -10,6 +10,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         // accept the types whose inhabitants their own shape already fixes
+        let ty = self.shallow_resolve(ty)?;
         if matches!(
             self.ty(ty)?,
             dir::Type::Void
@@ -106,6 +107,7 @@ impl CheckState<'_> {
 
     /// Return the discriminant carried by one case-specific type.
     fn variant_discriminant(&mut self, variant: &dir::VariantType) -> CompilerResult<dir::Literal> {
+        // read the enum owning the case
         let owner = self.variant_owner(variant)?;
 
         // read the declared discriminant from the owning enum
@@ -130,6 +132,7 @@ impl CheckState<'_> {
 
     /// Return the declaration application owning one precise variant type.
     fn variant_owner(&self, variant: &dir::VariantType) -> CompilerResult<dir::GenericApplication> {
+        // require an application owner
         let dir::Type::Application(owner) = self.ty(variant.owner)? else {
             return Err(CompilerError::Internal {
                 message: format!(

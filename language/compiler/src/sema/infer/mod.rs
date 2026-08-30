@@ -15,5 +15,5 @@ mod operation;
 mod statement;
 
 pub(in crate::sema) use body::*;
-pub(in crate::sema) use literal::InferMode;
+pub(in crate::sema) use literal::{InferMode, NodeForm};
 pub(in crate::sema) use node::*;

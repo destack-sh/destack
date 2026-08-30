@@ -33,7 +33,7 @@ const values: int32[] = [1, 2, 3];
 /// @type.node source=[1, 2, 3] type=int32[]
 /// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id="arrayFromSlice<int32, \"local\">" template=arrayFromSlice arguments=(int32, "local")
+/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 /// @type.node source=3 type=3
@@ -196,7 +196,7 @@ for (const key in target) {
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'string' does not satisfy '\"a\" | \"b\"'"
-/// @diagnostic.label line=5 column=9 span="satisfies" line_source="key satisfies \"a\" | \"b\";"
+/// @diagnostic.label line=5 column=5 span="key" line_source="key satisfies \"a\" | \"b\";"
 "#,
     );
 }
@@ -697,7 +697,7 @@ function total(values: int32[]): int32 {
 === annotated ===
 function total(values: int32[]): int32 {
     let sum: int32 = 0;
-    for (const (index, value) of values.iterator<int32, "local">().enumerate<int32>()) {
+    for (const (index, value) of values.iterator<int32>().enumerate<int32>()) {
         sum = sum + value;
     }
     return sum;
@@ -740,10 +740,6 @@ function total(values: int32[]): int32 {
     /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
     /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
     /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
-    /// @generic.instance id="PlaceOf<DropWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(DropWhileIterator<Iterator<int32>, int32>)
-    /// @generic.instance id="PlaceOf<FilterIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(FilterIterator<Iterator<int32>, int32>)
-    /// @generic.instance id="PlaceOf<InspectIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(InspectIterator<Iterator<int32>, int32>)
-    /// @generic.instance id="PlaceOf<TakeWhileIterator<Iterator<int32>, int32>>" template=PlaceOf arguments=(TakeWhileIterator<Iterator<int32>, int32>)
     /// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")

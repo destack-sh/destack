@@ -348,12 +348,23 @@ const result: Promise<string> = input.then((value) => {
 /// @generic.instantiation id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol167<int32, \"local\">" template=PromiseReaction.symbol167 arguments=(int32, "local")
 /// @generic.instance id="PromiseReaction.symbol167<string, \"local\">" template=PromiseReaction.symbol167 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
 /// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
 /// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
 /// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
 /// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @type.symbol symbol=symbol3 type=Function<(int32,), Promise<string>>
 /// @type.node type=Function<(int32,), Promise<string>>
 /// @type.symbol symbol=symbol3.value source=value type=int32
@@ -368,19 +379,8 @@ const result: Promise<string> = input.then((value) => {
     /// @resolution.place source=input placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=input root=input
     /// @generic.instantiation id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
-    /// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
     /// @generic.instance id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
-    /// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-    /// @generic.instance id="PromiseReaction.symbol167<int32, \"local\">" template=PromiseReaction.symbol167 arguments=(int32, "local")
-    /// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-    /// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-    /// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
     /// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-    /// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-    /// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-    /// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-    /// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-    /// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
     /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string>
     /// @type.node source="() => \"done\"" type=Function<(), string>
     /// @type.node source="\"done\"" type="done"
@@ -712,7 +712,7 @@ const values = identity([1, 2]);
 /// @type.node source=[1, 2] type=int64[]
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -760,7 +760,7 @@ function first<T>(values: T[]): T {
     /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values[0] root=first.values keys=[0]
     /// @resolution.subscript source=values[0] type=T kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame T, \"exclusive\">)"
-    /// @generic.instantiation id="index#1<T, \"exclusive\", \"local\">" template=index#1 arguments=(T, "exclusive", "local") owner=first
+    /// @generic.instantiation id="index#1<T, \"exclusive\">" template=index#1 arguments=(T, "exclusive") owner=first
     /// @type.node source=0 type=0
 
 }
@@ -775,7 +775,7 @@ const value = first([1, 2]);
 /// @generic.instantiation id=first<int64> template=first arguments=(int64)
 /// @generic.instance id="WithAccess<&'frame int64, \"exclusive\">" template=WithAccess arguments=(&'frame int64, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int64[], \"exclusive\">" template=WithAccess arguments=(&'frame int64[], "exclusive")
-/// @generic.instance id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instance id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
 /// @generic.instance id=first<int64> template=first arguments=(int64)
@@ -783,7 +783,7 @@ const value = first([1, 2]);
 /// @type.node source=[1, 2] type=int64[]
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -1084,7 +1084,7 @@ function parse<T>(value: T[]): T {
     /// @resolution.place source=value[0] placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value[0] root=parse.value#2 keys=[0]
     /// @resolution.subscript source=value[0] type=T#2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame T#2, \"exclusive\">)"
-    /// @generic.instantiation id="index#1<T#2, \"exclusive\", \"local\">" template=index#1 arguments=(T#2, "exclusive", "local") owner=parse#2
+    /// @generic.instantiation id="index#1<T#2, \"exclusive\">" template=index#1 arguments=(T#2, "exclusive") owner=parse#2
     /// @type.node source=0 type=0
 
 }
@@ -1183,7 +1183,7 @@ const value = choose(1, 2);
 === annotated ===
 declare function choose<T: 1 | 2>(left: T, right: T): T;
 
-const value: 1 | 2 = choose<1 | 2>(1 as 1 | 2, 2 as 1 | 2);
+const value: 1 | 2 = choose<1 | 2>(1, 2);
 
 === dir ===
 declare function choose<T: 1 | 2>(left: T, right: T): T;
@@ -1228,7 +1228,7 @@ const value = choose(1, 2);
 === annotated ===
 declare function choose<T>(left: T, right: T): T where T: 1 | 2;
 
-const value: 1 | 2 = choose<1 | 2>(1 as 1 | 2, 2 as 1 | 2);
+const value: 1 | 2 = choose<1 | 2>(1, 2);
 
 === dir ===
 declare function choose<T>(left: T, right: T): T where T: 1 | 2;
@@ -1388,7 +1388,7 @@ extension<T> of Box<T> {
 }
 
 function build(value: float64): Box<int32> {
-    return Box.of(value);
+    return Box.of<float64>(value);
 }
 
 === dir ===
@@ -1438,7 +1438,8 @@ function build(value: float64): Box<int32> {
     return Box.of(value);
     /// @resolution.name source=Box target=Box
     /// @resolution.member source=Box.of receiver=Box type=(T#2) => Box<T#2> kind=symbol target_receiver=Box target=of
-    /// @resolution.call source=Box.of(value) parameters=(<error>) arguments=(provided(value) as <error>) return=Box<<error>> kind=symbol target=of instance=Box<<error>>.<extension#1>.of
+    /// @resolution.call source=Box.of(value) parameters=(float64) arguments=(provided(value) as float64) return=Box<float64> kind=symbol target=of instance=Box<float64>.<extension#1>.of
+    /// @generic.instantiation id=of<float64> template=of arguments=(float64)
     /// @resolution.name source=value target=build.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=build.value
@@ -1446,9 +1447,12 @@ function build(value: float64): Box<int32> {
 }
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'float64' is not assignable to type 'int32'"
+/// @diagnostic.error id=return-not-assignable message="type 'float64' is not assignable to the declared result type 'int32'"
 /// @diagnostic.label line=13 column=12 span="Box.of(value)" line_source="return Box.of(value);"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Box'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'float64' is not assignable to parameter of type 'float64'"
+/// @diagnostic.label line=13 column=19 span="value" line_source="return Box.of(value);"
+/// @diagnostic.related line=13 column=12 span="Box.of(value)" line_source="return Box.of(value);" message="in this call"
 "#,
     );
 }
@@ -1485,9 +1489,9 @@ const kept = values
 /// @type.symbol symbol=kept source=kept type=int32[]
 /// @resolution.pattern source=kept kind=binding target=kept
 /// @resolution.name source=values target=values
-/// @resolution.member receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=filter#1
+/// @resolution.member receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=filter#1
 /// @resolution.member receiver=Owned<int32[]> type=<map.U#1>(this: Owned<int32[]>, Function<(int32, isize), map.U#1>) => Owned<map.U#1[]> kind=symbol target_receiver=Owned<int32[]> target=map#1
-/// @resolution.call parameters=(Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=Owned<int32[]> kind=symbol target=filter#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.filter#1
+/// @resolution.call parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<int32[]> kind=symbol target=filter#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.filter#1
 /// @resolution.call parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=map#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.map#1<int32>
 /// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
@@ -1507,7 +1511,7 @@ const kept = values
     /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32
     /// @resolution.name source=value target=symbol4.value
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 families=(integer), undefined as undefined families=(undefined)]
-    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=symbol4.value
 "#,
         r#"
@@ -1670,7 +1674,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 === annotated ===
 declare const values: (int32 | undefined)[];
 
-const defined: (int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined, "local">(
+const defined: (int32 | undefined)[] = values.map<int32 | undefined, int32 | undefined>(
     (value: int32 | undefined): int32 | undefined => value,
 ).filter<int32 | undefined>(
     (value: &'a readonly (int32 | undefined)): boolean =>
@@ -1686,10 +1690,10 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @type.symbol symbol=defined source=defined type=int32 | undefined[]
 /// @resolution.pattern source=defined kind=binding target=defined
 /// @resolution.name source=values target=values
-/// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=Owned<int32 | undefined[]> target=filter#1
+/// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=Owned<int32 | undefined[]> target=filter#1
 /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=map#2
 /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<int32 | undefined[]> kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined, \"local\">"
-/// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<T#2[]>.<extension#2>.filter#1
+/// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<T#2[]>.<extension#2>.filter#1
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
@@ -1704,7 +1708,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
 /// @type.symbol symbol=symbol4.value source=value type=&type_expression.'a readonly int32 | undefined
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-/// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+/// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
 /// @resolution.access source=value root=symbol4.value
 "#,
         r#"
@@ -1750,8 +1754,8 @@ class Values<T> {
 
 declare const values: Values<int32>;
 
-const once: int32[][] = values.flat<int32, 1, "local">();
-const twice: int32[][] = values.flat<int32, 2, "local">(2 as 2 | undefined);
+const once: int32[][] = values.flat<int32, 1>();
+const twice: int32[][] = values.flat<int32, 2>(2 as 2 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -1768,12 +1772,12 @@ class Values<T> {
 /// @generic.template symbol=Values parameters=(T#2)
 /// @type.symbol symbol=Values type=Values
 /// @definition.class symbol=Values template=(T#2)
-/// @definition.method symbol=Values.flat slot=flat type=<const Depth#2: usize = 1, Values.flat.'a, Values.flat.P2: Place>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Element<T#2, Depth#2>[]
+/// @definition.method symbol=Values.flat slot=flat type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Element<T#2, Depth#2>[]
 /// @type.symbol symbol=Values.T source=T type=T#2
 
     flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
-    /// @generic.template symbol=Values.flat parent=template#1 parameters=(const Depth#2: usize = 1, 'a, P2: Place)
-    /// @type.symbol symbol=Values.flat type=<const Depth#2: usize = 1, Values.flat.'a, Values.flat.P2: Place>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Element<T#2, Depth#2>[]
+    /// @generic.template symbol=Values.flat parent=template#1 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=Values.flat type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly this, Depth#2 | undefined?) => Element<T#2, Depth#2>[]
     /// @type.symbol symbol=Values.flat.Depth source="const Depth: usize = 1" type=Depth#2
     /// @type.symbol symbol=Values.flat.this source="&readonly this" type=&Values.flat.'a readonly this
     /// @type.symbol symbol=Values.flat.depth source="depth?: Depth" type=Depth#2 | undefined
@@ -1802,22 +1806,22 @@ const once = values.flat();
 /// @type.symbol symbol=once source=once type=int32[][]
 /// @resolution.pattern source=once kind=binding target=once
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a, Values.flat.P2: Place>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=Values.flat
-/// @resolution.call source=values.flat() parameters=(1 | undefined) arguments=(omitted as 1 | undefined) return=int32[][] kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance="Values<int32>.flat<1, \"local\">"
+/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=Values.flat
+/// @resolution.call source=values.flat() parameters=(1 | undefined) arguments=(omitted as 1 | undefined) return=int32[][] kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.flat<1>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="Values.flat<int32, 1, \"local\">" template=Values.flat arguments=(int32, 1, "local")
+/// @generic.instantiation id="Values.flat<int32, 1>" template=Values.flat arguments=(int32, 1)
 /// @generic.instantiation id=Values.flat<int32> template=Values.flat arguments=(int32)
 
 const twice = values.flat(2);
 /// @type.symbol symbol=twice source=twice type=int32[][]
 /// @resolution.pattern source=twice kind=binding target=twice
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a, Values.flat.P2: Place>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=Values.flat
-/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=int32[][] kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance="Values<int32>.flat<2, \"local\">"
+/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, Values.flat.'a>(this: &Values.flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=Values.flat
+/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=int32[][] kind=symbol target=Values.flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.flat<2>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="Values.flat<int32, 2, \"local\">" template=Values.flat arguments=(int32, 2, "local")
+/// @generic.instantiation id="Values.flat<int32, 2>" template=Values.flat arguments=(int32, 2)
 "#,
         r#"
 "#,
@@ -1864,7 +1868,7 @@ extension<T> of Values<T> {
 
 declare const values: Values<int32>;
 
-const twice: int32[][] = values.flat<int32, 2, "local">(2 as 2 | undefined);
+const twice: int32[][] = values.flat<int32, 2>(2 as 2 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -1886,14 +1890,14 @@ declare class Values<out T> {}
 extension<T> of Values<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Values<T#3>
-/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
+/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Values target=Values
 /// @resolution.name source=T target=T
 
     flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[]
-    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a, P2: Place)
-    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
+    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
     /// @type.symbol symbol=flat.Depth source="const Depth: usize = 1" type=Depth#2
     /// @type.symbol symbol=flat.this source="&readonly this" type=&flat.'a readonly this
     /// @type.symbol symbol=flat.depth source="depth?: Depth" type=Depth#2 | undefined
@@ -1923,11 +1927,11 @@ const twice: Element<int32, 2>[] = values.flat(2);
 /// @resolution.pattern source=twice kind=binding target=twice
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=flat
-/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=int32[][] kind=symbol target=flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance="Values<int32>.<extension#1>.flat<2, \"local\">"
+/// @resolution.member source=values.flat receiver=Values<int32> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32>, Depth#2 | undefined?) => Element<int32, Depth#2>[] kind=symbol target_receiver=Values<int32> target=flat
+/// @resolution.call source=values.flat(2) parameters=(2 | undefined) arguments=(provided(2) as 2 | undefined) return=int32[][] kind=symbol target=flat receiver=Values<int32> adjustments=(borrow(&'static readonly Values<int32>)) instance=Values<int32>.<extension#1>.flat<2>
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="flat<int32, 2, \"local\">" template=flat arguments=(int32, 2, "local")
+/// @generic.instantiation id="flat<int32, 2>" template=flat arguments=(int32, 2)
 /// @generic.instantiation id=flat<int32> template=flat arguments=(int32)
 "#,
         r#"
@@ -2060,7 +2064,7 @@ extension<T> of Values<T> {
 
 declare const values: Values<int32 | int32[]>;
 
-const once: (int32 | int32[])[][] = values.flat<int32 | int32[], 1, "local">(1 as 1 | undefined);
+const once: (int32 | int32[])[][] = values.flat<int32 | int32[], 1>(1 as 1 | undefined);
 
 === dir ===
 type Element<T, const Depth: usize> = Depth extends 0 ? T : T[];
@@ -2082,14 +2086,14 @@ declare class Values<out T> {}
 extension<T> of Values<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Values<T#3>
-/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
+/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Values target=Values
 /// @resolution.name source=T target=T
 
     flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
-    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a, P2: Place)
-    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
+    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
     /// @type.symbol symbol=flat.Depth source="const Depth: usize = 1" type=Depth#2
     /// @type.symbol symbol=flat.this source="&readonly this" type=&flat.'a readonly this
     /// @type.symbol symbol=flat.depth source="depth?: Depth" type=Depth#2 | undefined
@@ -2115,11 +2119,11 @@ const once: Element<int32 | int32[], 1>[] = values.flat(1);
 /// @resolution.pattern source=once kind=binding target=once
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.flat receiver=Values<int32 | int32[]> type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly Values<int32 | int32[]>, Depth#2 | undefined?) => Element<int32 | int32[], Depth#2>[] kind=symbol target_receiver=Values<int32 | int32[]> target=flat
-/// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=int32 | int32[][][] kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(&'static readonly Values<int32 | int32[]>)) instance="Values<int32 | int32[]>.<extension#1>.flat<1, \"local\">"
+/// @resolution.member source=values.flat receiver=Values<int32 | int32[]> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32 | int32[]>, Depth#2 | undefined?) => Element<int32 | int32[], Depth#2>[] kind=symbol target_receiver=Values<int32 | int32[]> target=flat
+/// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=int32 | int32[][][] kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(&'static readonly Values<int32 | int32[]>)) instance="Values<int32 | int32[]>.<extension#1>.flat<1>"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id="flat<int32 | int32[], 1, \"local\">" template=flat arguments=(int32 | int32[], 1, "local")
+/// @generic.instantiation id="flat<int32 | int32[], 1>" template=flat arguments=(int32 | int32[], 1)
 /// @generic.instantiation id="flat<int32 | int32[]>" template=flat arguments=(int32 | int32[])
 "#,
         r#"
@@ -2200,7 +2204,7 @@ function flatten(values: (int32 | int32[])[]): int32[] {
         r#"
 === annotated ===
 function flatten(values: (int32 | int32[])[]): int32[] {
-    return values.flat<int32 | int32[], 1, "local">(1 as 1 | undefined) as int32[];
+    return values.flat<int32 | int32[], 1>(1 as 1 | undefined) as int32[];
 }
 
 === dir ===
@@ -2210,16 +2214,17 @@ function flatten(values: (int32 | int32[])[]): int32[] {
 
     return values.flat(1);
     /// @resolution.name source=values target=flatten.values
-    /// @resolution.member source=values.flat receiver=int32 | int32[][] type=<const flat.Depth: usize = 1, flat.'a, flat.P2: Place>(this: Borrowed<int32 | int32[][], flat.'a & flat.P2, "readonly">, flat.Depth | undefined?) => Owned<FlattenedElement<int32 | int32[], flat.Depth>[]> kind=symbol target_receiver=int32 | int32[][] target=flat
-    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Owned<int32[]> kind=symbol target=flat receiver=int32 | int32[][] adjustments=(borrow(&'frame readonly int32 | int32[][])) instance="Array<int32 | int32[]>.<extension#5>.flat<1, \"local\">"
+    /// @resolution.member source=values.flat receiver=int32 | int32[][] type=<const flat.Depth: usize = 1, flat.'a>(this: &flat.'a readonly int32 | int32[][], flat.Depth | undefined?) => Owned<FlattenedElement<int32 | int32[], flat.Depth>[]> kind=symbol target_receiver=int32 | int32[][] target=flat
+    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=Owned<int32[]> kind=symbol target=flat receiver=int32 | int32[][] adjustments=(borrow(&'frame readonly int32 | int32[][])) instance="Array<int32 | int32[]>.<extension#5>.flat<1>"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=flatten.values
-    /// @generic.instantiation id="flat<int32 | int32[], 1, \"local\">" template=flat arguments=(int32 | int32[], 1, "local")
+    /// @generic.instantiation id="flat<int32 | int32[], 1>" template=flat arguments=(int32 | int32[], 1)
     /// @generic.instantiation id="flat<int32 | int32[]>" template=flat arguments=(int32 | int32[])
 
 }
 "#,
         r#"
+
 "#,
     );
 }
@@ -2265,7 +2270,7 @@ extension<T> of Values<T> {
 declare const values: Values<int32 | int32[]>;
 
 function flatten(): (int32 | int32[])[][] {
-    return values.flat<int32 | int32[], 1, "local">(1 as 1 | undefined);
+    return values.flat<int32 | int32[], 1>(1 as 1 | undefined);
 }
 
 === dir ===
@@ -2288,14 +2293,14 @@ declare class Values<out T> {}
 extension<T> of Values<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=local target=Values<T#3>
-/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
+/// @definition.method symbol=flat slot=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Values target=Values
 /// @resolution.name source=T target=T
 
     flat<const Depth: usize = 1>(&readonly this, depth?: Depth): Element<T, Depth>[] {
-    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a, P2: Place)
-    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
+    /// @generic.template symbol=flat parent=template#2 parameters=(const Depth#2: usize = 1, 'a)
+    /// @type.symbol symbol=flat type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly this, Depth#2 | undefined?) => Element<T#3, Depth#2>[]
     /// @type.symbol symbol=flat.Depth source="const Depth: usize = 1" type=Depth#2
     /// @type.symbol symbol=flat.this source="&readonly this" type=&flat.'a readonly this
     /// @type.symbol symbol=flat.depth source="depth?: Depth" type=Depth#2 | undefined
@@ -2321,11 +2326,11 @@ function flatten(): (int32 | int32[])[][] {
 
     return values.flat(1);
     /// @resolution.name source=values target=values
-    /// @resolution.member source=values.flat receiver=Values<int32 | int32[]> type=<const Depth#2: usize = 1, flat.'a, flat.P2: Place>(this: &flat.'a readonly Values<int32 | int32[]>, Depth#2 | undefined?) => Element<int32 | int32[], Depth#2>[] kind=symbol target_receiver=Values<int32 | int32[]> target=flat
-    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=int32 | int32[][][] kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(&'static readonly Values<int32 | int32[]>)) instance="Values<int32 | int32[]>.<extension#1>.flat<1, \"local\">"
+    /// @resolution.member source=values.flat receiver=Values<int32 | int32[]> type=<const Depth#2: usize = 1, flat.'a>(this: &flat.'a readonly Values<int32 | int32[]>, Depth#2 | undefined?) => Element<int32 | int32[], Depth#2>[] kind=symbol target_receiver=Values<int32 | int32[]> target=flat
+    /// @resolution.call source=values.flat(1) parameters=(1 | undefined) arguments=(provided(1) as 1 | undefined) return=int32 | int32[][][] kind=symbol target=flat receiver=Values<int32 | int32[]> adjustments=(borrow(&'static readonly Values<int32 | int32[]>)) instance="Values<int32 | int32[]>.<extension#1>.flat<1>"
     /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=values root=values
-    /// @generic.instantiation id="flat<int32 | int32[], 1, \"local\">" template=flat arguments=(int32 | int32[], 1, "local")
+    /// @generic.instantiation id="flat<int32 | int32[], 1>" template=flat arguments=(int32 | int32[], 1)
     /// @generic.instantiation id="flat<int32 | int32[]>" template=flat arguments=(int32 | int32[])
 
 }
@@ -2418,8 +2423,8 @@ const positive = values.filter((value) => value > 0);
 /// @type.symbol symbol=positive source=positive type=int32[]
 /// @resolution.pattern source=positive kind=binding target=positive
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.filter receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=filter#1
-/// @resolution.call source="values.filter((value) => value > 0)" parameters=(Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=Owned<int32[]> kind=symbol target=filter#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.filter#1
+/// @resolution.member source=values.filter receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=filter#1
+/// @resolution.call source="values.filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<int32[]> kind=symbol target=filter#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.filter#1
 /// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id=filter#1<int32> template=filter#1 arguments=(int32)
@@ -2427,7 +2432,7 @@ const positive = values.filter((value) => value > 0);
 /// @type.symbol symbol=symbol2.value source=value type=&type_expression.'a readonly int32
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-/// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+/// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
 /// @resolution.access source=value root=symbol2.value
 "#,
         r#"
@@ -2613,7 +2618,7 @@ const picked = pick(boxed);
 "#,
         r#"
 /// @diagnostic.error id=cannot-infer-type message="cannot infer a type here"
-/// @diagnostic.label line=6 column=16 span="pick(boxed)" line_source="const picked = pick(boxed);"
+/// @diagnostic.label line=6 column=21 span="boxed" line_source="const picked = pick(boxed);"
 /// @diagnostic.help message="annotate the type explicitly"
 "#,
     );
@@ -3045,7 +3050,7 @@ function positive(values: int32[]): int32[] {
     session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
-    return values.map<int32, int32, "local">((value: int32): int32 => value + 1).filter<int32>(
+    return values.map<int32, int32>((value: int32): int32 => value + 1).filter<int32>(
         (value: &'a readonly int32): boolean => (value as int32) > 0,
     ) as int32[];
 }
@@ -3065,10 +3070,10 @@ function positive(values: int32[]): int32[] {
     /// @type.node source=values type=int32[]
     /// @type.node source=values.map type=<map.U#2, map#2.P1: Place>(this: Managed<int32[], map#2.P1>, Function<(int32, isize), map.U#2>) => Owned<map.U#2[]>
     /// @resolution.name source=values target=positive.values
-    /// @resolution.member source="values.map((value) => value + 1).filter" receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=filter#1
+    /// @resolution.member source="values.map((value) => value + 1).filter" receiver=Owned<int32[]> type=(this: Owned<int32[]>, Function<(&type_expression.'a readonly int32, isize), boolean>) => Owned<int32[]> kind=symbol target_receiver=Owned<int32[]> target=filter#1
     /// @resolution.member source=values.map receiver=int32[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32[], map#2.P1>, Function<(int32, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver=int32[] target=map#2
     /// @resolution.call source="values.map((value) => value + 1)" parameters=(Function<(int32, isize), int32>) arguments=(provided((value) => value + 1) as Function<(int32, isize), int32>) return=Owned<int32[]> kind=symbol target=map#2 receiver=int32[] instance="Array<int32>.<extension#3>.map#2<int32, \"local\">"
-    /// @resolution.call source="values.map((value) => value + 1).filter((value) => value > 0)" parameters=(Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(Borrowed<int32, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=Owned<int32[]> kind=symbol target=filter#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.filter#1
+    /// @resolution.call source="values.map((value) => value + 1).filter((value) => value > 0)" parameters=(Function<(&type_expression.'a readonly int32, isize), boolean>) arguments=(provided((value) => value > 0) as Function<(&type_expression.'a readonly int32, isize), boolean>) return=Owned<int32[]> kind=symbol target=filter#1 receiver=Owned<int32[]> instance=Owned<T#2[]>.<extension#2>.filter#1
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=positive.values
     /// @generic.instantiation id="map#2<int32, int32, \"local\">" template=map#2 arguments=(int32, int32, "local")
@@ -3093,7 +3098,7 @@ function positive(values: int32[]): int32[] {
     /// @type.node source=value type=&type_expression.'a readonly int32
     /// @resolution.name source=value target=positive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=positive.symbol5.value
     /// @type.node source=0 type=0
 
@@ -3115,7 +3120,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
-    return values.map<int32 | undefined, int32 | undefined, "local">(
+    return values.map<int32 | undefined, int32 | undefined>(
         (value: int32 | undefined): int32 | undefined => value,
     ).filter<int32 | undefined>(
         (value: &'a readonly (int32 | undefined)): boolean =>
@@ -3138,10 +3143,10 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @type.node source=values type=int32 | undefined[]
     /// @type.node source=values.map type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => Owned<map.U#2[]>
     /// @resolution.name source=values target=defined.values
-    /// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=Owned<int32 | undefined[]> target=filter#1
+    /// @resolution.member source="values.map((value) => value).filter" receiver=Owned<int32 | undefined[]> type=(this: Owned<int32 | undefined[]>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=Owned<int32 | undefined[]> target=filter#1
     /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=map#2
     /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<int32 | undefined[]> kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined, \"local\">"
-    /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(Borrowed<int32 | undefined, type_expression.'a & type_expression.P1, "readonly">, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<T#2[]>.<extension#2>.filter#1
+    /// @resolution.call source="values.map((value) => value).filter((value) => value !== undefined)" parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=filter#1 receiver=Owned<int32 | undefined[]> instance=Owned<T#2[]>.<extension#2>.filter#1
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=defined.values
     /// @generic.instantiation id="filter#1<int32 | undefined>" template=filter#1 arguments=(int32 | undefined)
@@ -3163,7 +3168,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     /// @type.node source=value type=&type_expression.'a readonly int32 | undefined
     /// @resolution.name source=value target=defined.symbol5.value
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement=type_expression.P1 lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=defined.symbol5.value
     /// @type.node source=undefined type=undefined
 
@@ -3187,7 +3192,7 @@ function containsPositive(values: int32[]): boolean {
     session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
 === annotated ===
 function containsPositive(values: int32[]): boolean {
-    return values.reduce<int32, boolean, "local">(
+    return values.reduce<int32, boolean>(
         (found: boolean, value: int32): boolean => found || value > 0,
         false,
     );

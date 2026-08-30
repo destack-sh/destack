@@ -63,7 +63,10 @@ const full: Args = ("Ada", 1);
 type Args = Parameters<(name: string, count?: float64) => boolean>;
 
 const short: (string, float64 | undefined?) = ("Ada",) as (string, float64 | undefined?);
-const full: (string, float64 | undefined?) = ("Ada", 1 as float64 | undefined);
+const full: (string, float64 | undefined?) = ("Ada", 1 as float64 | undefined) as (
+    string,
+    float64 | undefined?,
+);
 
 === dir ===
 type Args = Parameters<(name: string, count?: number) => boolean>;

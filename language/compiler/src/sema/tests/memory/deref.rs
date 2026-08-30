@@ -61,8 +61,8 @@ struct Point {
 }
 
 function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
-/// @generic.template symbol=run parameters=('a, P1: Place)
-/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(Box<Point>, &run.'a readonly Box<Point>) => int32
+/// @generic.template symbol=run parameters=('a)
+/// @type.symbol symbol=run type=<run.'a>(Box<Point>, &run.'a readonly Box<Point>) => int32
 /// @type.symbol symbol=run.boxed source="boxed: Box<Point>" type=Box<Point>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
@@ -74,11 +74,11 @@ function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
     /// @type.symbol symbol=run.read source=read type=int32
     /// @resolution.pattern source=read kind=binding target=run.read
     /// @resolution.name source=boxed target=run.boxed
-    /// @resolution.member source=boxed.x receiver=Box<Point> type=int32 kind=field target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) key=x target=Point.x target_type=int32
+    /// @resolution.member source=boxed.x receiver=Box<Point> type=int32 kind=field target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) key=x target=Point.x target_type=int32
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
     /// @resolution.access source=boxed.x root=run.boxed keys=[x]
-    /// @generic.instantiation id="dereference<Point, \"readonly\", \"local\">" template=dereference arguments=(Point, "readonly", "local")
+    /// @generic.instantiation id="dereference<Point, \"exclusive\">" template=dereference arguments=(Point, "exclusive")
 
     boxed.x = 2;
     /// @resolution.name source=boxed target=run.boxed
@@ -86,14 +86,13 @@ function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
     /// @resolution.access source=boxed root=run.boxed
     /// @resolution.pattern.assign source=boxed.x kind=place
     /// @resolution.access source=boxed.x root=run.boxed keys=[x]
-    /// @resolution.assignment source=boxed.x write="receiver=Box<Point>, target=field(receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, \"mutable\">) -> Point), target=Point.x, type=int32), type=int32" type=int32
-    /// @generic.instantiation id="dereference<Point, \"mutable\", \"local\">" template=dereference arguments=(Point, "mutable", "local")
+    /// @resolution.assignment source=boxed.x write="receiver=Box<Point>, target=field(receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, \"exclusive\">) -> Point), target=Point.x, type=int32), type=int32" type=int32
 
     (*boxed).y = 3;
     /// @resolution.pattern.assign source=(*boxed).y kind=place
     /// @resolution.assignment source=(*boxed).y write="receiver=Point, target=field(receiver=Point, target=Point.y, type=int32), type=int32" type=int32
     /// @resolution.place source=*boxed placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.operator source=*boxed type=Point operator="*" kind=call parameters=() return=WithAccess<&'frame Point, "readonly"> kind=symbol target=dereference receiver=Box<Point> adjustments=(borrow(&'frame readonly Box<Point>)) instance="Box<Point>.<extension#2>.dereference<\"local\">"
+    /// @resolution.operator source=*boxed type=Point operator="*" kind=call parameters=() return=WithAccess<&'frame Point, "exclusive"> kind=symbol target=dereference receiver=Box<Point> adjustments=(borrow(&'frame exclusive Box<Point>)) instance=Box<Point>.<extension#2>.dereference
     /// @resolution.name source=boxed target=run.boxed
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
@@ -103,14 +102,14 @@ function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
     /// @resolution.pattern source=viewed kind=binding target=run.viewed
     /// @resolution.name source=readonlyBoxed target=run.readonlyBoxed
     /// @resolution.member source=readonlyBoxed.x receiver=&run.'a readonly Box<Point> type=int32 kind=field target_receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point) key=x target=Point.x target_type=int32
-    /// @resolution.place source=readonlyBoxed placement=run.P1 lifetime=run.'a access="readonly"
+    /// @resolution.place source=readonlyBoxed placement=run.'a lifetime=run.'a access="readonly"
     /// @resolution.access source=readonlyBoxed root=run.readonlyBoxed
     /// @resolution.access source=readonlyBoxed.x root=run.readonlyBoxed keys=[x]
-    /// @generic.instantiation id="dereference<Point, \"readonly\", run.P1>" template=dereference arguments=(Point, "readonly", run.P1)
+    /// @generic.instantiation id="dereference<Point, \"readonly\">" template=dereference arguments=(Point, "readonly")
 
     readonlyBoxed.x = 4;
     /// @resolution.name source=readonlyBoxed target=run.readonlyBoxed
-    /// @resolution.place source=readonlyBoxed placement=run.P1 lifetime=run.'a access="readonly"
+    /// @resolution.place source=readonlyBoxed placement=run.'a lifetime=run.'a access="readonly"
     /// @resolution.access source=readonlyBoxed root=run.readonlyBoxed
     /// @resolution.rejected source=readonlyBoxed.x
 
@@ -176,16 +175,15 @@ function run(boxed: Box<int32>): void {
     const before = *boxed;
     /// @type.symbol symbol=run.before source=before type=int32
     /// @resolution.pattern source=before kind=binding target=run.before
-    /// @resolution.operator source=*boxed type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "readonly"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#2>.dereference<\"local\">"
-    /// @generic.instantiation id="dereference<int32, \"readonly\", \"local\">" template=dereference arguments=(int32, "readonly", "local")
+    /// @resolution.operator source=*boxed type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "exclusive"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame exclusive Box<int32>)) instance=Box<int32>.<extension#2>.dereference
+    /// @generic.instantiation id="dereference<int32, \"exclusive\">" template=dereference arguments=(int32, "exclusive")
     /// @resolution.name source=boxed target=run.boxed
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
 
     *boxed = before + 1;
     /// @resolution.pattern.assign source=*boxed kind=place
-    /// @resolution.assignment source=*boxed write="Box<int32> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame int32, \"mutable\">) -> int32" type=int32
-    /// @generic.instantiation id="dereference<int32, \"mutable\", \"local\">" template=dereference arguments=(int32, "mutable", "local")
+    /// @resolution.assignment source=*boxed write="Box<int32> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame int32, \"exclusive\">) -> int32" type=int32
     /// @resolution.name source=boxed target=run.boxed
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
@@ -198,14 +196,14 @@ function run(boxed: Box<int32>): void {
     /// @type.symbol symbol=run.view source=view type=&'frame readonly int32
     /// @resolution.pattern source=view kind=binding target=run.view
     /// @resolution.place source=*boxed placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.operator source=*boxed type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "readonly"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#2>.dereference<\"local\">"
+    /// @resolution.operator source=*boxed type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "exclusive"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame exclusive Box<int32>)) instance=Box<int32>.<extension#2>.dereference
     /// @resolution.name source=boxed target=run.boxed
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
 
     *boxed = 3;
     /// @resolution.pattern.assign source=*boxed kind=place
-    /// @resolution.assignment source=*boxed write="Box<int32> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame int32, \"mutable\">) -> int32" type=int32
+    /// @resolution.assignment source=*boxed write="Box<int32> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame int32, \"exclusive\">) -> int32" type=int32
     /// @resolution.name source=boxed target=run.boxed
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
@@ -215,7 +213,7 @@ function run(boxed: Box<int32>): void {
     /// @resolution.pattern source=useView kind=binding target=run.useView
     /// @resolution.operator source=*view type=int32 operator="*" kind=builtin operands=[view as &'frame readonly int32]
     /// @resolution.name source=view target=run.view
-    /// @resolution.place source=view placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=view placement="frame" & "local" lifetime="frame" & "local" access="readonly"
     /// @resolution.access source=view root=run.view
 
 }
@@ -288,7 +286,7 @@ function run(shared: rc.Rc<Point>): int32 {
     /// @resolution.place source=shared placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=shared root=run.shared
     /// @resolution.access source=shared.x root=run.shared keys=[x]
-    /// @generic.instantiation id="dereference<Point, \"local\">" template=dereference arguments=(Point, "local")
+    /// @generic.instantiation id=dereference<Point> template=dereference arguments=(Point)
 
     shared.x = 2;
     /// @resolution.name source=shared target=run.shared
@@ -354,13 +352,13 @@ function run(left: Box<int32>, right: Box<int32>): int32 {
     /// @resolution.pattern source=sum kind=binding target=run.sum
     /// @resolution.operator source="*left + *right" type=int32 operator="+" kind=builtin operands=[*left as int32 families=(integer), *right as int32 families=(integer)]
     /// @resolution.place source=*left placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.operator source=*left type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "readonly"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#2>.dereference<\"local\">"
-    /// @generic.instantiation id="dereference<int32, \"readonly\", \"local\">" template=dereference arguments=(int32, "readonly", "local")
+    /// @resolution.operator source=*left type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "exclusive"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame exclusive Box<int32>)) instance=Box<int32>.<extension#2>.dereference
+    /// @generic.instantiation id="dereference<int32, \"exclusive\">" template=dereference arguments=(int32, "exclusive")
     /// @resolution.name source=left target=run.left
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=run.left
     /// @resolution.place source=*right placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.operator source=*right type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "readonly"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#2>.dereference<\"local\">"
+    /// @resolution.operator source=*right type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "exclusive"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame exclusive Box<int32>)) instance=Box<int32>.<extension#2>.dereference
     /// @resolution.name source=right target=run.right
     /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=run.right
@@ -370,12 +368,12 @@ function run(left: Box<int32>, right: Box<int32>): int32 {
     /// @resolution.pattern source=same kind=binding target=run.same
     /// @resolution.operator source="*left == *right" type=boolean operator="==" kind=builtin operands=[*left as int32 families=(integer), *right as int32 families=(integer)]
     /// @resolution.place source=*left placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.operator source=*left type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "readonly"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#2>.dereference<\"local\">"
+    /// @resolution.operator source=*left type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "exclusive"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame exclusive Box<int32>)) instance=Box<int32>.<extension#2>.dereference
     /// @resolution.name source=left target=run.left
     /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=run.left
     /// @resolution.place source=*right placement="local" lifetime="frame" access="exclusive"
-    /// @resolution.operator source=*right type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "readonly"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame readonly Box<int32>)) instance="Box<int32>.<extension#2>.dereference<\"local\">"
+    /// @resolution.operator source=*right type=int32 operator="*" kind=call parameters=() return=WithAccess<&'frame int32, "exclusive"> kind=symbol target=dereference receiver=Box<int32> adjustments=(borrow(&'frame exclusive Box<int32>)) instance=Box<int32>.<extension#2>.dereference
     /// @resolution.name source=right target=run.right
     /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=run.right
@@ -453,11 +451,11 @@ function run<'a>(
     nested: Box<Box<Point>>,
     viewed: &'a readonly Box<Point>,
 ): int32 {
-    boxed.bump<"local">();
-    nested.bump<"local">();
+    boxed.bump();
+    nested.bump();
     nested.x = 4;
     viewed.bump();
-    return boxed.sum<"local">() + nested.sum<"local">() + viewed.sum<"local">() + nested.y;
+    return boxed.sum() + nested.sum() + viewed.sum() + nested.y;
 }
 
 === dir ===
@@ -479,41 +477,41 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=bump slot=bump type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive this) => void
-/// @definition.method symbol=sum slot=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
+/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a exclusive this) => void
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
 /// @resolution.name source=Point target=Point
 
     sum(&readonly this): int32 {
-    /// @generic.template symbol=sum parameters=('a, P1: Place)
-    /// @type.symbol symbol=sum type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly this) => int32
+    /// @generic.template symbol=sum parameters=('a)
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
     /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly this
 
         return this.x + this.y;
         /// @resolution.member source=this.x receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=x target=Point.x target_type=int32
         /// @resolution.operator source="this.x + this.y" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), this.y as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
-        /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this.x placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.x root=this keys=[x]
         /// @resolution.member source=this.y receiver=&sum.'a readonly Point type=int32 kind=field target_receiver=&sum.'a readonly Point key=y target=Point.y target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&sum.'a readonly Point
-        /// @resolution.place source=this placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.y placement=sum.P1 lifetime=sum.'a access="readonly"
+        /// @resolution.place source=this.y placement=sum.'a lifetime=sum.'a access="readonly"
         /// @resolution.access source=this.y root=this keys=[y]
 
     }
 
     bump(&exclusive this): void {
-    /// @generic.template symbol=bump parameters=('a, P1: Place)
-    /// @type.symbol symbol=bump type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive this) => void
+    /// @generic.template symbol=bump parameters=('a)
+    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a exclusive this) => void
     /// @type.symbol symbol=bump.this source="&exclusive this" type=&bump.'a exclusive this
 
         this.x += 1;
         /// @resolution.operator source="this.x += 1" type=int32 operator="+" kind=builtin operands=[this.x as int32 families=(integer), 1 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&bump.'a exclusive Point
-        /// @resolution.place source=this placement=bump.P1 lifetime=bump.'a access="exclusive"
+        /// @resolution.place source=this placement=bump.'a lifetime=bump.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.x kind=place
         /// @resolution.assignment source=this.x read="receiver=&bump.'a exclusive Point, target=field(receiver=&bump.'a exclusive Point, target=Point.x, type=int32), type=int32" write="receiver=&bump.'a exclusive Point, target=field(receiver=&bump.'a exclusive Point, target=Point.x, type=int32), type=int32" type=int32
@@ -523,8 +521,8 @@ extension of Point {
 }
 
 function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<Point>): int32 {
-/// @generic.template symbol=run parameters=('a, P1: Place)
-/// @type.symbol symbol=run type=<run.'a, run.P1: Place>(Box<Point>, Box<Box<Point>>, &run.'a readonly Box<Point>) => int32
+/// @generic.template symbol=run parameters=('a)
+/// @type.symbol symbol=run type=<run.'a>(Box<Point>, Box<Box<Point>>, &run.'a readonly Box<Point>) => int32
 /// @type.symbol symbol=run.boxed source="boxed: Box<Point>" type=Box<Point>
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Point target=Point
@@ -538,20 +536,19 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
 
     boxed.bump();
     /// @resolution.name source=boxed target=run.boxed
-    /// @resolution.member source=boxed.bump receiver=Box<Point> type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive Point) => void kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
-    /// @resolution.call source=boxed.bump() parameters=() return=void kind=symbol target=bump receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame exclusive Point)) instance="Point.<extension#1>.bump<\"local\">"
+    /// @resolution.member source=boxed.bump receiver=Box<Point> type=<bump.'a>(this: &bump.'a exclusive Point) => void kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
+    /// @resolution.call source=boxed.bump() parameters=() return=void kind=symbol target=bump receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame exclusive Point))
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
-    /// @generic.instantiation id="bump<\"local\">" template=bump arguments=("local")
-    /// @generic.instantiation id="dereference<Point, \"exclusive\", \"local\">" template=dereference arguments=(Point, "exclusive", "local")
+    /// @generic.instantiation id="dereference<Point, \"exclusive\">" template=dereference arguments=(Point, "exclusive")
 
     nested.bump();
     /// @resolution.name source=nested target=run.nested
-    /// @resolution.member source=nested.bump receiver=Box<Box<Point>> type=<bump.'a, bump.P1: Place>(this: &bump.'a exclusive Point) => void kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
-    /// @resolution.call source=nested.bump() parameters=() return=void kind=symbol target=bump receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame exclusive Point)) instance="Point.<extension#1>.bump<\"local\">"
+    /// @resolution.member source=nested.bump receiver=Box<Box<Point>> type=<bump.'a>(this: &bump.'a exclusive Point) => void kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=bump
+    /// @resolution.call source=nested.bump() parameters=() return=void kind=symbol target=bump receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame exclusive Point))
     /// @resolution.place source=nested placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=nested root=run.nested
-    /// @generic.instantiation id="dereference<Box<Point>, \"exclusive\", \"local\">" template=dereference arguments=(Box<Point>, "exclusive", "local")
+    /// @generic.instantiation id="dereference<Box<Point>, \"exclusive\">" template=dereference arguments=(Box<Point>, "exclusive")
 
     nested.x = 4;
     /// @resolution.name source=nested target=run.nested
@@ -559,42 +556,37 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
     /// @resolution.access source=nested root=run.nested
     /// @resolution.pattern.assign source=nested.x kind=place
     /// @resolution.access source=nested.x root=run.nested keys=[x]
-    /// @resolution.assignment source=nested.x write="receiver=Box<Box<Point>>, target=field(receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, \"mutable\">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, \"mutable\">) -> Point), target=Point.x, type=int32), type=int32" type=int32
-    /// @generic.instantiation id="dereference<Box<Point>, \"mutable\", \"local\">" template=dereference arguments=(Box<Point>, "mutable", "local")
-    /// @generic.instantiation id="dereference<Point, \"mutable\", \"local\">" template=dereference arguments=(Point, "mutable", "local")
+    /// @resolution.assignment source=nested.x write="receiver=Box<Box<Point>>, target=field(receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, \"exclusive\">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, \"exclusive\">) -> Point), target=Point.x, type=int32), type=int32" type=int32
 
     viewed.bump();
     /// @resolution.name source=viewed target=run.viewed
-    /// @resolution.place source=viewed placement=run.P1 lifetime=run.'a access="readonly"
+    /// @resolution.place source=viewed placement=run.'a lifetime=run.'a access="readonly"
     /// @resolution.access source=viewed root=run.viewed
     /// @resolution.rejected source=viewed.bump
     /// @resolution.rejected source=viewed.bump()
 
     return boxed.sum() + nested.sum() + viewed.sum() + nested.y;
     /// @resolution.name source=boxed target=run.boxed
-    /// @resolution.member source=boxed.sum receiver=Box<Point> type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) target=sum
-    /// @resolution.call source=boxed.sum() parameters=() return=int32 kind=symbol target=sum receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point, borrow(&'frame readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
+    /// @resolution.member source=boxed.sum receiver=Box<Point> type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=sum
+    /// @resolution.call source=boxed.sum() parameters=() return=int32 kind=symbol target=sum receiver=Box<Point> adjustments=(Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame readonly Point))
     /// @resolution.operator source="boxed.sum() + nested.sum() + viewed.sum() + nested.y" type=int32 operator="+" kind=builtin operands=[boxed.sum() + nested.sum() + viewed.sum() as int32 families=(integer), nested.y as int32 families=(integer)]
     /// @resolution.operator source="boxed.sum() + nested.sum() + viewed.sum()" type=int32 operator="+" kind=builtin operands=[boxed.sum() + nested.sum() as int32 families=(integer), viewed.sum() as int32 families=(integer)]
     /// @resolution.operator source="boxed.sum() + nested.sum()" type=int32 operator="+" kind=builtin operands=[boxed.sum() as int32 families=(integer), nested.sum() as int32 families=(integer)]
     /// @resolution.place source=boxed placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boxed root=run.boxed
-    /// @generic.instantiation id="dereference<Point, \"readonly\", \"local\">" template=dereference arguments=(Point, "readonly", "local")
-    /// @generic.instantiation id="sum<\"local\">" template=sum arguments=("local")
     /// @resolution.name source=nested target=run.nested
-    /// @resolution.member source=nested.sum receiver=Box<Box<Point>> type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "readonly">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) target=sum
-    /// @resolution.call source=nested.sum() parameters=() return=int32 kind=symbol target=sum receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "readonly">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point, borrow(&'frame readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
+    /// @resolution.member source=nested.sum receiver=Box<Box<Point>> type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) target=sum
+    /// @resolution.call source=nested.sum() parameters=() return=int32 kind=symbol target=sum receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point, borrow(&'frame readonly Point))
     /// @resolution.place source=nested placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=nested root=run.nested
-    /// @generic.instantiation id="dereference<Box<Point>, \"readonly\", \"local\">" template=dereference arguments=(Box<Point>, "readonly", "local")
     /// @resolution.name source=viewed target=run.viewed
-    /// @resolution.member source=viewed.sum receiver=&run.'a readonly Box<Point> type=<sum.'a, sum.P1: Place>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point) target=sum
-    /// @resolution.call source=viewed.sum() parameters=() return=int32 kind=symbol target=sum receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point, borrow(&run.'a readonly Point)) instance="Point.<extension#1>.sum<\"local\">"
-    /// @resolution.place source=viewed placement=run.P1 lifetime=run.'a access="readonly"
+    /// @resolution.member source=viewed.sum receiver=&run.'a readonly Box<Point> type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point) target=sum
+    /// @resolution.call source=viewed.sum() parameters=() return=int32 kind=symbol target=sum receiver=&run.'a readonly Box<Point> adjustments=(&run.'a readonly Box<Point> => direct -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&run.'a Point, "readonly">) -> Point, borrow(&run.'a readonly Point))
+    /// @resolution.place source=viewed placement=run.'a lifetime=run.'a access="readonly"
     /// @resolution.access source=viewed root=run.viewed
-    /// @generic.instantiation id="dereference<Point, \"readonly\", run.P1>" template=dereference arguments=(Point, "readonly", run.P1)
+    /// @generic.instantiation id="dereference<Point, \"readonly\">" template=dereference arguments=(Point, "readonly")
     /// @resolution.name source=nested target=run.nested
-    /// @resolution.member source=nested.y receiver=Box<Box<Point>> type=int32 kind=field target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "readonly">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "readonly">) -> Point) key=y target=Point.y target_type=int32
+    /// @resolution.member source=nested.y receiver=Box<Box<Point>> type=int32 kind=field target_receiver=Box<Box<Point>> adjustments=(Box<Box<Point>> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Box<Point>, "exclusive">) -> Box<Point>, Box<Point> => dereference(parameters=(), arguments=(), return=WithAccess<&'frame Point, "exclusive">) -> Point) key=y target=Point.y target_type=int32
     /// @resolution.place source=nested placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=nested root=run.nested
     /// @resolution.place source=nested.y placement="local" lifetime="frame" access="exclusive"

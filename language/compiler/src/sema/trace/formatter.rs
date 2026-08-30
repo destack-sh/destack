@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use crate::sema::{CheckId, CheckState, ExpectedType, Origin, Relation, TypeBound};
+use crate::sema::{Bound, CheckId, CheckState, ExpectedType, Origin, Relation};
 
 /// Formatter for values recorded in check trace events.
 pub(in crate::sema) struct EventFormatter<'a, 'b> {
@@ -74,11 +74,12 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
     }
 
     /// Return a compact type-bound list label.
-    pub(super) fn type_bound_list_label(&self, bounds: &[TypeBound]) -> String {
+    pub(super) fn type_bound_list_label(&self, bounds: &[Bound]) -> String {
         if bounds.is_empty() {
             return "none".to_string();
         }
 
+        // join the bound labels
         bounds
             .iter()
             .map(|bound| self.type_label(bound.ty))
@@ -133,11 +134,7 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
         match relation {
             Relation::Equal => "equal",
             Relation::Subtype => "subtype",
-            Relation::Assignable => "assignable",
-            Relation::Widens => "widens",
-            Relation::Castable => "castable",
-            Relation::Satisfies => "satisfies",
-            Relation::Extends => "extends",
+            Relation::Storable => "storable",
         }
     }
 
@@ -147,6 +144,7 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
             return self.uri_label(module.module.uri.as_ref());
         }
 
+        // read the module from the repository
         if let Ok(Some(module)) = self
             .check
             .compiler
@@ -175,6 +173,7 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
                 .and_then(|binding| binding.declaration);
         }
 
+        // read the declaration from the loaded foreign module
         let external = self.check.external_modules.get(&symbol.module_id)?;
 
         external
@@ -195,6 +194,7 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
         let line = line + 1;
         let column = column + 1;
 
+        // render the file position
         Some(format!(
             "{}:{line}:{column}",
             self.uri_label(file.uri.as_ref())

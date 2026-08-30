@@ -169,8 +169,29 @@ type Second = Sibling;
         )
         .build();
 
-    session.assert_dir_diagnostics(
+    session.assert_dir_and_diagnostics(
         "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Helper } from "./util.ds";
+
+type First = Helper;
+type Second = Sibling;
+
+=== dir ===
+import { Helper } from "./util.ds";
+
+type First = Helper;
+/// @type.symbol symbol=First source="type First = Helper" type=string
+/// @definition.type symbol=First source="type First = Helper" value=string
+/// @resolution.name source=Helper target=util.Helper
+
+type Second = Sibling;
+/// @type.symbol symbol=Second source="type Second = Sibling" type=<error>
+/// @definition.type symbol=Second source="type Second = Sibling" value=<error>
+/// @resolution.unresolved source=Sibling path=Sibling
+"#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'Sibling'"
 /// @diagnostic.label line=5 column=15 span="Sibling" line_source="type Second = Sibling;"
@@ -225,7 +246,7 @@ export const pair = [1, 2];
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 
 export const config = { retries: 3, name: "job" };
 /// @type.symbol symbol=config source=config type={ retries: int64; name: string }

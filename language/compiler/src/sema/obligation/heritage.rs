@@ -207,7 +207,7 @@ impl CheckState<'_> {
                         // overrides must remain assignable to the base member
                         let assignment = self.relate_member(
                             origin,
-                            Relation::Assignable,
+                            Relation::Subtype,
                             member.role,
                             member.ty,
                             base.ty,
@@ -260,7 +260,7 @@ impl CheckState<'_> {
                     continue;
                 };
 
-                // find the base member this override was validated against
+                // find the base member the override check selected
                 let Some((_, base)) = selected_overrides
                     .iter()
                     .find(|(own, _)| *own == member_symbol)
@@ -327,6 +327,7 @@ impl CheckState<'_> {
         let mut extends = extends;
         let mut depth = 0usize;
 
+        // walk the heritage chain, applying each base's parameters
         while let Some(heritage) = extends.take() {
             depth += 1;
 

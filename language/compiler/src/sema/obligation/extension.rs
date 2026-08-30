@@ -4,7 +4,7 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    BodyState, CheckState, ExtensionCoherenceObligation, ImplementationCoherenceObligation,
+    CheckState, ExtensionCoherenceObligation, ExtensionHead, ImplementationCoherenceObligation,
     ObligationCheck, ObligationFailure, Origin, Relation,
 };
 use crate::{CompilerError, CompilerResult};
@@ -39,6 +39,7 @@ impl CheckState<'_> {
         let mut overloads =
             FxIndexMap::<(dir::MemberSpace, dir::StaticKey), Vec<dir::GlobalSymbolId>>::default();
 
+        // report each member whose key repeats without overloading
         for member in definition.members() {
             // read the key this member declares
             let Some(key) = member.key() else {
@@ -88,7 +89,7 @@ impl CheckState<'_> {
                 let origin = Origin::Node(method.source, None);
                 if self.has_every_arity_of(earlier, later)?
                     && self
-                        .decide_relation(origin, Relation::Assignable, earlier, later)?
+                        .decide_relation(origin, Relation::Subtype, earlier, later)?
                         .holds()
                 {
                     self.report_unreachable_overload(method.source, &key);
@@ -379,7 +380,7 @@ impl CheckState<'_> {
     }
 
     /// Return the generic parameters one type graph mentions.
-    fn type_parameters(
+    pub(in crate::sema) fn type_parameters(
         &self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[dir::GlobalGenericParameterId; 2]>> {
@@ -400,6 +401,7 @@ impl CheckState<'_> {
             }
 
             // record a parameter, else descend into the children
+            let id = self.shallow_resolve(id)?;
             let ty = self.ty(id)?;
             if let dir::Type::Parameter(parameter) = ty {
                 if !parameters.contains(&parameter) {
@@ -477,6 +479,7 @@ impl CheckState<'_> {
             });
         };
 
+        // read the interfaces the conformances name
         let interfaces = definition
             .implementations()
             .iter()
@@ -504,9 +507,8 @@ impl CheckState<'_> {
         let mut candidates = SmallVec::<[(dir::GlobalSymbolId, dir::GlobalTypeId); 2]>::new();
         for interface_type in interfaces {
             let (_, interface) = self.nominal_application(*interface_type)?;
-            for (other, other_root) in self
-                .body()
-                .visible_implementations(module, interface.symbol)?
+            for (other, other_root) in
+                self.implementations_over(origin, module, None, interface.symbol)?
             {
                 // keep the implementations declared earlier than this one
                 if other == symbol || !self.is_later_definition(source, other) {
@@ -527,7 +529,7 @@ impl CheckState<'_> {
 
         // reject implementations some declared type satisfies together with this one
         for (other, interface_type) in candidates {
-            let Some(witness) = self.body().extension_implementations_overlap(
+            let Some(witness) = self.extension_implementations_overlap(
                 origin,
                 module,
                 symbol,
@@ -563,6 +565,7 @@ impl CheckState<'_> {
             return true;
         };
 
+        // treat a definition without a source as earlier
         let Some(other_source) = state.definition_source_maybe(other) else {
             return true;
         };
@@ -576,7 +579,7 @@ impl CheckState<'_> {
     }
 }
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Check one extension against other visible extensions' members.
     pub(in crate::sema) fn check_extension_coherence(
         &mut self,
@@ -592,6 +595,7 @@ impl BodyState<'_, '_> {
                 ),
             });
         };
+
         // collect the failures against this extension
         let extension = extension.clone();
         let mut failures = Vec::new();
@@ -603,6 +607,7 @@ impl BodyState<'_, '_> {
             .unwrap_or(ReceiverForm::MANAGED);
         let declared = self.keyed_members(&extension.members, target_form, &requirements)?;
 
+        // stop where the extension declares no inherent member
         if declared.is_empty() {
             return Ok(ObligationCheck::holds());
         }
@@ -613,7 +618,7 @@ impl BodyState<'_, '_> {
         // gather competitors sharing the target head, leaving blanket overlap to use sites
         let root = extension.target.root();
         let competitors = match root {
-            Some(root) => self.visible_extensions(module, root)?,
+            Some(root) => self.extensions_over(module, &[ExtensionHead::Root(root)])?,
             None => return Ok(ObligationCheck::holds()),
         };
 
@@ -643,9 +648,7 @@ impl BodyState<'_, '_> {
         // report every member an earlier competing extension already declares
         for competitor_symbol in competitors {
             if competitor_symbol == extension_symbol
-                || !self
-                    .check
-                    .is_later_definition(obligation.source, competitor_symbol)
+                || !self.is_later_definition(obligation.source, competitor_symbol)
             {
                 continue;
             }
@@ -725,7 +728,7 @@ impl BodyState<'_, '_> {
     ) -> CompilerResult<Vec<DeclaredMember>> {
         let mut keyed = Vec::new();
         for member in members {
-            // keep the keyed members an interface does not already require
+            // keep the keyed members no interface already requires
             let Some(key) = member.key() else {
                 continue;
             };
@@ -772,7 +775,7 @@ impl BodyState<'_, '_> {
             dir::Type::Form(form) => match form.form {
                 // borrows compare by their access value
                 dir::Form::Borrowed(borrow) => {
-                    let borrow = self.check.type_borrow(this.module_id, borrow)?;
+                    let borrow = self.type_borrow(this.module_id, borrow)?;
 
                     Some(ReceiverForm {
                         ownership: dir::Ownership::Borrowed,
@@ -816,12 +819,10 @@ impl BodyState<'_, '_> {
                         Some(ReceiverForm::MANAGED)
                     }
                     // read the form through placement and access applications
-                    Some(dir::LanguageItem::Placed | dir::LanguageItem::WithAccess) => {
-                        match arguments.first() {
-                            Some(underlying) => self.receiver_form(*underlying)?,
-                            None => None,
-                        }
-                    }
+                    Some(dir::LanguageItem::WithAccess) => match arguments.first() {
+                        Some(underlying) => self.receiver_form(*underlying)?,
+                        None => None,
+                    },
                     // keep conversion receivers out of the plain slot
                     Some(_) => None,
                     None => Some(ReceiverForm::MANAGED),

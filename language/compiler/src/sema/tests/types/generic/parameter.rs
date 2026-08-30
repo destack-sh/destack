@@ -59,8 +59,8 @@ const first = values[0];
 === annotated ===
 declare function id<const T>(value: T): T;
 
-const values: [1, 2] = id<[1, 2]>([1, 2]);
-const first: 1 = values[0];
+const values: readonly (1 | 2)[] = id<readonly (1 | 2)[]>([1, 2]);
+const first: 1 | 2 = values[0];
 
 === dir ===
 declare function id<const T>(value: T): T;
@@ -72,21 +72,31 @@ declare function id<const T>(value: T): T;
 /// @resolution.name source=T target=id.T
 
 const values = id([1, 2]);
-/// @type.symbol symbol=values source=values type=[1, 2]
+/// @type.symbol symbol=values source=values type=readonly 1 | 2[]
 /// @resolution.pattern source=values kind=binding target=values
+/// @generic.instance id="Array<1 | 2>" template=Array arguments=(1 | 2)
+/// @generic.instance id="MaybeUninit<1 | 2>" template=MaybeUninit arguments=(1 | 2)
+/// @generic.instance id="new<MaybeUninit<1 | 2>>" template=new arguments=(MaybeUninit<1 | 2>)
 /// @resolution.name source=id target=id
-/// @resolution.call source="id([1, 2])" parameters=([1, 2]) arguments=(provided([1, 2]) as [1, 2]) return=[1, 2] kind=symbol target=id instance="id<[1, 2]>"
-/// @generic.instantiation id="id<[1, 2]>" template=id arguments=([1, 2])
-/// @generic.instance id="id<[1, 2]>" template=id arguments=([1, 2])
+/// @resolution.call source="id([1, 2])" parameters=(readonly 1 | 2[]) arguments=(provided([1, 2]) as readonly 1 | 2[]) return=readonly 1 | 2[] kind=symbol target=id instance="id<readonly 1 | 2[]>"
+/// @generic.instantiation id="id<readonly 1 | 2[]>" template=id arguments=(readonly 1 | 2[])
+/// @generic.instance id="id<readonly 1 | 2[]>" template=id arguments=(readonly 1 | 2[])
+/// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as 1 | 2) return=1 | 2[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<1 | 2>"
+/// @generic.instantiation id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
+/// @generic.instance id="arrayFromSlice<1 | 2>" template=arrayFromSlice arguments=(1 | 2)
 
 const first = values[0];
-/// @type.symbol symbol=first source=first type=1
+/// @type.symbol symbol=first source=first type=1 | 2
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=1 kind=member target="receiver=[1, 2], target=field(receiver=[1, 2], target=0, type=1), type=1"
+/// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static 1 | 2, \"readonly\">)"
+/// @generic.instantiation id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
+/// @generic.instance id="WithAccess<&'frame 1 | 2, \"readonly\">" template=WithAccess arguments=(&'frame 1 | 2, "readonly")
+/// @generic.instance id="WithAccess<&'frame 1 | 2[], \"readonly\">" template=WithAccess arguments=(&'frame 1 | 2[], "readonly")
+/// @generic.instance id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
 "#,
     );
 }
@@ -134,7 +144,7 @@ const values = id([1, 2]);
 /// @generic.instance id=id<int64[]> template=id arguments=(int64[])
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
-/// @generic.instance id="arrayFromSlice<int64, \"local\">" template=arrayFromSlice arguments=(int64, "local")
+/// @generic.instance id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=int64
@@ -144,10 +154,10 @@ const first = values[0];
 /// @resolution.access source=values root=values
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=int64 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int64, \"exclusive\">)"
-/// @generic.instantiation id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instantiation id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int64, \"exclusive\">" template=WithAccess arguments=(&'frame int64, "exclusive")
 /// @generic.instance id="WithAccess<&'frame int64[], \"exclusive\">" template=WithAccess arguments=(&'frame int64[], "exclusive")
-/// @generic.instance id="index#1<int64, \"exclusive\", \"local\">" template=index#1 arguments=(int64, "exclusive", "local")
+/// @generic.instance id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive")
 "#,
     );
 }
@@ -231,9 +241,9 @@ take([1, 2]);
 /// @resolution.call source="take([1, 2])" parameters=(Slice<float64>) arguments=(provided([1, 2]) as Slice<float64>) return=void kind=symbol target=take
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
 /// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
-/// @generic.instance id="arrayFromSlice<float64, \"local\">" template=arrayFromSlice arguments=(float64, "local")
 /// @generic.instance id=Array<float64> template=Array arguments=(float64)
 /// @generic.instance id=MaybeUninit<float64> template=MaybeUninit arguments=(float64)
+/// @generic.instance id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
 /// @generic.instance id=new<MaybeUninit<float64>> template=new arguments=(MaybeUninit<float64>)
 "#,
     );
@@ -394,7 +404,7 @@ const values = collect([{ kind: "ready" }]);
 /// @generic.instance id="collect<{ readonly kind: \"ready\" }>" template=collect arguments=({ readonly kind: "ready" })
 /// @resolution.call source=[{ kind: "ready" }] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest({ kind: "ready" }) as { readonly kind: "ready" }) return={ readonly kind: "ready" }[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<{ readonly kind: \"ready\" }>"
 /// @generic.instantiation id="arrayFromSlice<{ readonly kind: \"ready\" }>" template=arrayFromSlice arguments=({ readonly kind: "ready" })
-/// @generic.instance id="arrayFromSlice<{ readonly kind: \"ready\" }, \"local\">" template=arrayFromSlice arguments=({ readonly kind: "ready" }, "local")
+/// @generic.instance id="arrayFromSlice<{ readonly kind: \"ready\" }>" template=arrayFromSlice arguments=({ readonly kind: "ready" })
 
 const kind = values[0].kind;
 /// @type.symbol symbol=kind source=kind type="ready"
@@ -407,10 +417,10 @@ const kind = values[0].kind;
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type={ readonly kind: "ready" } kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static { readonly kind: \"ready\" }, \"exclusive\">)"
 /// @resolution.access source=values[0].kind root=values keys=[0, kind]
-/// @generic.instantiation id="index#1<{ readonly kind: \"ready\" }, \"exclusive\", \"local\">" template=index#1 arguments=({ readonly kind: "ready" }, "exclusive", "local")
+/// @generic.instantiation id="index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=index#1 arguments=({ readonly kind: "ready" }, "exclusive")
 /// @generic.instance id="WithAccess<&'frame { readonly kind: \"ready\" }, \"exclusive\">" template=WithAccess arguments=(&'frame { readonly kind: "ready" }, "exclusive")
 /// @generic.instance id="WithAccess<&'frame { readonly kind: \"ready\" }[], \"exclusive\">" template=WithAccess arguments=(&'frame { readonly kind: "ready" }[], "exclusive")
-/// @generic.instance id="index#1<{ readonly kind: \"ready\" }, \"exclusive\", \"local\">" template=index#1 arguments=({ readonly kind: "ready" }, "exclusive", "local")
+/// @generic.instance id="index#1<{ readonly kind: \"ready\" }, \"exclusive\">" template=index#1 arguments=({ readonly kind: "ready" }, "exclusive")
 "#,
     );
 }
@@ -1300,7 +1310,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
         r#"
 === annotated ===
 function active<T: boolean | string>(value: T): boolean where T: boolean {
-    return value as boolean;
+    return value;
 }
 
 === dir ===
@@ -1568,7 +1578,11 @@ requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
 /// @type.symbol symbol=y#2 source="y: string" type=string
 /// @type.symbol symbol=x#4 source="x: int32" type=int32
 /// @resolution.name source=wider target=wider
+/// @resolution.place source=wider placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=wider root=wider
 /// @resolution.name source=narrower target=narrower
+/// @resolution.place source=narrower placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=narrower root=narrower
 "#,
         r#"
 /// @diagnostic.error id=equality-requirement-not-satisfied message="equality requirement '{ x: int32; y: string } == { x: int32 }' is not satisfied"
@@ -2344,7 +2358,7 @@ struct Named<'a> {
         r#"
 === annotated ===
 struct Named<'a> {
-    first: Borrowed<string, 'a, "mutable">;
+    first: &'a string;
 }
 
 === dir ===
@@ -2382,7 +2396,7 @@ struct Mixed<'a> {
         r#"
 === annotated ===
 struct Mixed<'a> {
-    first: Borrowed<string, 'a, "mutable">;
+    first: &'a string;
     second: &string;
 }
 
@@ -2392,7 +2406,7 @@ struct Mixed<'a> {
 /// @type.symbol symbol=Mixed type=Mixed
 /// @definition.struct symbol=Mixed template=('a)
 /// @definition.field symbol=Mixed.first source="first: &'a string" key=first type=&'a string
-/// @definition.field symbol=Mixed.second source="second: &string" key=second type=Borrowed<string, <error> & PlaceOf<this>, "mutable">
+/// @definition.field symbol=Mixed.second source="second: &string" key=second type=Borrowed<string, <error>, "mutable">
 /// @type.symbol symbol=Mixed.'a source='a type='a
 
     first: &'a string;
@@ -2400,7 +2414,7 @@ struct Mixed<'a> {
     /// @resolution.name source='a target=Mixed.'a
 
     second: &string;
-    /// @type.symbol symbol=Mixed.second source="second: &string" type=Borrowed<string, <error> & PlaceOf<this>, "mutable">
+    /// @type.symbol symbol=Mixed.second source="second: &string" type=Borrowed<string, <error>, "mutable">
 
 }
 "#,
@@ -2458,6 +2472,8 @@ function forward<U: int32>(value: U): void {
     /// @generic.instantiation id=requireExact<U> template=requireExact arguments=(U) owner=forward
     /// @resolution.name source=U target=forward.U
     /// @resolution.name source=value target=forward.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=forward.value
 
 }
 "#,
@@ -2520,7 +2536,7 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 import { Numericish, Vec } from "./a.ds";
 
 function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
-    (a - b).length<T, "local">()
+    (a - b).length<T>()
 }
 
 === dir ===

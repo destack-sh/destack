@@ -2,13 +2,13 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{
-    BodyState, FlowSite, Obligation, Origin, PlaceUse, Relation, RuntimePredicateObligation,
-    Verdict,
+    CheckState, FlowSite, InferMode, Obligation, Origin, PlaceUse, Relation,
+    RuntimePredicateObligation, Verdict,
 };
+use crate::{CompilerError, CompilerResult};
 
-impl BodyState<'_, '_> {
+impl CheckState<'_> {
     /// Select one `value is T` predicate.
     pub(in crate::sema) fn select_type_predicate(
         &mut self,
@@ -29,6 +29,7 @@ impl BodyState<'_, '_> {
         let target = self.require_node_type(target_node)?;
         let predicate = self.select_guard_predicate(origin, value, target, target_node)?;
 
+        // commit the is guard decision
         let resolution = dir::GuardDecision::Is(dir::IsGuardDecision {
             value_type: value,
             target_type: target,
@@ -82,6 +83,7 @@ impl BodyState<'_, '_> {
             dir::PredicateCondition::Subtype(target_type),
         )?;
 
+        // commit the instanceof guard decision
         let resolution = dir::GuardDecision::InstanceOf(dir::InstanceOfGuardDecision {
             value_type: value,
             target,
@@ -102,25 +104,41 @@ impl BodyState<'_, '_> {
 
         // decide the target reference and read its selected symbol
         let resolution = self.decide_reference(target)?;
+        // read the symbol the target reference names
         let named = match resolution {
             Some(resolution) => match resolution.symbols() {
                 [symbol] => Some((*symbol, None)),
                 _ => None,
             },
-            None => match self.decide_node(target)? {
-                dir::Decision::Function(dir::OperationResolution::One(dir::FunctionValue {
-                    target: dir::CallableTarget::Symbol { function, .. },
-                    ..
-                })) => {
-                    let selection = &function.key;
-                    let arguments =
-                        dir::GenericArgumentBinding::values(&selection.arguments).collect();
-
-                    Some((selection.symbol, Some(arguments)))
+            None => {
+                if self.decision(target).is_none() {
+                    let site = self.visit_site(target)?;
+                    self.infer_node(site, PlaceUse::Read, InferMode::Regular)?;
                 }
-                dir::Decision::Rejected | dir::Decision::Poisoned => return Ok(None),
-                _ => None,
-            },
+                let decision =
+                    self.decision(target)
+                        .cloned()
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: format!("node {target:?} checked without a decision"),
+                        })?;
+
+                match decision {
+                    dir::Decision::Function(dir::OperationResolution::One(
+                        dir::FunctionValue {
+                            target: dir::CallableTarget::Symbol { function, .. },
+                            ..
+                        },
+                    )) => {
+                        let selection = &function.key;
+                        let arguments =
+                            dir::GenericArgumentBinding::values(&selection.arguments).collect();
+
+                        Some((selection.symbol, Some(arguments)))
+                    }
+                    dir::Decision::Rejected | dir::Decision::Poisoned => return Ok(None),
+                    _ => None,
+                }
+            }
         };
         let Some((symbol, arguments)) = named else {
             return Ok(None);
@@ -190,6 +208,7 @@ impl BodyState<'_, '_> {
         // select visible structural membership
         let predicate = self.membership_predicate(origin, receiver_type, key_type, key)?;
 
+        // commit the in guard decision
         let resolution = dir::GuardDecision::In(dir::InGuardDecision {
             key_type,
             receiver_type,
@@ -240,6 +259,7 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Predicate>> {
+        // build the condition each target head tests
         let condition = match self.ty(target)? {
             dir::Type::Unknown => dir::PredicateCondition::Always,
             // refinements test through their base application
@@ -304,8 +324,6 @@ impl BodyState<'_, '_> {
             dir::Type::Error
             | dir::Type::Void
             | dir::Type::Variable(_)
-            | dir::Type::Hole(_)
-            | dir::Type::Rigid(_)
             | dir::Type::Key(_)
             | dir::Type::Region(_)
             | dir::Type::Static(_)
@@ -338,6 +356,7 @@ impl BodyState<'_, '_> {
             return Ok(None);
         }
 
+        // test each runtime arm of the value
         match self.union_leaves(origin, value)? {
             // test the known runtime arms of a union, expanded to their leaves
             Some(elements) => {
@@ -345,7 +364,7 @@ impl BodyState<'_, '_> {
                 for element in elements {
                     // give up the whole predicate on an undecided arm
                     let is_matched =
-                        match self.decide_relation(origin, Relation::Satisfies, element, target)? {
+                        match self.decide_relation(origin, Relation::Subtype, element, target)? {
                             Verdict::Holds => true,
                             Verdict::Fails => false,
                             Verdict::Ambiguous => return Ok(None),
@@ -374,7 +393,7 @@ impl BodyState<'_, '_> {
             // plain values decide the target statically
             None => {
                 let condition =
-                    match self.decide_relation(origin, Relation::Satisfies, value, target)? {
+                    match self.decide_relation(origin, Relation::Subtype, value, target)? {
                         Verdict::Holds => dir::PredicateCondition::Always,
                         Verdict::Fails => dir::PredicateCondition::Never,
                         Verdict::Ambiguous => return Ok(None),
@@ -485,6 +504,7 @@ impl BodyState<'_, '_> {
         value: dir::GlobalTypeId,
         condition: &dir::PredicateCondition,
     ) -> CompilerResult<dir::PredicateOperand> {
+        // read the operand each condition tests
         let input = match condition {
             dir::PredicateCondition::Type(_) | dir::PredicateCondition::Subtype(_)
                 if self.is_erased_value(value)? =>
@@ -520,6 +540,7 @@ impl BodyState<'_, '_> {
         let symbol = self.language_symbol(dir::LanguageItem::Type)?;
         let arguments = self.intern_type_ids(&[unknown])?;
 
+        // apply the Type declaration over the unknown constraint
         self.intern_type(dir::Type::Application(dir::GenericApplication {
             symbol,
             arguments,
