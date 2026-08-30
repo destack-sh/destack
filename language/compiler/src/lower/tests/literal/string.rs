@@ -59,7 +59,7 @@ function test.main.pair(): ref<String, managed, mutable, local> {
     local l0: ref<String, managed, mutable, local>
 
 entry:
-    v0: void = undefined
+    v0: ref<String, managed, mutable, local> = global.address string.0
     local.set l0, v0
     v1: ref<String, managed, mutable, local> = global.address string.0
     return v1

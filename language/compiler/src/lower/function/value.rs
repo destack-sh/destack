@@ -12,7 +12,8 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let declared = self.node_type_id(expression)?;
+        // bind the selected instance at the reference's lowered type
+        let declared = self.representation_type_id(expression)?;
         let key = self.function_reference_key(expression, symbol)?;
         let ty = self.lower_type(declared)?;
 
@@ -26,11 +27,13 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::GlobalTypeId,
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<mir::Value> {
+        // key the instance by the coercion's selected arguments
         let bindings = self.lowerer.instance_bindings(arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self.generic_instance_key(symbol, None, &arguments)?;
         let ty = self.lower_type(target)?;
 
+        // require a callable representation
         match self.bind_function_value(ty, &key, None)? {
             Some(value) => Ok(value),
             None => Err(CompilerError::Internal {
@@ -45,6 +48,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<GenericInstanceKey> {
+        // read the instance the checker selected at this reference
         let node = expression.into_global_any(self.source);
         let selected = self
             .lowerer
@@ -118,6 +122,7 @@ impl FunctionLowerer<'_, '_, '_> {
         key: &GenericInstanceKey,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
+        // emit by the callable representation
         match self.builder.tree().get(ty) {
             // pair fat function values with an empty environment
             mir::Type::Function {
@@ -160,6 +165,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(Some(self.builder.function_addr(function, ty)))
             }
+            // leave every other representation without a value
             _ => Ok(None),
         }
     }

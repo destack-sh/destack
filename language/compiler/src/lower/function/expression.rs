@@ -7,7 +7,7 @@ use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One value in flight along a coercion path.
 enum CoercionValue {
-    /// One source expression that has not been evaluated.
+    /// One source expression still to evaluate.
     Expression(dir::LocalNodeId<dir::Expression>),
     /// One materialized value.
     Runtime(mir::Value),
@@ -25,6 +25,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
+        // lower an uncoerced expression as its own value
         let Some(coercion) = self.coercion(expression) else {
             return self.lower_expression_value(expression);
         };
@@ -80,6 +81,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
+        // fold literals and builtin operations over folded operands
         match self.source().tree().get(expression) {
             // literal values compute nothing
             dir::Expression::Literal(_) => Ok(true),
@@ -100,6 +102,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(is_builtin && self.is_folded_expression(right)?)
             }
 
+            // leave every other expression to run
             _ => Ok(false),
         }
     }
@@ -127,12 +130,15 @@ impl FunctionLowerer<'_, '_, '_> {
         source: dir::GlobalTypeId,
         adjustment: &dir::CoercionAdjustment,
     ) -> CompilerResult<CoercionValue> {
+        // apply the adjustment the path names
         match adjustment {
-            dir::CoercionAdjustment::Widen { target } => {
+            // widen a constant into its runtime scalar
+            dir::CoercionAdjustment::Materialize { target } => {
                 let value = self.materialize_coercion_value(value, *target)?;
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // take a reference to the value's place
             dir::CoercionAdjustment::Borrow { target } => {
                 let target = self.lower_type(*target)?;
                 let value = match value {
@@ -153,6 +159,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // load the payload behind a borrow
             dir::CoercionAdjustment::Read { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
                 let target = self.lower_type(*target)?;
@@ -160,6 +167,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // cast between scalar representations
             dir::CoercionAdjustment::Scalar { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
                 let source = self.value_representation(value)?;
@@ -177,17 +185,20 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // enter the union case the selection names
             dir::CoercionAdjustment::Union { target, cases } => {
                 let value = self.lower_union_adjustment(value, source, *target, cases)?;
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // box the value behind its erased constraint
             dir::CoercionAdjustment::Erase { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
                 let value = self.lower_erasure(value, source, *target)?;
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // reinterpret owned storage as managed storage
             dir::CoercionAdjustment::Manage { target } => {
                 let value = self.materialize_coercion_value(value, source)?;
                 let target = self.lower_type(*target)?;
@@ -195,6 +206,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // select the instance a generic reference instantiates
             dir::CoercionAdjustment::Instantiate { target, arguments } => {
                 let CoercionValue::Expression(expression) = value else {
                     return Err(CompilerError::Internal {
@@ -207,6 +219,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(CoercionValue::Runtime(value))
             }
+            // reject every other adjustment
             adjustment => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("an implicit {} coercion", adjustment.as_str()),
@@ -273,6 +286,7 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::GlobalTypeId,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
+        // lower the union's own representation
         let representation = self.lower_type(target)?;
 
         // preserve the source case correspondence for indexed variants
@@ -334,6 +348,7 @@ impl FunctionLowerer<'_, '_, '_> {
         representation: mir::LocalNodeId<mir::Type>,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
+        // read the members the target union declares
         let target_members = self.union_members(target)?;
 
         // convert each runtime case of a union source
@@ -408,6 +423,7 @@ impl FunctionLowerer<'_, '_, '_> {
         representation: mir::LocalNodeId<mir::Type>,
         mappings: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
+        // require one mapping per source member
         if mappings.len() != source_members.len() {
             return Err(CompilerError::Internal {
                 message: "a union conversion with an incomplete case map".to_string(),
@@ -458,13 +474,14 @@ impl FunctionLowerer<'_, '_, '_> {
         representation: mir::LocalNodeId<mir::Type>,
         cases: &[dir::CoercionCase],
     ) -> CompilerResult<mir::Value> {
+        // require a union source
         let dir::Type::Union(source_union) = self.lowerer.ty(source)? else {
             return Err(CompilerError::Internal {
                 message: "a union exit with a non-union source".to_string(),
             });
         };
 
-        // require one case per source member, all landing on the same target
+        // require one case per source member on the same target
         let source_members = self
             .lowerer
             .types(source.module_id)?
@@ -553,6 +570,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        // resolve the union standing behind the name
         let stored = self.union_stored(ty)?;
 
         // require the resolved type to be a union
@@ -595,6 +613,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index: u32,
         member: dir::GlobalTypeId,
     ) -> CompilerResult<CoercionValue> {
+        // keep members whose value lives in their type unmaterialized
         Ok(match self.lowerer.ty(member)? {
             dir::Type::Literal(literal) => CoercionValue::Literal(literal),
             dir::Type::Null => CoercionValue::Null,
@@ -629,6 +648,7 @@ impl FunctionLowerer<'_, '_, '_> {
         value: CoercionValue,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
+        // materialize by the value's own form
         match value {
             CoercionValue::Expression(expression) => self.lower_expression_value(expression),
             CoercionValue::Runtime(value) => Ok(value),
@@ -653,6 +673,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Read the current value of one binding.
     pub(in crate::lower) fn read_binding(&mut self, binding: Binding) -> mir::Value {
+        // read by the storage the binding holds
         match binding {
             Binding::Value(value) => value,
             Binding::Local(local) => self.builder.local_get(local),
@@ -671,6 +692,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<mir::Value> {
+        // read a local binding, else a module or callable declaration
         match self.values.get(&symbol.local_id).copied() {
             Some(binding) => Ok(self.read_binding(binding)),
             // load module constants through their globals
@@ -698,7 +720,9 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
+        // lower by the expression's own syntax
         match self.source().tree().get(expression).clone() {
+            // name
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lowerer.resolved_symbol(node)?;
@@ -706,8 +730,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_resolved_value(expression, symbol)
             }
 
+            // 5
             dir::Expression::Literal(literal) => self.lower_scalar_literal(expression, literal),
 
+            // (x) => x
             dir::Expression::Declaration(declaration) => {
                 let node = declaration.into_global_any(self.source);
                 let Some(symbol) = self.lowerer.symbol_declared_at(node)? else {
@@ -899,12 +925,8 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // [1, 2, 3]
-            dir::Expression::ArrayExpression { .. } => {
-                let value = self.lower_call(expression)?;
-
-                value.ok_or_else(|| CompilerError::Internal {
-                    message: "an array construction without a value".to_string(),
-                })
+            dir::Expression::ArrayExpression { elements } => {
+                self.lower_array_expression(expression, &elements)
             }
 
             // <div .../>
@@ -943,6 +965,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 })
             }
 
+            // reject every other expression
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("'{}' expressions", other.variant_name()),
@@ -971,6 +994,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         }
 
+        // name the constant whose global is missing
         let path = self.lowerer.symbol_path(symbol)?;
 
         Err(CompilerError::Internal {
@@ -985,6 +1009,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index: u32,
         member: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        // require the member to stand at that index
         if members.get(index as usize) != Some(&member) {
             return Err(CompilerError::Internal {
                 message: "a union conversion selecting an absent target member".to_string(),

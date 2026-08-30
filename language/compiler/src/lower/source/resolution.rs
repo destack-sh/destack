@@ -17,6 +17,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the node's committed type through the enclosing instance
         let node = expression.into_global_any(self.source);
         let ty =
             self.source()
@@ -27,16 +28,6 @@ impl FunctionLowerer<'_, '_, '_> {
                 })?;
 
         self.lowerer.instance_type(self.instance, ty)
-    }
-
-    /// Return the written expectation one expression was checked against.
-    pub(in crate::lower) fn expected_type_id(
-        &self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<dir::GlobalTypeId> {
-        let node = expression.into_global_any(self.source);
-
-        self.source().types.get_expected_type_id(node)
     }
 }
 
@@ -195,6 +186,22 @@ impl FunctionLowerer<'_, '_, '_> {
                     node.local_id.id
                 ),
             })
+    }
+
+    /// Return the representation one expression lowers at.
+    pub(in crate::lower) fn representation_type_id(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // take the materialized target a widening coercion names
+        if let Some(coercion) = self.coercion(expression)
+            && let Some(dir::CoercionAdjustment::Materialize { target }) =
+                coercion.adjustments.first()
+        {
+            return Ok(*target);
+        }
+
+        self.node_type_id(expression)
     }
 
     /// Return the coercion for one expression.

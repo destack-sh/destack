@@ -22,6 +22,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
+        // lower by the callable the resolution selected
         match &call.target {
             // free(...)
             dir::CallableTarget::Symbol {
@@ -88,6 +89,7 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         resolution: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
+        // call the declared extern behind the binding
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
         let parameters = self.function_parameters(function);
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
@@ -114,6 +116,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         signature: mir::TypeId,
     ) -> CompilerResult<Vec<mir::TypeId>> {
+        // read each parameter representation the signature declares
         match self.builder.tree().get(signature) {
             mir::Type::FunctionSignature { parameters, .. } => {
                 Ok(parameters.iter().map(|parameter| parameter.ty).collect())
@@ -133,10 +136,12 @@ impl FunctionLowerer<'_, '_, '_> {
         parameters: &[mir::TypeId],
         write: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<Vec<mir::Value>> {
+        // lower each argument at its parameter representation
         let mut values = Vec::with_capacity(arguments.len());
         for (index, binding) in arguments.iter().enumerate() {
             let parameter = parameters.get(index).copied();
             let value = match binding.source {
+                // lower a written argument
                 dir::ArgumentSource::Provided(source) => self.lower_argument(source)?,
                 // store omission at the parameter representation
                 dir::ArgumentSource::Omitted => {
@@ -192,7 +197,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Pack the rest elements into their parameter's collection.
-    fn lower_rest_pack(
+    pub(in crate::lower) fn lower_rest_pack(
         &mut self,
         elements: &[dir::GlobalNodeIdAny],
         element_type: dir::GlobalTypeId,
@@ -235,7 +240,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let length = self.builder.usize_const(elements.len() as u128);
         let view = self.builder.slice_view(address, start, length, slice);
 
-        // slice parameters take the view; collections build through their pack
+        // take the view directly for a slice parameter
         let Some(pack) = pack else {
             return Ok(view);
         };
@@ -264,6 +269,7 @@ impl FunctionLowerer<'_, '_, '_> {
         ty: dir::GlobalTypeId,
         parameter: Option<mir::TypeId>,
     ) -> CompilerResult<mir::Value> {
+        // take the parameter representation, else the declared type
         let representation = match parameter {
             Some(parameter) => parameter,
             None => self.lower_type(ty)?,
@@ -320,6 +326,7 @@ impl FunctionLowerer<'_, '_, '_> {
         function: &dir::FunctionTarget,
         write: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<Option<mir::Value>> {
+        // require the receiver the selection named
         let adjusted = function
             .receiver
             .as_ref()
@@ -366,6 +373,7 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         selection: &dir::InstanceKey,
     ) -> CompilerResult<GenericInstanceKey> {
+        // resolve the selection's arguments through the enclosing instance
         let bindings = self
             .lowerer
             .instance_bindings(&selection.arguments, self.instance)?;
@@ -406,6 +414,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .filter(|fallback| matches!(fallback, FunctionDeclaration::Failed)),
         };
 
+        // call the function each declaration state names
         match declaration {
             // call the declared instance
             Some(FunctionDeclaration::Declared(function)) => Ok(*function),

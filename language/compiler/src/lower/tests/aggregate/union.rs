@@ -723,8 +723,8 @@ entry:
     return v0
 }
 
-function test.main.kind(v0: Shape): variant<uint1> { 0uint1 = void; 1uint1 = void; } {
-    local l0: variant<uint1> { 0uint1 = void; 1uint1 = void; }, readonly
+function test.main.kind(v0: Shape): ref<String, managed, mutable, local> {
+    local l0: ref<String, managed, mutable, local>, readonly
 
 entry(v0: Shape):
     v1: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
@@ -732,25 +732,25 @@ entry(v0: Shape):
     switch v2, b2, 0 => b3, 1 => b4
 
 b1:
-    v5: variant<uint1> { 0uint1 = void; 1uint1 = void; } = local.get l0
+    v5: ref<String, managed, mutable, local> = local.get l0
     return v5
 
 b2:
     unreachable
 
 b3:
-    v3: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 0
+    v3: ref<String, managed, mutable, local> = global.address string.0
     local.set l0, v3
     jump b1
 
 b4:
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 1
+    v4: ref<String, managed, mutable, local> = global.address string.1
     local.set l0, v4
     jump b1
 }
 
-function test.main.computedKind(v0: Shape): variant<uint1> { 0uint1 = void; 1uint1 = void; } {
-    local l0: variant<uint1> { 0uint1 = void; 1uint1 = void; }, readonly
+function test.main.computedKind(v0: Shape): ref<String, managed, mutable, local> {
+    local l0: ref<String, managed, mutable, local>, readonly
 
 entry(v0: Shape):
     v1: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
@@ -760,26 +760,25 @@ entry(v0: Shape):
     switch v3, b2, 0 => b3, 1 => b4
 
 b1:
-    v6: variant<uint1> { 0uint1 = void; 1uint1 = void; } = local.get l0
+    v6: ref<String, managed, mutable, local> = local.get l0
     return v6
 
 b2:
     unreachable
 
 b3:
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 0
+    v4: ref<String, managed, mutable, local> = global.address string.0
     local.set l0, v4
     jump b1
 
 b4:
-    v5: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 1
+    v5: ref<String, managed, mutable, local> = global.address string.1
     local.set l0, v5
     jump b1
 }
 
 function test.main.label(v0: Shape): ref<String, managed, mutable, local> {
-    local l0: variant<uint1> { 0uint1 = void; 1uint1 = void; }, readonly
-    local l1: ref<String, managed, mutable, local>, readonly
+    local l0: ref<String, managed, mutable, local>, readonly
 
 entry(v0: Shape):
     v1: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
@@ -787,35 +786,21 @@ entry(v0: Shape):
     switch v2, b2, 0 => b3, 1 => b4
 
 b1:
-    v5: variant<uint1> { 0uint1 = void; 1uint1 = void; } = local.get l0
-    variant.switch v5, 0 => b6, 1 => b7
+    v5: ref<String, managed, mutable, local> = local.get l0
+    return v5
 
 b2:
     unreachable
 
 b3:
-    v3: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 0
+    v3: ref<String, managed, mutable, local> = global.address string.0
     local.set l0, v3
     jump b1
 
 b4:
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 1
+    v4: ref<String, managed, mutable, local> = global.address string.1
     local.set l0, v4
     jump b1
-
-b5:
-    v8: ref<String, managed, mutable, local> = local.get l1
-    return v8
-
-b6:
-    v6: ref<String, managed, mutable, local> = global.address string.0
-    local.set l1, v6
-    jump b5
-
-b7:
-    v7: ref<String, managed, mutable, local> = global.address string.1
-    local.set l1, v7
-    jump b5
 }
 
 function test.main.matches(v0: Shape): boolean {
@@ -833,7 +818,7 @@ function test.main.differs(v0: Shape): boolean {
 entry(v0: Shape):
     call test.main.circle(): () => void
     v1: void = undefined
-    v2: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 0
+    v2: ref<String, managed, mutable, local> = global.address string.0
     v3: variant<uint1> { 0uint1 = Circle; 1uint1 = Square; } = field.get v0, 0
     v4: uint1 = variant.tag v3
     v5: uint1 = 0
@@ -854,10 +839,6 @@ entry(v0: Shape):
 /// @layout.discriminant owner=type@11 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@11 index=1 discriminant=1 payload_offset=8
-/// @layout.variant name=type@15 size=1 align=1
-/// @layout.discriminant owner=type@15 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@15 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=1
 "#,
     );
 }
@@ -919,7 +900,7 @@ entry(v0: ref<Shape, borrowed, 'a, readonly, local>):
     v2: uint1 = variant.tag.load v1
     v3: uint1 = 0
     v4: boolean = eq v2, v3
-    v5: variant<uint2> { 0uint2 = void; 1uint2 = void; 2uint2 = void; } = variant.new 2
+    v5: ref<String, managed, mutable, local> = global.address string.0
     v6: boolean = not v4
     branch v6 => b1 | b2
 
@@ -947,11 +928,6 @@ b2:
 /// @layout.discriminant owner=type@11 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=8
 /// @layout.case owner=type@11 index=1 discriminant=1 payload_offset=8
-/// @layout.variant name=type@31 size=1 align=1
-/// @layout.discriminant owner=type@31 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@31 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@31 index=1 discriminant=1 payload_offset=1
-/// @layout.case owner=type@31 index=2 discriminant=2 payload_offset=1
 "#,
     );
 }

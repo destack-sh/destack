@@ -186,33 +186,26 @@ function isTwo(value: 1 | 2): boolean {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-function test.main.isTwo(v0: variant<uint1> { 0uint1 = void; 1uint1 = void; }): boolean {
-entry(v0: variant<uint1> { 0uint1 = void; 1uint1 = void; }):
-    v1: variant<uint1> { 0uint1 = void; 1uint1 = void; } = variant.new 1
-    v2: uint1 = variant.tag v0
-    v3: uint1 = variant.tag v1
-    v4: boolean = eq v2, v3
-    branch v4 => b2 | b4
+function test.main.isTwo(v0: int64): boolean {
+entry(v0: int64):
+    v1: int64 = 2
+    v2: boolean = eq v0, v1
+    branch v2 => b2 | b4
 
 b1:
     return
 
 b2:
-    v5: boolean = true
-    return v5
+    v3: boolean = true
+    return v3
 
 b3:
-    v6: boolean = false
-    return v6
+    v4: boolean = false
+    return v4
 
 b4:
     jump b3
 }
-
-/// @layout.variant name=type@2 size=1 align=1
-/// @layout.discriminant owner=type@2 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@2 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@2 index=1 discriminant=1 payload_offset=1
 "#,
     );
 }

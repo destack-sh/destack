@@ -12,6 +12,7 @@ impl ModuleLowerer<'_> {
         mutability: dir::Mutability,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> CompilerResult<()> {
+        // require an immutable module binding
         if mutability != dir::Mutability::Immutable {
             return Err(LowerError::Unsupported {
                 anchor: self.module.into(),
@@ -47,11 +48,9 @@ impl ModuleLowerer<'_> {
                 self.index_language_declaration(global, symbol)?;
                 self.globals.insert(symbol, Ok(global));
 
-                match self.local().tree().get(*declarator).value {
-                    // store runtime bindings from the module initializer
-                    Some(value) => self.initializers.push((global, value)),
-                    // ambient declarations reference storage the host provides
-                    None => {}
+                // store runtime bindings from the module initializer
+                if let Some(value) = self.local().tree().get(*declarator).value {
+                    self.initializers.push((global, value));
                 }
 
                 continue;
@@ -75,6 +74,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         builder: &mut mir::ModuleBuilder,
     ) -> CompilerResult<Option<mir::FunctionId>> {
+        // stop where no binding needs an initializer
         if self.initializers.is_empty() {
             return Ok(None);
         }
@@ -96,6 +96,7 @@ impl ModuleLowerer<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
+        // require a variable declared in the root scope
         let state = self.state(symbol.module_id)?;
         let declared = state.bindings.get_symbol(symbol.local_id);
         let scope = state.bindings.get_scope(declared.scope);
@@ -108,6 +109,7 @@ impl ModuleLowerer<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
+        // read the evaluated static behind the symbol
         let statics = &self.state(symbol.module_id)?.statics;
         let Some(id) = statics.get_symbol_static_id(symbol) else {
             return Ok(None);
@@ -121,6 +123,7 @@ impl ModuleLowerer<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<String> {
+        // qualify the binding's name by its module
         let Some(name) = self.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "a module constant without a name".to_string(),
@@ -132,6 +135,7 @@ impl ModuleLowerer<'_> {
 
     /// Return whether one static term lowers to a constant initializer.
     fn is_constant_term(term: &dir::StaticTerm) -> bool {
+        // accept literal, newtype, and tuple terms
         match term {
             dir::StaticTerm::Literal { .. } => true,
             dir::StaticTerm::Newtype { value, .. } => Self::is_constant_term(value),
@@ -215,6 +219,7 @@ impl ModuleLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // lower the type outside any lifetime parameters
         let pointer_bytes = builder.pointer_bytes();
         let lifetime_parameters = LifetimeParameters::default();
 
@@ -229,6 +234,7 @@ impl ModuleLowerer<'_> {
         representation: &mir::Type,
         pointer_bytes: u8,
     ) -> CompilerResult<mir::Constant> {
+        // build the constant at the lowered representation
         Ok(match (literal, representation) {
             (dir::Literal::Boolean(value), _) => mir::Constant::Boolean { value },
             (

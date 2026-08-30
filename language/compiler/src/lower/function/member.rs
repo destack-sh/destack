@@ -38,6 +38,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
+        // lower the read the selected target names
         match &access.target {
             // project a compiler-defined member off the receiver
             dir::MemberTarget::Projection {
@@ -74,6 +75,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             // read the resolved field
             dir::MemberTarget::Field(field) => self.lower_field_read(expression, left, field),
+            // reject every other member read
             other => Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
                 construct: format!("a member read through {other:?}"),
@@ -99,7 +101,9 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
+        // lower the read the selected target names
         match subscript.target {
+            // read the member the constant key names
             dir::SubscriptTarget::Member(access) => match access.target {
                 // project a compiler-defined member off the receiver
                 dir::MemberTarget::Projection {
@@ -149,6 +153,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                     self.lower_dynamic_signature_read(expression, left, key)
                 }
+                // reject every other subscript read
                 other => Err(LowerError::Unsupported {
                     anchor: self.lowerer.module.into(),
                     construct: format!("a subscript read through {other:?}"),
@@ -187,6 +192,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     }
                     .into());
                 }
+                // require a directly dispatched Index call
                 let call = read.call;
                 let dir::Call {
                     target:
@@ -278,6 +284,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: mir::Value,
         projection: &dir::Projection,
     ) -> CompilerResult<mir::Value> {
+        // lower the projection the member names
         match projection {
             dir::Projection::Discriminant {
                 union, cases, ty, ..
@@ -308,10 +315,11 @@ impl FunctionLowerer<'_, '_, '_> {
         // read the arms of the union the receiver carries
         let source_members = self.union_members(union)?;
 
-        // read the result's literal arms when it remains an indexed union
+        // read the result's literal arms while it stays an indexed union
         let result = self.lowerer.ty(ty)?;
         let is_singleton = result.singleton_literal().is_some();
         let result_members = match result {
+            dir::Type::Union(_) if self.lowerer.scalar_literal_union(ty)?.is_some() => None,
             dir::Type::Union(result) => Some(
                 self.lowerer
                     .types(ty.module_id)?
@@ -396,6 +404,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: mir::Value,
         union: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
+        // read the receiver's own representation
         let receiver_type = self.value_representation(receiver)?;
 
         // stored unions expose their tag through their address
@@ -417,6 +426,7 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         receiver: &dir::MemberReceiver,
     ) -> CompilerResult<mir::Value> {
+        // require a direct receiver
         let dir::MemberReceiver::Direct(receiver) = receiver else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),

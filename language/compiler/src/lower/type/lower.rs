@@ -143,6 +143,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 return Ok(reserved);
             }
 
+            // mark this graph as being lowered
             self.reservations.insert(id, None);
         }
 
@@ -246,7 +247,12 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     return self.insert_nullability(reference, nullability);
                 }
 
-                // store non-nullish unions as indexed variants
+                // store a union of one scalar domain untagged as that scalar
+                if let Some(literal) = self.lowerer.scalar_literal_union(id)? {
+                    return self.lower_value_representation(&literal.widen());
+                }
+
+                // store every other union as an indexed variant
                 let elements = self
                     .lowerer
                     .types(id.module_id)?
@@ -357,20 +363,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     None => self.lower_dynamic(id),
                 }
             }
-            other => {
-                // lower reference primitives through their representation classes
-                if let Some(item) = ModuleLowerer::representation_item(&other) {
-                    let symbol = self.lowerer.language_item_symbol(item)?;
-                    let source = self.lowerer.symbol_type(symbol)?;
-
-                    return Ok(self.lower_nominal(source)?.value);
-                }
-
-                // fall back to the scalar families
-                let ty = self.lowerer.scalar_type(&other)?;
-
-                Ok(self.tree.intern_type(ty))
-            }
+            // lower every other head through its value representation
+            other => self.lower_value_representation(&other),
         }
     }
 
@@ -386,6 +380,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             self.space = ModuleLowerer::mir_space(space);
         }
 
+        // lower the reference inside that space
         let lowered = self.lower_reference(
             mir::ReferenceKind::Managed,
             mir::Lifetime::empty(),
@@ -404,6 +399,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         receiver: Option<dir::GlobalTypeId>,
         types: &[dir::GlobalTypeId],
     ) -> CompilerResult<GenericInstanceKey> {
+        // lower the receiver into a static type argument
         let receiver = match receiver {
             Some(ty) => {
                 let ty = self.lower(ty)?;
@@ -411,6 +407,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             None => None,
         };
+
+        // bind each concrete argument as a static
         let mut arguments = Vec::with_capacity(types.len());
         for ty in types {
             // lifetime arguments never shape a specialization
@@ -459,6 +457,7 @@ impl<'module> ModuleLowerer<'module> {
         id: dir::GlobalTypeId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // require a memory form language item
         let item = self.language_item(instance.symbol);
         if !matches!(
             item,
@@ -486,6 +485,7 @@ impl TypeLowerer<'_, '_> {
         instance: &dir::GenericApplication,
         value: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // select the memory form node the item names
         let ty = match self.lowerer.language_item(instance.symbol) {
             Some(dir::LanguageItem::MaybeUninit) => mir::Type::Uninit { value },
             Some(dir::LanguageItem::ManuallyDrop) => mir::Type::ManuallyDrop { value },
@@ -507,6 +507,7 @@ impl ModuleLowerer<'_> {
         module: ModuleId,
         tuple: &dir::TupleType,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        // collect the plain element types in position order
         let mut ids = Vec::with_capacity(tuple.elements.len() as usize);
         for element in self.types(module)?.elements(tuple.elements) {
             // reject optional and rest elements
@@ -586,5 +587,24 @@ impl TypeLowerer<'_, '_> {
             elements: elements.into_iter().collect(),
             copy,
         })
+    }
+
+    /// Lower one value type through its representation class, else its scalar form.
+    fn lower_value_representation(
+        &mut self,
+        ty: &dir::Type,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // lower reference primitives through their representation classes
+        if let Some(item) = ModuleLowerer::representation_item(ty) {
+            let symbol = self.lowerer.language_item_symbol(item)?;
+            let source = self.lowerer.symbol_type(symbol)?;
+
+            return Ok(self.lower_nominal(source)?.value);
+        }
+
+        // fall back to the scalar families
+        let ty = self.lowerer.scalar_type(ty)?;
+
+        Ok(self.tree.intern_type(ty))
     }
 }

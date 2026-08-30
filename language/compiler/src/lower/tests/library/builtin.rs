@@ -79,12 +79,6 @@ FAIL async/semaphore.ds :: error[unsupported-lower-construct]: unsupported const
 ok   async/task.ds
 FAIL async/writer.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 FAIL async/writer.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-ok   bench/budget.ds
-ok   bench/case.ds
-FAIL bench/context.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-ok   bench/index.ds
-ok   bench/measurement.ds
-ok   bench/options.ds
 ok   binding/binding.ds
 ok   binding/index.ds
 ok   bytes/buffer.ds
@@ -151,9 +145,9 @@ ok   decorator/stability.ds
 ok   decorator/system.ds
 ok   error/debug.ds
 ok   error/error.ds
-FAIL error/host.ds :: error[unsupported-lower-construct]: unsupported construct: a borrow of a 'Binary' expression
+FAIL error/host.ds :: a coalesce joining reference and value representations
 ok   error/index.ds
-FAIL error/io.ds :: error[unsupported-lower-construct]: unsupported construct: a borrow of a 'Binary' expression
+FAIL error/io.ds :: a coalesce joining reference and value representations
 ok   error/panic.ds
 ok   error/report.ds
 ok   error/result.ds
@@ -229,7 +223,7 @@ ok   memory/binding/memory.ds
 ok   memory/binding/virtual.ds
 ok   memory/borrow.ds
 ok   memory/box.ds
-FAIL memory/capability.ds :: a contextual this was never materialized
+ok   memory/capability.ds
 ok   memory/cell/cell.ds
 ok   memory/cell/index.ds
 ok   memory/cell/refcell.ds
@@ -301,7 +295,7 @@ ok   random/binding/entropy.ds
 ok   random/binding/index.ds
 ok   random/binding/random.ds
 ok   random/index.ds
-ok   random/random.ds
+FAIL random/random.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 148 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 3 }, copy: Yes }' representation
 ok   range/bound.ds
 ok   range/index.ds
 ok   range/iterator.ds
@@ -326,7 +320,7 @@ ok   runtime/random.ds
 ok   runtime/resource.ds
 ok   runtime/snapshot.ds
 ok   runtime/trace.ds
-ok   runtime/world.ds
+FAIL runtime/world.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 247 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 1 }, copy: Yes }' representation
 ok   serde/index.ds
 ok   serde/serde.ds
 ok   stream/index.ds
@@ -369,7 +363,7 @@ ok   telemetry/field.ds
 ok   telemetry/index.ds
 FAIL telemetry/log.ds :: error[unsupported-lower-construct]: unsupported construct: 'Chain' expressions
 FAIL telemetry/log.ds :: error[unsupported-lower-construct]: unsupported construct: 'Chain' expressions
-ok   telemetry/metric.ds
+FAIL telemetry/metric.ds :: a union conversion selecting an absent target member
 ok   telemetry/record.ds
 FAIL telemetry/trace.ds :: union members requested from a non-union type
 ok   test/artifact.ds
@@ -415,7 +409,7 @@ ok   topology/edge.ds
 ok   topology/entity.ds
 ok   topology/index.ds
 ok   topology/label.ds
-ok   topology/topology.ds
+FAIL topology/topology.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 172 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 3 }, copy: Yes }' representation
 ok   tree/builder.ds
 ok   tree/index.ds
 ok   types/function.ds

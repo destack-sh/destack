@@ -28,6 +28,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_super_construct(resolution);
         }
 
+        // lower by the construct target the resolution names
         match &resolution.target {
             // wrap a raw value: Meters(5)
             dir::ConstructTarget::Newtype { .. } => self.lower_newtype_construct(resolution),
@@ -49,6 +50,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         resolution: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
+        // require a class construct target
         let dir::ConstructTarget::Class {
             key: selection,
             constructor,
@@ -279,6 +281,7 @@ impl FunctionLowerer<'_, '_, '_> {
         storage: mir::Value,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
+        // read the receiver type the constructor declares
         let representation = self.value_representation(storage)?;
         let receiver_storage = nominal_receiver_storage(self.builder.tree(), representation);
         let receiver =
@@ -436,6 +439,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         owner: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
+        // require the class definition behind the owner
         let Some(definition) = self.lowerer.definition(owner)? else {
             return Err(CompilerError::Internal {
                 message: "a constructor body without its class definition".to_string(),
@@ -480,6 +484,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 continue;
             };
 
+            // require the initializer to come from the class module
             if initializer.module_id != self.source {
                 return Err(CompilerError::Internal {
                     message: "a field initializer declared outside its class module".to_string(),
@@ -526,6 +531,7 @@ impl FunctionLowerer<'_, '_, '_> {
         module: destack_source::ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
+        // read the initializer out of its declaring module
         let Some(declaring) = self.lowerer.modules.get(&module) else {
             return Err(CompilerError::Internal {
                 message: "a field initializer read outside its loaded module".to_string(),
@@ -546,6 +552,7 @@ impl FunctionLowerer<'_, '_, '_> {
         index: usize,
         field: &NominalField,
     ) -> CompilerResult<Option<mir::Value>> {
+        // require the field's declared initializer
         let Some(initializer) = field.initializer else {
             return Err(CompilerError::Internal {
                 message: "an omitted field lowered without a declared initializer".to_string(),
@@ -590,7 +597,7 @@ impl FunctionLowerer<'_, '_, '_> {
         elements: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<mir::Value> {
         // lower the tuple representation from the node type
-        let ty = self.node_type_id(expression)?;
+        let ty = self.representation_type_id(expression)?;
         let ty = self.lower_type(ty)?;
 
         // lower the element values in order
@@ -609,20 +616,54 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.aggregate(ty, values))
     }
 
+    /// Lower one array literal at its representation.
+    pub(in crate::lower) fn lower_array_expression(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        elements: &[dir::LocalNodeId<dir::Argument>],
+    ) -> CompilerResult<mir::Value> {
+        // lower by the representation the literal takes
+        let ty = self.representation_type_id(expression)?;
+        match self.lowerer.ty(ty)? {
+            // build fixed storage as a tuple aggregate
+            dir::Type::FixedArray(_) | dir::Type::Tuple(_) => {
+                self.lower_tuple_expression(expression, elements)
+            }
+            // pack slice elements into a borrowed view
+            dir::Type::Slice(slice) => {
+                let mut values = Vec::with_capacity(elements.len());
+                for element in elements {
+                    let dir::Argument::Positional { value } = self.source().tree().get(*element)
+                    else {
+                        return Err(LowerError::Unsupported {
+                            anchor: self.lowerer.module.into(),
+                            construct: "a spread slice element".to_string(),
+                        }
+                        .into());
+                    };
+                    values.push(value.into_global_any(self.lowerer.module));
+                }
+
+                self.lower_rest_pack(&values, slice.element, None)
+            }
+            // build every other array through its pack constructor
+            _ => self
+                .lower_call(expression)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "an array construction without a value".to_string(),
+                }),
+        }
+    }
+
     /// Lower one object literal to its concrete class instance.
     pub(in crate::lower) fn lower_object_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         properties: &[dir::LocalNodeId<dir::Property>],
     ) -> CompilerResult<mir::Value> {
-        // read the class from the written expectation, falling back to the literal's own type
-        let own = self.node_type_id(expression)?;
-        let mut committed = self.expected_type_id(expression).unwrap_or(own);
-        let mut declared = self.construction_fields(committed)?;
-        if declared.is_none() && committed != own {
-            committed = own;
-            declared = self.construction_fields(own)?;
-        }
+        // read the class from the literal's committed type
+        let committed = self.representation_type_id(expression)?;
+        let declared = self.construction_fields(committed)?;
         let Some(declared) = declared else {
             return Err(LowerError::Unsupported {
                 anchor: self.lowerer.module.into(),
@@ -717,6 +758,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         committed: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Vec<ConstructionField>>> {
+        // walk to the nominal or shape the type constructs
         let mut class = committed;
         loop {
             match self.lowerer.ty(class)? {

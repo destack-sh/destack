@@ -124,7 +124,7 @@ fn test_lower_place_generic_functions_per_demanded_space() {
 export class User {}
 export shared class Team {}
 
-export function keep<T, const P: Place>(value: Placed<T, P>): Placed<T, P> {
+export function keep<T, const P: Place>(value: Managed<T, P>): Managed<T, P> {
     return value;
 }
 

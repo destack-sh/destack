@@ -147,15 +147,7 @@ entry(v0: int32):
     return v3
 }
 
-function test.point.Point.length<'a>(v0: ref<test.point.Point, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<test.point.Point, borrowed, 'a, readonly, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
-    v3: ref<int32, borrowed, readonly, local> = field.address v0, 1
-    v4: int32 = load v3
-    v5: int32 = add v2, v4
-    return v5
-}
+external function test.point.Point.length<'a>(ref<test.point.Point, borrowed, 'a, readonly, local>): int32
 
 /// @layout.struct name=test.point.Point size=8 align=4
 /// @layout.field owner=test.point.Point index=0 name=x offset=0 size=4 align=4
