@@ -53,8 +53,6 @@ impl Printer<'_, '_, '_> {
     pub(super) fn local_type(&self, type_value: &dir::Type) -> DocResult<String> {
         let text = match type_value {
             dir::Type::Error => "<error>".to_string(),
-            dir::Type::Hole(hole) => format!("?{hole}"),
-            dir::Type::Rigid(rigid) => format!("^{rigid}"),
             dir::Type::Never => "never".to_string(),
             dir::Type::Unknown => "unknown".to_string(),
             dir::Type::Void => "void".to_string(),
