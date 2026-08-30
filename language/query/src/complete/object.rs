@@ -192,11 +192,6 @@ impl CompletionCollector<'_, '_, '_> {
         let site = dir::MemberSite::Node(node);
         let expected = match members.subject(site) {
             Some(_) => Some(membership_members(self.module, self.program, site)?),
-            None if self.module.types()?.get_expected_type_id(node).is_some() => {
-                return Err(QueryError::missing(format!(
-                    "object literal member subject: {node:?}"
-                )));
-            }
             None => None,
         };
 

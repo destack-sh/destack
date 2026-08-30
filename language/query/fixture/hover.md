@@ -622,7 +622,7 @@ function read(): int32 {
 ```
 
 ```query hover main.ds#reference
-@hover.item index=0 declaration="const count: 1" location=main.ds#definition range=main.ds#reference
+@hover.item index=0 declaration="const count: int32" location=main.ds#definition range=main.ds#reference
 ```
 
 ## Imports
