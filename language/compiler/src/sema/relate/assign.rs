@@ -229,8 +229,17 @@ impl CheckState<'_> {
                     }
                 }
             }
-            // relate every arm of a union source
+            // relate a union source whole to an interface
             (dir::Type::Union(union), _) => {
+                if let dir::Type::Application(instance) = self.ty(target)?
+                    && self.symbol_kind(instance.symbol)?.is_interface()
+                    && self.relate_interface(origin, cause, relation, source, target)?
+                        == Verdict::Holds
+                {
+                    return Ok(Verdict::Holds);
+                }
+
+                // relate every arm of a union source
                 let elements: SmallVec<[_; 8]> =
                     self.type_ids(source.module_id, union.elements)?.into();
 
@@ -255,6 +264,21 @@ impl CheckState<'_> {
             (_, dir::Type::Union(union)) => {
                 let arms: SmallVec<[_; 8]> =
                     self.type_ids(target.module_id, union.elements)?.into();
+
+                // choose one open arm by constraint over the whole candidate set
+                let mut is_open = self.type_flags(source)?.has_variable();
+                for arm in &arms {
+                    is_open = is_open || self.type_flags(*arm)?.has_variable();
+                }
+                if is_open {
+                    let candidates = arms
+                        .iter()
+                        .map(|arm| (source, *arm))
+                        .collect::<SmallVec<[_; 4]>>();
+
+                    return self.constrain_any_relation(origin, cause, relation, &candidates);
+                }
+
                 let mut inhabited = SmallVec::<[dir::GlobalTypeId; 4]>::new();
                 for arm in arms {
                     let arm = self.normalize(origin, arm)?;
@@ -498,6 +522,16 @@ impl CheckState<'_> {
                 )?
             }
 
+            // relate two fat callables by receiver mode before their signatures
+            (dir::Type::Function(source_function), dir::Type::Function(target_function))
+                if self.constrain_receiver_mode(
+                    origin,
+                    source_function.receiver,
+                    target_function.receiver,
+                )? == Verdict::Fails =>
+            {
+                Verdict::Fails
+            }
             // callables relate by signature variance
             (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
                 self.relate_function_assignable(origin, cause, relation, source, target)?
