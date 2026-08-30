@@ -2457,19 +2457,64 @@ pub struct FunctionParameterType {
 pub struct FunctionType {
     /// The function signature.
     pub signature: GlobalTypeId,
-    /// The permitted number of invocations.
-    pub multiplicity: Multiplicity,
+    /// The mode a call takes the callable in, a receiver mode literal or an open access term.
+    pub receiver: GlobalTypeId,
     /// The place of the captured environment.
     pub place: GlobalTypeId,
 }
 
-/// Permitted invocation count for a callable value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum Multiplicity {
-    /// The callable may be invoked any number of times.
-    Repeatable,
-    /// The callable may be invoked at most once.
-    Once,
+/// The mode a call takes its receiver in, ordered from the weakest to the strongest.
+///
+/// Examples:
+/// ```ds
+/// (x: T) => R                     // borrowed exclusively when elided
+/// (&readonly this, x: T) => R     // borrowed readonly
+/// ^Function<(), void, "once">     // owned, callable once
+/// ```
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
+)]
+pub enum ReceiverMode {
+    /// The receiver is borrowed with one access.
+    Borrowed(Access),
+    /// The receiver is taken by value.
+    Owned,
+}
+
+impl ReceiverMode {
+    /// Parse one canonical receiver mode name.
+    pub fn from_text(value: StringId) -> Option<Self> {
+        if value == StringId::for_text(Self::Owned.text()) {
+            return Some(Self::Owned);
+        }
+
+        Access::from_text(value).map(Self::Borrowed)
+    }
+
+    /// Return whether this mode grants one requested mode.
+    pub fn grants(self, requested: Self) -> bool {
+        match (self, requested) {
+            (Self::Owned, _) => true,
+            (Self::Borrowed(_), Self::Owned) => false,
+            (Self::Borrowed(granted), Self::Borrowed(requested)) => granted.grants(requested),
+        }
+    }
+
+    /// Return the access one borrowed receiver mode takes.
+    pub fn access(self) -> Option<Access> {
+        match self {
+            Self::Borrowed(access) => Some(access),
+            Self::Owned => None,
+        }
+    }
+
+    /// Return the canonical text of this receiver mode.
+    pub const fn text(self) -> &'static str {
+        match self {
+            Self::Borrowed(access) => access.text(),
+            Self::Owned => "once",
+        }
+    }
 }
 
 /// A thin callable value with no captured environment.

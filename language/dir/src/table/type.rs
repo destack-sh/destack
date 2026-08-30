@@ -440,6 +440,7 @@ impl<'a> TypeTable<'a> {
             }
             Type::Function(function) => {
                 visit(function.signature);
+                visit(function.receiver);
                 visit(function.place);
             }
             Type::FunctionPointer(function) => {

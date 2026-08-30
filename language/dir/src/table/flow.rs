@@ -299,6 +299,11 @@ impl FlowSegment {
         Self::new(base.module_id)
     }
 
+    /// Iterate the binding occurrences this segment recorded.
+    pub fn binding_occurrences(&self) -> impl Iterator<Item = &BindingOccurrence> {
+        self.binding_occurrences.iter()
+    }
+
     /// Set one node unreachable.
     pub fn set_unreachable(&mut self, node: LocalNodeIdAny) {
         self.unreachable.insert(node);
