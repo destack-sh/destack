@@ -20,23 +20,25 @@ enum CoercionValue {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one expression through its coercion.
+    /// Lower one expression through its coercion, anchoring its emitted MIR at its extent.
     pub(in crate::lower) fn lower_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // lower an uncoerced expression as its own value
-        let Some(coercion) = self.coercion(expression) else {
-            return self.lower_expression_value(expression);
-        };
+        self.lower_anchored(expression, |lower| {
+            // lower an uncoerced expression as its own value
+            let Some(coercion) = lower.coercion(expression) else {
+                return lower.lower_expression_value(expression);
+            };
 
-        // walk the coercion path from the classified source to its target
-        let target = coercion.target();
-        let source = self.lowerer.instance_type(self.instance, coercion.source)?;
-        let value = self.coercion_source(expression, source)?;
-        let value = self.lower_adjustments(value, source, &coercion.adjustments)?;
+            // walk the coercion path from the classified source to its target
+            let target = coercion.target();
+            let source = lower.lowerer.instance_type(lower.instance, coercion.source)?;
+            let value = lower.coercion_source(expression, source)?;
+            let value = lower.lower_adjustments(value, source, &coercion.adjustments)?;
 
-        self.materialize_coercion_value(value, target)
+            lower.materialize_coercion_value(value, target)
+        })
     }
 
     /// Classify one expression before applying its coercion path.

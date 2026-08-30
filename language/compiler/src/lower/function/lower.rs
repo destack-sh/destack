@@ -352,6 +352,24 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         value
     }
 
+    /// Lower one node through a step with its emitted MIR anchored at the node's source extent.
+    pub(in crate::lower) fn lower_anchored<R>(
+        &mut self,
+        node: dir::LocalNodeId<dir::Expression>,
+        lower: impl FnOnce(&mut Self) -> CompilerResult<R>,
+    ) -> CompilerResult<R> {
+        // keep the enclosing anchor over an extent-less synthesized node
+        let Some(span) = self.source().tree().get_source_extent_by_id(node.id) else {
+            return lower(self);
+        };
+
+        let previous = self.builder.replace_source(Some((node.id, span)));
+        let result = lower(self);
+        self.builder.replace_source(previous);
+
+        result
+    }
+
     /// Return the state of the module declaring this function.
     pub(in crate::lower) fn source(&self) -> &LowerModuleState {
         match self.lowerer.modules.get(&self.source) {

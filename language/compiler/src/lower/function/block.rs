@@ -82,18 +82,18 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Lower one statement expression, returning whether it terminated the block.
+    /// Lower one statement, returning whether it terminated the block.
     pub(in crate::lower) fn lower_statement(
         &mut self,
         statement: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        match self.source().tree().get(statement).clone() {
+        self.lower_anchored(statement, |lower| match lower.source().tree().get(statement).clone() {
             // return value
             dir::Expression::Return { value } => {
                 let value = value
-                    .map(|value| self.lower_expression(value))
+                    .map(|value| lower.lower_expression(value))
                     .transpose()?;
-                self.builder.return_(value);
+                lower.builder.return_(value);
 
                 Ok(true)
             }
@@ -104,7 +104,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 declarators,
                 ..
             } => {
-                self.lower_let(mutability, &declarators)?;
+                lower.lower_let(mutability, &declarators)?;
 
                 Ok(false)
             }
@@ -115,7 +115,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 operator,
                 right,
             } => {
-                self.lower_assign(statement, left, operator, right)?;
+                lower.lower_assign(statement, left, operator, right)?;
 
                 Ok(false)
             }
@@ -129,7 +129,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     | dir::UnaryOperator::PreDecrement,
                 right,
             } => {
-                self.lower_update(statement, right)?;
+                lower.lower_update(statement, right)?;
 
                 Ok(false)
             }
@@ -140,17 +140,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 condition,
                 then_expression,
                 else_expression,
-            } => self.lower_if(&condition, then_expression, else_expression),
+            } => lower.lower_if(&condition, then_expression, else_expression),
 
             // debugger
             dir::Expression::Debugger => {
-                self.builder.breakpoint();
+                lower.builder.breakpoint();
 
                 Ok(false)
             }
 
             // switch (value) { ... }
-            dir::Expression::Switch { value, cases } => self.lower_switch(value, &cases),
+            dir::Expression::Switch { value, cases } => lower.lower_switch(value, &cases),
 
             // while (cond) { ... }
             dir::Expression::While {
@@ -158,7 +158,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 form,
                 condition,
                 body,
-            } => self.lower_while(label, form, &condition, body),
+            } => lower.lower_while(label, form, &condition, body),
 
             // for (init; cond; step) { ... }
             dir::Expression::For {
@@ -167,39 +167,39 @@ impl FunctionLowerer<'_, '_, '_> {
                 condition,
                 increment,
                 body,
-            } => self.lower_for(label, initialization, condition, increment, body),
+            } => lower.lower_for(label, initialization, condition, increment, body),
 
             // loop { ... }
-            dir::Expression::Loop { label, body } => self.lower_loop(label, body),
+            dir::Expression::Loop { label, body } => lower.lower_loop(label, body),
 
             // break label
-            dir::Expression::Break { label, value } => self.lower_break(label, value),
+            dir::Expression::Break { label, value } => lower.lower_break(label, value),
 
             // continue label
-            dir::Expression::Continue { label } => self.lower_continue(label),
+            dir::Expression::Continue { label } => lower.lower_continue(label),
 
             // Meters(5)
             dir::Expression::Call { .. }
-                if let Some(resolution) = self.construct_decision(statement) =>
+                if let Some(resolution) = lower.construct_decision(statement) =>
             {
-                self.lower_construct(statement, &resolution)?;
+                lower.lower_construct(statement, &resolution)?;
 
                 Ok(false)
             }
 
             // call(...)
             dir::Expression::Call { .. } => {
-                self.lower_call(statement)?;
+                lower.lower_call(statement)?;
 
                 Ok(false)
             }
 
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: lower.lowerer.module.into(),
                 construct: format!("'{}' statements", other.variant_name()),
             }
             .into()),
-        }
+        })
     }
 
     /// Return whether one block tail yields no value.
