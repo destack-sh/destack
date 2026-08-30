@@ -1,26 +1,26 @@
 use crate::tests::TestSession;
 
-/// Preserve repeatable callable values across calls for every environment form.
+/// Preserve callable values with borrowed receivers across calls for every environment form.
 #[test]
-fn test_call_repeatable_functions_more_than_once() {
+fn test_call_callables_with_borrowed_receivers_more_than_once() {
     let session = TestSession::single(
         r#"
-function invokeManaged(run: Function<(), void>): void {
+function invokeManaged(run: Function<(), void, "readonly">): void {
     run();
     run();
 }
 
-function invokeOwned(run: ^Function<(), void>): void {
+function invokeOwned(run: ^Function<(), void, "mutable">): void {
     run();
     run();
 }
 
-function invokeBorrowed(run: &Function<(), void>): void {
+function invokeBorrowed(run: &Function<(), void, "readonly">): void {
     run();
     run();
 }
 
-function invokeExclusive(run: &exclusive Function<(), void>): void {
+function invokeExclusive(run: &exclusive Function<(), void, "exclusive">): void {
     run();
     run();
 }
@@ -33,9 +33,9 @@ function invokeExclusive(run: &exclusive Function<(), void>): void {
     );
 }
 
-/// Consume an owned once callable on its first call.
+/// Consume an owned callable on its first call.
 #[test]
-fn test_call_owned_once_function_once() {
+fn test_call_an_owned_callable_once() {
     let session = TestSession::single(
         r#"
 function invokeOwned(run: ^Function<(), void, "once">): void {
@@ -50,9 +50,9 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
     );
 }
 
-/// Reject a second call of an owned once callable.
+/// Reject a second call of an owned callable.
 #[test]
-fn test_reject_calling_owned_once_function_more_than_once() {
+fn test_reject_calling_an_owned_callable_more_than_once() {
     let session = TestSession::single(
         r#"
 function invokeOwned(run: ^Function<(), void, "once">): void {
@@ -71,3 +71,4 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
 "#,
     );
 }
+

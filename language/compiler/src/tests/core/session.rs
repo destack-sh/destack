@@ -420,10 +420,12 @@ impl TestSession {
     pub(crate) fn assert_mir_verified_diagnostics(&self, path: &str, expected: &str) {
         let entry = self.module_entry(path);
         let target = TargetId::new(entry.module.package_id, "native");
+        let lowered = ArtifactKey::mir_lowered(entry.module.id, entry.profile, target);
         let key = ArtifactKey::mir_verified(entry.module.id, entry.profile, target);
         let _ = self.require_artifact_result(key);
 
-        assert_snapshot(self.diagnostic_snapshot(key), expected);
+        // include lowering failures so a verify assertion never passes vacuously
+        assert_snapshot(self.diagnostic_snapshot_for(&[lowered, key]), expected);
     }
 
     /// Return one successfully lowered MIR artifact.
