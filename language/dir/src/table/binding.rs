@@ -605,6 +605,7 @@ impl BindingSegment {
         let module_id = self.module_id;
         let declaration = node_id.into_global_any(module_id);
 
+        // record the declaration node once
         let symbol = self.get_symbol_mut(symbol_id);
         if symbol.declaration.is_none() {
             symbol.declaration = Some(declaration);
@@ -831,7 +832,7 @@ impl BindingSegment {
         self.replaced_scope_by_id.insert(scope_id, scope);
     }
 
-    /// Copy one visible scope into this segment when it is not already mutable.
+    /// Copy one visible scope into this segment before mutating it.
     pub fn make_scope_mutable(&mut self, scope_id: LocalScopeId, scope: &Scope) {
         if self.contains_scope_id(scope_id) || self.replaced_scope_by_id.contains_key(&scope_id) {
             return;

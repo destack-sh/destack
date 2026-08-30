@@ -130,7 +130,6 @@ macro_rules! define_language_items {
                         | Self::Owned
                         | Self::Raw
                         | Self::Borrowed
-                        | Self::Placed
                         | Self::Readonly
                 )
             }
@@ -1908,9 +1907,6 @@ define_language_items! {
         place {
             /// Placement tag kind.
             Place => (Type, "memory/place", "Place"),
-
-            /// Placement form.
-            Placed => (Newtype, "memory/place", "Placed"),
 
             /// Concrete memory space tag kind.
             Space => (Type, "memory/place", "Space"),
@@ -3700,6 +3696,7 @@ mod tests {
     fn test_roundtrip_language_item_keys() {
         let mut keys = HashSet::new();
 
+        // assert every item's key round-trips and stays unique
         for item in LanguageItem::all() {
             let key = item.key();
 

@@ -201,6 +201,14 @@ impl Type {
             )
     }
 
+    /// Return whether this type names one constant value.
+    pub fn is_constant(&self) -> bool {
+        matches!(
+            self,
+            Self::Literal(_) | Self::Variant(_) | Self::Null | Self::Undefined
+        )
+    }
+
     /// Return whether runtime values of this type can carry memory placement.
     pub fn is_placeable(&self) -> bool {
         !matches!(
@@ -374,11 +382,11 @@ impl Type {
 
     /// Collect every module id this entry mentions directly.
     ///
-    /// List and pool contents live in the segment and are scanned there;
-    /// this visits only ids embedded in the entry itself.
+    /// List and pool contents live in the segment and are scanned there.
+    /// This visits the ids embedded in the entry itself.
     pub fn referenced_modules(&self, collect: &mut impl FnMut(ModuleId)) {
+        // collect the module of every embedded id
         match self {
-            // canonical hole and rigid leaves
             // parameter and symbol heads
             Self::Erased(parameter) | Self::Parameter(parameter) => collect(parameter.module_id),
             Self::Reference(reference) => collect(reference.symbol.module_id),
@@ -1216,6 +1224,7 @@ impl StringMapping {
     fn recase(text: &str, upper: bool) -> String {
         let mut characters = text.chars();
 
+        // read the escape each character names
         match characters.next() {
             Some(first) if upper => first.to_uppercase().collect::<String>() + characters.as_str(),
             Some(first) => first.to_lowercase().collect::<String>() + characters.as_str(),
@@ -1254,7 +1263,7 @@ pub struct ConditionalType {
     pub right: GlobalTypeId,
     /// The type selected when the condition holds.
     pub then_type: GlobalTypeId,
-    /// The type selected when the condition does not hold.
+    /// The type selected when the condition fails.
     pub else_type: GlobalTypeId,
     /// Whether the conditional distributes over union-valued left operands.
     pub is_distributive: bool,
@@ -1816,6 +1825,7 @@ impl RangeType {
         let start = self.start.as_ref().and_then(Literal::interval_domain);
         let end = self.end.as_ref().and_then(Literal::interval_domain);
 
+        // require both written bounds to name one domain
         match (start, end) {
             (Some(start), Some(end)) if start == end => Some(start),
             (Some(start), None) => Some(start),
@@ -1864,12 +1874,14 @@ impl RangeType {
 
     /// Return whether this interval contains one integer literal.
     pub fn contains_integer(&self, value: i64) -> bool {
+        // test the value against the written start bound
         let start_holds = match self.start {
             Some(Literal::Integer(start)) => value >= start,
             Some(_) => false,
             None => true,
         };
 
+        // test the value against the written end bound
         let end_holds = match self.end {
             Some(Literal::Integer(end)) => {
                 if self.is_inclusive {
@@ -1887,12 +1899,14 @@ impl RangeType {
 
     /// Return whether this interval contains one bigint literal.
     pub fn contains_bigint(&self, value: i64) -> bool {
+        // test the value against the written start bound
         let start_holds = match self.start {
             Some(Literal::Bigint(start)) => value >= start,
             Some(_) => false,
             None => true,
         };
 
+        // test the value against the written end bound
         let end_holds = match self.end {
             Some(Literal::Bigint(end)) => {
                 if self.is_inclusive {
@@ -1910,12 +1924,14 @@ impl RangeType {
 
     /// Return whether this interval contains one character literal.
     pub fn contains_character(&self, value: char) -> bool {
+        // test the value against the written start bound
         let start_holds = match self.start {
             Some(Literal::Character(start)) => value >= start,
             Some(_) => false,
             None => true,
         };
 
+        // test the value against the written end bound
         let end_holds = match self.end {
             Some(Literal::Character(end)) => {
                 if self.is_inclusive {

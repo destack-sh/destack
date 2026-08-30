@@ -116,6 +116,7 @@ impl Decision {
     pub fn binding_uses(&self) -> Vec<(GlobalSymbolId, BindingUse)> {
         let mut uses = Vec::new();
 
+        // collect the uses each decision records
         match self {
             // collect member reads
             Self::Member(member) => uses.extend(

@@ -505,6 +505,7 @@ impl<'a> TypeTable<'a> {
             return &[];
         }
 
+        // search the segments from the newest backward
         for segment in self.segments.iter().rev() {
             if let Some(slice) = pool(segment).get_maybe(list) {
                 return slice;
