@@ -159,6 +159,11 @@ export extension<T: Copy> of Array<T> implements Iterable<T>, Sequence {
         todo("Array.filterMap")
     }
 
+    /// Map copied elements and flatten the results.
+    flatMap<U>(map: (value: T, index: isize) => U | ReadonlyArray<U>): ^Array<U> {
+        todo("Array.flatMap")
+    }
+
     /// Reduce copied elements from left to right.
     reduce<U>(reduce: (accumulator: U, value: T, index: isize) => U, initial: U): U {
         todo("Array.reduce")

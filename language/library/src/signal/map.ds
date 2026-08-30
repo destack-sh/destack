@@ -17,10 +17,10 @@ export type Maybe<T> = T | void | null | undefined | false;
 /// Options for reactive array mapping.
 export type MapArrayOptions<Item, Output, Key = Item> = {
     /// Identity mode or a stable key derived from each item.
-    keyed?: boolean | ^Function<(&readonly Item,), Key>;
+    keyed?: boolean | ^((item: &readonly Item) => Key);
 
     /// Value derived when the input is empty.
-    fallback?: ^Function<(), Output>;
+    fallback?: ^(() => Output);
 
     /// Diagnostic name.
     name?: string;
@@ -32,7 +32,7 @@ export type RepeatOptions<Output, From = Accessor<usize | undefined>> = {
     from?: From;
 
     /// Value derived when the count is zero.
-    fallback?: ^Function<(), Output>;
+    fallback?: ^(() => Output);
 
     /// Diagnostic name.
     name?: string;

@@ -215,6 +215,9 @@ global {
     export {
         Array,
         BinaryHeap,
+        ConcurrentMap,
+        ConcurrentQueue,
+        ConcurrentSet,
         Deque,
         FixedArray,
         LinkedList,
@@ -293,7 +296,7 @@ global {
     } from "destack:math";
 
     // destack:string
-    export { Character } from "destack:string";
+    export { Character, String } from "destack:string";
 
     // destack:decorator
     export {

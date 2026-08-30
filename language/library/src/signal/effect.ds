@@ -5,10 +5,10 @@ import { DerivationValue } from "./derive.ds";
 import { EffectOptions } from "./options.ds";
 
 /// Untracked effect applied after one derived value settles.
-export type EffectFunction<T> = Function<
-    (&readonly T, &readonly T | undefined),
-    void | ^Function<(), void, "once">
->;
+export type EffectFunction<T> = (
+    value: &readonly T,
+    previous: &readonly T | undefined,
+) => void | ^Function<(), void, "once">;
 
 /// Create an effect from one synchronous, polling, or asynchronous derivation.
 export function createEffect<Output>(

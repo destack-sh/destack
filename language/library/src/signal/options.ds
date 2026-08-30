@@ -6,13 +6,13 @@ export type SignalOptions<T> = {
     /// Equality check, or false to notify after every write.
     ///
     /// The default uses `==` for values with `PartialEqual` and otherwise notifies.
-    equals?: false | ^Function<(&readonly T, &readonly T), boolean>;
+    equals?: false | ^((left: &readonly T, right: &readonly T) => boolean);
 
     /// Whether writes inside an owner are expected.
     ownedWrite?: boolean;
 
     /// Function invoked whenever the source loses its last observer.
-    unobserved?: ^Function<(), void>;
+    unobserved?: ^(() => void);
 };
 
 /// Options for a derived memo.
@@ -29,10 +29,10 @@ export type MemoOptions<T> = {
     /// Equality check, or false to notify after every update.
     ///
     /// The default uses `==` for values with `PartialEqual` and otherwise notifies.
-    equals?: false | ^Function<(&readonly T, &readonly T), boolean>;
+    equals?: false | ^((left: &readonly T, right: &readonly T) => boolean);
 
     /// Function invoked whenever the memo loses its last observer.
-    unobserved?: ^Function<(), void>;
+    unobserved?: ^(() => void);
 
     /// Whether the memo starts on its first read and disposes when unobserved.
     lazy?: boolean;
