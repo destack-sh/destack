@@ -65,6 +65,11 @@ export class Number implements ToLocaleString {
         todo("Number.toLocaleStringDefault")
     }
 
+    /// Return this number as a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+        todo("Number.toLocaleStringLocales")
+    }
+
     /// Return this number as a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,

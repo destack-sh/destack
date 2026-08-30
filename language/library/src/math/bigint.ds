@@ -139,6 +139,11 @@ export extension of bigint
         todo("BigInt.toLocaleStringDefault")
     }
 
+    /// Return this integer as a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+        todo("BigInt.toLocaleStringLocales")
+    }
+
     /// Return this integer as a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,

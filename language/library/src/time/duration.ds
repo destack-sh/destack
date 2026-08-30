@@ -9,7 +9,7 @@ import {
     DurationToStringOptions,
     DurationTotalOf,
 } from "./option.ds";
-import { ComparisonResult } from "./unit.ds";
+import { ComparisonResult, SmallestUnit, TimeUnit } from "./unit.ds";
 
 /// Temporal duration fields.
 export type DurationFields = {
@@ -171,18 +171,29 @@ export class Duration implements ToLocaleString {
         todo("Duration.round")
     }
 
-    /// Return this duration totalled in one unit.
+    /// Return this duration totalled in one time unit.
+    total(totalOf: SmallestUnit<TimeUnit>): number {
+        todo("Duration.totalTime")
+    }
+
+    /// Return this duration totalled in one unit, relative to a date when the unit needs one.
     total(totalOf: DurationTotalOf): Result<number, TimeError> {
         todo("Duration.total")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(): MaybeOwned<string> {
+    toLocaleString(&readonly this): MaybeOwned<string> {
         todo("Duration.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+        todo("Duration.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
+        &readonly this,
         locales?: Locales,
         options?: DurationFormatOptions,
     ): Result<MaybeOwned<string>, IntlError> {

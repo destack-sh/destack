@@ -109,12 +109,18 @@ export class Instant implements ToLocaleString {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(): MaybeOwned<string> {
+    toLocaleString(&readonly this): MaybeOwned<string> {
         todo("Instant.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: Locales): Result<MaybeOwned<string>, IntlError> {
+        todo("Instant.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
+        &readonly this,
         locales?: Locales,
         options?: DateTimeFormatOptions,
     ): Result<MaybeOwned<string>, IntlError> {
