@@ -43,7 +43,7 @@ let [head, ...tail] = values;
 /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head
-/// @type.symbol symbol=tail source=tail type=Owned<int32[]>
+/// @type.symbol symbol=tail source=tail type=^int32[]
 /// @resolution.pattern source=tail kind=binding target=tail
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
@@ -57,8 +57,8 @@ head satisfies int32;
 /// @resolution.access source=head root=head
 
 tail satisfies ^int32[];
-/// @type.node source="tail satisfies ^int32[]" type=Owned<int32[]>
-/// @type.node source=tail type=Owned<int32[]>
+/// @type.node source="tail satisfies ^int32[]" type=^int32[]
+/// @type.node source=tail type=^int32[]
 /// @resolution.name source=tail target=tail
 /// @resolution.place source=tail placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tail root=tail

@@ -953,10 +953,10 @@ const broken: new (value: int32) => Counter = build;
 /// @type.symbol symbol=value#2 source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 /// @resolution.name source=build target=build
-/// @resolution.function source=build type=Function<(int32,), Counter> target=build
+/// @resolution.function source=build type=Function<(int32,), Counter, "readonly"> target=build
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '(value: int32) => Counter' is not assignable to type 'new (value: int32) => Counter'"
+/// @diagnostic.error id=not-assignable message="type 'Function<(value: int32,), Counter, \"readonly\">' is not assignable to type 'new (value: int32) => Counter'"
 /// @diagnostic.label line=13 column=47 span="build" line_source="const broken: new (value: int32) => Counter = build;"
 /// @diagnostic.related line=13 column=15 span="new (value: int32) => Counter" line_source="const broken: new (value: int32) => Counter = build;" message="expected due to this annotation"
 "#,

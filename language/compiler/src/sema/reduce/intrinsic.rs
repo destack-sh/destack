@@ -235,26 +235,33 @@ impl CheckState<'_> {
         module: ModuleId,
         instance: &dir::GenericApplication,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let [parameters, return_type, multiplicity] = self.type_ids(module, instance.arguments)?
-        else {
+        let [parameters, return_type, receiver] = self.type_ids(module, instance.arguments)? else {
             return Ok(None);
         };
 
-        let (parameters, return_type, multiplicity) = (*parameters, *return_type, *multiplicity);
-        let Some(multiplicity) = self.callable_multiplicity(origin, multiplicity)? else {
-            return Ok(None);
-        };
+        // require a receiver mode literal or an open receiver term
+        let (parameters, return_type, receiver) = (*parameters, *return_type, *receiver);
+        let receiver = self.normalize(origin, receiver)?;
+        match self.ty(receiver)? {
+            dir::Type::Literal(dir::Literal::String(text)) => {
+                if dir::ReceiverMode::from_text(text).is_none() {
+                    return Ok(None);
+                }
+            }
+            dir::Type::Variable(_) | dir::Type::Parameter(_) => {}
+            _ => return Ok(None),
+        }
 
+        // intern the fat callable over the read signature
         let Some(signature) =
             self.function_signature_from_application(origin, parameters, return_type)?
         else {
             return Ok(None);
         };
-
         let place = self.local_place()?;
         let function = dir::Type::Function(dir::FunctionType {
             signature,
-            multiplicity,
+            receiver,
             place,
         });
         let ty = self.intern_type(function)?;
@@ -284,35 +291,6 @@ impl CheckState<'_> {
         let ty = self.intern_type(function)?;
 
         Ok(Some(ty))
-    }
-
-    /// Read the invocation count a callable application selects.
-    fn callable_multiplicity(
-        &mut self,
-        origin: Origin,
-        multiplicity: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::Multiplicity>> {
-        let multiplicity = self.normalize(origin, multiplicity)?;
-
-        // the count is written as a closed string literal
-        let dir::Type::Literal(dir::Literal::String(text)) = self.ty(multiplicity)? else {
-            return Ok(None);
-        };
-
-        // read a repeatable callable
-        let multiplicity = if text == dir::StringId::for_text("repeatable") {
-            Some(dir::Multiplicity::Repeatable)
-        }
-        // read a single-invocation callable
-        else if text == dir::StringId::for_text("once") {
-            Some(dir::Multiplicity::Once)
-        }
-        // leave any other text unread
-        else {
-            None
-        };
-
-        Ok(multiplicity)
     }
 
     /// Return one signature from a callable intrinsic application's written components.

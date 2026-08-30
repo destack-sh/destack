@@ -249,7 +249,7 @@ struct Node {
     next: Box<Node> | null;
     /// @type.symbol symbol=Node.next source="next: Box<Node> | null" type=Box<Node> | null
     /// @generic.instance id=Box<Node> template=Box arguments=(Node)
-    /// @generic.instance id=Unique<Owned<Node>> template=Unique arguments=(Owned<Node>)
+    /// @generic.instance id=Unique<^Node> template=Unique arguments=(^Node)
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=Node target=Node
 
@@ -1161,7 +1161,7 @@ fn test_reject_a_clone_bound_on_a_type_argument_inferred_later() {
     let session = TestSession::single(
         r#"
 struct Blocker {
-    run: Function<(), void, "once">;
+    run: ^Function<(), void, "once">;
 }
 
 struct Holder<Value> {
@@ -1182,7 +1182,7 @@ const cloned = requireClone(hold(), holdBlocker());
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 struct Blocker {
-    run: Function<(), void, "once">;
+    run: ^Function<(), void, "once">;
 }
 
 struct Holder<out Value> {
@@ -1202,10 +1202,10 @@ const cloned: Holder<Blocker> = requireClone<Holder<Blocker>>(hold<Blocker>(), h
 struct Blocker {
 /// @type.symbol symbol=Blocker type=Blocker
 /// @definition.struct symbol=Blocker
-/// @definition.field symbol=Blocker.run source="run: Function<(), void, \"once\">" key=run type=Function<(), void, "once">
+/// @definition.field symbol=Blocker.run source="run: ^Function<(), void, \"once\">" key=run type=^Function<(), void, "once">
 
-    run: Function<(), void, "once">;
-    /// @type.symbol symbol=Blocker.run source="run: Function<(), void, \"once\">" type=Function<(), void, "once">
+    run: ^Function<(), void, "once">;
+    /// @type.symbol symbol=Blocker.run source="run: ^Function<(), void, \"once\">" type=^Function<(), void, "once">
     /// @resolution.name source=Function target=Function
 
 }
@@ -1279,7 +1279,7 @@ fn test_reject_a_clone_bound_on_a_struct_with_a_once_function_field() {
     let session = TestSession::single(
         r#"
 struct Blocker {
-    run: Function<(), void, "once">;
+    run: ^Function<(), void, "once">;
 }
 
 struct Holder<Value> {
@@ -1299,7 +1299,7 @@ const cloned = requireClone(held);
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 struct Blocker {
-    run: Function<(), void, "once">;
+    run: ^Function<(), void, "once">;
 }
 
 struct Holder<out Value> {
@@ -1318,10 +1318,10 @@ const cloned: Holder<Blocker> = requireClone<Holder<Blocker>>(held);
 struct Blocker {
 /// @type.symbol symbol=Blocker type=Blocker
 /// @definition.struct symbol=Blocker
-/// @definition.field symbol=Blocker.run source="run: Function<(), void, \"once\">" key=run type=Function<(), void, "once">
+/// @definition.field symbol=Blocker.run source="run: ^Function<(), void, \"once\">" key=run type=^Function<(), void, "once">
 
-    run: Function<(), void, "once">;
-    /// @type.symbol symbol=Blocker.run source="run: Function<(), void, \"once\">" type=Function<(), void, "once">
+    run: ^Function<(), void, "once">;
+    /// @type.symbol symbol=Blocker.run source="run: ^Function<(), void, \"once\">" type=^Function<(), void, "once">
     /// @resolution.name source=Function target=Function
 
 }

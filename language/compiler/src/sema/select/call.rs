@@ -35,6 +35,8 @@ struct CallableReceiver {
     resolution: dir::MemberReceiver,
     /// The checked receiver value used by signature selection.
     value: Value,
+    /// The per-call receiver parameter a callable value is taken through.
+    parameter: Option<dir::GlobalTypeId>,
 }
 
 /// One callable candidate collected from a callee node.
@@ -230,14 +232,19 @@ impl CheckState<'_> {
                     });
                 };
                 let candidates = match &resolution {
-                    dir::OperationResolution::One(access) => {
-                        self.member_access_candidates(origin, receiver, access, is_optional)?
-                    }
+                    dir::OperationResolution::One(access) => self.member_access_candidates(
+                        origin,
+                        callee_site,
+                        receiver,
+                        access,
+                        is_optional,
+                    )?,
                     dir::OperationResolution::Union { arms, .. } => {
                         let mut runtime_arms = SmallVec::with_capacity(arms.len());
                         for access in arms {
                             let candidates = self.member_access_candidates(
                                 origin,
+                                callee_site,
                                 receiver,
                                 access,
                                 is_optional,
@@ -286,6 +293,7 @@ impl CheckState<'_> {
     fn member_access_candidates(
         &mut self,
         origin: Origin,
+        callee: FlowSite,
         receiver: Value,
         access: &dir::MemberAccess,
         is_optional: bool,
@@ -299,7 +307,8 @@ impl CheckState<'_> {
         }
 
         // stored and computed members call through their selected value
-        let arms = self.callable_value_arms(origin, ty)?;
+        let member = self.expression_value(callee, access.ty)?;
+        let arms = self.callable_value_arms(origin, member, ty)?;
 
         Ok(arms)
     }
@@ -380,6 +389,7 @@ impl CheckState<'_> {
                     ty: candidate.receiver.ty(),
                     ..receiver
                 },
+                parameter: None,
             }),
         };
         let candidate = CallableCandidate {
@@ -460,9 +470,10 @@ impl CheckState<'_> {
             self.settle_variables(&[root], Settle::All)?;
         }
         let ty = self.shallow_resolve(ty)?;
+        let receiver = self.expression_value(callee, ty)?;
         let ty = self.strip_form(origin, ty)?;
         let ty = self.select_chain_operand(origin, ty, is_optional)?;
-        let arms = self.callable_value_arms(origin, ty)?;
+        let arms = self.callable_value_arms(origin, receiver, ty)?;
 
         Ok(Some(arms))
     }
@@ -471,6 +482,7 @@ impl CheckState<'_> {
     fn callable_value_arms(
         &mut self,
         origin: Origin,
+        receiver: Value,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[CallableArm; 2]>> {
         // distribute runtime union alternatives into independent arms
@@ -479,7 +491,7 @@ impl CheckState<'_> {
             let elements: SmallVec<[_; 8]> = self.type_ids(ty.module_id, union.elements)?.into();
             let mut arms = SmallVec::with_capacity(elements.len());
             for element in elements {
-                let nested = self.callable_value_arms(origin, element)?;
+                let nested = self.callable_value_arms(origin, receiver, element)?;
                 arms.extend(nested);
             }
 
@@ -487,7 +499,7 @@ impl CheckState<'_> {
         }
 
         // intersections contribute overload alternatives to one runtime value
-        let overloads = self.callable_value_overloads(origin, ty)?;
+        let overloads = self.callable_value_overloads(origin, receiver, ty)?;
         let mut arms = SmallVec::new();
         arms.push(CallableArm { overloads });
 
@@ -498,6 +510,7 @@ impl CheckState<'_> {
     fn callable_value_overloads(
         &mut self,
         origin: Origin,
+        receiver: Value,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[CallableCandidate; 2]>> {
         // read the arm's reduced callable head
@@ -509,7 +522,7 @@ impl CheckState<'_> {
                 self.type_ids(ty.module_id, intersection.elements)?.into();
             let mut overloads = SmallVec::with_capacity(elements.len());
             for element in elements {
-                let nested = self.callable_value_overloads(origin, element)?;
+                let nested = self.callable_value_overloads(origin, receiver, element)?;
                 overloads.extend(nested);
             }
 
@@ -519,6 +532,7 @@ impl CheckState<'_> {
         // call erased values through their apparent constraint signatures
         if let Some(constraint) = self.erased_constraint(ty)? {
             let signatures = self.apparent_signatures(constraint, SignatureFamily::Call)?;
+            let generic_arguments = self.application_generic_argument_bindings(constraint)?;
             let mut overloads = SmallVec::with_capacity(signatures.len());
             for signature in signatures {
                 overloads.push(CallableCandidate {
@@ -531,20 +545,36 @@ impl CheckState<'_> {
                     receiver: None,
                     member_space: None,
                     ty: signature.ty,
-                    generic_arguments: Vec::new(),
+                    generic_arguments: generic_arguments.clone(),
                 });
             }
 
             return Ok(overloads);
         }
 
-        // keep one candidate for an invocable value representation
+        // take a fat callable as its own receiver in one invocable candidate
         let mut overloads = SmallVec::new();
         if let Some(ty) = self.callable_type(ty)? {
+            let receiver = match self.ty(ty)? {
+                dir::Type::Function(function) => {
+                    let mode = self.receiver_mode(function.receiver)?;
+                    let callee = self.shallow_strip_forms(receiver.ty)?;
+                    let parameter = self.call_receiver_parameter(origin, callee, mode)?;
+
+                    Some(CallableReceiver {
+                        resolution: dir::MemberReceiver::Direct(dir::AdjustedReceiver::direct(
+                            receiver.ty,
+                        )),
+                        value: receiver,
+                        parameter: Some(parameter),
+                    })
+                }
+                _ => None,
+            };
             overloads.push(CallableCandidate {
                 target: CallableTarget::Expression,
                 generic_scope: None,
-                receiver: None,
+                receiver,
                 member_space: None,
                 ty,
                 generic_arguments: Vec::new(),
@@ -568,6 +598,10 @@ impl CheckState<'_> {
             candidate.ty,
             candidate.generic_scope,
             candidate.receiver.as_ref().map(|receiver| receiver.value),
+            candidate
+                .receiver
+                .as_ref()
+                .and_then(|receiver| receiver.parameter),
             &candidate.generic_arguments,
             type_arguments,
             arguments,
@@ -1070,7 +1104,18 @@ impl CheckState<'_> {
                     constraint: *constraint,
                 },
                 function: dir::DynamicFunction::CallSignature(*source),
-                generic_arguments: signature.generic_arguments.clone(),
+                // record the signature's own instantiation
+                generic_arguments: signature
+                    .generic_arguments
+                    .iter()
+                    .filter(|binding| {
+                        !candidate
+                            .generic_arguments
+                            .iter()
+                            .any(|carried| carried.parameter == binding.parameter)
+                    })
+                    .cloned()
+                    .collect(),
             },
             // drop the receiver a static member selection went through
             CallableTarget::Symbol(symbol) => {

@@ -145,3 +145,79 @@ bytes[index] += 1;
 "#,
     );
 }
+
+/// A scalar written into an `unknown` element erases behind the element's handle.
+#[test]
+fn test_write_a_scalar_into_an_unknown_array_element() {
+    let session = TestSession::single(
+        r#"
+function copy(target: &exclusive unknown[], source: &readonly int32[]): void {
+    for (let index: isize = 0; index < source.length; index++) {
+        target[index] = source[index];
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function copy<'a, 'b>(target: &'a exclusive unknown[], source: &'b readonly int32[]): void {
+    for (let index: isize = 0; index < source.length; index++) {
+        target[index] = source[index] as Managed<unknown, 'a>;
+    }
+}
+
+=== dir ===
+function copy(target: &exclusive unknown[], source: &readonly int32[]): void {
+/// @generic.template symbol=copy parameters=('a, 'b)
+/// @type.symbol symbol=copy type=<copy.'a, copy.'b>(&copy.'a exclusive unknown[], &copy.'b readonly int32[]) => void
+/// @type.symbol symbol=copy.target source="target: &exclusive unknown[]" type=&copy.'a exclusive unknown[]
+/// @type.symbol symbol=copy.source source="source: &readonly int32[]" type=&copy.'b readonly int32[]
+
+    for (let index: isize = 0; index < source.length; index++) {
+    /// @type.symbol symbol=copy.index source=index type=isize
+    /// @resolution.pattern source=index kind=binding target=copy.index
+    /// @resolution.name source=index target=copy.index
+    /// @resolution.operator source="index < source.length" type=boolean operator="<" kind=builtin operands=[index as isize families=(integer), source.length as isize families=(integer)]
+    /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=index root=copy.index
+    /// @resolution.name source=source target=copy.source
+    /// @resolution.member source=source.length receiver=&copy.'b readonly int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+    /// @resolution.place source=source placement=copy.'b lifetime=copy.'b access="readonly"
+    /// @resolution.access source=source root=copy.source
+    /// @generic.instantiation id=length<int32> template=length arguments=(int32)
+    /// @resolution.name source=index target=copy.index
+    /// @resolution.assignment source=index read=binding(copy.index) write=binding(copy.index) type=isize
+    /// @resolution.access source=index root=copy.index
+    /// @resolution.operator source=index++ type=isize operator="++" kind=builtin operands=[index as isize families=(integer)]
+
+        target[index] = source[index];
+        /// @resolution.name source=target target=copy.target
+        /// @resolution.place source=target placement=copy.'a lifetime=copy.'a access="exclusive"
+        /// @resolution.access source=target root=copy.target
+        /// @resolution.pattern.assign source=target[index] kind=place
+        /// @resolution.assignment source=target[index] write="indexSet(parameters=(isize, Managed<unknown, copy.'a>), arguments=(provided(index) as isize, write as Managed<unknown, copy.'a>), return=void)" type=Managed<unknown, copy.'a>
+        /// @generic.instantiation id=indexSet<unknown> template=indexSet arguments=(unknown)
+        /// @resolution.name source=index target=copy.index
+        /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=index root=copy.index
+        /// @resolution.name source=source target=copy.source
+        /// @resolution.place source=source placement=copy.'b lifetime=copy.'b access="readonly"
+        /// @resolution.access source=source root=copy.source
+        /// @resolution.place source=source[index] placement=copy.'b lifetime=copy.'b access="readonly"
+        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<&copy.'b int32, \"readonly\">)"
+        /// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
+        /// @resolution.name source=index target=copy.index
+        /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=index root=copy.index
+
+    }
+}
+"#,
+        r#"
+"#,
+    );
+}

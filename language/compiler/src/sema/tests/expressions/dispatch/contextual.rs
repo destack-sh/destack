@@ -31,11 +31,11 @@ class Bag<T> {
     /// @type.symbol symbol=Bag.values source="values: T[] = Array.new()" type=T[]
     /// @resolution.name source=T target=Bag.T
     /// @type.node source=Array type=Array
-    /// @type.node source=Array.new type=() => Owned<T#5[]>
-    /// @type.node source=Array.new() type=Owned<T[]>
+    /// @type.node source=Array.new type=() => ^T#5[]
+    /// @type.node source=Array.new() type=^T[]
     /// @resolution.name source=Array target=Array
-    /// @resolution.member source=Array.new receiver=Array type=() => Owned<T#5[]> kind=symbol target_receiver=Array target=new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<T[]> kind=symbol target=new instance=Array<T>.<extension#5>.new
+    /// @resolution.member source=Array.new receiver=Array type=() => ^T#5[] kind=symbol target_receiver=Array target=new
+    /// @resolution.call source=Array.new() parameters=() return=^T[] kind=symbol target=new instance=Array<T>.<extension#5>.new
     /// @generic.instantiation id=new<T> template=new arguments=(T) owner=Bag
 
 }
@@ -75,11 +75,11 @@ function build(): void {
     /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
     /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
     /// @type.node source=Array type=Array
-    /// @type.node source=Array.new type=() => Owned<T#5[]>
-    /// @type.node source=Array.new() type=Owned<int32[]>
+    /// @type.node source=Array.new type=() => ^T#5[]
+    /// @type.node source=Array.new() type=^int32[]
     /// @resolution.name source=Array target=Array
-    /// @resolution.member source=Array.new receiver=Array type=() => Owned<T#5[]> kind=symbol target_receiver=Array target=new
-    /// @resolution.call source=Array.new() parameters=() return=Owned<int32[]> kind=symbol target=new instance=Array<int32>.<extension#5>.new
+    /// @resolution.member source=Array.new receiver=Array type=() => ^T#5[] kind=symbol target_receiver=Array target=new
+    /// @resolution.call source=Array.new() parameters=() return=^int32[] kind=symbol target=new instance=Array<int32>.<extension#5>.new
     /// @generic.instantiation id=new<int32> template=new arguments=(int32)
     /// @generic.instance id=new<int32> template=new arguments=(int32)
 
@@ -294,14 +294,14 @@ function values(entries: { value: int32 }[]): int32[] {
 
     return entries.map(({ value }) => value);
     /// @resolution.name source=entries target=values.entries
-    /// @resolution.member source=entries.map receiver={ value: int32 }[] type=<map.U#2, map#2.P1: Place>(this: Managed<{ value: int32 }[], map#2.P1>, Function<({ value: int32 }, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver={ value: int32 }[] target=map#2
-    /// @resolution.call source="entries.map(({ value }) => value)" parameters=(Function<({ value: int32 }, isize), int32>) arguments=(provided(({ value }) => value) as Function<({ value: int32 }, isize), int32>) return=Owned<int32[]> kind=symbol target=map#2 receiver={ value: int32 }[] instance="Array<{ value: int32 }>.<extension#3>.map#2<int32, \"local\">"
+    /// @resolution.member source=entries.map receiver={ value: int32 }[] type=<map.U#2, map#2.P1: Place>(this: Managed<{ value: int32 }[], map#2.P1>, Function<({ value: int32 }, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver={ value: int32 }[] target=map#2
+    /// @resolution.call source="entries.map(({ value }) => value)" parameters=(Function<({ value: int32 }, isize), int32>) arguments=(provided(({ value }) => value) as Function<({ value: int32 }, isize), int32>) return=^int32[] kind=symbol target=map#2 receiver={ value: int32 }[] instance="Array<{ value: int32 }>.<extension#3>.map#2<int32, \"local\">"
     /// @resolution.place source=entries placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=entries root=values.entries
     /// @generic.instantiation id="map#2<{ value: int32 }, int32, \"local\">" template=map#2 arguments=({ value: int32 }, int32, "local")
     /// @generic.instantiation id="map#2<{ value: int32 }>" template=map#2 arguments=({ value: int32 })
     /// @generic.instance id="map#2<{ value: int32 }, int32, \"local\">" template=map#2 arguments=({ value: int32 }, int32, "local")
-    /// @type.symbol symbol=values.symbol5 source="({ value }) => value" type=Function<({ value: int32 },), int32>
+    /// @type.symbol symbol=values.symbol5 source="({ value }) => value" type=Function<({ value: int32 },), int32, "readonly">
     /// @resolution.pattern source={ value } kind=object fields={ value }
     /// @type.symbol symbol=values.symbol5.value source=value type=int32
     /// @resolution.name source=value target=values.symbol5.value
@@ -347,14 +347,14 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
 
     return values.map((value) => value!);
     /// @resolution.name source=values target=unwrap.values
-    /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=map#2
-    /// @resolution.call source="values.map((value) => value!)" parameters=(Function<(int32 | undefined, isize), int32>) arguments=(provided((value) => value!) as Function<(int32 | undefined, isize), int32>) return=Owned<int32[]> kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32, \"local\">"
+    /// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32 | undefined[] target=map#2
+    /// @resolution.call source="values.map((value) => value!)" parameters=(Function<(int32 | undefined, isize), int32>) arguments=(provided((value) => value!) as Function<(int32 | undefined, isize), int32>) return=^int32[] kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32, \"local\">"
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=unwrap.values
     /// @generic.instantiation id="map#2<int32 | undefined, int32, \"local\">" template=map#2 arguments=(int32 | undefined, int32, "local")
     /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
     /// @generic.instance id="map#2<int32 | undefined, int32, \"local\">" template=map#2 arguments=(int32 | undefined, int32, "local")
-    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined,), int32>
+    /// @type.symbol symbol=unwrap.symbol3 source="(value) => value!" type=Function<(int32 | undefined,), int32, "readonly">
     /// @type.symbol symbol=unwrap.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=unwrap.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

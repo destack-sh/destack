@@ -314,6 +314,12 @@ impl CheckState<'_> {
                     let Some(found) = found else {
                         continue;
                     };
+
+                    // skip a candidate whose parameter list shape differs from the requirement
+                    if !self.signature_shapes_match(found, required)? {
+                        continue;
+                    }
+
                     let decision = self.relate_member(
                         origin,
                         Relation::Storable,

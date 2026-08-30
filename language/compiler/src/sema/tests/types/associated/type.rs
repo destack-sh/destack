@@ -515,3 +515,126 @@ type EventLabel = Message<"orders">.Label<"created">;
 "#,
     );
 }
+
+/// Store a numeric literal into a projection of a parameter the call infers later.
+#[test]
+fn test_store_a_numeric_literal_into_a_projection_of_an_inferred_parameter() {
+    let session = TestSession::single(
+        r#"
+interface Producing {
+    type Output;
+
+    produce(): this.Output;
+}
+
+class Factory implements Producing {
+    type Output = int32;
+
+    produce(): this.Output {
+        return 7;
+    }
+}
+
+function take<F: Producing>(initial: F.Output, factory: F): F.Output {
+    return initial;
+}
+
+const taken = take(0, new Factory());
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+interface Producing {
+    type Output;
+
+    produce(): this.Output;
+}
+
+class Factory implements Producing {
+    type Output = int32;
+
+    produce(): this.Output {
+        return 7;
+    }
+}
+
+function take<F: Producing>(initial: F.Output, factory: F): F.Output {
+    return initial;
+}
+
+const taken: int32 = take<Factory>(0, new Factory());
+
+=== dir ===
+interface Producing {
+/// @type.symbol symbol=Producing type=Producing
+/// @definition.interface symbol=Producing
+/// @definition.where symbol=Producing relation=satisfies left=this right=Producing
+/// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: Producing) => Producing.Output
+
+    type Output;
+
+    produce(): this.Output;
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: Producing) => Producing.Output
+
+}
+
+class Factory implements Producing {
+/// @type.symbol symbol=Factory type=Factory
+/// @definition.class symbol=Factory
+/// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
+/// @definition.implements symbol=Factory source=Producing target=Producing
+/// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
+/// @definition.method symbol=Factory.produce slot=produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
+/// @definition.conformance symbol=Factory member=Factory.Output requirement=Producing.Output
+/// @definition.conformance symbol=Factory member=Factory.produce requirement=Producing.produce
+/// @resolution.name source=Producing target=Producing
+
+    type Output = int32;
+    /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
+
+    produce(): this.Output {
+    /// @generic.template symbol=Factory.produce parent=template#1 parameters=(P0: Place)
+    /// @type.symbol symbol=Factory.produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
+    /// @type.symbol symbol=Factory.produce.this type=Managed<Factory, Factory.produce.P0>
+
+        return 7;
+    }
+}
+
+function take<F: Producing>(initial: F.Output, factory: F): F.Output {
+/// @generic.template symbol=take parameters=(F: Producing)
+/// @type.symbol symbol=take type=<F: Producing>(F.Output, F) => F.Output
+/// @type.symbol symbol=take.F source="F: Producing" type=F
+/// @resolution.name source=Producing target=Producing
+/// @type.symbol symbol=take.initial source="initial: F.Output" type=F.Output
+/// @resolution.name source=F.Output target=take.F
+/// @resolution.path source=F.Output index=1 target=Producing.Output
+/// @type.symbol symbol=take.factory source="factory: F" type=F
+/// @resolution.name source=F target=take.F
+/// @resolution.name source=F.Output target=take.F
+/// @resolution.path source=F.Output index=1 target=Producing.Output
+
+    return initial;
+    /// @resolution.name source=initial target=take.initial
+    /// @resolution.place source=initial placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=initial root=take.initial
+
+}
+
+const taken = take(0, new Factory());
+/// @type.symbol symbol=taken source=taken type=int32
+/// @resolution.pattern source=taken kind=binding target=taken
+/// @resolution.name source=take target=take
+/// @resolution.call source="take(0, new Factory())" parameters=(int32, Factory) arguments=(provided(0) as int32, provided(new Factory()) as Factory) return=int32 kind=symbol target=take instance=take<Factory>
+/// @generic.instantiation id=take<Factory> template=take arguments=(Factory)
+/// @generic.instance id=take<Factory> template=take arguments=(Factory) evaluated=(F.Output => int32)
+/// @resolution.construct source="new Factory()" parameters=() return=Factory kind=class target=Factory constructor=default
+/// @resolution.name source=Factory target=Factory
+"#,
+    );
+}

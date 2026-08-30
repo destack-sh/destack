@@ -24,7 +24,7 @@ extension<T: Copy> of Wrapper<T> {
 === annotated ===
 import { Promise } from "destack:async";
 
-newtype Wrapper<in out T: Copy> = Promise<T>;
+newtype Wrapper<out T: Copy> = Promise<T>;
 
 extension<T: Copy> of Wrapper<T> {
     async take(): Promise<T> {
@@ -37,9 +37,9 @@ extension<T: Copy> of Wrapper<T> {
 import { Promise } from "destack:async";
 
 newtype Wrapper<T: Copy> = Promise<T>;
-/// @generic.template symbol=Wrapper parameters=(in out T#1: Copy)
+/// @generic.template symbol=Wrapper parameters=(out T#1: Copy)
 /// @type.symbol symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" type=Wrapper
-/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" template=(in out T#1: Copy) backing=Promise<T#1> constructors=[<T#1: Copy>(Promise<T#1>) => Wrapper<T#1>]
+/// @definition.newtype symbol=Wrapper source="newtype Wrapper<T: Copy> = Promise<T>" template=(out T#1: Copy) backing=Promise<T#1> constructors=[<T#1: Copy>(Promise<T#1>) => Wrapper<T#1>]
 /// @type.symbol symbol=Wrapper.T source="T: Copy" type=T#1
 /// @resolution.name source=Copy target=Copy
 /// @resolution.name source=Promise target=Promise

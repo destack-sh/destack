@@ -566,3 +566,42 @@ total += bonus;
 /// @resolution.access source=bonus root=bonus
 "#);
 }
+
+/// A string literal on the left of `+` dispatches through the string protocol.
+#[test]
+fn test_add_a_string_literal_receiver_to_a_string() {
+    let session = TestSession::single(
+        r#"
+function wrap(text: string): string {
+    return "[" + text + "]";
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function wrap(text: string): string {
+    return ("[" + text + "]") as string;
+}
+
+=== dir ===
+function wrap(text: string): string {
+/// @type.symbol symbol=wrap type=(string) => string
+/// @type.symbol symbol=wrap.text source="text: string" type=string
+
+    return "[" + text + "]";
+    /// @resolution.operator source="\"[\" + text + \"]\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("]") as string) return=^string kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly ^string))
+    /// @resolution.operator source="\"[\" + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string kind=symbol target=add receiver="[" adjustments=(borrow(&'frame readonly "["))
+    /// @resolution.name source=text target=wrap.text
+    /// @resolution.place source=text placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=text root=wrap.text
+
+}
+"#,
+        r#"
+"#,
+    );
+}

@@ -58,61 +58,97 @@ function invokeReadonly(run: &readonly Function<(), void>): void {
             .without_reference_types(),
         r#"
 === annotated ===
-function invokeReadonly<'a>(run: &'a readonly (() => void)): void {
+function invokeReadonly<'a>(run: &'a readonly Function<(), void>): void {
     run();
 }
 
 === dir ===
 function invokeReadonly(run: &readonly Function<(), void>): void {
-/// @generic.template symbol=invokeReadonly parameters=('a, P1: Place)
-/// @type.symbol symbol=invokeReadonly type=<invokeReadonly.'a, invokeReadonly.P1: Place>(&invokeReadonly.'a readonly Function<(), void>) => void
+/// @generic.template symbol=invokeReadonly parameters=('a)
+/// @type.symbol symbol=invokeReadonly type=<invokeReadonly.'a>(&invokeReadonly.'a readonly Function<(), void>) => void
 /// @type.symbol symbol=invokeReadonly.run source="run: &readonly Function<(), void>" type=&invokeReadonly.'a readonly Function<(), void>
 /// @resolution.name source=Function target=Function
 
     run();
     /// @type.node source=run() type=void
     /// @resolution.name source=run target=invokeReadonly.run
-    /// @resolution.call source=run() parameters=() return=void kind=expression target=expression receiver=&invokeReadonly.'a readonly Function<(), void>
-    /// @resolution.place source=run placement=invokeReadonly.P1 lifetime=invokeReadonly.'a access="readonly"
+    /// @resolution.call source=run() parameters=() return=void kind=expression target=expression
+    /// @resolution.place source=run placement=invokeReadonly.'a lifetime=invokeReadonly.'a access="readonly"
     /// @resolution.access source=run root=invokeReadonly.run
 
 }
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Function<(), void>' is not assignable to the callable's required access '&Function<(), void>'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Function<(), void>' is not assignable to the method's 'this' type '&exclusive local Function<(), void>'"
 /// @diagnostic.label line=3 column=5 span="run()" line_source="run();"
 "#,
     );
 }
 
-/// Reject a once function without an owned environment.
+/// Reject calling an owned-receiver callable through a managed handle or a borrow.
 #[test]
-fn test_reject_managed_once_function_type() {
+fn test_reject_calling_an_owned_callable_through_a_handle() {
     let session = TestSession::single(
         r#"
-type Invalid = Function<(), void, "once">;
+declare const owned: ^Function<(), void, "once">;
+declare const handle: Function<(), void, "once">;
+declare const borrowed: &readonly Function<(), void, "once">;
+
+owned();
+handle();
+borrowed();
 "#,
     );
 
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
-        r#"
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-type Invalid = Function<(), void, "once">;
+declare const owned: ^Function<(), void, "once">;
+declare const handle: () => void;
+declare const borrowed: &'static readonly Function<(), void, "once">;
+
+owned();
+handle();
+borrowed();
 
 === dir ===
-type Invalid = Function<(), void, "once">;
-/// @type.symbol symbol=Invalid source="type Invalid = Function<(), void, \"once\">" type=Function<(), void, "once">
-/// @definition.type symbol=Invalid source="type Invalid = Function<(), void, \"once\">" value=Function<(), void, "once">
+declare const owned: ^Function<(), void, "once">;
+/// @type.symbol symbol=owned source=owned type=^Function<(), void, "once">
+/// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Function target=Function
-"#,
-        r#"
-/// @diagnostic.error id=once-function-requires-owned message="a once Function requires an owned environment"
-/// @diagnostic.label line=2 column=16 span="Function<(), void, \"once\">" line_source="type Invalid = Function<(), void, \"once\">;"
-/// @diagnostic.help message="use '^Function<(), void, \"once\">'"
-"#,
-    );
+
+declare const handle: Function<(), void, "once">;
+/// @type.symbol symbol=handle source=handle type=Function<(), void, "once">
+/// @resolution.pattern source=handle kind=binding target=handle
+/// @resolution.name source=Function target=Function
+
+declare const borrowed: &readonly Function<(), void, "once">;
+/// @type.symbol symbol=borrowed source=borrowed type=&'static readonly constant Function<(), void, "once">
+/// @resolution.pattern source=borrowed kind=binding target=borrowed
+/// @resolution.name source=Function target=Function
+
+owned();
+/// @resolution.name source=owned target=owned
+/// @resolution.call source=owned() parameters=() return=void kind=expression target=expression
+/// @resolution.place source=owned placement="local" lifetime="static" access="readonly"
+/// @resolution.access source=owned root=owned
+
+handle();
+/// @resolution.name source=handle target=handle
+/// @resolution.call source=handle() parameters=() return=void kind=expression target=expression
+/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=handle root=handle
+
+borrowed();
+/// @resolution.name source=borrowed target=borrowed
+/// @resolution.call source=borrowed() parameters=() return=void kind=expression target=expression
+/// @resolution.place source=borrowed placement="constant" lifetime="static" access="readonly"
+/// @resolution.access source=borrowed root=borrowed
+"#, r#"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type 'Function<(), void, \"once\">' is not assignable to the method's 'this' type '^Function<(), void, \"once\">'"
+/// @diagnostic.label line=7 column=1 span="handle()" line_source="handle();"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'static readonly constant Function<(), void, \"once\">' is not assignable to the method's 'this' type '^Function<(), void, \"once\">'"
+/// @diagnostic.label line=8 column=1 span="borrowed()" line_source="borrowed();"
+"#);
 }
 
 /// Select the first callable member whose where clauses hold.
@@ -157,9 +193,9 @@ interface InvocationKind<in out T> {
 /// @type.symbol symbol=InvocationKind type=InvocationKind
 /// @definition.interface symbol=InvocationKind template=(in out T)
 /// @definition.where symbol=InvocationKind relation=satisfies left=this right=InvocationKind<T>
-/// @definition.signature kind=call source="(): \"copy\" where T: Copy" type=Function<(), "copy">
 /// @definition.signature kind=call source="(): \"affine\"" type=Function<(), "affine">
-/// @type.symbol symbol=InvocationKind.T source=T type=T
+/// @definition.signature kind=call source="(): \"copy\" where T: Copy" type=Function<(), "copy">
+/// @type.symbol symbol=InvocationKind.T source="in out T" type=T
 
     (): "copy" where T: Copy;
     /// @resolution.name source=T target=InvocationKind.T
@@ -184,7 +220,7 @@ const copy = copyKind();
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=copyKind() type="copy"
 /// @resolution.name source=copyKind target=copyKind
-/// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target="call((): \"copy\")" receiver=InvocationKind<int32> constraint=InvocationKind<int32>
+/// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target="call((): \"copy\" where T: Copy)" receiver=InvocationKind<int32> constraint=InvocationKind<int32>
 /// @resolution.place source=copyKind placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=copyKind root=copyKind
 
@@ -207,8 +243,8 @@ fn test_callable_union_invokes_every_runtime_arm() {
     let session = TestSession::single(
         r#"
 declare const transform:
-    Function<(string,), "left"> |
-    Function<(string,), "right">;
+    Function<(string,), "left", "readonly"> |
+    Function<(string,), "right", "readonly">;
 
 const result = transform("value");
 "#,
@@ -221,21 +257,23 @@ const result = transform("value");
             .without_reference_types(),
         r#"
 === annotated ===
-declare const transform: Function<(string,), "left"> | Function<(string,), "right">;
+declare const transform:
+    | Function<(string,), "left", "readonly">
+    | Function<(string,), "right", "readonly">;
 
 const result: "left" | "right" = transform("value");
 
 === dir ===
 declare const transform:
-/// @type.symbol symbol=transform source=transform type=Function<(string,), "left"> | Function<(string,), "right">
+/// @type.symbol symbol=transform source=transform type=Function<(string,), "left", "readonly"> | Function<(string,), "right", "readonly">
 /// @resolution.pattern source=transform kind=binding target=transform
-/// @generic.instance id="Function<(string,), \"left\", \"repeatable\">" template=Function arguments=((string,), "left", "repeatable")
-/// @generic.instance id="Function<(string,), \"right\", \"repeatable\">" template=Function arguments=((string,), "right", "repeatable")
+/// @generic.instance id="Function<(string,), \"left\", \"readonly\">" template=Function arguments=((string,), "left", "readonly")
+/// @generic.instance id="Function<(string,), \"right\", \"readonly\">" template=Function arguments=((string,), "right", "readonly")
 
-    Function<(string,), "left"> |
+    Function<(string,), "left", "readonly"> |
     /// @resolution.name source=Function target=Function
 
-    Function<(string,), "right">;
+    Function<(string,), "right", "readonly">;
     /// @resolution.name source=Function target=Function
 
 const result = transform("value");
@@ -256,8 +294,8 @@ fn test_callable_union_ignores_expected_return_in_every_runtime_arm() {
     let session = TestSession::single(
         r#"
 declare const transform:
-    (Function<(int32,), "common"> & Function<(int32,), "left">) |
-    (Function<(int32,), "common"> & Function<(int32,), "right">);
+    (Function<(int32,), "common", "readonly"> & Function<(int32,), "left", "readonly">) |
+    (Function<(int32,), "common", "readonly"> & Function<(int32,), "right", "readonly">);
 
 const result: "left" | "right" = transform(1);
 "#,
@@ -271,21 +309,21 @@ const result: "left" | "right" = transform(1);
         r#"
 === annotated ===
 declare const transform:
-    | Function<(int32,), "common"> & Function<(int32,), "left">
-    | Function<(int32,), "common"> & Function<(int32,), "right">;
+    | Function<(int32,), "common", "readonly"> & Function<(int32,), "left", "readonly">
+    | Function<(int32,), "common", "readonly"> & Function<(int32,), "right", "readonly">;
 
 const result: "left" | "right" = transform(1);
 
 === dir ===
 declare const transform:
-/// @type.symbol symbol=transform source=transform type=Function<(int32,), "common"> & Function<(int32,), "left"> | Function<(int32,), "common"> & Function<(int32,), "right">
+/// @type.symbol symbol=transform source=transform type=Function<(int32,), "common", "readonly"> & Function<(int32,), "left", "readonly"> | Function<(int32,), "common", "readonly"> & Function<(int32,), "right", "readonly">
 /// @resolution.pattern source=transform kind=binding target=transform
 
-    (Function<(int32,), "common"> & Function<(int32,), "left">) |
+    (Function<(int32,), "common", "readonly"> & Function<(int32,), "left", "readonly">) |
     /// @resolution.name source=Function target=Function
     /// @resolution.name source=Function target=Function
 
-    (Function<(int32,), "common"> & Function<(int32,), "right">);
+    (Function<(int32,), "common", "readonly"> & Function<(int32,), "right", "readonly">);
     /// @resolution.name source=Function target=Function
     /// @resolution.name source=Function target=Function
 
@@ -510,7 +548,7 @@ const add: Adder = (left: int32, right: int32): int32 => left + right;
 /// @type.symbol symbol=add source=add type=Adder
 /// @resolution.pattern source=add kind=binding target=add
 /// @resolution.name source=Adder target=Adder
-/// @type.symbol symbol=symbol5 source="(left: int32, right: int32): int32 => left + right" type=Function<(int32, int32), int32>
+/// @type.symbol symbol=symbol5 source="(left: int32, right: int32): int32 => left + right" type=Function<(int32, int32), int32, "readonly">
 /// @type.symbol symbol=symbol5.left source="left: int32" type=int32
 /// @type.symbol symbol=symbol5.right source="right: int32" type=int32
 /// @resolution.name source=left target=symbol5.left
@@ -523,3 +561,148 @@ const add: Adder = (left: int32, right: int32): int32 => left + right;
 "#,
     );
 }
+
+/// Reject a closure writing a capture where the callback slot takes its receiver readonly.
+#[test]
+fn test_reject_a_capture_writing_closure_in_a_readonly_callback_slot() {
+    let session = TestSession::single(
+        r#"
+declare function visit(callback: Function<(int32,), void, "readonly">): void;
+
+function total(values: int32[]): int32 {
+    let sum = 0;
+    visit((value) => {
+        sum += value;
+    });
+    return sum;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+declare function visit(callback: (arg0: int32) => void): void;
+
+function total(values: int32[]): int32 {
+    let sum: int32 = 0;
+    visit((value: int32): void => {
+        sum += value;
+    });
+    return sum;
+}
+
+=== dir ===
+declare function visit(callback: Function<(int32,), void, "readonly">): void;
+/// @type.symbol symbol=visit source="declare function visit(callback: Function<(int32,), void, \"readonly\">): void" type=(Function<(int32,), void, "readonly">) => void
+/// @type.symbol symbol=visit.callback source="callback: Function<(int32,), void, \"readonly\">" type=Function<(int32,), void, "readonly">
+/// @resolution.name source=Function target=Function
+
+function total(values: int32[]): int32 {
+/// @type.symbol symbol=total type=(int32[]) => int32
+/// @type.symbol symbol=total.values source="values: int32[]" type=int32[]
+
+    let sum = 0;
+    /// @type.symbol symbol=total.sum source=sum type=int32
+    /// @resolution.pattern source=sum kind=binding target=total.sum
+
+    visit((value) => {
+    /// @resolution.name source=visit target=visit
+    /// @resolution.call parameters=(Function<(int32,), void, "readonly">) arguments=(provided(argument) as Function<(int32,), void, "readonly">) return=void kind=symbol target=visit
+    /// @type.symbol symbol=total.symbol6 type=Function<(int32,), void, "mutable">
+    /// @type.symbol symbol=total.symbol6.value source=value type=int32
+
+        sum += value;
+        /// @resolution.name source=sum target=total.sum
+        /// @resolution.operator source="sum += value" type=int32 operator="+" kind=builtin operands=[sum as int32 families=(integer), value as int32 families=(integer)]
+        /// @resolution.pattern.assign source=sum kind=place
+        /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=sum read=binding(total.sum) write=binding(total.sum) type=int32
+        /// @resolution.access source=sum root=total.sum
+        /// @resolution.name source=value target=total.symbol6.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=total.symbol6.value
+
+    });
+    return sum;
+    /// @resolution.name source=sum target=total.sum
+    /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=sum root=total.sum
+
+}
+"#, r#"
+/// @diagnostic.error id=not-assignable message="type '\"mutable\"' is not assignable to type '\"readonly\"'"
+/// @diagnostic.label line=6 column=11 span="(value) => {\n        sum += value;\n    }" line_source="visit((value) => {"
+"#);
+}
+
+/// Accept a closure writing a capture where the callback slot elides its receiver.
+#[test]
+fn test_accept_a_capture_writing_closure_in_an_elided_callback_slot() {
+    let session = TestSession::single(
+        r#"
+declare function visit(callback: (value: int32) => void): void;
+
+function total(values: int32[]): int32 {
+    let sum = 0;
+    visit((value) => {
+        sum += value;
+    });
+    return sum;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+declare function visit(callback: (arg0: int32) => void): void;
+
+function total(values: int32[]): int32 {
+    let sum: int32 = 0;
+    visit((value: int32): void => {
+        sum += value;
+    });
+    return sum;
+}
+
+=== dir ===
+declare function visit(callback: (value: int32) => void): void;
+/// @type.symbol symbol=visit source="declare function visit(callback: (value: int32) => void): void" type=(Function<(int32,), void>) => void
+/// @type.symbol symbol=visit.callback source="callback: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=visit.value source="value: int32" type=int32
+
+function total(values: int32[]): int32 {
+/// @type.symbol symbol=total type=(int32[]) => int32
+/// @type.symbol symbol=total.values source="values: int32[]" type=int32[]
+
+    let sum = 0;
+    /// @type.symbol symbol=total.sum source=sum type=int32
+    /// @resolution.pattern source=sum kind=binding target=total.sum
+
+    visit((value) => {
+    /// @resolution.name source=visit target=visit
+    /// @resolution.call parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=void kind=symbol target=visit
+    /// @type.symbol symbol=total.symbol7 type=Function<(int32,), void, "mutable">
+    /// @type.symbol symbol=total.symbol7.value source=value type=int32
+
+        sum += value;
+        /// @resolution.name source=sum target=total.sum
+        /// @resolution.operator source="sum += value" type=int32 operator="+" kind=builtin operands=[sum as int32 families=(integer), value as int32 families=(integer)]
+        /// @resolution.pattern.assign source=sum kind=place
+        /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=sum read=binding(total.sum) write=binding(total.sum) type=int32
+        /// @resolution.access source=sum root=total.sum
+        /// @resolution.name source=value target=total.symbol7.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=total.symbol7.value
+
+    });
+    return sum;
+    /// @resolution.name source=sum target=total.sum
+    /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=sum root=total.sum
+
+}
+"#, r#""#);
+}
+
+

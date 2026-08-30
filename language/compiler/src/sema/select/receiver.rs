@@ -408,6 +408,103 @@ impl CheckState<'_> {
         }))?))
     }
 
+    /// Return the mode one callable value's receiver term names.
+    ///
+    /// An open term reads as a readonly borrow.
+    pub(in crate::sema) fn receiver_mode(
+        &self,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::ReceiverMode> {
+        let receiver = self.shallow_resolve(receiver)?;
+        match self.ty(receiver)? {
+            dir::Type::Literal(dir::Literal::String(text)) => dir::ReceiverMode::from_text(text)
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("receiver term {receiver:?} names an unknown mode"),
+                }),
+            dir::Type::Variable(_) => Ok(dir::ReceiverMode::Borrowed(dir::Access::Readonly)),
+            other => Err(CompilerError::Internal {
+                message: format!("receiver term {receiver:?} is a {other:?}"),
+            }),
+        }
+    }
+
+    /// Return the receiver mode literal one callable value writes.
+    pub(in crate::sema) fn receiver_literal(
+        &mut self,
+        mode: dir::ReceiverMode,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let value = self.strings().intern(mode.text());
+
+        self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
+    }
+
+    /// Return the receiver parameter one call takes a callable value through.
+    pub(in crate::sema) fn call_receiver_parameter(
+        &mut self,
+        origin: Origin,
+        callee: dir::GlobalTypeId,
+        mode: dir::ReceiverMode,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match mode.access() {
+            // take an already owned callee as written and own any other
+            None => {
+                let owned = self.normalize(origin, callee)?;
+                if matches!(self.ty(owned)?, dir::Type::Form(form) if form.form == dir::Form::Owned)
+                {
+                    return Ok(callee);
+                }
+
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Owned,
+                    value: callee,
+                }))
+            }
+
+            // borrow the callee for the call from the place the receiver solves
+            Some(access) => {
+                let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
+                let place = self.open_memory_type(origin, dir::MemoryParameter::Place)?;
+                let region = self.intern_region(lifetime, place)?;
+                let access = self.access_literal(access)?;
+                let form = self.intern_borrow(region, access)?;
+
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form,
+                    value: callee,
+                }))
+            }
+        }
+    }
+
+    /// Relate one callable value's receiver term to the receiver mode its slot takes.
+    pub(in crate::sema) fn constrain_receiver_mode(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        // decide two closed modes by what the slot grants
+        let source_resolved = self.shallow_resolve(source)?;
+        let target_resolved = self.shallow_resolve(target)?;
+        let is_closed = self.root_variable(source_resolved)?.is_none()
+            && self.root_variable(target_resolved)?.is_none();
+        if is_closed {
+            let source_mode = self.receiver_mode(source_resolved)?;
+            let target_mode = self.receiver_mode(target_resolved)?;
+
+            return Ok(Verdict::decided(target_mode.grants(source_mode)));
+        }
+
+        // admit every open term into an owned slot
+        if self.receiver_mode(target_resolved)? == dir::ReceiverMode::Owned {
+            return Ok(Verdict::Holds);
+        }
+
+        // bound the value's requirement by the mode its slot grants
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        self.constrain_type(origin, cause, Relation::Storable, source, target)
+    }
+
     /// Return the strongest access the found members require of their receiver.
     fn required_access(
         &mut self,

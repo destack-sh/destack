@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_keep_sibling_conformances_beside_a_borrowed_interface_argument() {
     let session = TestSession::single(
         r#"
-import { Add, Hash } from "destack:ops";
+import { Add, Hash, Hasher } from "destack:ops";
 
 class Foo {}
 
@@ -16,9 +16,7 @@ extension of Foo implements Add<&readonly Foo>, Hash {
         return new Foo();
     }
 
-    hash(): int32 {
-        return 1;
-    }
+    hash(state: &Hasher): void {}
 }
 
 newtype Name = string;
@@ -30,9 +28,7 @@ extension of Name implements Add<&readonly Name>, Hash {
         return this;
     }
 
-    hash(): int32 {
-        return 1;
-    }
+    hash(state: &Hasher): void {}
 }
 
 struct Key {
@@ -54,7 +50,7 @@ const derived = requireHash(Key { foo: new Foo(), name });
         DirRows::checked(),
         r#"
 === annotated ===
-import { Add, Hash } from "destack:ops";
+import { Add, Hash, Hasher } from "destack:ops";
 
 class Foo {}
 
@@ -65,9 +61,7 @@ extension<'a> of Foo implements Add<&readonly Foo>, Hash {
         return new Foo();
     }
 
-    hash(): int32 {
-        return 1;
-    }
+    hash(state: &'a Hasher): void {}
 }
 
 newtype Name = string;
@@ -79,9 +73,7 @@ extension<'a> of Name implements Add<&readonly Name>, Hash {
         return this;
     }
 
-    hash(): int32 {
-        return 1;
-    }
+    hash(state: &'a Hasher): void {}
 }
 
 struct Key {
@@ -97,7 +89,7 @@ const named: Name = requireHash<Name>(name);
 const derived: Key = requireHash<Key>(Key { foo: new Foo(), name });
 
 === dir ===
-import { Add, Hash } from "destack:ops";
+import { Add, Hash, Hasher } from "destack:ops";
 
 class Foo {}
 /// @type.symbol symbol=Foo source="class Foo {}" type=Foo
@@ -110,7 +102,7 @@ extension of Foo implements Add<&readonly Foo>, Hash {
 /// @definition.implements symbol=<module>#2 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#1 source="type Output = Foo" key=Output value=Foo
 /// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
-/// @definition.method symbol=hash#1 slot=hash type=<hash#1.P0: Place>(this: Managed<this, hash#1.P0>) => int32
+/// @definition.method symbol=hash#1 source="hash(state: &Hasher): void {}" slot=hash type=<hash#1.'a, hash#1.P1: Place>(this: Managed<this, hash#1.P1>, &hash#1.'a Hasher) => void
 /// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add#1 requirement=Add.add
 /// @definition.conformance symbol=<module>#2 member=hash#1 requirement=Hash.hash
@@ -137,13 +129,13 @@ extension of Foo implements Add<&readonly Foo>, Hash {
 
     }
 
-    hash(): int32 {
-    /// @generic.template symbol=hash#1 parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=hash#1 type=<hash#1.P0: Place>(this: Managed<this, hash#1.P0>) => int32
-    /// @type.symbol symbol=hash.this#1 type=Managed<Foo, hash#1.P0>
+    hash(state: &Hasher): void {}
+    /// @generic.template symbol=hash#1 parent=template#0 parameters=('a, P1: Place)
+    /// @type.symbol symbol=hash#1 source="hash(state: &Hasher): void {}" type=<hash#1.'a, hash#1.P1: Place>(this: Managed<this, hash#1.P1>, &hash#1.'a Hasher) => void
+    /// @type.symbol symbol=hash.this#1 type=Managed<Foo, hash#1.P1>
+    /// @type.symbol symbol=hash.state#1 source="state: &Hasher" type=&hash#1.'a Hasher
+    /// @resolution.name source=Hasher target=Hasher
 
-        return 1;
-    }
 }
 
 newtype Name = string;
@@ -157,7 +149,7 @@ extension of Name implements Add<&readonly Name>, Hash {
 /// @definition.implements symbol=<module>#3 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#2 source="type Output = Name" key=Output value=Name
 /// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
-/// @definition.method symbol=hash#2 slot=hash type=<hash#2.P0: Place>(this: Managed<this, hash#2.P0>) => int32
+/// @definition.method symbol=hash#2 source="hash(state: &Hasher): void {}" slot=hash type=<hash#2.'a, hash#2.P1: Place>(this: Managed<this, hash#2.P1>, &hash#2.'a Hasher) => void
 /// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Add.Output
 /// @definition.conformance symbol=<module>#3 member=add#2 requirement=Add.add
 /// @definition.conformance symbol=<module>#3 member=hash#2 requirement=Hash.hash
@@ -185,13 +177,13 @@ extension of Name implements Add<&readonly Name>, Hash {
 
     }
 
-    hash(): int32 {
-    /// @generic.template symbol=hash#2 parent=template#1 parameters=(P0: Place)
-    /// @type.symbol symbol=hash#2 type=<hash#2.P0: Place>(this: Managed<this, hash#2.P0>) => int32
-    /// @type.symbol symbol=hash.this#2 type=Managed<Name, hash#2.P0>
+    hash(state: &Hasher): void {}
+    /// @generic.template symbol=hash#2 parent=template#1 parameters=('a, P1: Place)
+    /// @type.symbol symbol=hash#2 source="hash(state: &Hasher): void {}" type=<hash#2.'a, hash#2.P1: Place>(this: Managed<this, hash#2.P1>, &hash#2.'a Hasher) => void
+    /// @type.symbol symbol=hash.this#2 type=Managed<Name, hash#2.P1>
+    /// @type.symbol symbol=hash.state#2 source="state: &Hasher" type=&hash#2.'a Hasher
+    /// @resolution.name source=Hasher target=Hasher
 
-        return 1;
-    }
 }
 
 struct Key {
@@ -258,7 +250,7 @@ const derived = requireHash(Key { foo: new Foo(), name });
 "#,
         r#"
 /// @diagnostic.error id=return-not-assignable message="type '&'a readonly Name' is not assignable to the declared result type 'Name'"
-/// @diagnostic.label line=24 column=16 span="this" line_source="return this;"
+/// @diagnostic.label line=22 column=16 span="this" line_source="return this;"
 "#,
     );
 }

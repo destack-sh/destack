@@ -1265,7 +1265,19 @@ impl WalkState<'_, '_> {
         let is_function_value =
             declaration.signature.form == dir::FunctionForm::Lambda || declaration.name.is_none();
         let function = if is_function_value {
-            self.push_function_value_type(signature)?
+            // infer a lambda's receiver access from its body
+            let receiver = match declaration.signature.form {
+                dir::FunctionForm::Lambda => {
+                    let origin = Origin::Node(id.into_global_any(self.module), None);
+                    self.check
+                        .open_memory_type(origin, dir::MemoryParameter::Access)?
+                }
+                dir::FunctionForm::Function => self
+                    .check
+                    .receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Readonly))?,
+            };
+
+            self.push_function_value_type(signature, receiver)?
         } else {
             signature
         };

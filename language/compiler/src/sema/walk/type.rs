@@ -919,9 +919,8 @@ impl WalkState<'_, '_> {
 
         // apply written type arguments and open omitted slots
         let applied = self.walk_generic_arguments(generic_arguments)?;
-        let ty = self.apply_written_reference(id.into_any(), symbol, &applied)?;
 
-        Ok(ty)
+        self.apply_written_reference(id.into_any(), symbol, &applied)
     }
 
     /// Return the type identity of one receiver's declaring scope.

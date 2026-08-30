@@ -113,9 +113,11 @@ impl CheckState<'_> {
             {
                 Ok(Verdict::Holds)
             }
-            dir::Type::Function(function) if interface == dir::AutoInterface::Clone => Ok(
-                Verdict::decided(function.multiplicity == dir::Multiplicity::Repeatable),
-            ),
+            dir::Type::Function(function) if interface == dir::AutoInterface::Clone => {
+                let mode = self.receiver_mode(function.receiver)?;
+
+                Ok(Verdict::decided(mode != dir::ReceiverMode::Owned))
+            }
             // decide opaque and callable forms by unpin alone
             dir::Type::Unknown
             | dir::Type::Intrinsic

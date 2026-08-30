@@ -890,7 +890,7 @@ class Waiter<in out T> {
     }
 }
 
-struct Pending<in out T> {
+struct Pending<out T> {
     kind: "pending";
     head: Waiter<T> | undefined;
     tail: Waiter<T> | undefined;
@@ -979,9 +979,9 @@ class Waiter<T> {
 }
 
 struct Pending<T> {
-/// @generic.template symbol=Pending parameters=(in out T#2)
+/// @generic.template symbol=Pending parameters=(out T#2)
 /// @type.symbol symbol=Pending type=Pending
-/// @definition.struct symbol=Pending template=(in out T#2)
+/// @definition.struct symbol=Pending template=(out T#2)
 /// @definition.field symbol=Pending.head source="head: Waiter<T> | undefined" key=head type=Waiter<T#2> | undefined
 /// @definition.field symbol=Pending.kind source="kind: \"pending\"" key=kind type="pending"
 /// @definition.field symbol=Pending.tail source="tail: Waiter<T> | undefined" key=tail type=Waiter<T#2> | undefined
@@ -1517,7 +1517,7 @@ class Child extends Base {
     /// @type.symbol symbol=Child.read.next source="next: string | undefined" type=string | undefined
 
         return () => {
-        /// @type.symbol symbol=Child.read.symbol8 type=Function<(), string | undefined>
+        /// @type.symbol symbol=Child.read.symbol8 type=Function<(), string | undefined, "readonly">
 
             if (this.label == undefined) {
             /// @resolution.name source=this target=Child.read.this

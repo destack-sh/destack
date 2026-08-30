@@ -476,6 +476,11 @@ impl CheckState<'_> {
         }
     }
 
+    /// Return the receiver term one callable value elides.
+    pub(in crate::sema) fn elided_receiver(&mut self) -> CompilerResult<dir::GlobalTypeId> {
+        self.receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Exclusive))
+    }
+
     /// Strip every explicit memory form from one type.
     pub(in crate::sema) fn strip_form(
         &mut self,

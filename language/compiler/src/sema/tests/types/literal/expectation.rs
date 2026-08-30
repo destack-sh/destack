@@ -59,7 +59,7 @@ const closure: () => Mode = () => {
 /// @type.symbol symbol=closure source=closure type=Function<(), Mode>
 /// @resolution.pattern source=closure kind=binding target=closure
 /// @resolution.name source=Mode target=Mode
-/// @type.symbol symbol=symbol4 type=Function<(), Mode>
+/// @type.symbol symbol=symbol4 type=Function<(), Mode, "readonly">
 
     if (quick) {
     /// @resolution.name source=quick target=quick
@@ -74,7 +74,7 @@ const tail: () => Mode = () => "fast";
 /// @type.symbol symbol=tail source=tail type=Function<(), Mode>
 /// @resolution.pattern source=tail kind=binding target=tail
 /// @resolution.name source=Mode target=Mode
-/// @type.symbol symbol=symbol6 source="() => \"fast\"" type=Function<(), Mode>
+/// @type.symbol symbol=symbol6 source="() => \"fast\"" type=Function<(), Mode, "readonly">
 "#,
         r#"
 
@@ -465,7 +465,7 @@ function sequence(depth: isize): string {
 
         output += index == 0 ? "a" : "b";
         /// @resolution.name source=output target=sequence.output
-        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=Owned<string> operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=Owned<string> kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
+        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
         /// @resolution.pattern.assign source=output kind=place
         /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=output read=binding(sequence.output) write=binding(sequence.output) type=string
@@ -530,7 +530,7 @@ const taken = take(() => {
 /// @resolution.pattern source=taken kind=binding target=taken
 /// @resolution.name source=take target=take
 /// @resolution.call parameters=(Function<(), int32>) arguments=(provided(argument) as Function<(), int32>) return=int32 kind=symbol target=take
-/// @type.symbol symbol=symbol4 type=Function<(), int32>
+/// @type.symbol symbol=symbol4 type=Function<(), int32, "readonly">
 
     observe();
     /// @resolution.name source=observe target=observe

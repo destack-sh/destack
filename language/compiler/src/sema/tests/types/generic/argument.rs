@@ -169,6 +169,7 @@ function print(value: Printable): string {
     /// @resolution.call source=value.print() parameters=() return=string kind=expression target=expression
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=print.value
+    /// @resolution.place source=value.print placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value.print root=print.value keys=[print]
 
 }

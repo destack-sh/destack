@@ -1212,9 +1212,9 @@ class Dog extends Animal {
     /// @capture.function function=Dog.speak bindings=0
 
         const inherited = () => super.speak();
-        /// @type.symbol symbol=Dog.speak.inherited source=inherited type=Function<(), string>
+        /// @type.symbol symbol=Dog.speak.inherited source=inherited type=Function<(), string, "readonly">
         /// @resolution.pattern source=inherited kind=binding target=Dog.speak.inherited
-        /// @type.symbol symbol=Dog.speak.symbol7 source=() => super.speak() type=Function<(), string>
+        /// @type.symbol symbol=Dog.speak.symbol7 source=() => super.speak() type=Function<(), string, "readonly">
         /// @capture.function function=Dog.speak.symbol7 bindings=0
         /// @capture.receiver function=Dog.speak.symbol7 symbol=this#2 mode=manage type=Managed<Dog, Dog.speak.P0>
         /// @resolution.member source=super.speak receiver=Animal type=<Animal.speak.P0: Place>(this: Managed<Animal, Animal.speak.P0>) => string kind=symbol target_receiver=Animal target=Animal.speak
@@ -1228,7 +1228,7 @@ class Dog extends Animal {
         return inherited();
         /// @resolution.name source=inherited target=Dog.speak.inherited
         /// @resolution.call source=inherited() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=inherited placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=inherited placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=inherited root=Dog.speak.inherited
 
     }

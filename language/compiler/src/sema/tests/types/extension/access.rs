@@ -698,8 +698,8 @@ function firstDefined(values: It<int32>): int32 | undefined {
     /// @generic.instantiation id="It.map<int32, void>" template=It.map arguments=(int32, void)
     /// @generic.instance id="It.find<int32, void, int32, int32, void, It<int32, void>>" template=It.find arguments=(int32, void, int32, int32, void, It<int32, void>)
     /// @generic.instance id="Wrap<It<int32, void>, int32, int32>" template=Wrap arguments=(It<int32, void>, int32, int32)
-    /// @type.symbol symbol=firstDefined.symbol34 source="(value) => value" type=Function<(int32,), int32>
-    /// @type.node source="(value) => value" type=Function<(int32,), int32>
+    /// @type.symbol symbol=firstDefined.symbol34 source="(value) => value" type=Function<(int32,), int32, "readonly">
+    /// @type.node source="(value) => value" type=Function<(int32,), int32, "readonly">
     /// @type.symbol symbol=firstDefined.symbol34.value source=value type=int32
     /// @resolution.name source=value target=firstDefined.symbol34.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

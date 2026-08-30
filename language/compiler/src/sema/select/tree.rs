@@ -608,6 +608,7 @@ impl CheckState<'_> {
             callee,
             None,
             None,
+            None,
             &[],
             &[],
             &[CallableArgument {

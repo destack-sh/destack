@@ -549,6 +549,7 @@ impl CheckState<'_> {
             callable,
             Some(declared.owner),
             Some(selection_receiver),
+            None,
             &declared.generic_arguments,
             &[],
             arguments,
@@ -787,6 +788,7 @@ impl CheckState<'_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        let ty = self.shallow_resolve(ty)?;
         let Some(variable) = self.root_variable(ty)? else {
             return Ok(ty);
         };

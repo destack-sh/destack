@@ -42,6 +42,11 @@ impl CheckState<'_> {
             // explicit erasure names its constraint
             dir::Type::Dynamic(dynamic) => Ok(Some(dynamic.constraint)),
 
+            // erase a managed handle with its erased value
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Managed { .. }) => {
+                self.erased_constraint(form.value)
+            }
+
             // carry an unknown dynamic payload directly
             dir::Type::Unknown => Ok(Some(ty)),
 
@@ -484,8 +489,8 @@ impl CheckState<'_> {
             dir::Type::Member(member) => {
                 let member = self.type_member(id.module_id, member)?;
 
-                // peel the owner's forms for the projection
-                let owner = member.owner;
+                // peel the resolved owner's forms for the projection
+                let owner = self.shallow_resolve(member.owner)?;
                 let peeled = self.strip_form(origin, owner)?;
 
                 // error owners poison their projections

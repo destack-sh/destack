@@ -857,14 +857,14 @@ declare class Box<T> {
 }
 
 declare const boxed: ^Box<Circle>;
-/// @type.symbol symbol=boxed source=boxed type=Owned<Box<Circle>>
+/// @type.symbol symbol=boxed source=boxed type=^Box<Circle>
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @generic.instance id=Box<Circle> template=Box arguments=(Circle)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Circle target=Circle
 
 const widened: ^Box<Shape> = boxed;
-/// @type.symbol symbol=widened source=widened type=Owned<Box<Shape>>
+/// @type.symbol symbol=widened source=widened type=^Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 /// @resolution.name source=Box target=Box
@@ -944,13 +944,13 @@ declare class Pipe<T> {
 }
 
 declare const pipe: ^Pipe<Circle>;
-/// @type.symbol symbol=pipe source=pipe type=Owned<Pipe<Circle>>
+/// @type.symbol symbol=pipe source=pipe type=^Pipe<Circle>
 /// @resolution.pattern source=pipe kind=binding target=pipe
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Circle target=Circle
 
 const widened: ^Pipe<Shape> = pipe;
-/// @type.symbol symbol=widened source=widened type=Owned<Pipe<Shape>>
+/// @type.symbol symbol=widened source=widened type=^Pipe<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Shape target=Shape

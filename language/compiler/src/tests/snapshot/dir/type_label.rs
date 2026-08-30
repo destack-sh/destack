@@ -145,7 +145,14 @@ impl DirSnapshotBuilder<'_> {
         let parameters = self.function_parameter_tuple_label(types, &signature);
         let return_type = self.function_return_type_label(types, &signature);
 
-        format!("Function<{parameters}, {return_type}>")
+        // omit the receiver the stdlib elides
+        let receiver = self.type_id_label(types, function.receiver);
+        let elided = format!("\"{}\"", dir::Access::Exclusive.text());
+        if receiver == elided || receiver == "_" {
+            format!("Function<{parameters}, {return_type}>")
+        } else {
+            format!("Function<{parameters}, {return_type}, {receiver}>")
+        }
     }
 
     /// Return one function pointer type label.
@@ -370,9 +377,8 @@ impl DirSnapshotBuilder<'_> {
                     _ => format!("Managed<{value}, {place}>"),
                 }
             }
-            dir::Form::Owned => format!("Owned<{value}>"),
+            dir::Form::Owned => format!("^{value}"),
             dir::Form::Borrowed(borrow) => {
-                let _row = *borrow;
                 let borrow = types.borrow_form(*borrow);
                 let region = self.type_id_label(types, borrow.region);
                 let (lifetime, mut place) = match region.split_once(" & ") {

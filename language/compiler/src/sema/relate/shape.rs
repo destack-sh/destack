@@ -32,6 +32,54 @@ impl SignatureInstantiation {
 // FUGU #Cleanup: this whole file relate/shape.rs is awful and must be compressed yuck 2k lines???
 
 impl CheckState<'_> {
+    /// Return whether two callables declare the same parameter list shape.
+    pub(in crate::sema) fn signature_shapes_match(
+        &mut self,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let (Some(source_signature), Some(target_signature)) =
+            (self.signature_head(source)?, self.signature_head(target)?)
+        else {
+            return Ok(true);
+        };
+
+        // compare the parameter lists slot by slot
+        let source_parameters: SmallVec<[_; 4]> = self
+            .signature_parameters(source.module_id, source_signature.parameters)?
+            .into();
+        let target_parameters: SmallVec<[_; 4]> = self
+            .signature_parameters(target.module_id, target_signature.parameters)?
+            .into();
+        let matches = source_parameters.len() == target_parameters.len()
+            && source_parameters
+                .iter()
+                .zip(target_parameters.iter())
+                .all(|(source, target)| {
+                    source.is_optional == target.is_optional && source.is_rest == target.is_rest
+                });
+
+        Ok(matches)
+    }
+
+    /// Return the value beneath one type's written forms.
+    pub(in crate::sema) fn shallow_strip_forms(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // peel each form down to the value beneath it
+        let mut ty = self.shallow_resolve(ty)?;
+        while let dir::Type::Form(form) = self.ty(ty)? {
+            let payload = self.shallow_resolve(form.value)?;
+            if payload == ty {
+                break;
+            }
+            ty = payload;
+        }
+
+        Ok(ty)
+    }
+
     /// Return whether one type can be used as a property key.
     pub(in crate::sema) fn is_property_key_type(
         &mut self,
@@ -401,24 +449,6 @@ impl CheckState<'_> {
         }
 
         Ok(verdict)
-    }
-
-    /// Return the value beneath one type's forms.
-    pub(in crate::sema) fn strip_forms(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // peel each form down to the value beneath it
-        let mut ty = self.shallow_resolve(ty)?;
-        while let dir::Type::Form(form) = self.ty(ty)? {
-            let payload = self.shallow_resolve(form.value)?;
-            if payload == ty {
-                break;
-            }
-            ty = payload;
-        }
-
-        Ok(ty)
     }
 
     /// Return the structural property operations exposed by one member.

@@ -47,11 +47,11 @@ impl CheckState<'_> {
             };
         }
 
-        // callable handles copy only while they stay repeatable
+        // copy a callable handle while its call borrows the receiver
         if let dir::Type::Function(function) = kind {
-            return Ok(Verdict::decided(
-                function.multiplicity == dir::Multiplicity::Repeatable,
-            ));
+            let mode = self.receiver_mode(function.receiver)?;
+
+            return Ok(Verdict::decided(mode != dir::ReceiverMode::Owned));
         }
 
         // managed defaults copy their compact runtime handles

@@ -90,8 +90,9 @@ impl CheckState<'_> {
 
             return Err(CompilerError::Internal {
                 message: format!(
-                    "nominal relation has missing definitions: source = {:?}, target = {:?}",
-                    source_instance.symbol, target_instance.symbol,
+                    "nominal relation has missing definitions: source = {}, target = {}",
+                    self.format_symbol(source_instance.symbol),
+                    self.format_symbol(target_instance.symbol),
                 ),
             });
         }

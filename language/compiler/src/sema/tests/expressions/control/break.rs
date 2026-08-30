@@ -28,10 +28,10 @@ while (true) {
 /// @type.node source=true type=true
 
     const stop = () => {
-    /// @type.symbol symbol=stop source=stop type=Function<(), void>
+    /// @type.symbol symbol=stop source=stop type=Function<(), void, "readonly">
     /// @resolution.pattern source=stop kind=binding target=stop
-    /// @type.symbol symbol=symbol1 type=Function<(), void>
-    /// @type.node type=Function<(), void>
+    /// @type.symbol symbol=symbol1 type=Function<(), void, "readonly">
+    /// @type.node type=Function<(), void, "readonly">
 
         break;
         /// @type.node source=break type=never

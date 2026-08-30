@@ -52,7 +52,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="FilterIterator<Iterator<int32 | undefined>, int32 | undefined>" template=FilterIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="FromIterator.fromIterator<int32 | undefined>" template=FromIterator.fromIterator arguments=(int32 | undefined)
     /// @generic.instance id="InspectIterator<Iterator<int32 | undefined>, int32 | undefined>" template=InspectIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
-    /// @generic.instance id="Iterator.collect<Iterator<int32 | undefined>, int32 | undefined, Owned<int32 | undefined[]>>" template=Iterator.collect arguments=(int32 | undefined, Owned<int32 | undefined[]>)
+    /// @generic.instance id="Iterator.collect<Iterator<int32 | undefined>, int32 | undefined, ^int32 | undefined[]>" template=Iterator.collect arguments=(int32 | undefined, ^int32 | undefined[])
     /// @generic.instance id="Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
     /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined)
     /// @generic.instance id="IteratorResult<int32 | undefined, Iterator<int32 | undefined>.Return>" template=IteratorResult arguments=(int32 | undefined, Iterator<int32 | undefined>.Return)
@@ -65,12 +65,12 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
     /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
-    /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
+    /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
     /// @type.symbol symbol=firstPositive.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol3.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol3.value
-    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean>
+    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean, "readonly">
     /// @type.symbol symbol=firstPositive.symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
@@ -250,12 +250,12 @@ use(source);
 /// @type.node source=use(source) type=void
 /// @resolution.name source=use target=use
 /// @resolution.call source=use(source) parameters=(Function<(unknown,), void>) arguments=(provided(source) as Function<(unknown,), void>) return=void kind=symbol target=use
-/// @type.node source=source type=Function<(unknown | undefined?,), void>
+/// @type.node source=source type=Function<(unknown | undefined?,), void, "readonly">
 /// @resolution.name source=source target=source
-/// @resolution.function source=source type=Function<(unknown | undefined?,), void> target=source
+/// @resolution.function source=source type=Function<(unknown | undefined?,), void, "readonly"> target=source
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: unknown | undefined) => void' is not assignable to parameter of type '(value: unknown) => void'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Function<(value: unknown | undefined,), void, \"readonly\">' is not assignable to parameter of type '(value: unknown) => void'"
 /// @diagnostic.label line=5 column=5 span="source" line_source="use(source);"
 /// @diagnostic.related line=5 column=1 span="use(source)" line_source="use(source);" message="in this call"
 "#,
@@ -300,8 +300,8 @@ const value = map(() => 1);
 /// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), int64>) arguments=(provided(() => 1) as Function<(unknown,), int64>) return=int64 kind=symbol target=map instance=map<int64>
 /// @generic.instantiation id=map<int64> template=map arguments=(int64)
 /// @generic.instance id=map<int64> template=map arguments=(int64)
-/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), int64>
-/// @type.node source="() => 1" type=Function<(), int64>
+/// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), int64, "readonly">
+/// @type.node source="() => 1" type=Function<(), int64, "readonly">
 /// @type.node source=1 type=1
 "#,
     );

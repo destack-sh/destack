@@ -100,8 +100,8 @@ function capture<T>(): void {
     /// @generic.instantiation id="Cell<T#3, \"local\">" template=Cell arguments=(T#3, "local") owner=capture
     /// @resolution.name source=Cell target=Cell
     /// @resolution.name source=T target=capture.T
-    /// @type.symbol symbol=capture.symbol13 type=Function<(Consume<T#3>,), void>
-    /// @type.node type=Function<(Consume<T#3>,), void>
+    /// @type.symbol symbol=capture.symbol13 type=Function<(Consume<T#3>,), void, "mutable">
+    /// @type.node type=Function<(Consume<T#3>,), void, "mutable">
     /// @type.symbol symbol=capture.symbol13.inner source=inner type=Consume<T#3>
 
         seen = inner;
@@ -160,7 +160,7 @@ function capture(): void {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-class Cell<out T> {
+class Cell<T> {
     constructor(executor: (arg0: T) => void) {
         executor;
     }
@@ -177,9 +177,9 @@ function capture(): void {
 
 === dir ===
 class Cell<T> {
-/// @generic.template symbol=Cell parameters=(out T)
+/// @generic.template symbol=Cell parameters=(T)
 /// @type.symbol symbol=Cell type=Cell
-/// @definition.class symbol=Cell template=(out T)
+/// @definition.class symbol=Cell template=(T)
 /// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<this, Cell.constructor.P0>
 /// @type.symbol symbol=Cell.T source=T type=T
 
@@ -219,8 +219,8 @@ function capture(): void {
     /// @generic.instance id="Cell.constructor<int32, \"local\">" template=Cell.constructor arguments=(int32, "local")
     /// @generic.instance id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
     /// @resolution.name source=Cell target=Cell
-    /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
-    /// @type.node type=Function<(int32,), void>
+    /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void, "mutable">
+    /// @type.node type=Function<(int32,), void, "mutable">
     /// @type.symbol symbol=capture.symbol9.inner source=inner type=int32
 
         seen = inner;
@@ -274,7 +274,7 @@ const callback: (value: int32) => int32 | undefined = (value) => value + 1;
 /// @type.symbol symbol=callback source=callback type=Function<(int32,), int32 | undefined>
 /// @resolution.pattern source=callback kind=binding target=callback
 /// @type.symbol symbol=value source="value: int32" type=int32
-/// @type.symbol symbol=symbol1 source="(value) => value + 1" type=Function<(int32,), int32 | undefined>
+/// @type.symbol symbol=symbol1 source="(value) => value + 1" type=Function<(int32,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol1.value source=value type=int32
 /// @resolution.name source=value target=symbol1.value
 /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
@@ -340,8 +340,8 @@ const labels = map(counts, (count) => count > 0);
 /// @resolution.name source=counts target=counts
 /// @resolution.place source=counts placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counts root=counts
-/// @type.symbol symbol=symbol8 source="(count) => count > 0" type=Function<(int32,), boolean>
-/// @type.node source="(count) => count > 0" type=Function<(int32,), boolean>
+/// @type.symbol symbol=symbol8 source="(count) => count > 0" type=Function<(int32,), boolean, "readonly">
+/// @type.node source="(count) => count > 0" type=Function<(int32,), boolean, "readonly">
 /// @type.symbol symbol=symbol8.count source=count type=int32
 /// @type.node source="count > 0" type=boolean
 /// @type.node source=count type=int32
@@ -394,8 +394,8 @@ run((value, extra) => {
 /// @type.node type=void
 /// @resolution.name source=run target=run
 /// @resolution.call parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=void kind=symbol target=run
-/// @type.symbol symbol=symbol4 type=Function<(<error>, <error>), void>
-/// @type.node type=Function<(<error>, <error>), void>
+/// @type.symbol symbol=symbol4 type=Function<(<error>, <error>), void, "readonly">
+/// @type.node type=Function<(<error>, <error>), void, "readonly">
 /// @type.symbol symbol=symbol4.value source=value type=<error>
 /// @type.symbol symbol=symbol4.extra source=extra type=<error>
 
@@ -414,7 +414,7 @@ run((value, extra) => {
 });
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: _, extra: _) => void' is not assignable to parameter of type '(value: int32) => void'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Function<(value: _, extra: _), void, \"readonly\">' is not assignable to parameter of type '(value: int32) => void'"
 /// @diagnostic.label line=4 column=5 span="(value, extra) => {\n    value;\n    extra;\n}" line_source="run((value, extra) => {"
 /// @diagnostic.related line=4 column=1 span="run((value, extra) => {\n    value;\n    extra;\n})" line_source="run((value, extra) => {" message="in this call"
 "#,
@@ -462,8 +462,8 @@ run((value: int32 | string) => {
 /// @type.node type=void
 /// @resolution.name source=run target=run
 /// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
-/// @type.symbol symbol=symbol4 type=Function<(int32 | string,), void>
-/// @type.node type=Function<(int32 | string,), void>
+/// @type.symbol symbol=symbol4 type=Function<(int32 | string,), void, "readonly">
+/// @type.node type=Function<(int32 | string,), void, "readonly">
 /// @type.symbol symbol=symbol4.value source="value: int32 | string" type=int32 | string
 
     value;
@@ -478,8 +478,8 @@ run((value: boolean) => {
 /// @type.node type=void
 /// @resolution.name source=run target=run
 /// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
-/// @type.symbol symbol=symbol6 type=Function<(boolean,), void>
-/// @type.node type=Function<(boolean,), void>
+/// @type.symbol symbol=symbol6 type=Function<(boolean,), void, "readonly">
+/// @type.node type=Function<(boolean,), void, "readonly">
 /// @type.symbol symbol=symbol6.value source="value: boolean" type=boolean
 
     value;
@@ -491,7 +491,7 @@ run((value: boolean) => {
 });
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: boolean) => void' is not assignable to parameter of type '(value: int32 | string) => void'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Function<(value: boolean,), void, \"readonly\">' is not assignable to parameter of type '(value: int32 | string) => void'"
 /// @diagnostic.label line=7 column=5 span="(value: boolean) => {\n    value;\n}" line_source="run((value: boolean) => {"
 /// @diagnostic.related line=7 column=1 span="run((value: boolean) => {\n    value;\n})" line_source="run((value: boolean) => {" message="in this call"
 "#,
@@ -536,10 +536,10 @@ declare const flag: boolean;
 /// @resolution.pattern source=flag kind=binding target=flag
 
 const choose = () => {
-/// @type.symbol symbol=choose source=choose type=Function<(), string | int64>
+/// @type.symbol symbol=choose source=choose type=Function<(), string | int64, "readonly">
 /// @resolution.pattern source=choose kind=binding target=choose
-/// @type.symbol symbol=symbol2 type=Function<(), string | int64>
-/// @type.node type=Function<(), string | int64>
+/// @type.symbol symbol=symbol2 type=Function<(), string | int64, "readonly">
+/// @type.node type=Function<(), string | int64, "readonly">
 
     if (flag) {
     /// @type.node source=flag type=boolean
@@ -597,8 +597,8 @@ const handler: Handler = (value) => {
 /// @type.symbol symbol=handler source=handler type=Function<(int32,), void> | undefined
 /// @resolution.pattern source=handler kind=binding target=handler
 /// @resolution.name source=Handler target=Handler
-/// @type.symbol symbol=symbol3 type=Function<(int32,), void>
-/// @type.node type=Function<(int32,), void>
+/// @type.symbol symbol=symbol3 type=Function<(int32,), void, "readonly">
+/// @type.node type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol3.value source=value type=int32
 
     value;
@@ -657,8 +657,8 @@ withValue("ready", (value) => {
 /// @resolution.call parameters=(string, Function<(string,), void>) arguments=(provided("ready") as string, provided(argument) as Function<(string,), void>) return=void kind=symbol target=withValue instance=withValue<string>
 /// @generic.instantiation id=withValue<string> template=withValue arguments=(string)
 /// @type.node source="\"ready\"" type="ready"
-/// @type.symbol symbol=symbol6 type=Function<(string,), void>
-/// @type.node type=Function<(string,), void>
+/// @type.symbol symbol=symbol6 type=Function<(string,), void, "readonly">
+/// @type.node type=Function<(string,), void, "readonly">
 /// @type.symbol symbol=symbol6.value source=value type=string
 
     value;

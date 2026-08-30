@@ -137,7 +137,7 @@ const segment = withParsed("id:users", (segment) => segment);
 /// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
 /// @generic.instantiation id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
 /// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
-/// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users">
+/// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users", "readonly">
 /// @type.symbol symbol=symbol7.segment source=segment type="users"
 /// @resolution.name source=segment target=symbol7.segment
 /// @resolution.place source=segment placement="local" lifetime="frame" access="exclusive"

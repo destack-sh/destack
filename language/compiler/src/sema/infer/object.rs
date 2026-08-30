@@ -59,6 +59,22 @@ impl CheckState<'_> {
             None => None,
         };
 
+        // commit the contextual members as the literal's member subject
+        if let (Some((fields, _, _)), Some(expectation)) = (&members, context) {
+            let key_source = self.intern_object(fields)?;
+            let subject = self
+                .member_subject(
+                    origin,
+                    expectation.target,
+                    expectation.target,
+                    dir::MemberSpace::Instance,
+                )?
+                .with_key_source(key_source);
+            self.module_mut(module)
+                .members_tail
+                .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
+        }
+
         // collect literal fields, methods, and spreads into one shape
         for property in properties {
             let property = *property;
@@ -372,6 +388,19 @@ impl CheckState<'_> {
         if let Some((fields, indexes)) = self.apparent_object_members(origin, value)? {
             return Ok(Some((fields, indexes, Some(target))));
         }
+
+        // read the fields a struct constructs from
+        if let dir::Type::Application(instance) = self.ty(value)?
+            && matches!(
+                self.definition(instance.symbol)?,
+                Some(dir::Definition::Struct(_))
+            )
+        {
+            let fields = self.struct_constructor_fields(origin, value)?;
+
+            return Ok(Some((fields, SmallVec::new(), Some(target))));
+        }
+
         let Some(arms) = self.union_leaves(origin, value)? else {
             return Ok(None);
         };

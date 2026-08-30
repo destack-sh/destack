@@ -1649,6 +1649,7 @@ impl CheckState<'_> {
             }
             dir::Type::Function(mut function) => {
                 function.signature = map(self, function.signature)?;
+                function.receiver = map(self, function.receiver)?;
                 function.place = map(self, function.place)?;
 
                 dir::Type::Function(function)

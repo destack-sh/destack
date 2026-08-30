@@ -305,17 +305,17 @@ const exact: () => "ready" = (): "ready" => "ready";
 
 === dir ===
 const label = () => "ready";
-/// @type.symbol symbol=label source=label type=Function<(), string>
+/// @type.symbol symbol=label source=label type=Function<(), string, "readonly">
 /// @resolution.pattern source=label kind=binding target=label
-/// @type.symbol symbol=symbol1 source="() => \"ready\"" type=Function<(), string>
-/// @type.node source="() => \"ready\"" type=Function<(), string>
+/// @type.symbol symbol=symbol1 source="() => \"ready\"" type=Function<(), string, "readonly">
+/// @type.node source="() => \"ready\"" type=Function<(), string, "readonly">
 /// @type.node source="\"ready\"" type="ready"
 
 const exact = (): "ready" => "ready";
-/// @type.symbol symbol=exact source=exact type=Function<(), "ready">
+/// @type.symbol symbol=exact source=exact type=Function<(), "ready", "readonly">
 /// @resolution.pattern source=exact kind=binding target=exact
-/// @type.symbol symbol=symbol3 source="(): \"ready\" => \"ready\"" type=Function<(), "ready">
-/// @type.node source="(): \"ready\" => \"ready\"" type=Function<(), "ready">
+/// @type.symbol symbol=symbol3 source="(): \"ready\" => \"ready\"" type=Function<(), "ready", "readonly">
+/// @type.node source="(): \"ready\" => \"ready\"" type=Function<(), "ready", "readonly">
 /// @type.node source="\"ready\"" type="ready"
 "#,
         r#"

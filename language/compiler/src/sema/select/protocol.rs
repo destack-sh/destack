@@ -398,8 +398,6 @@ impl CheckState<'_> {
     }
 
     /// Select the candidates the first dereference step exposing the requirement yields.
-    ///
-    /// Each candidate carries that step's receiver adjustments.
     fn select_protocol_step_candidates(
         &mut self,
         origin: Origin,
@@ -411,7 +409,13 @@ impl CheckState<'_> {
         // take the first step whose candidates implement the requirement
         let module = origin.module();
         for step in self.builtin_steps(origin, receiver)? {
+            // read a scalar constant's protocols on its apparent primitive
             let stepped = self.ownership_payload(origin, step.ty)?;
+            let stepped = if self.is_literal_shape(stepped)? {
+                self.widen_type(stepped)?
+            } else {
+                stepped
+            };
             let Some(mut candidates) =
                 self.select_protocol_candidates(origin, module, stepped, space, key, protocol)?
             else {

@@ -114,7 +114,7 @@ const fn: Fn = (value) => `${value}`;
 /// @type.symbol symbol=fn source=fn type=Function<(string,), string>
 /// @resolution.pattern source=fn kind=binding target=fn
 /// @resolution.name source=Fn target=Fn
-/// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string>
+/// @type.symbol symbol=symbol6 source="(value) => `${value}`" type=Function<(string,), string, "readonly">
 /// @type.symbol symbol=symbol6.value source=value type=string
 /// @resolution.name source=value target=symbol6.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

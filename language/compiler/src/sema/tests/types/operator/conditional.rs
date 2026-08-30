@@ -710,10 +710,10 @@ import { Copy } from "destack:memory";
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.field symbol=Buffer.text source="text: ^string" key=text type=Owned<string>
+/// @definition.field symbol=Buffer.text source="text: ^string" key=text type=^string
 
     text: ^string;
-    /// @type.symbol symbol=Buffer.text source="text: ^string" type=Owned<string>
+    /// @type.symbol symbol=Buffer.text source="text: ^string" type=^string
 
 }
 

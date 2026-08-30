@@ -47,8 +47,8 @@ const value = use(() => {});
 /// @resolution.call source="use(() => {})" parameters=(Function<(), void | Box<void>>) arguments=(provided(() => {}) as Function<(), void | Box<void>>) return=void kind=symbol target=use instance=use<void>
 /// @generic.instantiation id=use<void> template=use arguments=(void)
 /// @generic.instance id=use<void> template=use arguments=(void)
-/// @type.symbol symbol=symbol6 source="() => {}" type=Function<(), void | Box<void>>
-/// @type.node source="() => {}" type=Function<(), void | Box<void>>
+/// @type.symbol symbol=symbol6 source="() => {}" type=Function<(), void | Box<void>, "readonly">
+/// @type.node source="() => {}" type=Function<(), void | Box<void>, "readonly">
 /// @generic.instance id=Box<void> template=Box arguments=(void)
 "#,
     );
@@ -100,8 +100,8 @@ const value = use(() => load());
 /// @type.node source=use type=(Function<(), int32 | Box<int32>>) => int32
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => load())" parameters=(Function<(), int32 | Box<int32>>) arguments=(provided(() => load()) as Function<(), int32 | Box<int32>>) return=int32 kind=symbol target=use
-/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32 | Box<int32>>
-/// @type.node source=() => load() type=Function<(), int32 | Box<int32>>
+/// @type.symbol symbol=symbol6 source=() => load() type=Function<(), int32 | Box<int32>, "readonly">
+/// @type.node source=() => load() type=Function<(), int32 | Box<int32>, "readonly">
 /// @type.node source=load type=() => int32
 /// @type.node source=load() type=int32
 /// @resolution.name source=load target=load
@@ -164,8 +164,8 @@ const value = use(() => make());
 /// @type.node source=use type=(Function<(), Box<<error>> | Box<Box<<error>>>>) => <error>
 /// @resolution.name source=use target=use
 /// @resolution.call source="use(() => make())" parameters=(Function<(), Box<<error>> | Box<Box<<error>>>>) arguments=(provided(() => make()) as Function<(), Box<<error>> | Box<Box<<error>>>>) return=<error> kind=symbol target=use instance=use<<error>>
-/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), Box<<error>> | Box<Box<<error>>>>
-/// @type.node source=() => make() type=Function<(), Box<<error>> | Box<Box<<error>>>>
+/// @type.symbol symbol=symbol7 source=() => make() type=Function<(), Box<<error>> | Box<Box<<error>>>, "readonly">
+/// @type.node source=() => make() type=Function<(), Box<<error>> | Box<Box<<error>>>, "readonly">
 /// @type.node source=make type=() => Box<Box<int32>>
 /// @type.node source=make() type=Box<Box<int32>>
 /// @resolution.name source=make target=make
@@ -222,8 +222,8 @@ const value = map(1, (item) => item);
 /// @generic.instantiation id="map<int64, int64>" template=map arguments=(int64, int64)
 /// @generic.instance id="map<int64, int64>" template=map arguments=(int64, int64)
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(int64,), int64>
-/// @type.node source="(item) => item" type=Function<(int64,), int64>
+/// @type.symbol symbol=symbol7 source="(item) => item" type=Function<(int64,), int64, "readonly">
+/// @type.node source="(item) => item" type=Function<(int64,), int64, "readonly">
 /// @type.symbol symbol=symbol7.item source=item type=int64
 /// @type.node source=item type=int64
 /// @resolution.name source=item target=symbol7.item
@@ -299,8 +299,8 @@ const mapped = box.map((value) => value);
 /// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
 /// @generic.instance id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
-/// @type.symbol symbol=symbol9 source="(value) => value" type=Function<(int32,), int32>
-/// @type.node source="(value) => value" type=Function<(int32,), int32>
+/// @type.symbol symbol=symbol9 source="(value) => value" type=Function<(int32,), int32, "readonly">
+/// @type.node source="(value) => value" type=Function<(int32,), int32, "readonly">
 /// @type.symbol symbol=symbol9.value source=value type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=symbol9.value
@@ -366,8 +366,8 @@ const value = map(1, (item) => item);
 /// @generic.instantiation id="map<int64, int64>" template=map arguments=(int64, int64)
 /// @generic.instance id="map<int64, int64>" template=map arguments=(int64, int64)
 /// @type.node source=1 type=1
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int64,), int64 | Box<int64>>
-/// @type.node source="(item) => item" type=Function<(int64,), int64 | Box<int64>>
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int64,), int64 | Box<int64>, "readonly">
+/// @type.node source="(item) => item" type=Function<(int64,), int64 | Box<int64>, "readonly">
 /// @generic.instance id=Box<int64> template=Box arguments=(int64)
 /// @type.symbol symbol=symbol9.item source=item type=int64
 /// @type.node source=item type=int64
@@ -447,8 +447,8 @@ const value = box.map((item) => item);
 /// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
 /// @generic.instance id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
-/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
-/// @type.node source="(item) => item" type=Function<(int32,), int32 | Box<int32>>
+/// @type.symbol symbol=symbol9 source="(item) => item" type=Function<(int32,), int32 | Box<int32>, "readonly">
+/// @type.node source="(item) => item" type=Function<(int32,), int32 | Box<int32>, "readonly">
 /// @type.symbol symbol=symbol9.item source=item type=int32
 /// @type.node source=item type=int32
 /// @resolution.name source=item target=symbol9.item
@@ -463,7 +463,7 @@ const value = box.map((item) => item);
 fn test_contextualize_a_function_value_through_a_union_expectation() {
     let session = TestSession::single(
         r#"
-export type Message = string | Function<(), string, "once">;
+export type Message = string | ^Function<(), string, "once">;
 
 export function check(condition: boolean, message?: Message): void {}
 
@@ -479,7 +479,7 @@ function call(): void {
         DirRows::checked(),
         r#"
 === annotated ===
-export type Message = string | Function<(), string, "once">;
+export type Message = string | ^Function<(), string, "once">;
 
 export function check(condition: boolean, message?: Message): void {}
 
@@ -489,9 +489,9 @@ function call(): void {
 }
 
 === dir ===
-export type Message = string | Function<(), string, "once">;
-/// @type.symbol symbol=Message source="export type Message = string | Function<(), string, \"once\">" type=string | Function<(), string, "once">
-/// @definition.type symbol=Message source="export type Message = string | Function<(), string, \"once\">" value=string | Function<(), string, "once">
+export type Message = string | ^Function<(), string, "once">;
+/// @type.symbol symbol=Message source="export type Message = string | ^Function<(), string, \"once\">" type=string | ^Function<(), string, "once">
+/// @definition.type symbol=Message source="export type Message = string | ^Function<(), string, \"once\">" value=string | ^Function<(), string, "once">
 /// @resolution.name source=Function target=Function
 
 export function check(condition: boolean, message?: Message): void {}
@@ -506,7 +506,7 @@ function call(): void {
     check(true, () => "lazy");
     /// @resolution.name source=check target=check
     /// @resolution.call source="check(true, () => \"lazy\")" parameters=(boolean, Message | undefined) arguments=(provided(true) as boolean, provided(() => "lazy") as Message | undefined) return=void kind=symbol target=check
-    /// @type.symbol symbol=call.symbol6 source="() => \"lazy\"" type=Function<(), string>
+    /// @type.symbol symbol=call.symbol6 source="() => \"lazy\"" type=Function<(), string, "readonly">
 
     check(true, "eager");
     /// @resolution.name source=check target=check
@@ -514,7 +514,9 @@ function call(): void {
 
 }
 "#,
-        r#""#,
+        r#"
+
+"#,
     );
 }
 
@@ -564,7 +566,7 @@ function call(): void {
     run((value) => {});
     /// @resolution.name source=run target=run
     /// @resolution.call source="run((value) => {})" parameters=(Handler) arguments=(provided((value) => {}) as Handler) return=void kind=symbol target=run
-    /// @type.symbol symbol=call.symbol7 source="(value) => {}" type=Function<(<error>,), void>
+    /// @type.symbol symbol=call.symbol7 source="(value) => {}" type=Function<(<error>,), void, "readonly">
     /// @type.symbol symbol=call.symbol7.value source=value type=<error>
 
 }

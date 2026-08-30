@@ -166,7 +166,7 @@ extension of Point implements Display {
     /// @resolution.name source=MaybeOwned target=MaybeOwned
     /// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
     /// @generic.instance id=Cow<string> template=Cow arguments=(string)
-    /// @generic.instance id=CowOwned<Owned<string>> template=CowOwned arguments=(Owned<string>)
+    /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
 
         return todo("Point.display");
         /// @type.node source="todo(\"Point.display\")" type=never

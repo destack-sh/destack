@@ -232,17 +232,22 @@ impl CheckState<'_> {
                     parameters.join(", ")
                 )
             }
-            dir::Type::Function(function) => match function.multiplicity {
-                dir::Multiplicity::Repeatable => {
+            // print the receiver the stdlib elides as the bare signature
+            dir::Type::Function(function) => match self.receiver_mode(function.receiver)? {
+                dir::ReceiverMode::Borrowed(dir::Access::Exclusive) => {
                     self.format_depth_at(module, function.signature, next)?
                 }
-                dir::Multiplicity::Once => self.format_callable_application_at(
-                    module,
-                    "Function",
-                    function.signature,
-                    Some("\"once\""),
-                    next,
-                )?,
+                mode => {
+                    let receiver = format!("\"{}\"", mode.text());
+
+                    self.format_callable_application_at(
+                        module,
+                        "Function",
+                        function.signature,
+                        Some(&receiver),
+                        next,
+                    )?
+                }
             },
             dir::Type::FunctionPointer(function) => self.format_callable_application_at(
                 module,

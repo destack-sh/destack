@@ -452,7 +452,7 @@ const text: (value: string) => string = render;
 /// @resolution.pattern source=text kind=binding target=text
 /// @type.symbol symbol=value source="value: string" type=string
 /// @resolution.name source=render target=[render#1, render#2]
-/// @resolution.function source=render type=Function<(string,), string> target=render#2
+/// @resolution.function source=render type=Function<(string,), string, "readonly"> target=render#2
 "#,
     );
 }
@@ -568,7 +568,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
-/// @generic.instance id="Iterator.collect<Iterator<int32>, int32, Owned<int32[]>>" template=Iterator.collect arguments=(int32, Owned<int32[]>)
+/// @generic.instance id="Iterator.collect<Iterator<int32>, int32, ^int32[]>" template=Iterator.collect arguments=(int32, ^int32[])
 /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
 /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
 /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
@@ -600,8 +600,8 @@ function sum(values: Iterator<int32>): Result<int32, string> {
     /// @generic.instantiation id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
     /// @generic.instantiation id=Iterator.reduce#2<int32> template=Iterator.reduce#2 arguments=(int32)
     /// @generic.instance id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
-    /// @type.symbol symbol=sum.symbol5 type=Function<(Result<int32, string>, int32, isize), Result<int32, string>>
-    /// @type.node type=Function<(Result<int32, string>, int32, isize), Result<int32, string>>
+    /// @type.symbol symbol=sum.symbol5 type=Function<(Result<int32, string>, int32, isize), Result<int32, string>, "readonly">
+    /// @type.node type=Function<(Result<int32, string>, int32, isize), Result<int32, string>, "readonly">
     /// @type.symbol symbol=sum.symbol5.result source=result type=Result<int32, string>
     /// @type.symbol symbol=sum.symbol5.value source=value type=int32
     /// @type.symbol symbol=sum.symbol5.index source=index type=isize
@@ -842,8 +842,8 @@ function sum(values: It<int32>): Wrap<int32> {
     /// @generic.instantiation id="It.reduce#1<int32, void>" template=It.reduce#1 arguments=(int32, void)
     /// @generic.instantiation id="It.reduce#2<int32, void>" template=It.reduce#2 arguments=(int32, void)
     /// @generic.instance id="It.reduce#1<int32, void>" template=It.reduce#1 arguments=(int32, void)
-    /// @type.symbol symbol=sum.symbol30 type=Function<(Wrap<int32>, int32), Wrap<int32>>
-    /// @type.node type=Function<(Wrap<int32>, int32), Wrap<int32>>
+    /// @type.symbol symbol=sum.symbol30 type=Function<(Wrap<int32>, int32), Wrap<int32>, "readonly">
+    /// @type.node type=Function<(Wrap<int32>, int32), Wrap<int32>, "readonly">
     /// @type.symbol symbol=sum.symbol30.result source=result type=Wrap<int32>
     /// @type.symbol symbol=sum.symbol30.value source=value type=int32
 
@@ -913,9 +913,9 @@ function total(...values: int32[]): int32 {
 }
 
 function append(values: int32[], more: ^int32[]): int32 {
-/// @type.symbol symbol=append type=(int32[], Owned<int32[]>) => int32
+/// @type.symbol symbol=append type=(int32[], ^int32[]) => int32
 /// @type.symbol symbol=append.values source="values: int32[]" type=int32[]
-/// @type.symbol symbol=append.more source="more: ^int32[]" type=Owned<int32[]>
+/// @type.symbol symbol=append.more source="more: ^int32[]" type=^int32[]
 
     values.push(1, 2);
     /// @type.node source="values.push(1, 2)" type=isize
@@ -1012,8 +1012,8 @@ function pick(first: int32): int32 {
 }
 
 function fails(more: ^int32[]): int32 {
-/// @type.symbol symbol=fails type=(Owned<int32[]>) => int32
-/// @type.symbol symbol=fails.more source="more: ^int32[]" type=Owned<int32[]>
+/// @type.symbol symbol=fails type=(^int32[]) => int32
+/// @type.symbol symbol=fails.more source="more: ^int32[]" type=^int32[]
 
     return pick(...more);
     /// @type.node source=pick(...more) type=<error>
@@ -1248,4 +1248,52 @@ function finish(wrapped: Wrap<Counter>): boolean {
 
 }
 "#);
+}
+
+/// Spread elements convert into the rest parameter as values, taking views the arm declares.
+#[test]
+fn test_spread_arrays_into_a_readonly_view_rest_parameter() {
+    let session = TestSession::single(
+        r#"
+declare function take(...items: (int32 | readonly int32[])[]): void;
+
+function forward(values: int32[][]): void {
+    take(...values);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function take(...items: (int32 | readonly int32[])[]): void;
+
+function forward(values: int32[][]): void {
+    take(...values);
+}
+
+=== dir ===
+declare function take(...items: (int32 | readonly int32[])[]): void;
+/// @type.symbol symbol=take source="declare function take(...items: (int32 | readonly int32[])[]): void" type=(...int32 | readonly int32[][]) => void
+/// @type.symbol symbol=take.items source="...items: (int32 | readonly int32[])[]" type=int32 | readonly int32[][]
+
+function forward(values: int32[][]): void {
+/// @type.symbol symbol=forward type=(int32[][]) => void
+/// @type.symbol symbol=forward.values source="values: int32[][]" type=int32[][]
+
+    take(...values);
+    /// @resolution.name source=take target=take
+    /// @resolution.call source=take(...values) parameters=(int32 | readonly int32[][]) arguments=(rest(...values) pack=arrayFromSlice as int32 | readonly int32[]) return=void kind=symbol target=take
+    /// @generic.instantiation id="arrayFromSlice<int32 | readonly int32[]>" template=arrayFromSlice arguments=(int32 | readonly int32[])
+    /// @resolution.name source=values target=forward.values
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=forward.values
+
+}
+"#,
+        r#"
+"#,
+    );
 }

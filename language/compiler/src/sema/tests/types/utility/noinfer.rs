@@ -318,7 +318,7 @@ on(seeds, (value) => {});
 /// @resolution.name source=seeds target=seeds
 /// @resolution.place source=seeds placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=seeds root=seeds
-/// @type.symbol symbol=symbol9 source="(value) => {}" type=Function<("red",), void>
+/// @type.symbol symbol=symbol9 source="(value) => {}" type=Function<("red",), void, "readonly">
 /// @type.symbol symbol=symbol9.value source=value type="red"
 
 const reds: "red"[] = seeds;

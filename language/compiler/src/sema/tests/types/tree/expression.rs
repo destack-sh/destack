@@ -1274,7 +1274,7 @@ function render(): Panel {
     /// @resolution.tree source="<img {...shared}/>" builder=Panel form=element tag=img call=element attributes=(...: { src: string }) children=() type=Panel
     /// @generic.instantiation id="element<\"img\", ()>" template=element arguments=("img", ())
     /// @resolution.name source=shared target=render.shared
-    /// @resolution.place source=shared placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=shared placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=shared root=render.shared
 
     return page;
@@ -1479,7 +1479,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<Header title=\"hello\"/>" builder=Panel form=component callee=Header call=Header attributes=(title: "hello") children=() type=Panel
     /// @resolution.name source=Header target=Header
-    /// @resolution.function source=Header type=Function<({ title: string },), Panel> target=Header
+    /// @resolution.function source=Header type=Function<({ title: string },), Panel, "readonly"> target=Header
 
     return page;
     /// @resolution.name source=page target=render.page
@@ -2065,7 +2065,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<Stack title=\"hello\"><span/></Stack>" builder=Panel form=component callee=Stack call=Stack attributes=(title: "hello") children=(Panel) type=Panel
     /// @resolution.name source=Stack target=Stack
-    /// @resolution.function source=Stack type=Function<({ title: string; children: (Panel,) },), Panel> target=Stack
+    /// @resolution.function source=Stack type=Function<({ title: string; children: (Panel,) },), Panel, "readonly"> target=Stack
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
     /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
     /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
@@ -2268,7 +2268,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.rejected source="<Header title=\"hello\"><span/></Header>"
     /// @resolution.name source=Header target=Header
-    /// @resolution.function source=Header type=Function<({ title: string },), Panel> target=Header
+    /// @resolution.function source=Header type=Function<({ title: string },), Panel, "readonly"> target=Header
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
     /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
 

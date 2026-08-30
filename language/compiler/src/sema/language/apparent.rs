@@ -174,7 +174,7 @@ impl CheckState<'_> {
             },
             dir::Type::Function(function) => {
                 let Some(instance) =
-                    self.function_instance(function.signature, Some(function.multiplicity))?
+                    self.function_instance(function.signature, function.receiver)?
                 else {
                     return Ok(None);
                 };
@@ -182,7 +182,8 @@ impl CheckState<'_> {
                 instance
             }
             dir::Type::FunctionSignature(_) => {
-                let Some(instance) = self.function_instance(receiver, None)? else {
+                let elided = self.elided_receiver()?;
+                let Some(instance) = self.function_instance(receiver, elided)? else {
                     return Ok(None);
                 };
 
@@ -197,11 +198,11 @@ impl CheckState<'_> {
 
     /// Return the `Function` instance one signature writes.
     ///
-    /// Its arguments are the parameter tuple, the return type, and the multiplicity.
+    /// Its arguments are the parameter tuple, the return type, and the receiver mode.
     fn function_instance(
         &mut self,
         signature: dir::GlobalTypeId,
-        multiplicity: Option<dir::Multiplicity>,
+        receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ApparentInstance>> {
         // require a signature that declares a return type
         let Some(function) = self.signature_head(signature)? else {
@@ -229,18 +230,9 @@ impl CheckState<'_> {
             elements,
         }))?;
 
-        // write the multiplicity as a literal argument
-        let multiplicity = match multiplicity.unwrap_or(dir::Multiplicity::Repeatable) {
-            dir::Multiplicity::Repeatable => "repeatable",
-            dir::Multiplicity::Once => "once",
-        };
-        let multiplicity = self.intern_type(dir::Type::Literal(dir::Literal::String(
-            dir::StringId::for_text(multiplicity),
-        )))?;
-
         Ok(Some(ApparentInstance {
             symbol: self.language_symbol(dir::LanguageItem::Function)?,
-            arguments: SmallVec::from_slice(&[parameters, return_type, multiplicity]),
+            arguments: SmallVec::from_slice(&[parameters, return_type, receiver]),
         }))
     }
 }

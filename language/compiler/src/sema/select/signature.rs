@@ -661,6 +661,7 @@ impl CheckState<'_> {
         function_type: dir::GlobalTypeId,
         owner: Option<dir::GlobalSymbolId>,
         receiver: Option<Value>,
+        receiver_parameter: Option<dir::GlobalTypeId>,
         carried: &[dir::GenericArgumentBinding],
         type_arguments: &[dir::GlobalTypeId],
         arguments: &[CallableArgument],
@@ -680,6 +681,7 @@ impl CheckState<'_> {
                     function,
                     owner,
                     receiver,
+                    receiver_parameter,
                     carried,
                     type_arguments,
                     arguments,
@@ -695,6 +697,7 @@ impl CheckState<'_> {
                     function,
                     owner,
                     receiver,
+                    receiver_parameter,
                     carried,
                     type_arguments,
                     arguments,
@@ -721,6 +724,7 @@ impl CheckState<'_> {
             &function,
             return_type,
             receiver,
+            receiver_parameter,
             arguments,
             expectation,
         )
@@ -756,6 +760,7 @@ impl CheckState<'_> {
             function,
             function_return,
             receiver,
+            None,
             arguments,
             expectation,
         )
@@ -772,6 +777,7 @@ impl CheckState<'_> {
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
         receiver: Option<Value>,
+        receiver_parameter: Option<dir::GlobalTypeId>,
         arguments: &[CallableArgument],
         expectation: Option<Expectation>,
     ) -> CompilerResult<SignatureMatch> {
@@ -876,6 +882,7 @@ impl CheckState<'_> {
             &parameters,
             &substitution,
             receiver,
+            receiver_parameter,
             owner,
             function_return,
             expectation,
@@ -924,6 +931,7 @@ impl CheckState<'_> {
         parameters: &[dir::GlobalGenericParameterId],
         substitution: &TypeSubstitution,
         receiver: Option<Value>,
+        receiver_parameter: Option<dir::GlobalTypeId>,
         owner: Option<dir::GlobalSymbolId>,
         function_return: Option<dir::GlobalTypeId>,
         expectation: Option<Expectation>,
@@ -933,10 +941,16 @@ impl CheckState<'_> {
         let mut is_return_mismatch = false;
         let mut receiver_steps = None;
         let mut coercions = SmallVec::new();
-        // relate the implicit receiver before explicit arguments
-        if let (Some(receiver), Some(this_parameter)) = (receiver, function.this_parameter) {
-            let receiver_substitution = substitution.clone().with_receiver(receiver.ty);
-            let this_parameter = self.substitute_type(this_parameter, &receiver_substitution)?;
+        // relate the receiver to the per-call parameter as written, else to the declared this
+        if let (Some(receiver), Some(this_parameter)) =
+            (receiver, receiver_parameter.or(function.this_parameter))
+        {
+            let this_parameter = if receiver_parameter.is_some() {
+                this_parameter
+            } else {
+                let receiver_substitution = substitution.clone().with_receiver(receiver.ty);
+                self.substitute_type(this_parameter, &receiver_substitution)?
+            };
             match self.constrain_receiver(origin, receiver, this_parameter)? {
                 Some(steps) => receiver_steps = Some(steps),
                 None => {
@@ -1284,29 +1298,17 @@ impl CheckState<'_> {
             return Ok(Ok(None));
         };
 
-        // constrain a spread element against the rest parameter
-        if argument.is_spread {
-            let element = self.spread_element_type(ty)?;
-            if self.constrain_type(origin, cause, relation, element, parameter_type)?
-                == Verdict::Fails
-            {
-                let rejection = self.mismatch_rejection(
-                    cause,
-                    relation,
-                    Some(argument.use_),
-                    element,
-                    parameter_type,
-                    CheckFailure::Relation,
-                )?;
-
-                return Ok(Err(rejection));
+        // take a spread's element as the argument value and convert it into the parameter
+        let value = if argument.is_spread {
+            Value {
+                ty: self.spread_element_type(ty)?,
+                node: None,
+                place: None,
+                is_fresh: false,
             }
-
-            return Ok(Ok(None));
-        }
-
-        // select the complete runtime conversion for this candidate
-        let value = self.expression_value(site, ty)?;
+        } else {
+            self.expression_value(site, ty)?
+        };
         let conversion = self.convert_value(
             site,
             cause,
@@ -1323,12 +1325,17 @@ impl CheckState<'_> {
                 cause,
                 relation,
                 Some(argument.use_),
-                ty,
+                value.ty,
                 conversion.target,
                 failure,
             )?;
 
             return Ok(Err(rejection));
+        }
+
+        // discard the coercion selected for a spread element
+        if argument.is_spread {
+            return Ok(Ok(None));
         }
 
         let coercion = conversion.coercion.map(|coercion| *coercion);

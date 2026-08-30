@@ -649,9 +649,11 @@ impl CheckState<'_> {
             && matches!(self.ty(ty)?, dir::Type::FunctionSignature(_))
         {
             let place = self.local_place()?;
+            let receiver =
+                self.receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Readonly))?;
             self.intern_type(dir::Type::Function(dir::FunctionType {
                 signature: ty,
-                multiplicity: dir::Multiplicity::Repeatable,
+                receiver,
                 place,
             }))?
         } else {

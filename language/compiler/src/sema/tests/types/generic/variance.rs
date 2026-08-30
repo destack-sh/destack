@@ -889,10 +889,10 @@ take(increment);
 /// @resolution.name source=take target=take
 /// @resolution.call source=take(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=void kind=symbol target=take
 /// @resolution.name source=increment target=increment
-/// @resolution.function source=increment type=Function<(int32,), int32> target=increment
+/// @resolution.function source=increment type=Function<(int32,), int32, "readonly"> target=increment
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '(value: int32) => int32' is not assignable to parameter of type '(value: int32) => int32 | undefined'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Function<(value: int32,), int32, \"readonly\">' is not assignable to parameter of type '(value: int32) => int32 | undefined'"
 /// @diagnostic.label line=8 column=6 span="increment" line_source="take(increment);"
 /// @diagnostic.related line=8 column=1 span="take(increment)" line_source="take(increment);" message="in this call"
 "#,
@@ -928,7 +928,7 @@ declare function forEach(visit: (value: int32) => void): void;
 forEach(async (value) => value);
 /// @resolution.name source=forEach target=forEach
 /// @resolution.call source="forEach(async (value) => value)" parameters=(Function<(int32,), void>) arguments=(provided(async (value) => value) as Function<(int32,), void>) return=void kind=symbol target=forEach
-/// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>>
+/// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>, "readonly">
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

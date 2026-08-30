@@ -179,7 +179,7 @@ impl CheckState<'_> {
             match check {
                 Check::Relation(_) => constraints += 1,
                 Check::Declared(_) => obligations += 1,
-                Check::Conversion(_) | Check::Body(_) | Check::Pattern(_) => {}
+                Check::Conversion(_) | Check::Body(_) | Check::Pattern(_) | Check::Place(_) => {}
             }
         }
 

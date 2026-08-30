@@ -420,8 +420,8 @@ function adopt<T>(value: T): void {
         /// @resolution.access source=value root=adopt.value
         /// @generic.instantiation id="Deferred.then<*, \"local\">" template=Deferred.then arguments=(*, "local") owner=adopt
         /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
-        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void>
-        /// @type.node source="(value) => {}" type=Function<(*,), void>
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void, "readonly">
+        /// @type.node source="(value) => {}" type=Function<(*,), void, "readonly">
         /// @type.symbol symbol=adopt.symbol10.value source=value type=*
 
     }
@@ -509,8 +509,8 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @resolution.access source=value root=adopt.value
         /// @generic.instantiation id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local") owner=adopt
         /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
-        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(T#2,), void>
-        /// @type.node source="(value) => {}" type=Function<(T#2,), void>
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(T#2,), void, "readonly">
+        /// @type.node source="(value) => {}" type=Function<(T#2,), void, "readonly">
         /// @type.symbol symbol=adopt.symbol10.value source=value type=T#2
 
     }
@@ -601,8 +601,8 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @resolution.access source=value root=adopt.value
         /// @generic.instantiation id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local") owner=adopt
         /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
-        /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(), void>
-        /// @type.node source="() => {}" type=Function<(), void>
+        /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(), void, "readonly">
+        /// @type.node source="() => {}" type=Function<(), void, "readonly">
 
     }
 }

@@ -459,3 +459,73 @@ function retain(point: Point): void {
 "#,
     );
 }
+
+/// A compound assignment reads its own target as the operand inside a loop.
+#[test]
+fn test_grow_a_string_by_itself_inside_a_range_loop() {
+    let session = TestSession::single(
+        r#"
+function double(depth: isize): string {
+    let output = "x";
+    for (const _ of 0..depth) {
+        output += output;
+    }
+
+    return output;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function double(depth: isize): string {
+    let output: string = "x";
+    for (const _ of 0..depth) {
+        (output += output) as string;
+    }
+
+    return output;
+}
+
+=== dir ===
+function double(depth: isize): string {
+/// @type.symbol symbol=double type=(isize) => string
+/// @type.symbol symbol=double.depth source="depth: isize" type=isize
+
+    let output = "x";
+    /// @type.symbol symbol=double.output source=output type=string
+    /// @resolution.pattern source=output kind=binding target=double.output
+
+    for (const _ of 0..depth) {
+    /// @resolution.pattern source=_ kind=wildcard
+    /// @resolution.name source=depth target=double.depth
+    /// @resolution.place source=depth placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=depth root=double.depth
+
+        output += output;
+        /// @resolution.name source=output target=double.output
+        /// @resolution.operator source="output += output" type=^string operator="+" kind=call parameters=(string) arguments=(provided(output) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
+        /// @resolution.pattern.assign source=output kind=place
+        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.assignment source=output read=binding(double.output) write=binding(double.output) type=string
+        /// @resolution.access source=output root=double.output
+        /// @resolution.name source=output target=double.output
+        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=output root=double.output
+
+    }
+
+    return output;
+    /// @resolution.name source=output target=double.output
+    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=output root=double.output
+
+}
+"#,
+        r#"
+"#,
+    );
+}

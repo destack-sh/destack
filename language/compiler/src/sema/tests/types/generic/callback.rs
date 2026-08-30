@@ -48,7 +48,7 @@ const doubled = parsed.andThen((value) => Result.ok(value * 2));
 /// @resolution.place source=parsed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parsed root=parsed
 /// @generic.instantiation id="andThen<int32, string>" template=andThen arguments=(int32, string)
-/// @type.symbol symbol=symbol4 source=(value) => Result.ok(value * 2) type=Function<(int32,), Result<int32, <error>>>
+/// @type.symbol symbol=symbol4 source=(value) => Result.ok(value * 2) type=Function<(int32,), Result<int32, <error>>, "readonly">
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=Result target=Result
 /// @resolution.member source=Result.ok receiver=Result type=(T#1) => Result<T#1, E#1> kind=symbol target_receiver=Result target=ok#1
@@ -66,7 +66,7 @@ const wrapped = parsed.andThen((value) => Result(Ok { value: value * 2 }));
 /// @resolution.call source="parsed.andThen((value) => Result(Ok { value: value * 2 }))" parameters=(Function<(int32,), Result<int32, <error>>>) arguments=(provided((value) => Result(Ok { value: value * 2 })) as Function<(int32,), Result<int32, <error>>>) return=Result<int32, string | <error>> kind=symbol target=andThen receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.andThen<int32, <error>>"
 /// @resolution.place source=parsed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parsed root=parsed
-/// @type.symbol symbol=symbol7 source=(value) => Result(Ok { value: value * 2 }) type=Function<(int32,), Result<int32, <error>>>
+/// @type.symbol symbol=symbol7 source=(value) => Result(Ok { value: value * 2 }) type=Function<(int32,), Result<int32, <error>>, "readonly">
 /// @type.symbol symbol=symbol7.value source=value type=int32
 /// @resolution.name source=Result target=Result
 /// @resolution.construct source="Result(Ok { value: value * 2 })" parameters=(Ok<int32>) arguments=(provided(Ok { value: value * 2 }) as Ok<int32>) return=Result<int32, <error>> kind=newtype target=Result backing=Ok<int32> instance="Result<int32, <error>>"
@@ -86,7 +86,7 @@ const named = parsed.map((value) => value + 1);
 /// @resolution.access source=parsed root=parsed
 /// @generic.instantiation id="map<int32, string, int32>" template=map arguments=(int32, string, int32)
 /// @generic.instantiation id="map<int32, string>" template=map arguments=(int32, string)
-/// @type.symbol symbol=symbol10 source="(value) => value + 1" type=Function<(int32,), int32>
+/// @type.symbol symbol=symbol10 source="(value) => value + 1" type=Function<(int32,), int32, "readonly">
 /// @type.symbol symbol=symbol10.value source=value type=int32
 /// @resolution.name source=value target=symbol10.value
 /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
@@ -101,7 +101,7 @@ const unwrapped = parsed.andThen((value) => Ok { value });
 /// @resolution.call source="parsed.andThen((value) => Ok { value })" parameters=(Function<(int32,), Result<<error>, <error>>>) arguments=(provided((value) => Ok { value }) as Function<(int32,), Result<<error>, <error>>>) return=Result<<error>, string | <error>> kind=symbol target=andThen receiver=Result<int32, string> instance="Result<int32, string>.<extension#1>.andThen<<error>, <error>>"
 /// @resolution.place source=parsed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=parsed root=parsed
-/// @type.symbol symbol=symbol13 source="(value) => Ok { value }" type=Function<(int32,), Result<<error>, <error>>>
+/// @type.symbol symbol=symbol13 source="(value) => Ok { value }" type=Function<(int32,), Result<<error>, <error>>, "readonly">
 /// @type.symbol symbol=symbol13.value source=value type=int32
 /// @resolution.name source=Ok target=Ok
 /// @resolution.name source=value target=symbol13.value
@@ -183,7 +183,7 @@ each([(1, 2), (3, 4)])("adds", (left, right) => {
 /// @generic.instantiation id="each<(int64, int64)>" template=each arguments=((int64, int64))
 /// @resolution.call source=[(1, 2), (3, 4)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1, 2), (3, 4)) as (int64, int64)) return=(int64, int64)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(int64, int64)>"
 /// @generic.instantiation id="arrayFromSlice<(int64, int64)>" template=arrayFromSlice arguments=((int64, int64))
-/// @type.symbol symbol=symbol7 type=Function<(int64, int64), void>
+/// @type.symbol symbol=symbol7 type=Function<(int64, int64), void, "readonly">
 /// @type.symbol symbol=symbol7.left source=left type=int64
 /// @type.symbol symbol=symbol7.right source=right type=int64
 
@@ -207,7 +207,7 @@ each([("a", 1)])("pairs", (text, count) => {
 /// @generic.instantiation id="each<(string, int64)>" template=each arguments=((string, int64))
 /// @resolution.call source=[("a", 1)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(("a", 1)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(string, int64)>"
 /// @generic.instantiation id="arrayFromSlice<(string, int64)>" template=arrayFromSlice arguments=((string, int64))
-/// @type.symbol symbol=symbol11 type=Function<(string, int64), void>
+/// @type.symbol symbol=symbol11 type=Function<(string, int64), void, "readonly">
 /// @type.symbol symbol=symbol11.text source=text type=string
 /// @type.symbol symbol=symbol11.count source=count type=int64
 
@@ -230,7 +230,7 @@ each<(int32,)>([(1,)])("one", (value: int32) => {});
 /// @generic.instantiation id=each<(int32,)> template=each arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
 /// @generic.instantiation id=arrayFromSlice<(int32,)> template=arrayFromSlice arguments=((int32,))
-/// @type.symbol symbol=symbol15 source="(value: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol15 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol15.value source="value: int32" type=int32
 
 each([(1,)])("closed", (value: int32) => {});
@@ -238,7 +238,7 @@ each([(1,)])("closed", (value: int32) => {});
 /// @resolution.call source="each([(1,)])(\"closed\", (value: int32) => {})" parameters=(string, Function<(...(int32,),), void>) arguments=(provided("closed") as string, provided((value: int32) => {}) as Function<(...(int32,),), void>) return=void kind=expression target=expression
 /// @resolution.call source=each([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(...(int32,),), void>), void> kind=symbol target=each instance=each<(int32,)>
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
-/// @type.symbol symbol=symbol17 source="(value: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol17 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol17.value source="value: int32" type=int32
 "#,
         r#"
@@ -299,7 +299,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
     /// @resolution.access source=result root=normalize.result
     /// @generic.instantiation id="andThen<int32, string, int32, string>" template=andThen arguments=(int32, string, int32, string)
     /// @generic.instantiation id="andThen<int32, string>" template=andThen arguments=(int32, string)
-    /// @type.symbol symbol=normalize.symbol4 type=Function<(int32,), Result<int32, string>>
+    /// @type.symbol symbol=normalize.symbol4 type=Function<(int32,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=normalize.symbol4.value source=value type=int32
 
         if (value < 0) {
@@ -393,10 +393,11 @@ test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.call source=test.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedTest<(int32,)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (int32,))
 /// @resolution.place source=test placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=test root=test
+/// @resolution.place source=test.each([(1,)]).only placement="local" lifetime="frame" access="exclusive"
 /// @generic.instantiation id="Test.each<{}, {}, {}>" template=Test.each arguments=({}, {}, {})
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
 /// @generic.instantiation id=arrayFromSlice<(int32,)> template=arrayFromSlice arguments=((int32,))
-/// @type.symbol symbol=symbol3 source="(value: int32) => {}" type=Function<(int32,), BodyResult>
+/// @type.symbol symbol=symbol3 source="(value: int32) => {}" type=Function<(int32,), BodyResult, "readonly">
 /// @type.symbol symbol=symbol3.value source="value: int32" type=int32
 
 test.for([1]).only("table case", (value: &readonly int64) => {});
@@ -407,11 +408,12 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 /// @resolution.call source=test.for([1]) parameters=(Iterable<int64>) arguments=(provided([1]) as Iterable<int64>) return=TableTest<int64, {}, {}, {}> kind=dynamic target=Test.for receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, int64)
 /// @resolution.place source=test placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=test root=test
+/// @resolution.place source=test.for([1]).only placement="local" lifetime="frame" access="exclusive"
 /// @generic.instantiation id="Test.for<{}, {}, {}>" template=Test.for arguments=({}, {}, {})
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
 /// @generic.instantiation id=arrayFromSlice<int64> template=arrayFromSlice arguments=(int64)
 /// @generic.template symbol=symbol5 parameters=('a)
-/// @type.symbol symbol=symbol5 source="(value: &readonly int64) => {}" type=Function<(&symbol5.'a readonly int64,), BodyResult>
+/// @type.symbol symbol=symbol5 source="(value: &readonly int64) => {}" type=Function<(&symbol5.'a readonly int64,), BodyResult, "readonly">
 /// @type.symbol symbol=symbol5.value source="value: &readonly int64" type=&symbol5.'a readonly int64
 
 describe.each([(1,)])("parameterized suite", (value: int32) => {});
@@ -422,7 +424,7 @@ describe.each([(1,)])("parameterized suite", (value: int32) => {});
 /// @resolution.place source=describe placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=describe root=describe
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
-/// @type.symbol symbol=symbol7 source="(value: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol7 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol7.value source="value: int32" type=int32
 
 describe.for([1])("table suite", (value: int32) => {});
@@ -434,7 +436,7 @@ describe.for([1])("table suite", (value: int32) => {});
 /// @resolution.access source=describe root=describe
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @type.symbol symbol=symbol9 source="(value: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol9 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol9.value source="value: int32" type=int32
 
 test.each([("a", 2)])("pairs", (text, count) => {
@@ -446,7 +448,7 @@ test.each([("a", 2)])("pairs", (text, count) => {
 /// @resolution.access source=test root=test
 /// @resolution.call source=[("a", 2)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(("a", 2)) as (string, int64)) return=(string, int64)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(string, int64)>"
 /// @generic.instantiation id="arrayFromSlice<(string, int64)>" template=arrayFromSlice arguments=((string, int64))
-/// @type.symbol symbol=symbol11 type=Function<(string, int64), BodyResult>
+/// @type.symbol symbol=symbol11 type=Function<(string, int64), BodyResult, "readonly">
 /// @type.symbol symbol=symbol11.text source=text type=string
 /// @type.symbol symbol=symbol11.count source=count type=int64
 
@@ -527,7 +529,7 @@ function parse(result: Result<string, string>): Result<int32, string> {
     /// @resolution.access source=result root=parse.result
     /// @generic.instantiation id="andThen<string, string, int32, string>" template=andThen arguments=(string, string, int32, string)
     /// @generic.instantiation id="andThen<string, string>" template=andThen arguments=(string, string)
-    /// @type.symbol symbol=parse.symbol3 type=Function<(string,), Result<int32, string>>
+    /// @type.symbol symbol=parse.symbol3 type=Function<(string,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=parse.symbol3.value source=value type=string
 
         value.isEmpty ? Result.err("empty") : Result.ok(1)
@@ -559,7 +561,7 @@ function widen(result: Result<string, string>): Result<int32, string> {
     /// @resolution.call parameters=(Function<(string,), Result<int32, string>>) arguments=(provided(argument) as Function<(string,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<string, string> instance="Result<string, string>.<extension#1>.andThen<int32, string>"
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=widen.result
-    /// @type.symbol symbol=widen.symbol7 type=Function<(string,), Result<int32, string>>
+    /// @type.symbol symbol=widen.symbol7 type=Function<(string,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=widen.symbol7.value source=value type=string
 
         if (value.isEmpty) {
@@ -741,7 +743,7 @@ run([(1,)])("optional", (value: int32) => {});
 /// @generic.instantiation id=run<(int32,)> template=run arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
 /// @generic.instantiation id=arrayFromSlice<(int32,)> template=arrayFromSlice arguments=((int32,))
-/// @type.symbol symbol=symbol43 source="(value: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol43 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol43.value source="value: int32" type=int32
 
 plain([(1,)])("plain", (value: int32) => {});
@@ -750,7 +752,7 @@ plain([(1,)])("plain", (value: int32) => {});
 /// @resolution.call source=plain([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void>), void> kind=symbol target=plain instance=plain<(int32,)>
 /// @generic.instantiation id=plain<(int32,)> template=plain arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
-/// @type.symbol symbol=symbol45 source="(value: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol45 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol45.value source="value: int32" type=int32
 
 table([1])("table", (value: &readonly int32) => {});
@@ -761,7 +763,7 @@ table([1])("table", (value: &readonly int32) => {});
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
 /// @generic.template symbol=symbol47 parameters=('a)
-/// @type.symbol symbol=symbol47 source="(value: &readonly int32) => {}" type=Function<(&symbol47.'a readonly int32,), void>
+/// @type.symbol symbol=symbol47 source="(value: &readonly int32) => {}" type=Function<(&symbol47.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol47.value source="value: &readonly int32" type=&symbol47.'a readonly int32
 
 optionalTable([1])("optional table", (value: &readonly int32) => {});
@@ -771,7 +773,7 @@ optionalTable([1])("optional table", (value: &readonly int32) => {});
 /// @generic.instantiation id=optionalTable<int32> template=optionalTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.template symbol=symbol49 parameters=('a)
-/// @type.symbol symbol=symbol49 source="(value: &readonly int32) => {}" type=Function<(&symbol49.'a readonly int32,), void>
+/// @type.symbol symbol=symbol49 source="(value: &readonly int32) => {}" type=Function<(&symbol49.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol49.value source="value: &readonly int32" type=&symbol49.'a readonly int32
 
 contextTable([1])("context table", (value: &readonly int32) => {});
@@ -781,7 +783,7 @@ contextTable([1])("context table", (value: &readonly int32) => {});
 /// @generic.instantiation id=contextTable<int32> template=contextTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.template symbol=symbol51 parameters=('a)
-/// @type.symbol symbol=symbol51 source="(value: &readonly int32) => {}" type=Function<(&symbol51.'a readonly int32,), void>
+/// @type.symbol symbol=symbol51 source="(value: &readonly int32) => {}" type=Function<(&symbol51.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol51.value source="value: &readonly int32" type=&symbol51.'a readonly int32
 
 iterTable([1])("iter table", (value: &readonly int32) => {});
@@ -791,7 +793,7 @@ iterTable([1])("iter table", (value: &readonly int32) => {});
 /// @generic.instantiation id=iterTable<int32> template=iterTable arguments=(int32)
 /// @resolution.call source=[1] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
 /// @generic.template symbol=symbol53 parameters=('a)
-/// @type.symbol symbol=symbol53 source="(value: &readonly int32) => {}" type=Function<(&symbol53.'a readonly int32,), void>
+/// @type.symbol symbol=symbol53 source="(value: &readonly int32) => {}" type=Function<(&symbol53.'a readonly int32,), void, "readonly">
 /// @type.symbol symbol=symbol53.value source="value: &readonly int32" type=&symbol53.'a readonly int32
 "#,
         r#"
@@ -870,7 +872,7 @@ each([(1, "a", true)])("triple", (count, text, flag) => {
 /// @generic.instantiation id="each<(int64, string, boolean)>" template=each arguments=((int64, string, boolean))
 /// @resolution.call source=[(1, "a", true)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1, "a", true)) as (int64, string, boolean)) return=(int64, string, boolean)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(int64, string, boolean)>"
 /// @generic.instantiation id="arrayFromSlice<(int64, string, boolean)>" template=arrayFromSlice arguments=((int64, string, boolean))
-/// @type.symbol symbol=symbol7 type=Function<(int64, string, boolean), void>
+/// @type.symbol symbol=symbol7 type=Function<(int64, string, boolean), void, "readonly">
 /// @type.symbol symbol=symbol7.count source=count type=int64
 /// @type.symbol symbol=symbol7.text source=text type=string
 /// @type.symbol symbol=symbol7.flag source=flag type=boolean
@@ -897,7 +899,7 @@ each([(1, "a")])("rest", (...args) => {
 /// @generic.instantiation id="each<(int64, string)>" template=each arguments=((int64, string))
 /// @resolution.call source=[(1, "a")] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1, "a")) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(int64, string)>"
 /// @generic.instantiation id="arrayFromSlice<(int64, string)>" template=arrayFromSlice arguments=((int64, string))
-/// @type.symbol symbol=symbol12 type=Function<(...(int64, string),), void>
+/// @type.symbol symbol=symbol12 type=Function<(...(int64, string),), void, "readonly">
 /// @type.symbol symbol=symbol12.args source=...args type=(int64, string)
 
     const pack = args;
@@ -913,7 +915,7 @@ each([(1, "a")])("partial", (count, text: string) => {
 /// @resolution.call parameters=(string, Function<(...(int64, string),), void>) arguments=(provided("partial") as string, provided(argument) as Function<(...(int64, string),), void>) return=void kind=expression target=expression
 /// @resolution.call source="each([(1, \"a\")])" parameters=((int64, string)[]) arguments=(provided([(1, "a")]) as (int64, string)[]) return=Function<(string, Function<(...(int64, string),), void>), void> kind=symbol target=each instance="each<(int64, string)>"
 /// @resolution.call source=[(1, "a")] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1, "a")) as (int64, string)) return=(int64, string)[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<(int64, string)>"
-/// @type.symbol symbol=symbol15 type=Function<(int64, string), void>
+/// @type.symbol symbol=symbol15 type=Function<(int64, string), void, "readonly">
 /// @type.symbol symbol=symbol15.count source=count type=int64
 /// @type.symbol symbol=symbol15.text source="text: string" type=string
 
@@ -936,7 +938,7 @@ each([(1,)])("typed", (count: int32) => {});
 /// @generic.instantiation id=each<(int32,)> template=each arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
 /// @generic.instantiation id=arrayFromSlice<(int32,)> template=arrayFromSlice arguments=((int32,))
-/// @type.symbol symbol=symbol19 source="(count: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol19 source="(count: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol19.count source="count: int32" type=int32
 
 each([(2,)])("typed again", (count: int32) => {});
@@ -944,7 +946,7 @@ each([(2,)])("typed again", (count: int32) => {});
 /// @resolution.call source="each([(2,)])(\"typed again\", (count: int32) => {})" parameters=(string, Function<(...(int32,),), void>) arguments=(provided("typed again") as string, provided((count: int32) => {}) as Function<(...(int32,),), void>) return=void kind=expression target=expression
 /// @resolution.call source=each([(2,)]) parameters=((int32,)[]) arguments=(provided([(2,)]) as (int32,)[]) return=Function<(string, Function<(...(int32,),), void>), void> kind=symbol target=each instance=each<(int32,)>
 /// @resolution.call source=[(2,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((2,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
-/// @type.symbol symbol=symbol21 source="(count: int32) => {}" type=Function<(int32,), void>
+/// @type.symbol symbol=symbol21 source="(count: int32) => {}" type=Function<(int32,), void, "readonly">
 /// @type.symbol symbol=symbol21.count source="count: int32" type=int32
 "#,
         r#"
@@ -1012,7 +1014,7 @@ function parse(result: Result<string, string>): Result<int32, string> {
     /// @resolution.access source=result root=parse.result
     /// @generic.instantiation id="andThen<string, string, int32, string>" template=andThen arguments=(string, string, int32, string)
     /// @generic.instantiation id="andThen<string, string>" template=andThen arguments=(string, string)
-    /// @type.symbol symbol=parse.symbol3 type=Function<(string,), Result<int32, string>>
+    /// @type.symbol symbol=parse.symbol3 type=Function<(string,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=parse.symbol3.value source=value type=string
 
         const parsed = value.isEmpty ? Result.err("empty") : Result.ok(1);
@@ -1051,7 +1053,7 @@ function choose(result: Result<string, string>): Result<int32, string> {
     /// @resolution.call parameters=(Function<(string,), Result<int32, string>>) arguments=(provided(argument) as Function<(string,), Result<int32, string>>) return=Result<int32, string> kind=symbol target=andThen receiver=Result<string, string> instance="Result<string, string>.<extension#1>.andThen<int32, string>"
     /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=choose.result
-    /// @type.symbol symbol=choose.symbol8 type=Function<(string,), Result<int32, string>>
+    /// @type.symbol symbol=choose.symbol8 type=Function<(string,), Result<int32, string>, "readonly">
     /// @type.symbol symbol=choose.symbol8.value source=value type=string
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=choose.symbol8.value

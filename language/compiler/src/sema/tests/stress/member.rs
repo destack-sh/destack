@@ -29,7 +29,7 @@ check.bindings.reused=3999
 check.members.derived=4000
 check.members.refused=0
 check.instantiations=1000
-check.interns=41029
+check.interns=42029
 check.reduces=45034
 "#,
     );

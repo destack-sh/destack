@@ -204,6 +204,7 @@ function invoke(service: { callback?: () => int32 } | null): int32 | undefined {
     /// @resolution.call source=service?.callback?.() parameters=() return=int32 kind=expression target=expression
     /// @resolution.place source=service placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=service root=invoke.service
+    /// @resolution.place source=service?.callback placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=service?.callback root=invoke.service keys=[callback]
 
 }

@@ -35,11 +35,11 @@ type Handler = { run: (value: number) => number };
 /// @type.symbol symbol=Handler.value source="value: number" type=float64
 
 const handler = {
-/// @type.symbol symbol=handler source=handler type={ run: Function<(float64,), float64> }
+/// @type.symbol symbol=handler source=handler type={ run: Function<(float64,), float64, "readonly"> }
 /// @resolution.pattern source=handler kind=binding target=handler
 
     run: (value) => value + 1,
-    /// @type.symbol symbol=symbol5 source="(value) => value + 1" type=Function<(float64,), float64>
+    /// @type.symbol symbol=symbol5 source="(value) => value + 1" type=Function<(float64,), float64, "readonly">
     /// @type.symbol symbol=symbol5.value source=value type=float64
     /// @resolution.name source=value target=symbol5.value
     /// @resolution.operator source="value + 1" type=float64 operator="+" kind=builtin operands=[value as float64 families=(float), 1 as float64 families=(float)]
@@ -51,10 +51,11 @@ const handler = {
 
 handler.run(1) satisfies number;
 /// @resolution.name source=handler target=handler
-/// @resolution.member source=handler.run receiver={ run: Function<(float64,), float64> } type=Function<(float64,), float64> kind=field target_receiver={ run: Function<(float64,), float64> } key=run target_type=Function<(float64,), float64>
+/// @resolution.member source=handler.run receiver={ run: Function<(float64,), float64, "readonly"> } type=Function<(float64,), float64, "readonly"> kind=field target_receiver={ run: Function<(float64,), float64, "readonly"> } key=run target_type=Function<(float64,), float64, "readonly">
 /// @resolution.call source=handler.run(1) parameters=(float64) arguments=(provided(1) as float64) return=float64 kind=expression target=expression
 /// @resolution.place source=handler placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handler root=handler
+/// @resolution.place source=handler.run placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=handler.run root=handler keys=[run]
 "#,
     );

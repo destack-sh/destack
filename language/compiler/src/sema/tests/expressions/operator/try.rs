@@ -325,3 +325,46 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
 }
 "#);
 }
+
+/// A union return type implements the residual interface as a whole through its extension.
+#[test]
+fn test_try_an_optional_inside_an_optional_returning_function() {
+    let session = TestSession::single(
+        r#"
+function value(maybe: int32 | undefined): int32 | undefined {
+    maybe?;
+
+    return 0;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function value(maybe: int32 | undefined): int32 | undefined {
+    maybe?;
+
+    return 0 as int32 | undefined;
+}
+
+=== dir ===
+function value(maybe: int32 | undefined): int32 | undefined {
+/// @type.symbol symbol=value type=(int32 | undefined) => int32 | undefined
+/// @type.symbol symbol=value.maybe source="maybe: int32 | undefined" type=int32 | undefined
+
+    maybe?;
+    /// @resolution.name source=maybe target=value.maybe
+    /// @resolution.place source=maybe placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=maybe root=value.maybe
+    /// @resolution.residual source=maybe? target=callable residual=TryResidual<int32 | undefined>
+
+    return 0;
+}
+"#,
+        r#"
+"#,
+    );
+}

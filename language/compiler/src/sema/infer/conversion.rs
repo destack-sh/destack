@@ -9,8 +9,8 @@ use crate::sema::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// The representation edge one value takes into its slot.
-enum ValueEdge {
+/// The way one value stores into its slot.
+enum StoreMode {
     /// The slot is open, the value flows in by inclusion until it closes.
     Open,
     /// The value erases behind an existential or a dynamic constraint.
@@ -423,7 +423,7 @@ impl CheckState<'_> {
         }
 
         // flow a value into an open slot whole, converting once the slot closes
-        if let (ValueEdge::Open, slot) = self.value_edge(origin, source.ty, target)? {
+        if let (StoreMode::Open, slot) = self.store_mode(origin, source.ty, target)? {
             return self.constrain_type(origin, cause, Relation::Subtype, source.ty, slot);
         }
 
@@ -479,7 +479,7 @@ impl CheckState<'_> {
 
         // store a fresh temporary beneath the forms its destination declares
         if source.is_fresh && source.place.is_none() && relation == Relation::Storable {
-            let slot = self.strip_forms(target)?;
+            let slot = self.strip_form(origin, target)?;
             let value = self.shallow_resolve(source.ty)?;
             if matches!(self.ty(value)?, dir::Type::Object(_))
                 && let Some(verdict) = self.relate_fresh_shape(origin, cause, value, slot)?
@@ -488,6 +488,15 @@ impl CheckState<'_> {
             }
 
             return self.constrain_edge(site, cause, source, slot, use_);
+        }
+
+        // store a callable value only into a slot of its own parameter shape
+        if relation == Relation::Storable {
+            let found = self.strip_form(origin, source.ty)?;
+            let required = self.strip_form(origin, target)?;
+            if !self.signature_shapes_match(found, required)? {
+                return Ok(Verdict::Fails);
+            }
         }
 
         // explicit and implicit borrowing use the same value place
@@ -579,13 +588,13 @@ impl CheckState<'_> {
         self.constrain_edge(site, cause, source, target, use_)
     }
 
-    /// Classify the edge one value takes into its slot, reading through readonly views.
-    fn value_edge(
+    /// Classify how one value stores into its slot, reading through readonly views.
+    fn store_mode(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
-    ) -> CompilerResult<(ValueEdge, dir::GlobalTypeId)> {
+    ) -> CompilerResult<(StoreMode, dir::GlobalTypeId)> {
         // read the source and peel readonly views off the slot
         let source = self.shallow_resolve(source)?;
         let mut slot = self.structurally_normalize(origin, target)?;
@@ -595,18 +604,23 @@ impl CheckState<'_> {
             slot = self.structurally_normalize(origin, form.value)?;
         }
 
-        // classify the edge by the source and slot heads
-        let edge = match (self.ty(source)?, self.ty(slot)?) {
+        // classify the store by the source and slot heads
+        let mode = match (self.ty(source)?, self.ty(slot)?) {
             // flow into an open slot whole
-            (_, dir::Type::Variable(_)) => ValueEdge::Open,
-            // erase behind a dynamic slot
-            (_, dir::Type::Unknown | dir::Type::Dynamic(_)) => ValueEdge::Erase,
-            (_, dir::Type::Object(_)) if self.is_erased_value(slot)? => ValueEdge::Erase,
+            (_, dir::Type::Variable(_)) => StoreMode::Open,
+            // erase behind an erased slot
+            (
+                _,
+                dir::Type::Unknown
+                | dir::Type::Dynamic(_)
+                | dir::Type::Object(_)
+                | dir::Type::Form(_),
+            ) if self.is_erased_value(slot)? => StoreMode::Erase,
             // materialize a literal untagged in a union slot of its own scalar domain
             (dir::Type::Literal(literal), dir::Type::Union(union))
                 if self.stores_untagged(literal, slot, union)? =>
             {
-                ValueEdge::Materialize(self.widen_type(source)?)
+                StoreMode::Materialize(self.widen_type(source)?)
             }
             // store a parameter as the union its domain already is
             (dir::Type::Parameter(parameter), dir::Type::Union(_))
@@ -616,27 +630,27 @@ impl CheckState<'_> {
                         .decide_relation(origin, Relation::Equal, domain, slot)?
                         .holds() =>
             {
-                ValueEdge::Store
+                StoreMode::Store
             }
             // inject into the arms a union slot declares
-            (_, dir::Type::Union(union)) => ValueEdge::Inject(SmallVec::from_slice(
+            (_, dir::Type::Union(union)) => StoreMode::Inject(SmallVec::from_slice(
                 self.type_ids(slot.module_id, union.elements)?,
             )),
             // materialize a constant into the primitive that holds it
             (dir::Type::Key(key), dir::Type::Primitive(primitive))
                 if key.widens_to_primitive(primitive) =>
             {
-                ValueEdge::Materialize(slot)
+                StoreMode::Materialize(slot)
             }
             // materialize a union of constants into the primitive that holds them all
             (dir::Type::Union(union), dir::Type::Primitive(primitive))
                 if self.union_materializes_into(source, union, primitive)? =>
             {
-                ValueEdge::Materialize(slot)
+                StoreMode::Materialize(slot)
             }
             // materialize a constant that widens into a runtime slot
             (dir::Type::Literal(_) | dir::Type::Range(_), _) => {
-                let base = self.strip_forms(slot)?;
+                let base = self.shallow_strip_forms(slot)?;
                 let head = self.ty(base)?;
                 let is_runtime = matches!(head, dir::Type::Primitive(_) | dir::Type::Range(_));
                 let widens = match self.ty(source)? {
@@ -645,15 +659,15 @@ impl CheckState<'_> {
                     _ => false,
                 };
                 match is_runtime && widens {
-                    true => ValueEdge::Materialize(base),
-                    false => ValueEdge::Store,
+                    true => StoreMode::Materialize(base),
+                    false => StoreMode::Store,
                 }
             }
             // store every remaining value as it is
-            _ => ValueEdge::Store,
+            _ => StoreMode::Store,
         };
 
-        Ok((edge, slot))
+        Ok((mode, slot))
     }
 
     /// Return whether every arm of one union is a constant the primitive holds.
@@ -717,7 +731,7 @@ impl CheckState<'_> {
         Ok(domain)
     }
 
-    /// Constrain one value into its slot along its edge.
+    /// Constrain one value into its slot by the way it stores.
     pub(in crate::sema) fn constrain_edge(
         &mut self,
         site: FlowSite,
@@ -726,17 +740,17 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
         use_: ValueUse,
     ) -> CompilerResult<Verdict> {
-        // read the value and the edge it takes into the slot
+        // read the value and the way it stores into the slot
         let origin = site.origin();
         let value = self.shallow_resolve(source.ty)?;
-        let (edge, slot) = self.value_edge(origin, value, target)?;
+        let (mode, slot) = self.store_mode(origin, value, target)?;
 
-        // constrain the value along its edge
-        match edge {
+        // constrain the value by its store mode
+        match mode {
             // flow a value into an open slot by inclusion
-            ValueEdge::Open => self.constrain_type(origin, cause, Relation::Subtype, value, slot),
+            StoreMode::Open => self.constrain_type(origin, cause, Relation::Subtype, value, slot),
             // erase a value behind a dynamic or dictionary slot
-            ValueEdge::Erase => match self.ty(slot)? {
+            StoreMode::Erase => match self.ty(slot)? {
                 dir::Type::Dynamic(dynamic) => {
                     self.relate_dynamic_assignable(origin, cause, value, dynamic.constraint)
                 }
@@ -751,7 +765,7 @@ impl CheckState<'_> {
                 }
             },
             // convert a value into the one union arm it stores in
-            ValueEdge::Inject(arms) => {
+            StoreMode::Inject(arms) => {
                 let viable = self.viable_union_arms(&arms, |state, arm| {
                     state.constrain_conversion(site, cause, Relation::Storable, source, arm, use_)
                 })?;
@@ -768,11 +782,11 @@ impl CheckState<'_> {
                 }
             }
             // require a materialized constant the slot's type includes
-            ValueEdge::Materialize(_) => {
+            StoreMode::Materialize(_) => {
                 self.constrain_type(origin, cause, Relation::Subtype, value, slot)
             }
             // store a value as it is
-            ValueEdge::Store => {
+            StoreMode::Store => {
                 self.constrain_type(origin, cause, Relation::Storable, value, target)
             }
         }
@@ -1041,17 +1055,17 @@ impl CheckState<'_> {
             return self.convert_source_cases(site, origin, cause, source, sources, target, use_);
         }
 
-        // take the value's edge into the slot
-        let (edge, slot) = self.value_edge(origin, source.ty, target)?;
-        match edge {
+        // read the way the value stores into the slot
+        let (mode, slot) = self.store_mode(origin, source.ty, target)?;
+        match mode {
             // reject an open slot at a closed conversion
-            ValueEdge::Open => {
+            StoreMode::Open => {
                 return Err(CompilerError::Internal {
                     message: "closed conversion reached an open slot".to_string(),
                 });
             }
             // widen a constant first, then convert the widened runtime value
-            ValueEdge::Materialize(base) => {
+            StoreMode::Materialize(base) => {
                 let widen = dir::CoercionAdjustment::Materialize { target: base };
                 if matches!(self.ty(slot)?, dir::Type::Union(_)) {
                     if !self
@@ -1090,7 +1104,7 @@ impl CheckState<'_> {
                 });
             }
             // inject a singular value into its selected target union case
-            ValueEdge::Inject(_) => {
+            StoreMode::Inject(_) => {
                 let head = match self.union_arms(origin, target)? {
                     Some(_) => target,
                     None => self.structurally_normalize(origin, target)?,
@@ -1119,7 +1133,7 @@ impl CheckState<'_> {
                 return Ok(Ok(Some(Box::new(coercion))));
             }
             // fall through for erased and stored values
-            ValueEdge::Erase | ValueEdge::Store => {}
+            StoreMode::Erase | StoreMode::Store => {}
         }
 
         // instantiate a generic callable reference first, then convert the instantiated value

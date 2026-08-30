@@ -731,7 +731,7 @@ const counter: Counter = { value: 1 };
 /// @resolution.name source=Counter target=Counter
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '{ value: int64 }' is not assignable to type 'Counter'"
+/// @diagnostic.error id=not-assignable message="type '{ value: int32 }' is not assignable to type 'Counter'"
 /// @diagnostic.label line=6 column=26 span="{ value: 1 }" line_source="const counter: Counter = { value: 1 };"
 /// @diagnostic.related line=6 column=16 span="Counter" line_source="const counter: Counter = { value: 1 };" message="expected due to this annotation"
 "#,
@@ -865,11 +865,11 @@ struct Expectation {
 struct Expectation {
 /// @type.symbol symbol=Expectation type=Expectation
 /// @definition.struct symbol=Expectation
-/// @definition.field symbol=Expectation.message source="message?: ^string" key=message type=Owned<string>
+/// @definition.field symbol=Expectation.message source="message?: ^string" key=message type=^string
 /// @definition.method symbol=Expectation.not slot=not role=getter type=(this: this) => Expectation
 
     message?: ^string;
-    /// @type.symbol symbol=Expectation.message source="message?: ^string" type=Owned<string>
+    /// @type.symbol symbol=Expectation.message source="message?: ^string" type=^string
 
     get not(this): Expectation {
     /// @type.symbol symbol=Expectation.not type=(this: this) => Expectation
@@ -878,7 +878,7 @@ struct Expectation {
 
         Expectation { message: this.message }
         /// @resolution.name source=Expectation target=Expectation
-        /// @resolution.member source=this.message receiver=Expectation type=Owned<string> | undefined kind=field target_receiver=Expectation key=message target=Expectation.message target_type=Owned<string> | undefined
+        /// @resolution.member source=this.message receiver=Expectation type=^string | undefined kind=field target_receiver=Expectation key=message target=Expectation.message target_type=^string | undefined
         /// @resolution.receiver source=this kind=this declaration=Expectation type=Expectation
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this

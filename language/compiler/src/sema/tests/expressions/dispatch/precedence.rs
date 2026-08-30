@@ -47,13 +47,13 @@ shared class Pack<out T> {}
 export extension<T> of Pack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
-/// @definition.method symbol=from#1 slot=from static=true type=(Iterable<T#2>) => Owned<Pack<T#2>>
+/// @definition.method symbol=from#1 slot=from static=true type=(Iterable<T#2>) => ^Pack<T#2>
 /// @type.symbol symbol=T#1 source=T type=T#2
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#1
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => Owned<Pack<T#2>>
+    /// @type.symbol symbol=from#1 type=(Iterable<T#2>) => ^Pack<T#2>
     /// @type.symbol symbol=from.values#1 source="values: Iterable<T>" type=Iterable<T#2>
     /// @resolution.name source=Iterable target=Iterable
     /// @resolution.name source=T target=T#1
@@ -69,9 +69,9 @@ export extension<T> of Pack<T> {
 
 export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 /// @generic.template symbol=<module>#3 parameters=(T#3)
-/// @definition.extension symbol=<module>#3 form=exported target=Owned<Pack<T#3>>
+/// @definition.extension symbol=<module>#3 form=exported target=^Pack<T#3>
 /// @definition.implements symbol=<module>#3 source=From<Iterable<T>> target=From<Iterable<T#3>>
-/// @definition.method symbol=from#2 slot=from static=true type=(Iterable<T#3>) => Owned<Pack<T#3>>
+/// @definition.method symbol=from#2 slot=from static=true type=(Iterable<T#3>) => ^Pack<T#3>
 /// @definition.conformance symbol=<module>#3 member=from#2 requirement=From.from
 /// @type.symbol symbol=T#2 source=T type=T#3
 /// @resolution.name source=Pack target=Pack
@@ -81,7 +81,7 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 /// @resolution.name source=T target=T#2
 
     static from(values: Iterable<T>): ^Pack<T> {
-    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => Owned<Pack<T#3>>
+    /// @type.symbol symbol=from#2 type=(Iterable<T#3>) => ^Pack<T#3>
     /// @type.symbol symbol=from.values#2 source="values: Iterable<T>" type=Iterable<T#3>
     /// @resolution.name source=Iterable target=Iterable
     /// @resolution.name source=T target=T#2
@@ -90,8 +90,8 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
 
         Pack.from(values)
         /// @resolution.name source=Pack target=Pack
-        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => Owned<Pack<T#2>> kind=symbol target_receiver=Pack target=from#1
-        /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=Owned<Pack<T#3>> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
+        /// @resolution.member source=Pack.from receiver=Pack type=(Iterable<T#2>) => ^Pack<T#2> kind=symbol target_receiver=Pack target=from#1
+        /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=^Pack<T#3> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @resolution.name source=values target=from.values#2
         /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"

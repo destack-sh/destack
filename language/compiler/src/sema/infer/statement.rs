@@ -782,6 +782,7 @@ impl CheckState<'_> {
                 {
                     self.fresh_consts.insert(symbol);
                 }
+
                 let slot = match self.binding_slot(module, pattern)? {
                     Some(slot) => slot,
                     None => self.open_variable(site.origin()),

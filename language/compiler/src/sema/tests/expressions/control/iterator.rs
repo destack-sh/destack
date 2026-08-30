@@ -736,7 +736,7 @@ function total(values: int32[]): int32 {
     /// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
-    /// @generic.instance id="Iterator.collect<Iterator<int32>, int32, Owned<int32[]>>" template=Iterator.collect arguments=(int32, Owned<int32[]>)
+    /// @generic.instance id="Iterator.collect<Iterator<int32>, int32, ^int32[]>" template=Iterator.collect arguments=(int32, ^int32[])
     /// @generic.instance id="IteratorResult<int32, Iterator<int32>.Return>" template=IteratorResult arguments=(int32, Iterator<int32>.Return)
     /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
     /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)

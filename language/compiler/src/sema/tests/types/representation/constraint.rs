@@ -102,6 +102,7 @@ function paint(item: Drawable): void {
     /// @resolution.call source=item.draw() parameters=() return=void kind=expression target=expression
     /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=item root=paint.item
+    /// @resolution.place source=item.draw placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=item.draw root=paint.item keys=[draw]
 
 }

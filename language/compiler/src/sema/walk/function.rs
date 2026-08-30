@@ -227,10 +227,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
 
         // walk the written receiver parameter
-        let this_parameter = if let Some(parameter) = declaration.this_parameter {
-            self.walk_parameter_type(parameter)?
-        } else {
-            None
+        let this_parameter = match declaration.this_parameter {
+            Some(parameter) => self.walk_parameter_type(parameter)?,
+            None => None,
         };
 
         // collect signature parameters
@@ -266,7 +265,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
         };
         let signature = self.intern_signature(function)?;
 
-        self.push_function_value_type(signature)
+        let receiver = self.check.elided_receiver()?;
+
+        self.push_function_value_type(signature, receiver)
     }
 
     /// Walk one constructor type expression.
@@ -323,15 +324,16 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.intern_signature(function)
     }
 
-    /// Return one fat callable value type for a function signature.
+    /// Return one fat callable value type over a signature, taking its receiver in one term.
     pub(in crate::sema) fn push_function_value_type(
         &mut self,
         signature: dir::GlobalTypeId,
+        receiver: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let place = self.check.local_place()?;
         let function = dir::FunctionType {
             signature,
-            multiplicity: dir::Multiplicity::Repeatable,
+            receiver,
             place,
         };
 

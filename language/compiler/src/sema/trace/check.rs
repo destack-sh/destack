@@ -45,6 +45,11 @@ impl EventFormatter<'_, '_> {
                 .text("target", self.type_label(pattern.target))
                 .text("id", self.check_label(id))
                 .bool("finished", finished),
+            Check::Place(place) => TraceEvent::new("place.selected")
+                .text("node", self.node_label(place.site.node))
+                .text("type", self.type_label(place.ty))
+                .text("id", self.check_label(id))
+                .bool("finished", finished),
             Check::Declared(entry) => self.format_obligation(&entry.obligation, id, finished),
         }
     }

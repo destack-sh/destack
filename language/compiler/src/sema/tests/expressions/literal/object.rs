@@ -1230,8 +1230,8 @@ const handlers: Handlers = {
 /// @type.node type={ onCount: Function<(int32,), void> }
 
     onCount: (value) => {
-    /// @type.symbol symbol=symbol5 type=Function<(int32,), void>
-    /// @type.node type=Function<(int32,), void>
+    /// @type.symbol symbol=symbol5 type=Function<(int32,), void, "readonly">
+    /// @type.node type=Function<(int32,), void, "readonly">
     /// @type.symbol symbol=symbol5.value source=value type=int32
 
         value;
@@ -1295,7 +1295,7 @@ function retain(source: boolean[]): { active: boolean } {
     /// @type.symbol symbol=retain.active#2 source="active: boolean" type=boolean
 
         (output, value) => ({ ...output, active: value }),
-        /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean), { active: boolean }>
+        /// @type.symbol symbol=retain.symbol7 source=(output, value) => ({ ...output, active: value }) type=Function<({ active: boolean }, boolean), { active: boolean }, "readonly">
         /// @type.symbol symbol=retain.symbol7.output source=output type={ active: boolean }
         /// @type.symbol symbol=retain.symbol7.value source=value type=boolean
         /// @resolution.name source=output target=retain.symbol7.output
@@ -1331,9 +1331,9 @@ const merge = (input) => ({ ...input, active: true });
 
 === dir ===
 const merge = (input) => ({ ...input, active: true });
-/// @type.symbol symbol=merge source=merge type=Function<(<error>,), <error>>
+/// @type.symbol symbol=merge source=merge type=Function<(<error>,), <error>, "readonly">
 /// @resolution.pattern source=merge kind=binding target=merge
-/// @type.symbol symbol=symbol1 source=(input) => ({ ...input, active: true }) type=Function<(<error>,), <error>>
+/// @type.symbol symbol=symbol1 source=(input) => ({ ...input, active: true }) type=Function<(<error>,), <error>, "readonly">
 /// @type.symbol symbol=symbol1.input source=input type=<error>
 /// @resolution.poisoned source={ ...input, active: true }
 /// @resolution.name source=input target=symbol1.input

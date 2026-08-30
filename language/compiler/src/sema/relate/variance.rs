@@ -297,18 +297,7 @@ impl CheckState<'_> {
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
         // find the definition that owns the parameter's template
-        let Some(binding) = self.generic_parameter(parameter) else {
-            return Ok(Variance::Invariant);
-        };
-        let template = binding.template.into_global(parameter.module_id);
-        let Some(template) = self.generic_template(template) else {
-            return Ok(Variance::Invariant);
-        };
-        let Some(symbol) = template.symbol else {
-            return Ok(Variance::Invariant);
-        };
-        let Some(definition) = self.definition(symbol)?.cloned() else {
-            // function templates infer per call and need no variance
+        let Some(definition) = self.parameter_owner_definition(parameter)? else {
             return Ok(Variance::Invariant);
         };
 
@@ -332,6 +321,15 @@ impl CheckState<'_> {
 
                     self.require_definition_member_type(member)?
                         .map(|ty| (ty, position))
+                }
+                // skip a constructor, which the constructor type owns
+                dir::DefinitionMember::Method(method)
+                    if matches!(
+                        method.role,
+                        Some(dir::FunctionRole::Constructor | dir::FunctionRole::New)
+                    ) =>
+                {
+                    None
                 }
                 dir::DefinitionMember::Method(_) if !is_reference => {
                     // value methods read their whole signature covariantly
@@ -397,6 +395,45 @@ impl CheckState<'_> {
         }
 
         Ok(measured)
+    }
+
+    /// Return the declaration owning one parameter's template, none for function templates.
+    fn parameter_owner_definition(
+        &mut self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<Option<dir::Definition>> {
+        let Some(binding) = self.generic_parameter(parameter) else {
+            return Ok(None);
+        };
+        let template = binding.template.into_global(parameter.module_id);
+        let Some(template) = self.generic_template(template) else {
+            return Ok(None);
+        };
+        let Some(symbol) = template.symbol else {
+            return Ok(None);
+        };
+
+        Ok(self.definition(symbol)?.cloned())
+    }
+
+    /// Return the associated type value one parameter's declaration gives for one key.
+    fn declared_associated_type(
+        &mut self,
+        parameter: dir::GlobalGenericParameterId,
+        key: dir::StaticKey,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let Some(definition) = self.parameter_owner_definition(parameter)? else {
+            return Ok(None);
+        };
+
+        let value = definition.members().iter().find_map(|member| match member {
+            dir::DefinitionMember::AssociatedType(associated) if associated.key == key => {
+                associated.value.or(associated.constraint)
+            }
+            _ => None,
+        });
+
+        Ok(value)
     }
 
     /// Collect one value method's positions, reading the signature covariantly.
@@ -600,9 +637,14 @@ impl CheckState<'_> {
                 measured
             }
 
-            // measure projections and operations invariantly
+            // measure a projection through the owner's declared value, else invariantly
             dir::Type::Member(member) => {
                 let member = self.type_member(ty.module_id, member)?;
+                if matches!(self.ty(member.owner)?, dir::Type::This)
+                    && let Some(value) = self.declared_associated_type(parameter, member.key)?
+                {
+                    return self.measure_type(value, position, form, parameter);
+                }
                 let mut measured =
                     self.measure_type(member.owner, Variance::Invariant, form, parameter)?;
                 let arguments: SmallVec<[_; 8]> =

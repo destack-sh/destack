@@ -95,7 +95,7 @@ const echoed = withLabel("users", (label) => label);
 /// @resolution.name source=withLabel target=withLabel
 /// @resolution.call source="withLabel(\"users\", (label) => label)" parameters=("users", Function<("users",), "users">) arguments=(provided("users") as "users", provided((label) => label) as Function<("users",), "users">) return="users" kind=symbol target=withLabel instance="withLabel<\"users\", \"users\">"
 /// @generic.instantiation id="withLabel<\"users\", \"users\">" template=withLabel arguments=("users", "users")
-/// @type.symbol symbol=symbol15 source="(label) => label" type=Function<("users",), "users">
+/// @type.symbol symbol=symbol15 source="(label) => label" type=Function<("users",), "users", "readonly">
 /// @type.symbol symbol=symbol15.label source=label type="users"
 /// @resolution.name source=label target=symbol15.label
 /// @resolution.place source=label placement="local" lifetime="frame" access="exclusive"

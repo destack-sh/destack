@@ -305,12 +305,12 @@ newtype interface Duplicate {
 /// @type.symbol symbol=Duplicate type=Duplicate
 /// @definition.interface symbol=Duplicate nominal=true
 /// @definition.where symbol=Duplicate relation=satisfies left=this right=Duplicate
-/// @definition.method symbol=Duplicate.clone source="clone(&readonly this): ^this" slot=clone type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => Owned<this>
+/// @definition.method symbol=Duplicate.clone source="clone(&readonly this): ^this" slot=clone type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => ^this
 /// @definition.method symbol=Duplicate.cloneFrom slot=cloneFrom type=<Duplicate.cloneFrom.'a, Duplicate.cloneFrom.'b>(this: &Duplicate.cloneFrom.'a exclusive this, &Duplicate.cloneFrom.'b readonly this) => void
 
     clone(&readonly this): ^this;
     /// @generic.template symbol=Duplicate.clone parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Duplicate.clone source="clone(&readonly this): ^this" type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => Owned<this>
+    /// @type.symbol symbol=Duplicate.clone source="clone(&readonly this): ^this" type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => ^this
     /// @type.symbol symbol=Duplicate.clone.this source="&readonly this" type=&Duplicate.clone.'a readonly this
 
     cloneFrom(&exclusive this, source: &readonly this): void {
@@ -326,8 +326,8 @@ newtype interface Duplicate {
         /// @resolution.place source=this placement=Duplicate.cloneFrom.'a lifetime=Duplicate.cloneFrom.'a access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.name source=source target=Duplicate.cloneFrom.source
-        /// @resolution.member source=source.clone receiver=&Duplicate.cloneFrom.'b readonly this type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => Owned<this> kind=symbol target_receiver=&Duplicate.cloneFrom.'b readonly this target=Duplicate.clone
-        /// @resolution.call source=source.clone() parameters=() return=Owned<&Duplicate.cloneFrom.'b readonly this> kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this adjustments=(&Duplicate.cloneFrom.'b readonly this => direct -> this, borrow(&Duplicate.cloneFrom.'b readonly this))
+        /// @resolution.member source=source.clone receiver=&Duplicate.cloneFrom.'b readonly this type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => ^this kind=symbol target_receiver=&Duplicate.cloneFrom.'b readonly this target=Duplicate.clone
+        /// @resolution.call source=source.clone() parameters=() return=^&Duplicate.cloneFrom.'b readonly this kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this adjustments=(&Duplicate.cloneFrom.'b readonly this => direct -> this, borrow(&Duplicate.cloneFrom.'b readonly this))
         /// @resolution.place source=source placement=Duplicate.cloneFrom.'b lifetime=Duplicate.cloneFrom.'b access="readonly"
         /// @resolution.access source=source root=Duplicate.cloneFrom.source
         /// @generic.instantiation id=Duplicate.clone<this> template=Duplicate.clone arguments=()

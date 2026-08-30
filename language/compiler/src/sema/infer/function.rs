@@ -2,7 +2,10 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{BodyCheck, Check, CheckState, FlowState, InferMode, Settle};
+use crate::sema::{
+    BodyCheck, Cause, CauseKind, Check, CheckState, FlowState, InferMode, Origin, Relation, Settle,
+    Verdict,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -91,6 +94,8 @@ impl CheckState<'_> {
         self.fix_variables(&roots)?;
         self.settle_variables(&roots, Settle::All)?;
 
+        let symbol = body.symbol;
+
         // check a deferred body under the flow its function value saw
         match body.flow.take() {
             Some(snapshot) => {
@@ -103,6 +108,71 @@ impl CheckState<'_> {
             None => {
                 body.check(self, InferMode::Regular, None)?;
             }
+        }
+
+        self.constrain_function_value_receiver(node, symbol)
+    }
+
+    /// Require one function value's receiver to grant the access its body takes on its captures.
+    fn constrain_function_value_receiver(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        // read the receiver term the value carries
+        let Some(callable) = self.committed_node_type(node) else {
+            return Ok(());
+        };
+        let callable = self.shallow_resolve(callable)?;
+        let dir::Type::Function(function) = self.ty(callable)? else {
+            return Ok(());
+        };
+
+        // leave an owned receiver alone
+        if self.receiver_mode(function.receiver)? == dir::ReceiverMode::Owned {
+            return Ok(());
+        }
+
+        // read the bindings the body captures
+        let state = self.module(node.module_id);
+        let captured = state
+            .pending_captures
+            .iter()
+            .rev()
+            .find(|capture| capture.symbol == symbol)
+            .map(|capture| capture.symbols.as_slice())
+            .unwrap_or_default();
+
+        // take the strongest access the body makes of a captured binding
+        let mut required = dir::Access::Readonly;
+        for occurrence in state.flows.binding_occurrences() {
+            if !captured.contains(&occurrence.symbol) {
+                continue;
+            }
+            if occurrence.uses.contains(dir::BindingUse::EXCLUSIVE) {
+                required = required.max(dir::Access::Exclusive);
+            } else if occurrence.uses.contains(dir::BindingUse::WRITE)
+                || occurrence.uses.contains(dir::BindingUse::MUTATE)
+            {
+                required = required.max(dir::Access::Mutable);
+            }
+        }
+
+        let origin = Origin::Node(node, None);
+
+        // require the receiver to grant the access the body takes
+        let requested = self.access_literal(required)?;
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        let verdict = self.constrain_type(
+            origin,
+            cause,
+            Relation::Storable,
+            requested,
+            function.receiver,
+        )?;
+        if verdict == Verdict::Fails {
+            let granted = self.access_of(function.receiver)?;
+            self.report_borrow_access_not_granted(origin, required, granted, callable)?;
         }
 
         Ok(())

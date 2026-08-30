@@ -322,3 +322,43 @@ const values: number[] = [1, "two"];
 "#,
     );
 }
+
+/// A fresh spread source takes the element context of the array it spreads into.
+#[test]
+fn test_spread_a_fresh_array_literal_under_the_element_context() {
+    let session = TestSession::single(
+        r#"
+function values(): (int32 | undefined)[] {
+    return [0, ...[1, , 2], 3];
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function values(): (int32 | undefined)[] {
+    return [
+        0 as int32 | undefined,
+        ...[1 as int32 | undefined, , 2 as int32 | undefined],
+        3 as int32 | undefined,
+    ];
+}
+
+=== dir ===
+function values(): (int32 | undefined)[] {
+/// @type.symbol symbol=values type=() => int32 | undefined[]
+
+    return [0, ...[1, , 2], 3];
+    /// @resolution.call source=[0, ...[1, , 2], 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(0, 3) as int32 | undefined) return=int32 | undefined[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<int32 | undefined>"
+    /// @resolution.call source=[1, , 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32 | undefined) return=int32 | undefined[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<int32 | undefined>"
+    /// @generic.instantiation id="arrayFromSlice<int32 | undefined>" template=arrayFromSlice arguments=(int32 | undefined)
+
+}
+"#,
+        r#"
+"#,
+    );
+}

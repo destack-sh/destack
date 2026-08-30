@@ -15,13 +15,13 @@ const INSTANTIATION_DEPTH_LIMIT: u32 = 100;
 const TAIL_CONDITIONAL_LIMIT: u32 = 1000;
 
 /// One `infer` binder declared by a conditional extends pattern.
-struct InferBinder {
+pub(in crate::sema) struct InferBinder {
     /// The declared binder symbol, absent for anonymous binders.
-    symbol: Option<dir::GlobalSymbolId>,
+    pub(in crate::sema) symbol: Option<dir::GlobalSymbolId>,
     /// The binder's declared constraint.
-    constraint: Option<dir::GlobalTypeId>,
+    pub(in crate::sema) constraint: Option<dir::GlobalTypeId>,
     /// Every infer type that spells this binder inside the pattern.
-    occurrences: SmallVec<[dir::GlobalTypeId; 2]>,
+    pub(in crate::sema) occurrences: SmallVec<[dir::GlobalTypeId; 2]>,
 }
 
 /// The reason one conditional arm skips its then branch.
@@ -136,7 +136,11 @@ impl CheckState<'_> {
                 SmallVec::<[_; 4]>::from_slice(self.type_ids(left.module_id, union.elements)?)
             }
             dir::Type::Never if conditional.is_distributive => return Ok(Some(SmallVec::new())),
-            dir::Type::Variable(_) | dir::Type::Parameter(_) => return Ok(None),
+            // defer a generic checked type until it reduces
+            dir::Type::Variable(_)
+            | dir::Type::Parameter(_)
+            | dir::Type::Operation(_)
+            | dir::Type::Member(_) => return Ok(None),
             // leave an enclosing conditional's own binder open
             dir::Type::Application(instance)
                 if instance.arguments.is_empty()
@@ -396,7 +400,7 @@ impl CheckState<'_> {
     }
 
     /// Collect the infer binders declared by one extends pattern.
-    fn collect_infer_binders(
+    pub(in crate::sema) fn collect_infer_binders(
         &self,
         pattern: dir::GlobalTypeId,
     ) -> CompilerResult<SmallVec<[InferBinder; 2]>> {

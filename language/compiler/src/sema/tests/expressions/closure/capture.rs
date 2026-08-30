@@ -34,10 +34,10 @@ function make(): () => int64 {
     /// @type.node source=1 type=1
 
     const next = () => count + 1;
-    /// @type.symbol symbol=make.next source=next type=Function<(), int64>
+    /// @type.symbol symbol=make.next source=next type=Function<(), int64, "readonly">
     /// @resolution.pattern source=next kind=binding target=make.next
-    /// @type.symbol symbol=make.symbol3 source="() => count + 1" type=Function<(), int64>
-    /// @type.node source="() => count + 1" type=Function<(), int64>
+    /// @type.symbol symbol=make.symbol3 source="() => count + 1" type=Function<(), int64, "readonly">
+    /// @type.node source="() => count + 1" type=Function<(), int64, "readonly">
     /// @capture.function function=make.symbol3 bindings=1 frames=(main.<frame0>)
     /// @capture.binding function=make.symbol3 symbol=count mode=manage type=int64 frame=main.<frame0>
     /// @capture.frame frame=main.<frame0> scope=scope4 type=local { count: int64 } fields={ count: int64 }
@@ -50,9 +50,9 @@ function make(): () => int64 {
     /// @type.node source=1 type=1
 
     return next;
-    /// @type.node source=next type=Function<(), int64>
+    /// @type.node source=next type=Function<(), int64, "readonly">
     /// @resolution.name source=next target=make.next
-    /// @resolution.place source=next placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=next root=make.next
 
 }
@@ -130,10 +130,10 @@ function run(): void {
     /// @type.node source=0 type=0
 
     const foo = () => {
-    /// @type.symbol symbol=run.foo source=foo type=Function<(), void>
+    /// @type.symbol symbol=run.foo source=foo type=Function<(), void, "mutable">
     /// @resolution.pattern source=foo kind=binding target=run.foo
-    /// @type.symbol symbol=run.symbol5 type=Function<(), void>
-    /// @type.node type=Function<(), void>
+    /// @type.symbol symbol=run.symbol5 type=Function<(), void, "mutable">
+    /// @type.node type=Function<(), void, "mutable">
     /// @capture.function function=run.symbol5 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=run.symbol5 symbol=a mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=run.symbol5 symbol=b mode=manage type=int64 frame=main.<frame0>
@@ -164,10 +164,10 @@ function run(): void {
     };
 
     const boo = () => {
-    /// @type.symbol symbol=run.boo source=boo type=Function<(), void>
+    /// @type.symbol symbol=run.boo source=boo type=Function<(), void, "mutable">
     /// @resolution.pattern source=boo kind=binding target=run.boo
-    /// @type.symbol symbol=run.symbol7 type=Function<(), void>
-    /// @type.node type=Function<(), void>
+    /// @type.symbol symbol=run.symbol7 type=Function<(), void, "mutable">
+    /// @type.node type=Function<(), void, "mutable">
     /// @capture.function function=run.symbol7 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=run.symbol7 symbol=b mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=run.symbol7 symbol=c mode=manage type=int64 frame=main.<frame0>
@@ -197,19 +197,19 @@ function run(): void {
     };
 
     foo();
-    /// @type.node source=foo type=Function<(), void>
+    /// @type.node source=foo type=Function<(), void, "mutable">
     /// @type.node source=foo() type=void
     /// @resolution.name source=foo target=run.foo
     /// @resolution.call source=foo() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=foo placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=foo placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=foo root=run.foo
 
     boo();
-    /// @type.node source=boo type=Function<(), void>
+    /// @type.node source=boo type=Function<(), void, "mutable">
     /// @type.node source=boo() type=void
     /// @resolution.name source=boo target=run.boo
     /// @resolution.call source=boo() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=boo placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=boo placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=boo root=run.boo
 
 }
@@ -280,10 +280,10 @@ function make(): () => int64 {
 
     })
     const next = () => count + step;
-    /// @type.symbol symbol=make.next source=next type=Function<(), int64>
+    /// @type.symbol symbol=make.next source=next type=Function<(), int64, "readonly">
     /// @resolution.pattern source=next kind=binding target=make.next
-    /// @type.symbol symbol=make.symbol4 source="() => count + step" type=Function<(), int64>
-    /// @type.node source="() => count + step" type=Function<(), int64>
+    /// @type.symbol symbol=make.symbol4 source="() => count + step" type=Function<(), int64, "readonly">
+    /// @type.node source="() => count + step" type=Function<(), int64, "readonly">
     /// @capture.function function=make.symbol4 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=make.symbol4 symbol=count mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=make.symbol4 symbol=step mode=copy type=int64
@@ -302,9 +302,9 @@ function make(): () => int64 {
     /// @resolution.access source=step root=make.step
 
     return next;
-    /// @type.node source=next type=Function<(), int64>
+    /// @type.node source=next type=Function<(), int64, "readonly">
     /// @resolution.name source=next target=make.next
-    /// @resolution.place source=next placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=next placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=next root=make.next
 
 }
@@ -328,7 +328,7 @@ function connect(): void {
         default: "manage",
         socket: "move",
     })
-    const send: ^Function<(string,), void> = (message) => {
+    let send: ^Function<(string,), void> = (message) => {
         count += 1;
         socket.write(message);
     };
@@ -355,7 +355,7 @@ function connect(): void {
         default: "manage",
         socket: "move",
     } as CaptureDirective)
-    const send: ^((arg0: string) => void) = ((message: string): void => {
+    let send: ^((arg0: string) => void) = ((message: string): void => {
         count += 1;
         socket.write(message);
     }) as ^((arg0: string) => void);
@@ -405,12 +405,12 @@ function connect(): void {
         /// @type.node source="\"move\"" type="move"
 
     })
-    const send: ^Function<(string,), void> = (message) => {
-    /// @type.symbol symbol=connect.send source=send type=Owned<Function<(string,), void>>
+    let send: ^Function<(string,), void> = (message) => {
+    /// @type.symbol symbol=connect.send source=send type=^Function<(string,), void>
     /// @resolution.pattern source=send kind=binding target=connect.send
     /// @resolution.name source=Function target=Function
-    /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void>
-    /// @type.node type=Function<(string,), void>
+    /// @type.symbol symbol=connect.symbol8 type=Function<(string,), void, "mutable">
+    /// @type.node type=Function<(string,), void, "mutable">
     /// @capture.function function=connect.symbol8 bindings=2 frames=(main.<frame0>)
     /// @capture.binding function=connect.symbol8 symbol=count mode=manage type=int64 frame=main.<frame0>
     /// @capture.binding function=connect.symbol8 symbol=socket mode=move type=Socket
@@ -448,10 +448,10 @@ function connect(): void {
 
     send("ping");
     /// @type.node source="send(\"ping\")" type=void
-    /// @type.node source=send type=Owned<Function<(string,), void>>
+    /// @type.node source=send type=^Function<(string,), void>
     /// @resolution.name source=send target=connect.send
     /// @resolution.call source="send(\"ping\")" parameters=(string) arguments=(provided("ping") as string) return=void kind=expression target=expression
-    /// @resolution.place source=send placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=send placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=send root=connect.send
     /// @type.node source="\"ping\"" type="ping"
 
@@ -544,10 +544,10 @@ function make(): () => Promise<string> {
     /// @type.node source="\"copy\"" type="copy"
 
     const load = async () => await client.read();
-    /// @type.symbol symbol=make.load source=load type=Function<(), Promise<string>>
+    /// @type.symbol symbol=make.load source=load type=Function<(), Promise<string>, "readonly">
     /// @resolution.pattern source=load kind=binding target=make.load
-    /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>>
-    /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>>
+    /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
+    /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
     /// @capture.function function=make.symbol6 bindings=1
     /// @capture.binding function=make.symbol6 symbol=client mode=copy type=Client
     /// @capture.directive function=make.symbol6 default=copy rules=0
@@ -564,9 +564,9 @@ function make(): () => Promise<string> {
     /// @generic.instance id="Client.read<\"local\">" template=Client.read arguments=("local")
 
     return load;
-    /// @type.node source=load type=Function<(), Promise<string>>
+    /// @type.node source=load type=Function<(), Promise<string>, "readonly">
     /// @resolution.name source=load target=make.load
-    /// @resolution.place source=load placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=load placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=load root=make.load
 
 }
@@ -619,8 +619,8 @@ class Counter {
     /// @capture.function function=Counter.make bindings=0
 
         return () => this.value;
-        /// @type.symbol symbol=Counter.make.symbol6 source="() => this.value" type=Function<(), int32>
-        /// @type.node source="() => this.value" type=Function<(), int32>
+        /// @type.symbol symbol=Counter.make.symbol6 source="() => this.value" type=Function<(), int32, "readonly">
+        /// @type.node source="() => this.value" type=Function<(), int32, "readonly">
         /// @capture.function function=Counter.make.symbol6 bindings=0
         /// @capture.receiver function=Counter.make.symbol6 symbol=this mode=manage type=Managed<Counter, Counter.make.P0>
         /// @type.node source=this type=Managed<Counter, Counter.make.P0>
@@ -656,9 +656,9 @@ const reset: () => { value: int64 } = (): { value: int64 } => ({ value: 1 });
 
 === dir ===
 const reset = () => ({ value: 1 });
-/// @type.symbol symbol=reset source=reset type=Function<(), { value: int64 }>
+/// @type.symbol symbol=reset source=reset type=Function<(), { value: int64 }, "readonly">
 /// @resolution.pattern source=reset kind=binding target=reset
-/// @type.symbol symbol=symbol1 source=() => ({ value: 1 }) type=Function<(), { value: int64 }>
+/// @type.symbol symbol=symbol1 source=() => ({ value: 1 }) type=Function<(), { value: int64 }, "readonly">
 "#,
         r#"
 
@@ -689,9 +689,9 @@ let current = 1;
 /// @resolution.pattern source=current kind=binding target=current
 
 const reset = () => ({ value: (current = 0) });
-/// @type.symbol symbol=reset source=reset type=Function<(), { value: int64 }>
+/// @type.symbol symbol=reset source=reset type=Function<(), { value: int64 }, "readonly">
 /// @resolution.pattern source=reset kind=binding target=reset
-/// @type.symbol symbol=symbol2 source=() => ({ value: (current = 0) }) type=Function<(), { value: int64 }>
+/// @type.symbol symbol=symbol2 source=() => ({ value: (current = 0) }) type=Function<(), { value: int64 }, "readonly">
 /// @resolution.name source=current target=current
 /// @resolution.pattern.assign source=current kind=place
 /// @resolution.access source=current root=current

@@ -118,8 +118,8 @@ const cloned = point.clone();
 /// @type.symbol symbol=cloned source=cloned type=Point
 /// @resolution.pattern source=cloned kind=binding target=cloned
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a>(this: &Clone.clone.'a readonly Point) => Owned<Point> kind=symbol target_receiver=Point target=Clone.clone
-/// @resolution.call source=point.clone() parameters=() return=Owned<Point> kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point))
+/// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a>(this: &Clone.clone.'a readonly Point) => ^Point kind=symbol target_receiver=Point target=Clone.clone
+/// @resolution.call source=point.clone() parameters=() return=^Point kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point))
 /// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=point root=point
 /// @generic.instantiation id=Clone.clone<Point> template=Clone.clone arguments=()
@@ -128,8 +128,8 @@ const defaulted = Point.default();
 /// @type.symbol symbol=defaulted source=defaulted type=Point
 /// @resolution.pattern source=defaulted kind=binding target=defaulted
 /// @resolution.name source=Point target=Point
-/// @resolution.member source=Point.default receiver=Point type=() => Owned<Point> kind=symbol target_receiver=Point target=Default.default
-/// @resolution.call source=Point.default() parameters=() return=Owned<Point> kind=symbol target=Default.default
+/// @resolution.member source=Point.default receiver=Point type=() => ^Point kind=symbol target_receiver=Point target=Default.default
+/// @resolution.call source=Point.default() parameters=() return=^Point kind=symbol target=Default.default
 
 const same = point.equal(cloned);
 /// @type.symbol symbol=same source=same type=boolean
@@ -394,8 +394,8 @@ const clonedNumber = number.clone();
 /// @type.symbol symbol=clonedNumber source=clonedNumber type=int64
 /// @resolution.pattern source=clonedNumber kind=binding target=clonedNumber
 /// @resolution.name source=number target=number
-/// @resolution.member source=number.clone receiver=1 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int64) => Owned<int64> kind=symbol target_receiver=1 target=Clone.clone
-/// @resolution.call source=number.clone() parameters=() return=Owned<int64> kind=symbol target=Clone.clone receiver=1 adjustments=(borrow(&'static readonly constant 1))
+/// @resolution.member source=number.clone receiver=1 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int64) => ^int64 kind=symbol target_receiver=1 target=Clone.clone
+/// @resolution.call source=number.clone() parameters=() return=^int64 kind=symbol target=Clone.clone receiver=1 adjustments=(borrow(&'static readonly constant 1))
 /// @resolution.place source=number placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=number root=number
 /// @generic.instantiation id=Clone.clone<int64> template=Clone.clone arguments=()
@@ -415,8 +415,8 @@ const clonedText = text.clone();
 /// @type.symbol symbol=clonedText source=clonedText type=string
 /// @resolution.pattern source=clonedText kind=binding target=clonedText
 /// @resolution.name source=text target=text
-/// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a>(this: &Clone.clone.'a readonly string) => Owned<string> kind=symbol target_receiver=string target=Clone.clone
-/// @resolution.call source=text.clone() parameters=() return=Owned<string> kind=symbol target=Clone.clone receiver=string adjustments=(borrow(&'static readonly string))
+/// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a>(this: &Clone.clone.'a readonly string) => ^string kind=symbol target_receiver=string target=Clone.clone
+/// @resolution.call source=text.clone() parameters=() return=^string kind=symbol target=Clone.clone receiver=string adjustments=(borrow(&'static readonly string))
 /// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=text root=text
 /// @generic.instantiation id=Clone.clone<string> template=Clone.clone arguments=()
@@ -521,7 +521,7 @@ function witness<T: Copy>(value: T): T {
 }
 
 declare const repeatable: () => void;
-declare const once: Function<(), void, "once">;
+declare const once: ^Function<(), void, "once">;
 
 witness(repeatable);
 witness(once);
@@ -535,10 +535,10 @@ function witness<T: Copy>(value: T): T {
 }
 
 declare const repeatable: () => void;
-declare const once: () => void;
+declare const once: ^Function<(), void, "once">;
 
 witness<() => void>(repeatable);
-witness<() => void>(once);
+witness<^Function<(), void, "once">>(once);
 
 === dir ===
 function witness<T: Copy>(value: T): T {
@@ -561,8 +561,8 @@ declare const repeatable: () => void;
 /// @type.symbol symbol=repeatable source=repeatable type=Function<(), void>
 /// @resolution.pattern source=repeatable kind=binding target=repeatable
 
-declare const once: Function<(), void, "once">;
-/// @type.symbol symbol=once source=once type=Function<(), void>
+declare const once: ^Function<(), void, "once">;
+/// @type.symbol symbol=once source=once type=^Function<(), void, "once">
 /// @resolution.pattern source=once kind=binding target=once
 /// @resolution.name source=Function target=Function
 
@@ -576,14 +576,14 @@ witness(repeatable);
 
 witness(once);
 /// @resolution.name source=witness target=witness
-/// @resolution.call source=witness(once) parameters=(Function<(), void>) arguments=(provided(once) as Function<(), void>) return=Function<(), void> kind=symbol target=witness instance="witness<Function<(), void>>"
-/// @generic.instantiation id="witness<Function<(), void>>" template=witness arguments=(Function<(), void>)
+/// @resolution.call source=witness(once) parameters=(^Function<(), void, "once">) arguments=(provided(once) as ^Function<(), void, "once">) return=^Function<(), void, "once"> kind=symbol target=witness instance="witness<^Function<(), void, \"once\">>"
+/// @generic.instantiation id="witness<^Function<(), void, \"once\">>" template=witness arguments=(^Function<(), void, "once">)
 /// @resolution.name source=once target=once
-/// @resolution.place source=once placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=once placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=once root=once
 "#,
         r#"
-/// @diagnostic.error id=constraint-not-satisfied message="type 'Function<(), void, \"once\">' does not satisfy 'Copy'"
+/// @diagnostic.error id=constraint-not-satisfied message="type '^Function<(), void, \"once\">' does not satisfy 'Copy'"
 /// @diagnostic.label line=10 column=1 span="witness(once)" line_source="witness(once);"
 /// @diagnostic.related line=2 column=18 span="T" line_source="function witness<T: Copy>(value: T): T {" message="required by this bound on 'T'"
 "#,
@@ -694,8 +694,8 @@ function duplicate(value: int32): int32 {
 
     return value.clone();
     /// @resolution.name source=value target=duplicate.value
-    /// @resolution.member source=value.clone receiver=int32 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int32) => Owned<int32> kind=symbol target_receiver=int32 target=Clone.clone
-    /// @resolution.call source=value.clone() parameters=() return=Owned<int32> kind=symbol target=Clone.clone receiver=int32 adjustments=(borrow(&'frame readonly int32))
+    /// @resolution.member source=value.clone receiver=int32 type=<Clone.clone.'a>(this: &Clone.clone.'a readonly int32) => ^int32 kind=symbol target_receiver=int32 target=Clone.clone
+    /// @resolution.call source=value.clone() parameters=() return=^int32 kind=symbol target=Clone.clone receiver=int32 adjustments=(borrow(&'frame readonly int32))
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=duplicate.value
     /// @generic.instantiation id=Clone.clone<int32> template=Clone.clone arguments=()

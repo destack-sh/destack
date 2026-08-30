@@ -249,6 +249,19 @@ impl CheckState<'_> {
         Ok(parameters)
     }
 
+    /// Return the generic argument bindings one nominal application carries, empty for other heads.
+    pub(in crate::sema) fn application_generic_argument_bindings(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        let Some((module, instance)) = self.nominal_application_maybe(ty)? else {
+            return Ok(Vec::new());
+        };
+        let arguments = self.type_ids(module, instance.arguments)?.to_vec();
+
+        self.symbol_generic_argument_bindings(instance.symbol, &arguments)
+    }
+
     /// Return applied generic argument bindings for one ordered parameter list.
     pub(in crate::sema) fn generic_argument_bindings(
         &mut self,

@@ -103,7 +103,25 @@ impl CheckState<'_> {
                 }
                 dir::Argument::Spread { value } => {
                     let value_site = self.visit_site(value.into_global_any(module))?;
-                    let spread = self.infer_node_type(value_site, PlaceUse::Read)?;
+
+                    // read the spread source's sequence type
+                    let spread = if self.is_fresh_node(value_site.node)? {
+                        let target = self.language_type(dir::LanguageItem::Array, &[element])?;
+                        let expectation = Expectation {
+                            target,
+                            relation: Relation::Storable,
+                            cause,
+                            use_: ValueUse::Store,
+                            mode,
+                        };
+                        self.check_node(value_site, expectation)?;
+
+                        target
+                    } else {
+                        self.infer_node_type(value_site, PlaceUse::Read)?
+                    };
+
+                    // relate the sequence's item to the element slot
                     let item = self.spread_element_type(spread)?;
                     self.push_relation(RelationCheck::new(
                         value_site.origin(),
@@ -423,7 +441,7 @@ impl CheckState<'_> {
         else {
             return Ok(());
         };
-        let array = self.strip_forms(self.require_node_type(node)?)?;
+        let array = self.shallow_strip_forms(self.require_node_type(node)?)?;
         let Some(element) = self.array_element(array)? else {
             return Ok(());
         };
