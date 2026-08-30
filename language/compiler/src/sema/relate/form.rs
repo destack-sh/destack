@@ -556,41 +556,41 @@ impl CheckState<'_> {
     pub(in crate::sema) fn relate_access_assignable(
         &mut self,
         origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
+        granted: dir::GlobalTypeId,
+        requested: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
         // normalize both sides before comparing them
-        let source = self.normalize_memory_component(origin, source)?;
-        let target = self.normalize_memory_component(origin, target)?;
+        let granted = self.normalize_memory_component(origin, granted)?;
+        let requested = self.normalize_memory_component(origin, requested)?;
 
         // accept two identical access terms
-        if source == target {
+        if granted == requested {
             return Ok(Verdict::Holds);
         }
 
         // read the concrete access each side names
-        let source_access = self.access_of(source)?;
-        let target_access = self.access_of(target)?;
+        let granted_access = self.access_of(granted)?;
+        let requested_access = self.access_of(requested)?;
 
         // relate the two access terms
-        match (self.ty(source)?, self.ty(target)?) {
+        match (self.ty(granted)?, self.ty(requested)?) {
             // every access grants readonly
-            _ if target_access == Some(dir::Access::Readonly) => Ok(Verdict::Holds),
+            _ if requested_access == Some(dir::Access::Readonly) => Ok(Verdict::Holds),
 
-            // compare two concrete accesses by what the source grants
-            _ if let (Some(source_access), Some(target_access)) =
-                (source_access, target_access) =>
+            // compare two concrete accesses by what the granted grants
+            _ if let (Some(granted_access), Some(requested_access)) =
+                (granted_access, requested_access) =>
             {
-                Ok(Verdict::decided(source_access.grants(target_access)))
+                Ok(Verdict::decided(granted_access.grants(requested_access)))
             }
 
-            // require every possible source access to grant the requirement
+            // require every possible granted access to grant the requirement
             (dir::Type::Union(union), _) => {
                 let elements: SmallVec<[_; 8]> =
-                    self.type_ids(source.module_id, union.elements)?.into();
+                    self.type_ids(granted.module_id, union.elements)?.into();
                 let mut verdict = Verdict::Holds;
                 for element in elements {
-                    verdict = verdict.and(self.relate_access_assignable(origin, element, target)?);
+                    verdict = verdict.and(self.relate_access_assignable(origin, element, requested)?);
                     if verdict == Verdict::Fails {
                         break;
                     }
@@ -599,13 +599,13 @@ impl CheckState<'_> {
                 Ok(verdict)
             }
 
-            // accept one target access
+            // accept one requested access
             (_, dir::Type::Union(union)) => {
                 let elements: SmallVec<[_; 8]> =
-                    self.type_ids(target.module_id, union.elements)?.into();
+                    self.type_ids(requested.module_id, union.elements)?.into();
                 let mut verdict = Verdict::Fails;
                 for element in elements {
-                    verdict = verdict.or(self.relate_access_assignable(origin, source, element)?);
+                    verdict = verdict.or(self.relate_access_assignable(origin, granted, element)?);
                     if verdict == Verdict::Holds {
                         break;
                     }
@@ -618,7 +618,7 @@ impl CheckState<'_> {
             (dir::Type::Parameter(parameter) | dir::Type::Erased(parameter), _) => {
                 let mut verdict = Verdict::Fails;
                 for bound in self.parameter_bounds(origin, parameter)? {
-                    verdict = verdict.or(self.relate_access_assignable(origin, bound, target)?);
+                    verdict = verdict.or(self.relate_access_assignable(origin, bound, requested)?);
                     if verdict == Verdict::Holds {
                         break;
                     }
@@ -631,25 +631,54 @@ impl CheckState<'_> {
         }
     }
 
-    /// Constrain whether one borrow access satisfies a required access.
+    /// Constrain one granted access to grant a requested access.
     pub(in crate::sema) fn constrain_access_assignable(
         &mut self,
         origin: Origin,
-        source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
+        granted: dir::GlobalTypeId,
+        requested: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
         // read both sides through their solutions
-        let source = self.shallow_resolve(source)?;
-        let target = self.shallow_resolve(target)?;
+        let granted = self.shallow_resolve(granted)?;
+        let requested = self.shallow_resolve(requested)?;
 
-        // leave an open side to the constraint solver
-        if self.root_variable(source)?.is_some() || self.root_variable(target)?.is_some() {
+        // bound an open granted access below by the request
+        if self.root_variable(granted)?.is_some() && self.root_variable(requested)?.is_none() {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
 
-            return self.constrain_type(origin, cause, Relation::Storable, source, target);
+            return self.constrain_type(origin, cause, Relation::Storable, requested, granted);
         }
 
-        self.relate_access_assignable(origin, source, target)
+        // let an open request take the access granted to it
+        if self.root_variable(requested)?.is_some() {
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+
+            return self.constrain_type(origin, cause, Relation::Storable, granted, requested);
+        }
+
+        self.relate_access_assignable(origin, granted, requested)
+    }
+
+    /// Relate two closed access terms under one relation.
+    pub(in crate::sema) fn relate_access_terms(
+        &mut self,
+        relation: Relation,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Verdict>> {
+        let (Some(source_access), Some(target_access)) =
+            (self.access_of(source)?, self.access_of(target)?)
+        else {
+            return Ok(None);
+        };
+
+        // decide the two access terms under the relation
+        Ok(Some(match relation {
+            Relation::Equal => Verdict::decided(source_access == target_access),
+            Relation::Subtype | Relation::Storable => {
+                Verdict::decided(target_access.grants(source_access))
+            }
+        }))
     }
 
     /// Reach one borrow through a managed handle, folding the handle's place into the region.

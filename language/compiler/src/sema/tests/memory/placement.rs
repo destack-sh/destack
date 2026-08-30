@@ -329,16 +329,16 @@ class Buffer {}
 extension of Buffer implements Default {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.implements symbol=<module>#2 source=Default target=Default
-/// @definition.method symbol=default slot=default static=true type=() => Owned<this>
+/// @definition.method symbol=default slot=default static=true type=() => ^this
 /// @definition.conformance symbol=<module>#2 member=default requirement=Default.default
 /// @resolution.name source=Buffer target=Buffer
 /// @resolution.name source=Default target=Default
 
     static default(): ^this {
-    /// @type.symbol symbol=default type=() => Owned<this>
+    /// @type.symbol symbol=default type=() => ^this
 
         return new Buffer();
-        /// @resolution.construct source="new Buffer()" parameters=() return=Owned<Buffer> kind=class target=Buffer constructor=default
+        /// @resolution.construct source="new Buffer()" parameters=() return=^Buffer kind=class target=Buffer constructor=default
         /// @resolution.name source=Buffer target=Buffer
 
     }
@@ -1032,23 +1032,23 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare const localUser: local ^User;
-/// @type.symbol symbol=localUser source=localUser type=Owned<User>
+/// @type.symbol symbol=localUser source=localUser type=^User
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
 declare const sharedUser: shared ^User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=Owned<User>
+/// @type.symbol symbol=sharedUser source=sharedUser type=^User
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
 /// @resolution.name source=User target=User
 
 type SharedOwned = shared ^User;
-/// @type.symbol symbol=SharedOwned source="type SharedOwned = shared ^User" type=Owned<User>
-/// @definition.type symbol=SharedOwned source="type SharedOwned = shared ^User" value=Owned<User>
+/// @type.symbol symbol=SharedOwned source="type SharedOwned = shared ^User" type=^User
+/// @definition.type symbol=SharedOwned source="type SharedOwned = shared ^User" value=^User
 /// @resolution.name source=User target=User
 
 type OwnedShared = ^shared User;
-/// @type.symbol symbol=OwnedShared source="type OwnedShared = ^shared User" type=Owned<User>
-/// @definition.type symbol=OwnedShared source="type OwnedShared = ^shared User" value=Owned<User>
+/// @type.symbol symbol=OwnedShared source="type OwnedShared = ^shared User" type=^User
+/// @definition.type symbol=OwnedShared source="type OwnedShared = ^shared User" value=^User
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -1304,8 +1304,8 @@ const total = apply((item) => item.x);
 /// @type.node source=apply type=(Function<(&type_expression.'a readonly Item,), int32>) => int32
 /// @resolution.name source=apply target=apply
 /// @resolution.call source="apply((item) => item.x)" parameters=(Function<(&type_expression.'a readonly Item,), int32>) arguments=(provided((item) => item.x) as Function<(&type_expression.'a readonly Item,), int32>) return=int32 kind=symbol target=apply
-/// @type.symbol symbol=symbol9 source="(item) => item.x" type=Function<(&type_expression.'a readonly Item,), int32>
-/// @type.node source="(item) => item.x" type=Function<(&type_expression.'a readonly Item,), int32>
+/// @type.symbol symbol=symbol9 source="(item) => item.x" type=Function<(&type_expression.'a readonly Item,), int32, "readonly">
+/// @type.node source="(item) => item.x" type=Function<(&type_expression.'a readonly Item,), int32, "readonly">
 /// @type.symbol symbol=symbol9.item source=item type=&type_expression.'a readonly Item
 /// @type.node source=item type=&type_expression.'a readonly Item
 /// @type.node source=item.x type=int32

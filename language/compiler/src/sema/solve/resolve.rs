@@ -5,6 +5,7 @@ use smallvec::SmallVec;
 use crate::sema::{
     Bound, BoundSide, CauseId, CheckEvent, CheckOutcome, CheckState, GenericParameterId, Origin,
     Relation, RelationCheck, Settle, VariableBounds, VariableKind, VariableState, Verdict, Wake,
+    WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -171,9 +172,33 @@ impl CheckState<'_> {
         scope: usize,
         stage: Settle,
     ) -> CompilerResult<bool> {
-        let roots = self.open_scope_variables(scope)?;
+        let roots = if stage.settles() {
+            self.settleable_scope_variables(scope)?
+        } else {
+            self.open_scope_variables(scope)?
+        };
 
         self.resolve_roots(&roots, stage)
+    }
+
+    /// Return the open variables one scope settles, leaving those a live check still binds.
+    fn settleable_scope_variables(
+        &mut self,
+        scope: usize,
+    ) -> CompilerResult<SmallVec<[dir::TypeVariableId; 2]>> {
+        let mut settleable = SmallVec::new();
+        for root in self.open_scope_variables(scope)? {
+            let is_bound = self
+                .fulfill
+                .binders
+                .get(&root)
+                .is_some_and(|binder| self.fulfill.checks.state(*binder) != WorkState::Done);
+            if !is_bound {
+                settleable.push(root);
+            }
+        }
+
+        Ok(settleable)
     }
 
     /// Resolve every still open root once, in order.
@@ -421,6 +446,7 @@ impl CheckState<'_> {
         let mut contextual_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut bound_types = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let mut equation = None;
+        let is_access = state.kind == VariableKind::Memory(dir::MemoryParameter::Access);
         for bound in &upper {
             if self.root_variable(bound.ty)?.is_some() {
                 continue;
@@ -429,9 +455,11 @@ impl CheckState<'_> {
                 has_recursive_bound = true;
                 continue;
             }
-            let candidate = self.kind_candidate(state.kind, bound.ty)?;
+            let candidate = self.kind_candidate(origin, state.kind, bound.ty)?;
             match (bound.relation, candidate) {
                 (Relation::Equal, _) => equation = Some(bound.ty),
+                // leave an access grant out of the solution arms
+                (Relation::Storable, Some(_)) if is_access => {}
                 (Relation::Storable, Some(candidate)) if !contextual_types.contains(&candidate) => {
                     contextual_types.push(candidate);
                 }
@@ -636,11 +664,12 @@ impl CheckState<'_> {
     /// Return the arms of one bound a variable kind can take, none when no arm fits.
     fn kind_candidate(
         &mut self,
+        origin: Origin,
         kind: VariableKind,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the arms a memory or numeric kind distributes over
-        let ty = self.shallow_resolve(ty)?;
+        let ty = self.structurally_normalize(origin, ty)?;
         let arms = match self.ty(ty)? {
             dir::Type::Union(union) if kind != VariableKind::Type => {
                 self.type_ids(ty.module_id, union.elements)?.to_vec()
@@ -846,7 +875,7 @@ impl CheckState<'_> {
         let mut joins = false;
         for bound in &lower {
             if self.root_variable(bound.ty)?.is_none()
-                && self.kind_candidate(kind, bound.ty)?.is_none()
+                && self.kind_candidate(origin, kind, bound.ty)?.is_none()
             {
                 joins = true;
             }
@@ -1093,13 +1122,18 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         }
 
-        // merge two variables that bound one another or that meet numerically
+        // merge two variables that bound one another or that meet numerically or by access
         if let Some(other) = self.root_variable(bound)? {
             let kinds = (self.root_kind(variable)?, self.root_kind(other)?);
             let is_numeric = (kinds.0.is_numeric() || kinds.1.is_numeric())
                 && !matches!(
                     kinds,
                     (VariableKind::Memory(_), _) | (_, VariableKind::Memory(_))
+                );
+            let is_access = kinds
+                == (
+                    VariableKind::Memory(dir::MemoryParameter::Access),
+                    VariableKind::Memory(dir::MemoryParameter::Access),
                 );
             let mut is_cycle = false;
             for known in self.infer.variables.side_bounds(other, side)? {
@@ -1112,7 +1146,7 @@ impl CheckState<'_> {
             {
                 is_cycle |= self.root_variable(known.ty)? == Some(other);
             }
-            if is_numeric || is_cycle {
+            if is_numeric || is_access || is_cycle {
                 self.alias_variable(variable, other)?;
                 self.settle_numeric_kind(variable, origin, cause)?;
 

@@ -229,6 +229,30 @@ impl CheckState<'_> {
         decision
     }
 
+    /// Return one stuck conditional's then branch with each infer binder at its constraint.
+    fn substitute_infer_binders(
+        &mut self,
+        origin: Origin,
+        conditional: dir::ConditionalType,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let module = origin.module();
+        let mut branch = conditional.then_type;
+
+        // replace each binder occurrence with the constraint it declares
+        for binder in self.collect_infer_binders(conditional.right)? {
+            // default an open binder to unknown
+            let constraint = match binder.constraint {
+                Some(constraint) => constraint,
+                None => self.intern_type(dir::Type::Unknown)?,
+            };
+            for occurrence in binder.occurrences {
+                branch = self.replace_type(module, branch, occurrence, constraint)?;
+            }
+        }
+
+        Ok(branch)
+    }
+
     /// Relate the type operator heads shared by every relation.
     fn relate_heads(
         &mut self,
@@ -294,13 +318,13 @@ impl CheckState<'_> {
             }
         }
 
-        // irreducible conditionals relate through both branches
+        // relate an irreducible conditional through both of its branches
         if relation.is_directed()
             && let Some(dir::TypeOperation::Conditional(conditional)) =
                 self.operation_head(source)?
         {
-            let then_branch =
-                self.constrain_type(origin, cause, relation, conditional.then_type, target)?;
+            let then_type = self.substitute_infer_binders(origin, conditional)?;
+            let then_branch = self.constrain_type(origin, cause, relation, then_type, target)?;
             if then_branch == Verdict::Fails {
                 return Ok(Some(Verdict::Fails));
             }
@@ -313,6 +337,11 @@ impl CheckState<'_> {
 
         // relate region terms by their own rule
         if let Some(verdict) = self.relate_region_terms(origin, cause, relation, source, target)? {
+            return Ok(Some(verdict));
+        }
+
+        // relate access terms by their ladder
+        if let Some(verdict) = self.relate_access_terms(relation, source, target)? {
             return Ok(Some(verdict));
         }
 

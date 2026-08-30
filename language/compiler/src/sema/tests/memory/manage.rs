@@ -33,7 +33,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -44,8 +44,8 @@ function run(): void {
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 }
 "#,
@@ -89,7 +89,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -99,15 +99,15 @@ function run(): void {
     /// @type.symbol symbol=run.user source=user type=User
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     const other = make();
     /// @type.symbol symbol=run.other source=other type=User
     /// @resolution.pattern source=other kind=binding target=run.other
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 }
 "#,
@@ -202,7 +202,7 @@ class Holder {
 }
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 declare function take(user: User): void;
@@ -224,20 +224,20 @@ function run(holder: Holder): User {
     /// @resolution.access source=holder.user root=run.holder keys=[user]
     /// @resolution.assignment source=holder.user write="receiver=Holder, target=field(receiver=Holder, target=Holder.user, type=User), type=User" type=User
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     take(make());
     /// @resolution.name source=take target=take
     /// @resolution.call source=take(make()) parameters=(User) arguments=(provided(make()) as User) return=void kind=symbol target=take
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     return make();
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 }
 "#,
@@ -279,7 +279,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -292,8 +292,8 @@ function run(): void {
     /// @resolution.call source=[make()] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
     /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 }
 "#,
@@ -341,7 +341,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 declare function identity<T>(value: T): T;
@@ -370,8 +370,8 @@ function run(): void {
     /// @resolution.call source=identity(make()) parameters=(User) arguments=(provided(make()) as User) return=User kind=symbol target=identity instance=identity<User>
     /// @generic.instantiation id=identity<User> template=identity arguments=(User)
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     let found = first(make());
     /// @type.symbol symbol=run.found source=found type=User
@@ -380,8 +380,8 @@ function run(): void {
     /// @resolution.call source=first(make()) parameters=(User | undefined) arguments=(provided(make()) as User | undefined) return=User kind=symbol target=first instance=first<User>
     /// @generic.instantiation id=first<User> template=first arguments=(User)
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: union, target: User | undefined, cases: ({ source: Owned<User>, target: User, adjustments: [{ kind: manage, target: User }] }) }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: union, target: User | undefined, cases: ({ source: ^User, target: User, adjustments: [{ kind: manage, target: User }] }) }] origin=implicit
 
 }
 "#,
@@ -425,26 +425,26 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 const get = () => make();
-/// @type.symbol symbol=get source=get type=Function<(), User>
+/// @type.symbol symbol=get source=get type=Function<(), User, "readonly">
 /// @resolution.pattern source=get kind=binding target=get
-/// @type.symbol symbol=symbol3 source=() => make() type=Function<(), User>
+/// @type.symbol symbol=symbol3 source=() => make() type=Function<(), User, "readonly">
 /// @resolution.name source=make target=make
-/// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-/// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+/// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+/// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 const block = () => {
-/// @type.symbol symbol=block source=block type=Function<(), User>
+/// @type.symbol symbol=block source=block type=Function<(), User, "readonly">
 /// @resolution.pattern source=block kind=binding target=block
-/// @type.symbol symbol=symbol5 type=Function<(), User>
+/// @type.symbol symbol=symbol5 type=Function<(), User, "readonly">
 
     return make();
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @coercion.node source=make() from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 };
 "#,
@@ -494,7 +494,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 declare function identity<T>(value: T): T;
@@ -506,7 +506,7 @@ declare function identity<T>(value: T): T;
 /// @resolution.name source=T target=identity.T
 
 declare function pair(): (^User, ^User);
-/// @type.symbol symbol=pair source="declare function pair(): (^User, ^User)" type=() => (Owned<User>, Owned<User>)
+/// @type.symbol symbol=pair source="declare function pair(): (^User, ^User)" type=() => (^User, ^User)
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
@@ -514,28 +514,28 @@ function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     let owned: ^User = make();
-    /// @type.symbol symbol=run.owned source=owned type=Owned<User>
+    /// @type.symbol symbol=run.owned source=owned type=^User
     /// @resolution.pattern source=owned kind=binding target=run.owned
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
 
     let explicit = identity<^User>(make());
     /// @type.symbol symbol=run.explicit source=explicit type=User
     /// @resolution.pattern source=explicit kind=binding target=run.explicit
     /// @resolution.name source=identity target=identity
-    /// @resolution.call source=identity<^User>(make()) parameters=(Owned<User>) arguments=(provided(make()) as Owned<User>) return=Owned<User> kind=symbol target=identity instance=identity<Owned<User>>
-    /// @generic.instantiation id=identity<Owned<User>> template=identity arguments=(Owned<User>)
-    /// @coercion.node source=identity<^User>(make()) from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @resolution.call source=identity<^User>(make()) parameters=(^User) arguments=(provided(make()) as ^User) return=^User kind=symbol target=identity instance=identity<^User>
+    /// @generic.instantiation id=identity<^User> template=identity arguments=(^User)
+    /// @coercion.node source=identity<^User>(make()) from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
 
     let users = pair();
-    /// @type.symbol symbol=run.users source=users type=(Owned<User>, Owned<User>)
+    /// @type.symbol symbol=run.users source=users type=(^User, ^User)
     /// @resolution.pattern source=users kind=binding target=run.users
     /// @resolution.name source=pair target=pair
-    /// @resolution.call source=pair() parameters=() return=(Owned<User>, Owned<User>) kind=symbol target=pair
+    /// @resolution.call source=pair() parameters=() return=(^User, ^User) kind=symbol target=pair
 
 }
 "#,
@@ -648,7 +648,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -659,9 +659,9 @@ function run(): void {
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.member source=make().intoManaged receiver=Owned<User> type=(this: Owned<User>) => local User kind=symbol target_receiver=Owned<User> target=intoManaged#1
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @resolution.call source=make().intoManaged() parameters=() return=local User kind=symbol target=intoManaged#1 receiver=Owned<User> instance=Owned<T>.<extension#1>.intoManaged#1
+    /// @resolution.member source=make().intoManaged receiver=^User type=(this: ^User) => local User kind=symbol target_receiver=^User target=intoManaged#1
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @resolution.call source=make().intoManaged() parameters=() return=local User kind=symbol target=intoManaged#1 receiver=^User instance=^T.<extension#1>.intoManaged#1
     /// @generic.instantiation id=intoManaged#1<User> template=intoManaged#1 arguments=(User)
 
 }
@@ -711,7 +711,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 declare function take(user: User): void;
@@ -723,11 +723,11 @@ function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     let owned: ^User = make();
-    /// @type.symbol symbol=run.owned source=owned type=Owned<User>
+    /// @type.symbol symbol=run.owned source=owned type=^User
     /// @resolution.pattern source=owned kind=binding target=run.owned
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
 
     take(owned);
     /// @resolution.name source=take target=take
@@ -735,7 +735,7 @@ function run(): void {
     /// @resolution.name source=owned target=run.owned
     /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=owned root=run.owned
-    /// @coercion.node source=owned from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @coercion.node source=owned from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     take(owned);
     /// @resolution.name source=take target=take
@@ -743,7 +743,7 @@ function run(): void {
     /// @resolution.name source=owned target=run.owned
     /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=owned root=run.owned
-    /// @coercion.node source=owned from=Owned<User> adjustments=[{ kind: manage, target: User }] origin=implicit
+    /// @coercion.node source=owned from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 }
 "#,
@@ -818,51 +818,51 @@ class User {}
 
 extension<T> of Owned<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#1)
-/// @definition.extension symbol=<module>#2 form=local target=Owned<T#1>
-/// @definition.method symbol=release slot=release type=(this: Owned<T#1>) => T#1
+/// @definition.extension symbol=<module>#2 form=local target=^T#1
+/// @definition.method symbol=release slot=release type=(this: ^T#1) => T#1
 /// @type.symbol symbol=T#1 source=T type=T#1
 /// @resolution.name source=Owned target=Owned
 /// @resolution.name source=T target=T#1
 
     release(this: ^T): T {
-    /// @type.symbol symbol=release type=(this: Owned<T#1>) => T#1
-    /// @type.symbol symbol=release.this source="this: ^T" type=Owned<T#1>
+    /// @type.symbol symbol=release type=(this: ^T#1) => T#1
+    /// @type.symbol symbol=release.this source="this: ^T" type=^T#1
     /// @resolution.name source=T target=T#1
     /// @resolution.name source=T target=T#1
 
         return this;
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Owned<T#1>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=^T#1
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @coercion.node source=this from=Owned<T#1> adjustments=[{ kind: representation, target: T#1 }] origin=implicit
+        /// @coercion.node source=this from=^T#1 adjustments=[{ kind: representation, target: T#1 }] origin=implicit
 
     }
 }
 
 extension<T> of ^T {
 /// @generic.template symbol=<module>#3 parameters=(T#2)
-/// @definition.extension symbol=<module>#3 form=local target=Owned<T#2>
-/// @definition.method symbol=unwrap slot=unwrap type=(this: Owned<T#2>) => T#2
+/// @definition.extension symbol=<module>#3 form=local target=^T#2
+/// @definition.method symbol=unwrap slot=unwrap type=(this: ^T#2) => T#2
 /// @type.symbol symbol=T#2 source=T type=T#2
 /// @resolution.name source=T target=T#2
 
     unwrap(this: ^T): T {
-    /// @type.symbol symbol=unwrap type=(this: Owned<T#2>) => T#2
-    /// @type.symbol symbol=unwrap.this source="this: ^T" type=Owned<T#2>
+    /// @type.symbol symbol=unwrap type=(this: ^T#2) => T#2
+    /// @type.symbol symbol=unwrap.this source="this: ^T" type=^T#2
     /// @resolution.name source=T target=T#2
     /// @resolution.name source=T target=T#2
 
         return this;
-        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=Owned<T#2>
+        /// @resolution.receiver source=this kind=this declaration=<module>#3 type=^T#2
         /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @coercion.node source=this from=Owned<T#2> adjustments=[{ kind: representation, target: T#2 }] origin=implicit
+        /// @coercion.node source=this from=^T#2 adjustments=[{ kind: representation, target: T#2 }] origin=implicit
 
     }
 }
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -873,9 +873,9 @@ function run(): void {
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.member source=make().release receiver=Owned<User> type=(this: Owned<User>) => User kind=symbol target_receiver=Owned<User> target=release
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @resolution.call source=make().release() parameters=() return=User kind=symbol target=release receiver=Owned<User> instance=Owned<T#1>.<extension#1>.release
+    /// @resolution.member source=make().release receiver=^User type=(this: ^User) => User kind=symbol target_receiver=^User target=release
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @resolution.call source=make().release() parameters=() return=User kind=symbol target=release receiver=^User instance=^T#1.<extension#1>.release
     /// @generic.instantiation id=release<User> template=release arguments=(User)
 
     let other: User = make().unwrap();
@@ -883,9 +883,9 @@ function run(): void {
     /// @resolution.pattern source=other kind=binding target=run.other
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.member source=make().unwrap receiver=Owned<User> type=(this: Owned<User>) => User kind=symbol target_receiver=Owned<User> target=unwrap
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
-    /// @resolution.call source=make().unwrap() parameters=() return=User kind=symbol target=unwrap receiver=Owned<User> instance=Owned<T#2>.<extension#2>.unwrap
+    /// @resolution.member source=make().unwrap receiver=^User type=(this: ^User) => User kind=symbol target_receiver=^User target=unwrap
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
+    /// @resolution.call source=make().unwrap() parameters=() return=User kind=symbol target=unwrap receiver=^User instance=^T#2.<extension#2>.unwrap
     /// @generic.instantiation id=unwrap<User> template=unwrap arguments=(User)
 
 }
@@ -947,13 +947,13 @@ declare function identity<T>(value: T): T;
 /// @resolution.name source=T target=identity.T
 
 function forward(input: ^User): ^User {
-/// @type.symbol symbol=forward type=(Owned<User>) => Owned<User>
-/// @type.symbol symbol=forward.input source="input: ^User" type=Owned<User>
+/// @type.symbol symbol=forward type=(^User) => ^User
+/// @type.symbol symbol=forward.input source="input: ^User" type=^User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
     let moved = input;
-    /// @type.symbol symbol=forward.moved source=moved type=Owned<User>
+    /// @type.symbol symbol=forward.moved source=moved type=^User
     /// @resolution.pattern source=moved kind=binding target=forward.moved
     /// @resolution.name source=input target=forward.input
     /// @resolution.access source=input root=forward.input
@@ -966,15 +966,15 @@ function forward(input: ^User): ^User {
 }
 
 function pass(input: ^User): ^User {
-/// @type.symbol symbol=pass type=(Owned<User>) => Owned<User>
-/// @type.symbol symbol=pass.input source="input: ^User" type=Owned<User>
+/// @type.symbol symbol=pass type=(^User) => ^User
+/// @type.symbol symbol=pass.input source="input: ^User" type=^User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 
     return identity(input);
     /// @resolution.name source=identity target=identity
-    /// @resolution.call source=identity(input) parameters=(Owned<User>) arguments=(provided(input) as Owned<User>) return=Owned<User> kind=symbol target=identity instance=identity<Owned<User>>
-    /// @generic.instantiation id=identity<Owned<User>> template=identity arguments=(Owned<User>)
+    /// @resolution.call source=identity(input) parameters=(^User) arguments=(provided(input) as ^User) return=^User kind=symbol target=identity instance=identity<^User>
+    /// @generic.instantiation id=identity<^User> template=identity arguments=(^User)
     /// @resolution.name source=input target=pass.input
     /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=input root=pass.input
@@ -1025,33 +1025,33 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare function make(): ^User;
-/// @type.symbol symbol=make source="declare function make(): ^User" type=() => Owned<User>
+/// @type.symbol symbol=make source="declare function make(): ^User" type=() => ^User
 /// @resolution.name source=User target=User
 
 declare function names(): ^string[];
-/// @type.symbol symbol=names source="declare function names(): ^string[]" type=() => Owned<string[]>
+/// @type.symbol symbol=names source="declare function names(): ^string[]" type=() => ^string[]
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     const user: ^_ = make();
-    /// @type.symbol symbol=run.user source=user type=Owned<User>
+    /// @type.symbol symbol=run.user source=user type=^User
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=make target=make
-    /// @resolution.call source=make() parameters=() return=Owned<User> kind=symbol target=make
+    /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
 
     const owned: ^_ = names();
-    /// @type.symbol symbol=run.owned source=owned type=Owned<string[]>
+    /// @type.symbol symbol=run.owned source=owned type=^string[]
     /// @resolution.pattern source=owned kind=binding target=run.owned
     /// @resolution.name source=names target=names
-    /// @resolution.call source=names() parameters=() return=Owned<string[]> kind=symbol target=names
+    /// @resolution.call source=names() parameters=() return=^string[] kind=symbol target=names
 
     const managed = names();
     /// @type.symbol symbol=run.managed source=managed type=string[]
     /// @resolution.pattern source=managed kind=binding target=run.managed
     /// @resolution.name source=names target=names
-    /// @resolution.call source=names() parameters=() return=Owned<string[]> kind=symbol target=names
-    /// @coercion.node source=names() from=Owned<string[]> adjustments=[{ kind: manage, target: string[] }] origin=implicit
+    /// @resolution.call source=names() parameters=() return=^string[] kind=symbol target=names
+    /// @coercion.node source=names() from=^string[] adjustments=[{ kind: manage, target: string[] }] origin=implicit
 
 }
 "#,

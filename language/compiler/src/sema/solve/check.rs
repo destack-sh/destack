@@ -40,6 +40,17 @@ pub(in crate::sema) enum Check {
     Body(BodyCheck),
     /// A destructuring pattern takes its input apart once the input closes.
     Pattern(PatternCheck),
+    /// A binding place selects its terms once the binding's slot closes.
+    Place(PlaceCheck),
+}
+
+/// One binding place pending its slot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::sema) struct PlaceCheck {
+    /// The binding reference's flow site.
+    pub(in crate::sema) site: FlowSite,
+    /// The binding's slot type.
+    pub(in crate::sema) ty: dir::GlobalTypeId,
 }
 
 /// One destructuring pattern pending its input.
@@ -228,6 +239,7 @@ impl CheckTable {
             Check::Conversion(conversion) => self.allocate_conversion(conversion),
             Check::Body(body) => self.push(Check::Body(body)),
             Check::Pattern(pattern) => self.push(Check::Pattern(pattern)),
+            Check::Place(place) => self.push(Check::Place(place)),
         }
     }
 

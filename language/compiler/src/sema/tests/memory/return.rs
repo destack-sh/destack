@@ -249,7 +249,7 @@ function escape(): &readonly int32 {
 /// @type.symbol symbol=escape type=() => &'static readonly constant int32
 
     const values: ^[int32] = [1, 2];
-    /// @type.symbol symbol=escape.values source=values type=Owned<Slice<int32>>
+    /// @type.symbol symbol=escape.values source=values type=^Slice<int32>
     /// @resolution.pattern source=values kind=binding target=escape.values
     /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
     /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)

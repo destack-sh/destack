@@ -417,7 +417,7 @@ declare function replace(value: local &exclusive User): void;
 /// @resolution.name source=User target=User
 
 declare let user: ^User;
-/// @type.symbol symbol=user source=user type=Owned<User>
+/// @type.symbol symbol=user source=user type=^User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
@@ -427,7 +427,7 @@ inspect(user);
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=Owned<User> adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
@@ -435,7 +435,7 @@ modify(user);
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=Owned<User> adjustments=[{ kind: borrow, target: &'static User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static User }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
@@ -443,7 +443,7 @@ replace(user);
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=Owned<User> adjustments=[{ kind: borrow, target: &'static exclusive User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static exclusive User }] origin=implicit
 "#,
     );
 }
@@ -1387,7 +1387,7 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 declare shared let user: ^User;
-/// @type.symbol symbol=user source=user type=Owned<User>
+/// @type.symbol symbol=user source=user type=^User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
@@ -1415,7 +1415,7 @@ inspect(user);
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=Owned<User> adjustments=[{ kind: borrow, target: &'static readonly shared User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static readonly shared User }] origin=implicit
 
 modify(user);
 /// @resolution.name source=modify target=modify
@@ -1423,7 +1423,7 @@ modify(user);
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=Owned<User> adjustments=[{ kind: borrow, target: &'static shared User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static shared User }] origin=implicit
 
 replace(user);
 /// @resolution.name source=replace target=replace
@@ -1431,7 +1431,7 @@ replace(user);
 /// @resolution.name source=user target=user
 /// @resolution.place source=user placement="shared" lifetime="static" access="exclusive"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=Owned<User> adjustments=[{ kind: borrow, target: &'static exclusive shared User }] origin=implicit
+/// @coercion.node source=user from=^User adjustments=[{ kind: borrow, target: &'static exclusive shared User }] origin=implicit
 "#,
     );
 }
@@ -1774,7 +1774,7 @@ let user: User = new User();
 /// @resolution.name source=User target=User
 
 let owned: ^User = user;
-/// @type.symbol symbol=owned source=owned type=Owned<User>
+/// @type.symbol symbol=owned source=owned type=^User
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
 /// @type.node source=user type=User
@@ -1819,8 +1819,8 @@ let owned: Label = borrow;
 struct Label { values: ^Array<uint8>; }
 /// @type.symbol symbol=Label source="struct Label { values: ^Array<uint8>; }" type=Label
 /// @definition.struct symbol=Label source="struct Label { values: ^Array<uint8>; }"
-/// @definition.field symbol=Label.values source="values: ^Array<uint8>" key=values type=Owned<Array<uint8>>
-/// @type.symbol symbol=Label.values source="values: ^Array<uint8>" type=Owned<Array<uint8>>
+/// @definition.field symbol=Label.values source="values: ^Array<uint8>" key=values type=^Array<uint8>
+/// @type.symbol symbol=Label.values source="values: ^Array<uint8>" type=^Array<uint8>
 /// @resolution.name source=Array target=Array
 
 declare let label: ^Label;
@@ -1963,11 +1963,11 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 let owned: ^User = new User();
-/// @type.symbol symbol=owned source=owned type=Owned<User>
+/// @type.symbol symbol=owned source=owned type=^User
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
-/// @type.node source="new User()" type=Owned<User>
-/// @resolution.construct source="new User()" parameters=() return=Owned<User> kind=class target=User constructor=default
+/// @type.node source="new User()" type=^User
+/// @resolution.construct source="new User()" parameters=() return=^User kind=class target=User constructor=default
 /// @resolution.name source=User target=User
 "#,
         r#"
@@ -2062,7 +2062,7 @@ import { Copy } from "destack:memory";
 
 function duplicate<T: Copy>(value: T): ^T {
 /// @generic.template symbol=duplicate parameters=(T: Copy)
-/// @type.symbol symbol=duplicate type=<T: Copy>(T) => Owned<T>
+/// @type.symbol symbol=duplicate type=<T: Copy>(T) => ^T
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=duplicate.value source="value: T" type=T
@@ -2114,7 +2114,7 @@ import { Copy } from "destack:memory";
 
 declare function duplicate<T: Copy>(value: T): ^T;
 /// @generic.template symbol=duplicate parameters=(T: Copy)
-/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): ^T" type=<T: Copy>(T) => Owned<T>
+/// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): ^T" type=<T: Copy>(T) => ^T
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=duplicate.value source="value: T" type=T
@@ -2122,19 +2122,19 @@ declare function duplicate<T: Copy>(value: T): ^T;
 /// @resolution.name source=T target=duplicate.T
 
 declare const values: ^Array<int32>;
-/// @type.symbol symbol=values source=values type=Owned<Array<int32>>
+/// @type.symbol symbol=values source=values type=^Array<int32>
 /// @resolution.pattern source=values kind=binding target=values
 /// @resolution.name source=Array target=Array
 
 duplicate(32);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(32) parameters=(int64) arguments=(provided(32) as int64) return=Owned<int64> kind=symbol target=duplicate instance=duplicate<int64>
+/// @resolution.call source=duplicate(32) parameters=(int64) arguments=(provided(32) as int64) return=^int64 kind=symbol target=duplicate instance=duplicate<int64>
 /// @generic.instantiation id=duplicate<int64> template=duplicate arguments=(int64)
 
 duplicate(values);
 /// @resolution.name source=duplicate target=duplicate
-/// @resolution.call source=duplicate(values) parameters=(Owned<Array<int32>>) arguments=(provided(values) as Owned<Array<int32>>) return=Owned<Array<int32>> kind=symbol target=duplicate instance=duplicate<Owned<Array<int32>>>
-/// @generic.instantiation id=duplicate<Owned<Array<int32>>> template=duplicate arguments=(Owned<Array<int32>>)
+/// @resolution.call source=duplicate(values) parameters=(^Array<int32>) arguments=(provided(values) as ^Array<int32>) return=^Array<int32> kind=symbol target=duplicate instance=duplicate<^Array<int32>>
+/// @generic.instantiation id=duplicate<^Array<int32>> template=duplicate arguments=(^Array<int32>)
 /// @resolution.name source=values target=values
 /// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=values root=values
@@ -2181,13 +2181,13 @@ const mapped = values.map((value) => value);
 /// @type.symbol symbol=mapped source=mapped type=int32 | undefined[]
 /// @resolution.pattern source=mapped kind=binding target=mapped
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => Owned<map.U#2[]> kind=symbol target_receiver=int32 | undefined[] target=map#2
-/// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=Owned<int32 | undefined[]> kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined, \"local\">"
+/// @resolution.member source=values.map receiver=int32 | undefined[] type=<map.U#2, map#2.P1: Place>(this: Managed<int32 | undefined[], map#2.P1>, Function<(int32 | undefined, isize), map.U#2>) => ^map.U#2[] kind=symbol target_receiver=int32 | undefined[] target=map#2
+/// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=^int32 | undefined[] kind=symbol target=map#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.map#2<int32 | undefined, \"local\">"
 /// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @generic.instantiation id="map#2<int32 | undefined, int32 | undefined, \"local\">" template=map#2 arguments=(int32 | undefined, int32 | undefined, "local")
 /// @generic.instantiation id="map#2<int32 | undefined>" template=map#2 arguments=(int32 | undefined)
-/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined>
+/// @type.symbol symbol=symbol2 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol2.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol2.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
@@ -2197,13 +2197,13 @@ const filtered = mapped.filter((value) => value != undefined);
 /// @type.symbol symbol=filtered source=filtered type=int32 | undefined[]
 /// @resolution.pattern source=filtered kind=binding target=filtered
 /// @resolution.name source=mapped target=mapped
-/// @resolution.member source=mapped.filter receiver=int32 | undefined[] type=<filter#2.P0: Place>(this: Managed<int32 | undefined[], filter#2.P0>, Function<(int32 | undefined, isize), boolean>) => Owned<int32 | undefined[]> kind=symbol target_receiver=int32 | undefined[] target=filter#2
-/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(int32 | undefined, isize), boolean>) return=Owned<int32 | undefined[]> kind=symbol target=filter#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.filter#2<\"local\">"
+/// @resolution.member source=mapped.filter receiver=int32 | undefined[] type=<filter#2.P0: Place>(this: Managed<int32 | undefined[], filter#2.P0>, Function<(int32 | undefined, isize), boolean>) => ^int32 | undefined[] kind=symbol target_receiver=int32 | undefined[] target=filter#2
+/// @resolution.call source="mapped.filter((value) => value != undefined)" parameters=(Function<(int32 | undefined, isize), boolean>) arguments=(provided((value) => value != undefined) as Function<(int32 | undefined, isize), boolean>) return=^int32 | undefined[] kind=symbol target=filter#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#3>.filter#2<\"local\">"
 /// @resolution.place source=mapped placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=mapped root=mapped
 /// @generic.instantiation id="filter#2<int32 | undefined, \"local\">" template=filter#2 arguments=(int32 | undefined, "local")
 /// @generic.instantiation id="filter#2<int32 | undefined>" template=filter#2 arguments=(int32 | undefined)
-/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(int32 | undefined,), boolean>
+/// @type.symbol symbol=symbol5 source="(value) => value != undefined" type=Function<(int32 | undefined,), boolean, "readonly">
 /// @type.symbol symbol=symbol5.value source=value type=int32 | undefined
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.operator source="value != undefined" type=boolean operator="!=" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as undefined families=(undefined)]

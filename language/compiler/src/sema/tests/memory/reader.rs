@@ -63,7 +63,7 @@ const viewIncludes: boolean = view.includes<int32, int32>(1 as &'frame readonly 
 
 === dir ===
 declare const owned: ^int32[];
-/// @type.symbol symbol=owned source=owned type=Owned<int32[]>
+/// @type.symbol symbol=owned source=owned type=^int32[]
 /// @resolution.pattern source=owned kind=binding target=owned
 
 declare const managed: int32[];
@@ -82,7 +82,7 @@ const ownedLength = owned.length;
 /// @type.symbol symbol=ownedLength source=ownedLength type=isize
 /// @resolution.pattern source=ownedLength kind=binding target=ownedLength
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.length receiver=Owned<int32[]> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=owned.length receiver=^int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 /// @generic.instantiation id=length<int32> template=length arguments=(int32)
@@ -91,7 +91,7 @@ const ownedEmpty = owned.isEmpty;
 /// @type.symbol symbol=ownedEmpty source=ownedEmpty type=boolean
 /// @resolution.pattern source=ownedEmpty kind=binding target=ownedEmpty
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.isEmpty receiver=Owned<int32[]> type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source=owned.isEmpty receiver=^int32[] type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 /// @generic.instantiation id=isEmpty<int32> template=isEmpty arguments=(int32)
@@ -100,8 +100,8 @@ const ownedAt = owned.at(0);
 /// @type.symbol symbol=ownedAt source=ownedAt type=&'frame readonly int32 | undefined
 /// @resolution.pattern source=ownedAt kind=binding target=ownedAt
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.at receiver=Owned<int32[]> type=(this: &'frame readonly int32[], isize) => &'frame readonly int32 | undefined kind=symbol target_receiver=Owned<int32[]> target=at#2
-/// @resolution.call source=owned.at(0) parameters=(isize) arguments=(provided(0) as isize) return=&'frame readonly int32 | undefined kind=symbol target=at#2 receiver=Owned<int32[]> instance="Borrowed<T#4[], 'a, A#1>.<extension#4>.at#2"
+/// @resolution.member source=owned.at receiver=^int32[] type=(this: &'frame readonly int32[], isize) => &'frame readonly int32 | undefined kind=symbol target_receiver=^int32[] target=at#2
+/// @resolution.call source=owned.at(0) parameters=(isize) arguments=(provided(0) as isize) return=&'frame readonly int32 | undefined kind=symbol target=at#2 receiver=^int32[] instance="Borrowed<T#4[], 'a, A#1>.<extension#4>.at#2"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 /// @generic.instantiation id="at#2<int32, \"readonly\">" template=at#2 arguments=(int32, "readonly")
@@ -110,8 +110,8 @@ const ownedIncludes = owned.includes(1);
 /// @type.symbol symbol=ownedIncludes source=ownedIncludes type=boolean
 /// @resolution.pattern source=ownedIncludes kind=binding target=ownedIncludes
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.includes receiver=Owned<int32[]> type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=Owned<int32[]> target=includes
-/// @resolution.call source=owned.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=Owned<int32[]> adjustments=(borrow(&'static readonly constant Owned<int32[]>)) instance=Array<int32>.<extension#5>.includes<int32>
+/// @resolution.member source=owned.includes receiver=^int32[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=^int32[] target=includes
+/// @resolution.call source=owned.includes(1) parameters=(&'frame readonly int32, isize | undefined) arguments=(provided(1) as &'frame readonly int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=^int32[] adjustments=(borrow(&'static readonly constant ^int32[])) instance=Array<int32>.<extension#5>.includes<int32>
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 /// @generic.instantiation id="includes<int32, int32>" template=includes arguments=(int32, int32)
@@ -280,7 +280,7 @@ const viewTrimmed: string = view.trim() as string;
 
 === dir ===
 declare const owned: ^string;
-/// @type.symbol symbol=owned source=owned type=Owned<string>
+/// @type.symbol symbol=owned source=owned type=^string
 /// @resolution.pattern source=owned kind=binding target=owned
 
 declare const managed: string;
@@ -295,7 +295,7 @@ const ownedLength = owned.length;
 /// @type.symbol symbol=ownedLength source=ownedLength type=isize
 /// @resolution.pattern source=ownedLength kind=binding target=ownedLength
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.length receiver=Owned<string> type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
+/// @resolution.member source=owned.length receiver=^string type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
@@ -303,7 +303,7 @@ const ownedEmpty = owned.isEmpty;
 /// @type.symbol symbol=ownedEmpty source=ownedEmpty type=boolean
 /// @resolution.pattern source=ownedEmpty kind=binding target=ownedEmpty
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.isEmpty receiver=Owned<string> type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
+/// @resolution.member source=owned.isEmpty receiver=^string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
@@ -311,8 +311,8 @@ const ownedIncludes = owned.includes("a");
 /// @type.symbol symbol=ownedIncludes source=ownedIncludes type=boolean
 /// @resolution.pattern source=ownedIncludes kind=binding target=ownedIncludes
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.includes receiver=Owned<string> type=<includes.'a, includes.'b>(this: &includes.'a readonly string, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=Owned<string> target=includes
-/// @resolution.call source="owned.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=Owned<string> adjustments=(borrow(&'static readonly constant Owned<string>))
+/// @resolution.member source=owned.includes receiver=^string type=<includes.'a, includes.'b>(this: &includes.'a readonly string, &includes.'b readonly string, isize | undefined?) => boolean kind=symbol target_receiver=^string target=includes
+/// @resolution.call source="owned.includes(\"a\")" parameters=(&'frame readonly string, isize | undefined) arguments=(provided("a") as &'frame readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=^string adjustments=(borrow(&'static readonly constant ^string))
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
@@ -320,8 +320,8 @@ const ownedTrimmed = owned.trim();
 /// @type.symbol symbol=ownedTrimmed source=ownedTrimmed type=string
 /// @resolution.pattern source=ownedTrimmed kind=binding target=ownedTrimmed
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.trim receiver=Owned<string> type=<trim.'a>(this: &trim.'a readonly string) => Owned<string> kind=symbol target_receiver=Owned<string> target=trim
-/// @resolution.call source=owned.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=Owned<string> adjustments=(borrow(&'static readonly constant Owned<string>))
+/// @resolution.member source=owned.trim receiver=^string type=<trim.'a>(this: &trim.'a readonly string) => ^string kind=symbol target_receiver=^string target=trim
+/// @resolution.call source=owned.trim() parameters=() return=^string kind=symbol target=trim receiver=^string adjustments=(borrow(&'static readonly constant ^string))
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
@@ -354,8 +354,8 @@ const managedTrimmed = managed.trim();
 /// @type.symbol symbol=managedTrimmed source=managedTrimmed type=string
 /// @resolution.pattern source=managedTrimmed kind=binding target=managedTrimmed
 /// @resolution.name source=managed target=managed
-/// @resolution.member source=managed.trim receiver=string type=<trim.'a>(this: &trim.'a readonly string) => Owned<string> kind=symbol target_receiver=string target=trim
-/// @resolution.call source=managed.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=string adjustments=(borrow(&'static readonly string))
+/// @resolution.member source=managed.trim receiver=string type=<trim.'a>(this: &trim.'a readonly string) => ^string kind=symbol target_receiver=string target=trim
+/// @resolution.call source=managed.trim() parameters=() return=^string kind=symbol target=trim receiver=string adjustments=(borrow(&'static readonly string))
 /// @resolution.place source=managed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=managed root=managed
 
@@ -388,8 +388,8 @@ const viewTrimmed = view.trim();
 /// @type.symbol symbol=viewTrimmed source=viewTrimmed type=string
 /// @resolution.pattern source=viewTrimmed kind=binding target=viewTrimmed
 /// @resolution.name source=view target=view
-/// @resolution.member source=view.trim receiver=&'static readonly constant string type=<trim.'a>(this: &trim.'a readonly string) => Owned<string> kind=symbol target_receiver=&'static readonly constant string target=trim
-/// @resolution.call source=view.trim() parameters=() return=Owned<string> kind=symbol target=trim receiver=&'static readonly constant string
+/// @resolution.member source=view.trim receiver=&'static readonly constant string type=<trim.'a>(this: &trim.'a readonly string) => ^string kind=symbol target_receiver=&'static readonly constant string target=trim
+/// @resolution.call source=view.trim() parameters=() return=^string kind=symbol target=trim receiver=&'static readonly constant string
 /// @resolution.place source=view placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=view root=view
 "#,
@@ -462,7 +462,7 @@ const viewSetHas: boolean = viewSet.has<int32, int32>(1 as &'frame readonly int3
 import { Map, Set } from "destack:collections";
 
 declare const ownedMap: ^Map<string, int32>;
-/// @type.symbol symbol=ownedMap source=ownedMap type=Owned<Map<string, int32>>
+/// @type.symbol symbol=ownedMap source=ownedMap type=^Map<string, int32>
 /// @resolution.pattern source=ownedMap kind=binding target=ownedMap
 /// @resolution.name source=Map target=Map
 
@@ -477,7 +477,7 @@ declare const viewMap: &readonly Map<string, int32>;
 /// @resolution.name source=Map target=Map
 
 declare const ownedSet: ^Set<int32>;
-/// @type.symbol symbol=ownedSet source=ownedSet type=Owned<Set<int32>>
+/// @type.symbol symbol=ownedSet source=ownedSet type=^Set<int32>
 /// @resolution.pattern source=ownedSet kind=binding target=ownedSet
 /// @resolution.name source=Set target=Set
 
@@ -495,7 +495,7 @@ const ownedMapSize = ownedMap.size;
 /// @type.symbol symbol=ownedMapSize source=ownedMapSize type=usize
 /// @resolution.pattern source=ownedMapSize kind=binding target=ownedMapSize
 /// @resolution.name source=ownedMap target=ownedMap
-/// @resolution.member source=ownedMap.size receiver=Owned<Map<string, int32>> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=ownedMap.size receiver=^Map<string, int32> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=ownedMap placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedMap root=ownedMap
 /// @generic.instantiation id="size<string, int32>" template=size arguments=(string, int32)
@@ -504,8 +504,8 @@ const ownedMapHas = ownedMap.has("a");
 /// @type.symbol symbol=ownedMapHas source=ownedMapHas type=boolean
 /// @resolution.pattern source=ownedMapHas kind=binding target=ownedMapHas
 /// @resolution.name source=ownedMap target=ownedMap
-/// @resolution.member source=ownedMap.has receiver=Owned<Map<string, int32>> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Map<string, int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Owned<Map<string, int32>> target=has
-/// @resolution.call source="ownedMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=Owned<Map<string, int32>> adjustments=(borrow(&'static readonly constant Owned<Map<string, int32>>)) instance="Map<string, int32>.<extension#8>.has<string>"
+/// @resolution.member source=ownedMap.has receiver=^Map<string, int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Map<string, int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=^Map<string, int32> target=has
+/// @resolution.call source="ownedMap.has(\"a\")" parameters=(&'frame readonly string) arguments=(provided("a") as &'frame readonly string) return=boolean kind=symbol target=has receiver=^Map<string, int32> adjustments=(borrow(&'static readonly constant ^Map<string, int32>)) instance="Map<string, int32>.<extension#8>.has<string>"
 /// @resolution.place source=ownedMap placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedMap root=ownedMap
 /// @generic.instantiation id="has<string, int32, string>" template=has arguments=(string, int32, string)
@@ -549,7 +549,7 @@ const ownedSetSize = ownedSet.size;
 /// @type.symbol symbol=ownedSetSize source=ownedSetSize type=usize
 /// @resolution.pattern source=ownedSetSize kind=binding target=ownedSetSize
 /// @resolution.name source=ownedSet target=ownedSet
-/// @resolution.member source=ownedSet.size receiver=Owned<Set<int32>> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
+/// @resolution.member source=ownedSet.size receiver=^Set<int32> type=usize kind=call target="size(parameters=(), arguments=(), return=usize)"
 /// @resolution.place source=ownedSet placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedSet root=ownedSet
 /// @generic.instantiation id=size<int32> template=size arguments=(int32)
@@ -558,8 +558,8 @@ const ownedSetHas = ownedSet.has(1);
 /// @type.symbol symbol=ownedSetHas source=ownedSetHas type=boolean
 /// @resolution.pattern source=ownedSetHas kind=binding target=ownedSetHas
 /// @resolution.name source=ownedSet target=ownedSet
-/// @resolution.member source=ownedSet.has receiver=Owned<Set<int32>> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Set<int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Owned<Set<int32>> target=has
-/// @resolution.call source=ownedSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=Owned<Set<int32>> adjustments=(borrow(&'static readonly constant Owned<Set<int32>>)) instance=Set<int32>.<extension#5>.has<int32>
+/// @resolution.member source=ownedSet.has receiver=^Set<int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Set<int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=^Set<int32> target=has
+/// @resolution.call source=ownedSet.has(1) parameters=(&'frame readonly int32) arguments=(provided(1) as &'frame readonly int32) return=boolean kind=symbol target=has receiver=^Set<int32> adjustments=(borrow(&'static readonly constant ^Set<int32>)) instance=Set<int32>.<extension#5>.has<int32>
 /// @resolution.place source=ownedSet placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=ownedSet root=ownedSet
 /// @generic.instantiation id="has<int32, int32>" template=has arguments=(int32, int32)
@@ -723,7 +723,7 @@ class Counter {
 }
 
 declare const owned: ^Counter;
-/// @type.symbol symbol=owned source=owned type=Owned<Counter>
+/// @type.symbol symbol=owned source=owned type=^Counter
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=Counter target=Counter
 
@@ -746,7 +746,7 @@ const ownedTotal = owned.total;
 /// @type.symbol symbol=ownedTotal source=ownedTotal type=int32
 /// @resolution.pattern source=ownedTotal kind=binding target=ownedTotal
 /// @resolution.name source=owned target=owned
-/// @resolution.member source=owned.total receiver=Owned<Counter> type=int32 kind=call target="Counter.total(parameters=(), arguments=(), return=int32)"
+/// @resolution.member source=owned.total receiver=^Counter type=int32 kind=call target="Counter.total(parameters=(), arguments=(), return=int32)"
 /// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=owned root=owned
 
@@ -776,8 +776,8 @@ const viewTotal = view.total;
 
 function mutate(owned: ^Counter, managed: Counter, borrowed: &Counter, view: &readonly Counter): void {
 /// @generic.template symbol=mutate parameters=('a, 'b)
-/// @type.symbol symbol=mutate type=<mutate.'a, mutate.'b>(Owned<Counter>, Counter, &mutate.'a Counter, &mutate.'b readonly Counter) => void
-/// @type.symbol symbol=mutate.owned source="owned: ^Counter" type=Owned<Counter>
+/// @type.symbol symbol=mutate type=<mutate.'a, mutate.'b>(^Counter, Counter, &mutate.'a Counter, &mutate.'b readonly Counter) => void
+/// @type.symbol symbol=mutate.owned source="owned: ^Counter" type=^Counter
 /// @resolution.name source=Counter target=Counter
 /// @type.symbol symbol=mutate.managed source="managed: Counter" type=Counter
 /// @resolution.name source=Counter target=Counter
@@ -788,8 +788,8 @@ function mutate(owned: ^Counter, managed: Counter, borrowed: &Counter, view: &re
 
     owned.bump();
     /// @resolution.name source=owned target=mutate.owned
-    /// @resolution.member source=owned.bump receiver=Owned<Counter> type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=Owned<Counter> target=Counter.bump
-    /// @resolution.call source=owned.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=Owned<Counter> adjustments=(borrow(&'frame exclusive Owned<Counter>))
+    /// @resolution.member source=owned.bump receiver=^Counter type=<Counter.bump.'a>(this: &Counter.bump.'a exclusive Counter) => void kind=symbol target_receiver=^Counter target=Counter.bump
+    /// @resolution.call source=owned.bump() parameters=() return=void kind=symbol target=Counter.bump receiver=^Counter adjustments=(borrow(&'frame exclusive ^Counter))
     /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=owned root=mutate.owned
 

@@ -540,8 +540,8 @@ class User {}
 struct OwnedBox { value: local ^User; }
 /// @type.symbol symbol=OwnedBox source="struct OwnedBox { value: local ^User; }" type=OwnedBox
 /// @definition.struct symbol=OwnedBox source="struct OwnedBox { value: local ^User; }"
-/// @definition.field symbol=OwnedBox.value source="value: local ^User" key=value type=Owned<User>
-/// @type.symbol symbol=OwnedBox.value source="value: local ^User" type=Owned<User>
+/// @definition.field symbol=OwnedBox.value source="value: local ^User" key=value type=^User
+/// @type.symbol symbol=OwnedBox.value source="value: local ^User" type=^User
 /// @resolution.name source=User target=User
 
 struct BorrowedBox { value: local Borrowed<User, "static">; }
@@ -553,7 +553,7 @@ struct BorrowedBox { value: local Borrowed<User, "static">; }
 /// @resolution.name source=User target=User
 
 declare const owned: local ^User;
-/// @type.symbol symbol=owned source=owned type=Owned<User>
+/// @type.symbol symbol=owned source=owned type=^User
 /// @resolution.pattern source=owned kind=binding target=owned
 /// @resolution.name source=User target=User
 

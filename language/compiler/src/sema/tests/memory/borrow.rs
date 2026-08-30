@@ -696,3 +696,65 @@ function view(): void {
 "#,
     );
 }
+
+/// A readonly view refuses a readonly borrow of a handle until an explicit dereference.
+#[test]
+fn test_refuse_a_borrowed_array_into_a_readonly_view_without_a_dereference() {
+    let session = TestSession::single(
+        r#"
+function view(values: &readonly int32[]): readonly int32[] {
+    return values;
+}
+
+function copied(values: &readonly int32[]): readonly int32[] {
+    return *values;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function view<'a>(values: &'a readonly int32[]): readonly int32[] {
+    return values;
+}
+
+function copied<'a>(values: &'a readonly int32[]): readonly int32[] {
+    return *values;
+}
+
+=== dir ===
+function view(values: &readonly int32[]): readonly int32[] {
+/// @generic.template symbol=view parameters=('a)
+/// @type.symbol symbol=view type=<view.'a>(&view.'a readonly int32[]) => readonly int32[]
+/// @type.symbol symbol=view.values source="values: &readonly int32[]" type=&view.'a readonly int32[]
+
+    return values;
+    /// @resolution.name source=values target=view.values
+    /// @resolution.place source=values placement=view.'a lifetime=view.'a access="readonly"
+    /// @resolution.access source=values root=view.values
+
+}
+
+function copied(values: &readonly int32[]): readonly int32[] {
+/// @generic.template symbol=copied parameters=('a)
+/// @type.symbol symbol=copied type=<copied.'a>(&copied.'a readonly int32[]) => readonly int32[]
+/// @type.symbol symbol=copied.values source="values: &readonly int32[]" type=&copied.'a readonly int32[]
+
+    return *values;
+    /// @resolution.place source=*values placement=copied.'a lifetime=copied.'a access="readonly"
+    /// @resolution.operator source=*values type=int32[] operator="*" kind=builtin operands=[values as &copied.'a readonly int32[]]
+    /// @resolution.name source=values target=copied.values
+    /// @resolution.place source=values placement=copied.'a lifetime=copied.'a access="readonly"
+    /// @resolution.access source=values root=copied.values
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=return-not-assignable message="type '&'a readonly int32[]' is not assignable to the declared result type 'readonly int32[]'"
+/// @diagnostic.label line=3 column=12 span="values" line_source="return values;"
+"#,
+    );
+}

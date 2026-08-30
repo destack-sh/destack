@@ -3,8 +3,9 @@ use destack_source::ModuleId;
 use smallvec::smallvec;
 
 use crate::sema::{
-    AssignmentSelection, CheckState, FlowSite, MemberCandidate, MemberLookup, MemberRole,
-    MemberSource, Origin, PlaceUse, Value, WriteMode, member_arms,
+    AssignmentSelection, Cause, CauseKind, Check, CheckState, FlowSite, MemberCandidate,
+    MemberLookup, MemberRole, MemberSource, Origin, PlaceCheck, PlaceUse, Relation, Value,
+    WriteMode, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -150,22 +151,121 @@ impl CheckState<'_> {
             dir::Lifetime::Frame
         };
 
-        // immutable direct module bindings live in constant storage
-        let is_direct = !self.type_is_aliased(site.origin(), ty)?;
-        let space = binding_space.unwrap_or(if is_static && is_immutable && is_direct {
+        // freeze a const's direct value in constant storage
+        let direct_space = binding_space.unwrap_or(if is_static && is_immutable {
             dir::Space::Constant
         } else {
             dir::Space::Local
         });
+
+        // defer the place terms while the slot stays open
+        if let Some(root) = self.root_variable(ty)? {
+            let origin = site.origin();
+            let direct =
+                self.direct_binding_place(site, ty, direct_space, lifetime, is_immutable)?;
+            let placement = self.open_memory_type(origin, dir::MemoryParameter::Place)?;
+            let access = self.open_memory_type(origin, dir::MemoryParameter::Access)?;
+            let check = self.queue_check_stalled(Check::Place(PlaceCheck { site, ty }), &[root])?;
+            for (term, default) in [(placement, direct.placement), (access, direct.access)] {
+                let variable =
+                    self.root_variable(term)?
+                        .ok_or_else(|| CompilerError::Internal {
+                            message: "a deferred place selection left an open term".to_string(),
+                        })?;
+                self.set_variable_default(variable, default)?;
+                self.fulfill.binders.insert(variable, check);
+            }
+
+            return Ok(Some(dir::PlaceResolution {
+                placement,
+                lifetime: direct.lifetime,
+                access,
+            }));
+        }
+
+        // keep an aliasing handle's referent access
+        if self.type_is_aliased(site.origin(), ty)? {
+            let space = binding_space.unwrap_or(dir::Space::Local);
+
+            return Ok(Some(self.root_place(
+                site.origin(),
+                site.node.module_id,
+                ty,
+                space,
+                lifetime,
+            )?));
+        }
+
+        Ok(Some(self.direct_binding_place(
+            site,
+            ty,
+            direct_space,
+            lifetime,
+            is_immutable,
+        )?))
+    }
+
+    /// Bind one deferred binding place's terms to the place its closed slot selects.
+    pub(in crate::sema) fn select_deferred_binding_place(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // leave a poisoned slot's terms to their defaults
+        let slot = self.shallow_resolve(ty)?;
+        if matches!(self.ty(slot)?, dir::Type::Error) {
+            return Ok(());
+        }
+
+        // select the place the closed slot reads
+        let selected = self
+            .binding_place(site, ty)?
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!(
+                    "deferred place {} reads no binding",
+                    self.node_label(site.node)
+                ),
+            })?;
+
+        // leave the terms of a discarded selection to their defaults
+        let Some(deferred) = self
+            .decisions(site.node.module_id)
+            .place_resolution(site.node)
+            .copied()
+        else {
+            return Ok(());
+        };
+
+        // equate each deferred term with its selected term
+        let origin = site.origin();
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        for (deferred, selected) in [
+            (deferred.placement, selected.placement),
+            (deferred.access, selected.access),
+        ] {
+            self.constrain_type(origin, cause, Relation::Equal, deferred, selected)?;
+        }
+
+        Ok(())
+    }
+
+    /// Return the place one binding holds a direct value at.
+    fn direct_binding_place(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+        space: dir::Space,
+        lifetime: dir::Lifetime,
+        is_immutable: bool,
+    ) -> CompilerResult<dir::PlaceResolution> {
         let place = self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)?;
-        let access = if is_immutable && is_direct {
+        let access = if is_immutable {
             self.access_literal(dir::Access::Readonly)?
         } else {
             place.access
         };
-        let place = dir::PlaceResolution { access, ..place };
 
-        Ok(Some(place))
+        Ok(dir::PlaceResolution { access, ..place })
     }
 
     /// Return the place one method receiver roots, parametric for ambient classes.

@@ -631,14 +631,14 @@ class Counter {
 }
 
 function inspect(counter: ^Counter): int32 {
-/// @type.symbol symbol=inspect type=(Owned<Counter>) => int32
-/// @type.symbol symbol=inspect.counter source="counter: ^Counter" type=Owned<Counter>
+/// @type.symbol symbol=inspect type=(^Counter) => int32
+/// @type.symbol symbol=inspect.counter source="counter: ^Counter" type=^Counter
 /// @resolution.name source=Counter target=Counter
 
     return counter.read();
     /// @resolution.name source=counter target=inspect.counter
-    /// @resolution.member source=counter.read receiver=Owned<Counter> type=<Counter.read.P0: Place>(this: Managed<Counter, Counter.read.P0>) => int32 kind=symbol target_receiver=Owned<Counter> target=Counter.read
-    /// @resolution.call source=counter.read() parameters=() return=int32 kind=symbol target=Counter.read receiver=Owned<Counter> instance="Counter.read<\"local\">"
+    /// @resolution.member source=counter.read receiver=^Counter type=<Counter.read.P0: Place>(this: Managed<Counter, Counter.read.P0>) => int32 kind=symbol target_receiver=^Counter target=Counter.read
+    /// @resolution.call source=counter.read() parameters=() return=int32 kind=symbol target=Counter.read receiver=^Counter instance="Counter.read<\"local\">"
     /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=counter root=inspect.counter
     /// @generic.instantiation id="Counter.read<\"local\">" template=Counter.read arguments=("local")

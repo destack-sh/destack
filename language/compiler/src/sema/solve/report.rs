@@ -1,7 +1,9 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 
-use crate::sema::{BoundSide, Check, CheckOutcome, CheckState, FailedCheck, Origin, VariableState};
+use crate::sema::{
+    BoundSide, Check, CheckOutcome, CheckState, FailedCheck, Origin, VariableKind, VariableState,
+};
 use crate::{CheckError, CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -172,9 +174,13 @@ impl CheckState<'_> {
                 self.commit_symbol_type(symbol, error)?;
             }
 
-            // close whatever the binding left open
+            // default an elided memory term and close whatever else the binding left open
             if self.infer.variable(variable)?.state.is_open() {
-                self.commit_error_solution(variable, error)?;
+                let is_memory = matches!(self.root_kind(variable)?, VariableKind::Memory(_));
+                match self.variable_default(variable)? {
+                    Some(default) if is_memory => self.commit_solution(variable, default)?,
+                    _ => self.commit_error_solution(variable, error)?,
+                }
             }
         }
 

@@ -482,12 +482,12 @@ class World {}
 /// @definition.class symbol=World source="class World {}"
 
 declare const world: ^World;
-/// @type.symbol symbol=world source=world type=Owned<World>
+/// @type.symbol symbol=world source=world type=^World
 /// @resolution.pattern source=world kind=binding target=world
 /// @resolution.name source=World target=World
 
 shared const sharedWorld: ^World = world;
-/// @type.symbol symbol=sharedWorld source=sharedWorld type=Owned<World>
+/// @type.symbol symbol=sharedWorld source=sharedWorld type=^World
 /// @resolution.pattern source=sharedWorld kind=binding target=sharedWorld
 /// @resolution.name source=World target=World
 /// @resolution.name source=world target=world
@@ -536,9 +536,9 @@ type Transform = (value: User) => User;
 /// @resolution.name source=User target=User
 
 const transform = (value: User): User => value;
-/// @type.symbol symbol=transform source=transform type=Function<(User,), User>
+/// @type.symbol symbol=transform source=transform type=Function<(User,), User, "readonly">
 /// @resolution.pattern source=transform kind=binding target=transform
-/// @type.symbol symbol=symbol4 source="(value: User): User => value" type=Function<(User,), User>
+/// @type.symbol symbol=symbol4 source="(value: User): User => value" type=Function<(User,), User, "readonly">
 /// @type.symbol symbol=symbol4.value source="value: User" type=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User

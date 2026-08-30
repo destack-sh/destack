@@ -165,7 +165,7 @@ class Bag {
 }
 
 declare const bag: ^Bag;
-/// @type.symbol symbol=bag source=bag type=Owned<Bag>
+/// @type.symbol symbol=bag source=bag type=^Bag
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 "#,
@@ -220,10 +220,10 @@ declare const point: Point;
 /// @resolution.name source=Point target=dep.Point
 
 const borrowed = share(point);
-/// @type.symbol symbol=borrowed source=borrowed type=&'static Owned<dep.Point>
+/// @type.symbol symbol=borrowed source=borrowed type=&'static ^dep.Point
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=share target=dep.share
-/// @resolution.call source=share(point) parameters=(dep.Point) arguments=(provided(point) as dep.Point) return=&'static Owned<dep.Point> kind=symbol target=dep.share instance=dep.share<dep.Point>
+/// @resolution.call source=share(point) parameters=(dep.Point) arguments=(provided(point) as dep.Point) return=&'static ^dep.Point kind=symbol target=dep.share instance=dep.share<dep.Point>
 /// @generic.instantiation id=dep.share<dep.Point> template=dep.share arguments=(dep.Point)
 /// @generic.instance id=dep.share<dep.Point> template=dep.share arguments=(dep.Point)
 /// @resolution.name source=point target=point
@@ -335,7 +335,7 @@ class Bag {
 }
 
 declare const boxed: Managed<Owned<Bag>>;
-/// @type.symbol symbol=boxed source=boxed type=local Owned<Bag>
+/// @type.symbol symbol=boxed source=boxed type=local ^Bag
 /// @resolution.pattern source=boxed kind=binding target=boxed
 /// @resolution.name source=Managed target=Managed
 /// @resolution.name source=Owned target=Owned

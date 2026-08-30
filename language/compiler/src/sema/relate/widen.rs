@@ -31,8 +31,25 @@ impl CheckState<'_> {
             }
         }
 
+        let memory_parameter = self.variable_memory_parameter(variable)?;
+
+        // join access variables at the strongest requirement
+        if memory_parameter == Some(dir::MemoryParameter::Access) {
+            let mut strongest = None;
+            for bound in resolved.iter().copied() {
+                let Some(access) = self.access_of(bound)? else {
+                    strongest = None;
+                    break;
+                };
+                strongest = Some(strongest.map_or(access, |known: dir::Access| known.max(access)));
+            }
+            if let Some(access) = strongest {
+                return self.access_literal(access);
+            }
+        }
+
         // meet region variables over their one shared space
-        if self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Region) {
+        if memory_parameter == Some(dir::MemoryParameter::Region) {
             let mut extents = SmallVec::<[dir::GlobalTypeId; 4]>::new();
             let mut space = None;
             for bound in resolved.iter().copied() {

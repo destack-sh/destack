@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     BodyCheck, Check, CheckFailure, CheckId, CheckOutcome, CheckState, CheckTable, ConversionCheck,
-    FailedCheck, ObligationEntry, Origin, PatternCheck, RelationCheck, Settle, Verdict, WorkState,
+    FailedCheck, ObligationEntry, Origin, PatternCheck, PlaceCheck, RelationCheck, Settle, Verdict,
+    WorkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -27,6 +28,8 @@ pub(in crate::sema) struct Fulfillment {
     pub(in crate::sema) ready: Vec<CheckId>,
     /// Waiting checks keyed by the event each resumes on.
     pub(in crate::sema) waiting: FxIndexMap<Wake, SmallVec<[CheckId; 2]>>,
+    /// The check that binds each deferred term.
+    pub(in crate::sema) binders: FxIndexMap<dir::TypeVariableId, CheckId>,
     /// The number of checks still queued or waiting.
     live: usize,
 }
@@ -39,6 +42,7 @@ impl Fulfillment {
             failures: Vec::new(),
             ready: Vec::new(),
             waiting: FxIndexMap::default(),
+            binders: FxIndexMap::default(),
             live: 0,
         }
     }
@@ -236,6 +240,7 @@ impl CheckState<'_> {
             Check::Declared(entry) => self.step_declared(id, entry),
             Check::Body(body) => self.step_body(id, body, stage),
             Check::Pattern(pattern) => self.step_pattern(id, pattern, stage),
+            Check::Place(place) => self.step_place(id, place, stage),
         }
     }
 
@@ -265,6 +270,39 @@ impl CheckState<'_> {
         // check the pattern once its input closes
         self.fulfill.finish_work(id);
         self.check_destructuring_pattern(pattern.site, pattern.target)?;
+
+        Ok(true)
+    }
+
+    /// Step one pending binding place, returning whether it completed.
+    fn step_place(
+        &mut self,
+        id: CheckId,
+        place: PlaceCheck,
+        stage: Settle,
+    ) -> CompilerResult<bool> {
+        // settle the slot before the final resolve
+        if let Some(root) = self.root_variable(place.ty)? {
+            self.settle_variables(&[root], stage)?;
+            if self.infer.variable(root)?.state.is_open() {
+                if !stage.settles() {
+                    self.fulfill.stall_work(id, &[root]);
+
+                    return Ok(false);
+                }
+
+                // leave an unsolved slot's terms to their defaults
+                self.fulfill.finish_work(id);
+                self.fulfill.binders.retain(|_, binder| *binder != id);
+
+                return Ok(true);
+            }
+        }
+
+        // select the place once the slot closes and bind the deferred terms to it
+        self.fulfill.finish_work(id);
+        self.fulfill.binders.retain(|_, binder| *binder != id);
+        self.select_deferred_binding_place(place.site, place.ty)?;
 
         Ok(true)
     }

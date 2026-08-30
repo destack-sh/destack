@@ -914,14 +914,14 @@ items.push<int32>(1);
 
 === dir ===
 declare const items: ^Array<int32>;
-/// @type.symbol symbol=items source=items type=Owned<int32[]>
+/// @type.symbol symbol=items source=items type=^int32[]
 /// @resolution.pattern source=items kind=binding target=items
 /// @resolution.name source=Array target=Array
 
 items.push(1);
 /// @resolution.name source=items target=items
-/// @resolution.member source=items.push receiver=Owned<int32[]> type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=Owned<int32[]> target=push
-/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=Owned<int32[]> instance=Array<int32>.<extension#5>.push
+/// @resolution.member source=items.push receiver=^int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=^int32[] target=push
+/// @resolution.call source=items.push(1) parameters=(int32[]) arguments=(rest(1) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=^int32[] instance=Array<int32>.<extension#5>.push
 /// @resolution.place source=items placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=items root=items
 /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
@@ -1065,6 +1065,72 @@ function forward<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
     /// @resolution.place source=counter placement='a#2 lifetime='a#2 access="exclusive"
     /// @resolution.access source=counter root=forward.counter
     /// @flow.access source=counter root=forward.counter uses=read+exclusive
+
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+/// A const handle keeps its referent writable, so its methods borrow exclusively.
+#[test]
+fn test_borrow_a_const_array_literal_exclusively_for_a_method() {
+    let session = TestSession::single(
+        r#"
+function grow(): int32[] {
+    const values = [1, 2, 3];
+    values.push(4);
+    values.fill(0);
+
+    return values;
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function grow(): int32[] {
+    const values: int32[] = [1, 2, 3];
+    values.push<int32>(4);
+    values.fill<int32>(0);
+
+    return values;
+}
+
+=== dir ===
+function grow(): int32[] {
+/// @type.symbol symbol=grow type=() => int32[]
+
+    const values = [1, 2, 3];
+    /// @type.symbol symbol=grow.values source=values type=int32[]
+    /// @resolution.pattern source=values kind=binding target=grow.values
+    /// @resolution.call source=[1, 2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+
+    values.push(4);
+    /// @resolution.name source=values target=grow.values
+    /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
+    /// @resolution.call source=values.push(4) parameters=(int32[]) arguments=(rest(4) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=grow.values
+    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+    /// @generic.instantiation id=push<int32> template=push arguments=(int32)
+
+    values.fill(0);
+    /// @resolution.name source=values target=grow.values
+    /// @resolution.member source=values.fill receiver=int32[] type=<fill.'a>(this: &fill.'a exclusive int32[], int32, isize | undefined?, isize | undefined?) => int32[] kind=symbol target_receiver=int32[] target=fill
+    /// @resolution.call source=values.fill(0) parameters=(int32, isize | undefined, isize | undefined) arguments=(provided(0) as int32, omitted as isize | undefined, omitted as isize | undefined) return=int32[] kind=symbol target=fill receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.fill
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=grow.values
+    /// @generic.instantiation id=fill<int32> template=fill arguments=(int32)
+
+    return values;
+    /// @resolution.name source=values target=grow.values
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=values root=grow.values
 
 }
 "#,
