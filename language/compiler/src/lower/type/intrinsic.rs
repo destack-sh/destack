@@ -101,10 +101,10 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
-            // carry callable values at their declared signature and multiplicity
+            // carry callable values at their declared signature and receiver mode
             Some(dir::LanguageItem::Function) => {
                 // read the parameter tuple the instantiation carries
-                let [parameters, result, multiplicity] = arguments else {
+                let [parameters, result, receiver] = arguments else {
                     return Err(CompilerError::Internal {
                         message: "Function instantiated without its signature".to_string(),
                     });
@@ -136,26 +136,8 @@ impl TypeLowerer<'_, '_> {
                     result,
                 });
 
-                // read the multiplicity off its literal name
-                let multiplicity = match self.lowerer.ty(*multiplicity)? {
-                    dir::Type::Literal(dir::Literal::String(name))
-                        if self.lowerer.strings.get(name) == "once" =>
-                    {
-                        mir::Multiplicity::Once
-                    }
-                    dir::Type::Literal(dir::Literal::String(name))
-                        if self.lowerer.strings.get(name) == "repeatable" =>
-                    {
-                        mir::Multiplicity::Repeatable
-                    }
-                    multiplicity => {
-                        return Err(CompilerError::Internal {
-                            message: format!(
-                                "function multiplicity {multiplicity:?} names an unknown literal"
-                            ),
-                        });
-                    }
-                };
+                // read the invocation count off the receiver mode
+                let multiplicity = self.lowerer.callable_multiplicity(*receiver)?;
 
                 // define the callable as a managed function reference
                 self.tree.define_type(

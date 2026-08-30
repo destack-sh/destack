@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_mir as mir;
 use destack_source::ModuleId;
 
 use crate::lower::ModuleLowerer;
@@ -49,6 +50,28 @@ impl ModuleLowerer<'_> {
             construct: "an extension-implemented constraint member".to_string(),
         }
         .into())
+    }
+
+    /// Return the invocation count one receiver term permits.
+    pub(in crate::lower) fn callable_multiplicity(
+        &self,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Multiplicity> {
+        // read the receiver mode
+        let mode = match self.ty(receiver)? {
+            dir::Type::Literal(dir::Literal::String(text)) => dir::ReceiverMode::from_text(text),
+            _ => None,
+        };
+        let Some(mode) = mode else {
+            return Err(CompilerError::Internal {
+                message: format!("receiver term {receiver:?} reaches lower without a mode literal"),
+            });
+        };
+
+        Ok(match mode {
+            dir::ReceiverMode::Owned => mir::Multiplicity::Once,
+            dir::ReceiverMode::Borrowed(_) => mir::Multiplicity::Repeatable,
+        })
     }
 
     /// Return the canonical text of one memory singleton.

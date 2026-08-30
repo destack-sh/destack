@@ -70,6 +70,7 @@ ok   async/iterator.ds
 ok   async/mutex.ds
 ok   async/notify.ds
 ok   async/once.ds
+ok   async/poll.ds
 FAIL async/promise.ds :: a union conversion selecting an absent target member
 FAIL async/reader.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 ok   async/result.ds
@@ -173,6 +174,21 @@ FAIL fs/path.ds :: error[unsupported-lower-construct]: unsupported construct: a 
 ok   hint/hint.ds
 ok   hint/index.ds
 ok   index.ds
+ok   intl/collator.ds
+ok   intl/common.ds
+ok   intl/date-time-format.ds
+ok   intl/display-names.ds
+ok   intl/duration-format.ds
+FAIL intl/error.ds :: error[unsupported-lower-construct]: unsupported construct: a member read on a union receiver
+ok   intl/format.ds
+ok   intl/index.ds
+FAIL intl/list-format.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+FAIL intl/list-format.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+ok   intl/locale.ds
+ok   intl/number-format.ds
+ok   intl/plural-rules.ds
+ok   intl/relative-time-format.ds
+FAIL intl/segmenter.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
 ok   iter/index.ds
 ok   iter/iterator.ds
 ok   json/codec.ds
@@ -323,6 +339,36 @@ ok   runtime/trace.ds
 FAIL runtime/world.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 247 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 1 }, copy: Yes }' representation
 ok   serde/index.ds
 ok   serde/serde.ds
+ok   signal/accessor.ds
+ok   signal/action.ds
+ok   signal/control.ds
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+ok   signal/effect.ds
+ok   signal/index.ds
+ok   signal/map.ds
+ok   signal/memo.ds
+ok   signal/optimistic.ds
+ok   signal/options.ds
+ok   signal/owner.ds
+FAIL signal/reaction.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
+FAIL signal/reaction.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
+ok   signal/setter.ds
+ok   signal/signal.ds
 ok   stream/index.ds
 ok   stream/stream.ds
 FAIL string/builder.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
@@ -389,6 +435,7 @@ ok   time/binding/index.ds
 ok   time/binding/time.ds
 ok   time/binding/timer.ds
 ok   time/duration.ds
+FAIL time/error.ds :: error[unsupported-lower-construct]: unsupported construct: a member read on a union receiver
 ok   time/index.ds
 ok   time/instant.ds
 ok   time/now.ds
