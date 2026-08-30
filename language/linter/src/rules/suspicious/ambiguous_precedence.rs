@@ -187,7 +187,7 @@ extension of Logic implements And<boolean> {
 }
 
 extension of Logic implements PartialEqual<Logic> {
-    equal(other: Logic): boolean {
+    equal(&readonly this, other: &readonly Logic): boolean {
         this.value == other.value
     }
 }
@@ -215,7 +215,7 @@ extension of Logic implements And<boolean> {
 }
 
 extension of Logic implements PartialEqual<Logic> {
-    equal(other: Logic): boolean {
+    equal(&readonly this, other: &readonly Logic): boolean {
         this.value == other.value
     }
 }

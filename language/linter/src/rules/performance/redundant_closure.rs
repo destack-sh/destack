@@ -18,16 +18,12 @@ Instead, you SHOULD pass the function directly when the forwarded arguments requ
             reported: r#"
 declare function square(value: int32): int32;
 
-function squares(values: int32[]): Iterator<int32> {
-    return values.iterator().map((value) => square(value));
-}
+const operation: (value: int32) => int32 = (value) => square(value);
 "#,
             accepted: r#"
 declare function square(value: int32): int32;
 
-function squares(values: int32[]): Iterator<int32> {
-    return values.iterator().map(square);
-}
+const operation: (value: int32) => int32 = square;
 "#,
         },
         provenance: [Clippy("redundant_closure")],
@@ -77,6 +73,14 @@ fn select_forwarded_callee(
     let dir::Expression::Call { left: callee, .. } = module.view().get(call) else {
         return Ok(None);
     };
+
+    // require the function to take the parameter list the closure's slot declares
+    let slot = module.adjusted_type_id(expression.into_any())?;
+    let slot_parameters = module.signature_parameter_count(slot)?;
+    let callee_parameters = module.callable_parameter_count(*callee)?;
+    if slot_parameters != callee_parameters {
+        return Ok(None);
+    }
 
     Ok(Some(*callee))
 }

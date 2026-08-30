@@ -153,14 +153,17 @@ impl<'a> Dir<'a> {
             (dir::Type::FunctionSignature(_), dir::Type::FunctionSignature(_)) => {
                 self.function_signatures_match(left, right, depth)
             }
-            // match fat callable values by signature and invocation multiplicity
+            // match fat callable values by receiver term and signature
             (dir::Type::Function(left_function), dir::Type::Function(right_function)) => {
-                Ok(left_function.multiplicity == right_function.multiplicity
-                    && self.types_match_bounded(
-                        left_function.signature,
-                        right_function.signature,
-                        depth,
-                    )?)
+                Ok(self.types_match_bounded(
+                    left_function.receiver,
+                    right_function.receiver,
+                    depth,
+                )? && self.types_match_bounded(
+                    left_function.signature,
+                    right_function.signature,
+                    depth,
+                )?)
             }
             // match thin callable values by signature
             (

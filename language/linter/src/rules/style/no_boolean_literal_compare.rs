@@ -549,7 +549,7 @@ function active(value: Flag): boolean {
         );
     }
 
-    /// Replace a comparison over the complete boolean literal union.
+    /// Fix a comparison over the complete boolean literal union.
     #[test]
     fn test_replaces_boolean_literal_union_comparison() {
         let session = TestSession::dir(
@@ -561,7 +561,7 @@ function active(value: true | false): boolean {
 "#,
         );
 
-        session.assert_suggestions(
+        session.assert_fixes(
             r#"
 function active(value: true | false): boolean {
     return value;
@@ -600,7 +600,7 @@ struct Flag {
 }
 
 extension of Flag implements PartialEqual<boolean> {
-    equal(other: boolean): boolean {
+    equal(&readonly this, other: &readonly boolean): boolean {
         this.value === other
     }
 }

@@ -717,6 +717,31 @@ impl DirModule<'_> {
         self.dir.type_includes_undefined(result)
     }
 
+    /// Return the checked parameter count of one callable expression.
+    pub fn callable_parameter_count(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<usize, ProviderError> {
+        let type_id = self.node_type_id(expression.into_any())?;
+
+        self.signature_parameter_count(type_id)
+    }
+
+    /// Return the parameter count one callable type's signature declares.
+    pub fn signature_parameter_count(
+        &self,
+        type_id: dir::GlobalTypeId,
+    ) -> Result<usize, ProviderError> {
+        let signature = self
+            .dir
+            .callable_signature_type_id(type_id)?
+            .ok_or_else(|| {
+                ProviderError::internal(format!("checked type {type_id:?} is not callable"))
+            })?;
+
+        Ok(self.dir.signature_parameters(signature)?.len())
+    }
+
     /// Return the checked result type id of one callable expression.
     pub fn callable_return_type_id(
         &self,

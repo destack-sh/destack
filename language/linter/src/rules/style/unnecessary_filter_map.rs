@@ -167,13 +167,13 @@ function positives(values: int32[]): int32[] {
         session.assert_no_diagnostics();
     }
 
-    /// Report a named callback with a definitely defined result.
+    /// Accept a named callback declaring an optional result.
     #[test]
-    fn test_reports_named_callback() {
+    fn test_accepts_named_callback_declaring_an_optional_result() {
         let session = TestSession::dir(
             &UNNECESSARY_FILTER_MAP,
             r#"
-function increment(value: int32, index: isize): int32 {
+function increment(value: int32, index: isize): int32 | undefined {
     return value + 1;
 }
 
@@ -183,27 +183,7 @@ function increments(values: int32[]): int32[] {
 "#,
         );
 
-        session.assert_diagnostics(
-            r#"
-warning[unnecessary-filter-map]: filterMap callback always returns a defined value
- ──▶ main.ds:6:12
-  │
-4 │
-5 │ function increments(values: int32[]): int32[] {
-6 │     return values.filterMap(increment);
-  │            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
-7 │ }
-  │
-
- = suggestion: use an unconditional map (requires review)
---- a/main.ds
-+++ b/main.ds
-
-    5│ function increments(values: int32[]): int32[] {
--   6│     return values.filterMap(increment);
-+   6│     return values.map(increment);
-"#,
-        );
+        session.assert_no_diagnostics();
     }
 
     /// Accept a user-defined filterMap method.

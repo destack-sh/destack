@@ -153,7 +153,7 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<float64> {
-    equal(other: float64): boolean {
+    equal(&readonly this, other: &readonly float64): boolean {
         return this.value == other;
     }
 }

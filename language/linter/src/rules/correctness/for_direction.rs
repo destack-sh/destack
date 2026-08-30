@@ -418,11 +418,11 @@ struct Counter {
 }
 
 extension of Counter implements PartialCompare<Counter> {
-    equal(&readonly this, other: Counter): boolean {
+    equal(&readonly this, other: &readonly Counter): boolean {
         return this.value == other.value;
     }
 
-    partialCompare(&readonly this, other: Counter): Ordering | null {
+    partialCompare(&readonly this, other: &readonly Counter): Ordering | null {
         return Ordering.Equal;
     }
 }

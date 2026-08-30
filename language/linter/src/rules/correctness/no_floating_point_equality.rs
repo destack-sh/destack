@@ -148,7 +148,7 @@ struct Measure {
 }
 
 extension of Measure implements PartialEqual<Measure> {
-    equal(other: Measure): boolean {
+    equal(&readonly this, other: &readonly Measure): boolean {
         return this.value === other.value;
     }
 }

@@ -572,7 +572,7 @@ impl ProviderContext for LintFixture {
             .expect("lint provider diagnostics should lock");
         for record in diagnostics {
             assert!(
-                record.references.is_empty(),
+                record.deferred_labels.is_empty(),
                 "lint fixture received deferred diagnostic labels"
             );
             output.push(record.diagnostic);

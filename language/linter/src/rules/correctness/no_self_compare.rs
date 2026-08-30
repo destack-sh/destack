@@ -394,7 +394,7 @@ struct Badge {
 }
 
 extension of Badge implements PartialEqual<Badge> {
-    equal(other: Badge): boolean {
+    equal(&readonly this, other: &readonly Badge): boolean {
         return this.id == other.id;
     }
 }
