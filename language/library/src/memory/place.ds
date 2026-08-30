@@ -5,7 +5,3 @@ export type Space = "local" | "shared";
 /// Placement tag kind for qualified storage.
 @languageItem("memory.Place")
 export type Place = "constant" | Space;
-
-/// Placement form for exactly `T`.
-@languageItem("memory.Placed")
-export newtype Placed<out T, const P: Place> = intrinsic;

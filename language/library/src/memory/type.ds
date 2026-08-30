@@ -1,15 +1,8 @@
 import { Access } from "./access.ds";
-import { Placed } from "./place.ds";
 
 /// Ownership kind for qualified storage.
 @languageItem("memory.Ownership")
 export type Ownership = "managed" | "owned" | "borrowed" | "raw";
-
-/// Place `T` in shared space.
-export type Shared<T> = Placed<T, "shared">;
-
-/// Place `T` in local space.
-export type Local<T> = Placed<T, "local">;
 
 /// Reborrow `Q` with access mode `A`.
 @languageItem("memory.WithAccess")
