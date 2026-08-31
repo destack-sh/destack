@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_dir::MemberRole;
 
 use crate::sema::{
-    CallableArgument, Cause, CauseKind, CheckState, DeclaredCandidate, FlowSite, InferMode,
-    MemberCandidate, MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle, SignatureMatch,
-    Value, ValueUse, VariableKind, is_optional_member, member_arms, member_kind,
+    ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, DeclaredCandidate, FlowSite,
+    InferMode, MemberCandidate, MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle,
+    SignatureMatch, Value, ValueUse, VariableKind, is_optional_member, member_arms, member_kind,
     selected_candidates,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
@@ -590,26 +590,20 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: Value,
         candidate: &MemberCandidate,
-    ) -> CompilerResult<dir::Call> {
+    ) -> CompilerResult<Option<dir::Call>> {
         let source = self
             .origin_source_node(origin)?
             .into_global(origin.module());
         let arguments = [CallableArgument {
             source,
-            ty: Some(candidate.access.store()),
+            value: ArgumentValue::Typed(candidate.access.store()),
             relation: Relation::Storable,
             use_: ValueUse::Argument,
             is_spread: false,
         }];
         let sources = [dir::ArgumentSource::Write];
-        let call = self.select_member_call(origin, receiver, candidate, &arguments, &sources)?;
 
-        call.ok_or_else(|| CompilerError::Internal {
-            message: format!(
-                "selected setter {:?} rejects its declared value type",
-                candidate.symbol()
-            ),
-        })
+        self.select_member_call(origin, receiver, candidate, &arguments, &sources)
     }
 
     /// Select the member meaning of one member access node.

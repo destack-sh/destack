@@ -833,7 +833,21 @@ impl CheckState<'_> {
 
         // reopen the winning setter at this use site
         let setter = &setter.instantiate(origin, self)?;
-        let call = self.select_setter_call(origin, receiver, setter)?;
+        let Some(call) = self.select_setter_call(origin, receiver, setter)? else {
+            // report the access the refusing setter's receiver requires
+            let mut requested = dir::Access::Exclusive;
+            if let Some(callable) = setter.callable
+                && let Some(this) = self
+                    .signature_head(callable)?
+                    .and_then(|signature| signature.this_parameter)
+                && let Some(dir::ReceiverMode::Borrowed(access)) = self.this_parameter_mode(this)?
+            {
+                requested = access;
+            }
+            self.report_borrow_access_not_granted(origin, requested, None, receiver.ty)?;
+
+            return Ok(None);
+        };
         let write = dir::MemberAccess::new(
             receiver.ty,
             dir::MemberTarget::Call(Box::new(call)),
