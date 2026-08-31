@@ -762,6 +762,31 @@ class Player {}
 @semantic_tokens.token range=main.ds#field type=property modifiers=declaration
 ```
 
+### Classify a struct while typing
+
+Struct declarations and constructions remain classified through successive source edits.
+
+<!-- FUGU #Broken: a bare constructable name aborts DirDeclared while typing. -->
+
+```ds main.ds
+struct Position {}
+```
+
+```ds main.ds type
+struct Position {}
+       ^^^^^^^^ structure
+
+const position = Position {};
+      ^^^^^^^^ binding
+                 ^^^^^^^^ construction
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#structure type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#construction type=struct
+```
+
 ### Classify renamed symbols
 
 Semantic roles remain attached to renamed declarations and references.
