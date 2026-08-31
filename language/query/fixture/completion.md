@@ -362,6 +362,41 @@ function read(point: Point): void {
 @completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<*, *.Error>" insert="tryInto()"
 ```
 
+### Complete constructor receiver members throughout typing
+
+Member completion uses the enclosing class throughout typing inside its constructor.
+
+```ds main.ds
+class User {
+    name: string;
+    age: uint;
+
+    constructor(name: string, age: uint) {
+    }
+}
+```
+
+```ds main.ds type
+class User {
+    name: string;
+    age: uint;
+
+    constructor(name: string, age: uint) {
+        this.;
+             ^ cursor
+    }
+}
+```
+
+```query completion main.ds#cursor trigger=.
+@completion.item label=name kind=field replace=main.ds#cursor suffix=": string"
+@completion.item label=age kind=field replace=main.ds#cursor suffix=": uint64"
+@completion.item label=toString kind=method replace=main.ds#cursor suffix="(): ^string" insert="toString()"
+@completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a User, *>" insert="borrow()"
+@completion.item label=into kind=method replace=main.ds#cursor suffix="(): *" insert="into()"
+@completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<*, *.Error>" insert="tryInto()"
+```
+
 ### Complete through generic borrow access
 
 Member completion traverses a borrowed receiver with generic access.
