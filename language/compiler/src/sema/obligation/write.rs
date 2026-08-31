@@ -264,7 +264,6 @@ impl CheckState<'_> {
                 return Ok(ObligationCheck::holds());
             }
         }
-
         let failure = ObligationFailure::OverwriteStabilityNotSatisfied { source, ty };
 
         Ok(ObligationCheck::fail(failure))

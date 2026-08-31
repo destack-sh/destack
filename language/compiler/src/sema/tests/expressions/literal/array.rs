@@ -111,9 +111,7 @@ const first = values[0];
 /// @resolution.access source=values[0] root=values keys=[0]
 /// @resolution.subscript source=values[0] type=1 | 2 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static 1 | 2, \"readonly\">)"
 /// @generic.instantiation id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
-/// @generic.instance id="WithAccess<&'frame 1 | 2, \"readonly\">" template=WithAccess arguments=(&'frame 1 | 2, "readonly")
-/// @generic.instance id="WithAccess<&'frame 1 | 2[], \"readonly\">" template=WithAccess arguments=(&'frame 1 | 2[], "readonly")
-/// @generic.instance id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly")
+/// @generic.instance id="index#1<1 | 2, \"readonly\">" template=index#1 arguments=(1 | 2, "readonly") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a readonly 1 | 2[], isize) => &index#1.'a readonly 1 | 2)
 /// @type.node source=0 type=0
 "#,
     );

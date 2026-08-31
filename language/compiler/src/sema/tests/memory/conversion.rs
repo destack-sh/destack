@@ -948,9 +948,7 @@ inspect(state.users[0]);
 /// @resolution.access source=state.users[0] root=state keys=[users, 0]
 /// @resolution.subscript source=state.users[0] type=User kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static User, \"exclusive\">)"
 /// @generic.instantiation id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive")
-/// @generic.instance id="WithAccess<&'frame User, \"exclusive\">" template=WithAccess arguments=(&'frame User, "exclusive")
-/// @generic.instance id="WithAccess<&'frame User[], \"exclusive\">" template=WithAccess arguments=(&'frame User[], "exclusive")
-/// @generic.instance id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive")
+/// @generic.instance id="index#1<User, \"exclusive\">" template=index#1 arguments=(User, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive User[], isize) => &index#1.'a exclusive User)
 /// @coercion.node source=state.users[0] from=User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=implicit
 "#,
     );

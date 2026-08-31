@@ -36,17 +36,6 @@ pub(in crate::sema) struct ParameterSelection {
     pub(in crate::sema) argument_type: dir::GlobalTypeId,
 }
 
-impl ParameterSelection {
-    /// Bind one runtime source to this selected parameter.
-    pub(in crate::sema) fn bind(&self, source: dir::ArgumentSource) -> dir::ArgumentBinding {
-        dir::ArgumentBinding {
-            parameter_type: self.parameter.ty,
-            argument_type: self.argument_type,
-            source,
-        }
-    }
-}
-
 /// One invocation constrained against a candidate signature.
 struct Invocation {
     /// The rejection the constraints produced, set when the candidate fails.
@@ -122,14 +111,24 @@ impl SignatureMatch {
     }
 }
 
+/// The value one callable argument supplies ahead of selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) enum ArgumentValue {
+    /// One checked type, driving classification and conversion into its parameter.
+    Typed(dir::GlobalTypeId),
+    /// One composite literal, checked during selection; a mismatch rejects the candidate.
+    Composite,
+    /// One written value, checked only after selection; never rejects a candidate.
+    Deferred,
+}
+
 /// Argument matched against one callable signature parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct CallableArgument {
     /// Source node used for origins and diagnostics.
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
-    /// The argument type, typed once ahead of every candidate.
-    /// A composite has none until the selected parameter checks it in context.
-    pub(in crate::sema) ty: Option<dir::GlobalTypeId>,
+    /// The value this argument supplies.
+    pub(in crate::sema) value: ArgumentValue,
     /// Relation selected from the authored argument expression.
     pub(in crate::sema) relation: Relation,
     /// The value role of this invocation argument.
@@ -1270,8 +1269,13 @@ impl CheckState<'_> {
         }
         let site = self.visit_site(source)?;
 
+        // defer a written value to the selected parameter
+        if matches!(argument.value, ArgumentValue::Deferred) {
+            return Ok(Ok(None));
+        }
+
         // check a composite's values against the parameter, recording its own conversions
-        let Some(ty) = argument.ty else {
+        let ArgumentValue::Typed(ty) = argument.value else {
             let check = self.check_node(
                 site,
                 Expectation {

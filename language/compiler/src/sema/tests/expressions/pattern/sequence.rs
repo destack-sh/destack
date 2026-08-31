@@ -33,9 +33,7 @@ declare const values: [int32; 2];
 let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
 /// @generic.instantiation id="index#1<int32, 2, \"exclusive\">" template=index#1 arguments=(int32, 2, "exclusive")
-/// @generic.instance id="WithAccess<&'frame FixedArray<int32, 2>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<int32, 2>, "exclusive")
-/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="index#1<int32, 2, \"exclusive\">" template=index#1 arguments=(int32, 2, "exclusive")
+/// @generic.instance id="index#1<int32, 2, \"exclusive\">" template=index#1 arguments=(int32, 2, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive FixedArray<int32, 2>, isize) => &index#1.'a exclusive int32)
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.symbol symbol=second source=second type=int32

@@ -37,9 +37,7 @@ let [head, ...tail] = values;
 /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
+/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive int32[], isize) => &index#1.'a exclusive int32)
 /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head

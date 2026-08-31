@@ -2,7 +2,9 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CallableArgument, CheckState, FlowSite, Origin, PlaceUse, Relation, ValueUse};
+use crate::sema::{
+    ArgumentValue, CallableArgument, CheckState, FlowSite, Origin, PlaceUse, Relation, ValueUse,
+};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -105,23 +107,23 @@ impl CheckState<'_> {
             match self.argument_expression(module, *argument) {
                 Some(value) => {
                     let site = self.visit_site(value)?;
-                    let ty = match !is_spread && self.is_composite_node(value) {
-                        true => None,
-                        false => Some(self.infer_node_type(site, PlaceUse::Read)?),
+                    let supplied = match !is_spread && self.is_composite_node(value) {
+                        true => ArgumentValue::Composite,
+                        false => ArgumentValue::Typed(self.infer_node_type(site, PlaceUse::Read)?),
                     };
                     values.push(CallableArgument {
                         source: value,
-                        ty,
+                        value: supplied,
                         relation: Relation::Storable,
                         use_,
                         is_spread,
                     });
                 }
                 None => {
-                    let ty = Some(self.intern_type(dir::Type::Error)?);
+                    let value = ArgumentValue::Typed(self.intern_type(dir::Type::Error)?);
                     values.push(CallableArgument {
                         source,
-                        ty,
+                        value,
                         relation: Relation::Storable,
                         use_,
                         is_spread,
@@ -147,40 +149,55 @@ impl CheckState<'_> {
         // map authored and generated values directly
         for argument in sources {
             match argument {
+                // type an authored argument at its own source node
                 dir::ArgumentSource::Provided(source) => {
                     let site = self.visit_site(*source)?;
-                    let ty = Some(self.infer_node_type(site, PlaceUse::Read)?);
+                    let value = ArgumentValue::Typed(self.infer_node_type(site, PlaceUse::Read)?);
                     values.push(CallableArgument {
                         source: *source,
-                        ty,
+                        value,
                         relation: Relation::Storable,
                         use_: ValueUse::Argument,
                         is_spread: self.is_spread_argument(*source),
                     });
                 }
+                // type every element a rest argument collects
                 dir::ArgumentSource::Rest { elements, .. } => {
                     for source in elements {
                         let site = self.visit_site(*source)?;
-                        let ty = Some(self.infer_node_type(site, PlaceUse::Read)?);
+                        let value =
+                            ArgumentValue::Typed(self.infer_node_type(site, PlaceUse::Read)?);
                         values.push(CallableArgument {
                             source: *source,
-                            ty,
+                            value,
                             relation: Relation::Storable,
                             use_: ValueUse::Argument,
                             is_spread: self.is_spread_argument(*source),
                         });
                     }
                 }
+                // take a generated argument's written type
                 dir::ArgumentSource::Static(ty) => {
                     values.push(CallableArgument {
                         source,
-                        ty: Some(*ty),
+                        value: ArgumentValue::Typed(*ty),
                         relation: Relation::Storable,
                         use_: ValueUse::Argument,
                         is_spread: false,
                     });
                 }
-                dir::ArgumentSource::Write | dir::ArgumentSource::Omitted => {
+                // defer a written value to the parameter selection pairs it with
+                dir::ArgumentSource::Write => {
+                    values.push(CallableArgument {
+                        source,
+                        value: ArgumentValue::Deferred,
+                        relation: Relation::Storable,
+                        use_: ValueUse::Argument,
+                        is_spread: false,
+                    });
+                }
+                // fail on a source that supplies no argument
+                dir::ArgumentSource::Omitted => {
                     return Err(CompilerError::Internal {
                         message: format!("{argument:?} is not a callable argument source"),
                     });

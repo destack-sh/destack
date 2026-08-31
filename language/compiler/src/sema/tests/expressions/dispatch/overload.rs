@@ -576,7 +576,6 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=Err<string> template=Err arguments=(string)
-/// @generic.instance id=FromIterator.fromIterator<int32> template=FromIterator.fromIterator arguments=(int32)
 /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32) evaluated=(<Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: this, Function<(Iterator.T, isize), Iterator.flatMap.V>) => FlatMapIterator<this, Iterator.T, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U> => <Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: Iterator<int32>, Function<(int32, isize), Iterator.flatMap.V>) => FlatMapIterator<Iterator<int32>, int32, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U>, <Iterator.chain.V: Iterable<Iterator.T>>(this: this, Iterator.chain.V) => ChainIterator<this, Iterator.chain.V.Iterator, Iterator.T> => <Iterator.chain.V: Iterable<Iterator.T>>(this: Iterator<int32>, Iterator.chain.V) => ChainIterator<Iterator<int32>, Iterator.chain.V.Iterator, int32>, <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: this, Iterator.zip.V) => ZipIterator<this, Iterator.zip.V.Iterator, Iterator.T, Iterator.zip.U> => <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: Iterator<int32>, Iterator.zip.V) => ZipIterator<Iterator<int32>, Iterator.zip.V.Iterator, int32, Iterator.zip.U>, <Iterator.tryFold.F: Try>(this: this, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, Iterator.T, isize), Iterator.tryFold.F>) => Iterator.tryFold.F => <Iterator.tryFold.F: Try>(this: Iterator<int32>, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, int32, isize), Iterator.tryFold.F>) => Iterator.tryFold.F)
 /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
 /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
@@ -597,7 +596,6 @@ function sum(values: Iterator<int32>): Result<int32, string> {
     /// @resolution.access source=values root=sum.values
     /// @generic.instantiation id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
     /// @generic.instantiation id=Iterator.reduce#2<int32> template=Iterator.reduce#2 arguments=(int32)
-    /// @generic.instance id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
     /// @type.symbol symbol=sum.symbol5 type=Function<(Result<int32, string>, int32, isize), Result<int32, string>, "readonly">
     /// @type.node type=Function<(Result<int32, string>, int32, isize), Result<int32, string>, "readonly">
     /// @type.symbol symbol=sum.symbol5.result source=result type=Result<int32, string>
@@ -839,7 +837,6 @@ function sum(values: It<int32>): Wrap<int32> {
     /// @resolution.access source=values root=sum.values
     /// @generic.instantiation id="It.reduce#1<int32, void>" template=It.reduce#1 arguments=(int32, void)
     /// @generic.instantiation id="It.reduce#2<int32, void>" template=It.reduce#2 arguments=(int32, void)
-    /// @generic.instance id="It.reduce#1<int32, void>" template=It.reduce#1 arguments=(int32, void)
     /// @type.symbol symbol=sum.symbol30 type=Function<(Wrap<int32>, int32), Wrap<int32>, "readonly">
     /// @type.node type=Function<(Wrap<int32>, int32), Wrap<int32>, "readonly">
     /// @type.symbol symbol=sum.symbol30.result source=result type=Wrap<int32>

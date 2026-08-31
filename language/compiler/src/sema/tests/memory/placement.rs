@@ -50,8 +50,8 @@ type LocalBorrowed<'a> = local &'a readonly User;
 
 type BorrowedLocal<'a> = &'a readonly local User;
 /// @generic.template symbol=BorrowedLocal parameters=('a#2)
-/// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal<'a> = &'a readonly local User" type=&'a#2 readonly local User
-/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal<'a> = &'a readonly local User" template=('a#2) value=&'a#2 readonly local User
+/// @type.symbol symbol=BorrowedLocal source="type BorrowedLocal<'a> = &'a readonly local User" type=&'a#2 readonly User
+/// @definition.type symbol=BorrowedLocal source="type BorrowedLocal<'a> = &'a readonly local User" template=('a#2) value=&'a#2 readonly User
 /// @type.symbol symbol=BorrowedLocal.'a source='a type='a#2
 /// @resolution.name source='a target=BorrowedLocal.'a
 /// @resolution.name source=User target=User

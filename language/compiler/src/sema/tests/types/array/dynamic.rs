@@ -39,9 +39,7 @@ const byte = bytes[index];
 /// @resolution.access source=bytes root=bytes
 /// @resolution.subscript source=bytes[index] type=uint8 kind=call target="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<&'static uint8, \"exclusive\">)"
 /// @generic.instantiation id="index#1<uint8, \"exclusive\">" template=index#1 arguments=(uint8, "exclusive")
-/// @generic.instance id="WithAccess<&'frame uint8, \"exclusive\">" template=WithAccess arguments=(&'frame uint8, "exclusive")
-/// @generic.instance id="WithAccess<&'frame uint8[], \"exclusive\">" template=WithAccess arguments=(&'frame uint8[], "exclusive")
-/// @generic.instance id="index#1<uint8, \"exclusive\">" template=index#1 arguments=(uint8, "exclusive")
+/// @generic.instance id="index#1<uint8, \"exclusive\">" template=index#1 arguments=(uint8, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive uint8[], isize) => &index#1.'a exclusive uint8)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
@@ -85,9 +83,9 @@ bytes[index] = 255;
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
-/// @resolution.assignment source=bytes[index] write="indexSet(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
-/// @generic.instantiation id=indexSet<uint8> template=indexSet arguments=(uint8)
-/// @generic.instance id=indexSet<uint8> template=indexSet arguments=(uint8)
+/// @resolution.assignment source=bytes[index] write="indexSet#1(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
+/// @generic.instantiation id=indexSet#1<uint8> template=indexSet#1 arguments=(uint8)
+/// @generic.instance id=indexSet#1<uint8> template=indexSet#1 arguments=(uint8)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
@@ -132,13 +130,11 @@ bytes[index] += 1;
 /// @resolution.place source=bytes placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=bytes root=bytes
 /// @resolution.pattern.assign source=bytes[index] kind=place
-/// @resolution.assignment source=bytes[index] read="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<&'static uint8, \"exclusive\">)" write="indexSet(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
+/// @resolution.assignment source=bytes[index] read="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<&'static uint8, \"exclusive\">)" write="indexSet#1(parameters=(isize, uint8), arguments=(provided(index) as isize, write as uint8), return=void)" type=uint8
 /// @generic.instantiation id="index#1<uint8, \"exclusive\">" template=index#1 arguments=(uint8, "exclusive")
-/// @generic.instantiation id=indexSet<uint8> template=indexSet arguments=(uint8)
-/// @generic.instance id="WithAccess<&'frame uint8, \"exclusive\">" template=WithAccess arguments=(&'frame uint8, "exclusive")
-/// @generic.instance id="WithAccess<&'frame uint8[], \"exclusive\">" template=WithAccess arguments=(&'frame uint8[], "exclusive")
-/// @generic.instance id="index#1<uint8, \"exclusive\">" template=index#1 arguments=(uint8, "exclusive")
-/// @generic.instance id=indexSet<uint8> template=indexSet arguments=(uint8)
+/// @generic.instantiation id=indexSet#1<uint8> template=indexSet#1 arguments=(uint8)
+/// @generic.instance id="index#1<uint8, \"exclusive\">" template=index#1 arguments=(uint8, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive uint8[], isize) => &index#1.'a exclusive uint8)
+/// @generic.instance id=indexSet#1<uint8> template=indexSet#1 arguments=(uint8)
 /// @resolution.name source=index target=index
 /// @resolution.place source=index placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=index root=index
@@ -199,8 +195,8 @@ function copy(target: &exclusive unknown[], source: &readonly int32[]): void {
         /// @resolution.place source=target placement=copy.'a lifetime=copy.'a access="exclusive"
         /// @resolution.access source=target root=copy.target
         /// @resolution.pattern.assign source=target[index] kind=place
-        /// @resolution.assignment source=target[index] write="indexSet(parameters=(isize, Managed<unknown, copy.'a>), arguments=(provided(index) as isize, write as Managed<unknown, copy.'a>), return=void)" type=Managed<unknown, copy.'a>
-        /// @generic.instantiation id=indexSet<unknown> template=indexSet arguments=(unknown)
+        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, Managed<unknown, copy.'a>), arguments=(provided(index) as isize, write as Managed<unknown, copy.'a>), return=void)" type=Managed<unknown, copy.'a>
+        /// @generic.instantiation id=indexSet#1<unknown> template=indexSet#1 arguments=(unknown)
         /// @resolution.name source=index target=copy.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=copy.index

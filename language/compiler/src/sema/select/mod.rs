@@ -42,6 +42,6 @@ pub(in crate::sema) use operator::OperatorOperands;
 pub(in crate::sema) use protocol::*;
 pub(in crate::sema) use receiver::ReceiverSteps;
 pub(in crate::sema) use signature::{
-    CallableArgument, OverloadRule, Selection, SignatureMatch, SignatureRejection,
+    ArgumentValue, CallableArgument, OverloadRule, Selection, SignatureMatch, SignatureRejection,
     SignatureSelection,
 };

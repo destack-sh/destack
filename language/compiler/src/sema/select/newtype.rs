@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Answer, CallableArgument, Callee, CheckOutcome, CheckState, Expectation, Origin, OverloadRule,
-    Selection, SignatureMatch, SignatureSelection, TypeSubstitution, ValueUse,
+    Answer, ArgumentValue, CallableArgument, Callee, CheckOutcome, CheckState, Expectation, Origin,
+    OverloadRule, Selection, SignatureMatch, SignatureSelection, TypeSubstitution, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -65,7 +65,10 @@ impl CheckState<'_> {
         let goal = match arguments
             .iter()
             .try_fold(&mut operands, |operands, argument| {
-                operands.push(argument.ty?);
+                let ArgumentValue::Typed(ty) = argument.value else {
+                    return None;
+                };
+                operands.push(ty);
                 Some(operands)
             }) {
             Some(_) => self.selection_goal(

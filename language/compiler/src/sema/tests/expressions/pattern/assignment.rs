@@ -107,9 +107,7 @@ declare const values: [int32; 3];
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @resolution.access source=[first, , last] root=values
 /// @generic.instantiation id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive")
-/// @generic.instance id="WithAccess<&'frame FixedArray<int32, 3>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<int32, 3>, "exclusive")
-/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive")
+/// @generic.instance id="index#1<int32, 3, \"exclusive\">" template=index#1 arguments=(int32, 3, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive FixedArray<int32, 3>, isize) => &index#1.'a exclusive int32)
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
@@ -246,9 +244,7 @@ declare const values: int32[];
 /// @resolution.access source=[head, ...tail] root=values
 /// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
+/// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive int32[], isize) => &index#1.'a exclusive int32)
 /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head

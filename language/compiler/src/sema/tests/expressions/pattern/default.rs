@@ -80,9 +80,7 @@ declare const values: [int32; 1];
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
 /// @resolution.access source=[value = fallback] root=values
 /// @generic.instantiation id="index#1<int32, 1, \"exclusive\">" template=index#1 arguments=(int32, 1, "exclusive")
-/// @generic.instance id="WithAccess<&'frame FixedArray<int32, 1>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<int32, 1>, "exclusive")
-/// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-/// @generic.instance id="index#1<int32, 1, \"exclusive\">" template=index#1 arguments=(int32, 1, "exclusive")
+/// @generic.instance id="index#1<int32, 1, \"exclusive\">" template=index#1 arguments=(int32, 1, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive FixedArray<int32, 1>, isize) => &index#1.'a exclusive int32)
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression

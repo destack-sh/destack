@@ -77,8 +77,8 @@ function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=run.values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="indexSet(parameters=(isize, int32), arguments=(provided(0) as isize, write as int32), return=void)" type=int32
-    /// @generic.instantiation id=indexSet<int32> template=indexSet arguments=(int32)
+    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, write as int32), return=void)" type=int32
+    /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
 
     values[1] += 2;
     /// @resolution.name source=values target=run.values
@@ -86,7 +86,7 @@ function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=run.values
     /// @resolution.pattern.assign source=values[1] kind=place
-    /// @resolution.assignment source=values[1] read="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'frame int32, \"exclusive\">)" write="indexSet(parameters=(isize, int32), arguments=(provided(1) as isize, write as int32), return=void)" type=int32
+    /// @resolution.assignment source=values[1] read="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'frame int32, \"exclusive\">)" write="indexSet#1(parameters=(isize, int32), arguments=(provided(1) as isize, write as int32), return=void)" type=int32
 
     points[0].x = 3;
     /// @resolution.name source=points target=run.points
@@ -134,8 +134,7 @@ function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
     /// @resolution.name source=view target=run.view
     /// @resolution.place source=view placement=run.'a lifetime=run.'a access="readonly"
     /// @resolution.access source=view root=run.view
-    /// @resolution.pattern.assign source=view[0] kind=place
-    /// @resolution.assignment source=view[0] write="indexSet(parameters=(isize, int32), arguments=(provided(0) as isize, write as int32), return=void)" type=int32
+    /// @resolution.rejected source=view[0]
 
     return read + viewed;
     /// @resolution.name source=read target=run.read
@@ -219,8 +218,8 @@ function copy(source: &readonly int32[], target: &exclusive int32[]): void {
         /// @resolution.place source=target placement=copy.'b lifetime=copy.'b access="exclusive"
         /// @resolution.access source=target root=copy.target
         /// @resolution.pattern.assign source=target[index] kind=place
-        /// @resolution.assignment source=target[index] write="indexSet(parameters=(isize, int32), arguments=(provided(index) as isize, write as int32), return=void)" type=int32
-        /// @generic.instantiation id=indexSet<int32> template=indexSet arguments=(int32)
+        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, int32), arguments=(provided(index) as isize, write as int32), return=void)" type=int32
+        /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
         /// @resolution.name source=index target=copy.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=copy.index
@@ -263,7 +262,7 @@ function copyManaged(target: int32[], source: int32[]): void {
         /// @resolution.place source=target placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=target root=copyManaged.target
         /// @resolution.pattern.assign source=target[index] kind=place
-        /// @resolution.assignment source=target[index] write="indexSet(parameters=(isize, int32), arguments=(provided(index) as isize, write as int32), return=void)" type=int32
+        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, int32), arguments=(provided(index) as isize, write as int32), return=void)" type=int32
         /// @resolution.name source=index target=copyManaged.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=copyManaged.index

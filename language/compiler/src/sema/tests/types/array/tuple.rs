@@ -81,8 +81,7 @@ const name = tuple[0];
 /// @resolution.access source=tuple[0] root=tuple keys=[0]
 /// @resolution.subscript source=tuple[0] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static \"id\" | 42, \"readonly\">)"
 /// @generic.instantiation id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
-/// @generic.instance id="WithAccess<&'frame \"id\" | 42, \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42, "readonly")
-/// @generic.instance id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
+/// @generic.instance id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a readonly "id" | 42[], isize) => &index#1.'a readonly "id" | 42)
 
 const count = tuple[1];
 /// @type.symbol symbol=count source=count type="id" | 42
@@ -92,7 +91,6 @@ const count = tuple[1];
 /// @resolution.access source=tuple root=tuple
 /// @resolution.access source=tuple[1] root=tuple keys=[1]
 /// @resolution.subscript source=tuple[1] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static \"id\" | 42, \"readonly\">)"
-/// @generic.instance id="WithAccess<&'frame \"id\" | 42[], \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42[], "readonly")
 "#,
     );
 }

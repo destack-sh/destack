@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CallableArgument, Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Origin,
-    PlaceUse, Relation, SignatureMatch, Value, ValueUse, Verdict,
+    ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, Expectation, FlowSite,
+    InferMode, Origin, PlaceUse, Relation, SignatureMatch, Value, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -613,7 +613,7 @@ impl CheckState<'_> {
             &[],
             &[CallableArgument {
                 source: node,
-                ty: Some(row),
+                value: ArgumentValue::Typed(row),
                 relation: Relation::Storable,
                 use_: ValueUse::Argument,
                 is_spread: false,
@@ -734,7 +734,7 @@ impl CheckState<'_> {
             constructor.ty,
             &[CallableArgument {
                 source: node,
-                ty: Some(row),
+                value: ArgumentValue::Typed(row),
                 relation: Relation::Storable,
                 use_: ValueUse::Argument,
                 is_spread: false,

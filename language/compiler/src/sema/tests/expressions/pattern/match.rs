@@ -1398,9 +1398,7 @@ match (packet) {
         labels: [first, second],
         /// @resolution.pattern source=[first, second] kind=sequence element=string arity=2 fields=(first, second)
         /// @generic.instantiation id="index#1<string, 2, \"exclusive\">" template=index#1 arguments=(string, 2, "exclusive")
-        /// @generic.instance id="WithAccess<&'frame FixedArray<string, 2>, \"exclusive\">" template=WithAccess arguments=(&'frame FixedArray<string, 2>, "exclusive")
-        /// @generic.instance id="WithAccess<&'frame string, \"exclusive\">" template=WithAccess arguments=(&'frame string, "exclusive")
-        /// @generic.instance id="index#1<string, 2, \"exclusive\">" template=index#1 arguments=(string, 2, "exclusive")
+        /// @generic.instance id="index#1<string, 2, \"exclusive\">" template=index#1 arguments=(string, 2, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a FixedArray<T#1, N#1>, index.A>, isize) => WithAccess<&index#1.'a T#1, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive FixedArray<string, 2>, isize) => &index#1.'a exclusive string)
         /// @type.symbol symbol=first source=first type=string
         /// @resolution.pattern source=first kind=binding target=first
         /// @type.symbol symbol=second source=second type=string
@@ -1590,9 +1588,7 @@ match (values) {
     /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
     /// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
     /// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-    /// @generic.instance id="WithAccess<&'frame int32, \"exclusive\">" template=WithAccess arguments=(&'frame int32, "exclusive")
-    /// @generic.instance id="WithAccess<&'frame int32[], \"exclusive\">" template=WithAccess arguments=(&'frame int32[], "exclusive")
-    /// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
+    /// @generic.instance id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive int32[], isize) => &index#1.'a exclusive int32)
     /// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
     /// @type.symbol symbol=head source=head type=int32
     /// @resolution.pattern source=head kind=binding target=head

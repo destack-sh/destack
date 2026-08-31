@@ -4,8 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, CheckOutcome, CheckState, FlowSite, InferMode, InterfaceIndexSignature,
-    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, TypeSubstitution, Value, ValueUse,
-    Verdict,
+    MemberLookup, Origin, PlaceUse, Relation, SubscriptProtocol, Value, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -1247,35 +1246,31 @@ impl CheckState<'_> {
         index_node: dir::GlobalNodeIdAny,
         index: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SubscriptSelection>> {
-        // look up the IndexSet protocol member on the receiver
+        // select the IndexSet call over the authored key and the written value
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
+        let sources = [
+            dir::ArgumentSource::Provided(index_node),
+            dir::ArgumentSource::Write,
+        ];
         let index = self.shallow_resolve(index)?;
-        let Some((_protocol, member)) = self.select_language_protocol_member(
+        let Some((_protocol, call)) = self.select_language_protocol_call(
             origin,
-            receiver.ty,
+            receiver,
             lookup_receiver,
             dir::MemberSpace::Instance,
             key,
             method.item(),
             &[],
             &[index],
+            &sources,
         )?
         else {
             return Ok(None);
         };
 
-        // bind the authored index ahead of the written value
-        let sources = [
-            dir::ArgumentSource::Provided(index_node),
-            dir::ArgumentSource::Write,
-        ];
-        let Some(resolution) = self.subscript_write_call(origin, &member.resolution, &sources)?
-        else {
-            return Ok(None);
-        };
-
         // read the key and value types the selected calls accept
+        let resolution = call.resolution;
         let key_types = resolution.argument_types(dir::ArgumentSource::Provided(index_node));
         let value_types = resolution.argument_types(dir::ArgumentSource::Write);
         if key_types.is_empty() {
@@ -1293,139 +1288,6 @@ impl CheckState<'_> {
         let selection = SubscriptSelection::call_write(resolution, value, key_types.into())?;
 
         Ok(Some(selection))
-    }
-
-    /// Select the write calls from one protocol member resolution.
-    fn subscript_write_call(
-        &mut self,
-        origin: Origin,
-        resolution: &dir::MemberDecision,
-        sources: &[dir::ArgumentSource],
-    ) -> CompilerResult<Option<dir::CallDecision>> {
-        // select one write call per runtime arm
-        match resolution {
-            dir::OperationResolution::One(access) => {
-                let call = self.subscript_write_access_call(origin, access, sources)?;
-
-                Ok(call.map(dir::OperationResolution::One))
-            }
-            dir::OperationResolution::Union { arms, .. } => {
-                // select one write call for every runtime arm
-                let mut calls = Vec::with_capacity(arms.len());
-                let mut returns = SmallVec::<[dir::GlobalTypeId; 4]>::new();
-                for access in arms {
-                    let Some(call) = self.subscript_write_access_call(origin, access, sources)?
-                    else {
-                        return Ok(None);
-                    };
-                    returns.push(call.return_type);
-                    calls.push(call);
-                }
-
-                // union the arm return types
-                let ty = match returns.as_slice() {
-                    [single] => *single,
-                    _ => self.normalized_union_type(returns)?,
-                };
-
-                Ok(Some(dir::OperationResolution::Union { arms: calls, ty }))
-            }
-        }
-    }
-
-    /// Select one write call from one protocol member access.
-    fn subscript_write_access_call(
-        &mut self,
-        origin: Origin,
-        access: &dir::MemberAccess,
-        sources: &[dir::ArgumentSource],
-    ) -> CompilerResult<Option<dir::Call>> {
-        // require a callable IndexSet member with a checked signature
-        let dir::MemberTarget::Symbol(candidate) = &access.target else {
-            return Err(CompilerError::Internal {
-                message: "selected IndexSet member is not callable".to_string(),
-            });
-        };
-        let callable_type = candidate
-            .callable_type
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "selected IndexSet member {:?} has no callable type",
-                    candidate.key.symbol
-                ),
-            })?;
-        let Some((callable, signature)) = self.callable_signature_type(origin, callable_type)?
-        else {
-            return Ok(None);
-        };
-
-        // select each substituted parameter in the receiver placement
-        let parameter_types: SmallVec<[_; 4]> = self
-            .signature_parameters(callable.module_id, signature.parameters)?
-            .into();
-        let substitution = TypeSubstitution::default();
-        let receiver = match &candidate.receiver {
-            dir::MemberReceiver::Direct(receiver) => receiver.ty(),
-            dir::MemberReceiver::Dynamic(dispatch) => dispatch.constraint,
-        };
-        let mut parameters = SmallVec::<[_; 2]>::with_capacity(parameter_types.len());
-        for parameter in parameter_types {
-            parameters.push(self.select_parameter(
-                origin,
-                parameter,
-                &substitution,
-                Some(receiver),
-            )?);
-        }
-
-        // require the checked return type
-        let Some(return_type) = signature.return_type else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "selected IndexSet member {:?} has no checked return type",
-                    candidate.key.symbol
-                ),
-            });
-        };
-
-        // dispatch directly on a value receiver, dynamically on an erased one
-        let target = match &candidate.receiver {
-            dir::MemberReceiver::Direct(receiver) => dir::CallableTarget::Symbol {
-                function: dir::FunctionTarget {
-                    receiver: Some(receiver.clone()),
-                    generic_scope: Some(candidate.owner),
-                    key: candidate.key.clone(),
-                },
-                dispatch: dir::FunctionDispatch::Direct,
-            },
-            dir::MemberReceiver::Dynamic(dispatch) => dir::CallableTarget::Dynamic {
-                dispatch: dispatch.clone(),
-                function: dir::DynamicFunction::Symbol(candidate.key.symbol),
-                generic_arguments: candidate.key.arguments.clone(),
-            },
-        };
-
-        // require one written source for every IndexSet parameter
-        if parameters.len() != sources.len() {
-            return Err(CompilerError::Internal {
-                message: "selected IndexSet signature has an incompatible arity".to_string(),
-            });
-        }
-
-        // bind parameters and sources in declaration order
-        let arguments = parameters
-            .into_iter()
-            .zip(sources)
-            .map(|(selected, source)| selected.bind(source.clone()))
-            .collect();
-        let call = dir::Call {
-            target,
-            callable_type: callable,
-            arguments,
-            return_type,
-        };
-
-        Ok(Some(call))
     }
 
     /// Decide whether `Index<I>` returns values compatible with one signature.
@@ -1491,54 +1353,47 @@ impl CheckState<'_> {
         key_type: dir::GlobalTypeId,
         value_type: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // select the IndexSet protocol member over the signature's key and value
+        // select the IndexSet call over the signature's key and the written value
         let method = SubscriptProtocol::IndexSet;
         let key = method.key(self.strings());
-        let selected = self.select_language_protocol_member(
+        let sources = [
+            dir::ArgumentSource::Static(key_type),
+            dir::ArgumentSource::Write,
+        ];
+        let receiver_value = Value {
+            ty: receiver,
+            node: None,
+            place: None,
+            is_fresh: false,
+        };
+        let Some((_protocol, call)) = self.select_language_protocol_call(
             origin,
-            receiver,
+            receiver_value,
             receiver,
             dir::MemberSpace::Instance,
             key,
             method.item(),
-            &[key_type, value_type],
             &[],
-        )?;
-        let Some((_protocol, member)) = selected else {
+            &[key_type],
+            &sources,
+        )?
+        else {
             return Ok(Verdict::Fails);
         };
 
-        // read the key and value types the selected write call accepts
-        let sources = [dir::ArgumentSource::Omitted, dir::ArgumentSource::Write];
-        let Some(call) = self.subscript_write_call(origin, &member.resolution, &sources)? else {
-            return Ok(Verdict::Fails);
-        };
-        let key_types = call.argument_types(dir::ArgumentSource::Omitted);
-        let value_types = call.argument_types(dir::ArgumentSource::Write);
-        let key = match key_types.as_slice() {
-            [] => {
-                return Err(CompilerError::Internal {
-                    message: "selected IndexSet call has no key parameter".to_string(),
-                });
-            }
-            [single] => *single,
-            _ => self.normalized_intersection_type(key_types)?,
-        };
+        // decide the signature's value against the accepted write type
+        let value_types = call.resolution.argument_types(dir::ArgumentSource::Write);
         let input = match value_types.as_slice() {
             [] => {
                 return Err(CompilerError::Internal {
-                    message: "selected IndexSet call has no runtime alternatives".to_string(),
+                    message: "selected IndexSet call has no value parameter".to_string(),
                 });
             }
             [single] => *single,
             _ => self.normalized_intersection_type(value_types)?,
         };
 
-        // decide the signature's key and value against the accepted types
-        let key_verdict = self.decide_relation(origin, relation, key_type, key)?;
-        let value_verdict = self.decide_relation(origin, relation, value_type, input)?;
-
-        Ok(key_verdict.and(value_verdict))
+        self.decide_relation(origin, relation, value_type, input)
     }
 }
 

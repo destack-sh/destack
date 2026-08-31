@@ -490,9 +490,9 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.access source=this.storage root=this keys=[storage]
         /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, R>), arguments=(provided(key) as Managed<string, R>), return=WithAccess<Borrowed<int32, R, \"mutable\">, \"readonly\"> | undefined)"
         /// @generic.instantiation id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly")
-        /// @generic.instance id="WithAccess<&'frame Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'frame Map<string, int32>, "readonly")
-        /// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly")
-        /// @generic.instance id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly")
+        /// @generic.instance id="WithAccess<&'frame Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'frame Map<string, int32>, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'frame readonly Map<string, int32>)
+        /// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'frame readonly int32)
+        /// @generic.instance id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly") evaluated=(<const index.A: Access = "readonly", index.'a>(this: WithAccess<&index.'a Map<K#8, V#8>, index.A>, K#8) => WithAccess<&index.'a V#8, index.A> | undefined => <const index.A: Access = "readonly", index.'a>(this: &index.'a readonly Map<string, int32>, string) => &index.'a readonly int32 | undefined)
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=key root=index.key
