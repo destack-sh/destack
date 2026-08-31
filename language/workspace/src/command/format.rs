@@ -425,7 +425,7 @@ fn collect_formattable_files(
         ))
     })?;
 
-    collect_formattable_files_in_dir(fs, ignore_root, directory, &mut ignore_set, &mut files)?;
+    collect_formattable_files_in_dir(fs, directory, &mut ignore_set, &mut files)?;
     files.sort();
 
     Ok(files)
@@ -434,7 +434,6 @@ fn collect_formattable_files(
 /// Walk a directory to collect formattable files.
 fn collect_formattable_files_in_dir(
     fs: &dyn FileSystem,
-    ignore_root: &Path,
     directory: &Path,
     ignore_set: &mut IgnoreSet,
     files: &mut Vec<PathBuf>,
@@ -458,7 +457,7 @@ fn collect_formattable_files_in_dir(
             continue;
         }
         if metadata.is_directory {
-            collect_formattable_files_in_dir(fs, ignore_root, &entry, ignore_set, files)?;
+            collect_formattable_files_in_dir(fs, &entry, ignore_set, files)?;
             continue;
         }
         if !metadata.is_file {
