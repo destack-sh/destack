@@ -885,6 +885,17 @@ impl CheckState<'_> {
         }
 
         // widen the slot and join the family default beside that candidate
+        self.widen_numeric_slot(root, origin, cause)
+    }
+
+    /// Widen one numeric join slot and seed its family fallback candidate.
+    pub(in crate::sema) fn widen_numeric_slot(
+        &mut self,
+        root: dir::TypeVariableId,
+        origin: Origin,
+        cause: CauseId,
+    ) -> CompilerResult<()> {
+        let kind = self.root_kind(root)?;
         self.infer.variable_mut(root)?.kind = VariableKind::Type;
         let fallback = kind.fallback().ok_or_else(|| CompilerError::Internal {
             message: format!("numeric kind {kind:?} has no fallback"),
@@ -1148,7 +1159,9 @@ impl CheckState<'_> {
             }
             if is_numeric || is_access || is_cycle {
                 self.alias_variable(variable, other)?;
-                self.settle_numeric_kind(variable, origin, cause)?;
+                if is_numeric || is_cycle {
+                    self.settle_numeric_kind(variable, origin, cause)?;
+                }
 
                 return Ok(Verdict::Ambiguous);
             }

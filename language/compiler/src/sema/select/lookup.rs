@@ -52,7 +52,7 @@ impl DeclaredMember {
         };
         let Some(symbol) = member.symbol() else {
             return Err(CompilerError::Internal {
-                message: format!("keyed definition member {member:?} has no symbol"),
+                message: format!("a keyed definition member {member:?} without a symbol"),
             });
         };
 
@@ -856,7 +856,7 @@ impl CheckState<'_> {
                 origin, module, receiver, subject, space, key, extensions,
             ),
 
-            // applied declarations read their definition members
+            // read the definition members of an applied declaration
             dir::Type::Application(_)
             | dir::Type::Literal(_)
             | dir::Type::Primitive(_)
@@ -1044,7 +1044,7 @@ impl CheckState<'_> {
                     (None, Some(write)) => dir::PropertyAccess::Write(write),
                     (None, None) => {
                         return Err(CompilerError::Internal {
-                            message: format!("structural property {key:?} has no operation"),
+                            message: format!("a structural property {key:?} without an operation"),
                         });
                     }
                 };
@@ -1146,7 +1146,7 @@ impl CheckState<'_> {
                 Ok(candidates)
             }
 
-            // every remaining subject shape exposes no keyed member
+            // answer with an empty candidate list for every other subject shape
             _ => Ok(Vec::new()),
         }
     }
@@ -1775,19 +1775,17 @@ impl CheckState<'_> {
 
         // collect the keys by the subject's own head
         match self.ty(subject)? {
-            // fail loudly on a variable that survived solving
+            // follow a solved variable into its solution
             dir::Type::Variable(variable) => {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "member keys contain unresolved variable {variable:?} after solving"
-                    ),
-                });
+                if let Some(solution) = self.infer.solution(variable)? {
+                    self.collect_subject_keys(origin, module, solution, space, keys, visited)?;
+                }
             }
             // declarations expose the same keys as keyed lookup
             dir::Type::Reference(reference) => {
                 self.collect_reference_keys(origin, module, reference, space, keys, visited)?;
             }
-            // applied declarations expose their instance and extension keys
+            // collect the instance and extension keys of an applied declaration
             dir::Type::Application(_) => {
                 self.collect_instance_keys(origin, module, subject, space, keys)?;
 
@@ -1939,7 +1937,7 @@ impl CheckState<'_> {
         space: dir::MemberSpace,
         keys: &mut FxIndexSet<dir::StaticKey>,
     ) -> CompilerResult<()> {
-        // a structural subject exposes its extension keys alone
+        // collect the extension keys alone for a structural subject
         let Some(instance) = self.apparent_instance(subject)? else {
             let value = self.strip_form(origin, subject)?;
             if let Some(root) = self.structural_root(value)? {

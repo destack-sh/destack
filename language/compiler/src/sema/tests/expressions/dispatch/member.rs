@@ -730,3 +730,216 @@ const chosen = store.pick<int32>(3);
 "#,
     );
 }
+
+/// A member observation settles a widened integer receiver at its family form.
+#[test]
+fn test_default_an_integer_binding_to_int64_at_a_method_call() {
+    let session = TestSession::single(
+        r#"
+function render(): MaybeOwned<string> {
+    let x = 5;
+    return x.toFixed(1);
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_node_types().without_reference_types(),
+        r#"
+=== annotated ===
+function render(): MaybeOwned<string> {
+    let x: int64 = 5;
+    return x.toFixed(1 as float64 | undefined);
+}
+
+=== dir ===
+function render(): MaybeOwned<string> {
+/// @type.symbol symbol=render type=() => MaybeOwned<string>
+/// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
+/// @generic.instance id=Cow<string> template=Cow arguments=(string)
+/// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+/// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
+/// @resolution.name source=MaybeOwned target=MaybeOwned
+
+    let x = 5;
+    /// @type.symbol symbol=render.x source=x type=int64
+    /// @resolution.pattern source=x kind=binding target=render.x
+    /// @type.node source=5 type=5
+
+    return x.toFixed(1);
+    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<string>
+    /// @type.node source=x.toFixed(1) type=MaybeOwned<string>
+    /// @resolution.name source=x target=render.x
+    /// @resolution.member source=x.toFixed receiver=int64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=int64 target=Number.toFixed
+    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toFixed receiver=int64 adjustments=(borrow(&'frame readonly int64))
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=render.x
+    /// @type.node source=1 type=1
+
+}
+"#,
+    );
+}
+
+/// A member observation settles a widened float receiver at its family form.
+#[test]
+fn test_default_a_float_binding_to_float64_at_a_method_call() {
+    let session = TestSession::single(
+        r#"
+function render(): MaybeOwned<string> {
+    let x = 1.5;
+    return x.toFixed(1);
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_node_types().without_reference_types(),
+        r#"
+=== annotated ===
+function render(): MaybeOwned<string> {
+    let x: float64 = 1.5;
+    return x.toFixed(1 as float64 | undefined);
+}
+
+=== dir ===
+function render(): MaybeOwned<string> {
+/// @type.symbol symbol=render type=() => MaybeOwned<string>
+/// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
+/// @generic.instance id=Cow<string> template=Cow arguments=(string)
+/// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+/// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
+/// @resolution.name source=MaybeOwned target=MaybeOwned
+
+    let x = 1.5;
+    /// @type.symbol symbol=render.x source=x type=float64
+    /// @resolution.pattern source=x kind=binding target=render.x
+    /// @type.node source=1.5 type=1.5
+
+    return x.toFixed(1);
+    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<string>
+    /// @type.node source=x.toFixed(1) type=MaybeOwned<string>
+    /// @resolution.name source=x target=render.x
+    /// @resolution.member source=x.toFixed receiver=float64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=float64 target=Number.toFixed
+    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toFixed receiver=float64 adjustments=(borrow(&'frame readonly float64))
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=render.x
+    /// @type.node source=1 type=1
+
+}
+"#,
+    );
+}
+
+/// A widened integer stays open for wider uses without a member observation.
+#[test]
+fn test_infer_an_integer_binding_from_a_wider_parameter() {
+    let session = TestSession::single(
+        r#"
+function wide(value: int64): int64 {
+    return value;
+}
+
+function feed(): int64 {
+    let x = 5;
+    return wide(x);
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_node_types().without_reference_types(),
+        r#"
+=== annotated ===
+function wide(value: int64): int64 {
+    return value;
+}
+
+function feed(): int64 {
+    let x: int64 = 5;
+    return wide(x);
+}
+
+=== dir ===
+function wide(value: int64): int64 {
+/// @type.symbol symbol=wide type=(int64) => int64
+/// @type.symbol symbol=wide.value source="value: int64" type=int64
+
+    return value;
+    /// @resolution.name source=value target=wide.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=wide.value
+
+}
+
+function feed(): int64 {
+/// @type.symbol symbol=feed type=() => int64
+
+    let x = 5;
+    /// @type.symbol symbol=feed.x source=x type=int64
+    /// @resolution.pattern source=x kind=binding target=feed.x
+    /// @type.node source=5 type=5
+
+    return wide(x);
+    /// @type.node source=wide(x) type=int64
+    /// @resolution.name source=wide target=wide
+    /// @resolution.call source=wide(x) parameters=(int64) arguments=(provided(x) as int64) return=int64 kind=symbol target=wide
+    /// @resolution.name source=x target=feed.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=feed.x
+
+}
+"#,
+    );
+}
+
+/// A misspelled member on a widened receiver reports with the closest key.
+#[test]
+fn test_suggest_the_closest_member_on_an_integer_binding() {
+    let session = TestSession::single(
+        r#"
+function render(): MaybeOwned<string> {
+    let x = 5;
+    return x.toFixd(1);
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function render(): MaybeOwned<string> {
+    let x: int64 = 5;
+    return x.toFixd(1);
+}
+
+=== dir ===
+function render(): MaybeOwned<string> {
+/// @type.symbol symbol=render type=() => MaybeOwned<string>
+/// @resolution.name source=MaybeOwned target=MaybeOwned
+
+    let x = 5;
+    /// @type.symbol symbol=render.x source=x type=int64
+    /// @resolution.pattern source=x kind=binding target=render.x
+
+    return x.toFixd(1);
+    /// @resolution.name source=x target=render.x
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=x root=render.x
+    /// @resolution.rejected source=x.toFixd
+    /// @resolution.rejected source=x.toFixd(1)
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=missing-member message="member 'toFixd' does not exist on type 'int64'; did you mean 'toFixed'?"
+/// @diagnostic.label line=4 column=14 span="toFixd" line_source="return x.toFixd(1);"
+/// @diagnostic.suggestion message="rename to 'toFixed'" applicability=dangerous patched="return x.toFixed(1);"
+"#,
+    );
+}

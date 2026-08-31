@@ -2,9 +2,10 @@ use destack_dir as dir;
 use destack_dir::MemberRole;
 
 use crate::sema::{
-    CallableArgument, CheckState, DeclaredCandidate, FlowSite, InferMode, MemberCandidate,
-    MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle, SignatureMatch, Value, ValueUse,
-    VariableKind, is_optional_member, member_arms, member_kind, selected_candidates,
+    CallableArgument, Cause, CauseKind, CheckState, DeclaredCandidate, FlowSite, InferMode,
+    MemberCandidate, MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle, SignatureMatch,
+    Value, ValueUse, VariableKind, is_optional_member, member_arms, member_kind,
+    selected_candidates,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -257,7 +258,7 @@ impl CheckState<'_> {
         &mut self,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // every runtime arm reads, and the read is their union
+        // union the reads of every runtime arm
         let mut types = Vec::new();
         for (_, group) in member_arms(lookup) {
             let candidates = Self::read_candidates(&group);
@@ -530,7 +531,7 @@ impl CheckState<'_> {
         };
         let Some(callable) = candidate.callable else {
             return Err(CompilerError::Internal {
-                message: format!("member {:?} has no callable type", declared.symbol),
+                message: format!("a member {:?} without a callable type", declared.symbol),
             });
         };
 
@@ -633,6 +634,7 @@ impl CheckState<'_> {
         self.commit_expression_place(receiver_site, written_receiver)?;
 
         let written_receiver = self.resolve_structurally(site, written_receiver)?;
+        let written_receiver = self.settle_observed_width(site, written_receiver)?;
 
         // strip the nullish arms the access reads through
         let (subject, rejected, [receiver, written_receiver]) =
@@ -780,6 +782,34 @@ impl CheckState<'_> {
         }
 
         false
+    }
+
+    /// Settle one observed numeric width at its family form.
+    ///
+    /// Member lookup enumerates the receiver's surface, which an open width
+    /// cannot offer; the family fallback joins beside the width's bounds like
+    /// any settled candidate.
+    fn settle_observed_width(
+        &mut self,
+        site: FlowSite,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let resolved = self.shallow_resolve(ty)?;
+        let Some(variable) = self.root_variable(resolved)? else {
+            return Ok(resolved);
+        };
+        let root = self.infer.alias_root(variable)?;
+        if !self.root_kind(root)?.is_numeric() {
+            return Ok(resolved);
+        }
+
+        // join the family fallback beside the width's bounds and settle now
+        let origin = site.origin();
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        self.widen_numeric_slot(root, origin, cause)?;
+        self.settle_variables(&[root], Settle::All)?;
+
+        self.shallow_resolve(resolved)
     }
 
     /// Settle one selection operand structurally, reporting a head nothing decides.
