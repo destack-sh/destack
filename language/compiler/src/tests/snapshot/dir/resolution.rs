@@ -194,6 +194,7 @@ fn operator_application_label(
             operator,
             target,
             ty,
+            is_folded,
         } => {
             let target = match target {
                 dir::OperatorTarget::Builtin(operand) => {
@@ -202,8 +203,10 @@ fn operator_application_label(
                 dir::OperatorTarget::Call(call) => call_label(builder, call),
             };
 
+            let folded = if *is_folded { " folded" } else { "" };
+
             format!(
-                "{} {target} -> {}",
+                "{} {target} -> {}{folded}",
                 operator.text(),
                 builder.global_type_label(*ty)
             )
@@ -212,6 +215,7 @@ fn operator_application_label(
             operator,
             target,
             ty,
+            is_folded,
         } => {
             let target = match target {
                 dir::OperatorTarget::Builtin(operands) => format!(
@@ -225,8 +229,10 @@ fn operator_application_label(
                 dir::OperatorTarget::Call(call) => call_label(builder, call),
             };
 
+            let folded = if *is_folded { " folded" } else { "" };
+
             format!(
-                "{} {target} -> {}",
+                "{} {target} -> {}{folded}",
                 operator.text(),
                 builder.global_type_label(*ty)
             )

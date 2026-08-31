@@ -300,6 +300,7 @@ impl CheckState<'_> {
                     operator,
                     target: dir::OperatorTarget::Call(Box::new(call)),
                     ty: result,
+                    is_folded: false,
                 };
 
                 dir::OperationResolution::One(application)
@@ -313,6 +314,7 @@ impl CheckState<'_> {
                         operator,
                         target: dir::OperatorTarget::Call(Box::new(call)),
                         ty,
+                        is_folded: false,
                     });
                 }
 
@@ -588,6 +590,7 @@ impl CheckState<'_> {
                         operator,
                         target: dir::OperatorTarget::Call(Box::new(call)),
                         ty: result,
+                        is_folded: false,
                     };
 
                     dir::OperationResolution::One(application)
@@ -604,6 +607,7 @@ impl CheckState<'_> {
                             operator,
                             target: dir::OperatorTarget::Call(Box::new(call)),
                             ty,
+                            is_folded: false,
                         });
                     }
 
@@ -1117,6 +1121,21 @@ impl CheckState<'_> {
         Ok(normalized)
     }
 
+    /// Return whether one operand expression folded into its committed type.
+    fn expression_folds(&self, node: dir::GlobalNodeId<dir::Expression>) -> CompilerResult<bool> {
+        // fold literal spellings directly
+        let expression = self.module(node.module_id).view().get(node.local_id);
+        if matches!(expression, dir::Expression::Literal(_)) {
+            return Ok(true);
+        }
+
+        // read the fold recorded at operator selection
+        Ok(match self.decision(node.into_any()) {
+            Some(dir::Decision::Operator(resolution)) => resolution.is_folded(),
+            _ => false,
+        })
+    }
+
     /// Commit one builtin binary operator selection.
     fn commit_builtin_binary_operator(
         &mut self,
@@ -1128,10 +1147,14 @@ impl CheckState<'_> {
         result: dir::GlobalTypeId,
         writeback: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
+        let is_folded = matches!(self.ty(result)?, dir::Type::Literal(_))
+            && self.expression_folds(left.source)?
+            && self.expression_folds(right.source)?;
         let application = dir::OperatorApplication::Binary {
             operator,
             target: dir::OperatorTarget::Builtin([left, right]),
             ty: result,
+            is_folded,
         };
         let resolution = dir::OperationResolution::One(application);
         self.check_operator_writeback(node, origin, result, writeback)?;
@@ -1149,10 +1172,13 @@ impl CheckState<'_> {
         operand: dir::BuiltinOperand,
         result: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
+        let is_folded = matches!(self.ty(result)?, dir::Type::Literal(_))
+            && self.expression_folds(operand.source)?;
         let application = dir::OperatorApplication::Unary {
             operator,
             target: dir::OperatorTarget::Builtin(operand),
             ty: result,
+            is_folded,
         };
         let resolution = dir::OperationResolution::One(application);
         self.commit_decision(node, dir::Decision::Operator(resolution))?;
@@ -1215,6 +1241,7 @@ impl CheckState<'_> {
                     operator,
                     target: dir::OperatorTarget::Builtin(operand),
                     ty: dereference.ty,
+                    is_folded: false,
                 }
             }
 
@@ -1223,6 +1250,7 @@ impl CheckState<'_> {
                 operator,
                 target: dir::OperatorTarget::Call(call),
                 ty: dereference.ty,
+                is_folded: false,
             },
         };
 
