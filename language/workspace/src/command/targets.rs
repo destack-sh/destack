@@ -92,7 +92,7 @@ impl CommandContext<'_> {
         let revision = self.revision();
         // resolve config selection
         let configs = if options.all {
-            self.load_workspace_configs(revision)?
+            self.workspace_configs(revision)?
         } else {
             let config_path = self.resolve_destack_config_path(self.common.manifest.as_deref())?;
             vec![self.load_destack_config(&config_path)?]

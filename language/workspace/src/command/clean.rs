@@ -105,7 +105,7 @@ impl CommandContext<'_> {
 
         // resolve configs for output cleanup
         let destack_configs = if options.all_packages {
-            self.load_workspace_configs(revision)?
+            self.workspace_configs(revision)?
         } else {
             let manifest = options.dir.as_deref().or(self.common.manifest.as_deref());
             match self.resolve_destack_config_path(manifest) {

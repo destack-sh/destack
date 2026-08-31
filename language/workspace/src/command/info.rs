@@ -110,7 +110,7 @@ impl CommandContext<'_> {
 
         // load workspace configs when requested
         let workspace_configs = if options.all {
-            self.load_workspace_configs(revision).ok()
+            self.workspace_configs(revision).ok()
         } else {
             None
         };

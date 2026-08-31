@@ -346,14 +346,28 @@ impl<'a> CommandContext<'a> {
 
         let config_path = self.resolve_destack_config_path(self.common.manifest.as_deref())?;
         let config = self.load_destack_config(&config_path)?;
-        let inputs = collect_sources_from_destack_config(&config, self.common.target.as_deref())?;
+        let configs = if config.workspace_packages().is_some() {
+            self.workspace_configs(self.revision())?
+        } else {
+            vec![config]
+        };
+
+        // collect source files from each selected package
+        let mut inputs = BTreeMap::new();
+        for config in configs {
+            let sources =
+                collect_sources_from_destack_config(&config, self.common.target.as_deref())?;
+            for source in sources {
+                inputs.insert(source, ());
+            }
+        }
 
         if inputs.is_empty() {
             return Err("no input files provided".to_string().into());
         }
 
         Ok(inputs
-            .into_iter()
+            .into_keys()
             .map(|path| CommandInput::File { path })
             .collect())
     }
@@ -710,33 +724,35 @@ impl<'a> CommandContext<'a> {
         self.find_destack_config_in_revision(revision, cwd)
     }
 
-    /// Load all visible workspace `destack.json` configs.
-    pub(super) fn load_workspace_configs(
-        &self,
-        revision: Revision,
-    ) -> CommandResult<Vec<DestackFile>> {
-        let mut configs = BTreeMap::new();
-
-        // collect package config paths
-        for package_path in self
+    /// Return all authored package configurations in path order.
+    pub(super) fn workspace_configs(&self, revision: Revision) -> CommandResult<Vec<DestackFile>> {
+        let package_ids = self
             .repository
-            .package_roots(revision)
-            .map_err(|error| error.to_string())?
-        {
-            if let Some(path) =
-                self.find_destack_config_in_revision(revision, package_path.as_path())
+            .package_ids(revision)
+            .map_err(|error| error.to_string())?;
+        let mut configs = Vec::new();
+
+        // retain configurations for authored packages
+        for package_id in package_ids {
+            let Some(package) = self
+                .repository
+                .package(revision, package_id)
+                .map_err(|error| error.to_string())?
+            else {
+                return Err(CommandError::internal(format!(
+                    "workspace package is missing: {package_id:?}"
+                )));
+            };
+            if package.kind.is_authored()
+                && let Some(config) = package.configuration.as_deref()
             {
-                configs.entry(path).or_insert_with(|| package_path.clone());
+                configs.push(config.clone());
             }
         }
 
-        // load configs in stable path order
-        let mut resolved = Vec::new();
-        for (path, _) in configs {
-            resolved.push(self.load_destack_config(&path)?);
-        }
+        configs.sort_by(|left, right| left.path.cmp(&right.path));
 
-        Ok(resolved)
+        Ok(configs)
     }
 
     /// Return a standard unimplemented command response.
