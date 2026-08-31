@@ -6,6 +6,7 @@ mod manifest;
 mod pack;
 
 pub use cache::*;
+pub use collection::*;
 pub use error::*;
 pub use manifest::*;
 pub use pack::*;

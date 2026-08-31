@@ -12,13 +12,6 @@ use crate::{
     ArtifactPackVersion, BuildId,
 };
 
-/// File extension for immutable artifact packs.
-const PACK_EXTENSION: &str = "pack";
-/// File extension for repository artifact manifests.
-const MANIFEST_EXTENSION: &str = "manifest";
-/// Stack buffer used to compare an existing immutable pack.
-const PACK_COMPARE_BYTES: usize = 64 * 1024;
-
 /// Persistent artifact packs selected by repository manifests.
 #[derive(Debug)]
 pub struct ArtifactCache {
@@ -32,6 +25,9 @@ pub struct ArtifactCache {
     /// Maximum retained cache size when bounded.
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
     pub(super) maximum_bytes: Option<u64>,
+    /// Shared lease retained while this build cache is in use.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    _lease: ArtifactCacheLock,
 }
 
 /// Exclusive access to one artifact cache publication.
@@ -96,6 +92,16 @@ pub(super) enum ArtifactCacheLockMode {
 }
 
 impl ArtifactCache {
+    /// File extension for immutable artifact packs.
+    const PACK_EXTENSION: &'static str = "pack";
+    /// File extension for repository artifact manifests.
+    const MANIFEST_EXTENSION: &'static str = "manifest";
+    /// File retaining one build cache while a process uses it.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(super) const BUILD_LEASE_FILE: &'static str = "lease";
+    /// Stack buffer used to compare an existing immutable pack.
+    const PACK_COMPARE_BYTES: usize = 64 * 1024;
+
     /// Open one build-specific persistent artifact cache.
     pub fn open(
         build_id: BuildId,
@@ -104,8 +110,17 @@ impl ArtifactCache {
     ) -> Result<Self, ArtifactCacheError> {
         let directory = directory.into();
         let build_directory = directory.join("builds").join(build_id.to_string());
+
+        // exclude machine cache clearing while opening this build
+        let _lock = Self::lock_directory(&directory, ArtifactCacheLockMode::Exclusive)?;
         Self::create_directory(&build_directory.join("packs"))?;
         Self::create_directory(&build_directory.join("manifests"))?;
+
+        #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+        let lease = Self::lock_path(
+            &build_directory.join(Self::BUILD_LEASE_FILE),
+            ArtifactCacheLockMode::Shared,
+        )?;
 
         #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
         let _ = maximum_bytes;
@@ -117,6 +132,8 @@ impl ArtifactCache {
             build_directory,
             #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
             maximum_bytes,
+            #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+            _lease: lease,
         })
     }
 
@@ -363,7 +380,7 @@ impl ArtifactCache {
     pub(super) fn pack_path(&self, version: ArtifactPackVersion) -> PathBuf {
         self.build_directory
             .join("packs")
-            .join(format!("{version}.{PACK_EXTENSION}"))
+            .join(format!("{version}.{}", Self::PACK_EXTENSION))
     }
 
     /// Resolve one repository manifest path.
@@ -376,7 +393,7 @@ impl ArtifactCache {
 
         self.build_directory
             .join("manifests")
-            .join(format!("{id}.{MANIFEST_EXTENSION}"))
+            .join(format!("{id}.{}", Self::MANIFEST_EXTENSION))
     }
 
     /// Lock this cache for shared reads or exclusive mutation.
@@ -385,16 +402,34 @@ impl ArtifactCache {
         &self,
         mode: ArtifactCacheLockMode,
     ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
-        let path = self.directory.join("lock");
+        Self::lock_directory(&self.directory, mode)
+    }
+
+    /// Lock one machine cache directory.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(super) fn lock_directory(
+        directory: &Path,
+        mode: ArtifactCacheLockMode,
+    ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
+        Self::create_directory(directory)?;
+        Self::lock_path(&directory.join("lock"), mode)
+    }
+
+    /// Lock one exact cache file.
+    #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+    pub(super) fn lock_path(
+        path: &Path,
+        mode: ArtifactCacheLockMode,
+    ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
         let file = OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .truncate(false)
-            .open(&path)
+            .open(path)
             .map_err(|error| ArtifactCacheError::FileSystem {
                 operation: "open lock",
-                path: path.clone(),
+                path: path.to_path_buf(),
                 message: error.to_string(),
             })?;
 
@@ -405,7 +440,7 @@ impl ArtifactCache {
         };
         result.map_err(|error| ArtifactCacheError::FileSystem {
             operation: "lock",
-            path,
+            path: path.to_path_buf(),
             message: error.to_string(),
         })?;
 
@@ -416,6 +451,15 @@ impl ArtifactCache {
     #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
     pub(super) fn lock(
         &self,
+        _mode: ArtifactCacheLockMode,
+    ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
+        Ok(ArtifactCacheLock {})
+    }
+
+    /// Return an inert directory lock where persistent storage is unavailable.
+    #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+    pub(super) fn lock_directory(
+        _directory: &Path,
         _mode: ArtifactCacheLockMode,
     ) -> Result<ArtifactCacheLock, ArtifactCacheError> {
         Ok(ArtifactCacheLock {})
@@ -491,7 +535,7 @@ impl ArtifactCache {
                     path: path.to_path_buf(),
                     message: error.to_string(),
                 })?;
-        let mut buffer = [0; PACK_COMPARE_BYTES];
+        let mut buffer = [0; Self::PACK_COMPARE_BYTES];
         let mut offset = 0;
 
         // compare each physical chunk with the expected pack bytes

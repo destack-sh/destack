@@ -24,6 +24,11 @@ pub enum ArtifactCacheError {
     Codec(destack_serde::Error),
     /// One cache record violates its persistent invariants.
     Invalid(String),
+    /// One running process is using this build cache.
+    BuildInUse {
+        /// The active build cache directory.
+        path: PathBuf,
+    },
     /// Artifact cache logic failed internally.
     Internal(String),
 }
@@ -47,6 +52,11 @@ impl fmt::Display for ArtifactCacheError {
             ),
             Self::Codec(error) => write!(formatter, "artifact cache codec failed: {error}"),
             Self::Invalid(message) => write!(formatter, "invalid artifact cache: {message}"),
+            Self::BuildInUse { path } => write!(
+                formatter,
+                "artifact cache build '{}' is in use",
+                path.display()
+            ),
             Self::Internal(message) => {
                 write!(formatter, "artifact cache internal error: {message}")
             }
@@ -78,7 +88,11 @@ impl ArtifactCacheError {
     pub(crate) fn record_path(&self) -> Option<&Path> {
         match self {
             Self::Record { path, .. } => Some(path),
-            Self::FileSystem { .. } | Self::Codec(_) | Self::Invalid(_) | Self::Internal(_) => None,
+            Self::FileSystem { .. }
+            | Self::Codec(_)
+            | Self::Invalid(_)
+            | Self::BuildInUse { .. }
+            | Self::Internal(_) => None,
         }
     }
 }

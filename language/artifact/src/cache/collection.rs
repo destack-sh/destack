@@ -1,15 +1,18 @@
 use std::path::Path;
 
+#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
+use std::{
+    collections::HashMap,
+    fs::OpenOptions,
+    io::ErrorKind,
+    path::PathBuf,
+    time::{Duration, SystemTime},
+};
+
+use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::{ArtifactCache, ArtifactCacheError};
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::collections::HashMap;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::path::PathBuf;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::time::{Duration, SystemTime};
+use crate::{ArtifactCache, ArtifactCacheError, BuildId};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use destack_source::{FileMetadata, FileSystem, PhysicalFileSystem};
@@ -26,6 +29,34 @@ const COLLECTION_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 const LAST_COLLECTION_FILE: &str = "last-collection";
 
+/// Exact machine artifact cache usage.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct ArtifactCacheStats {
+    /// Removable bytes retained by the cache.
+    pub bytes: u64,
+    /// Bytes retained by the current Destack build.
+    pub current_build_bytes: u64,
+    /// Bytes retained by other Destack builds.
+    pub other_build_bytes: u64,
+    /// Removable files retained by the cache.
+    pub files: u64,
+    /// Build directories retained by the cache.
+    pub builds: u64,
+    /// Repository manifests retained by the cache.
+    pub manifests: u64,
+    /// Immutable packs retained by the cache.
+    pub packs: u64,
+}
+
+/// Records removed from one machine artifact cache.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct ArtifactCacheRemoval {
+    /// Bytes removed from the cache.
+    pub bytes: u64,
+    /// Files removed from the cache.
+    pub files: u64,
+}
+
 /// One completed artifact cache collection.
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,7 +69,7 @@ struct ArtifactCacheCollection {
     removed_files: u64,
 }
 
-/// One cached file considered during collection.
+/// One cached file measured during collection.
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 #[derive(Debug)]
 struct CachedFile {
@@ -62,22 +93,140 @@ struct CachedManifest {
     packs: Box<[PathBuf]>,
 }
 
-/// One obsolete build directory considered as an indivisible unit.
+/// One measured cache directory.
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 #[derive(Debug)]
-struct CachedBuild {
-    /// Physical build directory.
+struct CachedDirectory {
+    /// Physical cache directory.
     path: PathBuf,
     /// Total bytes below the directory.
     bytes: u64,
     /// Number of files below the directory.
     files: u64,
+    /// Repository manifests below the directory.
+    manifests: u64,
+    /// Immutable packs below the directory.
+    packs: u64,
     /// Newest modification in the directory tree.
     modified_at: SystemTime,
 }
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 impl ArtifactCache {
+    /// Measure one machine cache without opening a build lease.
+    pub fn measure(
+        directory: &Path,
+        build_id: BuildId,
+    ) -> Result<ArtifactCacheStats, ArtifactCacheError> {
+        if !Self::exists(directory)? {
+            return Ok(ArtifactCacheStats::default());
+        }
+
+        // retain a stable cache view while measuring its records
+        let _lock = Self::lock_directory(directory, ArtifactCacheLockMode::Shared)?;
+        let builds_directory = directory.join("builds");
+
+        // validate and measure machine cache metadata
+        let mut stats = ArtifactCacheStats::default();
+        for path in Self::read_directory(directory)? {
+            let name = path.file_name().and_then(|name| name.to_str());
+            match name {
+                Some("lock") => {
+                    if !Self::metadata(&path)?.is_file {
+                        return Err(Self::invalid_entry(&path, "a lock file"));
+                    }
+                }
+                Some(LAST_COLLECTION_FILE) => {
+                    let metadata = Self::metadata(&path)?;
+                    if !metadata.is_file {
+                        return Err(Self::invalid_entry(&path, "a collection marker file"));
+                    }
+
+                    stats.bytes += metadata.size_bytes;
+                    stats.files += 1;
+                }
+                Some("builds") => {
+                    if !Self::metadata(&path)?.is_directory {
+                        return Err(Self::invalid_entry(&path, "a builds directory"));
+                    }
+                }
+                _ => return Err(Self::invalid_entry(&path, "a cache record")),
+            }
+        }
+
+        // classify each opaque build directory
+        if Self::exists(&builds_directory)? {
+            let current = builds_directory.join(build_id.to_string());
+            for path in Self::read_directory(&builds_directory)? {
+                let build = Self::cached_directory(path)?;
+                stats.builds += 1;
+                stats.bytes += build.bytes;
+                stats.files += build.files;
+                stats.manifests += build.manifests;
+                stats.packs += build.packs;
+
+                // attribute bytes to the current or another build
+                if build.path == current {
+                    stats.current_build_bytes += build.bytes;
+                } else {
+                    stats.other_build_bytes += build.bytes;
+                }
+            }
+        }
+
+        Ok(stats)
+    }
+
+    /// Remove every record after requiring all build caches to be inactive.
+    pub fn clear(
+        directory: &Path,
+        is_dry_run: bool,
+    ) -> Result<ArtifactCacheRemoval, ArtifactCacheError> {
+        if !Self::exists(directory)? {
+            return Ok(ArtifactCacheRemoval::default());
+        }
+
+        // exclude all cache activity during validation and removal
+        let _lock = Self::lock_directory(directory, ArtifactCacheLockMode::Exclusive)?;
+        let builds_directory = directory.join("builds");
+
+        // reject the operation before removing any active build
+        if Self::exists(&builds_directory)? {
+            for build in Self::read_directory(&builds_directory)? {
+                let metadata = Self::metadata(&build)?;
+                if !metadata.is_directory {
+                    return Err(Self::invalid_entry(&build, "a build directory"));
+                }
+
+                if Self::is_build_active(&build)? {
+                    return Err(ArtifactCacheError::BuildInUse { path: build });
+                }
+            }
+        }
+
+        // measure every record after validating the complete operation
+        let (before_bytes, before_files) = Self::measure_records(directory)?;
+        if is_dry_run {
+            return Ok(ArtifactCacheRemoval {
+                bytes: before_bytes,
+                files: before_files,
+            });
+        }
+
+        // retain the root lock while removing all cache records
+        for entry in Self::read_directory(directory)? {
+            if entry.file_name().is_some_and(|name| name == "lock") {
+                continue;
+            }
+
+            Self::remove_path(&entry)?;
+        }
+        Ok(ArtifactCacheRemoval {
+            bytes: before_bytes,
+            files: before_files,
+        })
+    }
+
     /// Collect this cache when its automatic collection interval has elapsed.
     pub fn collect_if_due<R: DeserializeOwned>(
         &self,
@@ -98,7 +247,7 @@ impl ArtifactCache {
             return Ok(());
         }
 
-        // protect files newer than the collection cutoff
+        // protect records written since the preceding collection
         let eligible_before = match last_collection {
             Some(last_collection) => last_collection,
             None => now.checked_sub(COLLECTION_INTERVAL).ok_or_else(|| {
@@ -124,7 +273,7 @@ impl ArtifactCache {
         // scan current records and opaque obsolete builds
         let mut obsolete = self.obsolete_builds()?;
         self.validate_current_build()?;
-        let packs = self.cached_files(&self.build_directory.join("packs"), "pack")?;
+        let packs = Self::cached_files(&self.build_directory.join("packs"), "pack")?;
         let mut pack_files = packs
             .iter()
             .map(|pack| (pack.path.as_path(), (pack.bytes, pack.modified_at)))
@@ -142,7 +291,7 @@ impl ArtifactCache {
         let mut after_bytes = before_bytes;
         let mut removed_files = 0;
 
-        // remove eligible obsolete builds before current repository selections
+        // remove eligible inactive obsolete builds from oldest to newest
         obsolete.retain(|build| build.modified_at <= eligible_before);
         obsolete.sort_unstable_by(|left, right| {
             left.modified_at
@@ -154,6 +303,11 @@ impl ArtifactCache {
                 if after_bytes <= maximum_bytes {
                     break;
                 }
+
+                if Self::is_build_active(&build.path)? {
+                    continue;
+                }
+
                 Self::remove_path(&build.path)?;
                 after_bytes -= build.bytes;
                 removed_files += build.files;
@@ -232,13 +386,12 @@ impl ArtifactCache {
         })
     }
 
-    /// Read every repository manifest stored for the current build.
+    /// Read current manifests and require every selected pack.
     fn cached_manifests<R: DeserializeOwned>(
         &self,
         pack_files: &HashMap<&Path, (u64, SystemTime)>,
     ) -> Result<Vec<CachedManifest>, ArtifactCacheError> {
-        let directory = self.build_directory.join("manifests");
-        let files = self.cached_files(&directory, "manifest")?;
+        let files = Self::cached_files(&self.build_directory.join("manifests"), "manifest")?;
         let mut manifests = Vec::with_capacity(files.len());
         for file in files {
             // decode and validate one current manifest
@@ -276,8 +429,6 @@ impl ArtifactCache {
                     return Err(error.record(&file.path));
                 }
             }
-
-            // retain the decoded repository selection
             manifests.push(CachedManifest {
                 file,
                 repository: manifest.repository().to_path_buf(),
@@ -290,24 +441,18 @@ impl ArtifactCache {
 
     /// Read cache files with one exact extension.
     fn cached_files(
-        &self,
         directory: &Path,
         extension: &str,
     ) -> Result<Vec<CachedFile>, ArtifactCacheError> {
-        let entries = Self::read_directory(directory)?;
+        // retain exact file sizes and modification times
         let mut files = Vec::new();
-        for path in entries {
+        for path in Self::read_directory(directory)? {
             let metadata = Self::metadata(&path)?;
             let has_extension = path.extension().is_some_and(|value| value == extension);
             if !metadata.is_file || !has_extension {
-                let error = ArtifactCacheError::Invalid(format!(
-                    "unexpected cache entry, expected a .{extension} file"
-                ));
-
-                return Err(error.record(&path));
+                return Err(Self::invalid_entry(&path, &format!("a .{extension} file")));
             }
 
-            // retain exact file size and recency
             let modified_at = metadata.modified_at.ok_or_else(|| {
                 ArtifactCacheError::Invalid("cache file has no modification time".to_string())
                     .record(&path)
@@ -322,66 +467,95 @@ impl ArtifactCache {
         Ok(files)
     }
 
-    /// Measure every obsolete build directory without decoding its format.
-    fn obsolete_builds(&self) -> Result<Vec<CachedBuild>, ArtifactCacheError> {
+    /// Measure every obsolete build without decoding its record format.
+    fn obsolete_builds(&self) -> Result<Vec<CachedDirectory>, ArtifactCacheError> {
         let directory = self.directory.join("builds");
-        let entries = Self::read_directory(&directory)?;
+
+        // collect each non-current build as one opaque directory
         let mut builds = Vec::new();
-        for path in entries {
-            let metadata = Self::metadata(&path)?;
-            if !metadata.is_directory {
-                let error = ArtifactCacheError::Invalid(
-                    "unexpected cache entry, expected a build directory".to_string(),
-                );
-
-                return Err(error.record(&path));
-            }
-
-            // measure each opaque build directory
+        for path in Self::read_directory(&directory)? {
             if path != self.build_directory {
-                let (bytes, files, modified_at) = Self::measure_directory(&path)?;
-                builds.push(CachedBuild {
-                    path,
-                    bytes,
-                    files,
-                    modified_at,
-                });
+                builds.push(Self::cached_directory(path)?);
             }
         }
 
         Ok(builds)
     }
 
+    /// Return whether one build lease is retained by another cache instance.
+    fn is_build_active(build: &Path) -> Result<bool, ArtifactCacheError> {
+        let path = build.join(Self::BUILD_LEASE_FILE);
+        if !Self::exists(&path)? {
+            return Ok(false);
+        }
+
+        let file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(&path)
+            .map_err(|error| ArtifactCacheError::FileSystem {
+                operation: "open lease",
+                path: path.clone(),
+                message: error.to_string(),
+            })?;
+
+        // probe exclusive ownership without waiting for a live process
+        match fs2::FileExt::try_lock_exclusive(&file) {
+            Ok(()) => {
+                fs2::FileExt::unlock(&file).map_err(|error| ArtifactCacheError::FileSystem {
+                    operation: "unlock lease",
+                    path,
+                    message: error.to_string(),
+                })?;
+
+                Ok(false)
+            }
+            Err(error) if error.kind() == ErrorKind::WouldBlock => Ok(true),
+            Err(error) => Err(ArtifactCacheError::FileSystem {
+                operation: "lock lease",
+                path,
+                message: error.to_string(),
+            }),
+        }
+    }
+
     /// Validate the exact current build directory entries.
     fn validate_current_build(&self) -> Result<(), ArtifactCacheError> {
-        let manifests = self.build_directory.join("manifests");
-        let packs = self.build_directory.join("packs");
-        let expected = [manifests, packs];
+        let expected = [
+            self.build_directory.join(Self::BUILD_LEASE_FILE),
+            self.build_directory.join("manifests"),
+            self.build_directory.join("packs"),
+        ];
         let entries = Self::read_directory(&self.build_directory)?;
         if entries != expected {
-            let error = ArtifactCacheError::Invalid(
-                "current build must contain exactly manifests and packs directories".to_string(),
-            );
-
-            return Err(error.record(&self.build_directory));
+            return Err(ArtifactCacheError::Invalid(
+                "current build must contain a lease, manifests, and packs".to_string(),
+            )
+            .record(&self.build_directory));
         }
 
         Ok(())
     }
 
-    /// Measure every file below one cache directory.
-    fn measure_directory(path: &Path) -> Result<(u64, u64, SystemTime), ArtifactCacheError> {
-        let directory = Self::metadata(path)?;
-        let modified_at = directory.modified_at.ok_or_else(|| {
+    /// Measure one cache directory without decoding its records.
+    fn cached_directory(path: PathBuf) -> Result<CachedDirectory, ArtifactCacheError> {
+        let directory = Self::metadata(&path)?;
+        if !directory.is_directory {
+            return Err(Self::invalid_entry(&path, "a cache directory"));
+        }
+
+        let mut modified_at = directory.modified_at.ok_or_else(|| {
             ArtifactCacheError::Invalid("cache directory has no modification time".to_string())
-                .record(path)
+                .record(&path)
         })?;
-        let mut bytes = 0_u64;
-        let mut files = 0_u64;
-        let mut modified_at = modified_at;
+        let mut bytes = 0;
+        let mut files = 0;
+        let mut manifests = 0;
+        let mut packs = 0;
         let mut pending = vec![path.to_path_buf()];
+
+        // measure every descendant record exactly once
         while let Some(directory) = pending.pop() {
-            // measure every descendant exactly once
             for entry in Self::read_directory(&directory)? {
                 let metadata = Self::metadata(&entry)?;
                 if metadata.is_directory {
@@ -396,17 +570,40 @@ impl ArtifactCache {
                     bytes += metadata.size_bytes;
                     files += 1;
                     modified_at = modified_at.max(file_modified);
-                } else {
-                    let error = ArtifactCacheError::Invalid(
-                        "unexpected cache entry, expected a file or directory".to_string(),
-                    );
 
-                    return Err(error.record(&entry));
+                    // count known record kinds
+                    match entry.extension().and_then(|value| value.to_str()) {
+                        Some("manifest") => manifests += 1,
+                        Some("pack") => packs += 1,
+                        _ => {}
+                    }
+                } else {
+                    return Err(Self::invalid_entry(&entry, "a file or directory"));
                 }
             }
         }
 
-        Ok((bytes, files, modified_at))
+        Ok(CachedDirectory {
+            path,
+            bytes,
+            files,
+            manifests,
+            packs,
+            modified_at,
+        })
+    }
+
+    /// Measure cache records while excluding the permanent root lock.
+    fn measure_records(path: &Path) -> Result<(u64, u64), ArtifactCacheError> {
+        let directory = Self::cached_directory(path.to_path_buf())?;
+        let mut bytes = directory.bytes;
+        let mut files = directory.files;
+        let lock = path.join("lock");
+        let metadata = Self::metadata(&lock)?;
+        bytes -= metadata.size_bytes;
+        files -= 1;
+
+        Ok((bytes, files))
     }
 
     /// Read the preceding collection timestamp when present.
@@ -419,10 +616,7 @@ impl ArtifactCache {
         // read collection recency directly from its marker
         let metadata = Self::metadata(&path)?;
         if !metadata.is_file {
-            let error =
-                ArtifactCacheError::Invalid("last collection marker must be a file".to_string());
-
-            return Err(error.record(&path));
+            return Err(Self::invalid_entry(&path, "a collection marker file"));
         }
         metadata.modified_at.map(Some).ok_or_else(|| {
             ArtifactCacheError::Invalid(
@@ -476,11 +670,33 @@ impl ArtifactCache {
                 message: error.to_string(),
             })
     }
+
+    /// Return one invalid cache entry error.
+    fn invalid_entry(path: &Path, expected: &str) -> ArtifactCacheError {
+        ArtifactCacheError::Invalid(format!("unexpected cache entry, expected {expected}"))
+            .record(path)
+    }
 }
 
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
 impl ArtifactCache {
-    /// Skip persistent cache collection on bare WebAssembly.
+    /// Return empty cache usage where persistent storage is unavailable.
+    pub fn measure(
+        _directory: &Path,
+        _build_id: BuildId,
+    ) -> Result<ArtifactCacheStats, ArtifactCacheError> {
+        Ok(ArtifactCacheStats::default())
+    }
+
+    /// Remove no records where persistent storage is unavailable.
+    pub fn clear(
+        _directory: &Path,
+        _is_dry_run: bool,
+    ) -> Result<ArtifactCacheRemoval, ArtifactCacheError> {
+        Ok(ArtifactCacheRemoval::default())
+    }
+
+    /// Collect no records where persistent storage is unavailable.
     pub fn collect_if_due<R: DeserializeOwned>(
         &self,
         _retained_repository: &Path,
@@ -495,11 +711,11 @@ mod tests {
     use destack_source::TemporaryPhysicalFileSystem;
 
     use super::*;
-    use crate::{ArtifactPack, ArtifactPackReference, ArtifactPackVersion, BuildId};
+    use crate::{ArtifactPack, ArtifactPackReference, ArtifactPackVersion};
 
-    /// Retain shared packs until their last repository manifest is evicted.
+    /// Retain a pack until its final repository selection is removed.
     #[test]
-    fn test_collect_retains_shared_packs() {
+    fn test_collects_repository_selections() {
         let files = TemporaryPhysicalFileSystem::new_with_prefix("artifact-cache-collection");
         let cache = ArtifactCache::open(BuildId::test(), files.root(), Some(0))
             .expect("open artifact cache");
@@ -532,11 +748,19 @@ mod tests {
             .expect("publish retained manifest");
         drop(publication);
 
-        // evict the unretained repository while preserving its shared pack
-        let collected = cache
+        // report the exact current build records
+        let stats = ArtifactCache::measure(files.root(), BuildId::test()).expect("measure cache");
+        assert_eq!(stats.builds, 1);
+        assert_eq!(stats.manifests, 2);
+        assert_eq!(stats.packs, 1);
+        assert_eq!(stats.other_build_bytes, 0);
+        assert_eq!(stats.current_build_bytes, stats.bytes);
+
+        // evict the first selection while retaining its shared pack
+        let removed = cache
             .collect::<u64>(&retained_repository, SystemTime::now())
-            .expect("collect unretained repository");
-        assert_eq!(collected.removed_files, 1);
+            .expect("collect repository selections");
+        assert_eq!(removed.removed_files, 1);
         assert!(!cache.manifest_path(&first_repository).exists());
         assert!(cache.manifest_path(&retained_repository).exists());
         assert!(cache.pack_path(version).exists());
@@ -547,37 +771,80 @@ mod tests {
                 .is_some()
         );
 
-        // release the final manifest and its now-unreferenced pack
-        let collected = cache
+        // release the final selection and its pack
+        let removed = cache
             .collect::<u64>(Path::new("unretained"), SystemTime::now())
-            .expect("collect final repository");
-        assert_eq!(collected.removed_files, 2);
-        assert_eq!(collected.after_bytes, 0);
+            .expect("collect final repository selection");
+        assert_eq!(removed.removed_files, 2);
+        assert_eq!(removed.after_bytes, 0);
         assert!(!cache.manifest_path(&retained_repository).exists());
         assert!(!cache.pack_path(version).exists());
     }
 
-    /// Remove an eligible obsolete build as one opaque unit.
+    /// Preserve obsolete build caches until their final process exits.
     #[test]
-    fn test_collect_removes_obsolete_build() {
+    fn test_collects_inactive_builds() {
         let files = TemporaryPhysicalFileSystem::new_with_prefix("artifact-cache-build");
         let obsolete_build = BuildId::new([0xff; 16]);
-        let obsolete_path = PathBuf::from("builds")
+        let obsolete = ArtifactCache::open(obsolete_build, files.root(), None)
+            .expect("open obsolete artifact cache");
+        let obsolete_record = PathBuf::from("builds")
             .join(obsolete_build.to_string())
             .join("opaque-record");
         files
-            .write_bytes(&obsolete_path, b"obsolete")
+            .write_bytes(&obsolete_record, b"obsolete")
             .expect("write obsolete build record");
-        let cache = ArtifactCache::open(BuildId::test(), files.root(), Some(0))
+        let current = ArtifactCache::open(BuildId::test(), files.root(), Some(0))
             .expect("open current artifact cache");
 
-        // evict the complete obsolete build without decoding its format
-        let collected = cache
+        // account for the active obsolete build in cache usage
+        let stats = ArtifactCache::measure(files.root(), BuildId::test()).expect("measure cache");
+        assert_eq!(stats.bytes, 8);
+        assert_eq!(stats.current_build_bytes, 0);
+        assert_eq!(stats.other_build_bytes, 8);
+        assert_eq!(stats.builds, 2);
+
+        // retain the obsolete build while its lease remains active
+        let collected = current
             .collect::<u64>(Path::new("retained"), SystemTime::now())
-            .expect("collect obsolete build");
+            .expect("collect active build cache");
+        assert_eq!(collected.before_bytes, 8);
+        assert_eq!(collected.after_bytes, 8);
+        assert_eq!(collected.removed_files, 0);
+        assert!(files.root().join(&obsolete_record).exists());
+
+        // remove the complete obsolete build after releasing its lease
+        drop(obsolete);
+        let collected = current
+            .collect::<u64>(Path::new("retained"), SystemTime::now())
+            .expect("collect inactive build cache");
         assert_eq!(collected.before_bytes, 8);
         assert_eq!(collected.after_bytes, 0);
-        assert_eq!(collected.removed_files, 1);
-        assert!(!files.root().join(obsolete_path).exists());
+        assert_eq!(collected.removed_files, 2);
+        assert!(!files.root().join(obsolete_record).exists());
+    }
+
+    /// Preserve an active build while clearing the machine cache.
+    #[test]
+    fn test_clear_requires_inactive_builds() {
+        let files = TemporaryPhysicalFileSystem::new_with_prefix("artifact-cache-clear");
+        let cache =
+            ArtifactCache::open(BuildId::test(), files.root(), None).expect("open artifact cache");
+
+        // reject clearing while the build lease remains active
+        let result = ArtifactCache::clear(files.root(), false);
+        assert!(matches!(result, Err(ArtifactCacheError::BuildInUse { .. })));
+
+        // preserve every cache record during a dry run
+        drop(cache);
+        let expected = ArtifactCache::clear(files.root(), true).expect("measure inactive cache");
+        assert_eq!(expected, ArtifactCacheRemoval { bytes: 0, files: 1 });
+        assert!(files.root().join("builds").exists());
+
+        // remove every cache record after releasing the lease
+        let removed = ArtifactCache::clear(files.root(), false).expect("clear inactive cache");
+        assert_eq!(removed, expected);
+        assert!(files.root().join("lock").exists());
+        assert!(!files.root().join("builds").exists());
     }
 }
