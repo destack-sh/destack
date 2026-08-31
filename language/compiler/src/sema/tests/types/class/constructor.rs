@@ -1248,3 +1248,470 @@ const box = new Box();
 "#,
     );
 }
+
+#[test]
+fn test_reject_a_field_left_uninitialized_on_a_constructor_path() {
+    let session = TestSession::single(
+        r#"
+class Point {
+    x: float64;
+    y: float64;
+
+    constructor(x: float64) {
+        this.x = x;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Point {
+    x: float64;
+    y: float64;
+
+    constructor(x: float64) {
+        this.x = x;
+    }
+}
+
+=== dir ===
+class Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.class symbol=Point
+/// @definition.field symbol=Point.x source="x: float64" key=x type=float64
+/// @definition.field symbol=Point.y source="y: float64" key=y type=float64
+/// @definition.method symbol=Point.constructor slot=constructor role=constructor type=<Point.constructor.P0: Place>(float64) => Managed<this, Point.constructor.P0>
+
+    x: float64;
+    /// @type.symbol symbol=Point.x source="x: float64" type=float64
+
+    y: float64;
+    /// @type.symbol symbol=Point.y source="y: float64" type=float64
+
+    constructor(x: float64) {
+    /// @generic.template symbol=Point.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Point.constructor type=<Point.constructor.P0: Place>(float64) => Managed<this, Point.constructor.P0>
+    /// @type.symbol symbol=Point.constructor.this type=Point
+    /// @type.symbol symbol=Point.constructor.x source="x: float64" type=float64
+
+        this.x = x;
+        /// @resolution.receiver source=this kind=this declaration=Point type=Point
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.x kind=place
+        /// @resolution.access source=this.x root=this keys=[x]
+        /// @resolution.assignment source=this.x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=float64), type=float64" type=float64
+        /// @resolution.name source=x target=Point.constructor.x
+        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=x root=Point.constructor.x
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=field-not-definitely-initialized message="field 'y' is not initialized on every constructor path"
+/// @diagnostic.label line=4 column=5 span="y" line_source="y: float64;"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_new_outside_the_class_family() {
+    let session = TestSession::single(
+        r#"
+enum Status { Idle, Busy }
+newtype Meters = float64;
+interface Greet {
+    greet(): int32;
+}
+type Pair = { left: int32; right: int32 };
+
+function invalid(): void {
+    const a = new Status();
+    const b = new Meters(1.0);
+    const c = new Greet();
+    const d = new Pair();
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Status {
+    Idle,
+    Busy,
+}
+newtype Meters = float64;
+interface Greet {
+    greet(): int32;
+}
+type Pair = { left: int32; right: int32 };
+
+function invalid(): void {
+    const a = new Status();
+    const b = new Meters(1.0);
+    const c = new Greet();
+    const d = new Pair();
+}
+
+=== dir ===
+enum Status { Idle, Busy }
+/// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
+/// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
+/// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
+/// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
+
+newtype Meters = float64;
+/// @type.symbol symbol=Meters source="newtype Meters = float64" type=Meters
+/// @definition.newtype symbol=Meters source="newtype Meters = float64" backing=float64 constructors=[(float64) => Meters]
+
+interface Greet {
+/// @type.symbol symbol=Greet type=Greet
+/// @definition.interface symbol=Greet
+/// @definition.where symbol=Greet relation=satisfies left=this right=Greet
+/// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=(this: this) => int32
+
+    greet(): int32;
+    /// @type.symbol symbol=Greet.greet source="greet(): int32" type=(this: this) => int32
+
+}
+type Pair = { left: int32; right: int32 };
+/// @type.symbol symbol=Pair source="type Pair = { left: int32; right: int32 }" type={ left: int32; right: int32 }
+/// @definition.type symbol=Pair source="type Pair = { left: int32; right: int32 }" value={ left: int32; right: int32 }
+/// @type.symbol symbol=Pair.left source="left: int32" type=int32
+/// @type.symbol symbol=Pair.right source="right: int32" type=int32
+
+function invalid(): void {
+/// @type.symbol symbol=invalid type=() => void
+
+    const a = new Status();
+    /// @type.symbol symbol=invalid.a source=a type=<error>
+    /// @resolution.pattern source=a kind=binding target=invalid.a
+    /// @resolution.rejected source="new Status()"
+    /// @resolution.name source=Status target=Status
+
+    const b = new Meters(1.0);
+    /// @type.symbol symbol=invalid.b source=b type=<error>
+    /// @resolution.pattern source=b kind=binding target=invalid.b
+    /// @resolution.rejected source="new Meters(1.0)"
+    /// @resolution.name source=Meters target=Meters
+
+    const c = new Greet();
+    /// @type.symbol symbol=invalid.c source=c type=<error>
+    /// @resolution.pattern source=c kind=binding target=invalid.c
+    /// @resolution.rejected source="new Greet()"
+    /// @resolution.name source=Greet target=Greet
+
+    const d = new Pair();
+    /// @type.symbol symbol=invalid.d source=d type=<error>
+    /// @resolution.pattern source=d kind=binding target=invalid.d
+    /// @resolution.rejected source="new Pair()"
+    /// @resolution.name source=Pair target=Pair
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=not-constructible message="type 'Status' cannot be constructed with 'new'"
+/// @diagnostic.label line=10 column=15 span="new Status()" line_source="const a = new Status();"
+/// @diagnostic.error id=not-constructible message="type 'Meters' cannot be constructed with 'new'; construct newtypes with 'T(…)'"
+/// @diagnostic.label line=11 column=15 span="new Meters(1.0)" line_source="const b = new Meters(1.0);"
+/// @diagnostic.error id=not-constructible message="type 'Greet' cannot be constructed with 'new'"
+/// @diagnostic.label line=12 column=15 span="new Greet()" line_source="const c = new Greet();"
+/// @diagnostic.error id=not-constructible message="type 'Pair' cannot be constructed with 'new'"
+/// @diagnostic.label line=13 column=15 span="new Pair()" line_source="const d = new Pair();"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_aggregate_literals_outside_the_value_families() {
+    let session = TestSession::single(
+        r#"
+class Point {
+    x: float64;
+
+    constructor(x: float64) {
+        this.x = x;
+    }
+}
+enum Status { Idle, Busy }
+interface Greet {
+    greet(): int32;
+}
+
+function invalid(): void {
+    const a = Point { x: 1.0 };
+    const b = Status { };
+    const c = Greet { };
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Point {
+    x: float64;
+
+    constructor(x: float64) {
+        this.x = x;
+    }
+}
+enum Status {
+    Idle,
+    Busy,
+}
+interface Greet {
+    greet(): int32;
+}
+
+function invalid(): void {
+    const a = Point { x: 1.0 };
+    const b = Status {};
+    const c = Greet {};
+}
+
+=== dir ===
+class Point {
+/// @type.symbol symbol=Point type=Point
+/// @definition.class symbol=Point
+/// @definition.field symbol=Point.x source="x: float64" key=x type=float64
+/// @definition.method symbol=Point.constructor slot=constructor role=constructor type=<Point.constructor.P0: Place>(float64) => Managed<this, Point.constructor.P0>
+
+    x: float64;
+    /// @type.symbol symbol=Point.x source="x: float64" type=float64
+
+    constructor(x: float64) {
+    /// @generic.template symbol=Point.constructor parameters=(P0: Place)
+    /// @type.symbol symbol=Point.constructor type=<Point.constructor.P0: Place>(float64) => Managed<this, Point.constructor.P0>
+    /// @type.symbol symbol=Point.constructor.this type=Point
+    /// @type.symbol symbol=Point.constructor.x source="x: float64" type=float64
+
+        this.x = x;
+        /// @resolution.receiver source=this kind=this declaration=Point type=Point
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.x kind=place
+        /// @resolution.access source=this.x root=this keys=[x]
+        /// @resolution.assignment source=this.x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=float64), type=float64" type=float64
+        /// @resolution.name source=x target=Point.constructor.x
+        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=x root=Point.constructor.x
+
+    }
+}
+enum Status { Idle, Busy }
+/// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
+/// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
+/// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
+/// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
+
+interface Greet {
+/// @type.symbol symbol=Greet type=Greet
+/// @definition.interface symbol=Greet
+/// @definition.where symbol=Greet relation=satisfies left=this right=Greet
+/// @definition.method symbol=Greet.greet source="greet(): int32" slot=greet type=(this: this) => int32
+
+    greet(): int32;
+    /// @type.symbol symbol=Greet.greet source="greet(): int32" type=(this: this) => int32
+
+}
+
+function invalid(): void {
+/// @type.symbol symbol=invalid type=() => void
+
+    const a = Point { x: 1.0 };
+    /// @type.symbol symbol=invalid.a source=a type=<error>
+    /// @resolution.pattern source=a kind=binding target=invalid.a
+    /// @resolution.name source=Point target=Point
+    /// @resolution.rejected source="Point { x: 1.0 }"
+
+    const b = Status { };
+    /// @type.symbol symbol=invalid.b source=b type=<error>
+    /// @resolution.pattern source=b kind=binding target=invalid.b
+    /// @resolution.name source=Status target=Status
+    /// @resolution.rejected source="Status { }"
+
+    const c = Greet { };
+    /// @type.symbol symbol=invalid.c source=c type=<error>
+    /// @resolution.pattern source=c kind=binding target=invalid.c
+    /// @resolution.name source=Greet target=Greet
+    /// @resolution.rejected source="Greet { }"
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=not-constructible message="type 'Point' cannot be constructed with 'T { … }'; construct classes with 'new T(…)'"
+/// @diagnostic.label line=15 column=15 span="Point { x: 1.0 }" line_source="const a = Point { x: 1.0 };"
+/// @diagnostic.error id=not-constructible message="type 'Status' cannot be constructed with 'T { … }'; construct enum values through their variants"
+/// @diagnostic.label line=16 column=15 span="Status { }" line_source="const b = Status { };"
+/// @diagnostic.error id=not-constructible message="type 'Greet' cannot be constructed with 'T { … }'"
+/// @diagnostic.label line=17 column=15 span="Greet { }" line_source="const c = Greet { };"
+"#,
+    );
+}
+
+#[test]
+fn test_refuse_an_elided_setter_through_a_mutable_borrow() {
+    let session = TestSession::single(
+        r#"
+enum Status { Idle, Busy }
+
+struct Machine {
+    status: Status;
+
+    get state(): Status {
+        this.status
+    }
+
+    set state(value: Status) {
+        this.status = value;
+    }
+}
+
+function update(machine: &Machine): void {
+    machine.state = Status.Busy;
+}
+
+function read(machine: &readonly Machine): Status {
+    machine.state
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Status {
+    Idle,
+    Busy,
+}
+
+struct Machine {
+    status: Status;
+
+    get state(): Status {
+        this.status
+    }
+
+    set state(value: Status): void {
+        this.status = value;
+    }
+}
+
+function update<'a>(machine: &'a Machine): void {
+    machine.state = Status.Busy;
+}
+
+function read<'a>(machine: &'a readonly Machine): Status {
+    machine.state
+}
+
+=== dir ===
+enum Status { Idle, Busy }
+/// @type.symbol symbol=Status source="enum Status { Idle, Busy }" type=Status
+/// @definition.enum symbol=Status source="enum Status { Idle, Busy }"
+/// @definition.variant symbol=Status.Busy source=Busy key=Busy value=1
+/// @definition.variant symbol=Status.Idle source=Idle key=Idle value=0
+/// @type.symbol symbol=Status.Idle source=Idle type=Status.Idle
+/// @type.symbol symbol=Status.Busy source=Busy type=Status.Busy
+
+struct Machine {
+/// @type.symbol symbol=Machine type=Machine
+/// @definition.struct symbol=Machine
+/// @definition.field symbol=Machine.status source="status: Status" key=status type=Status
+/// @definition.method symbol=Machine.state#1 slot=state role=getter type=<Machine.state#1.'a>(this: &Machine.state#1.'a readonly this) => Status
+/// @definition.method symbol=Machine.state#2 slot=state role=setter type=<Machine.state#2.'a>(this: &Machine.state#2.'a exclusive this, Status) => void
+
+    status: Status;
+    /// @type.symbol symbol=Machine.status source="status: Status" type=Status
+    /// @resolution.name source=Status target=Status
+
+    get state(): Status {
+    /// @generic.template symbol=Machine.state#1 parameters=('a)
+    /// @type.symbol symbol=Machine.state#1 type=<Machine.state#1.'a>(this: &Machine.state#1.'a readonly this) => Status
+    /// @type.symbol symbol=Machine.state.this#1 type=&Machine.state#1.'a readonly Machine
+    /// @resolution.name source=Status target=Status
+
+        this.status
+        /// @resolution.member source=this.status receiver=&Machine.state#1.'a readonly Machine type=Status kind=field target_receiver=&Machine.state#1.'a readonly Machine key=status target=Machine.status target_type=Status
+        /// @resolution.receiver source=this kind=this declaration=Machine type=&Machine.state#1.'a readonly Machine
+        /// @resolution.place source=this placement=Machine.state#1.'a lifetime=Machine.state#1.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.status placement=Machine.state#1.'a lifetime=Machine.state#1.'a access="readonly"
+        /// @resolution.access source=this.status root=this keys=[status]
+
+    }
+
+    set state(value: Status) {
+    /// @generic.template symbol=Machine.state#2 parameters=('a)
+    /// @type.symbol symbol=Machine.state#2 type=<Machine.state#2.'a>(this: &Machine.state#2.'a exclusive this, Status) => void
+    /// @type.symbol symbol=Machine.state.this#2 type=&Machine.state#2.'a exclusive Machine
+    /// @type.symbol symbol=Machine.state.value source="value: Status" type=Status
+    /// @resolution.name source=Status target=Status
+
+        this.status = value;
+        /// @resolution.receiver source=this kind=this declaration=Machine type=&Machine.state#2.'a exclusive Machine
+        /// @resolution.place source=this placement=Machine.state#2.'a lifetime=Machine.state#2.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.status kind=place
+        /// @resolution.access source=this.status root=this keys=[status]
+        /// @resolution.assignment source=this.status write="receiver=&Machine.state#2.'a exclusive Machine, target=field(receiver=&Machine.state#2.'a exclusive Machine, target=Machine.status, type=Status), type=Status" type=Status
+        /// @resolution.name source=value target=Machine.state.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=Machine.state.value
+
+    }
+}
+
+function update(machine: &Machine): void {
+/// @generic.template symbol=update parameters=('a)
+/// @type.symbol symbol=update type=<update.'a>(&update.'a Machine) => void
+/// @type.symbol symbol=update.machine source="machine: &Machine" type=&update.'a Machine
+/// @resolution.name source=Machine target=Machine
+
+    machine.state = Status.Busy;
+    /// @resolution.name source=machine target=update.machine
+    /// @resolution.place source=machine placement=update.'a lifetime=update.'a access="mutable"
+    /// @resolution.access source=machine root=update.machine
+    /// @resolution.rejected source=machine.state
+
+}
+
+function read(machine: &readonly Machine): Status {
+/// @generic.template symbol=read parameters=('a)
+/// @type.symbol symbol=read type=<read.'a>(&read.'a readonly Machine) => Status
+/// @type.symbol symbol=read.machine source="machine: &readonly Machine" type=&read.'a readonly Machine
+/// @resolution.name source=Machine target=Machine
+/// @resolution.name source=Status target=Status
+
+    machine.state
+    /// @resolution.name source=machine target=read.machine
+    /// @resolution.member source=machine.state receiver=&read.'a readonly Machine type=Status kind=call target="Machine.state#1(parameters=(), arguments=(), return=Status)"
+    /// @resolution.place source=machine placement=read.'a lifetime=read.'a access="readonly"
+    /// @resolution.access source=machine root=read.machine
+
+}
+"#,
+        r#"
+/// @diagnostic.error id=borrow-access-not-granted message="'exclusive' access is not granted by a value of type '&'a Machine'"
+/// @diagnostic.label line=17 column=13 span="state" line_source="machine.state = Status.Busy;"
+/// @diagnostic.help message="request the granted access or use a source that grants more"
+"#,
+    );
+}

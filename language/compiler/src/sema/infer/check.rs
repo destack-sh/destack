@@ -141,6 +141,17 @@ impl CheckState<'_> {
             dir::Expression::StructExpression { ty, properties } => {
                 let contextual = self.construction_value(origin, target)?;
                 let construct_target = self.select_construct_target(site, ty, contextual)?;
+
+                if let Some(error) =
+                    self.require_aggregate_construct_target(site.node, origin, construct_target)?
+                {
+                    return Ok(CheckAttempt::Checked(ValueCheck {
+                        source: error,
+                        outcome: CheckOutcome::Holds,
+                        target,
+                    }));
+                }
+
                 let representation = match contextual {
                     None => construct_target,
                     Some(_) => self.replace_form_value(origin, target, construct_target)?,

@@ -209,6 +209,13 @@ impl CheckState<'_> {
             }
             dir::Expression::StructExpression { ty, properties } => {
                 let target = self.select_construct_target(site, ty, None)?;
+                if self
+                    .require_aggregate_construct_target(site.node, site.origin(), target)?
+                    .is_some()
+                {
+                    return Ok(());
+                }
+
                 let check = self.select_property_merge(
                     site,
                     &properties.into_iter().collect::<SmallVec<[_; 4]>>(),

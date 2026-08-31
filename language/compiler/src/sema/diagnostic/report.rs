@@ -1485,6 +1485,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         target: dir::GlobalTypeId,
+        form: &str,
         hint: &str,
     ) -> CompilerResult<()> {
         let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
@@ -1492,7 +1493,26 @@ impl CheckState<'_> {
             anchor,
             module,
             ty: self.format_type(target),
+            form: form.to_string(),
             hint: hint.to_string(),
+        };
+
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one declaration kind refused inside a function body.
+    pub(in crate::sema) fn report_declaration_not_nestable(
+        &mut self,
+        origin: Origin,
+        kind: &str,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::DeclarationNotNestable {
+            anchor,
+            module,
+            kind: kind.to_string(),
         };
 
         self.report(module, error);

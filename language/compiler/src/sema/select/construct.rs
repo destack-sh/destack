@@ -328,7 +328,7 @@ impl CheckState<'_> {
         // read the nominal instance the target names
         let instance = match self.ty(target)? {
             dir::Type::Application(instance) => instance,
-            _ => return self.report_rejected_construct_target(node, origin, target, ""),
+            _ => return self.report_rejected_construct_target(node, origin, target, "'new'", ""),
         };
 
         // require a class to construct through new
@@ -338,6 +338,7 @@ impl CheckState<'_> {
                     node,
                     origin,
                     target,
+                    "'new'",
                     "; construct value types with 'T { … }'",
                 );
             }
@@ -346,6 +347,7 @@ impl CheckState<'_> {
                     node,
                     origin,
                     target,
+                    "'new'",
                     "; construct newtypes with 'T(…)'",
                 );
             }
@@ -370,7 +372,7 @@ impl CheckState<'_> {
                     &mut active,
                 )?
             }
-            _ => return self.report_rejected_construct_target(node, origin, target, ""),
+            _ => return self.report_rejected_construct_target(node, origin, target, "'new'", ""),
         };
 
         // require at least one construct candidate
@@ -825,10 +827,10 @@ impl CheckState<'_> {
         let signatures = self.apparent_signatures(constraint, SignatureFamily::Construct)?;
         let Some((constraint_module, instance)) = self.nominal_application_maybe(constraint)?
         else {
-            return self.report_rejected_construct_target(node, origin, target, "");
+            return self.report_rejected_construct_target(node, origin, target, "'new'", "");
         };
         if signatures.is_empty() {
-            return self.report_rejected_construct_target(node, origin, target, "");
+            return self.report_rejected_construct_target(node, origin, target, "'new'", "");
         }
 
         // select the first applicable construct signature in declaration order
@@ -1105,15 +1107,44 @@ impl CheckState<'_> {
         Ok(error)
     }
 
-    /// Report one construct target that new refuses.
+    /// Reject one aggregate construction head outside the value families.
+    pub(in crate::sema) fn require_aggregate_construct_target(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // read the nominal head the aggregate names
+        let symbol = match self.ty(target)? {
+            dir::Type::Application(instance) => instance.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(None),
+        };
+
+        // reject the families aggregate literals never construct
+        let hint = match self.definition(symbol)? {
+            Some(dir::Definition::Class(_)) => "; construct classes with 'new T(\u{2026})'",
+            Some(dir::Definition::Enum(_)) => "; construct enum values through their variants",
+            Some(dir::Definition::Newtype(_)) => "; construct newtypes with 'T(\u{2026})'",
+            Some(dir::Definition::Interface(_)) => "",
+            _ => return Ok(None),
+        };
+        let error =
+            self.report_rejected_construct_target(node, origin, target, "'T { \u{2026} }'", hint)?;
+
+        Ok(Some(error))
+    }
+
+    /// Report one construct target the written form refuses.
     fn report_rejected_construct_target(
         &mut self,
         node: dir::GlobalNodeIdAny,
         origin: Origin,
         target: dir::GlobalTypeId,
+        form: &str,
         hint: &str,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        self.report_not_constructible(origin, target, hint)?;
+        self.report_not_constructible(origin, target, form, hint)?;
         self.commit_decision(node, dir::Decision::Rejected)?;
         let error = self.commit_error_node(node)?;
 

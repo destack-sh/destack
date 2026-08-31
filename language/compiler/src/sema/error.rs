@@ -1150,7 +1150,7 @@ pub enum CheckError {
     /// ```
     #[diagnostic(
         id = "not-constructible",
-        message = "type '{ty}' cannot be constructed with 'new'{hint}"
+        message = "type '{ty}' cannot be constructed with {form}{hint}"
     )]
     NotConstructible {
         /// Report the construct expression.
@@ -1159,8 +1159,30 @@ pub enum CheckError {
         module: ModuleId,
         /// The constructed type.
         ty: String,
+        /// The construction form the expression used.
+        form: String,
         /// Construction guidance for the type's kind.
         hint: String,
+    },
+
+    /// Declaration kind cannot nest in a function body.
+    ///
+    /// ```ds
+    /// function make(): void {
+    ///     class Point {}
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "declaration-not-nestable",
+        message = "'{kind}' declarations cannot nest in a function body; declare them at module scope"
+    )]
+    DeclarationNotNestable {
+        /// Report the declaration statement.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The declaration's kind.
+        kind: String,
     },
 
     /// Type cannot be constructed through an inferred call head.
