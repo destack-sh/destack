@@ -1,5 +1,5 @@
 use std::cmp::Ordering;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use destack_artifact::ArtifactKey;
@@ -227,26 +227,27 @@ impl Workspace {
         ))
     }
 
-    /// Schedule exact diagnostics for one file path.
+    /// Schedule exact diagnostics for one source file.
     pub fn start_file_diagnostics(
         &self,
         revision: Revision,
-        path: &Path,
+        file_id: FileId,
         priority: ArtifactPriority,
-    ) -> Result<Option<DiagnosticRun>, Error> {
+    ) -> Result<DiagnosticRun, Error> {
+        // open the exact workspace revision
         let session = self.pin(revision)?;
         let revision = session.revision();
         let repository = session.repository();
 
-        let Some(file_id) = session.file_id(path)? else {
-            return Ok(None);
-        };
+        // select the source module when the file belongs to one
         let module_id = repository.module_id_for_file(revision, file_id)?;
         let modules = module_id
             .map(|module_id| session.module(module_id))
             .transpose()?
             .into_iter()
             .collect::<Vec<_>>();
+
+        // schedule diagnostics for the selected file and module
         let run = DiagnosticRun::new(
             session,
             DiagnosticSelection::File(file_id),
@@ -254,7 +255,7 @@ impl Workspace {
             priority,
         );
 
-        Ok(Some(run))
+        Ok(run)
     }
 
     /// Return exact diagnostics selected by one request.
@@ -265,14 +266,16 @@ impl Workspace {
     ) -> Result<Vec<FileDiagnostics>, Error> {
         let run = match request {
             DiagnosticsRequest::All => {
-                Some(self.start_diagnostics(revision, ArtifactPriority::Foreground)?)
+                self.start_diagnostics(revision, ArtifactPriority::Foreground)?
             }
             DiagnosticsRequest::File(path) => {
-                self.start_file_diagnostics(revision, &path, ArtifactPriority::Foreground)?
+                let session = self.pin(revision)?;
+                let Some(file_id) = session.file_id(&path)? else {
+                    return Ok(Vec::new());
+                };
+
+                self.start_file_diagnostics(revision, file_id, ArtifactPriority::Foreground)?
             }
-        };
-        let Some(run) = run else {
-            return Ok(Vec::new());
         };
 
         run.wait().await.into_result()
