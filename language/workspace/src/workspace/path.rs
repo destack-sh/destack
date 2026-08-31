@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
+use destack_repository::{Package, Revision};
 use destack_source::Edit;
 
 use crate::Error;
@@ -18,9 +20,20 @@ impl Workspace {
         Ok(&self.root)
     }
 
-    /// Return whether one physical path belongs to this workspace.
-    pub fn contains(&self, path: &Path) -> bool {
-        self.normalized_path(path).starts_with(&self.root)
+    /// Return the nearest package owning one physical path.
+    pub fn nearest_package(
+        &self,
+        revision: Revision,
+        path: &Path,
+    ) -> Result<Option<Arc<Package>>, Error> {
+        let path = self.normalized_path(path);
+        let Ok(path) = path.strip_prefix(&self.root) else {
+            return Ok(None);
+        };
+
+        self.repository
+            .nearest_package(revision, path)
+            .map_err(Error::from)
     }
 
     /// Resolve one source path within this workspace.
