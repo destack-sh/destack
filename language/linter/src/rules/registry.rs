@@ -262,6 +262,7 @@ static LINTS: &[&Lint] = &[
     &suspicious::SUSPICIOUS_OPERAND_GROUPING,
     &suspicious::SUSPICIOUS_OPERATOR_IMPLEMENTATION,
     &suspicious::TEMPORARY_ASSIGNMENT,
+    &suspicious::THIS_BEFORE_INITIALIZATION,
     &suspicious::WILDCARD_ENUM_MATCH_ARM,
 ];
 

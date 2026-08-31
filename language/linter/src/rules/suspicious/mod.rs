@@ -44,6 +44,7 @@ mod redundant_pattern_matching;
 mod suspicious_operand_grouping;
 mod suspicious_operator_implementation;
 mod temporary_assignment;
+mod this_before_initialization;
 mod wildcard_enum_match_arm;
 
 pub use almost_complete_range::*;
@@ -92,4 +93,5 @@ pub use redundant_pattern_matching::*;
 pub use suspicious_operand_grouping::*;
 pub use suspicious_operator_implementation::*;
 pub use temporary_assignment::*;
+pub use this_before_initialization::*;
 pub use wildcard_enum_match_arm::*;
