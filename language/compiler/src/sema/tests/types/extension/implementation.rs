@@ -391,7 +391,6 @@ const ok = compare(Badge {}, Badge {});
 /// @resolution.call source="compare(Badge {}, Badge {})" parameters=(Badge, Badge) arguments=(provided(Badge {}) as Badge, provided(Badge {}) as Badge) return=boolean kind=symbol target=compare instance=compare<Badge>
 /// @generic.instantiation id=compare<Badge> template=compare arguments=(Badge)
 /// @generic.instance id="PartialEqual.equal<Badge, Badge>" template=PartialEqual.equal arguments=(Badge)
-/// @generic.instance id=PartialEqual.equal<Badge> template=PartialEqual.equal arguments=(Badge)
 /// @generic.instance id=compare<Badge> template=compare arguments=(Badge)
 /// @resolution.name source=Badge target=Badge
 /// @resolution.name source=Badge target=Badge
@@ -2999,4 +2998,486 @@ extension of Duration implements Zero {
 /// @diagnostic.warning id=non-local-implementation message="implementation of foreign interface 'Zero' for foreign type 'Duration' is not local to this package"
 /// @diagnostic.label line=6 column=14 span="Duration" line_source="extension of Duration implements Zero {"
 "#);
+}
+
+#[test]
+fn test_reject_an_implementation_demanding_a_stricter_receiver() {
+    let session = TestSession::single(
+        r#"
+newtype interface Tally {
+    bump(&this): void;
+}
+
+struct Counter {
+    value: int32;
+}
+
+extension of Counter implements Tally {
+    bump(&exclusive this): void {
+        this.value += 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Tally {
+    bump(&this): void;
+}
+
+struct Counter {
+    value: int32;
+}
+
+extension of Counter implements Tally {
+    bump(&exclusive this): void {
+        this.value += 1;
+    }
+}
+
+=== dir ===
+newtype interface Tally {
+/// @type.symbol symbol=Tally type=Tally
+/// @definition.interface symbol=Tally nominal=true
+/// @definition.where symbol=Tally relation=satisfies left=this right=Tally
+/// @definition.method symbol=Tally.bump source="bump(&this): void" slot=bump type=<Tally.bump.'a>(this: &Tally.bump.'a this) => void
+
+    bump(&this): void;
+    /// @generic.template symbol=Tally.bump parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Tally.bump source="bump(&this): void" type=<Tally.bump.'a>(this: &Tally.bump.'a this) => void
+    /// @type.symbol symbol=Tally.bump.this source=&this type=&Tally.bump.'a this
+
+}
+
+struct Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
+}
+
+extension of Counter implements Tally {
+/// @definition.extension symbol=<module>#2 form=local target=Counter
+/// @definition.implements symbol=<module>#2 source=Tally target=Tally
+/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a exclusive this) => void
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source=Tally target=Tally
+
+    bump(&exclusive this): void {
+    /// @generic.template symbol=bump parent=template#1 parameters=('a)
+    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a exclusive this) => void
+    /// @type.symbol symbol=bump.this source="&exclusive this" type=&bump.'a exclusive this
+
+        this.value += 1;
+        /// @resolution.operator source="this.value += 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&bump.'a exclusive Counter
+        /// @resolution.place source=this placement=bump.'a lifetime=bump.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value read="receiver=&bump.'a exclusive Counter, target=field(receiver=&bump.'a exclusive Counter, target=Counter.value, type=int32), type=int32" write="receiver=&bump.'a exclusive Counter, target=field(receiver=&bump.'a exclusive Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=interface-not-implemented message="type 'Counter' does not implement interface 'Tally'"
+/// @diagnostic.label line=10 column=33 span="Tally" line_source="extension of Counter implements Tally {"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_an_implementation_demanding_a_weaker_receiver() {
+    let session = TestSession::single(
+        r#"
+newtype interface Tally {
+    bump(&exclusive this): void;
+}
+
+struct Counter {
+    value: int32;
+}
+
+extension of Counter implements Tally {
+    bump(&this): void {
+        this.value += 1;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Tally {
+    bump(&exclusive this): void;
+}
+
+struct Counter {
+    value: int32;
+}
+
+extension of Counter implements Tally {
+    bump(&this): void {
+        this.value += 1;
+    }
+}
+
+=== dir ===
+newtype interface Tally {
+/// @type.symbol symbol=Tally type=Tally
+/// @definition.interface symbol=Tally nominal=true
+/// @definition.where symbol=Tally relation=satisfies left=this right=Tally
+/// @definition.method symbol=Tally.bump source="bump(&exclusive this): void" slot=bump type=<Tally.bump.'a>(this: &Tally.bump.'a exclusive this) => void
+
+    bump(&exclusive this): void;
+    /// @generic.template symbol=Tally.bump parent=template#0 parameters=('a)
+    /// @type.symbol symbol=Tally.bump source="bump(&exclusive this): void" type=<Tally.bump.'a>(this: &Tally.bump.'a exclusive this) => void
+    /// @type.symbol symbol=Tally.bump.this source="&exclusive this" type=&Tally.bump.'a exclusive this
+
+}
+
+struct Counter {
+/// @type.symbol symbol=Counter type=Counter
+/// @definition.struct symbol=Counter
+/// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Counter.value source="value: int32" type=int32
+
+}
+
+extension of Counter implements Tally {
+/// @definition.extension symbol=<module>#2 form=local target=Counter
+/// @definition.implements symbol=<module>#2 source=Tally target=Tally
+/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a this) => void
+/// @definition.conformance symbol=<module>#2 member=bump requirement=Tally.bump
+/// @resolution.name source=Counter target=Counter
+/// @resolution.name source=Tally target=Tally
+
+    bump(&this): void {
+    /// @generic.template symbol=bump parent=template#1 parameters=('a)
+    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a this) => void
+    /// @type.symbol symbol=bump.this source=&this type=&bump.'a this
+
+        this.value += 1;
+        /// @resolution.operator source="this.value += 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&bump.'a Counter
+        /// @resolution.place source=this placement=bump.'a lifetime=bump.'a access="mutable"
+        /// @resolution.access source=this root=this
+        /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.assignment source=this.value read="receiver=&bump.'a Counter, target=field(receiver=&bump.'a Counter, target=Counter.value, type=int32), type=int32" write="receiver=&bump.'a Counter, target=field(receiver=&bump.'a Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.access source=this.value root=this keys=[value]
+
+    }
+}
+"#,
+        r#"
+"#,
+    );
+}
+
+#[test]
+fn test_reject_a_literal_demand_under_an_access_generic_promise() {
+    let session = TestSession::single(
+        r#"
+import { Access, WithAccess } from "destack:memory";
+
+struct Buffer {
+    x: int32;
+}
+
+interface Viewable {
+    view<const A: Access>(this: WithAccess<&Buffer, A>): int32;
+}
+
+extension of Buffer implements Viewable {
+    view(&exclusive this): int32 {
+        this.x
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+import { Access, WithAccess } from "destack:memory";
+
+struct Buffer {
+    x: int32;
+}
+
+interface Viewable {
+    view<const A: Access>(this: WithAccess<&Buffer, A>): int32;
+}
+
+extension of Buffer implements Viewable {
+    view(&exclusive this): int32 {
+        this.x
+    }
+}
+
+=== dir ===
+import { Access, WithAccess } from "destack:memory";
+
+struct Buffer {
+/// @type.symbol symbol=Buffer type=Buffer
+/// @definition.struct symbol=Buffer
+/// @definition.field symbol=Buffer.x source="x: int32" key=x type=int32
+
+    x: int32;
+    /// @type.symbol symbol=Buffer.x source="x: int32" type=int32
+
+}
+
+interface Viewable {
+/// @type.symbol symbol=Viewable type=Viewable
+/// @definition.interface symbol=Viewable
+/// @definition.where symbol=Viewable relation=satisfies left=this right=Viewable
+/// @definition.method symbol=Viewable.view source="view<const A: Access>(this: WithAccess<&Buffer, A>): int32" slot=view type=<const A: Access, Viewable.view.'a>(this: WithAccess<&Viewable.view.'a Buffer, A>) => int32
+
+    view<const A: Access>(this: WithAccess<&Buffer, A>): int32;
+    /// @generic.template symbol=Viewable.view parent=template#0 parameters=(const A: Access, 'a)
+    /// @type.symbol symbol=Viewable.view source="view<const A: Access>(this: WithAccess<&Buffer, A>): int32" type=<const A: Access, Viewable.view.'a>(this: WithAccess<&Viewable.view.'a Buffer, A>) => int32
+    /// @type.symbol symbol=Viewable.view.A source="const A: Access" type=A
+    /// @resolution.name source=Access target=Access
+    /// @type.symbol symbol=Viewable.view.this source="this: WithAccess<&Buffer, A>" type=WithAccess<&Viewable.view.'a Buffer, A>
+    /// @resolution.name source=WithAccess target=WithAccess
+    /// @resolution.name source=Buffer target=Buffer
+    /// @resolution.name source=A target=Viewable.view.A
+
+}
+
+extension of Buffer implements Viewable {
+/// @definition.extension symbol=<module>#2 form=local target=Buffer
+/// @definition.implements symbol=<module>#2 source=Viewable target=Viewable
+/// @definition.method symbol=view slot=view type=<view.'a>(this: &view.'a exclusive this) => int32
+/// @resolution.name source=Buffer target=Buffer
+/// @resolution.name source=Viewable target=Viewable
+
+    view(&exclusive this): int32 {
+    /// @generic.template symbol=view parent=template#1 parameters=('a)
+    /// @type.symbol symbol=view type=<view.'a>(this: &view.'a exclusive this) => int32
+    /// @type.symbol symbol=view.this source="&exclusive this" type=&view.'a exclusive this
+
+        this.x
+        /// @resolution.member source=this.x receiver=&view.'a exclusive Buffer type=int32 kind=field target_receiver=&view.'a exclusive Buffer key=x target=Buffer.x target_type=int32
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&view.'a exclusive Buffer
+        /// @resolution.place source=this placement=view.'a lifetime=view.'a access="exclusive"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.x placement=view.'a lifetime=view.'a access="exclusive"
+        /// @resolution.access source=this.x root=this keys=[x]
+
+    }
+}
+"#,
+        r#"
+/// @diagnostic.error id=interface-not-implemented message="type 'Buffer' does not implement interface 'Viewable'"
+/// @diagnostic.label line=12 column=32 span="Viewable" line_source="extension of Buffer implements Viewable {"
+"#,
+    );
+}
+
+#[test]
+fn test_accept_elided_receivers_across_a_conformance() {
+    let session = TestSession::single(
+        r#"
+newtype interface Speak {
+    say(): void;
+}
+
+struct Dog {}
+
+extension of Dog implements Speak {
+    say(): void {}
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Speak {
+    say(): void;
+}
+
+struct Dog {}
+
+extension of Dog implements Speak {
+    say(): void {}
+}
+
+=== dir ===
+newtype interface Speak {
+/// @type.symbol symbol=Speak type=Speak
+/// @definition.interface symbol=Speak nominal=true
+/// @definition.where symbol=Speak relation=satisfies left=this right=Speak
+/// @definition.method symbol=Speak.say source="say(): void" slot=say type=(this: this) => void
+
+    say(): void;
+    /// @type.symbol symbol=Speak.say source="say(): void" type=(this: this) => void
+
+}
+
+struct Dog {}
+/// @type.symbol symbol=Dog source="struct Dog {}" type=Dog
+/// @definition.struct symbol=Dog source="struct Dog {}"
+
+extension of Dog implements Speak {
+/// @definition.extension symbol=<module>#2 form=local target=Dog
+/// @definition.implements symbol=<module>#2 source=Speak target=Speak
+/// @definition.method symbol=say source="say(): void {}" slot=say type=<say.'a>(this: &say.'a readonly this) => void
+/// @definition.conformance symbol=<module>#2 member=say requirement=Speak.say
+/// @resolution.name source=Dog target=Dog
+/// @resolution.name source=Speak target=Speak
+
+    say(): void {}
+    /// @generic.template symbol=say parent=template#1 parameters=('a)
+    /// @type.symbol symbol=say source="say(): void {}" type=<say.'a>(this: &say.'a readonly this) => void
+    /// @type.symbol symbol=say.this type=&say.'a readonly Dog
+
+}
+"#,
+        r#"
+
+"#,
+    );
+}
+
+#[test]
+fn test_accept_an_associated_output_conformance() {
+    let session = TestSession::single(
+        r#"
+newtype interface Adder<T = this> {
+    type Output;
+
+    add(other: T): this.Output;
+}
+
+struct Num {
+    value: int32;
+}
+
+extension of Num implements Adder {
+    type Output = ^Num;
+
+    add(other: Num): ^Num {
+        Num { value: this.value + other.value }
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+newtype interface Adder<in T = this> {
+    type Output;
+
+    add(other: T): this.Output;
+}
+
+struct Num {
+    value: int32;
+}
+
+extension of Num implements Adder {
+    type Output = ^Num;
+
+    add(other: Num): Num {
+        Num { value: this.value + other.value }
+    }
+}
+
+=== dir ===
+newtype interface Adder<T = this> {
+/// @generic.template symbol=Adder parameters=(in T = this)
+/// @type.symbol symbol=Adder type=Adder
+/// @definition.interface symbol=Adder template=(in T = this) nominal=true
+/// @definition.where symbol=Adder relation=satisfies left=this right=Adder<T>
+/// @definition.associated.type symbol=Adder.Output source="type Output" key=Output
+/// @definition.method symbol=Adder.add source="add(other: T): this.Output" slot=add type=(this: this, T) => this.Output
+/// @type.symbol symbol=Adder.T source="T = this" type=T
+
+    type Output;
+
+    add(other: T): this.Output;
+    /// @type.symbol symbol=Adder.add source="add(other: T): this.Output" type=(this: this, T) => this.Output
+    /// @type.symbol symbol=Adder.add.other source="other: T" type=T
+    /// @resolution.name source=T target=Adder.T
+
+}
+
+struct Num {
+/// @type.symbol symbol=Num type=Num
+/// @definition.struct symbol=Num
+/// @definition.field symbol=Num.value source="value: int32" key=value type=int32
+
+    value: int32;
+    /// @type.symbol symbol=Num.value source="value: int32" type=int32
+
+}
+
+extension of Num implements Adder {
+/// @definition.extension symbol=<module>#2 form=local target=Num
+/// @definition.implements symbol=<module>#2 source=Adder target=Adder<this>
+/// @definition.associated.type symbol=Output source="type Output = ^Num" key=Output value=Num
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Num) => Num
+/// @definition.conformance symbol=<module>#2 member=Output requirement=Adder.Output
+/// @definition.conformance symbol=<module>#2 member=add requirement=Adder.add
+/// @resolution.name source=Num target=Num
+/// @resolution.name source=Adder target=Adder
+
+    type Output = ^Num;
+    /// @type.symbol symbol=Output source="type Output = ^Num" type=Num
+    /// @resolution.name source=Num target=Num
+
+    add(other: Num): ^Num {
+    /// @generic.template symbol=add parent=template#1 parameters=('a)
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Num) => Num
+    /// @type.symbol symbol=add.this type=&add.'a readonly Num
+    /// @type.symbol symbol=add.other source="other: Num" type=Num
+    /// @resolution.name source=Num target=Num
+    /// @resolution.name source=Num target=Num
+
+        Num { value: this.value + other.value }
+        /// @resolution.name source=Num target=Num
+        /// @resolution.member source=this.value receiver=&add.'a readonly Num type=int32 kind=field target_receiver=&add.'a readonly Num key=value target=Num.value target_type=int32
+        /// @resolution.operator source="this.value + other.value" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), other.value as int32 families=(integer)]
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&add.'a readonly Num
+        /// @resolution.place source=this placement=add.'a lifetime=add.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.value placement=add.'a lifetime=add.'a access="readonly"
+        /// @resolution.access source=this.value root=this keys=[value]
+        /// @resolution.name source=other target=add.other
+        /// @resolution.member source=other.value receiver=Num type=int32 kind=field target_receiver=Num key=value target=Num.value target_type=int32
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other root=add.other
+        /// @resolution.place source=other.value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=other.value root=add.other keys=[value]
+
+    }
+}
+"#,
+        r#"
+
+"#,
+    );
 }

@@ -148,7 +148,7 @@ const sound = horn.whisper();
 /// @resolution.place source=horn placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=horn root=horn
 /// @generic.instantiation id=whisper<Horn> template=whisper arguments=(Horn)
-/// @generic.instance id=Loud.shout<Horn> template=Loud.shout arguments=()
+/// @generic.instance id=shout<Horn> template=shout arguments=()
 /// @generic.instance id=whisper<Horn> template=whisper arguments=(Horn)
 
 sound satisfies string;
@@ -733,7 +733,6 @@ function decode(value: int32): Outcome<Flag, boolean> {
     /// @resolution.access source=value root=decode.value
     /// @generic.instantiation id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag)
     /// @generic.instance id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag) evaluated=(Outcome<U, U.Failure> => Outcome<Flag, boolean>, (T#4) => Outcome<U, U.Failure> => (int32) => Outcome<Flag, boolean>)
-    /// @generic.instance id=Parse.parse<int32> template=Parse.parse arguments=(int32)
 
 }
 

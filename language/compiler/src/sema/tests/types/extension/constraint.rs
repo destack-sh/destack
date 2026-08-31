@@ -777,9 +777,8 @@ function open(value: Token): boolean {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=open.value
     /// @generic.instantiation id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
-    /// @generic.instance id="Give.give<Token, Box<boolean>>" template=Give.give arguments=(Box<boolean>)
     /// @generic.instance id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
-    /// @generic.instance id=Give.give<Box<boolean>> template=Give.give arguments=(Box<boolean>)
+    /// @generic.instance id=give<Token> template=give arguments=()
 
 }
 "#);

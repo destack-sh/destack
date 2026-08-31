@@ -1083,6 +1083,16 @@ impl CheckState<'_> {
             }
         }
 
+        // require the promised receiver to grant the implementation's demand
+        if let (Some(signature), Some(required)) =
+            (self.signature_head(source)?, self.signature_head(target)?)
+            && let (Some(source_this), Some(target_this)) =
+                (signature.this_parameter, required.this_parameter)
+            && self.constrain_receiver_grant(origin, target_this, source_this)? == Verdict::Fails
+        {
+            return Ok(Verdict::Fails);
+        }
+
         // collect directed comparison pairs
         let Some(pairs) =
             self.function_assignability_pairs(source, target, ThisParameterComparison::Skip)?
@@ -1105,6 +1115,104 @@ impl CheckState<'_> {
         }
 
         Ok(verdict)
+    }
+
+    /// Require one promised receiver to grant one demanded receiver.
+    fn constrain_receiver_grant(
+        &mut self,
+        origin: Origin,
+        promise: dir::GlobalTypeId,
+        demand: dir::GlobalTypeId,
+    ) -> CompilerResult<Verdict> {
+        let promise = self.receiver_shape(origin, promise)?;
+        let demand = self.receiver_shape(origin, demand)?;
+
+        match (promise, demand) {
+            // a receiver-generic demand accepts every promise
+            (_, None) => Ok(Verdict::Holds),
+            // a whole receiver reborrows at every access
+            (Some(ReceiverShape::Whole), Some(_)) => Ok(Verdict::Holds),
+            // borrowed receivers grant by their access terms
+            (Some(ReceiverShape::Borrowed(granted)), Some(ReceiverShape::Borrowed(requested))) => {
+                self.constrain_access_assignable(origin, granted, requested)
+            }
+            // a borrow never satisfies a consuming demand
+            (Some(ReceiverShape::Borrowed(_)), Some(ReceiverShape::Whole)) => Ok(Verdict::Fails),
+            // an opaque promise stays with the pair machinery
+            (None, Some(_)) => Ok(Verdict::Holds),
+        }
+    }
+
+    /// Return the receiver form one `this` parameter type presents.
+    fn receiver_shape(
+        &mut self,
+        origin: Origin,
+        this: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<ReceiverShape>> {
+        let this = self.shallow_resolve(this)?;
+        if let Some(shape) = self.receiver_shape_of(this)? {
+            return Ok(Some(shape));
+        }
+
+        // evaluate a computation-shaped receiver before deciding
+        let this = self.normalize(origin, this)?;
+        self.receiver_shape_of(this)
+    }
+
+    /// Read the receiver form one resolved `this` parameter type spells.
+    fn receiver_shape_of(
+        &mut self,
+        this: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<ReceiverShape>> {
+        match self.ty(this)? {
+            dir::Type::This => Ok(Some(ReceiverShape::Whole)),
+            dir::Type::Form(form) => match form.form {
+                dir::Form::Borrowed(borrow) => {
+                    let borrow = self.type_borrow(this.module_id, borrow)?;
+
+                    Ok(Some(ReceiverShape::Borrowed(borrow.access)))
+                }
+                dir::Form::Owned => Ok(Some(ReceiverShape::Whole)),
+                _ => Ok(None),
+            },
+            dir::Type::Application(application) => {
+                // a WithAccess application spells a borrow at its access argument
+                if self.language_item(application.symbol)? == Some(dir::LanguageItem::WithAccess) {
+                    let access = self
+                        .type_ids(this.module_id, application.arguments)?
+                        .get(1)
+                        .copied();
+
+                    return Ok(access.map(ReceiverShape::Borrowed));
+                }
+
+                Ok(None)
+            }
+            _ => Ok(None),
+        }
+    }
+
+    /// Return the receiver mode one `this` parameter type takes, when its form decides it.
+    pub(in crate::sema) fn this_parameter_mode(
+        &mut self,
+        this: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::ReceiverMode>> {
+        let this = self.shallow_resolve(this)?;
+        match self.ty(this)? {
+            dir::Type::Form(form) => match form.form {
+                dir::Form::Borrowed(borrow) => {
+                    let borrow = self.type_borrow(this.module_id, borrow)?;
+
+                    Ok(self
+                        .access_of(borrow.access)?
+                        .map(dir::ReceiverMode::Borrowed))
+                }
+                dir::Form::Owned => Ok(Some(dir::ReceiverMode::Owned)),
+                _ => Ok(None),
+            },
+            dir::Type::This => Ok(Some(dir::ReceiverMode::Owned)),
+            _ => Ok(None),
+        }
     }
 
     /// Ground one substitution's unbound memory parameters at the ambient election.
@@ -1303,7 +1411,7 @@ impl CheckState<'_> {
 enum ThisParameterComparison {
     /// Compare `this` as a contravariant input.
     Compare,
-    /// Skip `this`, which the method receiver check compares separately.
+    /// Skip `this`, which the method receiver grant compares separately.
     Skip,
 }
 
@@ -1312,6 +1420,14 @@ impl ThisParameterComparison {
     fn has_this(self) -> bool {
         matches!(self, Self::Compare)
     }
+}
+
+/// The receiver form one `this` parameter presents.
+enum ReceiverShape {
+    /// A whole receiver, reborrowing at every access.
+    Whole,
+    /// A borrowed receiver granting its access term.
+    Borrowed(dir::GlobalTypeId),
 }
 
 /// One expanded parameter position, with rest tuples spread in place.
