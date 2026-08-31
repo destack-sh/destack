@@ -206,12 +206,21 @@ const sent = context.send(1);
             "HostErrorContextProcess",
         )
         .await;
-    let edited = format!("{source}\nfunction completeImport(): void {{\n    greetFix;\n}}\n");
+    let edited =
+        format!("{source}\nfunction completeImport(): void {{\n    greetFix;\n    retur\n}}\n");
     server
         .change(&document, 2, [replace_document(edited)])
         .await;
     let error = server.resolve_completion(stale).await.unwrap_err();
     assert_eq!(error.code, jsonrpc::ErrorCode::ContentModified);
+
+    // return an already complete keyword unchanged
+    let item = server
+        .select_completion(document.completion(position(19, 9)), "return")
+        .await;
+    assert_eq!(item.data, None);
+    let resolved = server.resolve_completion(item.clone()).await.unwrap();
+    assert_eq!(resolved, item);
 
     // return an auto import edit only after selecting its completion entry
     let item = server

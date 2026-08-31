@@ -1950,8 +1950,13 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         mut params: lsp::CompletionItem,
     ) -> jsonrpc::Result<lsp::CompletionItem> {
+        // return an item without deferred fields unchanged
+        let Some(data) = params.data.as_ref() else {
+            return Ok(params);
+        };
+
         let continuation =
-            QueryContinuation::<query::CompletionDetailsRequest>::from_value(params.data.as_ref())?;
+            QueryContinuation::<query::CompletionDetailsRequest>::from_value(Some(data))?;
         let QueryContinuation {
             root,
             revision,
