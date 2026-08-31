@@ -10,7 +10,12 @@ use super::{WalkOptions, walk};
 /// `*` and `?` remain within one path segment, while `**` crosses path separators.
 /// `**/` may consume zero directories, so `**/*.rs` also matches root files.
 pub fn matches(pattern: &[u8], text: &[u8]) -> bool {
-    matches_at(pattern, 0, text, 0)
+    matches_at(pattern, 0, text, 0, false)
+}
+
+/// Return whether a pattern can match the given text or one of its descendants.
+pub fn matches_prefix(pattern: &[u8], text: &[u8]) -> bool {
+    matches_at(pattern, 0, text, 0, true)
 }
 
 /// Match pattern and text suffixes at exact byte indices.
@@ -19,6 +24,7 @@ fn matches_at(
     mut pattern_index: usize,
     text: &[u8],
     mut text_index: usize,
+    is_prefix: bool,
 ) -> bool {
     let pattern_length = pattern.len();
     let text_length = text.len();
@@ -38,14 +44,14 @@ fn matches_at(
             let remaining_pattern = pattern_index + 3;
 
             // try the current directory
-            if matches_at(pattern, remaining_pattern, text, text_index) {
+            if matches_at(pattern, remaining_pattern, text, text_index, is_prefix) {
                 return true;
             }
 
             // try each descendant directory
             while text_index < text_length {
                 if is_separator(text[text_index])
-                    && matches_at(pattern, remaining_pattern, text, text_index + 1)
+                    && matches_at(pattern, remaining_pattern, text, text_index + 1, is_prefix)
                 {
                     return true;
                 }
@@ -101,6 +107,11 @@ fn matches_at(
         else {
             return false;
         }
+    }
+
+    // accept remaining pattern bytes when matching a directory prefix
+    if is_prefix {
+        return true;
     }
 
     // skip trailing '*' in pattern
@@ -193,6 +204,16 @@ mod tests {
         assert!(!matches(b"*.rs", b"main.py"));
         assert!(matches(b"**/*.d.ds", b"src/foo/bar/declaration.d.ds"));
         assert!(!matches(b"**/*.ds", b"src/foo/bar/declaration.ts"));
+    }
+
+    /// Match directory prefixes that can reach complete glob matches.
+    #[test]
+    fn test_matches_pattern_prefixes() {
+        assert!(matches_prefix(b"language/*", b"language"));
+        assert!(matches_prefix(b"language/*", b"language/library"));
+        assert!(!matches_prefix(b"language/*", b"language/library/src"));
+        assert!(!matches_prefix(b"language/*", b".claude"));
+        assert!(matches_prefix(b"**/package/*", b"vendor/project/package"));
     }
 
     /// Find root and nested files through one recursive pattern.
