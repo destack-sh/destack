@@ -576,6 +576,16 @@ pub enum ClassConstructor {
 }
 
 impl ClassConstructor {
+    /// Return the construct name for diagnostics.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Declared { .. } => "declared",
+            Self::Default => "default",
+            Self::ForwardedDeclared { .. } => "forwarded declared",
+            Self::ForwardedDefault { .. } => "forwarded default",
+        }
+    }
+
     /// Return this constructor forwarded through one direct base class.
     pub fn forwarded(self, base: GlobalSymbolId) -> Self {
         match self {

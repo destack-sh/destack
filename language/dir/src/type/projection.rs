@@ -209,6 +209,27 @@ pub struct DiscriminantCase {
 pub type ProjectionResolution = OperationResolution<Projection>;
 
 impl Projection {
+    /// Return the construct name for diagnostics.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Absent { .. } => "absent field",
+            Self::Field(_) => "field",
+            Self::Subscript(_) => "subscript",
+            Self::Call(_) => "call",
+            Self::Member(_) => "member",
+            Self::ObjectRest { .. } => "object rest",
+            Self::SliceLength { .. } => "slice length",
+            Self::DynamicPayload { .. } => "dynamic payload",
+            Self::DynamicType { .. } => "dynamic type",
+            Self::Discriminant { .. } => "discriminant",
+            Self::NewtypePayload { .. } => "newtype payload",
+            Self::Borrow { .. } => "borrow",
+            Self::Move { .. } => "move",
+            Self::Dereference(_) => "dereference",
+            Self::Copy { .. } => "copy",
+        }
+    }
+
     /// Return the projected value type.
     pub fn ty(&self) -> GlobalTypeId {
         match self {

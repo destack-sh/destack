@@ -392,6 +392,19 @@ pub enum MemberTarget {
 }
 
 impl MemberTarget {
+    /// Return the construct name for diagnostics.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Projection { .. } => "projection",
+            Self::Field(_) => "field",
+            Self::Call(_) => "call",
+            Self::Index(_) => "index",
+            Self::Symbol(_) => "symbol",
+            Self::OverloadSet(_) => "overload set",
+            Self::Intersection(_) => "intersection",
+        }
+    }
+
     /// Collect every declaration symbol selected by this target.
     pub fn collect_symbols(&self, symbols: &mut Vec<GlobalSymbolId>) {
         match self {
@@ -1261,6 +1274,16 @@ pub enum WriteResolution {
 }
 
 impl WriteResolution {
+    /// Return the construct name for diagnostics.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Binding { .. } => "binding",
+            Self::Member(_) => "member",
+            Self::Subscript(_) => "subscript",
+            Self::Dereference(_) => "dereference",
+        }
+    }
+
     /// Return whether this write lands in stored aggregate state.
     pub fn is_stored(&self) -> bool {
         match self {
@@ -1604,6 +1627,23 @@ pub enum PatternDecision {
     /// match value { 0 | 1 | 2 => true }
     /// ```
     Or(PatternOrResolution),
+}
+
+impl PatternDecision {
+    /// Return the construct name for diagnostics.
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::Ignore => "ignore",
+            Self::Bind(_) => "binding",
+            Self::Must(_) => "must",
+            Self::Default(_) => "default",
+            Self::Test(_) => "test",
+            Self::Variant(_) => "variant",
+            Self::Project(_) => "projection",
+            Self::Destructure(_) => "destructure",
+            Self::Or(_) => "or",
+        }
+    }
 }
 
 /// Symbol binding introduced by one pattern.
