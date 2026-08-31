@@ -3,9 +3,11 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::str;
 
-use destack_source::{FileId, FileMetadata, FileType, Loader, matches};
+use destack_source::{FileId, FileMetadata, FileType, Loader};
 
-use crate::{Dependency, DestackFile, Edit, Repository, RepositoryError, Revision};
+use crate::{
+    Dependency, DestackFile, Edit, Repository, RepositoryError, Revision, WorkspaceLayout,
+};
 
 /// One physical repository scan.
 #[derive(Debug)]
@@ -139,39 +141,22 @@ impl<'a> Scan<'a> {
 
     /// Queue package roots selected by one workspace manifest.
     fn queue_workspace_packages(&mut self, config: DestackFile) -> Result<(), RepositoryError> {
-        let workspace_package_patterns = config.workspace_packages().map(<[_]>::to_vec);
+        let workspace = config
+            .workspace
+            .as_ref()
+            .filter(|workspace| workspace.packages.is_some());
 
         // import the workspace manifest first
         self.import_file(&config.path)?;
 
         // queue one package at the source root
-        if workspace_package_patterns.is_none() {
+        if workspace.is_none() {
             self.queue_package(self.root.to_path_buf(), config);
         }
         // queue declared workspace packages
-        else if let Some(patterns) = workspace_package_patterns.as_deref() {
-            for config_path in self.find_destack_config_paths(&config)? {
-                let Some(package_root) = config_path.parent().map(Path::to_path_buf) else {
-                    return Err(RepositoryError::InvalidConfigFile {
-                        path: config_path,
-                        message: "destack.json must have a parent directory".to_string(),
-                    });
-                };
-                let mut is_workspace_package = false;
-                for pattern in patterns {
-                    if self.matches_workspace_pattern(&package_root, pattern)? {
-                        is_workspace_package = true;
-                        break;
-                    }
-                }
-                if !is_workspace_package {
-                    continue;
-                }
-
-                let Some(config) = self.read_config(&package_root)? else {
-                    continue;
-                };
-                self.queue_package(package_root, config);
+        else if let Some(workspace) = workspace {
+            for (package_root, package) in self.find_workspace_packages(&config, workspace)? {
+                self.queue_package(package_root, package);
             }
         }
 
@@ -185,43 +170,58 @@ impl<'a> Scan<'a> {
         }
     }
 
-    /// Find `destack.json` files below the source root.
-    fn find_destack_config_paths(
+    /// Find physical packages selected by one workspace declaration.
+    fn find_workspace_packages(
         &self,
         config: &DestackFile,
-    ) -> Result<Vec<PathBuf>, RepositoryError> {
-        let mut configs = Vec::new();
+        workspace: &WorkspaceLayout,
+    ) -> Result<Vec<(PathBuf, DestackFile)>, RepositoryError> {
+        let mut packages = Vec::new();
         let mut pending = vec![self.root.to_path_buf()];
         let mut visited = HashSet::new();
 
-        // walk workspace directories without following links
+        // walk only directories that can contain declared packages
         while let Some(directory) = pending.pop() {
             if !visited.insert(directory.clone()) {
                 continue;
             }
 
+            // retain a selected package when its manifest exists
+            let workspace_path = self.package_path(self.root, &directory)?;
+            if workspace.selects(&workspace_path) {
+                let package = if directory == self.root {
+                    Some(config.clone())
+                } else {
+                    self.read_config(&directory)?
+                };
+                if let Some(package) = package {
+                    packages.push((directory.clone(), package));
+                }
+            }
+
+            // stop outside remaining package patterns
+            if !workspace.selects_below(&workspace_path) {
+                continue;
+            }
+
+            // descend through viable workspace pattern prefixes
             for path in self.read_directory(&directory)? {
                 let package_path = self.package_path(self.root, &path)?;
-                if config.excludes_source(&package_path) {
+                let is_selected = workspace.selects(&package_path);
+                let selects_below = workspace.selects_below(&package_path);
+                if config.excludes_source(&package_path) || (!is_selected && !selects_below) {
                     continue;
                 }
                 let metadata = self.symlink_metadata(&path)?;
-
-                // collect manifest files
-                if metadata.is_file && Self::is_destack_config_path(&path) {
-                    configs.push(path);
-                }
-                // descend into source directories
-                else if metadata.is_directory {
+                if metadata.is_directory {
                     pending.push(path);
                 }
             }
         }
 
-        configs.sort();
-        configs.dedup();
+        packages.sort_by(|left, right| left.0.cmp(&right.0));
 
-        Ok(configs)
+        Ok(packages)
     }
 
     /// Scan repository files for one package root.
@@ -406,37 +406,6 @@ impl<'a> Scan<'a> {
         }
 
         Ok(())
-    }
-
-    /// Return true when one workspace package pattern matches one root.
-    fn matches_workspace_pattern(
-        &self,
-        package_root: &Path,
-        pattern: &str,
-    ) -> Result<bool, RepositoryError> {
-        let package_path = package_root
-            .strip_prefix(self.root)
-            .map_err(|_| RepositoryError::PathOutsideRoot {
-                path: package_root.to_path_buf(),
-                root: self.root.to_path_buf(),
-            })?
-            .to_string_lossy()
-            .replace('\\', "/");
-        let package_path = if package_path.is_empty() {
-            "."
-        } else {
-            package_path.as_str()
-        };
-
-        // match either the package directory or its manifest
-        let config_path = if package_path == "." {
-            "destack.json".to_string()
-        } else {
-            format!("{package_path}/destack.json")
-        };
-
-        Ok(matches(pattern.as_bytes(), package_path.as_bytes())
-            || matches(pattern.as_bytes(), config_path.as_bytes()))
     }
 
     /// Return one package-relative path as normalized text.

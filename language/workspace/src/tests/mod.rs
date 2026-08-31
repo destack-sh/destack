@@ -6,6 +6,7 @@ mod doc;
 mod edit;
 mod format;
 mod harness;
+mod package;
 mod pattern;
 mod query;
 mod watch;

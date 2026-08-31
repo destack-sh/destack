@@ -7,7 +7,7 @@ use destack_artifact::{
     PackageSetFingerprint,
 };
 use destack_core::{TreapRoot, stable_hash_value_128};
-use destack_source::{PackageId, TargetId, Uri, matches};
+use destack_source::{PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
 
@@ -152,14 +152,15 @@ impl Repository {
         file_root: TreapRoot,
     ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
         let workspace_config = self.destack_for_workspace(revision)?;
-        let workspace_packages = workspace_config
+        let workspace = workspace_config
             .as_ref()
-            .and_then(|config| config.workspace_packages());
+            .and_then(|config| config.workspace.as_ref())
+            .filter(|workspace| workspace.packages.is_some());
         let mut package_roots = Vec::new();
         let mut seen = HashSet::new();
 
         // default workspace package
-        if workspace_packages.is_none() {
+        if workspace.is_none() {
             let kind = if workspace_config.is_some() {
                 PackageKind::Declared
             } else {
@@ -181,7 +182,8 @@ impl Repository {
 
                 if file_name == "destack.json" {
                     let package_root = path.parent().unwrap_or(Path::new("")).to_path_buf();
-                    if self.is_workspace_package_root(&package_root, workspace_packages)
+                    let package_path = package_root.to_string_lossy().replace('\\', "/");
+                    if workspace.is_some_and(|workspace| workspace.selects(&package_path))
                         && seen.insert(package_root.clone())
                     {
                         package_roots.push((package_root, PackageKind::Declared));
@@ -577,43 +579,6 @@ impl Repository {
             path: export.path.clone(),
             when,
         })
-    }
-
-    /// Return true when one package root is selected by workspace config.
-    fn is_workspace_package_root(
-        &self,
-        package_root: &Path,
-        workspace_packages: Option<&[String]>,
-    ) -> bool {
-        match workspace_packages {
-            Some(patterns) => patterns
-                .iter()
-                .any(|pattern| self.matches_workspace_package_pattern(package_root, pattern)),
-            None => package_root.as_os_str().is_empty() || package_root == self.root,
-        }
-    }
-
-    /// Return true when one workspace package pattern matches one root.
-    fn matches_workspace_package_pattern(&self, package_root: &Path, pattern: &str) -> bool {
-        let relative_root = package_root
-            .strip_prefix(&self.root)
-            .unwrap_or(package_root)
-            .to_string_lossy()
-            .replace('\\', "/");
-        let relative_root = if relative_root.is_empty() {
-            "."
-        } else {
-            relative_root.as_str()
-        };
-        let config_path = format!("{relative_root}/destack.json");
-        let config_path = if relative_root == "." {
-            "destack.json"
-        } else {
-            config_path.as_str()
-        };
-
-        matches(pattern.as_bytes(), relative_root.as_bytes())
-            || matches(pattern.as_bytes(), config_path.as_bytes())
     }
 
     /// Build the active import-resolution node of one package.

@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::Stability;
-use destack_source::{File, FileId, FileSystem, FileType, Uri, matches};
+use destack_source::{File, FileId, FileSystem, FileType, Uri, matches, matches_prefix};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
@@ -114,6 +114,20 @@ impl Destack {
                 .to_string();
         }
 
+        // canonicalize workspace package patterns once
+        if let Some(packages) = self
+            .workspace
+            .as_mut()
+            .and_then(|workspace| workspace.packages.as_mut())
+        {
+            for pattern in packages {
+                *pattern = pattern
+                    .replace('\\', "/")
+                    .trim_start_matches("./")
+                    .to_string();
+            }
+        }
+
         // canonicalize unordered code selections
         for target in self.targets.values_mut() {
             target.code.sort_unstable();
@@ -146,6 +160,39 @@ pub struct WorkspaceLayout {
     pub packages: Option<Vec<String>>,
     /// Named groups of package paths.
     pub groups: Option<IndexMap<String, Vec<String>>>,
+}
+
+impl WorkspaceLayout {
+    /// Return whether this workspace selects one package root.
+    pub fn selects(&self, path: &str) -> bool {
+        let path = if path.is_empty() { "." } else { path };
+        let Some(patterns) = self.packages.as_deref() else {
+            return path == ".";
+        };
+
+        patterns
+            .iter()
+            .any(|pattern| matches(pattern.as_bytes(), path.as_bytes()))
+    }
+
+    /// Return whether this workspace selects a package root below one directory.
+    pub fn selects_below(&self, path: &str) -> bool {
+        let path = if path.is_empty() { "." } else { path };
+        let Some(patterns) = self.packages.as_deref() else {
+            return false;
+        };
+
+        // require descendant matches to cross a path separator
+        let prefix = if path == "." {
+            String::new()
+        } else {
+            format!("{path}/")
+        };
+
+        patterns
+            .iter()
+            .any(|pattern| matches_prefix(pattern.as_bytes(), prefix.as_bytes()))
+    }
 }
 
 /// Loaded `destack.json` file.
