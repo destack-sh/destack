@@ -146,12 +146,13 @@ impl DestackLanguageServer {
     /// Execute one program query through the workspace.
     async fn query_program(
         &self,
-        path: &Path,
+        root: &Path,
         request: query::QueryRequest,
         revision: RevisionPolicy,
     ) -> jsonrpc::Result<RunQueryResponse> {
         let method = request.method();
-        let (workspace, current) = self.session()?.revision(path)?;
+        let workspace = self.workspace(root)?;
+        let current = self.session()?.workspace_revision(workspace.as_ref())?;
         let revision = match revision {
             RevisionPolicy::Latest => RevisionPolicy::Exact(current),
             revision => revision,

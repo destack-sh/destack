@@ -397,9 +397,9 @@ async fn test_return_workspace_symbols_and_code_lenses() {
 
 quartz();
 "#;
-    let mut server = TestServer::new("workspace-symbols-and-lenses");
-    server.write("destack.json", MANIFEST);
-    let document = server.write("src/main.ds", source);
+    let mut server = TestServer::new_editor_folder("workspace-symbols-and-lenses");
+    server.create_package("package");
+    let document = server.write("package/main.ds", source);
     let options = Some(json!({ "codeLensCommands": ["references"] }));
     server
         .initialize(lsp::ClientCapabilities::default(), options)
