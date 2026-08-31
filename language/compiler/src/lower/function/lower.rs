@@ -5,9 +5,9 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
+use crate::lower::r#type::form::erase_type_lifetime;
 use crate::lower::{
     GenericInstanceKey, LifetimeParameters, LowerModuleState, LowerState, Lowered, NominalInstance,
-    insert_reference_type,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -476,6 +476,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         let receiver = match receiver {
             Some(ty) => {
                 let node = self.lower_type(ty)?;
+                let node = erase_type_lifetime(self.builder.tree_mut(), node);
                 let ty = mir::TypeId::from(node);
                 Some(self.builder.tree_mut().intern_static(mir::Static::Type(ty)))
             }
@@ -505,6 +506,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
                 // every other argument binds a type
                 None => {
                     let node = self.lower_type(*ty)?;
+                    let node = erase_type_lifetime(self.builder.tree_mut(), node);
                     let argument = self
                         .builder
                         .tree_mut()
@@ -592,7 +594,14 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         storage: mir::Storage,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
-        insert_reference_type(self.builder.tree_mut(), kind, access, storage, pointee)
+        self.builder.tree_mut().intern_type(mir::Type::Reference {
+            kind,
+            lifetime: mir::Lifetime::empty(),
+            storage,
+            access,
+            pointee,
+            nullability: mir::Nullability::None,
+        })
     }
 }
 

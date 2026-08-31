@@ -501,19 +501,16 @@ impl TypeLowerer<'_, '_> {
 
             // bind the argument by the kind its parameter declares
             match kind {
+                // lower a region argument into a lifetime slot
                 dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => {
                     lifetimes.push(
                         self.lower
                             .lower_lifetime(*argument, self.lifetime_parameters)?,
                     );
                 }
-                dir::GenericParameterKind::Type => type_arguments.push(*argument),
-                dir::GenericParameterKind::Memory(_) => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a memory-parameterized nominal instance".to_string(),
-                    }
-                    .into());
+                // carry type and remaining memory arguments into the key by their written value
+                dir::GenericParameterKind::Type | dir::GenericParameterKind::Memory(_) => {
+                    type_arguments.push(*argument);
                 }
             }
         }

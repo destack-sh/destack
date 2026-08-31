@@ -16,6 +16,32 @@ use crate::{CompilerError, CompilerResult};
 /// One lowering outcome a body reads: the lowered value, or the first failure's diagnostic.
 pub(in crate::lower) type Lowered<T> = Result<T, Arc<dyn DiagnosticLike>>;
 
+/// One closed selection: a symbol with its receiver and arguments.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(in crate::lower) struct Selection {
+    /// The selected symbol.
+    pub(in crate::lower) symbol: dir::GlobalSymbolId,
+    /// The receiver the selection closes on.
+    pub(in crate::lower) receiver: Option<dir::GlobalTypeId>,
+    /// The closed type arguments.
+    pub(in crate::lower) arguments: Vec<dir::GlobalTypeId>,
+}
+
+impl Selection {
+    /// Read one selection from a recorded instance key.
+    fn from_key(key: &dir::InstanceKey) -> Self {
+        Self {
+            symbol: key.symbol,
+            receiver: key.receiver,
+            arguments: key
+                .arguments
+                .iter()
+                .map(|binding| binding.argument)
+                .collect(),
+        }
+    }
+}
+
 /// The lowering state over one module and the modules it reads.
 pub(crate) struct LowerState<'a> {
     // context
@@ -33,14 +59,10 @@ pub(crate) struct LowerState<'a> {
     pub(in crate::lower) application_instances:
         FxIndexMap<dir::GlobalTypeId, (ModuleId, dir::LocalInstanceId)>,
     /// The materialized instance behind each closed selection, keyed by receiver and arguments.
-    pub(in crate::lower) specializations: FxIndexMap<
-        (
-            dir::GlobalSymbolId,
-            Option<dir::GlobalTypeId>,
-            Vec<dir::GlobalTypeId>,
-        ),
-        (ModuleId, dir::LocalInstanceId),
-    >,
+    pub(in crate::lower) specializations: FxIndexMap<Selection, (ModuleId, dir::LocalInstanceId)>,
+    /// The implementing selections keyed by the requirement symbol they serve.
+    pub(in crate::lower) dispatch_selections:
+        FxIndexMap<dir::GlobalSymbolId, Vec<(Selection, Selection)>>,
 
     // queues
     /// The synthesized default constructors queued for body lowering.
@@ -115,6 +137,7 @@ impl<'a> LowerState<'a> {
             modules,
             application_instances: FxIndexMap::default(),
             specializations: FxIndexMap::default(),
+            dispatch_selections: FxIndexMap::default(),
             // queues
             synthesized_constructors: Vec::new(),
             synthesized_clones: Vec::new(),
@@ -144,17 +167,12 @@ impl<'a> LowerState<'a> {
         // collect the closed instances every loaded module contributes
         let mut specializations = FxIndexMap::default();
         let mut applications = FxIndexMap::default();
+        let mut dispatches: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
         for (module, state) in &self.modules {
             // key each instance by its symbol, receiver, and arguments
             for (instance, entry) in state.generics.iter_instances() {
-                let arguments: Vec<_> = entry
-                    .key
-                    .arguments
-                    .iter()
-                    .map(|binding| binding.argument)
-                    .collect();
                 specializations
-                    .entry((entry.key.symbol, entry.key.receiver, arguments))
+                    .entry(Selection::from_key(&entry.key))
                     .or_insert((*module, instance));
             }
 
@@ -162,11 +180,20 @@ impl<'a> LowerState<'a> {
             for (ty, instance) in state.generics.iter_application_instances() {
                 applications.entry(ty).or_insert((*module, instance));
             }
+
+            // key each requirement selection to the selection implementing it
+            for (requirement, implementer) in state.generics.iter_dispatch_selections() {
+                dispatches.entry(requirement.symbol).or_default().push((
+                    Selection::from_key(requirement),
+                    Selection::from_key(implementer),
+                ));
+            }
         }
 
-        // publish both indexes over the loaded modules
+        // publish the indexes over the loaded modules
         self.specializations = specializations;
         self.application_instances = applications;
+        self.dispatch_selections = dispatches;
 
         Ok(())
     }
@@ -186,7 +213,11 @@ impl<'a> LowerState<'a> {
         receiver: Option<dir::GlobalTypeId>,
         arguments: &[dir::GlobalTypeId],
     ) -> Option<(ModuleId, dir::LocalInstanceId)> {
-        let key = (symbol, receiver, arguments.to_vec());
+        let key = Selection {
+            symbol,
+            receiver,
+            arguments: arguments.to_vec(),
+        };
 
         self.specializations.get(&key).copied()
     }

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{FunctionDefinition, LifetimeParameters, LowerState, insert_reference_type};
+use crate::lower::{FunctionDefinition, LifetimeParameters, LowerState};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The declaration outcome behind one callable instance key.
@@ -226,8 +226,8 @@ impl LowerState<'_> {
             symbols.push(parameter_symbol.local_id);
         }
 
-        // lower the signature at the instance's concrete types
-        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
+        // lower the signature at the instance's materialized identity
+        let declared = self.instance_symbol_type(specialization, symbol)?;
         let (parameters, result) =
             self.lower_signature(tree, declared, specialization, lifetime_parameters)?;
         if parameters.len() != symbols.len() {
@@ -305,8 +305,8 @@ impl LowerState<'_> {
             symbols.push(parameter_symbol.local_id);
         }
 
-        // lower the signature at the instance's concrete types
-        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
+        // lower the signature at the instance's materialized identity
+        let declared = self.instance_symbol_type(specialization, symbol)?;
         let (mut parameters, result) =
             self.lower_signature(tree, declared, specialization, lifetime_parameters)?;
         if parameters.len() != symbols.len() {
@@ -347,6 +347,23 @@ impl LowerState<'_> {
         specialization: Option<(ModuleId, dir::LocalInstanceId)>,
         lifetime_parameters: &LifetimeParameters,
     ) -> CompilerResult<()> {
+        // leave an erased receiver to dynamic dispatch
+        if let Some((module, instance)) = specialization
+            && let Some(receiver) = self
+                .state(module)?
+                .generics
+                .get_instance(instance)
+                .key
+                .receiver
+            && let dir::Type::Application(application) = self.ty(receiver)?
+            && matches!(
+                self.definition(application.symbol)?,
+                Some(dir::Definition::Interface(_))
+            )
+        {
+            return Ok(());
+        }
+
         // recognize the canonical member the requirement declares
         let symbol = key.symbol;
         let member = self.declared_language_member(symbol)?;
@@ -502,8 +519,8 @@ impl LowerState<'_> {
             symbols.push(parameter_symbol.local_id);
         }
 
-        // lower the signature at the instance's concrete types
-        let declared = self.instance_type(specialization, self.symbol_type(symbol)?)?;
+        // lower the signature at the instance's materialized identity
+        let declared = self.instance_symbol_type(specialization, symbol)?;
         let (mut parameters, mut result) =
             self.lower_signature(tree, declared, specialization, lifetime_parameters)?;
         if parameters.len() != symbols.len() {
@@ -826,13 +843,14 @@ pub(in crate::lower) fn constructor_receiver_type(
 ) -> mir::LocalNodeId<mir::Type> {
     let pointee = tree.intern_type(mir::Type::Uninit { value: storage });
 
-    insert_reference_type(
-        tree,
-        mir::ReferenceKind::Borrowed,
-        mir::Access::Exclusive,
-        receiver_storage,
+    tree.intern_type(mir::Type::Reference {
+        kind: mir::ReferenceKind::Borrowed,
+        lifetime: mir::Lifetime::empty(),
+        storage: receiver_storage,
+        access: mir::Access::Exclusive,
         pointee,
-    )
+        nullability: mir::Nullability::None,
+    })
 }
 
 /// Return the storage one nominal's constructor receiver borrows.

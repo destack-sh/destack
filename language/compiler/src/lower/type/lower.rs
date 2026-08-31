@@ -3,6 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
+use crate::lower::r#type::form::erase_type_lifetime;
 use crate::lower::{GenericInstanceKey, LifetimeParameters, LowerState};
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -401,6 +402,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         let receiver = match receiver {
             Some(ty) => {
                 let ty = self.lower(ty)?;
+                let ty = mir::TypeId::from(erase_type_lifetime(self.tree, ty));
                 Some(self.tree.intern_static(mir::Static::Type(ty)))
             }
             None => None,
@@ -425,6 +427,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 // every other argument binds a type
                 None => {
                     let ty = self.lower(*ty)?;
+                    let ty = mir::TypeId::from(erase_type_lifetime(self.tree, ty));
                     arguments.push(self.tree.intern_static(mir::Static::Type(ty)));
                 }
             }

@@ -355,7 +355,7 @@ ok   telemetry/binding/telemetry.ds
 ok   telemetry/field.ds
 ok   telemetry/index.ds
 FAIL telemetry/log.ds :: error[unsupported-lower-construct]: unsupported construct: 'Chain' expressions
-FAIL telemetry/metric.ds :: a union conversion selecting an absent target member
+ok   telemetry/metric.ds
 ok   telemetry/record.ds
 FAIL telemetry/trace.ds :: a non-union type in a union member read
 ok   test/artifact.ds

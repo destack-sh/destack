@@ -601,20 +601,16 @@ impl LowerState<'_> {
     }
 }
 
-/// Insert one reference type over a pointee in one storage.
-pub(in crate::lower) fn insert_reference_type(
+/// Return one type with its own top-level lifetime erased.
+pub(in crate::lower) fn erase_type_lifetime(
     tree: &mut mir::Tree,
-    kind: mir::ReferenceKind,
-    access: mir::Access,
-    storage: mir::Storage,
-    pointee: mir::LocalNodeId<mir::Type>,
+    node: mir::LocalNodeId<mir::Type>,
 ) -> mir::LocalNodeId<mir::Type> {
-    tree.intern_type(mir::Type::Reference {
-        kind,
-        lifetime: mir::Lifetime::empty(),
-        storage,
-        access,
-        pointee,
-        nullability: mir::Nullability::None,
-    })
+    // keep the interned node when its lifetime is already empty
+    let erased = tree.get(node).erased_lifetime();
+    if erased == *tree.get(node) {
+        return node;
+    }
+
+    tree.intern_type(erased)
 }

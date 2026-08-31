@@ -225,7 +225,30 @@ impl FunctionLowerer<'_, '_, '_> {
             None => None,
         };
 
-        self.generic_instance_key(symbol, receiver, &arguments)
+        // key the selection at its resolved receiver and arguments
+        let key = self.generic_instance_key(symbol, receiver, &arguments)?;
+
+        // follow the selection recorded for an interface requirement
+        let selections = match self.lower.dispatch_selections.get(&key.symbol) {
+            Some(selections) => selections.clone(),
+            None => return Ok(key),
+        };
+        for (requirement, implementer) in selections {
+            let requirement = self.generic_instance_key(
+                requirement.symbol,
+                requirement.receiver,
+                &requirement.arguments,
+            )?;
+            if requirement == key {
+                return self.generic_instance_key(
+                    implementer.symbol,
+                    implementer.receiver,
+                    &implementer.arguments,
+                );
+            }
+        }
+
+        Ok(key)
     }
 
     /// Return the declared function behind one selection's instance.
