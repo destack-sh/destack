@@ -785,18 +785,9 @@ impl CheckState<'_> {
     /// Return whether one source node is inside a statically absent subtree.
     pub(in crate::sema) fn is_absent(&self, node: dir::GlobalNodeIdAny) -> bool {
         let module = self.module(node.module_id);
-        let view = module.view();
-        let mut current = Some(node.local_id);
-        while let Some(local) = current {
-            if module.statics_tail.contains_absent_root(local)
-                || module.statics.contains_absent_root(local)
-            {
-                return true;
-            }
-            current = view.get_parent_any(local);
-        }
+        let statics = module.statics.with_tail(&module.statics_tail);
 
-        false
+        statics.is_absent(module.view(), node.local_id)
     }
 
     /// Return the checked module's working state.
