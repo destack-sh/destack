@@ -1,9 +1,9 @@
 
 ## Source Range
 
-### Restrict tokens to the requested range
+### Highlight identifiers inside a requested range
 
-The response contains only resolved identifiers inside the requested range.
+Only resolved identifiers inside the requested range are highlighted.
 
 ```ds main.ds
 const first = 1;
@@ -16,9 +16,9 @@ const second = 2;
 @semantic_tokens_range.token range=main.ds#second type=variable modifiers=declaration,readonly
 ```
 
-### Return every token inside a larger range
+### Highlight every identifier inside a larger range
 
-Range queries preserve the complete token subsequence in source order.
+Highlights inside the range retain source order.
 
 ```ds main.ds
 function identity(value: int32): int32 {
@@ -36,9 +36,9 @@ const result = identity(1);
 @semantic_tokens_range.token range=main.ds#function type=function
 ```
 
-### Exclude tokens crossing the requested boundary
+### Exclude identifiers crossing the requested range
 
-A token is returned only when the requested range contains the complete token.
+An identifier is highlighted only when the requested range contains it completely.
 
 ```ds main.ds
 const value = 1;
@@ -50,9 +50,9 @@ const value = 1;
 @semantic_tokens_range.none
 ```
 
-### Classify the current selected token
+### Highlight the selected identifier after an edit
 
-The requested range resolves against the selected revision.
+The requested range uses the selected edit.
 
 ```ds main.ds
 const first = 1;
@@ -77,9 +77,9 @@ const second = 2;
 
 ## Empty Results
 
-### Return no tokens for lexical source
+### Preserve comment and literal highlighting
 
-A range containing only comments and literals has no semantic tokens.
+A range containing only comments and literals needs no additional highlighting.
 
 ```ds main.ds
 // ordinary comment

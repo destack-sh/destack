@@ -82,7 +82,7 @@ impl TryFrom<dir::SymbolKind> for SemanticTokenType {
             dir::SymbolKind::GenericTypeParameter => Ok(Self::TypeParameter),
             dir::SymbolKind::GenericConstParameter => Ok(Self::Variable),
             dir::SymbolKind::ExportAlias => Err(QueryError::invalid(
-                "export alias has no selected declaration classification",
+                "export alias has no selected declaration token",
             )),
         }
     }
@@ -239,11 +239,17 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         semantic_tokens.collect_parameters()?;
         semantic_tokens.collect_pattern_bindings()?;
         semantic_tokens.collect_pattern_fields()?;
+        semantic_tokens.collect_assign_pattern_fields()?;
+        semantic_tokens.collect_properties()?;
+        semantic_tokens.collect_tree_attributes()?;
         semantic_tokens.collect_expressions()?;
         semantic_tokens.collect_labels()?;
         semantic_tokens.collect_modifications()?;
         semantic_tokens.collect_members()?;
         semantic_tokens.collect_type_members()?;
+        semantic_tokens.collect_index_parameters()?;
+        semantic_tokens.collect_tuple_labels()?;
+        semantic_tokens.collect_generic_refinements()?;
         semantic_tokens.collect_enum_fields()?;
         semantic_tokens.collect_type_parameters()?;
         semantic_tokens.collect_type_references()?;
@@ -370,9 +376,14 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     fn collect_pattern_fields(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
-        // collect destructuring names from their exact roles
+        // collect named destructuring fields
         for (field_id, field) in view.iter_nodes::<dir::PatternField>() {
-            let dir::PatternField::Named { pattern, .. } = field else {
+            let dir::PatternField::Named {
+                name: dir::Name::Identifier(_),
+                pattern,
+                ..
+            } = field
+            else {
                 continue;
             };
 
@@ -392,7 +403,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 continue;
             }
 
-            // explicit names select the recorded field projection
+            // read the checked projection for explicit field names
             let parent = view
                 .get_parent_for(field_id)
                 .ok_or(QueryError::missing(format!(
@@ -418,7 +429,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(())
     }
 
-    /// Return the recorded projection for one destructuring field.
+    /// Return the checked projection for one destructuring field.
     fn pattern_field_resolution(
         &self,
         pattern: dir::LocalNodeIdAny,
@@ -523,6 +534,230 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(token)
     }
 
+    /// Collect destructuring assignment field tokens.
+    fn collect_assign_pattern_fields(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+
+        // collect explicit object keys from their checked projections
+        for (field_id, field) in view.iter_nodes::<dir::AssignPatternField>() {
+            let dir::AssignPatternField::Named {
+                name: dir::Name::Identifier(_),
+                is_shorthand: false,
+                ..
+            } = field
+            else {
+                continue;
+            };
+            let Some(span) = self.main_span(field_id.into_any())? else {
+                continue;
+            };
+
+            let parent = view
+                .get_parent_for(field_id)
+                .ok_or(QueryError::missing(format!(
+                    "semantic token assignment field parent: {:?}",
+                    field_id.into_global_any(self.module.module_id())
+                )))?;
+            if parent.ty != dir::NodeType::AssignPattern {
+                return Err(QueryError::invalid(format!(
+                    "semantic token assignment field parent: {:?}, {parent:?}",
+                    field_id.into_global_any(self.module.module_id())
+                )));
+            }
+
+            let field = self.assign_pattern_field_resolution(parent, field_id)?;
+            let Some((token_type, modifiers)) = self.field_projection_token(&field.projection)?
+            else {
+                continue;
+            };
+
+            self.tokens
+                .push(SemanticToken::new(span, token_type, modifiers));
+        }
+
+        Ok(())
+    }
+
+    /// Return the checked projection for one destructuring assignment field.
+    fn assign_pattern_field_resolution(
+        &self,
+        pattern: dir::LocalNodeIdAny,
+        field: dir::LocalNodeId<dir::AssignPatternField>,
+    ) -> QueryResult<&dir::AssignPatternFieldResolution> {
+        let pattern = pattern.into_global(self.module.module_id());
+        let resolution = self
+            .module
+            .decisions()?
+            .assign_pattern_decision(pattern)
+            .ok_or(QueryError::missing(format!(
+                "semantic token assignment pattern: {pattern:?}"
+            )))?;
+        let dir::AssignPatternDecision::Object(resolution) = resolution else {
+            return Err(QueryError::invalid(format!(
+                "semantic token named assignment pattern: {pattern:?}"
+            )));
+        };
+        let field = field.into_global_any(self.module.module_id());
+
+        resolution
+            .fields
+            .iter()
+            .find(|resolution| resolution.source == field)
+            .ok_or(QueryError::missing(format!(
+                "semantic token assignment field: {field:?}"
+            )))
+    }
+
+    /// Collect object and struct expression property tokens.
+    fn collect_properties(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+        let module_id = self.module.module_id();
+
+        // collect each independently authored property name
+        for (property_id, property) in view.iter_nodes::<dir::Property>() {
+            let (name, declaration_token) = match property {
+                dir::Property::Field {
+                    name: dir::Name::Identifier(name),
+                    is_shorthand: false,
+                    ..
+                } => (
+                    dir::Name::Identifier(*name),
+                    (
+                        SemanticTokenType::Property,
+                        SemanticTokenModifiers::DECLARATION,
+                    ),
+                ),
+                dir::Property::Field {
+                    is_shorthand: true, ..
+                } => continue,
+                dir::Property::Method {
+                    name: Some(dir::Name::Identifier(name)),
+                    signature,
+                    ..
+                } => {
+                    let mut modifiers = SemanticTokenModifiers::DECLARATION;
+                    if signature.asynchrony == dir::Asynchrony::Async {
+                        modifiers = modifiers.union(SemanticTokenModifiers::ASYNC);
+                    }
+                    modifiers =
+                        modifiers.union(self.node_symbol_modifiers(property_id.into_any())?);
+
+                    (
+                        dir::Name::Identifier(*name),
+                        (SemanticTokenType::Method, modifiers),
+                    )
+                }
+                dir::Property::Field { .. }
+                | dir::Property::Method { .. }
+                | dir::Property::Spread { .. }
+                | dir::Property::Error => continue,
+            };
+            let Some(span) = self.main_span(property_id.into_any())? else {
+                continue;
+            };
+
+            // select the token from the containing literal kind
+            let parent = view
+                .get_parent_for(property_id)
+                .ok_or(QueryError::missing(format!(
+                    "semantic token property parent: {:?}",
+                    property_id.into_global_any(module_id)
+                )))?;
+            if parent.ty != dir::NodeType::Expression {
+                return Err(QueryError::invalid(format!(
+                    "semantic token property parent: {:?}, {parent:?}",
+                    property_id.into_global_any(module_id)
+                )));
+            }
+            let parent_id = dir::LocalNodeId::<dir::Expression>::new(parent.id);
+            let (token_type, modifiers) = match view.get(parent_id) {
+                dir::Expression::StructExpression { .. } => {
+                    let site = dir::MemberSite::Node(parent.into_global(module_id));
+                    self.selected_property_token(site, name.into())?
+                        .ok_or(QueryError::missing(format!(
+                            "semantic token struct property: {:?}",
+                            property_id.into_global_any(module_id)
+                        )))?
+                }
+                dir::Expression::ObjectExpression { .. } => {
+                    let site = dir::MemberSite::Node(parent.into_global(module_id));
+                    match self.selected_property_token(site, name.into())? {
+                        Some(token) => token,
+                        None => declaration_token,
+                    }
+                }
+                expression => {
+                    return Err(QueryError::invalid(format!(
+                        "semantic token property owner: {:?}, {expression:?}",
+                        property_id.into_global_any(module_id)
+                    )));
+                }
+            };
+
+            // emit the exact authored property name
+            self.tokens
+                .push(SemanticToken::new(span, token_type, modifiers));
+        }
+
+        Ok(())
+    }
+
+    /// Return the token shared by the declarations selected for one property.
+    fn selected_property_token(
+        &self,
+        site: dir::MemberSite,
+        key: dir::StaticKey,
+    ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
+        let Some(binding) = self.module.members()?.binding(site, key) else {
+            return Ok(None);
+        };
+        if binding.declarations.is_empty() {
+            return Ok(None);
+        }
+
+        // intersect modifiers from every selected declaration
+        let symbols = binding
+            .declarations
+            .iter()
+            .map(|declaration| &declaration.symbol);
+        let token = self
+            .symbol_targets_token(symbols)?
+            .ok_or(QueryError::conflict(format!(
+                "property declarations: {site:?}, {key:?}"
+            )))?;
+
+        Ok(Some(token))
+    }
+
+    /// Collect tree attribute tokens.
+    fn collect_tree_attributes(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+
+        // collect named component and intrinsic attributes
+        for (attribute_id, attribute) in view.iter_nodes::<dir::TreeAttribute>() {
+            if !matches!(
+                attribute,
+                dir::TreeAttribute::Named {
+                    name: dir::Name::Identifier(_),
+                    ..
+                }
+            ) {
+                continue;
+            }
+            let Some(span) = self.main_span(attribute_id.into_any())? else {
+                continue;
+            };
+
+            self.tokens.push(SemanticToken::new(
+                span,
+                SemanticTokenType::Property,
+                SemanticTokenModifiers::NONE,
+            ));
+        }
+
+        Ok(())
+    }
+
     /// Collect expression tokens.
     fn collect_expressions(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
@@ -557,7 +792,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     fn collect_labels(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
-        // collect every authored label from its control role
+        // collect every authored label declaration and reference
         for (expression_id, expression) in view.iter_nodes::<dir::Expression>() {
             let token = if expression.control_label().is_some() {
                 (
@@ -672,7 +907,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(None)
     }
 
-    /// Return the exact token type recorded for one expression reference.
+    /// Return the exact token selected for one expression reference.
     fn reference_token(
         &self,
         node_id: dir::GlobalNodeIdAny,
@@ -702,7 +937,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             return self.member_decision_token(resolution);
         }
 
-        // classify remaining references from their recorded symbol identities
+        // read remaining references from their exact symbols
         let Some(symbols) = self.module.symbol_targets(node_id)? else {
             return Ok(None);
         };
@@ -710,10 +945,10 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         self.symbol_targets_token(&symbols)
     }
 
-    /// Return one classification shared by every selected symbol.
-    fn symbol_targets_token(
+    /// Return one token shared by every selected symbol.
+    fn symbol_targets_token<'a>(
         &self,
-        symbols: &[dir::GlobalSymbolId],
+        symbols: impl IntoIterator<Item = &'a dir::GlobalSymbolId>,
     ) -> QueryResult<Option<(SemanticTokenType, SemanticTokenModifiers)>> {
         let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
         for symbol_id in symbols {
@@ -737,7 +972,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(token)
     }
 
-    /// Return the token classification for one symbol target.
+    /// Return the token for one symbol target.
     fn symbol_token(
         &self,
         symbol_id: dir::GlobalSymbolId,
@@ -745,7 +980,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         self.symbol_targets_token(&[symbol_id])
     }
 
-    /// Return the token classification for one target symbol.
+    /// Return the token for one target symbol.
     fn target_symbol_token(
         &self,
         symbol_id: dir::GlobalSymbolId,
@@ -755,7 +990,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         let symbol = symbols.get_symbol(symbol_id.local_id);
         let symbol_modifiers = self.symbol_modifiers(symbol_id)?;
 
-        // classify member and parameter declarations by their exact source role
+        // select members and parameters from their declaration node kinds
         if let Some(declaration) = symbol.declaration {
             match declaration.local_id.ty {
                 dir::NodeType::Member => {
@@ -941,6 +1176,10 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
         // collect fields, methods, and associated items
         for (member_id, member) in view.iter_nodes::<dir::Member>() {
+            if !matches!(member.name(), Some(dir::Name::Identifier(_))) {
+                continue;
+            }
+
             let Some((token_type, modifiers)) = Self::member_token(member) else {
                 continue;
             };
@@ -955,7 +1194,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(())
     }
 
-    /// Return the token classification for one member.
+    /// Return the token for one member.
     fn member_token(member: &dir::Member) -> Option<(SemanticTokenType, SemanticTokenModifiers)> {
         match member {
             dir::Member::AssociatedType { is_abstract, .. } => Some((
@@ -1005,6 +1244,10 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
         // collect interface and shape member declarations
         for (member_id, member) in view.iter_nodes::<dir::TypeMember>() {
+            if !matches!(member.name(), Some(dir::Name::Identifier(_))) {
+                continue;
+            }
+
             let Some((token_type, modifiers)) = self.type_member_token(member_id, member)? else {
                 continue;
             };
@@ -1020,7 +1263,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(())
     }
 
-    /// Return the token classification for one type member.
+    /// Return the token for one type member.
     fn type_member_token(
         &self,
         member_id: dir::LocalNodeId<dir::TypeMember>,
@@ -1079,6 +1322,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
                 Some((SemanticTokenType::Method, modifiers))
             }
+            // FUGU #Incomplete: DefinitionMember must retain associated type implementation
             dir::TypeMember::AssociatedType { is_abstract, .. } => Some((
                 SemanticTokenType::Type,
                 declaration.union(SemanticTokenModifiers::member(
@@ -1088,6 +1332,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                     *is_abstract,
                 )),
             )),
+            // FUGU #Incomplete: DefinitionMember must retain associated const implementation
             dir::TypeMember::AssociatedConst { is_abstract, .. } => Some((
                 SemanticTokenType::Property,
                 declaration.union(SemanticTokenModifiers::member(
@@ -1106,12 +1351,98 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(token)
     }
 
+    /// Collect index signature parameter tokens.
+    fn collect_index_parameters(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+
+        // collect names introducing index signature keys
+        for (member_id, member) in view.iter_nodes::<dir::TypeMember>() {
+            if !matches!(member, dir::TypeMember::IndexSignature { .. }) {
+                continue;
+            }
+
+            let Some(span) = self.main_span(member_id.into_any())? else {
+                continue;
+            };
+
+            self.tokens.push(SemanticToken::new(
+                span,
+                SemanticTokenType::Parameter,
+                SemanticTokenModifiers::DECLARATION,
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Collect labeled tuple parameter tokens.
+    fn collect_tuple_labels(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+
+        // collect labels naming tuple positions
+        for (element_id, element) in view.iter_nodes::<dir::TupleElement>() {
+            let has_label = matches!(
+                element,
+                dir::TupleElement::Element { label: Some(_), .. }
+                    | dir::TupleElement::Spread { label: Some(_), .. }
+            );
+            if !has_label {
+                continue;
+            }
+
+            let Some(span) = self.main_span(element_id.into_any())? else {
+                continue;
+            };
+
+            self.tokens.push(SemanticToken::new(
+                span,
+                SemanticTokenType::Parameter,
+                SemanticTokenModifiers::DECLARATION,
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Collect associated generic refinement tokens.
+    fn collect_generic_refinements(&mut self) -> QueryResult<()> {
+        let view = self.module.view()?;
+
+        // FUGU #Incomplete: DIR must retain selected associated declarations for refinements
+        for (argument_id, argument) in view.iter_nodes::<dir::GenericArgument>() {
+            let (token_type, modifiers) = match argument {
+                dir::GenericArgument::AssociatedType { .. } => {
+                    (SemanticTokenType::Type, SemanticTokenModifiers::NONE)
+                }
+                dir::GenericArgument::AssociatedConst { .. } => (
+                    SemanticTokenType::Property,
+                    SemanticTokenModifiers::READONLY,
+                ),
+                dir::GenericArgument::Type { .. }
+                | dir::GenericArgument::SpreadType { .. }
+                | dir::GenericArgument::Error => continue,
+            };
+            let Some(span) = self.main_span(argument_id.into_any())? else {
+                continue;
+            };
+
+            self.tokens
+                .push(SemanticToken::new(span, token_type, modifiers));
+        }
+
+        Ok(())
+    }
+
     /// Collect enum field tokens.
     fn collect_enum_fields(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
         // collect enum member declarations
-        for (field_id, _) in view.iter_nodes::<dir::EnumField>() {
+        for (field_id, field) in view.iter_nodes::<dir::EnumField>() {
+            if !matches!(field.name, dir::Name::Identifier(_)) {
+                continue;
+            }
+
             let Some(main_span) = self.main_span(field_id.into_any())? else {
                 continue;
             };
@@ -1129,50 +1460,83 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         Ok(())
     }
 
-    /// Collect generic type parameter tokens.
+    /// Collect type parameter tokens.
     fn collect_type_parameters(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
-        // collect declaration generic parameter names
-        for (_declaration_id, declaration) in view.iter_nodes::<dir::Declaration>() {
-            let Some(generic_parameters) = declaration.generic_parameters() else {
+        // collect generic parameter names from every callable and type owner
+        for (parameter_id, parameter) in view.iter_nodes::<dir::GenericParameter>() {
+            let Some(main_span) = self.main_span(parameter_id.into_any())? else {
                 continue;
             };
 
-            for &parameter_id in generic_parameters {
-                let Some(main_span) = self.main_span(parameter_id.into_any())? else {
-                    continue;
-                };
-
-                let parameter = view.get::<dir::GenericParameter>(parameter_id);
-                let (token_type, modifiers) = match parameter {
-                    dir::GenericParameter::Type { is_const: true, .. }
-                    | dir::GenericParameter::VariadicType { is_const: true, .. } => (
-                        SemanticTokenType::Variable,
-                        SemanticTokenModifiers::DECLARATION.union(SemanticTokenModifiers::READONLY),
-                    ),
-                    dir::GenericParameter::Type { .. }
-                    | dir::GenericParameter::VariadicType { .. } => (
+            let (token_type, modifiers) = match parameter {
+                dir::GenericParameter::Type { is_const: true, .. }
+                | dir::GenericParameter::VariadicType { is_const: true, .. } => (
+                    SemanticTokenType::Variable,
+                    SemanticTokenModifiers::DECLARATION.union(SemanticTokenModifiers::READONLY),
+                ),
+                dir::GenericParameter::Type { .. } | dir::GenericParameter::VariadicType { .. } => {
+                    (
                         SemanticTokenType::TypeParameter,
                         SemanticTokenModifiers::DECLARATION,
-                    ),
-                    dir::GenericParameter::Lifetime { .. } => (
-                        SemanticTokenType::Variable,
-                        SemanticTokenModifiers::DECLARATION.union(SemanticTokenModifiers::READONLY),
-                    ),
-                    dir::GenericParameter::Error => continue,
-                };
-                let modifiers =
-                    modifiers.union(self.node_symbol_modifiers(parameter_id.into_any())?);
-                self.tokens
-                    .push(SemanticToken::new(main_span, token_type, modifiers));
+                    )
+                }
+                dir::GenericParameter::Lifetime { .. } => (
+                    SemanticTokenType::Variable,
+                    SemanticTokenModifiers::DECLARATION.union(SemanticTokenModifiers::READONLY),
+                ),
+                dir::GenericParameter::Error => continue,
+            };
+            let modifiers = modifiers.union(self.node_symbol_modifiers(parameter_id.into_any())?);
+            self.tokens
+                .push(SemanticToken::new(main_span, token_type, modifiers));
+        }
+
+        // collect mapped type binders
+        for (parameter_id, _) in view.iter_nodes::<dir::TypeMappedParameter>() {
+            let Some(span) = self.main_span(parameter_id.into_any())? else {
+                continue;
+            };
+            let modifiers = SemanticTokenModifiers::DECLARATION
+                .union(self.node_symbol_modifiers(parameter_id.into_any())?);
+
+            self.tokens.push(SemanticToken::new(
+                span,
+                SemanticTokenType::TypeParameter,
+                modifiers,
+            ));
+        }
+
+        // collect named conditional infer binders
+        for (type_id, type_expression) in view.iter_nodes::<dir::TypeExpression>() {
+            if !matches!(
+                type_expression,
+                dir::TypeExpression::Infer {
+                    form: dir::InferForm::Infer,
+                    name: Some(_),
+                    ..
+                }
+            ) {
+                continue;
             }
+            let Some(span) = self.main_span(type_id.into_any())? else {
+                continue;
+            };
+            let modifiers = SemanticTokenModifiers::DECLARATION
+                .union(self.node_symbol_modifiers(type_id.into_any())?);
+
+            self.tokens.push(SemanticToken::new(
+                span,
+                SemanticTokenType::TypeParameter,
+                modifiers,
+            ));
         }
 
         Ok(())
     }
 
-    /// Collect type reference tokens with exact recorded identities.
+    /// Collect type reference tokens with exact symbol targets.
     fn collect_type_references(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
@@ -1214,7 +1578,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 _ => continue,
             }
 
-            // classify only segments carrying exact recorded symbol targets
+            // collect only segments carrying exact symbol targets
             for span in spans {
                 let Some(occurrence) =
                     self.module
@@ -1359,7 +1723,14 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
         // collect imported and exported binding names
         for (item_id, item) in view.iter_nodes::<dir::DependencyItem>() {
-            if item.local_string_key().is_none() {
+            let has_identifier = matches!(
+                item,
+                dir::DependencyItem::Binding {
+                    name: Some(dir::Name::Identifier(_)),
+                    ..
+                }
+            );
+            if !has_identifier && item.alias().is_none() {
                 continue;
             }
 
@@ -1373,7 +1744,7 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 continue;
             }
 
-            // require every overload target to share one classification
+            // require every overload target to share one token type
             let mut token: Option<(SemanticTokenType, SemanticTokenModifiers)> = None;
             for target in targets {
                 let candidate = match target {
@@ -1406,10 +1777,11 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
             // emit the imported name independently from its local alias
             let imported_name = NodeSpanType::Region(NodeSpanRegion::Type);
-            if let Some(imported_span) = self
-                .module
-                .source_index()?
-                .get_side(source_node_id, imported_name)
+            if has_identifier
+                && let Some(imported_span) = self
+                    .module
+                    .source_index()?
+                    .get_side(source_node_id, imported_name)
                 && imported_span != main_span
             {
                 self.tokens.push(SemanticToken::new(

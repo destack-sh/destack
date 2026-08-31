@@ -1,9 +1,9 @@
 
 ## Symbols
 
-### Classify declarations and references
+### Highlight declarations and references
 
-Semantic tokens add resolved symbol roles to the grammar's lexical highlighting.
+Declarations and references receive highlighting for their resolved declaration kinds.
 
 ```ds main.ds
 function identity(value: int32): int32 {
@@ -20,9 +20,9 @@ function identity(value: int32): int32 {
 @semantic_tokens.token range=main.ds#reference type=parameter
 ```
 
-### Update struct expression tokens after a rename
+### Preserve struct construction highlighting after a rename
 
-Struct expression types remain classified after their declaration and reference are renamed.
+Struct construction types remain highlighted after their declaration and reference are renamed.
 
 ```ds main.ds
 struct Point {}
@@ -57,7 +57,7 @@ const point = Point {};
 @semantic_tokens.token range=main.ds#reference type=struct
 ```
 
-### Update import tokens after an alias rename
+### Preserve import highlighting after an alias rename
 
 Imported declarations and local aliases remain distinct after the alias changes.
 
@@ -100,7 +100,7 @@ render();
 @semantic_tokens.token range=main.ds#reference type=function
 ```
 
-### Classify a public re-export alias
+### Highlight a public re-export alias
 
 Re-exported names use the target declaration kind without changing the public alias.
 
@@ -132,7 +132,7 @@ render();
 @semantic_tokens.token range=main.ds#reference type=function
 ```
 
-### Update object pattern tokens after a field edit
+### Preserve object pattern highlighting after a field edit
 
 Object patterns distinguish the selected field from the introduced binding after both names change.
 
@@ -191,7 +191,7 @@ const { value: item } = box;
 @semantic_tokens.token range=main.ds#box_reference type=variable modifiers=readonly
 ```
 
-### Update interface member tokens after a signature edit
+### Preserve interface member highlighting after a signature edit
 
 Interface methods and their parameters remain distinct when the signature changes.
 
@@ -228,9 +228,9 @@ interface Reader {
 @semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
 ```
 
-### Update generic and enum tokens after renames
+### Preserve generic and enum highlighting after renames
 
-Generic parameters and enum declarations remain classified when their names change.
+Generic parameters and enum declarations remain highlighted when their names change.
 
 ```ds main.ds
 extension<Element> of string {}
@@ -263,9 +263,9 @@ enum MemoryOrdering {}
 @semantic_tokens.token range=main.ds#enumeration type=enum modifiers=declaration
 ```
 
-### Classify nominal declarations and members
+### Highlight nominal declarations and members
 
-Nominal declarations and their members use distinct token kinds.
+Nominal declarations and their members receive distinct highlighting.
 
 ```ds main.ds
 struct Point {
@@ -292,7 +292,91 @@ enum Color {
 @semantic_tokens.token range=main.ds#red type=enum_member modifiers=declaration,readonly
 ```
 
-### Classify implicit interface member abstraction
+### Highlight forward struct references and fields
+
+Forward references distinguish types, construction fields, and member reads.
+
+```ds main.ds
+class Player {
+      ^^^^^^ player
+    position: Position;
+    ^^^^^^^^ player_position
+              ^^^^^^^^ forward_position
+}
+
+struct Position {
+       ^^^^^^^^ position
+    x: float64;
+    ^ x_declaration
+    y: float64;
+    ^ y_declaration
+}
+
+const position = Position { x: 1.0, y: 2.0 };
+      ^^^^^^^^ binding
+                 ^^^^^^^^ construction
+                            ^ x_construction
+                                    ^ y_construction
+const x = position.x;
+      ^ local
+          ^^^^^^^^ receiver
+                   ^ member
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#player type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#player_position type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#forward_position type=struct
+@semantic_tokens.token range=main.ds#position type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#x_declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#y_declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#construction type=struct
+@semantic_tokens.token range=main.ds#x_construction type=property
+@semantic_tokens.token range=main.ds#y_construction type=property
+@semantic_tokens.token range=main.ds#local type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#receiver type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#member type=property
+```
+
+### Highlight object fields
+
+Object fields distinguish declarations, contextual references, and shorthand values.
+
+```ds main.ds
+interface Options {
+          ^^^^^^^ options
+    enabled: boolean;
+    ^^^^^^^ member
+}
+
+const enabled = true;
+      ^^^^^^^ binding
+const inferred = { value: enabled, enabled };
+      ^^^^^^^^ inferred
+                   ^^^^^ field
+                          ^^^^^^^ value
+                                   ^^^^^^^ shorthand
+const contextual: Options = { enabled: true };
+      ^^^^^^^^^^ contextual
+                  ^^^^^^^ contextual_type
+                              ^^^^^^^ contextual_field
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#options type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#member type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#inferred type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#field type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#value type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#shorthand type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#contextual type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#contextual_type type=interface
+@semantic_tokens.token range=main.ds#contextual_field type=property
+```
+
+### Highlight implicit abstract interface methods
 
 An interface method is abstract even when it omits an explicit modifier.
 
@@ -309,9 +393,47 @@ interface Drawable {
 @semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
 ```
 
-### Classify interface method signatures
+### Highlight implicit abstract associated types
 
-Interface method parameters and their referenced types retain their distinct roles.
+An associated type without a definition is an abstract interface requirement.
+
+<!-- FUGU #Incomplete: DefinitionMember must retain associated type implementation. -->
+
+```ds main.ds
+interface Container {
+          ^^^^^^^^^ container
+    type Item;
+         ^^^^ item
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#container type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#item type=type modifiers=declaration,abstract
+```
+
+### Highlight implicit abstract associated constants
+
+An associated constant without a value is an abstract interface requirement.
+
+<!-- FUGU #Incomplete: DefinitionMember must retain associated const implementation. -->
+
+```ds main.ds
+interface Container {
+          ^^^^^^^^^ container
+    const Width: usize;
+          ^^^^^ width
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#container type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#width type=property modifiers=declaration,readonly,abstract
+```
+
+### Highlight interface method signatures
+
+Interface method parameters and their referenced types receive distinct highlighting.
 
 ```ds main.ds
 struct ResourceId {}
@@ -325,9 +447,13 @@ interface IoControlBinding {
     @binding("destack.io.control", {
      ^^^^^^^ decorator
         provider: "host",
+        ^^^^^^^^ provider
         effect: "external",
+        ^^^^^^ effect
         requires: ["host.fs.metadata"],
+        ^^^^^^^^ requires
         families: ["windows", "unix"],
+        ^^^^^^^^ families
     })
     executeIoControl(
     ^^^^^^^^^^^^^^^^ method
@@ -347,6 +473,10 @@ interface IoControlBinding {
 @semantic_tokens.token range=main.ds#request_type type=struct modifiers=declaration
 @semantic_tokens.token range=main.ds#binding_type type=interface modifiers=declaration
 @semantic_tokens.token range=main.ds#decorator type=decorator modifiers=default_library
+@semantic_tokens.token range=main.ds#provider type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#effect type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#requires type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#families type=property modifiers=declaration
 @semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
 @semantic_tokens.token range=main.ds#resource_parameter type=parameter modifiers=declaration
 @semantic_tokens.token range=main.ds#resource_reference type=struct
@@ -355,9 +485,9 @@ interface IoControlBinding {
 @semantic_tokens.token range=main.ds#return_reference type=struct
 ```
 
-### Classify a binding module
+### Highlight binding declarations
 
-A binding module keeps imported, declared, and referenced symbol roles across its complete source.
+A binding module distinguishes imported, declared, and referenced symbols throughout its source.
 
 ```ds main.ds
 import { HostError } from "./host.ds";
@@ -402,9 +532,13 @@ export interface IoControlBinding {
     @binding("destack.io.control", {
      ^^^^^^^ decorator
         provider: "host",
+        ^^^^^^^^ provider
         effect: "external",
+        ^^^^^^ effect
         requires: ["host.fs.metadata"],
+        ^^^^^^^^ requires
         families: ["windows", "unix"],
+        ^^^^^^^^ families
     })
     executeIoControl(
     ^^^^^^^^^^^^^^^^ method
@@ -457,6 +591,10 @@ export struct ResourceId {}
 @semantic_tokens.token range=main.ds#binding_type type=interface modifiers=declaration
 @semantic_tokens.token range=main.ds:27:5-27:46 type=comment modifiers=documentation
 @semantic_tokens.token range=main.ds#decorator type=decorator modifiers=default_library
+@semantic_tokens.token range=main.ds#provider type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#effect type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#requires type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#families type=property modifiers=declaration
 @semantic_tokens.token range=main.ds#method type=method modifiers=declaration,abstract
 @semantic_tokens.token range=main.ds#resource_parameter type=parameter modifiers=declaration
 @semantic_tokens.token range=main.ds#resource_reference type=struct
@@ -488,9 +626,9 @@ interface Callable {
 @semantic_tokens.token range=main.ds#named type=method modifiers=declaration,abstract
 ```
 
-### Classify receiver parameters
+### Highlight receiver parameters
 
-Receiver modifiers remain lexical tokens while `this` is the declared parameter.
+Receiver modifiers retain their ordinary highlighting while `this` is the declared parameter.
 
 ```ds main.ds
 interface Borrow<T> {
@@ -511,9 +649,9 @@ interface Borrow<T> {
 @semantic_tokens.token range=main.ds#result type=type_parameter
 ```
 
-### Classify every nominal declaration kind
+### Highlight nominal declarations
 
-Type aliases, newtypes, nominal interfaces, and extensions use distinct roles.
+Type aliases, newtypes, nominal interfaces, and extensions receive distinct highlighting.
 
 ```ds main.ds
 type Identifier = uint64;
@@ -560,7 +698,7 @@ extension of Report implements Display {}
 @semantic_tokens.token range=main.ds#implemented_interface_again type=interface
 ```
 
-### Classify generic declarations and references
+### Highlight generic declarations and references
 
 Generic type and const value parameters remain distinct from nominal types and locals.
 
@@ -592,9 +730,9 @@ function identity<Value, const size: usize>(value: Value): Value {
 @semantic_tokens.token range=main.ds#value_reference type=parameter
 ```
 
-### Classify extension type parameters
+### Highlight extension type parameters
 
-Extension type parameters use the same declaration token as other generic type parameters.
+Extension type parameters receive the same declaration highlighting as other generic type parameters.
 
 ```ds main.ds
 extension<Element> of string {}
@@ -605,7 +743,7 @@ extension<Element> of string {}
 @semantic_tokens.token range=main.ds#parameter type=type_parameter modifiers=declaration
 ```
 
-### Classify lifetime declarations and references
+### Highlight lifetime declarations and references
 
 Lifetime declarations and references are readonly variables.
 
@@ -630,9 +768,281 @@ function borrow<'a>(value: &'a readonly string): &'a readonly string {
 @semantic_tokens.token range=main.ds#value_reference type=parameter
 ```
 
-### Classify a declaration while typing
+### Highlight type parameters, tuple labels, and associated refinements
 
-Request semantic tokens after every inserted scalar.
+Mapped keys, inferred parameters, index keys, tuple labels, nested generics, and associated
+refinements receive their matching highlights.
+
+```ds main.ds
+type Transform<Source> = {
+     ^^^^^^^^^ transform
+               ^^^^^^ source_declaration
+    [Key in keyof Source]: Source[Key];
+     ^^^ mapped_declaration
+                  ^^^^^^ mapped_source
+                           ^^^^^^ mapped_value
+                                  ^^^ mapped_key
+};
+
+type Element<Value> = Value extends (infer Item)[] ? Item : never;
+     ^^^^^^^ element
+             ^^^^^ value_declaration
+                      ^^^^^ value_reference
+                                           ^^^^ infer_declaration
+                                                     ^^^^ infer_reference
+
+type Pair = [first: int32, ...rest: string[]];
+     ^^^^ pair
+             ^^^^^ first
+                              ^^^^ rest
+
+interface Dictionary {
+          ^^^^^^^^^^ dictionary
+    [key: string]: int32;
+     ^^^ key
+}
+
+interface Mapper {
+          ^^^^^^ mapper
+    map<Value>(value: Value): Value;
+    ^^^ map
+        ^^^^^ method_generic
+               ^^^^^ parameter
+                      ^^^^^ parameter_type
+                              ^^^^^ return_type
+}
+
+interface Container {
+          ^^^^^^^^^ container
+    type Item;
+         ^^^^ item_declaration
+    const Width: usize;
+          ^^^^^ width_declaration
+}
+
+type Concrete = Container<type Item = string, const Width = 4>;
+     ^^^^^^^^ concrete
+                ^^^^^^^^^ container_reference
+                               ^^^^ item_refinement
+                                                    ^^^^^ width_refinement
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#transform type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#source_declaration type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#mapped_declaration type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#mapped_source type=type_parameter
+@semantic_tokens.token range=main.ds#mapped_value type=type_parameter
+@semantic_tokens.token range=main.ds#mapped_key type=type_parameter
+@semantic_tokens.token range=main.ds#element type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#value_declaration type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#value_reference type=type_parameter
+@semantic_tokens.token range=main.ds#infer_declaration type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#infer_reference type=type_parameter
+@semantic_tokens.token range=main.ds#pair type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#first type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#rest type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#dictionary type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#key type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#mapper type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#map type=method modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#method_generic type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter_type type=type_parameter
+@semantic_tokens.token range=main.ds#return_type type=type_parameter
+@semantic_tokens.token range=main.ds#container type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#item_declaration type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#width_declaration type=property modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#concrete type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#container_reference type=interface
+@semantic_tokens.token range=main.ds#item_refinement type=type
+@semantic_tokens.token range=main.ds#width_refinement type=property modifiers=readonly
+```
+
+### Highlight associated refinement declarations
+
+An associated refinement inherits modifiers from its selected declaration.
+
+<!-- FUGU #Incomplete: DIR must retain selected associated declarations for refinements. -->
+
+```ds main.ds
+interface Container {
+          ^^^^^^^^^ container
+    @deprecated("use Element")
+     ^^^^^^^^^^ decorator
+    type Item;
+         ^^^^ declaration
+}
+
+type Concrete = Container<type Item = string>;
+     ^^^^^^^^ concrete
+                ^^^^^^^^^ container_reference
+                               ^^^^ refinement
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#container type=interface modifiers=declaration
+@semantic_tokens.token range=main.ds#decorator type=decorator modifiers=default_library
+@semantic_tokens.token range=main.ds#declaration type=type modifiers=declaration,deprecated
+@semantic_tokens.token range=main.ds#concrete type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#container_reference type=interface
+@semantic_tokens.token range=main.ds#refinement type=type modifiers=deprecated
+```
+
+### Highlight object methods and destructuring assignment keys
+
+Object methods declare callable members while assignment keys highlight their selected properties.
+
+```ds main.ds
+struct Position {
+       ^^^^^^^^ position_type
+    x: int32;
+    ^ x_declaration
+    y: int32;
+    ^ y_declaration
+}
+
+let x = 0;
+    ^ x_binding
+let y = 0;
+    ^ y_binding
+const position = Position { x: 1, y: 2 };
+      ^^^^^^^^ position_binding
+                 ^^^^^^^^ position_reference
+                            ^ x_construction
+                                  ^ y_construction
+({ x: x, y } = position);
+   ^ x_key
+      ^ x_write
+         ^ y_write
+               ^^^^^^^^ position_value
+
+const object = {
+      ^^^^^^ object
+    map<Value>(value: Value): Value {
+    ^^^ map
+        ^^^^^ generic
+               ^^^^^ parameter
+                      ^^^^^ parameter_type
+                              ^^^^^ return_type
+        return value;
+               ^^^^^ parameter_reference
+    }
+};
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#position_type type=struct modifiers=declaration
+@semantic_tokens.token range=main.ds#x_declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#y_declaration type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#x_binding type=variable modifiers=declaration
+@semantic_tokens.token range=main.ds#y_binding type=variable modifiers=declaration
+@semantic_tokens.token range=main.ds#position_binding type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#position_reference type=struct
+@semantic_tokens.token range=main.ds#x_construction type=property
+@semantic_tokens.token range=main.ds#y_construction type=property
+@semantic_tokens.token range=main.ds#x_key type=property
+@semantic_tokens.token range=main.ds#x_write type=variable modifiers=modification
+@semantic_tokens.token range=main.ds#y_write type=variable modifiers=modification
+@semantic_tokens.token range=main.ds#position_value type=variable modifiers=readonly
+@semantic_tokens.token range=main.ds#object type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#map type=method modifiers=declaration
+@semantic_tokens.token range=main.ds#generic type=type_parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter_type type=type_parameter
+@semantic_tokens.token range=main.ds#return_type type=type_parameter
+@semantic_tokens.token range=main.ds#parameter_reference type=parameter
+```
+
+### Highlight tree attributes
+
+Component names and attributes receive function and property highlighting.
+
+```json destack.json
+{
+  "name": "@test/query",
+  "compiler": {
+    "tree": "panel.ds#Panel"
+  },
+  "targets": {
+    "default": {
+      "include": ["**/*.ds"]
+    }
+  },
+  "defaultTarget": "default"
+}
+```
+
+```ds panel.ds
+import { TreeBuilder } from "destack:tree";
+
+export class Panel {}
+
+export extension of Panel implements TreeBuilder {
+    type Tags = { span: { title?: string } };
+
+    static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
+        tag: Tag,
+        attributes: this.Tags[Tag],
+        children: Children,
+    ): Panel {
+        return new Panel();
+    }
+
+    static fragment<Children: (...unknown[],)>(children: Children): Panel {
+        return new Panel();
+    }
+}
+```
+
+```ds main.ds
+import { Panel } from "./panel.ds";
+         ^^^^^ panel_import
+
+function Header(props: { title: string }): Panel {
+         ^^^^^^ header
+                ^^^^^ parameter
+                         ^^^^^ property
+                                           ^^^^^ header_result
+    return new Panel();
+               ^^^^^ panel_constructor
+}
+
+const page: Panel = <Header title="hello" />;
+      ^^^^ page
+            ^^^^^ page_type
+                     ^^^^^^ header_reference
+                            ^^^^^ attribute
+const intrinsic: Panel = <span title="hello" />;
+      ^^^^^^^^^ intrinsic
+                 ^^^^^ intrinsic_type
+                               ^^^^^ intrinsic_attribute
+const result = page;
+      ^^^^^^ result
+               ^^^^ page_reference
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#panel_import type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#header type=function modifiers=declaration
+@semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
+@semantic_tokens.token range=main.ds#property type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#header_result type=class
+@semantic_tokens.token range=main.ds#panel_constructor type=class
+@semantic_tokens.token range=main.ds#page type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#page_type type=class
+@semantic_tokens.token range=main.ds#header_reference type=function
+@semantic_tokens.token range=main.ds#attribute type=property
+@semantic_tokens.token range=main.ds#intrinsic type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#intrinsic_type type=class
+@semantic_tokens.token range=main.ds#intrinsic_attribute type=property
+@semantic_tokens.token range=main.ds#result type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#page_reference type=variable modifiers=readonly
+```
+
+### Highlight a declaration while typing
+
+Highlight the document after every inserted character.
 
 ```ds main.ds
 // module
@@ -651,9 +1061,9 @@ declare const x: Clone;
 @semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
 ```
 
-### Classify a selected replacement while typing
+### Highlight a selected replacement while typing
 
-Replace the selected type with the first scalar and insert each remaining scalar separately.
+Replace the selected type with the first character and insert each remaining character separately.
 
 ```ds main.ds
 declare const value: Wrong;
@@ -670,9 +1080,9 @@ declare const value: Clone;
 @semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
 ```
 
-### Classify a declaration while backspacing
+### Highlight a declaration while backspacing
 
-Request semantic tokens after every scalar removed from the end of a type name.
+Highlight the document after every character removed from the end of a type name.
 
 ```ds main.ds
 declare const value: Cloneeeee;
@@ -689,9 +1099,9 @@ declare const value: Clone;
 @semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
 ```
 
-### Classify a declaration while deleting
+### Highlight a declaration while deleting
 
-Request semantic tokens after every scalar removed from the start of an identifier.
+Highlight the document after every character removed from the start of an identifier.
 
 ```ds main.ds
 declare const temporaryvalue: Clone;
@@ -708,9 +1118,9 @@ declare const value: Clone;
 @semantic_tokens.token range=main.ds#type type=interface modifiers=default_library
 ```
 
-### Classify declarations while editing class fields
+### Highlight class fields while editing
 
-Class and field declarations remain classified through successive source edits.
+Class and field declarations remain highlighted through successive edits.
 
 ```ds main.ds
 class Player {}
@@ -762,9 +1172,9 @@ class Player {}
 @semantic_tokens.token range=main.ds#field type=property modifiers=declaration
 ```
 
-### Classify a struct while typing
+### Highlight a struct while typing
 
-Struct declarations and constructions remain classified through successive source edits.
+Struct declarations and constructions remain highlighted through successive edits.
 
 <!-- FUGU #Broken: a bare constructable name aborts DirDeclared while typing. -->
 
@@ -787,9 +1197,9 @@ const position = Position {};
 @semantic_tokens.token range=main.ds#construction type=struct
 ```
 
-### Classify renamed symbols
+### Highlight renamed symbols
 
-Semantic roles remain attached to renamed declarations and references.
+Renamed declarations and references retain their highlighting.
 
 ```ds main.ds
 function identity(value: int32): int32 {
@@ -823,7 +1233,7 @@ function identity(item: int32): int32 {
 
 ## Imports
 
-### Classify imported names and aliases
+### Highlight imported names and aliases
 
 An imported name and its local alias use the exported declaration kind.
 
@@ -846,7 +1256,7 @@ render();
 @semantic_tokens.token range=main.ds#reference type=function
 ```
 
-### Classify type and namespace imports
+### Highlight type and namespace imports
 
 Plain and namespace aliases use their target declaration kinds.
 
@@ -898,7 +1308,7 @@ export default 1;
 
 ## Bindings
 
-### Classify using bindings
+### Highlight using bindings
 
 Resource bindings are immutable declarations and references.
 
@@ -926,7 +1336,7 @@ resource;
 @semantic_tokens.token range=main.ds#using_reference type=variable modifiers=readonly
 ```
 
-### Classify tuple match bindings
+### Highlight tuple match bindings
 
 Tuple patterns bind readonly variables across each arm.
 
@@ -956,7 +1366,7 @@ const result = match (pair) {
 @semantic_tokens.token range=main.ds#right_reference type=variable modifiers=readonly
 ```
 
-### Classify nominal object match bindings
+### Highlight nominal object match bindings
 
 A shorthand object pattern binds a readonly variable for its arm.
 
@@ -992,7 +1402,7 @@ const result = match (boxed) {
 @semantic_tokens.token range=main.ds#value_reference type=variable modifiers=readonly
 ```
 
-### Classify nested object bindings
+### Highlight nested object bindings
 
 Object patterns distinguish field names from bindings.
 
@@ -1024,7 +1434,7 @@ const { value: item, ...rest } = boxed;
 @semantic_tokens.token range=main.ds#boxed_reference type=variable modifiers=readonly
 ```
 
-### Classify member references
+### Highlight member references
 
 Member references use their declaration identities rather than generic property shapes.
 
@@ -1073,7 +1483,7 @@ function inspect(buffer: Buffer): uint {
 @semantic_tokens.token range=main.ds#local_reference type=variable modifiers=readonly
 ```
 
-### Classify reads and writes
+### Highlight reads and writes
 
 Write occurrences add `modification` without inventing a second mutability modifier.
 
@@ -1116,7 +1526,7 @@ function increment(counter: Counter): void {
 
 ## Modifiers
 
-### Classify symbol attributes
+### Highlight symbol attributes
 
 Symbol attributes remain consistent between declarations and references.
 
@@ -1159,7 +1569,7 @@ const count = State.count;
 @semantic_tokens.token range=main.ds#static_reference type=property modifiers=readonly,static
 ```
 
-### Classify deprecated and default-library symbols
+### Highlight deprecated and default-library symbols
 
 Deprecated state follows the symbol while built-in language items use `default_library`.
 
@@ -1181,9 +1591,9 @@ validate();
 
 ## Labels and Decorators
 
-### Classify labels
+### Highlight labels
 
-Label declarations and references use their dedicated token kind.
+Label declarations and references receive dedicated highlighting.
 
 ```ds main.ds
 outer: loop {
@@ -1198,7 +1608,7 @@ outer: loop {
 @semantic_tokens.token range=main.ds#reference type=label
 ```
 
-### Classify user-defined decorators
+### Highlight user-defined decorators
 
 Decorator applications remain distinct from the symbols that define them.
 
@@ -1218,9 +1628,9 @@ function start(): void {}
 @semantic_tokens.token range=main.ds#function type=function modifiers=declaration
 ```
 
-### Classify interface and parameter decorators
+### Highlight interface and parameter decorators
 
-Decorators are classified on both an interface method and its parameters.
+Decorators are highlighted on both an interface method and its parameters.
 
 ```ds main.ds
 newtype tracked = ();
@@ -1248,7 +1658,7 @@ interface Reader {
 @semantic_tokens.token range=main.ds#parameter type=parameter modifiers=declaration
 ```
 
-### Classify struct expression types
+### Highlight struct construction types
 
 Struct expression types identify their nominal constructor.
 
@@ -1267,11 +1677,11 @@ const point = Point {};
 @semantic_tokens.token range=main.ds#point_reference type=struct
 ```
 
-## Lexical Tokens
+## Literals and Comments
 
-### Leave lexical tokens to the grammar
+### Preserve literal and comment highlighting
 
-Comments and scalar literals do not duplicate the grammar's lexical classifications.
+Comments and scalar literals retain their ordinary highlighting.
 
 ```ds main.ds
 // An ordinary comment.
@@ -1284,9 +1694,52 @@ true;
 @semantic_tokens.none
 ```
 
-### Classify documentation while typing
+### Highlight identifier property names
 
-Request semantic tokens after every inserted documentation character.
+Identifier properties follow their declarations, while quoted names, numeric names, and
+`constructor` retain their ordinary highlighting.
+
+```ds main.ds
+class Container {
+      ^^^^^^^^^ container
+    constructor() {}
+    "quoted"(): void {}
+    0: int32 = 0;
+    identifier: int32 = 0;
+    ^^^^^^^^^^ member
+}
+
+type Shape = { "quoted": string; 0: string; identifier: string };
+     ^^^^^ shape
+                                            ^^^^^^^^^^ type_member
+
+const object = { "quoted": 1, 0: 2, identifier: 3 };
+      ^^^^^^ object
+                                    ^^^^^^^^^^ property
+
+enum Code {
+     ^^^^ code
+    Named,
+    ^^^^^ named
+    "quoted",
+    0,
+}
+```
+
+```query semantic_tokens main.ds
+@semantic_tokens.token range=main.ds#container type=class modifiers=declaration
+@semantic_tokens.token range=main.ds#member type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#shape type=type modifiers=declaration
+@semantic_tokens.token range=main.ds#type_member type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#object type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#property type=property modifiers=declaration
+@semantic_tokens.token range=main.ds#code type=enum modifiers=declaration
+@semantic_tokens.token range=main.ds#named type=enum_member modifiers=declaration,readonly
+```
+
+### Highlight documentation while typing
+
+Highlight documentation after every inserted character.
 
 ```ds main.ds
 struct Position {}
