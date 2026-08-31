@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::{
-    CallableImplementation, FunctionDeclaration, FunctionLowerer, GenericInstanceKey,
+    Binding, CallableImplementation, FunctionDeclaration, FunctionLowerer, GenericInstanceKey,
 };
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -16,7 +16,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let resolution = self.call_decision(expression)?;
         let dir::OperationResolution::One(call) = &resolution else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a call on a union receiver".to_string(),
             }
             .into());
@@ -24,44 +24,44 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // lower by the callable the resolution selected
         match &call.target {
-            // free(...)
+            // call a directly dispatched symbol
             dir::CallableTarget::Symbol {
                 function,
                 dispatch: dir::FunctionDispatch::Direct,
             } => {
                 // route intrinsic and binding callables before declared functions
-                match self.lowerer.callable_implementation(function.key.symbol)? {
+                match self.lower.callable_implementation(function.key.symbol)? {
                     Some(CallableImplementation::Intrinsic { name }) => {
                         return self.lower_intrinsic_call(expression, name, call);
                     }
                     Some(CallableImplementation::Binding { .. }) => {
-                        return self.lower_binding_call(function.key.symbol, call);
+                        return self.lower_function_call(function.key.symbol, call);
                     }
                     None => {}
                 }
 
-                // receiver.method(...)
+                // call a method over its selected receiver
                 if function.receiver.is_some() {
                     self.lower_method_call(expression, call, function)
                 }
-                // generic<T>(...) selects its concrete instance
+                // call the concrete instance a generic selection names
                 else if self.has_instance_arguments(function)? {
                     self.lower_instance_call(function, call)
                 }
-                // local or imported (...)
+                // call the local or imported declaration
                 else {
                     self.lower_function_call(function.key.symbol, call)
                 }
             }
-            // value(...)
+            // call through a function-typed value
             dir::CallableTarget::Expression { .. } => self.lower_indirect_call(expression, call),
-            // erased.method(...) dispatches through the constraint's entries
+            // dispatch through the erased receiver's constraint entries
             dir::CallableTarget::Dynamic { dispatch, .. } => {
                 self.lower_dynamic_call(expression, call, dispatch)
             }
             // reject virtual calls
             dir::CallableTarget::Symbol { .. } => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a virtual call".to_string(),
             }
             .into()),
@@ -70,10 +70,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return whether one function target binds generic arguments beyond lifetimes.
     fn has_instance_arguments(&self, function: &dir::FunctionTarget) -> CompilerResult<bool> {
-        // any argument beyond a region parameter selects a concrete instance
+        // accept any argument beyond a region parameter
         for binding in &function.key.arguments {
             let parameter = binding.parameter;
-            let generics = &self.lowerer.state(parameter.module_id)?.generics;
+            let generics = &self.lower.state(parameter.module_id)?.generics;
             let declared = generics.get_parameter(parameter.local_id);
             if declared.memory_parameter() != Some(dir::MemoryParameter::Region) {
                 return Ok(true);
@@ -81,20 +81,6 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         Ok(false)
-    }
-
-    /// Lower one binding call through its declared dotted extern.
-    fn lower_binding_call(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        resolution: &dir::Call,
-    ) -> CompilerResult<Option<mir::Value>> {
-        // call the declared extern behind the binding
-        let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
-        let parameters = self.function_parameters(function);
-        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
-
-        Ok(self.builder.call_function(function, values))
     }
 
     /// Return the declared parameter representations of one function.
@@ -121,161 +107,11 @@ impl FunctionLowerer<'_, '_, '_> {
             mir::Type::FunctionSignature { parameters, .. } => {
                 Ok(parameters.iter().map(|parameter| parameter.ty).collect())
             }
+            // reject a call through a non-signature type
             _ => Err(CompilerError::Internal {
                 message: "a call through a non-signature callable type".to_string(),
             }),
         }
-    }
-
-    /// Lower one argument list against its declared parameter representations.
-    ///
-    /// An empty parameter list lowers the arguments without representation adaptation.
-    pub(in crate::lower) fn lower_call_arguments(
-        &mut self,
-        arguments: &[dir::ArgumentBinding],
-        parameters: &[mir::TypeId],
-        write: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<Vec<mir::Value>> {
-        // lower each argument at its parameter representation
-        let mut values = Vec::with_capacity(arguments.len());
-        for (index, binding) in arguments.iter().enumerate() {
-            let parameter = parameters.get(index).copied();
-            let value = match binding.source {
-                // lower a written argument
-                dir::ArgumentSource::Provided(source) => self.lower_argument(source)?,
-                // store omission at the parameter representation
-                dir::ArgumentSource::Omitted => {
-                    values.push(self.lower_omitted_argument(binding.parameter_type, parameter)?);
-
-                    continue;
-                }
-                // fill the write argument with the assigned value for setter calls
-                dir::ArgumentSource::Write => {
-                    let Some(expression) = write else {
-                        return Err(CompilerError::Internal {
-                            message: "ordinary call lowering received an implicit write argument"
-                                .to_string(),
-                        });
-                    };
-
-                    self.lower_expression(expression)?
-                }
-                // materialize a static argument as its literal constant
-                dir::ArgumentSource::Static(argument) => {
-                    let dir::Type::Literal(literal) = self.lowerer.ty(argument)? else {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.lowerer.module.into(),
-                            construct: "a non-literal static argument".to_string(),
-                        }
-                        .into());
-                    };
-                    let representation = self.lower_type(argument)?;
-                    let representation = self.builder.tree().get(representation).clone();
-
-                    self.lower_constant(literal, representation)?
-                }
-                // pack the trailing arguments into the rest collection
-                dir::ArgumentSource::Rest {
-                    ref elements,
-                    ref pack,
-                } => {
-                    let elements = elements.clone();
-                    let pack = pack.clone();
-
-                    self.lower_rest_pack(&elements, binding.argument_type, pack.as_ref())?
-                }
-            };
-
-            // adapt the value to its declared parameter representation
-            match parameter {
-                Some(parameter) => values.push(self.adapt_to_representation(value, parameter)?),
-                None => values.push(value),
-            }
-        }
-
-        Ok(values)
-    }
-
-    /// Pack the rest elements into their parameter's collection.
-    pub(in crate::lower) fn lower_rest_pack(
-        &mut self,
-        elements: &[dir::GlobalNodeIdAny],
-        element_type: dir::GlobalTypeId,
-        pack: Option<&dir::InstanceKey>,
-    ) -> CompilerResult<mir::Value> {
-        // materialize the elements into fixed stack storage
-        let element = self.lower_type(element_type)?;
-        let mut values = Vec::with_capacity(elements.len());
-        for source in elements {
-            values.push(self.lower_argument(*source)?);
-        }
-
-        // store the aggregate in one frame slot
-        let storage = self.builder.tree_mut().intern_type(mir::Type::FixedArray {
-            element: mir::TypeId::from(element),
-            length: values.len() as u64,
-            copy: mir::Copy::No,
-        });
-        let aggregate = self.builder.aggregate(storage, values);
-        let slot = self.builder.local(storage, mir::Mutability::Immutable);
-        self.builder.local_set(slot, aggregate);
-
-        // view the storage as a borrowed slice of the elements
-        let address = self.insert_reference(
-            mir::ReferenceKind::Borrowed,
-            mir::Access::Readonly,
-            mir::Storage::Frame,
-            storage,
-        );
-        let address = self.builder.local_addr(slot, address);
-        let slice = self.builder.tree_mut().intern_type(mir::Type::Slice {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
-            element: mir::TypeId::from(element),
-            storage: mir::Storage::Frame,
-            access: mir::Access::Readonly,
-            nullability: mir::Nullability::None,
-        });
-        let start = self.builder.iconst(0, 64, false);
-        let length = self.builder.usize_const(elements.len() as u128);
-        let view = self.builder.slice_view(address, start, length, slice);
-
-        // take the view directly for a slice parameter
-        let Some(pack) = pack else {
-            return Ok(view);
-        };
-
-        // build the collection by calling its pack constructor over the view
-        let function = self.selection_function(pack)?;
-        let parameters = self.function_parameters(function);
-        let Some(parameter) = parameters.first() else {
-            return Err(CompilerError::Internal {
-                message: "a pack constructor without a declared slice slot".to_string(),
-            });
-        };
-        let view = self.adapt_to_representation(view, *parameter)?;
-        let Some(packed) = self.builder.call_function(function, vec![view]) else {
-            return Err(CompilerError::Internal {
-                message: "a pack constructor call without a value".to_string(),
-            });
-        };
-
-        Ok(packed)
-    }
-
-    /// Lower one omitted argument at its parameter representation.
-    fn lower_omitted_argument(
-        &mut self,
-        ty: dir::GlobalTypeId,
-        parameter: Option<mir::TypeId>,
-    ) -> CompilerResult<mir::Value> {
-        // take the parameter representation, else the declared type
-        let representation = match parameter {
-            Some(parameter) => parameter,
-            None => self.lower_type(ty)?,
-        };
-
-        Ok(self.absent_argument_value(representation))
     }
 
     /// Lower one call to a declared or imported function.
@@ -286,6 +122,8 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         // resolve the declared function behind the symbol
         let function = self.function(&GenericInstanceKey::non_generic(symbol))?;
+
+        // lower the arguments at their declared parameter representations
         let parameters = self.function_parameters(function);
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
@@ -309,7 +147,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let dir::Expression::Member { left: receiver, .. } = *self.source().tree().get(callee)
         else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a method call without a member callee".to_string(),
             }
             .into());
@@ -331,7 +169,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .receiver
             .as_ref()
             .ok_or_else(|| CompilerError::Internal {
-                message: "method call has no selected receiver".to_string(),
+                message: "a method call without a selected receiver".to_string(),
             })?;
 
         // apply the selected receiver adjustments
@@ -361,6 +199,8 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         // select the declared instance from the substituted arguments
         let function = self.selection_function(&function.key)?;
+
+        // lower the arguments at their declared parameter representations
         let parameters = self.function_parameters(function);
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
 
@@ -375,13 +215,13 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<GenericInstanceKey> {
         // resolve the selection's arguments through the enclosing instance
         let bindings = self
-            .lowerer
+            .lower
             .instance_bindings(&selection.arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
         // resolve the receiver through the enclosing instance's types
         let receiver = match selection.receiver {
-            Some(receiver) => Some(self.lowerer.instance_type(self.instance, receiver)?),
+            Some(receiver) => Some(self.lower.instance_type(self.instance, receiver)?),
             None => None,
         };
 
@@ -400,15 +240,20 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return the function behind one callable symbol and its instance key.
     pub(in crate::lower) fn function(
-        &self,
+        &mut self,
         key: &GenericInstanceKey,
     ) -> CompilerResult<mir::FunctionId> {
+        // declare the callable on its first reach from a body
+        if !self.lower.functions.contains_key(key) {
+            self.declare_callable(key)?;
+        }
+
         // resolve the exact instance, treating a failed symbol as a failed instance
         let symbol = GenericInstanceKey::non_generic(key.symbol);
-        let declaration = match self.lowerer.functions.get(key) {
+        let declaration = match self.lower.functions.get(key) {
             Some(declaration) => Some(declaration),
             None => self
-                .lowerer
+                .lower
                 .functions
                 .get(&symbol)
                 .filter(|fallback| matches!(fallback, FunctionDeclaration::Failed)),
@@ -420,29 +265,64 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(FunctionDeclaration::Declared(function)) => Ok(*function),
             // cascade from declarations that already reported their diagnostics
             Some(FunctionDeclaration::Failed) => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a call into an undeclared callable".to_string(),
             }
             .into()),
-            // an undeclared symbol reaching a call is a declaration failure
+            // report an undeclared symbol reached by a call
             None => {
-                let path = self.lowerer.symbol_path(key.symbol)?;
-                let declared: Vec<_> = self
-                    .lowerer
-                    .functions
-                    .keys()
-                    .filter(|candidate| candidate.symbol == key.symbol)
-                    .map(|candidate| format!("{:?}", candidate.arguments))
-                    .collect();
+                let path = self.lower.symbol_path(key.symbol)?;
 
                 Err(CompilerError::Internal {
                     message: format!(
-                        "missing a declared function behind the callable symbol '{path}' at {:?}; declared: {declared:?}",
-                        key.arguments
+                        "a missing declared function behind the callable symbol '{path}'"
                     ),
                 })
             }
         }
+    }
+
+    /// Declare one callable first reached from a body: a binding extern, an import, or a closure.
+    fn declare_callable(&mut self, key: &GenericInstanceKey) -> CompilerResult<()> {
+        // leave every instantiated key to its own declaration
+        if key.receiver.is_some() || !key.arguments.is_empty() {
+            return Ok(());
+        }
+
+        // declare a dotted host extern for a binding and emit an intrinsic inline
+        let symbol = key.symbol;
+        let (tree, effects) = self.builder.tree_and_effects_mut();
+        match self.lower.callable_implementation(symbol)? {
+            Some(CallableImplementation::Binding { .. }) => {
+                return self.lower.declare_binding_function(tree, effects, symbol);
+            }
+            Some(CallableImplementation::Intrinsic { .. }) => return Ok(()),
+            None => {}
+        }
+
+        // import a foreign concrete callable under its canonical name
+        if symbol.module_id != self.lower.module {
+            return self.lower.declare_imported_function(tree, symbol);
+        }
+
+        // declare and queue a local callable a body reaches as a closure
+        let declared = self
+            .lower
+            .state(symbol.module_id)?
+            .bindings
+            .get_symbol(symbol.local_id)
+            .declaration;
+        if let Some(node) = declared
+            && let Ok(declaration) = node.local_id.try_into_typed::<dir::Declaration>()
+            && let dir::Declaration::Function(function) =
+                self.lower.state(symbol.module_id)?.tree().get(declaration)
+            && let Some(body) = function.body
+        {
+            let definition = self.lower.declare_function(tree, declaration, body)?;
+            self.lower.pending.push(definition);
+        }
+
+        Ok(())
     }
 
     /// Lower one call through a function-typed value.
@@ -454,7 +334,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // lower the callee value out of the call expression
         let dir::Expression::Call { left, .. } = *self.source().tree().get(expression) else {
             return Err(CompilerError::Internal {
-                message: "a non-call through the indirect path".to_string(),
+                message: "a non-call expression in an indirect call".to_string(),
             });
         };
         let callee = self.lower_expression(left)?;
@@ -479,39 +359,151 @@ impl FunctionLowerer<'_, '_, '_> {
             .call(mir::Callee::Indirect { value: callee }, signature, values))
     }
 
-    /// Lower one provided argument source to its value.
-    pub(in crate::lower) fn lower_argument(
-        &mut self,
-        source: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<mir::Value> {
-        // unwrap the provided value from argument nodes
-        if let Ok(argument) = source.local_id.try_into_typed::<dir::Argument>() {
-            let value = match self.source().tree().get(argument) {
-                dir::Argument::Positional { value } => *value,
-                dir::Argument::Spread { .. } => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a spread argument".to_string(),
-                    }
-                    .into());
-                }
-                dir::Argument::Elision | dir::Argument::Error => {
-                    return Err(CompilerError::Internal {
-                        message: "an empty argument".to_string(),
-                    });
-                }
-            };
-
-            return self.lower_expression(value);
+    /// Bind the incoming receiver, giving owned receivers a mutable home.
+    pub(in crate::lower) fn bind_receiver(&mut self, value: mir::Value) -> CompilerResult<Binding> {
+        // take indirect receivers as values, writing through their reference
+        let representation = self.value_representation(value)?;
+        if self
+            .builder
+            .tree()
+            .get(representation)
+            .is_reference_representation()
+        {
+            return Ok(Binding::Value(value));
         }
 
-        // lower the source as the value expression itself
-        let Ok(expression) = source.local_id.try_into_typed::<dir::Expression>() else {
-            return Err(CompilerError::Internal {
-                message: format!("a non-expression argument node {}", source.local_id.id),
-            });
+        // give owned receivers a mutable local
+        let local = self.builder.local(representation, mir::Mutability::Mutable);
+        self.builder.local_set(local, value);
+
+        Ok(Binding::Local(local))
+    }
+
+    /// Lower one receiver expression through its selected adjustments.
+    pub(in crate::lower) fn lower_adjusted_receiver(
+        &mut self,
+        receiver: dir::LocalNodeId<dir::Expression>,
+        adjusted: &dir::AdjustedReceiver,
+    ) -> CompilerResult<mir::Value> {
+        // take the receiver place directly when a borrow leads the adjustments
+        let (value, rest) = match adjusted.adjustments.as_slice() {
+            [dir::ReceiverAdjustment::Borrow { ty }, rest @ ..] => {
+                let target = self.lower_type(*ty)?;
+
+                (self.lower_borrowed_place(receiver, target)?, rest)
+            }
+            // otherwise lower the receiver as a value
+            rest => (self.lower_expression(receiver)?, rest),
         };
 
-        self.lower_expression(expression)
+        self.lower_receiver_adjustments(value, rest)
+    }
+
+    /// Apply receiver adjustments to one lowered value in order.
+    fn lower_receiver_adjustments(
+        &mut self,
+        mut value: mir::Value,
+        adjustments: &[dir::ReceiverAdjustment],
+    ) -> CompilerResult<mir::Value> {
+        for adjustment in adjustments {
+            value = match adjustment {
+                // borrow spilled storage when no source place exists
+                dir::ReceiverAdjustment::Borrow { ty } => {
+                    let target = self.lower_type(*ty)?;
+
+                    self.spill_borrow(value, target)?
+                }
+                // read through one reference or pointer receiver
+                dir::ReceiverAdjustment::Dereference(dereference) => {
+                    self.lower_dereference(value, dereference)?
+                }
+                // unwrap a newtype value or stored newtype place
+                dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
+                    let value_type = self.value_representation(value)?;
+
+                    // retain the address form of stored receivers
+                    match self.builder.tree().get(value_type) {
+                        mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
+                            let target = self.lower_type(*ty)?;
+
+                            self.builder.field_addr(value, 0, target)
+                        }
+                        _ => self.builder.field_get(value, 0),
+                    }
+                }
+                // project a narrowed union value or stored union place
+                dir::ReceiverAdjustment::UnionPayload { union, arm, .. } => {
+                    let members = self.union_members(*union)?;
+                    let Some(index) = members.iter().position(|member| member == arm) else {
+                        return Err(CompilerError::Internal {
+                            message: "a union payload adjustment selecting an absent arm"
+                                .to_string(),
+                        });
+                    };
+
+                    let value_type = self.value_representation(value)?;
+
+                    // retain the address form of stored receivers
+                    match self.builder.tree().get(value_type) {
+                        mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
+                            let target = self.lower_type(adjustment.ty())?;
+
+                            self.builder
+                                .variant_payload_addr(value, index as u32, target)
+                        }
+                        _ => self.builder.variant_payload(value, index as u32),
+                    }
+                }
+            };
+        }
+
+        Ok(value)
+    }
+
+    /// Borrow one value through spilled local storage.
+    fn spill_borrow(
+        &mut self,
+        value: mir::Value,
+        target: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        let ty = self.value_representation(value)?;
+        let local = self.builder.local(ty, mir::Mutability::Immutable);
+        self.builder.local_set(local, value);
+
+        Ok(self.builder.local_addr(local, target))
+    }
+
+    /// Dereference one receiver value through its selected target.
+    fn lower_dereference(
+        &mut self,
+        value: mir::Value,
+        dereference: &dir::Dereference,
+    ) -> CompilerResult<mir::Value> {
+        match &dereference.target {
+            // load through the physical reference
+            dir::DereferenceTarget::Direct => {
+                let ty = self.lower_type(dereference.ty)?;
+
+                Ok(self.builder.load(value, ty))
+            }
+            // call the selected method for a protocol dereference
+            dir::DereferenceTarget::Call(call) => {
+                let dir::CallableTarget::Symbol {
+                    function,
+                    dispatch: dir::FunctionDispatch::Direct,
+                } = &call.target
+                else {
+                    return Err(CompilerError::Internal {
+                        message: "a protocol dereference without a direct method".to_string(),
+                    });
+                };
+                let target = self.selection_function(&function.key)?;
+                let result = self.builder.call_function(target, vec![value]);
+
+                result.ok_or_else(|| CompilerError::Internal {
+                    message: "a void result from a protocol dereference".to_string(),
+                })
+            }
+        }
     }
 }
