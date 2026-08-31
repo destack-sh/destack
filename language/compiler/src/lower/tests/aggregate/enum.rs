@@ -22,7 +22,7 @@ function pick(flag: boolean): Mode {
         "main.ds",
         r#"
 @copy
-type Mode = variant<int64> { 1int64 = void; 2int64 = void; };
+type Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.pick(v0: boolean): Mode {
 entry(v0: boolean):
@@ -37,10 +37,10 @@ b2:
     return v2
 }
 
-/// @layout.variant name=Mode size=8 align=8
-/// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=Mode index=0 discriminant=1 payload_offset=8
-/// @layout.case owner=Mode index=1 discriminant=2 payload_offset=8
+/// @layout.variant name=Mode size=1 align=1
+/// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=Mode index=0 discriminant=1 payload_offset=1
+/// @layout.case owner=Mode index=1 discriminant=2 payload_offset=1
 "#,
     );
 }
@@ -74,7 +74,7 @@ function fallback(mode: Mode): int32 {
         "main.ds",
         r#"
 @copy
-type Mode = variant<int64> { 1int64 = void; 2int64 = void; };
+type Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.describe(v0: Mode): int32 {
     local l0: int32
@@ -118,10 +118,10 @@ b3:
     return v3
 }
 
-/// @layout.variant name=Mode size=8 align=8
-/// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=Mode index=0 discriminant=1 payload_offset=8
-/// @layout.case owner=Mode index=1 discriminant=2 payload_offset=8
+/// @layout.variant name=Mode size=1 align=1
+/// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=Mode index=0 discriminant=1 payload_offset=1
+/// @layout.case owner=Mode index=1 discriminant=2 payload_offset=1
 "#,
     );
 }

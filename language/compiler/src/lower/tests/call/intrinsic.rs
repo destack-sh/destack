@@ -185,16 +185,16 @@ function publish(): void {
         "main.ds",
         r#"
 @copy
-type MemoryOrdering = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; };
+type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; };
 
 @copy
-type AtomicScope = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; 5int64 = void; 6int64 = void; 7int64 = void; };
+type AtomicScope = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; 5uint8 = void; 6uint8 = void; 7uint8 = void; };
 
 @copy
-type MemoryScope = variant<int64> { 0int64 = void; };
+type MemoryScope = variant<uint8> { 0uint8 = void; };
 
 @copy
-type MemoryRegionSet = variant<int64> { 0int64 = void; };
+type MemoryRegionSet = variant<uint8> { 0uint8 = void; };
 
 function test.main.publish(): void {
 entry:
@@ -202,29 +202,29 @@ entry:
     return
 }
 
-/// @layout.variant name=MemoryOrdering size=8 align=8
-/// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=1 discriminant=1 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=2 discriminant=2 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=3 discriminant=3 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=4 discriminant=4 payload_offset=8
-/// @layout.variant name=AtomicScope size=8 align=8
-/// @layout.discriminant owner=AtomicScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=AtomicScope index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=AtomicScope index=1 discriminant=1 payload_offset=8
-/// @layout.case owner=AtomicScope index=2 discriminant=2 payload_offset=8
-/// @layout.case owner=AtomicScope index=3 discriminant=3 payload_offset=8
-/// @layout.case owner=AtomicScope index=4 discriminant=4 payload_offset=8
-/// @layout.case owner=AtomicScope index=5 discriminant=5 payload_offset=8
-/// @layout.case owner=AtomicScope index=6 discriminant=6 payload_offset=8
-/// @layout.case owner=AtomicScope index=7 discriminant=7 payload_offset=8
-/// @layout.variant name=MemoryScope size=8 align=8
-/// @layout.discriminant owner=MemoryScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=MemoryScope index=0 discriminant=0 payload_offset=8
-/// @layout.variant name=MemoryRegionSet size=8 align=8
-/// @layout.discriminant owner=MemoryRegionSet kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=MemoryRegionSet index=0 discriminant=0 payload_offset=8
+/// @layout.variant name=MemoryOrdering size=1 align=1
+/// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=2 discriminant=2 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=3 discriminant=3 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=4 discriminant=4 payload_offset=1
+/// @layout.variant name=AtomicScope size=1 align=1
+/// @layout.discriminant owner=AtomicScope kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=AtomicScope index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=AtomicScope index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=AtomicScope index=2 discriminant=2 payload_offset=1
+/// @layout.case owner=AtomicScope index=3 discriminant=3 payload_offset=1
+/// @layout.case owner=AtomicScope index=4 discriminant=4 payload_offset=1
+/// @layout.case owner=AtomicScope index=5 discriminant=5 payload_offset=1
+/// @layout.case owner=AtomicScope index=6 discriminant=6 payload_offset=1
+/// @layout.case owner=AtomicScope index=7 discriminant=7 payload_offset=1
+/// @layout.variant name=MemoryScope size=1 align=1
+/// @layout.discriminant owner=MemoryScope kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=MemoryScope index=0 discriminant=0 payload_offset=1
+/// @layout.variant name=MemoryRegionSet size=1 align=1
+/// @layout.discriminant owner=MemoryRegionSet kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=MemoryRegionSet index=0 discriminant=0 payload_offset=1
 "#,
     );
 }
@@ -314,16 +314,16 @@ function acquireAll(): void {
         "main.ds",
         r#"
 @copy
-type MemoryOrdering = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; };
+type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; };
 
 @copy
-type AtomicScope = variant<int64> { 0int64 = void; 1int64 = void; 2int64 = void; 3int64 = void; 4int64 = void; 5int64 = void; 6int64 = void; 7int64 = void; };
+type AtomicScope = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; 5uint8 = void; 6uint8 = void; 7uint8 = void; };
 
 @copy
-type MemoryScope = variant<int64> { 0int64 = void; };
+type MemoryScope = variant<uint8> { 0uint8 = void; };
 
 @copy
-type MemoryRegionSet = variant<int64> { 0int64 = void; };
+type MemoryRegionSet = variant<uint8> { 0uint8 = void; };
 
 function test.main.acquireAll(): void {
 entry:
@@ -331,29 +331,29 @@ entry:
     return
 }
 
-/// @layout.variant name=MemoryOrdering size=8 align=8
-/// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=1 discriminant=1 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=2 discriminant=2 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=3 discriminant=3 payload_offset=8
-/// @layout.case owner=MemoryOrdering index=4 discriminant=4 payload_offset=8
-/// @layout.variant name=AtomicScope size=8 align=8
-/// @layout.discriminant owner=AtomicScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=AtomicScope index=0 discriminant=0 payload_offset=8
-/// @layout.case owner=AtomicScope index=1 discriminant=1 payload_offset=8
-/// @layout.case owner=AtomicScope index=2 discriminant=2 payload_offset=8
-/// @layout.case owner=AtomicScope index=3 discriminant=3 payload_offset=8
-/// @layout.case owner=AtomicScope index=4 discriminant=4 payload_offset=8
-/// @layout.case owner=AtomicScope index=5 discriminant=5 payload_offset=8
-/// @layout.case owner=AtomicScope index=6 discriminant=6 payload_offset=8
-/// @layout.case owner=AtomicScope index=7 discriminant=7 payload_offset=8
-/// @layout.variant name=MemoryScope size=8 align=8
-/// @layout.discriminant owner=MemoryScope kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=MemoryScope index=0 discriminant=0 payload_offset=8
-/// @layout.variant name=MemoryRegionSet size=8 align=8
-/// @layout.discriminant owner=MemoryRegionSet kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=MemoryRegionSet index=0 discriminant=0 payload_offset=8
+/// @layout.variant name=MemoryOrdering size=1 align=1
+/// @layout.discriminant owner=MemoryOrdering kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=MemoryOrdering index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=2 discriminant=2 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=3 discriminant=3 payload_offset=1
+/// @layout.case owner=MemoryOrdering index=4 discriminant=4 payload_offset=1
+/// @layout.variant name=AtomicScope size=1 align=1
+/// @layout.discriminant owner=AtomicScope kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=AtomicScope index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=AtomicScope index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=AtomicScope index=2 discriminant=2 payload_offset=1
+/// @layout.case owner=AtomicScope index=3 discriminant=3 payload_offset=1
+/// @layout.case owner=AtomicScope index=4 discriminant=4 payload_offset=1
+/// @layout.case owner=AtomicScope index=5 discriminant=5 payload_offset=1
+/// @layout.case owner=AtomicScope index=6 discriminant=6 payload_offset=1
+/// @layout.case owner=AtomicScope index=7 discriminant=7 payload_offset=1
+/// @layout.variant name=MemoryScope size=1 align=1
+/// @layout.discriminant owner=MemoryScope kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=MemoryScope index=0 discriminant=0 payload_offset=1
+/// @layout.variant name=MemoryRegionSet size=1 align=1
+/// @layout.discriminant owner=MemoryRegionSet kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=MemoryRegionSet index=0 discriminant=0 payload_offset=1
 "#,
     );
 }

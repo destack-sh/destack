@@ -14,7 +14,7 @@ impl TypeLowerer<'_, '_> {
         copy: mir::Copy,
     ) -> CompilerResult<Vec<NominalField>> {
         // require an integer representation
-        let dir::EnumBackingType::Integer(integer) = definition.backing else {
+        let dir::EnumBackingType::Integer(_) = definition.backing else {
             return Err(LowerError::Unsupported {
                 anchor: self.lower.module.into(),
                 construct: "a string-backed enum".to_string(),
@@ -22,26 +22,40 @@ impl TypeLowerer<'_, '_> {
             .into());
         };
 
-        // lower the discriminant scalar and its width
-        let discriminant = self
-            .lower
-            .scalar_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
-        let discriminant = self.tree.intern_type(discriminant);
-        let width = integer
-            .width()
-            .unwrap_or_else(|| u16::from(self.pointer_bytes) * 8);
-
-        // build the variant cases in declaration order
-        let storage = self.tree.intern_type(mir::Type::Void);
-        let mut fields = Vec::new();
-        let mut variants = Vec::new();
+        // collect the case values
+        let mut values = Vec::new();
         for variant in definition.variants() {
             let dir::EnumVariantValue::Integer(value) = variant.value else {
                 return Err(CompilerError::Internal {
                     message: "a non-integer variant in an integer-backed enum".to_string(),
                 });
             };
+            values.push(value);
+        }
 
+        // fit the discriminant to the narrowest width holding every case value
+        let is_signed = values.iter().any(|value| *value < 0);
+        let width = [8u16, 16, 32]
+            .into_iter()
+            .find(|width| {
+                let bound = 1i64 << (width - u16::from(is_signed));
+                let floor = if is_signed { -bound } else { 0 };
+                values.iter().all(|value| (floor..bound).contains(value))
+            })
+            .unwrap_or(64);
+        let integer = dir::IntegerType::Fixed { width, is_signed };
+
+        // lower the discriminant scalar
+        let discriminant = self
+            .lower
+            .scalar_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
+        let discriminant = self.tree.intern_type(discriminant);
+
+        // build the variant cases in declaration order
+        let storage = self.tree.intern_type(mir::Type::Void);
+        let mut fields = Vec::new();
+        let mut variants = Vec::new();
+        for (variant, value) in definition.variants().zip(values) {
             // record the variant member
             fields.push(NominalField {
                 key: variant.key,

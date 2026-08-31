@@ -191,14 +191,14 @@ function probe(status: Status): boolean {
         "main.ds",
         r#"
 @copy
-type Status = variant<int64> { 1int64 = void; 2int64 = void; };
+type Status = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.Status.isActive<'a>(v0: ref<Status, borrowed, 'a, readonly, local>): boolean {
 entry(v0: ref<Status, borrowed, 'a, readonly, local>):
     v1: Status = load v0
-    v2: int64 = variant.tag v1
+    v2: uint8 = variant.tag v1
     v3: Status = variant.new 0
-    v4: int64 = variant.tag v3
+    v4: uint8 = variant.tag v3
     v5: boolean = eq v2, v4
     return v5
 }
@@ -213,10 +213,10 @@ entry(v0: Status):
     return v2
 }
 
-/// @layout.variant name=Status size=8 align=8
-/// @layout.discriminant owner=Status kind=direct offset=0 byte_len=8 bit_offset=0 bit_len=64
-/// @layout.case owner=Status index=0 discriminant=1 payload_offset=8
-/// @layout.case owner=Status index=1 discriminant=2 payload_offset=8
+/// @layout.variant name=Status size=1 align=1
+/// @layout.discriminant owner=Status kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=Status index=0 discriminant=1 payload_offset=1
+/// @layout.case owner=Status index=1 discriminant=2 payload_offset=1
 "#,
     );
 }
