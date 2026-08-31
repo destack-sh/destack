@@ -1241,6 +1241,18 @@ impl CheckState<'_> {
         let void = self.intern_type(dir::Type::Void)?;
         self.commit_node_type(node, void)?;
 
+        // a function body nests only function and type declarations
+        if self.flow.current_function().is_some()
+            && !matches!(
+                kind,
+                dir::Declaration::Type(_) | dir::Declaration::Function(_)
+            )
+        {
+            self.report_declaration_not_nestable(site.origin(), kind.kind_name())?;
+
+            return Ok(());
+        }
+
         // type module and global block members in authored order
         let members = match &kind {
             dir::Declaration::Global(block) => Some(block.expressions.clone()),

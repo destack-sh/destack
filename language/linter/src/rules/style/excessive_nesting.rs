@@ -287,32 +287,27 @@ function traverse(
 
     /// Reset nesting inside a static initialization block.
     #[test]
-    fn test_accepts_static_block_at_maximum_depth() {
+    fn test_accepts_deep_nesting_inside_a_static_block() {
         let session = TestSession::dir(
             &EXCESSIVE_NESTING,
             r#"
-function initialize(
-    hasRoot: boolean,
-    hasBranch: boolean,
-    hasNode: boolean,
-    hasLeaf: boolean,
-    shouldInitialize: boolean,
-): void {
-    if (hasRoot) {
-        while (hasBranch) {
-            if (hasNode) {
-                while (hasLeaf) {
-                    class Registry {
-                        static {
-                            if (shouldInitialize) {
-                                const value = 1;
-                            }
-                        }
+const hasRoot: boolean = true;
+const hasBranch: boolean = true;
+const hasNode: boolean = true;
+const hasLeaf: boolean = true;
+
+class Registry {
+    static {
+        if (hasRoot) {
+            while (hasBranch) {
+                if (hasNode) {
+                    while (hasLeaf) {
+                        const value = 1;
+                        break;
                     }
-                    break;
                 }
+                break;
             }
-            break;
         }
     }
 }

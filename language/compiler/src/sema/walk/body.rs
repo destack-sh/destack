@@ -164,6 +164,10 @@ impl WalkState<'_, '_> {
             }
             // aliases carry no bodies, nominal values check parameter use
             dir::Declaration::Type(declaration) => {
+                // declare a body-local type before answering for it
+                if self.check.definition_maybe(symbol).is_none() {
+                    return Ok(false);
+                }
                 if declaration.is_nominal {
                     let _source = id.into_global_any(self.module);
                 }
