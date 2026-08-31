@@ -1291,25 +1291,13 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
                 is_static,
                 ..
             } => {
-                let symbol_id = self
-                    .module
-                    .global_node_symbol(member_id.into_any())?
-                    .ok_or(QueryError::missing(format!(
-                        "semantic token member symbol: {:?}",
-                        member_id.into_global_any(self.module.module_id())
-                    )))?;
-                let (_, _, definition) = self
-                    .module
-                    .definition_member(self.program, symbol_id)?
-                    .ok_or(QueryError::missing(format!(
-                        "semantic token member definition: {symbol_id:?}"
-                    )))?;
+                let definition = self.member_definition(member_id)?;
                 let dir::DefinitionMember::Method(definition) = definition else {
                     return Err(QueryError::invalid(format!(
-                        "semantic token member definition: {symbol_id:?}"
+                        "semantic token member definition: {member_id:?}"
                     )));
                 };
-                let is_abstract = definition.implementation == dir::MethodImplementation::Required;
+                let is_abstract = definition.implementation == dir::MemberImplementation::Required;
                 let mut modifiers = declaration.union(SemanticTokenModifiers::member(
                     false,
                     false,
@@ -1322,26 +1310,46 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
                 Some((SemanticTokenType::Method, modifiers))
             }
-            // FUGU #Incomplete: DefinitionMember must retain associated type implementation
-            dir::TypeMember::AssociatedType { is_abstract, .. } => Some((
-                SemanticTokenType::Type,
-                declaration.union(SemanticTokenModifiers::member(
-                    false,
-                    false,
-                    false,
-                    *is_abstract,
-                )),
-            )),
-            // FUGU #Incomplete: DefinitionMember must retain associated const implementation
-            dir::TypeMember::AssociatedConst { is_abstract, .. } => Some((
-                SemanticTokenType::Property,
-                declaration.union(SemanticTokenModifiers::member(
-                    false,
-                    true,
-                    false,
-                    *is_abstract,
-                )),
-            )),
+            dir::TypeMember::AssociatedType { .. } => {
+                let dir::DefinitionMember::AssociatedType(definition) =
+                    self.member_definition(member_id)?
+                else {
+                    return Err(QueryError::invalid(format!(
+                        "semantic token member definition: {member_id:?}"
+                    )));
+                };
+                let is_abstract = definition.implementation == dir::MemberImplementation::Required;
+
+                Some((
+                    SemanticTokenType::Type,
+                    declaration.union(SemanticTokenModifiers::member(
+                        false,
+                        false,
+                        false,
+                        is_abstract,
+                    )),
+                ))
+            }
+            dir::TypeMember::AssociatedConst { .. } => {
+                let dir::DefinitionMember::AssociatedConst(definition) =
+                    self.member_definition(member_id)?
+                else {
+                    return Err(QueryError::invalid(format!(
+                        "semantic token member definition: {member_id:?}"
+                    )));
+                };
+                let is_abstract = definition.implementation == dir::MemberImplementation::Required;
+
+                Some((
+                    SemanticTokenType::Property,
+                    declaration.union(SemanticTokenModifiers::member(
+                        false,
+                        true,
+                        false,
+                        is_abstract,
+                    )),
+                ))
+            }
             dir::TypeMember::CallSignature { .. }
             | dir::TypeMember::ConstructSignature { .. }
             | dir::TypeMember::IndexSignature { .. }
@@ -1349,6 +1357,28 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
         };
 
         Ok(token)
+    }
+
+    /// Return the definition member declared at one type member node.
+    fn member_definition(
+        &self,
+        member_id: dir::LocalNodeId<dir::TypeMember>,
+    ) -> QueryResult<&dir::DefinitionMember> {
+        let symbol_id = self
+            .module
+            .global_node_symbol(member_id.into_any())?
+            .ok_or(QueryError::missing(format!(
+                "semantic token member symbol: {:?}",
+                member_id.into_global_any(self.module.module_id())
+            )))?;
+        let (_, _, definition) = self
+            .module
+            .definition_member(self.program, symbol_id)?
+            .ok_or(QueryError::missing(format!(
+                "semantic token member definition: {symbol_id:?}"
+            )))?;
+
+        Ok(definition)
     }
 
     /// Collect index signature parameter tokens.
@@ -1408,7 +1438,6 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
     fn collect_generic_refinements(&mut self) -> QueryResult<()> {
         let view = self.module.view()?;
 
-        // FUGU #Incomplete: DIR must retain selected associated declarations for refinements
         for (argument_id, argument) in view.iter_nodes::<dir::GenericArgument>() {
             let (token_type, modifiers) = match argument {
                 dir::GenericArgument::AssociatedType { .. } => {
@@ -1424,6 +1453,17 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
             };
             let Some(span) = self.main_span(argument_id.into_any())? else {
                 continue;
+            };
+
+            // inherit the selected associated declaration's modifiers
+            let resolution = self
+                .module
+                .resolutions()?
+                .name_resolution(argument_id.into_global_any(self.module.module_id()));
+            let selected = resolution.and_then(|resolution| resolution.symbols().first().copied());
+            let modifiers = match selected {
+                Some(symbol_id) => modifiers.union(self.symbol_modifiers(symbol_id)?),
+                None => modifiers,
             };
 
             self.tokens

@@ -397,7 +397,6 @@ interface Drawable {
 
 An associated type without a definition is an abstract interface requirement.
 
-<!-- FUGU #Incomplete: DefinitionMember must retain associated type implementation. -->
 
 ```ds main.ds
 interface Container {
@@ -416,7 +415,6 @@ interface Container {
 
 An associated constant without a value is an abstract interface requirement.
 
-<!-- FUGU #Incomplete: DefinitionMember must retain associated const implementation. -->
 
 ```ds main.ds
 interface Container {
@@ -851,8 +849,8 @@ type Concrete = Container<type Item = string, const Width = 4>;
 @semantic_tokens.token range=main.ds#parameter_type type=type_parameter
 @semantic_tokens.token range=main.ds#return_type type=type_parameter
 @semantic_tokens.token range=main.ds#container type=interface modifiers=declaration
-@semantic_tokens.token range=main.ds#item_declaration type=type modifiers=declaration
-@semantic_tokens.token range=main.ds#width_declaration type=property modifiers=declaration,readonly
+@semantic_tokens.token range=main.ds#item_declaration type=type modifiers=declaration,abstract
+@semantic_tokens.token range=main.ds#width_declaration type=property modifiers=declaration,readonly,abstract
 @semantic_tokens.token range=main.ds#concrete type=type modifiers=declaration
 @semantic_tokens.token range=main.ds#container_reference type=interface
 @semantic_tokens.token range=main.ds#item_refinement type=type
@@ -863,7 +861,6 @@ type Concrete = Container<type Item = string, const Width = 4>;
 
 An associated refinement inherits modifiers from its selected declaration.
 
-<!-- FUGU #Incomplete: DIR must retain selected associated declarations for refinements. -->
 
 ```ds main.ds
 interface Container {
@@ -883,7 +880,7 @@ type Concrete = Container<type Item = string>;
 ```query semantic_tokens main.ds
 @semantic_tokens.token range=main.ds#container type=interface modifiers=declaration
 @semantic_tokens.token range=main.ds#decorator type=decorator modifiers=default_library
-@semantic_tokens.token range=main.ds#declaration type=type modifiers=declaration,deprecated
+@semantic_tokens.token range=main.ds#declaration type=type modifiers=declaration,deprecated,abstract
 @semantic_tokens.token range=main.ds#concrete type=type modifiers=declaration
 @semantic_tokens.token range=main.ds#container_reference type=interface
 @semantic_tokens.token range=main.ds#refinement type=type modifiers=deprecated
@@ -1176,7 +1173,6 @@ class Player {}
 
 Struct declarations and constructions remain highlighted through successive edits.
 
-<!-- FUGU #Broken: a bare constructable name aborts DirDeclared while typing. -->
 
 ```ds main.ds
 struct Position {}
