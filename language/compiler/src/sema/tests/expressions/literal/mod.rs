@@ -4,6 +4,7 @@ mod boolean;
 mod character;
 mod number;
 mod object;
+mod range;
 mod regex;
 mod string;
 mod template;
