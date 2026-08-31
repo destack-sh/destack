@@ -722,7 +722,9 @@ impl CheckState<'_> {
                     let mut hit = match &ty {
                         dir::Type::Member(_) => true,
                         dir::Type::Application(application) => {
-                            self.is_partial_application(id.module_id, application)?
+                            self.language_item(application.symbol)?
+                                .is_some_and(crate::sema::language::is_type_computation)
+                                || self.is_partial_application(id.module_id, application)?
                         }
                         _ => false,
                     };
@@ -918,7 +920,7 @@ impl CheckState<'_> {
             substituted => self.intern_type(substituted),
         }?;
 
-        // normalize rebuilt entries that hold no parameter, this, or variable
+        // normalize the rebuilt entry under a normalizing rule
         if let SubstitutionRule::Normalize { origin }
         | SubstitutionRule::SubstituteInfer {
             origin: Some(origin),
@@ -933,8 +935,12 @@ impl CheckState<'_> {
                 return Ok(filled);
             }
 
+            // normalize once every parameter, this, and variable the entry holds is closed
             let flags = self.type_flags(rebuilt)?;
-            if !flags.has_parameter() && !flags.has_this() && !flags.has_variable() {
+            if !flags.has_this()
+                && !flags.has_variable()
+                && (!flags.has_parameter() || !self.has_open_parameter(rebuilt)?)
+            {
                 return self.normalize(origin, rebuilt);
             }
         }

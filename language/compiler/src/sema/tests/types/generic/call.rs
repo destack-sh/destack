@@ -773,12 +773,10 @@ const value = first([1, 2]);
 /// @resolution.name source=first target=first
 /// @resolution.call source="first([1, 2])" parameters=(int64[]) arguments=(provided([1, 2]) as int64[]) return=int64 kind=symbol target=first instance=first<int64>
 /// @generic.instantiation id=first<int64> template=first arguments=(int64)
-/// @generic.instance id="WithAccess<&'frame int64, \"exclusive\">" template=WithAccess arguments=(&'frame int64, "exclusive")
-/// @generic.instance id="WithAccess<&'frame int64[], \"exclusive\">" template=WithAccess arguments=(&'frame int64[], "exclusive")
-/// @generic.instance id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive")
+/// @generic.instance id="index#1<int64, \"exclusive\">" template=index#1 arguments=(int64, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive int64[], isize) => &index#1.'a exclusive int64)
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=MaybeUninit<int64> template=MaybeUninit arguments=(int64)
-/// @generic.instance id=first<int64> template=first arguments=(int64)
+/// @generic.instance id=first<int64> template=first arguments=(int64) evaluated=(WithAccess<&'frame T, "exclusive"> => &'frame exclusive int64)
 /// @generic.instance id=new<MaybeUninit<int64>> template=new arguments=(MaybeUninit<int64>)
 /// @type.node source=[1, 2] type=int64[]
 /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int64) return=int64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int64>
@@ -3353,7 +3351,6 @@ function length(values: It<int32>): isize {
     /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=length.values
     /// @generic.instantiation id="It.count<int32, void>" template=It.count arguments=(int32, void)
-    /// @generic.instance id="It.count<int32, void>" template=It.count arguments=(int32, void)
 
 }
 "#);

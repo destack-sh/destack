@@ -45,8 +45,7 @@ const ok = choose(["red", "blue"], "red");
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id="Array<\"red\" | \"blue\">" template=Array arguments=("red" | "blue")
 /// @generic.instance id="MaybeUninit<\"red\" | \"blue\">" template=MaybeUninit arguments=("red" | "blue")
-/// @generic.instance id="NoInfer<\"red\" | \"blue\">" template=NoInfer arguments=("red" | "blue")
-/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
+/// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue") evaluated=(<C: string>(C[], NoInfer<C> | undefined?) => C => <C: string>("red" | "blue"[], NoInfer<"red" | "blue"> | undefined?) => "red" | "blue")
 /// @generic.instance id="new<MaybeUninit<\"red\" | \"blue\">>" template=new arguments=(MaybeUninit<"red" | "blue">)
 /// @resolution.call source=["red", "blue"] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest("red", "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromSlice instance="arrayFromSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromSlice<\"red\" | \"blue\">" template=arrayFromSlice arguments=("red" | "blue")

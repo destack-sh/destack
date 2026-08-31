@@ -24,11 +24,6 @@ impl CheckState<'_> {
     }
 
     /// Materialize one committed type.
-    ///
-    /// Solved variables substitute into the spelling.
-    /// This-typed and unsolved types stay written for their instances.
-    /// Template types stay written and intern their closed applications.
-    /// Closed types evaluate the computations they reach and intern the result's applications.
     fn materialize_type(
         &mut self,
         anchor: dir::GlobalNodeIdAny,
@@ -238,7 +233,6 @@ impl CheckState<'_> {
     /// Convert materialized state into one materialized DIR module.
     pub(in crate::sema) fn into_materialized(mut self) -> CompilerResult<DirMaterialized> {
         // write this pass's results back into the module state
-        self.write_back()?;
         let module = self.module_id;
         self.commit_instance_conformances(module)?;
 

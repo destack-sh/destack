@@ -81,7 +81,10 @@ impl CheckState<'_> {
                     return Ok(true);
                 }
                 dir::Type::Application(application)
-                    if self.is_computed_alias(application.symbol)?
+                    if self
+                        .language_item(application.symbol)?
+                        .is_some_and(crate::sema::language::is_type_computation)
+                        || self.is_computed_alias(application.symbol)?
                         || self.is_partial_application(id.module_id, application)? =>
                 {
                     return Ok(true);
@@ -233,7 +236,10 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type mentions an open type or place parameter.
-    fn has_open_parameter(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    pub(in crate::sema) fn has_open_parameter(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
         // walk the type graph, stopping at the first open parameter
         let mut pending = vec![ty];
         let mut visited = FxIndexSet::default();
@@ -364,6 +370,46 @@ impl CheckState<'_> {
             }
         }
 
+        // resolve an interface requirement to the member its receiver conformance selects
+        if self.interface_member_owner(template).is_some() {
+            // require a receiver to close a requirement into a static callable
+            let Some(receiver_type) = receiver else {
+                return Ok(None);
+            };
+
+            // intern the implementing member in place of the requirement
+            if let Some((member, member_arguments)) =
+                self.requirement_implementation(origin, template, receiver_type)?
+            {
+                let redirected = self.intern_instance(
+                    member,
+                    receiver,
+                    member_arguments,
+                    source,
+                    introduced,
+                    depth + 1,
+                    worklist,
+                )?;
+
+                // record the selection so lowering dispatches through the implementer
+                if let Some(redirected) = redirected
+                    && let Some(implementer) = self
+                        .module
+                        .generics_tail
+                        .get_local_instance(redirected)
+                        .map(|instance| instance.key.clone())
+                {
+                    let requirement =
+                        dir::InstanceKey::new(template, arguments).with_receiver(receiver);
+                    self.module
+                        .generics_tail
+                        .bind_dispatch_selection(requirement, implementer);
+                }
+
+                return Ok(redirected);
+            }
+        }
+
         // allocate one instance per distinct closed identity
         let key = dir::InstanceKey::new(template, arguments.clone()).with_receiver(receiver);
         if let Some(admitted) = worklist.seen.get(&key).copied() {
@@ -392,6 +438,65 @@ impl CheckState<'_> {
         worklist.queue.push_back((instance, depth));
 
         Ok(Some(instance))
+    }
+
+    /// Return the member and arguments one receiver's conformance selects for a requirement.
+    fn requirement_implementation(
+        &mut self,
+        origin: Origin,
+        requirement: dir::GlobalSymbolId,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(dir::GlobalSymbolId, Vec<dir::GenericArgumentBinding>)>> {
+        // read the interface the requirement belongs to
+        let Some(owner) = self.interface_member_owner(requirement) else {
+            return Ok(None);
+        };
+        let Some(dir::Definition::Interface(interface)) = self.definition(owner)?.cloned() else {
+            return Ok(None);
+        };
+
+        // read the slot key the requirement declares
+        let Some(slot) = interface
+            .members
+            .iter()
+            .find_map(|declared| match declared {
+                dir::DefinitionMember::Method(method) if method.symbol == requirement => {
+                    Some(method.slot)
+                }
+                _ => None,
+            })
+        else {
+            return Ok(None);
+        };
+        let dir::MemberSlot::Key(key) = slot else {
+            return Ok(None);
+        };
+
+        // look the slot up on the concrete receiver
+        let module = origin.module();
+        let subject =
+            self.member_subject(origin, receiver, receiver, dir::MemberSpace::Instance)?;
+        let lookup = self.lookup_member(origin, module, subject, key)?;
+
+        // take the one candidate implementing this requirement
+        let mut selected = None;
+        for candidate in &lookup {
+            let Some(declared) = candidate.declaration() else {
+                continue;
+            };
+            if declared.requirement != Some(owner) || !declared.site_parameters.is_empty() {
+                continue;
+            }
+
+            if selected.is_some() {
+                return Err(CompilerError::Internal {
+                    message: "a requirement selected two implementations".to_string(),
+                });
+            }
+            selected = Some((declared.symbol, declared.generic_arguments.clone()));
+        }
+
+        Ok(selected)
     }
 
     /// Close one instance: admit its template's instantiations and resolve its types.

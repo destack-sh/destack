@@ -3685,6 +3685,8 @@ define_language_items! {
     }
 }
 
+impl LanguageItem {}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;

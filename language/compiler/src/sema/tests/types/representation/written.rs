@@ -549,9 +549,7 @@ const first = shapes[0];
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
 /// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static Shape, \"exclusive\">)"
 /// @generic.instantiation id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id="WithAccess<&'frame Shape, \"exclusive\">" template=WithAccess arguments=(&'frame Shape, "exclusive")
-/// @generic.instance id="WithAccess<&'frame Shape[], \"exclusive\">" template=WithAccess arguments=(&'frame Shape[], "exclusive")
-/// @generic.instance id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive")
+/// @generic.instance id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive Shape[], isize) => &index#1.'a exclusive Circle | Rectangle)
 
 first satisfies Shape;
 /// @resolution.name source=first target=first

@@ -8,9 +8,9 @@ use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
     Arena, AutoInterfaceSet, Cardinality, GenericParameterBinding, GenericParameterKey,
-    GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin,
-    Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
-    SegmentView, TypeFold, VarianceModifier,
+    GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey,
+    InstanceOrigin, Instantiation, LocalGenericParameterId, LocalGenericTemplateId,
+    LocalInstanceId, LocalScopeId, SegmentView, TypeFold, VarianceModifier,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -277,6 +277,15 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_application_instances())
     }
 
+    /// Iterate the requirement selections recorded across every segment.
+    pub fn iter_dispatch_selections(
+        &self,
+    ) -> impl Iterator<Item = (&InstanceKey, &InstanceKey)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_dispatch_selections())
+    }
+
     /// Get the number of instances in the table.
     pub fn instance_count(&self) -> u32 {
         self.segments
@@ -320,6 +329,8 @@ pub struct GenericSegment {
     pub(crate) instance_types: IndexMap<(LocalInstanceId, GlobalTypeId), (GlobalTypeId, bool)>,
     /// The interned instance behind each closed application type.
     pub(crate) application_instances: IndexMap<GlobalTypeId, LocalInstanceId>,
+    /// The implementing selection behind each closed interface requirement.
+    pub(crate) dispatch_selections: IndexMap<InstanceKey, InstanceKey>,
     /// Materialized symbol types keyed by instance and symbol.
     pub(crate) instance_symbols: IndexMap<(LocalInstanceId, GlobalSymbolId), GlobalTypeId>,
 }
@@ -340,6 +351,7 @@ impl GenericSegment {
             instances: Arena::new(),
             instance_types: IndexMap::default(),
             application_instances: IndexMap::default(),
+            dispatch_selections: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
@@ -360,6 +372,7 @@ impl GenericSegment {
             instances: Arena::new(),
             instance_types: IndexMap::default(),
             application_instances: IndexMap::default(),
+            dispatch_selections: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
@@ -660,6 +673,18 @@ impl GenericSegment {
     /// Record the interned instance behind one closed application type.
     pub fn bind_application_instance(&mut self, ty: GlobalTypeId, instance: LocalInstanceId) {
         self.application_instances.insert(ty, instance);
+    }
+
+    /// Record the implementing selection behind one interface requirement.
+    pub fn bind_dispatch_selection(&mut self, requirement: InstanceKey, implementer: InstanceKey) {
+        self.dispatch_selections.insert(requirement, implementer);
+    }
+
+    /// Iterate the requirement selections recorded by this segment.
+    pub fn iter_dispatch_selections(
+        &self,
+    ) -> impl Iterator<Item = (&InstanceKey, &InstanceKey)> + '_ {
+        self.dispatch_selections.iter()
     }
 
     /// Iterate the application types recorded by this segment.

@@ -526,12 +526,8 @@ const first = values[0];
 /// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, "readonly">), index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant string, "readonly">)]
 /// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
 /// @generic.instantiation id="index#1<string, \"readonly\">" template=index#1 arguments=(string, "readonly")
-/// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly")
-/// @generic.instance id="WithAccess<&'frame int32[], \"readonly\">" template=WithAccess arguments=(&'frame int32[], "readonly")
-/// @generic.instance id="WithAccess<&'frame string, \"readonly\">" template=WithAccess arguments=(&'frame string, "readonly")
-/// @generic.instance id="WithAccess<&'frame string[], \"readonly\">" template=WithAccess arguments=(&'frame string[], "readonly")
-/// @generic.instance id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
-/// @generic.instance id="index#1<string, \"readonly\">" template=index#1 arguments=(string, "readonly")
+/// @generic.instance id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a readonly int32[], isize) => &index#1.'a readonly int32)
+/// @generic.instance id="index#1<string, \"readonly\">" template=index#1 arguments=(string, "readonly") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a readonly string[], isize) => &index#1.'a readonly string)
 "#,
     );
 }
