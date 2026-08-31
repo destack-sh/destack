@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::CompilerResult;
-use crate::lower::ModuleLowerer;
+use crate::lower::LowerState;
 
 /// The identity one type alias declares for its value.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -12,7 +12,7 @@ pub(in crate::lower) enum AliasForm {
     Value,
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Return the identity one alias declares, none for transparent renames.
     pub(in crate::lower) fn alias_form(
         &self,
@@ -24,7 +24,7 @@ impl ModuleLowerer<'_> {
         Ok(match self.ty(alias.value)? {
             dir::Type::Object(shape) if shape.declares_signatures() => Some(AliasForm::Value),
             dir::Type::Object(_) => Some(AliasForm::Object),
-            // families whose lowering recurses into children need identity
+            // give identity to the families whose lowering recurses into children
             dir::Type::Union(_)
             | dir::Type::Tuple(_)
             | dir::Type::Slice(_)

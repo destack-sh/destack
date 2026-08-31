@@ -62,8 +62,8 @@ entry:
     return v4
 }
 
-/// @layout.struct name=type@9 size=4 align=4
-/// @layout.field owner=type@9 index=0 name=value offset=0 size=4 align=4
+/// @layout.struct name=type@8 size=4 align=4
+/// @layout.field owner=type@8 index=0 name=value offset=0 size=4 align=4
 "#);
 }
 
@@ -116,7 +116,7 @@ entry:
     return v7
 }
 
-/// @layout.struct name=type@9 size=4 align=4
-/// @layout.field owner=type@9 index=0 name=count offset=0 size=4 align=4
+/// @layout.struct name=type@8 size=4 align=4
+/// @layout.field owner=type@8 index=0 name=count offset=0 size=4 align=4
 "#);
 }

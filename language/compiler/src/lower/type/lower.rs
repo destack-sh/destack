@@ -3,20 +3,20 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{GenericInstanceKey, LifetimeParameters, ModuleLowerer};
+use crate::lower::{GenericInstanceKey, LifetimeParameters, LowerState};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// Recursive type lowering into one tree.
 pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
     /// The stable module lowering state.
-    pub(in crate::lower) lowerer: &'lower mut ModuleLowerer<'module>,
+    pub(in crate::lower) lower: &'lower mut LowerState<'module>,
     /// The tree receiving lowered types.
     pub(in crate::lower) tree: &'lower mut mir::Tree,
     /// The target pointer width in bytes.
     pub(in crate::lower) pointer_bytes: u8,
     /// The polymorphic lifetime parameters available during lowering.
     pub(in crate::lower) lifetime_parameters: &'lower LifetimeParameters,
-    /// The sema instance whose materialized rows resolve read types.
+    /// The materialized instance resolving the types this lower reads.
     pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The heap space receiving reference layers, written by placed forms.
     pub(in crate::lower) space: mir::Space,
@@ -27,13 +27,13 @@ pub(in crate::lower) struct TypeLowerer<'lower, 'module> {
 impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     /// Create recursive type lowering over one tree.
     fn new(
-        lowerer: &'lower mut ModuleLowerer<'module>,
+        lower: &'lower mut LowerState<'module>,
         tree: &'lower mut mir::Tree,
         pointer_bytes: u8,
         lifetime_parameters: &'lower LifetimeParameters,
     ) -> Self {
         Self {
-            lowerer,
+            lower,
             tree,
             pointer_bytes,
             lifetime_parameters,
@@ -43,7 +43,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         }
     }
 
-    /// Return this lowerer resolving reads through one instance's rows.
+    /// Return this lower resolving through one instance's types.
     pub(in crate::lower) fn with_instance(
         mut self,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
@@ -53,13 +53,13 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         self
     }
 
-    /// Return a nested lowerer resolving through another instance's rows.
+    /// Return a nested lower resolving through another instance's types.
     pub(in crate::lower) fn nested<'nested>(
         &'nested mut self,
         instance: Option<(ModuleId, dir::LocalInstanceId)>,
     ) -> TypeLowerer<'nested, 'module> {
         TypeLowerer {
-            lowerer: &mut *self.lowerer,
+            lower: &mut *self.lower,
             tree: &mut *self.tree,
             pointer_bytes: self.pointer_bytes,
             lifetime_parameters: self.lifetime_parameters,
@@ -75,32 +75,33 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // resolve the written id through its materialized types
-        let id = self.lowerer.instance_type(self.instance, id)?;
+        let id = self.lower.instance_type(self.instance, id)?;
 
         // lower alias declarations through the nominal they name
-        let alias = match self.lowerer.ty(id)? {
+        let alias = match self.lower.ty(id)? {
             dir::Type::Reference(reference) => Some((reference.symbol, None)),
             dir::Type::Application(instance) => Some((instance.symbol, Some(instance.arguments))),
             _ => None,
         };
         if let Some((symbol, arguments)) = alias
-            && self.lowerer.alias_form(symbol)?.is_some()
+            && self.lower.alias_form(symbol)?.is_some()
         {
+            // read the arguments the alias applies
             let arguments = match arguments {
-                Some(list) => self.lowerer.types(id.module_id)?.type_ids(list).to_vec(),
+                Some(list) => self.lower.types(id.module_id)?.type_ids(list).to_vec(),
                 None => Vec::new(),
             };
 
             // reject bare defaulted uses without instantiation arguments
-            let is_generic = match self.lowerer.definition(symbol)? {
+            let is_generic = match self.lower.definition(symbol)? {
                 Some(definition) => self
-                    .lowerer
+                    .lower
                     .definition_is_parameterized(symbol.module_id, definition)?,
                 None => false,
             };
             if is_generic && arguments.is_empty() {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a defaulted generic object alias".to_string(),
                 }
                 .into());
@@ -111,7 +112,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
 
         // reserve an identity for anonymous compound graphs, which can cycle through their members
         let compound = matches!(
-            self.lowerer.ty(id)?,
+            self.lower.ty(id)?,
             dir::Type::Union(_)
                 | dir::Type::Tuple(_)
                 | dir::Type::Slice(_)
@@ -121,7 +122,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         if compound {
             // name the persistent identity this cyclic graph resolves to
             let name = format!("cycle{}:{}", id.module_id, id.local_id.0);
-            let symbol = mir::Symbol::named(self.lowerer.strings.intern(&name));
+            let symbol = mir::Symbol::named(self.lower.strings.intern(&name));
 
             // reuse the identity an earlier walk defined for this cycle
             if let Some(defined) = self.tree.identified_type(symbol)
@@ -179,10 +180,10 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        match self.lowerer.ty(id)? {
+        match self.lower.ty(id)? {
             // lower nominal instances through their concrete representation
             dir::Type::Application(instance) => {
-                if let Some(argument) = self.lowerer.memory_form_value(id, &instance)? {
+                if let Some(argument) = self.lower.memory_form_value(id, &instance)? {
                     let value = self.lower(argument)?;
 
                     return self.insert_storage_form(&instance, value);
@@ -201,46 +202,47 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // lower variants through the union that owns them
             dir::Type::Variant(member) => self.lower(member.owner),
-            // reject parameters, which materialized rows resolve before lowering
+            // reject parameters, which materialize resolves before lowering
             dir::Type::Parameter(parameter) => {
+                // name the template declaring the parameter
                 let template = self
-                    .lowerer
+                    .lower
                     .state(parameter.module_id)?
                     .generics
                     .get_parameter(parameter.local_id)
                     .template;
                 let declared = self
-                    .lowerer
+                    .lower
                     .state(parameter.module_id)?
                     .generics
                     .get_template(template)
                     .symbol;
                 let path = match declared {
-                    Some(symbol) => self.lowerer.symbol_path(symbol)?,
+                    Some(symbol) => self.lower.symbol_path(symbol)?,
                     None => "an anonymous template".to_string(),
                 };
 
-                // an open parameter outside any instance marks an uninstantiated context
+                // report an open parameter outside any instance
                 if self.instance.is_none() {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: format!("a generic type of '{path}' outside its instance"),
                     }
                     .into());
                 }
 
                 Err(CompilerError::Internal {
-                    message: format!("a type parameter of '{path}' was never materialized"),
+                    message: format!("an unsubstituted type parameter of '{path}'"),
                 })
             }
             // reject contextual this, which materialization resolves before lowering
             dir::Type::This => Err(CompilerError::Internal {
-                message: "a contextual this was never materialized".to_string(),
+                message: "an unresolved contextual this".to_string(),
             }),
             // store nullable unions in the niches of the reference they wrap
             dir::Type::Union(union) => {
                 if let Some((nullability, referent)) =
-                    self.lowerer.decompose_nullish_union(id.module_id, &union)?
+                    self.lower.decompose_nullish_union(id.module_id, &union)?
                 {
                     let reference = self.lower(referent)?;
 
@@ -248,13 +250,13 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 }
 
                 // store a union of one scalar domain untagged as that scalar
-                if let Some(literal) = self.lowerer.scalar_literal_union(id)? {
+                if let Some(literal) = self.lower.scalar_literal_union(id)? {
                     return self.lower_value_representation(&literal.widen());
                 }
 
                 // store every other union as an indexed variant
                 let elements = self
-                    .lowerer
+                    .lower
                     .types(id.module_id)?
                     .type_ids(union.elements)
                     .to_vec();
@@ -285,10 +287,10 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             dir::Type::Slice(slice) => self.lower_fat_reference(id, slice.place),
             dir::Type::Dynamic(dynamic) => self.lower_fat_reference(id, dynamic.place),
             dir::Type::Function(function) => self.lower_fat_reference(id, function.place),
-            // fixed arrays lower to their inline element storage
+            // lower fixed arrays to their inline element storage
             dir::Type::FixedArray(fixed) => {
                 let element = self.lower(fixed.element)?;
-                let length = self.lowerer.fixed_array_length(fixed.count)?;
+                let length = self.lower.fixed_array_length(fixed.count)?;
                 let copy = self.tree.get(element).copy(self.tree);
 
                 Ok(self.tree.intern_type(mir::Type::FixedArray {
@@ -299,7 +301,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
             }
             // lower tuple elements recursively
             dir::Type::Tuple(tuple) => {
-                let ids = self.lowerer.tuple_element_types(id.module_id, &tuple)?;
+                let ids = self.lower.tuple_element_types(id.module_id, &tuple)?;
                 let mut elements = Vec::with_capacity(ids.len());
                 for element in ids {
                     elements.push(self.lower(element)?);
@@ -329,12 +331,12 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     nullability: mir::Nullability::None,
                 }))
             }
-            // lower never without a value
+            // lower never to its own uninhabited type
             dir::Type::Never => Ok(self.tree.intern_type(mir::Type::Never)),
             // represent a constrained intersection by its one value operand
             dir::Type::Intersection(intersection) => {
                 let elements = self
-                    .lowerer
+                    .lower
                     .types(id.module_id)?
                     .type_ids(intersection.elements)
                     .to_vec();
@@ -342,16 +344,12 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                 // split interface constraints from the value they constrain
                 let mut value = None;
                 for element in elements {
-                    if self.lowerer.is_interface_operand(element)? {
+                    if self.lower.is_interface_operand(element)? {
                         continue;
                     }
-                    if let Some(kept) = value.replace(element) {
+                    if value.replace(element).is_some() {
                         return Err(CompilerError::Internal {
-                            message: format!(
-                                "an unreduced value intersection {id:?}: {:?} and {:?}",
-                                self.lowerer.ty(kept),
-                                self.lowerer.ty(element)
-                            ),
+                            message: format!("an unreduced value intersection {id:?}"),
                         });
                     }
                 }
@@ -376,8 +374,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // enter the referent's heap space for the duration of the lowering
         let saved = self.space;
-        if let Some(space) = self.lowerer.place_space(place)? {
-            self.space = ModuleLowerer::mir_space(space);
+        if let Some(space) = self.lower.place_space(place)? {
+            self.space = LowerState::mir_space(space);
         }
 
         // lower the reference inside that space
@@ -411,17 +409,17 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
         // bind each concrete argument as a static
         let mut arguments = Vec::with_capacity(types.len());
         for ty in types {
-            // lifetime arguments never shape a specialization
-            if self.lowerer.type_is_lifetime(*ty)? {
+            // skip lifetime arguments
+            if self.lower.type_is_lifetime(*ty)? {
                 continue;
             }
 
-            match self.lowerer.place_space(*ty)? {
+            match self.lower.place_space(*ty)? {
                 // local place arguments canonicalize onto the plain declaration
                 Some(dir::Space::Local) => {}
                 // other place arguments bind their space
                 Some(space) => {
-                    let space = ModuleLowerer::mir_space(space);
+                    let space = LowerState::mir_space(space);
                     arguments.push(self.tree.intern_static(mir::Static::Space(space)));
                 }
                 // every other argument binds a type
@@ -440,7 +438,7 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
     }
 }
 
-impl<'module> ModuleLowerer<'module> {
+impl<'module> LowerState<'module> {
     /// Return recursive type lowering over one tree.
     pub(in crate::lower) fn type_lowerer<'lower>(
         &'lower mut self,
@@ -466,7 +464,7 @@ impl<'module> ModuleLowerer<'module> {
             return Ok(None);
         }
 
-        // memory form items wrap exactly one value argument
+        // take the single value argument the item wraps
         let arguments = self.types(id.module_id)?.type_ids(instance.arguments);
         let Some(argument) = arguments.first().copied() else {
             return Err(CompilerError::Internal {
@@ -486,12 +484,12 @@ impl TypeLowerer<'_, '_> {
         value: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // select the memory form node the item names
-        let ty = match self.lowerer.language_item(instance.symbol) {
+        let ty = match self.lower.language_item(instance.symbol) {
             Some(dir::LanguageItem::MaybeUninit) => mir::Type::Uninit { value },
             Some(dir::LanguageItem::ManuallyDrop) => mir::Type::ManuallyDrop { value },
             _ => {
                 return Err(CompilerError::Internal {
-                    message: "lowered a memory form without its language item".to_string(),
+                    message: "a memory form without its language item".to_string(),
                 });
             }
         };
@@ -500,7 +498,7 @@ impl TypeLowerer<'_, '_> {
     }
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Return the element types of one plain tuple in position order.
     pub(in crate::lower) fn tuple_element_types(
         &self,
@@ -570,7 +568,7 @@ impl TypeLowerer<'_, '_> {
     }
 
     /// Insert one tuple type with copy composed over its elements.
-    pub(in crate::lower) fn insert_tuple(
+    fn insert_tuple(
         &mut self,
         elements: Vec<mir::LocalNodeId<mir::Type>>,
     ) -> mir::LocalNodeId<mir::Type> {
@@ -595,15 +593,15 @@ impl TypeLowerer<'_, '_> {
         ty: &dir::Type,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // lower reference primitives through their representation classes
-        if let Some(item) = ModuleLowerer::representation_item(ty) {
-            let symbol = self.lowerer.language_item_symbol(item)?;
-            let source = self.lowerer.symbol_type(symbol)?;
+        if let Some(item) = LowerState::representation_item(ty) {
+            let symbol = self.lower.language_item_symbol(item)?;
+            let source = self.lower.symbol_type(symbol)?;
 
             return Ok(self.lower_nominal(source)?.value);
         }
 
         // fall back to the scalar families
-        let ty = self.lowerer.scalar_type(ty)?;
+        let ty = self.lower.scalar_type(ty)?;
 
         Ok(self.tree.intern_type(ty))
     }

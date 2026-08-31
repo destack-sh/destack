@@ -45,8 +45,9 @@ impl TypeLowerer<'_, '_> {
         shape: &dir::ObjectType,
         module: ModuleId,
     ) -> CompilerResult<Vec<mir::LocalNodeId<mir::Field>>> {
+        // read the properties the shape declares
         let properties = self
-            .lowerer
+            .lower
             .types(module)?
             .properties(shape.properties)
             .to_vec();
@@ -56,7 +57,7 @@ impl TypeLowerer<'_, '_> {
         for property in &properties {
             let dir::StaticKey::Name(name) = property.key else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a computed object property".to_string(),
                 }
                 .into());
@@ -85,16 +86,17 @@ impl TypeLowerer<'_, '_> {
             });
         };
 
-        // widen an optional property so its absent case stores as undefined
+        // lower the property's read type
         let value = self.lower(read)?;
         if !property.is_optional {
             return Ok(value);
         }
 
+        // widen an optional property to store its absent case as undefined
         self.insert_optional_representation(value)
     }
 
-    /// Wrap one representation so absent values store as undefined.
+    /// Wrap one representation to store its absent values as undefined.
     pub(in crate::lower) fn insert_optional_representation(
         &mut self,
         value: mir::LocalNodeId<mir::Type>,

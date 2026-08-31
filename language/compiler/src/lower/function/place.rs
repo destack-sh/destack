@@ -40,6 +40,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         assignment: &dir::AssignmentDecision,
     ) -> CompilerResult<Place> {
+        // read the target expression the assignment writes
         let Ok(source) = assignment
             .target
             .local_id
@@ -51,35 +52,35 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         match &assignment.write {
-            // value = x
+            // write a plain binding
             dir::WriteResolution::Binding { symbol, .. } => self.binding_place(symbol.local_id),
-            // value.field = x
+            // write a field of the receiver's place
             dir::WriteResolution::Member(resolution) => {
                 // require a direct, unadjusted field member
                 let dir::OperationResolution::One(access) = resolution else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a field write on a union receiver".to_string(),
                     }
                     .into());
                 };
                 let dir::MemberTarget::Field(field) = &access.target else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a write through non-field member storage".to_string(),
                     }
                     .into());
                 };
                 let dir::MemberReceiver::Direct(receiver) = &field.receiver else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a field write through dynamic dispatch".to_string(),
                     }
                     .into());
                 };
                 if !receiver.adjustments.is_empty() {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a field write through receiver adjustments".to_string(),
                     }
                     .into());
@@ -102,9 +103,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(place)
             }
+            // reject every other write target
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a write through {other:?} storage"),
+                anchor: self.lower.module.into(),
+                construct: format!("a write through {} storage", other.name()),
             }
             .into()),
         }
@@ -117,7 +119,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Place> {
         // root the place at the reference value for reference receivers
         let ty = self.node_type_id(expression)?;
-        if let Some(layer) = self.lowerer.peel_indirection(ty)? {
+        if let Some(layer) = self.lower.peel_indirection(ty)? {
             let value = self.lower_expression(expression)?;
 
             return Ok(Place {
@@ -130,20 +132,20 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         match *self.source().tree().get(expression) {
-            // base.field keeps projecting
+            // project one more field of the member chain
             dir::Expression::Member { left, .. } => {
                 // require a direct field member
                 let resolution = self.member_decision(expression)?;
                 let dir::OperationResolution::One(access) = &resolution else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a place projection on a union receiver".to_string(),
                     }
                     .into());
                 };
                 let dir::MemberTarget::Field(field) = &access.target else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a place projection through non-field storage".to_string(),
                     }
                     .into());
@@ -161,7 +163,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::This => {
                 let Some(binding) = self.this else {
                     return Err(CompilerError::Internal {
-                        message: "this used outside a method body".to_string(),
+                        message: "a this outside a method body".to_string(),
                     });
                 };
 
@@ -170,12 +172,13 @@ impl FunctionLowerer<'_, '_, '_> {
             // bind the place base at the identifier
             dir::Expression::Identifier { .. } => {
                 let node = expression.into_global_any(self.source);
-                let symbol = self.lowerer.resolved_symbol(node)?;
+                let symbol = self.lower.resolved_symbol(node)?;
 
                 self.binding_place(symbol.local_id)
             }
+            // reject every other place expression
             ref other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: format!("a write through '{}' expressions", other.variant_name()),
             }
             .into()),
@@ -186,7 +189,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn binding_place(&self, symbol: dir::LocalSymbolId) -> CompilerResult<Place> {
         match self.values.get(&symbol).copied() {
             Some(binding) => self.binding_home(binding),
-            // unbound symbols have no writable home
+            // reject a symbol without a binding
             None => Err(CompilerError::Internal {
                 message: "a write through a binding without a mutable home".to_string(),
             }),
@@ -209,7 +212,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 },
                 path: vec![PlaceProjection { field, ty }],
             }),
-            // pure values have no writable home
+            // reject a pure value
             Binding::Value(_) => Err(CompilerError::Internal {
                 message: "a write through a binding without a mutable home".to_string(),
             }),
@@ -366,5 +369,59 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // store the rebuilt aggregate back into the local
         self.builder.local_set(local, value);
+    }
+
+    /// Lower one expression into a borrow of its place or reference.
+    pub(in crate::lower) fn lower_borrowed_place(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        target: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        // borrow reference sources as a kind change
+        let source = self.node_type_id(expression)?;
+        if self.lower.has_indirect_representation(source)? {
+            let value = self.lower_expression_value(expression)?;
+
+            return Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target));
+        }
+
+        // borrow the storage holding value sources
+        match self.source().tree().get(expression).clone() {
+            // borrow the binding behind a name
+            dir::Expression::Identifier { .. } => {
+                let node = expression.into_global_any(self.source);
+                let symbol = self.lower.resolved_symbol(node)?;
+                match self.values.get(&symbol.local_id).copied() {
+                    // borrow a mutable local directly
+                    Some(Binding::Local(local)) => Ok(self.builder.local_addr(local, target)),
+                    // borrow captured bindings at their frame field
+                    Some(Binding::Captured { frame, field, .. }) => {
+                        Ok(self.builder.field_addr(frame, field, target))
+                    }
+                    // give borrowed parameters a frame home on first borrow
+                    Some(Binding::Value(value)) => {
+                        let ty = self.lower.symbol_type(symbol)?;
+                        let slot = self.lower_type(ty)?;
+                        let local = self.builder.local(slot, mir::Mutability::Mutable);
+                        self.builder.local_set(local, value);
+                        self.values.insert(symbol.local_id, Binding::Local(local));
+
+                        Ok(self.builder.local_addr(local, target))
+                    }
+                    // reject a borrow of a module binding
+                    None => Err(LowerError::Unsupported {
+                        anchor: self.lower.module.into(),
+                        construct: "a borrow of a module binding".to_string(),
+                    }
+                    .into()),
+                }
+            }
+            // reject every other borrow source
+            other => Err(LowerError::Unsupported {
+                anchor: self.lower.module.into(),
+                construct: format!("a borrow of a '{}' expression", other.variant_name()),
+            }
+            .into()),
+        }
     }
 }

@@ -28,30 +28,31 @@ impl TypeLowerer<'_, '_> {
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // read the properties the constraint declares
-        let (properties, is_keyed) = match self.lowerer.ty(constraint)? {
+        let (properties, is_keyed) = match self.lower.ty(constraint)? {
             dir::Type::Object(shape) => {
                 let properties = self
-                    .lowerer
+                    .lower
                     .types(constraint.module_id)?
                     .properties(shape.properties)
                     .to_vec();
 
                 (properties, !shape.index_signatures.is_empty())
             }
-            // leave the top constraint without entries
+            // leave the top constraint empty
             dir::Type::Unknown => (Vec::new(), false),
             // dispatch interface instances through their declared members
             dir::Type::Application(instance)
                 if matches!(
-                    self.lowerer.definition(instance.symbol)?,
+                    self.lower.definition(instance.symbol)?,
                     Some(dir::Definition::Interface(_))
                 ) =>
             {
                 return Ok(self.lower_nominal(constraint)?.storage);
             }
+            // reject every other constraint head
             other => {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: format!("a '{}' dynamic constraint", other.variant_name()),
                 }
                 .into());
@@ -64,12 +65,13 @@ impl TypeLowerer<'_, '_> {
         for property in &properties {
             let dir::StaticKey::Name(name) = property.key else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a computed dynamic constraint key".to_string(),
                 }
                 .into());
             };
 
+            // intern the property as a field and its dispatch slot
             let ty = self.lower_property_representation(property)?;
             let field = self.tree.intern_field(
                 mir::Field {
@@ -87,7 +89,7 @@ impl TypeLowerer<'_, '_> {
         let struct_type = self.tree.intern_type(mir::Type::Struct { fields, copy });
 
         // register the constraint's dispatch shape once
-        self.lowerer
+        self.lower
             .dynamic_shapes
             .entry(struct_type)
             .or_insert(mir::DynamicShape {

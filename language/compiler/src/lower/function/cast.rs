@@ -11,8 +11,9 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
+        // read the scalar representation the cast targets
         let target = self.node_type(expression)?;
-        let target = self.lowerer.scalar_type(&target)?;
+        let target = self.lower.scalar_type(&target)?;
 
         // materialize literal sources directly at the cast target
         if let dir::Type::Literal(literal) = self.node_type(value)? {
@@ -21,7 +22,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // hand the value through unchanged when it already carries the target
         let source = self.node_type(value)?;
-        let source = self.lowerer.scalar_type(&source)?;
+        let source = self.lower.scalar_type(&source)?;
         let lowered = self.lower_expression(value)?;
         if source == target {
             return Ok(lowered);
@@ -108,12 +109,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 std::cmp::Ordering::Less => mir::CastOperator::FloatExtend,
             },
 
+            // reject every other conversion
             (source, target) => {
                 let source = self.scalar_name(source);
                 let target = self.scalar_name(target);
 
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: format!("a cast from {source} to {target}"),
                 }
                 .into());
@@ -137,7 +139,42 @@ impl FunctionLowerer<'_, '_, '_> {
                 is_signed: false,
             } => format!("uint{width}"),
             mir::Type::Float(float) => float.label().to_string(),
-            other => format!("{other:?}"),
+            _ => "a non-scalar representation".to_string(),
+        }
+    }
+
+    /// Lower one expression whose value lives in its type.
+    pub(in crate::lower) fn lower_const_expression(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<()> {
+        // skip the expressions already folded into their committed type
+        if self.is_folded_expression(expression)? {
+            return Ok(());
+        }
+
+        // evaluate every remaining const value outside its coercion
+        self.lower_expression_value(expression)?;
+
+        Ok(())
+    }
+
+    /// Return whether one expression's computation folded into its committed type.
+    fn is_folded_expression(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        match self.source().tree().get(expression) {
+            // fold literal spellings directly
+            dir::Expression::Literal(_) => Ok(true),
+
+            // read the fold recorded at operator selection
+            dir::Expression::Binary { .. } | dir::Expression::Unary { .. } => {
+                Ok(self.operator_decision(expression)?.is_folded())
+            }
+
+            // leave every other expression to run
+            _ => Ok(false),
         }
     }
 }

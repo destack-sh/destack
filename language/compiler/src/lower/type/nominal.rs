@@ -1,7 +1,8 @@
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_source::ModuleId;
 
-use crate::lower::{AliasForm, GenericInstanceKey, LifetimeParameters, ModuleLowerer, TypeLowerer};
+use crate::lower::{AliasForm, GenericInstanceKey, LifetimeParameters, LowerState, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One lowered nominal declaration.
@@ -89,11 +90,11 @@ struct NominalArguments {
     type_arguments: Vec<dir::GlobalTypeId>,
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Lower every concrete nominal declaration owned by this module.
     pub(in crate::lower) fn lower_nominal_declarations(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
     ) -> CompilerResult<()> {
         // collect declarations before mutating the lowering state
         let mut symbols = Vec::new();
@@ -118,11 +119,11 @@ impl ModuleLowerer<'_> {
         }
 
         // lower each concrete representation and its field dependencies
-        let pointer_bytes = builder.pointer_bytes();
+        let pointer_bytes = self.pointer_bytes;
         let lifetime_parameters = LifetimeParameters::default();
-        let mut types = self.type_lowerer(builder.tree_mut(), pointer_bytes, &lifetime_parameters);
+        let mut types = self.type_lowerer(tree, pointer_bytes, &lifetime_parameters);
         for symbol in symbols {
-            let source = types.lowerer.symbol_type(symbol)?;
+            let source = types.lower.symbol_type(symbol)?;
             types.lower_nominal(source)?;
         }
 
@@ -132,18 +133,16 @@ impl ModuleLowerer<'_> {
 
 impl TypeLowerer<'_, '_> {
     /// Lower one recursive alias declaration into its reserved identity.
-    pub(in crate::lower) fn lower_alias(
+    fn lower_alias(
         &mut self,
         definition: &dir::TypeAliasDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
         // resolve the written value through the alias instance's materialized types
-        let value = self
-            .lowerer
-            .instance_type(self.instance, definition.value)?;
+        let value = self.lower.instance_type(self.instance, definition.value)?;
 
         // define declared object types in place at the alias identity
-        if let dir::Type::Object(shape) = self.lowerer.ty(value)?
+        if let dir::Type::Object(shape) = self.lower.ty(value)?
             && !shape.declares_signatures()
         {
             self.define_object_struct(&shape, value.module_id, ty)?;
@@ -159,16 +158,35 @@ impl TypeLowerer<'_, '_> {
         Ok(Vec::new())
     }
 
+    /// Return the materialized instance behind one nominal source type.
+    ///
+    /// An application answers from its interned instance by id; a bare reference
+    /// keys on its in-scope selection.
+    fn nominal_specialization(
+        &self,
+        source: dir::GlobalTypeId,
+        symbol: dir::GlobalSymbolId,
+        type_arguments: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<(ModuleId, dir::LocalInstanceId)>> {
+        match self.lower.ty(source)? {
+            dir::Type::Application(application) => {
+                self.lower.application_specialization(source, &application)
+            }
+            _ => Ok(self.lower.specialization_of(symbol, None, type_arguments)),
+        }
+    }
+
     /// Lower one nominal declaration and its representation dependencies.
     pub(in crate::lower) fn lower_nominal(
         &mut self,
         source: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
-        let source = self.lowerer.instance_type(self.instance, source)?;
-        let (symbol, arguments) = match self.lowerer.ty(source)? {
+        // read the symbol and arguments the nominal source applies
+        let source = self.lower.instance_type(self.instance, source)?;
+        let (symbol, arguments) = match self.lower.ty(source)? {
             dir::Type::Application(application) => {
                 let arguments = self
-                    .lowerer
+                    .lower
                     .types(source.module_id)?
                     .type_ids(application.arguments)
                     .to_vec();
@@ -178,14 +196,14 @@ impl TypeLowerer<'_, '_> {
             dir::Type::Reference(reference) => (reference.symbol, Vec::new()),
             other => {
                 return Err(CompilerError::Internal {
-                    message: format!("a non-nominal type reached nominal lowering: {other:?}"),
+                    message: format!("a non-nominal '{}' type", other.variant_name()),
                 });
             }
         };
         let arguments = self.nominal_arguments(symbol, &arguments)?;
 
         // reuse the reserved or completed representation
-        if let Some(nominal) = self.lowerer.nominal_states.get(&arguments.key) {
+        if let Some(nominal) = self.lower.nominal_states.get(&arguments.key) {
             let storage = nominal.storage();
             let value = nominal.value();
             let value = self.requalify_nominal_value(symbol, storage, value)?;
@@ -198,25 +216,24 @@ impl TypeLowerer<'_, '_> {
             ));
         }
 
-        // reserve the representation before following recursive fields
-        let Some(definition) = self.lowerer.definition(symbol)?.cloned() else {
+        // read the definition behind the nominal symbol
+        let Some(definition) = self.lower.definition(symbol)?.cloned() else {
             return Err(CompilerError::Internal {
-                message: "missing a nominal definition".to_string(),
+                message: "a missing nominal definition".to_string(),
             });
         };
 
         // forward a transparent rename to the nominal identity its value names
         if let dir::Definition::TypeAlias(alias) = &definition
-            && self.lowerer.alias_form(symbol)?.is_none()
+            && self.lower.alias_form(symbol)?.is_none()
         {
             let specialization =
-                self.lowerer
-                    .specialization_of(symbol, None, &arguments.type_arguments)?;
-            let value = self.lowerer.instance_type(specialization, alias.value)?;
-            let is_nominal = match self.lowerer.ty(value)? {
+                self.nominal_specialization(source, symbol, &arguments.type_arguments)?;
+            let value = self.lower.instance_type(specialization, alias.value)?;
+            let is_nominal = match self.lower.ty(value)? {
                 dir::Type::Reference(_) => true,
                 dir::Type::Application(instance) => {
-                    self.lowerer.memory_form_value(value, &instance)?.is_none()
+                    self.lower.memory_form_value(value, &instance)?.is_none()
                 }
                 _ => false,
             };
@@ -226,25 +243,27 @@ impl TypeLowerer<'_, '_> {
         }
 
         // name the instance and reserve its identity
-        let path = self.lowerer.symbol_path(symbol)?;
-        let name = self.lowerer.strings.intern(&path);
-        let base = mir::Symbol::declared(name, ModuleLowerer::symbol_identity(symbol));
+        let path = self.lower.symbol_path(symbol)?;
+        let name = self.lower.strings.intern(&path);
+        let base = mir::Symbol::declared(name, LowerState::symbol_identity(symbol));
         let instance = base.instantiate(&arguments.key.arguments, self.tree);
         let ty = self.tree.reserve_type(instance);
 
-        // declarations naming a space reference it, others cache at local
-        let declared_space = definition.space().map(ModuleLowerer::mir_space);
+        // enter the space the declaration names, defaulting to local
+        let declared_space = definition.space().map(LowerState::mir_space);
         let is_object_alias = matches!(definition, dir::Definition::TypeAlias(_))
-            && self.lowerer.alias_form(symbol)? == Some(AliasForm::Object);
+            && self.lower.alias_form(symbol)? == Some(AliasForm::Object);
         let value_space = declared_space.unwrap_or(mir::Space::Local);
         let saved = self.space;
         self.space = value_space;
 
         // build the value-position type each definition kind presents
         let value = match &definition {
+            // classes ride a managed reference
             dir::Definition::Class(_) => self.insert_managed_reference(ty),
             // declared object types ride managed references like classes
             dir::Definition::TypeAlias(_) if is_object_alias => self.insert_managed_reference(ty),
+            // value families hold their storage directly
             dir::Definition::Struct(_)
             | dir::Definition::Newtype(_)
             | dir::Definition::Enum(_)
@@ -258,48 +277,49 @@ impl TypeLowerer<'_, '_> {
                 access: mir::Access::Mutable,
                 nullability: mir::Nullability::None,
             }),
+            // reject every other definition
             _ => {
                 self.space = saved;
 
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "an extension nominal".to_string(),
                 }
                 .into());
             }
         };
 
+        // restore the ambient space and record the reservation
         self.space = saved;
-        self.lowerer.nominal_states.insert(
+        self.lower.nominal_states.insert(
             arguments.key.clone(),
             NominalState::Declared { storage: ty, value },
         );
 
-        // adopt the Copy conformance sema committed for this closed instance
+        // adopt the Copy conformance committed for this closed instance
         let copy = match self
-            .lowerer
+            .lower
             .nominal_conformance(source, dir::AutoInterface::Copy)?
         {
             true => mir::Copy::Yes,
             false => mir::Copy::No,
         };
 
-        // fill the reserved representation through the nominal's own rows
+        // fill the reserved representation through the nominal's own instance types
         let fields = {
             let specialization =
-                self.lowerer
-                    .specialization_of(symbol, None, &arguments.type_arguments)?;
+                self.nominal_specialization(source, symbol, &arguments.type_arguments)?;
             if specialization.is_none() && !arguments.type_arguments.is_empty() {
-                let path = self.lowerer.symbol_path(symbol)?;
-                self.lowerer.nominal_states.shift_remove(&arguments.key);
+                let path = self.lower.symbol_path(symbol)?;
+                self.lower.nominal_states.shift_remove(&arguments.key);
 
                 return Err(CompilerError::Internal {
-                    message: format!("an instance of '{path}' was never materialized"),
+                    message: format!("a missing instance of '{path}'"),
                 });
             }
 
             let mut types = self
-                .lowerer
+                .lower
                 .type_lowerer(
                     self.tree,
                     self.pointer_bytes,
@@ -320,51 +340,50 @@ impl TypeLowerer<'_, '_> {
                 dir::Definition::TypeAlias(definition) => types.lower_alias(&definition, ty),
                 dir::Definition::Interface(definition) => types.lower_interface(definition, ty),
                 _ => Err(CompilerError::Internal {
-                    message: "nominal lowering entered a non-nominal definition".to_string(),
+                    message: "a non-nominal definition behind one nominal".to_string(),
                 }),
             }
         };
 
-        // release the reservation when the rows fail to lower
+        // release the reservation when the fields fail to lower
         let fields = match fields {
             Ok(fields) => fields,
             Err(error) => {
-                self.lowerer.nominal_states.shift_remove(&arguments.key);
+                self.lower.nominal_states.shift_remove(&arguments.key);
 
                 return Err(error);
             }
         };
 
-        // complete the reservation with the lowered rows
+        // complete the reservation with the lowered fields
         let nominal = NominalRepresentation {
             storage: ty,
             value,
             fields,
         };
         let value = self.requalify_nominal_value(symbol, ty, value)?;
-        self.lowerer
+        self.lower
             .nominal_states
             .insert(arguments.key.clone(), NominalState::Lowered(nominal));
 
         // declare the nominal under its canonical instance name
-        let Some(name) = self.lowerer.symbol_name(symbol)? else {
+        let Some(name) = self.lower.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "a nominal without a name".to_string(),
             });
         };
-
-        let name = match symbol.module_id == self.lowerer.module {
-            true => self.lowerer.strings.get(name).to_string(),
+        let name = match symbol.module_id == self.lower.module {
+            true => self.lower.strings.get(name).to_string(),
             false => self
-                .lowerer
-                .qualified_name(symbol.module_id, self.lowerer.strings.get(name))?,
+                .lower
+                .qualified_name(symbol.module_id, self.lower.strings.get(name))?,
         };
-        let name = self.lowerer.strings.intern(&name);
+        let name = self.lower.strings.intern(&name);
 
         // publish the declaration with its lifetime parameters
         let lifetimes = arguments
             .lifetime_parameters
-            .declarations(self.lowerer.strings);
+            .declarations(self.lower.strings);
         self.tree.set_type_lifetimes(ty, lifetimes.clone());
         let declaration = self.tree.insert_type_declaration(
             name,
@@ -373,8 +392,7 @@ impl TypeLowerer<'_, '_> {
             ty,
             mir::TypeHeritage::default(),
         );
-        self.lowerer
-            .index_language_declaration(declaration, symbol)?;
+        self.lower.index_language_declaration(declaration, symbol)?;
 
         Ok(self.apply_nominal_arguments(arguments.key, ty, value, &arguments.lifetimes))
     }
@@ -385,13 +403,13 @@ impl TypeLowerer<'_, '_> {
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<NominalArguments> {
-        let Some(definition) = self.lowerer.definition(symbol)? else {
+        let Some(definition) = self.lower.definition(symbol)? else {
             return Err(CompilerError::Internal {
-                message: "missing a nominal definition".to_string(),
+                message: "a missing nominal definition".to_string(),
             });
         };
 
-        // non-generic nominals key on their symbol alone
+        // key a non-generic nominal on its symbol alone
         let Some(template_id) = definition.template() else {
             if !arguments.is_empty() {
                 return Err(CompilerError::Internal {
@@ -407,9 +425,9 @@ impl TypeLowerer<'_, '_> {
             });
         };
 
-        // pair positional arguments with the parameters they bind
+        // read the parameters the template declares
         let template_module = symbol.module_id;
-        let generics = &self.lowerer.state(template_module)?.generics;
+        let generics = &self.lower.state(template_module)?.generics;
         let template = generics.get_template(template_id);
         let parameters: Vec<_> = template
             .parameters
@@ -442,11 +460,9 @@ impl TypeLowerer<'_, '_> {
         let elide_lifetimes = !is_complete && arguments.len() == value_parameters;
         let is_elided = !is_complete && !elide_lifetimes && arguments.is_empty();
         if !is_complete && !elide_lifetimes && !is_elided && arguments.len() != written {
-            return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: "a partially applied nominal argument list".to_string(),
-            }
-            .into());
+            return Err(CompilerError::Internal {
+                message: "a partially applied nominal argument list".to_string(),
+            });
         }
 
         // pair every parameter with its argument, erasing elided lifetimes
@@ -467,36 +483,34 @@ impl TypeLowerer<'_, '_> {
 
                 // take in-scope type parameters from the instance's own selection
                 let Some(argument) = self.instance_argument(parameter)? else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
-                        construct: "a partially applied nominal argument list".to_string(),
-                    }
-                    .into());
+                    return Err(CompilerError::Internal {
+                        message: "a partially applied nominal argument list".to_string(),
+                    });
                 };
                 type_arguments.push(argument);
 
                 continue;
             }
 
+            // take the next supplied argument
             let Some(argument) = supplied.next() else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: "a partially applied nominal argument list".to_string(),
-                }
-                .into());
+                return Err(CompilerError::Internal {
+                    message: "a partially applied nominal argument list".to_string(),
+                });
             };
 
+            // bind the argument by the kind its parameter declares
             match kind {
                 dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => {
                     lifetimes.push(
-                        self.lowerer
+                        self.lower
                             .lower_lifetime(*argument, self.lifetime_parameters)?,
                     );
                 }
                 dir::GenericParameterKind::Type => type_arguments.push(*argument),
                 dir::GenericParameterKind::Memory(_) => {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a memory-parameterized nominal instance".to_string(),
                     }
                     .into());
@@ -506,7 +520,7 @@ impl TypeLowerer<'_, '_> {
 
         // key the instance on its type arguments and the template's lifetime slots
         let template = template_id.into_global(template_module);
-        let lifetime_parameters = LifetimeParameters::from_template(self.lowerer, template)?;
+        let lifetime_parameters = LifetimeParameters::from_template(self.lower, template)?;
         let key = self.generic_instance_key(symbol, None, &type_arguments)?;
 
         Ok(NominalArguments {
@@ -526,9 +540,9 @@ impl TypeLowerer<'_, '_> {
             return Ok(None);
         };
 
-        let row = self.lowerer.state(module)?.generics.get_instance(instance);
+        let interned = self.lower.state(module)?.generics.get_instance(instance);
 
-        Ok(row
+        Ok(interned
             .key
             .arguments
             .iter()
@@ -548,11 +562,10 @@ impl TypeLowerer<'_, '_> {
             return Ok(value);
         }
 
-        // declarations naming their own space already qualify their value
-        let Some(definition) = self.lowerer.definition(symbol)?.cloned() else {
+        // leave a declaration naming its own space already qualified
+        let Some(definition) = self.lower.definition(symbol)?.cloned() else {
             return Ok(value);
         };
-
         if definition.space().is_some() {
             return Ok(value);
         }
@@ -561,7 +574,7 @@ impl TypeLowerer<'_, '_> {
         match &definition {
             dir::Definition::Class(_) => Ok(self.insert_managed_reference(storage)),
             dir::Definition::TypeAlias(_)
-                if self.lowerer.alias_form(symbol)? == Some(AliasForm::Object) =>
+                if self.lower.alias_form(symbol)? == Some(AliasForm::Object) =>
             {
                 Ok(self.insert_managed_reference(storage))
             }
@@ -606,12 +619,13 @@ impl TypeLowerer<'_, '_> {
     }
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Gather one definition's instance fields in declaration order.
     pub(in crate::lower) fn instance_fields(
         &self,
         members: &[dir::DefinitionMember],
     ) -> Vec<NominalField> {
+        // keep the instance fields, skipping methods and static members
         let mut fields = Vec::new();
         for member in members {
             let dir::DefinitionMember::Field(field) = member else {
@@ -640,7 +654,7 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<Vec<NominalField>> {
         let Some(definition) = self.definition(symbol)? else {
             return Err(CompilerError::Internal {
-                message: "missing a nominal definition".to_string(),
+                message: "a missing nominal definition".to_string(),
             });
         };
 
@@ -658,6 +672,7 @@ impl ModuleLowerer<'_> {
             dir::Definition::Struct(definition) => &definition.members,
             dir::Definition::Enum(definition) => &definition.members,
             dir::Definition::Newtype(_) => return Ok(Vec::new()),
+            // reject every other definition
             _ => {
                 return Err(CompilerError::Internal {
                     message: "fields selected from a non-nominal definition".to_string(),
@@ -680,7 +695,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the class symbol one heritage extends.
-    pub(in crate::lower) fn heritage_symbol(
+    fn heritage_symbol(
         &self,
         heritage: &dir::NominalHeritage,
     ) -> CompilerResult<dir::GlobalSymbolId> {
@@ -705,7 +720,7 @@ impl ModuleLowerer<'_> {
             .and_then(NominalState::as_lowered)
         else {
             return Err(CompilerError::Internal {
-                message: "nominal lowering has not completed the declaration".to_string(),
+                message: "an incomplete nominal representation".to_string(),
             });
         };
 

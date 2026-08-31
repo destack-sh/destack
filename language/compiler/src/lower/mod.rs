@@ -1,9 +1,7 @@
-mod declare;
 mod error;
 mod function;
-mod lower;
+mod module;
 mod provide;
-mod source;
 mod r#type;
 mod warning;
 
@@ -11,10 +9,8 @@ mod warning;
 mod tests;
 
 pub use error::*;
-pub(crate) use lower::*;
-pub(crate) use source::*;
+pub(crate) use module::*;
 pub use warning::*;
 
-use declare::*;
 use function::*;
 use r#type::*;

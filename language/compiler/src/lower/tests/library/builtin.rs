@@ -51,8 +51,15 @@ fn test_lower_library() {
             let message = message.lines().next().unwrap_or_default();
             report.push_str(&format!("FAIL {} :: {message}\n", file.path));
         }
+        let mut reported = Vec::new();
         for line in lines {
-            report.push_str(&format!("FAIL {} :: {}\n", file.path, line.trim()));
+            let line = line.trim();
+            if reported.iter().any(|known: &String| known == line) {
+                continue;
+            }
+
+            reported.push(line.to_string());
+            report.push_str(&format!("FAIL {} :: {line}\n", file.path));
         }
     }
 
@@ -79,13 +86,10 @@ FAIL async/seek.ds :: error[unsupported-lower-construct]: unsupported construct:
 FAIL async/semaphore.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 ok   async/task.ds
 FAIL async/writer.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL async/writer.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 ok   binding/binding.ds
 ok   binding/index.ds
 ok   bytes/buffer.ds
-FAIL bytes/bytes.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL bytes/bytes.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL bytes/bytes.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+ok   bytes/bytes.ds
 ok   bytes/index.ds
 ok   bytes/reader.ds
 ok   channel/broadcast.ds
@@ -113,15 +117,6 @@ ok   collections/small-array.ds
 ok   collections/sorted-map.ds
 ok   collections/sorted-set.ds
 FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
-FAIL console/console.ds :: error[unsupported-lower-construct]: unsupported construct: a spread argument
 ok   console/index.ds
 ok   context/context.ds
 ok   context/index.ds
@@ -139,7 +134,7 @@ FAIL decorator/derive.ds :: error[unsupported-lower-construct]: unsupported cons
 FAIL decorator/diagnostic.ds :: error[unsupported-lower-construct]: unsupported construct: a layout for this type
 ok   decorator/index.ds
 ok   decorator/intrinsic.ds
-FAIL decorator/representation.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+FAIL decorator/representation.ds :: an unreduced 'Operation' type
 ok   decorator/restriction.ds
 ok   decorator/safety.ds
 ok   decorator/stability.ds
@@ -169,8 +164,7 @@ ok   fs/binding/watch.ds
 ok   fs/binding/xattr.ds
 ok   fs/fs.ds
 ok   fs/index.ds
-FAIL fs/path.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
-FAIL fs/path.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
+ok   fs/path.ds
 ok   hint/hint.ds
 ok   hint/index.ds
 ok   index.ds
@@ -182,13 +176,12 @@ ok   intl/duration-format.ds
 FAIL intl/error.ds :: error[unsupported-lower-construct]: unsupported construct: a member read on a union receiver
 ok   intl/format.ds
 ok   intl/index.ds
-FAIL intl/list-format.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL intl/list-format.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+ok   intl/list-format.ds
 ok   intl/locale.ds
 ok   intl/number-format.ds
 ok   intl/plural-rules.ds
 ok   intl/relative-time-format.ds
-FAIL intl/segmenter.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
+ok   intl/segmenter.ds
 ok   iter/index.ds
 ok   iter/iterator.ds
 ok   json/codec.ds
@@ -197,18 +190,7 @@ ok   json/index.ds
 ok   json/json.ds
 ok   json/value.ds
 ok   math/arithmetic.ds
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
-FAIL math/bigint.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+ok   math/bigint.ds
 ok   math/cast.ds
 ok   math/complex.ds
 ok   math/float.ds
@@ -216,7 +198,7 @@ ok   math/identity.ds
 ok   math/index.ds
 ok   math/integer.ds
 ok   math/linear.ds
-FAIL math/math.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+ok   math/math.ds
 ok   math/matrix.ds
 ok   math/number.ds
 ok   math/numeric.ds
@@ -228,7 +210,7 @@ ok   memory/arc/arc.ds
 ok   memory/arc/index.ds
 ok   memory/arc/weak.ds
 ok   memory/arena/arena.ds
-FAIL memory/arena/bump.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
+FAIL memory/arena/bump.ds :: a partially applied nominal argument list
 ok   memory/arena/index.ds
 ok   memory/binding/advise.ds
 ok   memory/binding/index.ds
@@ -281,12 +263,6 @@ ok   net/binding/socket.ds
 ok   net/binding/udp.ds
 ok   net/index.ds
 FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL net/net.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 ok   ops/bitwise.ds
 ok   ops/comparison.ds
 ok   ops/dereference.ds
@@ -311,7 +287,7 @@ ok   random/binding/entropy.ds
 ok   random/binding/index.ds
 ok   random/binding/random.ds
 ok   random/index.ds
-FAIL random/random.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 148 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 3 }, copy: Yes }' representation
+FAIL random/random.ds :: an adapted value outside its declared representation
 ok   range/bound.ds
 ok   range/index.ds
 ok   range/iterator.ds
@@ -336,28 +312,13 @@ ok   runtime/random.ds
 ok   runtime/resource.ds
 ok   runtime/snapshot.ds
 ok   runtime/trace.ds
-FAIL runtime/world.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 247 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 1 }, copy: Yes }' representation
+FAIL runtime/world.ds :: an adapted value outside its declared representation
 ok   serde/index.ds
 ok   serde/serde.ds
 ok   signal/accessor.ds
 ok   signal/action.ds
 ok   signal/control.ds
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
-FAIL signal/derive.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Operation' type
+ok   signal/derive.ds
 ok   signal/effect.ds
 ok   signal/index.ds
 ok   signal/map.ds
@@ -365,32 +326,18 @@ ok   signal/memo.ds
 ok   signal/optimistic.ds
 ok   signal/options.ds
 ok   signal/owner.ds
-FAIL signal/reaction.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
-FAIL signal/reaction.ds :: error[unsupported-lower-construct]: unsupported construct: a partially applied nominal argument list
+ok   signal/reaction.ds
 ok   signal/setter.ds
 ok   signal/signal.ds
 ok   stream/index.ds
 ok   stream/stream.ds
-FAIL string/builder.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
-FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Character' type
+FAIL string/builder.ds :: error[unsupported-lower-construct]: unsupported construct: the 'char' type
+FAIL string/character.ds :: error[unsupported-lower-construct]: unsupported construct: the 'char' type
 ok   string/cstring.ds
 ok   string/index.ds
 ok   string/os.ds
 ok   string/slice.ds
-FAIL string/string.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Member' type
+ok   string/string.ds
 ok   string/utf8.ds
 ok   sync/atomic.ds
 ok   sync/barrier.ds
@@ -408,10 +355,9 @@ ok   telemetry/binding/telemetry.ds
 ok   telemetry/field.ds
 ok   telemetry/index.ds
 FAIL telemetry/log.ds :: error[unsupported-lower-construct]: unsupported construct: 'Chain' expressions
-FAIL telemetry/log.ds :: error[unsupported-lower-construct]: unsupported construct: 'Chain' expressions
 FAIL telemetry/metric.ds :: a union conversion selecting an absent target member
 ok   telemetry/record.ds
-FAIL telemetry/trace.ds :: union members requested from a non-union type
+FAIL telemetry/trace.ds :: a non-union type in a union member read
 ok   test/artifact.ds
 FAIL test/body.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 FAIL test/case.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
@@ -423,8 +369,6 @@ ok   test/id.ds
 ok   test/index.ds
 ok   test/issue.ds
 ok   test/options.ds
-FAIL test/poll.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
-FAIL test/poll.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 FAIL test/poll.ds :: error[unsupported-lower-construct]: unsupported construct: 'Match' statements
 ok   test/replay.ds
 ok   test/run.ds
@@ -456,7 +400,7 @@ ok   topology/edge.ds
 ok   topology/entity.ds
 ok   topology/index.ds
 ok   topology/label.ds
-FAIL topology/topology.ds :: an adapted value at 'Newtype { inner: LocalNodeId { id: 172 }, copy: Yes }' misses its declared 'Newtype { inner: LocalNodeId { id: 3 }, copy: Yes }' representation
+FAIL topology/topology.ds :: an adapted value outside its declared representation
 ok   tree/builder.ds
 ok   tree/index.ds
 ok   types/function.ds

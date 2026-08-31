@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::ModuleLowerer;
-use crate::{CompilerResult, LowerError};
+use crate::lower::LowerState;
+use crate::{CompilerError, CompilerResult, LowerError};
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Return one literal of a union whose arms share one scalar domain.
     ///
     /// The union stores such arms untagged.
@@ -38,12 +38,19 @@ impl ModuleLowerer<'_> {
 
     /// Lower one type to its concrete scalar form.
     pub(in crate::lower) fn scalar_type(&self, ty: &dir::Type) -> CompilerResult<mir::Type> {
-        // lower each scalar head to its concrete form
         match ty {
             dir::Type::Void => Ok(mir::Type::Void),
             dir::Type::Literal(_) => Ok(mir::Type::Void),
             dir::Type::Null | dir::Type::Undefined => Ok(mir::Type::Void),
             dir::Type::Primitive(primitive) => self.lower_primitive_type(primitive),
+            // reject open heads, which materialize resolves before lowering
+            dir::Type::Member(_)
+            | dir::Type::Operation(_)
+            | dir::Type::Variable(_)
+            | dir::Type::This => Err(CompilerError::Internal {
+                message: format!("an unreduced '{}' type", ty.variant_name()),
+            }),
+            // reject every other head
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: format!("the '{}' type", other.variant_name()),
@@ -54,7 +61,6 @@ impl ModuleLowerer<'_> {
 
     /// Lower one primitive type to its concrete scalar form.
     fn lower_primitive_type(&self, primitive: &dir::PrimitiveType) -> CompilerResult<mir::Type> {
-        // lower each primitive to its machine type
         match primitive {
             dir::PrimitiveType::Boolean => Ok(mir::Type::Boolean),
             dir::PrimitiveType::Integer(integer) => Ok(match integer.width() {
@@ -69,9 +75,10 @@ impl ModuleLowerer<'_> {
                 dir::FloatType::Float32 => mir::FloatType::Float32,
                 dir::FloatType::Float64 => mir::FloatType::Float64,
             })),
+            // reject every other primitive
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
-                construct: format!("the '{other:?}' type"),
+                construct: format!("the '{}' type", other.as_str()),
             }
             .into()),
         }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{ModuleLowerer, TypeLowerer};
+use crate::lower::{LowerState, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One indirect layer peeled from a value type.
@@ -20,15 +20,15 @@ impl TypeLowerer<'_, '_> {
         id: dir::GlobalTypeId,
         access: Option<mir::Access>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let dir::Type::Form(form) = self.lowerer.ty(id)? else {
+        let dir::Type::Form(form) = self.lower.ty(id)? else {
             return Err(CompilerError::Internal {
-                message: "lowering entered the form algebra outside a form type".to_string(),
+                message: "a non-form type in the form algebra".to_string(),
             });
         };
 
         match form.form {
             // narrow the access of the next indirect layer inward
-            dir::Form::Readonly => match self.lowerer.ty(form.value)? {
+            dir::Form::Readonly => match self.lower.ty(form.value)? {
                 // carry the narrowed access into the layer below
                 dir::Type::Form(_) => self.lower_form(form.value, Some(mir::Access::Readonly)),
                 // lower readonly over a pure value at the narrowed access
@@ -39,10 +39,11 @@ impl TypeLowerer<'_, '_> {
             dir::Form::Managed { place } => {
                 // enter the referent place for the duration of the layer
                 let saved = self.space;
-                if let Some(space) = self.lowerer.place_space(place)? {
-                    self.space = ModuleLowerer::mir_space(space);
+                if let Some(space) = self.lower.place_space(place)? {
+                    self.space = LowerState::mir_space(space);
                 }
 
+                // lower the reference and restore the ambient space
                 let lowered = self.lower_reference(
                     mir::ReferenceKind::Managed,
                     mir::Lifetime::empty(),
@@ -56,39 +57,39 @@ impl TypeLowerer<'_, '_> {
 
             // carry the declared lifetime, access, and referent place of borrowed layers
             dir::Form::Borrowed(borrow) => {
-                let Some(borrow) = self.lowerer.types(id.module_id)?.borrow_form_maybe(borrow)
-                else {
+                let Some(borrow) = self.lower.types(id.module_id)?.borrow_form_maybe(borrow) else {
                     return Err(CompilerError::Internal {
-                        message: "missing a borrow form".to_string(),
+                        message: "a missing borrow form".to_string(),
                     });
                 };
 
                 // split the declared region into its extent and referent place
                 let (region, borrow_access) = (borrow.region, borrow.access);
-                let (lifetime, spaces) = match self.lowerer.ty(region)? {
+                let (lifetime, spaces) = match self.lower.ty(region)? {
                     dir::Type::Region(pair) => (pair.extent, Some(pair.space)),
                     _ => (region, None),
                 };
 
                 // lower the extent and access the borrow declares
                 let lifetime = self
-                    .lowerer
+                    .lower
                     .lower_lifetime(lifetime, self.lifetime_parameters)?;
-                let borrow_access = self.lowerer.borrow_access(borrow_access)?;
+                let borrow_access = self.lower.borrow_access(borrow_access)?;
 
-                // select the reference storage from the referent place
-                //  parametric places keep the canonical ambient space
+                // select the reference storage from the referent place,
+                //  keeping the ambient space for a parametric place
                 let saved = self.space;
                 if let Some(spaces) = spaces {
-                    if let Some(space) = self.lowerer.place_space(spaces)? {
-                        self.space = ModuleLowerer::mir_space(space);
-                    } else if matches!(self.lowerer.ty(spaces)?, dir::Type::Union(_)) {
+                    if let Some(space) = self.lower.place_space(spaces)? {
+                        self.space = LowerState::mir_space(space);
+                    } else if matches!(self.lower.ty(spaces)?, dir::Type::Union(_)) {
                         return Err(CompilerError::Internal {
                             message: "borrow region carries a space join".to_string(),
                         });
                     }
                 }
 
+                // lower the reference and restore the ambient space
                 let lowered = self.lower_reference(
                     mir::ReferenceKind::Borrowed,
                     lifetime,
@@ -106,7 +107,7 @@ impl TypeLowerer<'_, '_> {
             }
 
             // fuse owned fat references into one unique layer
-            dir::Form::Owned if self.lowerer.is_reference_representation(form.value)? => self
+            dir::Form::Owned if self.lower.is_reference_representation(form.value)? => self
                 .lower_reference(
                     mir::ReferenceKind::Unique,
                     mir::Lifetime::empty(),
@@ -128,7 +129,7 @@ impl TypeLowerer<'_, '_> {
         payload: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // fuse dynamic payload references into the erased descriptor
-        if let dir::Type::Dynamic(dynamic) = self.lowerer.ty(payload)? {
+        if let dir::Type::Dynamic(dynamic) = self.lower.ty(payload)? {
             let constraint = self.lower_dynamic_constraint(dynamic.constraint)?;
 
             return Ok(self.tree.intern_type(mir::Type::Dynamic {
@@ -142,9 +143,9 @@ impl TypeLowerer<'_, '_> {
         }
 
         // fuse callable environment references into the closure descriptor
-        if let dir::Type::Function(function) = self.lowerer.ty(payload)? {
+        if let dir::Type::Function(function) = self.lower.ty(payload)? {
             let signature = self.lower_callable_signature(function.signature)?;
-            let multiplicity = self.lowerer.callable_multiplicity(function.receiver)?;
+            let multiplicity = self.lower.callable_multiplicity(function.receiver)?;
 
             return Ok(self.tree.intern_type(mir::Type::Function {
                 signature,
@@ -158,7 +159,7 @@ impl TypeLowerer<'_, '_> {
         }
 
         // fuse slice values with the layer into one fat descriptor
-        if let Some(slice) = self.lowerer.slice_pointee(payload)? {
+        if let Some(slice) = self.lower.slice_pointee(payload)? {
             let element = self.lower(slice.element)?;
 
             return Ok(self.tree.intern_type(mir::Type::Slice {
@@ -204,12 +205,11 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let ty = self.lowerer.ty(id)?;
-
         // store reference primitives as their representation classes
-        if let Some(item) = ModuleLowerer::representation_item(&ty) {
-            let symbol = self.lowerer.language_item_symbol(item)?;
-            let source = self.lowerer.symbol_type(symbol)?;
+        let ty = self.lower.ty(id)?;
+        if let Some(item) = LowerState::representation_item(&ty) {
+            let symbol = self.lower.language_item_symbol(item)?;
+            let source = self.lower.symbol_type(symbol)?;
 
             return Ok(self.lower_nominal(source)?.storage);
         }
@@ -217,7 +217,7 @@ impl TypeLowerer<'_, '_> {
         match ty {
             // reject contextual this, which materialization resolves before lowering
             dir::Type::This => Err(CompilerError::Internal {
-                message: "a contextual this was never materialized".to_string(),
+                message: "an unresolved contextual this".to_string(),
             }),
             // store nominals as their declared type
             dir::Type::Application(_) => {
@@ -245,7 +245,7 @@ impl TypeLowerer<'_, '_> {
         access: Option<mir::Access>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // reference families receive the access on their implicit managed layer
-        if self.lowerer.has_indirect_representation(id)? {
+        if self.lower.has_indirect_representation(id)? {
             return self.lower_reference(
                 mir::ReferenceKind::Managed,
                 mir::Lifetime::empty(),
@@ -258,7 +258,7 @@ impl TypeLowerer<'_, '_> {
     }
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Return the outermost indirect layer of one value type, when one exists.
     pub(in crate::lower) fn peel_indirection(
         &self,
@@ -267,14 +267,16 @@ impl ModuleLowerer<'_> {
         match self.ty(id)? {
             // form layers select their indirection by constructor
             dir::Type::Form(form) => match form.form {
+                // managed and raw layers expose mutable access
                 dir::Form::Managed { .. } | dir::Form::Raw => Ok(Some(Indirection {
                     stored: form.value,
                     access: mir::Access::Mutable,
                 })),
+                // borrowed layers expose their declared access
                 dir::Form::Borrowed(borrow) => {
                     let Some(borrow) = self.types(id.module_id)?.borrow_form_maybe(borrow) else {
                         return Err(CompilerError::Internal {
-                            message: "missing a borrow form".to_string(),
+                            message: "a missing borrow form".to_string(),
                         });
                     };
                     let access = self.borrow_access(borrow.access)?;
@@ -364,6 +366,7 @@ impl ModuleLowerer<'_> {
         place: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Space>> {
         let space = match self.ty(place)? {
+            // read the space a place literal names
             dir::Type::Literal(dir::Literal::String(value)) => dir::Space::from_text(value),
             // induced place parameters ground at the ambient space
             dir::Type::Parameter(parameter) => {
@@ -400,6 +403,7 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::Ownership> {
         Ok(match self.definition(symbol)? {
+            // classes and interfaces default to managed
             Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
                 dir::Ownership::Managed
             }
@@ -409,6 +413,7 @@ impl ModuleLowerer<'_> {
 
                 self.base_default_ownership(alias.value.module_id, &value)?
             }
+            // every other declaration defaults to owned
             _ => dir::Ownership::Owned,
         })
     }
@@ -468,9 +473,10 @@ impl ModuleLowerer<'_> {
 
             // reject contextual this, which materialization resolves before lowering
             dir::Type::This => Err(CompilerError::Internal {
-                message: "a contextual this was never materialized".to_string(),
+                message: "an unresolved contextual this".to_string(),
             })?,
 
+            // reject every other head
             other => Err(LowerError::Unsupported {
                 anchor: self.module.into(),
                 construct: format!("a default form for the '{}' type", other.variant_name()),
@@ -511,7 +517,7 @@ impl ModuleLowerer<'_> {
             (false, true) => mir::Nullability::Undefined,
             (false, false) => {
                 return Err(CompilerError::Internal {
-                    message: "a single-member union".to_string(),
+                    message: "a union without a nullish member".to_string(),
                 });
             }
         };
@@ -542,7 +548,7 @@ impl TypeLowerer<'_, '_> {
         let mut ty = self.tree.get(ty).clone();
         if !ty.set_nullability(nullability) {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: format!("a nullable union over the '{ty:?}' representation"),
             }
             .into());
@@ -567,19 +573,24 @@ impl TypeLowerer<'_, '_> {
             nullability: mir::Nullability::None,
         })
     }
+
+    /// Insert one managed local reference over a pointee type.
+    pub(in crate::lower) fn insert_managed_reference(
+        &mut self,
+        pointee: mir::LocalNodeId<mir::Type>,
+    ) -> mir::LocalNodeId<mir::Type> {
+        self.insert_reference(mir::ReferenceKind::Managed, mir::Access::Mutable, pointee)
+    }
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Return the access of one borrow access singleton.
-    pub(in crate::lower) fn borrow_access(
-        &self,
-        access: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::Access> {
+    fn borrow_access(&self, access: dir::GlobalTypeId) -> CompilerResult<mir::Access> {
         let access = self
             .memory_text(access)?
             .and_then(dir::Access::from_text)
             .ok_or_else(|| CompilerError::Internal {
-                message: "a borrow access in the wrong domain".to_string(),
+                message: "an unknown borrow access value".to_string(),
             })?;
 
         Ok(match access {
@@ -590,7 +601,7 @@ impl ModuleLowerer<'_> {
     }
 }
 
-/// Intern one reference type over a pointee in one storage.
+/// Insert one reference type over a pointee in one storage.
 pub(in crate::lower) fn insert_reference_type(
     tree: &mut mir::Tree,
     kind: mir::ReferenceKind,

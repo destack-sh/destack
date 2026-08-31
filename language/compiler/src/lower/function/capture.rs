@@ -97,7 +97,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // reject receiver captures, which live outside any lifted frame
         if capture.this.is_some() {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a closure capturing 'this'".to_string(),
             }
             .into());
@@ -113,7 +113,7 @@ impl FunctionLowerer<'_, '_, '_> {
             };
 
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: format!("a '{mode}' closure capture"),
             }
             .into());
@@ -123,7 +123,7 @@ impl FunctionLowerer<'_, '_, '_> {
         match capture.frames.as_slice() {
             [frame] => Ok(*frame),
             _ => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a closure capturing across scopes".to_string(),
             }
             .into()),
@@ -183,7 +183,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        // read the captured bindings out of the frame's struct storage
+        // read the frame's field list out of its struct storage
         let mir::Type::Struct { fields, .. } = tree.get(*pointee) else {
             return Err(CompilerError::Internal {
                 message: "a capture frame outside struct storage".to_string(),

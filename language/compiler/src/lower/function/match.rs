@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::equality::LoweredOperand;
+use crate::lower::function::operator::LoweredOperand;
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One match arm routed to its block.
@@ -63,9 +63,10 @@ impl FunctionLowerer<'_, '_, '_> {
                     guard,
                     body,
                 } => (*pattern, guard.is_some(), *body),
+                // reject a block match arm
                 dir::MatchArm::Block { .. } => {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a block match arm".to_string(),
                     }
                     .into());
@@ -75,11 +76,13 @@ impl FunctionLowerer<'_, '_, '_> {
             // reject guarded arms
             if is_guarded {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a guarded match arm".to_string(),
                 }
                 .into());
             }
+
+            // resolve the case the arm's pattern selects
             let decision = self.pattern_decision(pattern)?;
             let selected = self.match_arm_case(scrutinee, &decision)?;
 
@@ -103,7 +106,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        // case dispatch reads a materialized variant representation
+        // require a materialized variant representation for case dispatch
         if !targets.is_empty() {
             let representation = self.builder.value_type(dispatch);
             let is_variant = representation.is_some_and(|representation| {
@@ -114,7 +117,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
             if !is_variant {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a match over an indirect scrutinee".to_string(),
                 }
                 .into());
@@ -138,6 +141,8 @@ impl FunctionLowerer<'_, '_, '_> {
             if let Some(input) = input {
                 self.lower_pattern_bindings(arm.pattern, input, dir::Mutability::Immutable)?;
             }
+
+            // lower the arm body into the join slot
             let value = self.lower_expression(arm.body)?;
             self.builder.local_set(slot, value);
             self.builder.jump(exit);
@@ -178,13 +183,16 @@ impl FunctionLowerer<'_, '_, '_> {
             match &matched_operand {
                 Some(selected) if selected != &operands[0] => {
                     return Err(CompilerError::Internal {
-                        message: "switch cases selected different scrutinee operands".to_string(),
+                        message: "two different scrutinee operands across the switch cases"
+                            .to_string(),
                     });
                 }
                 Some(_) => {}
                 None => matched_operand = Some(operands[0].clone()),
             }
         }
+
+        // lower the shared scrutinee operand once
         let matched = match &matched_operand {
             Some(operand) => Some(self.lower_operand(value, operand)?),
             None => {
@@ -193,11 +201,11 @@ impl FunctionLowerer<'_, '_, '_> {
                 None
             }
         };
+
+        // allocate every case body before building selection edges
         let exit = self.builder.block();
         let mut lowered_cases = Vec::with_capacity(cases.len());
         let mut default = None;
-
-        // allocate every case body before building selection edges
         for case in cases {
             let block = self.builder.block();
             let selector = self.source().tree().get(*case).selector;
@@ -254,6 +262,8 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             self.builder.jump(default.unwrap_or(exit));
         }
+
+        // route break out of the switch
         self.enter_control(None, exit, None);
 
         // preserve source-order fallthrough between adjacent case bodies
@@ -265,6 +275,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder.jump(next);
             }
         }
+
+        // continue lowering after the switch
         self.leave_control();
         self.builder.switch_to_block(exit);
 
@@ -279,8 +291,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<Vec<(i128, mir::LocalNodeId<mir::Block>)>>> {
         // require a runtime representation dispatching by integer identity
         let representation = self.operand_representation(value)?;
-        let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) =
-            self.lowerer.ty(representation)?
+        let dir::Type::Primitive(dir::PrimitiveType::Integer(_)) = self.lower.ty(representation)?
         else {
             return Ok(None);
         };
@@ -337,7 +348,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // select the declared representation position of enum variants
             dir::PatternDecision::Variant(resolution) => {
                 let index = self
-                    .lowerer
+                    .lower
                     .variant_position(resolution.case.owner, resolution.case.variant)?;
 
                 Ok(Some(index))
@@ -347,7 +358,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::PatternDecision::Destructure(resolution) => {
                 let dir::PatternDestructureResolution::Nominal(nominal) = &**resolution else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a structural destructure match arm".to_string(),
                     }
                     .into());
@@ -356,9 +367,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(Some(self.union_member_case(scrutinee, nominal.key.symbol)?))
             }
 
+            // reject every other match pattern
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a '{other:?}' match pattern"),
+                anchor: self.lower.module.into(),
+                construct: format!("a '{}' match pattern", other.name()),
             }
             .into()),
         }
@@ -371,20 +383,20 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<u32> {
         // resolve the scrutinee union behind owner forms and newtype backings
-        let mut stored = self.lowerer.peel_owned(scrutinee)?;
-        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
-            let defined = match self.lowerer.definition(instance.symbol)? {
+        let mut stored = self.lower.peel_owned(scrutinee)?;
+        while let dir::Type::Application(instance) = self.lower.ty(stored)? {
+            let defined = match self.lower.definition(instance.symbol)? {
                 Some(dir::Definition::TypeAlias(alias)) => alias.value,
                 Some(dir::Definition::Newtype(newtype)) => newtype.backing,
                 _ => break,
             };
-            stored = self.lowerer.peel_owned(defined)?;
+            stored = self.lower.peel_owned(defined)?;
         }
 
         // find the member declaring the narrowed nominal
         for (index, member) in self.union_members(stored)?.into_iter().enumerate() {
-            let member = self.lowerer.peel_owned(member)?;
-            if let dir::Type::Application(instance) = self.lowerer.ty(member)?
+            let member = self.lower.peel_owned(member)?;
+            if let dir::Type::Application(instance) = self.lower.ty(member)?
                 && instance.symbol == symbol
             {
                 return Ok(index as u32);

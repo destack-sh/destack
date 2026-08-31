@@ -15,7 +15,7 @@ impl TypeLowerer<'_, '_> {
         copy: mir::Copy,
     ) -> CompilerResult<Vec<NominalField>> {
         // take the intrinsic representation for compiler-known newtypes
-        if matches!(self.lowerer.ty(definition.backing)?, dir::Type::Intrinsic) {
+        if matches!(self.lower.ty(definition.backing)?, dir::Type::Intrinsic) {
             self.lower_intrinsic(symbol, ty, arguments)?;
 
             return Ok(Vec::new());

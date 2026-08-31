@@ -13,7 +13,7 @@ impl TypeLowerer<'_, '_> {
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<()> {
         // dispatch on the language item the newtype names
-        let item = self.lowerer.language_item(symbol);
+        let item = self.lower.language_item(symbol);
         match item {
             // reference the payload storage for a unique handle
             Some(dir::LanguageItem::Unique) => {
@@ -75,7 +75,7 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
-            // carry the payload representation, leaving initialization to the checker
+            // carry the payload representation, leaving it uninitialized
             Some(dir::LanguageItem::MaybeUninit) => {
                 let [payload] = arguments else {
                     return Err(CompilerError::Internal {
@@ -88,7 +88,7 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
-            // carry the value representation, leaving the aliasing exemption to emit
+            // carry the value representation under an aliasing exemption
             Some(dir::LanguageItem::UnsafeCell) => {
                 let [value] = arguments else {
                     return Err(CompilerError::Internal {
@@ -109,9 +109,9 @@ impl TypeLowerer<'_, '_> {
                         message: "Function instantiated without its signature".to_string(),
                     });
                 };
-                let dir::Type::Tuple(tuple) = self.lowerer.ty(*parameters)? else {
+                let dir::Type::Tuple(tuple) = self.lower.ty(*parameters)? else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a function value without a parameter tuple".to_string(),
                     }
                     .into());
@@ -119,7 +119,7 @@ impl TypeLowerer<'_, '_> {
 
                 // lower every tuple element into a signature parameter
                 let elements = self
-                    .lowerer
+                    .lower
                     .tuple_element_types(parameters.module_id, &tuple)?;
                 let mut lowered = Vec::with_capacity(elements.len());
                 for element in elements {
@@ -137,7 +137,7 @@ impl TypeLowerer<'_, '_> {
                 });
 
                 // read the invocation count off the receiver mode
-                let multiplicity = self.lowerer.callable_multiplicity(*receiver)?;
+                let multiplicity = self.lower.callable_multiplicity(*receiver)?;
 
                 // define the callable as a managed function reference
                 self.tree.define_type(
@@ -167,7 +167,7 @@ impl TypeLowerer<'_, '_> {
             }),
             // reject every remaining intrinsic
             _ => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: match item {
                     Some(item) => format!("the '{}' intrinsic representation", item.key()),
                     None => "an undeclared intrinsic representation".to_string(),

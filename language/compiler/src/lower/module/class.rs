@@ -12,13 +12,15 @@ impl TypeLowerer<'_, '_> {
         definition: dir::ClassDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
-        // embed the base storage first, grounded through its heritage application
-        let fields = self.lowerer.nominal_fields(symbol)?;
+        // gather the nominal fields, inherited and own
+        let fields = self.lower.nominal_fields(symbol)?;
         let mut field_nodes = Vec::with_capacity(fields.len());
+
+        // embed the base storage first, grounded through its heritage application
         if let Some(heritage) = &definition.extends {
-            let base = self.lowerer.instance_type(self.instance, heritage.ty)?;
-            let base = self.lowerer.peel_owned(base)?;
-            let dir::Type::Application(_) = self.lowerer.ty(base)? else {
+            let base = self.lower.instance_type(self.instance, heritage.ty)?;
+            let base = self.lower.peel_owned(base)?;
+            let dir::Type::Application(_) = self.lower.ty(base)? else {
                 return Err(CompilerError::Internal {
                     message: "a class heritage outside an application type".to_string(),
                 });
@@ -37,9 +39,9 @@ impl TypeLowerer<'_, '_> {
         }
 
         // lower each own field's type into a field node
-        let own = self.lowerer.instance_fields(&definition.members);
+        let own = self.lower.instance_fields(&definition.members);
         for field in &own {
-            let ty = self.lowerer.symbol_type(field.symbol)?;
+            let ty = self.lower.symbol_type(field.symbol)?;
             let ty = self.lower(ty)?;
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),
@@ -49,7 +51,7 @@ impl TypeLowerer<'_, '_> {
             field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
         }
 
-        // store instances behind a reference without copying in place
+        // define the reference storage from its field nodes
         self.tree.define_type(
             ty,
             mir::Type::Struct {
@@ -59,13 +61,5 @@ impl TypeLowerer<'_, '_> {
         );
 
         Ok(fields)
-    }
-
-    /// Insert one managed local reference over a pointee type.
-    pub(in crate::lower) fn insert_managed_reference(
-        &mut self,
-        pointee: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
-        self.insert_reference(mir::ReferenceKind::Managed, mir::Access::Mutable, pointee)
     }
 }

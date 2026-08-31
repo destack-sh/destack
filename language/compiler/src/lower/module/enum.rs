@@ -16,13 +16,15 @@ impl TypeLowerer<'_, '_> {
         // require an integer representation
         let dir::EnumBackingType::Integer(integer) = definition.backing else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a string-backed enum".to_string(),
             }
             .into());
         };
+
+        // lower the discriminant scalar and its width
         let discriminant = self
-            .lowerer
+            .lower
             .scalar_type(&dir::Type::Primitive(dir::PrimitiveType::Integer(integer)))?;
         let discriminant = self.tree.intern_type(discriminant);
         let width = integer
@@ -36,17 +38,19 @@ impl TypeLowerer<'_, '_> {
         for variant in definition.variants() {
             let dir::EnumVariantValue::Integer(value) = variant.value else {
                 return Err(CompilerError::Internal {
-                    message: "integer-backed enum carries a non-integer variant".to_string(),
+                    message: "a non-integer variant in an integer-backed enum".to_string(),
                 });
             };
 
-            // record the member beside the discriminant it carries
+            // record the variant member
             fields.push(NominalField {
                 key: variant.key,
                 symbol: variant.symbol,
                 is_optional: false,
                 initializer: None,
             });
+
+            // build the case beside the discriminant it carries
             let discriminant = match integer.is_signed() {
                 true => mir::Constant::Int {
                     value: i128::from(value),
@@ -64,6 +68,7 @@ impl TypeLowerer<'_, '_> {
             });
         }
 
+        // define the variant representation from its cases
         self.tree.define_type(
             ty,
             mir::Type::Variant {

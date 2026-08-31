@@ -28,17 +28,17 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_resolved_value(expression, symbol);
         }
 
-        // read the single access the checker selected for this member
+        // read the single access selected for this member
         let resolution = self.member_decision(expression)?;
         let dir::OperationResolution::One(access) = &resolution else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a member read on a union receiver".to_string(),
             }
             .into());
         };
 
-        // lower the read the selected target names
+        // lower the read at the selected target
         match &access.target {
             // project a compiler-defined member off the receiver
             dir::MemberTarget::Projection {
@@ -62,7 +62,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 } = &**call
                 else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a dynamic property read".to_string(),
                     }
                     .into());
@@ -70,15 +70,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.lower_function_target_call(left, call, function, None)?;
 
                 value.ok_or_else(|| CompilerError::Internal {
-                    message: "the getter returned no value".to_string(),
+                    message: "a void result from a getter".to_string(),
                 })
             }
             // read the resolved field
             dir::MemberTarget::Field(field) => self.lower_field_read(expression, left, field),
             // reject every other member read
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a member read through {other:?}"),
+                anchor: self.lower.module.into(),
+                construct: format!("a '{}' member read", other.name()),
             }
             .into()),
         }
@@ -91,17 +91,17 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         index: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<mir::Value> {
-        // read the single access the checker selected for this subscript
+        // read the single access selected for this subscript
         let resolution = self.subscript_decision(expression)?;
         let dir::OperationResolution::One(subscript) = resolution else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a subscript read on a union receiver".to_string(),
             }
             .into());
         };
 
-        // lower the read the selected target names
+        // lower the read at the selected target
         match subscript.target {
             // read the member the constant key names
             dir::SubscriptTarget::Member(access) => match access.target {
@@ -138,25 +138,25 @@ impl FunctionLowerer<'_, '_, '_> {
                     // dispatch a keyed find by name over string domains only
                     let domain = read.key_type;
                     if !matches!(
-                        self.lowerer.ty(domain)?,
+                        self.lower.ty(domain)?,
                         dir::Type::Primitive(dir::PrimitiveType::String)
                     ) {
                         return Err(LowerError::Unsupported {
-                            anchor: self.lowerer.module.into(),
+                            anchor: self.lower.module.into(),
                             construct: "a non-string signature key domain".to_string(),
                         }
                         .into());
                     }
                     let key = index.ok_or_else(|| CompilerError::Internal {
-                        message: "a signature subscript read has no key expression".to_string(),
+                        message: "a signature subscript read without a key expression".to_string(),
                     })?;
 
                     self.lower_dynamic_signature_read(expression, left, key)
                 }
                 // reject every other subscript read
                 other => Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
-                    construct: format!("a subscript read through {other:?}"),
+                    anchor: self.lower.module.into(),
+                    construct: format!("a '{}' subscript read", other.name()),
                 }
                 .into()),
             },
@@ -172,7 +172,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 } = &call
                 else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a dynamic subscript read".to_string(),
                     }
                     .into());
@@ -180,18 +180,19 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.lower_function_target_call(left, &call, function, None)?;
 
                 value.ok_or_else(|| CompilerError::Internal {
-                    message: "the subscript read returned no value".to_string(),
+                    message: "a void result from a subscript read".to_string(),
                 })
             }
             // load the value behind the address the Index protocol returns
             dir::SubscriptTarget::Index(read) => {
                 if read.missing.is_some() {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "an Index read with a missing result".to_string(),
                     }
                     .into());
                 }
+
                 // require a directly dispatched Index call
                 let call = read.call;
                 let dir::Call {
@@ -204,14 +205,14 @@ impl FunctionLowerer<'_, '_, '_> {
                 } = &call
                 else {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a dynamic subscript read".to_string(),
                     }
                     .into());
                 };
                 let value = self.lower_function_target_call(left, &call, function, None)?;
                 let value = value.ok_or_else(|| CompilerError::Internal {
-                    message: "the subscript read returned no value".to_string(),
+                    message: "a void result from a subscript read".to_string(),
                 })?;
                 let result_type = self.lower_type(read.dereference.ty)?;
 
@@ -253,7 +254,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
 
         // load fields through addresses for reference receivers
-        if let Some(layer) = self.lowerer.peel_indirection(receiver)? {
+        if let Some(layer) = self.lower.peel_indirection(receiver)? {
             let address = self.emit_field_address(value, index, result_type, layer.access);
 
             return Ok(self.builder.load(address, result_type));
@@ -265,15 +266,13 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one payload-free variant member to its case construction.
     fn lower_variant_member(&mut self, variant: &dir::VariantType) -> CompilerResult<mir::Value> {
         // materialize the owner representation and select the declared case
-        let dir::Type::Application(owner) = self.lowerer.ty(variant.owner)? else {
+        let dir::Type::Application(owner) = self.lower.ty(variant.owner)? else {
             return Err(CompilerError::Internal {
                 message: "a variant without its owner instance".to_string(),
             });
         };
         let ty = self.lower_type(variant.owner)?;
-        let case = self
-            .lowerer
-            .variant_position(owner.symbol, variant.variant)?;
+        let case = self.lower.variant_position(owner.symbol, variant.variant)?;
 
         Ok(self.builder.variant_new(ty, case, None))
     }
@@ -286,12 +285,14 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // lower the projection the member names
         match projection {
+            // read the structural discriminant
             dir::Projection::Discriminant {
                 union, cases, ty, ..
             } => self.lower_discriminant_value(receiver, *union, cases, *ty),
+            // reject every other projection
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a projected member read through {other:?}"),
+                anchor: self.lower.module.into(),
+                construct: format!("a '{}' member projection", other.name()),
             }
             .into()),
         }
@@ -308,7 +309,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // require at least one checked runtime case
         if cases.is_empty() {
             return Err(CompilerError::Internal {
-                message: "a discriminant projection has no reachable cases".to_string(),
+                message: "a discriminant projection without a reachable case".to_string(),
             });
         }
 
@@ -316,12 +317,12 @@ impl FunctionLowerer<'_, '_, '_> {
         let source_members = self.union_members(union)?;
 
         // read the result's literal arms while it stays an indexed union
-        let result = self.lowerer.ty(ty)?;
+        let result = self.lower.ty(ty)?;
         let is_singleton = result.singleton_literal().is_some();
         let result_members = match result {
-            dir::Type::Union(_) if self.lowerer.scalar_literal_union(ty)?.is_some() => None,
+            dir::Type::Union(_) if self.lower.scalar_literal_union(ty)?.is_some() => None,
             dir::Type::Union(result) => Some(
-                self.lowerer
+                self.lower
                     .types(ty.module_id)?
                     .type_ids(result.elements)
                     .to_vec(),
@@ -334,7 +335,7 @@ impl FunctionLowerer<'_, '_, '_> {
         for case in cases {
             let Some(source_index) = source_members.iter().position(|arm| *arm == case.arm) else {
                 return Err(CompilerError::Internal {
-                    message: "a discriminant projection selects an absent union arm".to_string(),
+                    message: "a discriminant projection over an absent union arm".to_string(),
                 });
             };
 
@@ -342,7 +343,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let mut result_index = None;
             if let Some(result_members) = &result_members {
                 for (index, member) in result_members.iter().enumerate() {
-                    let value = self.lowerer.ty(*member)?.singleton_literal();
+                    let value = self.lower.ty(*member)?.singleton_literal();
                     if value == Some(case.value) {
                         result_index = Some(index as u32);
                         break;
@@ -351,7 +352,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 if result_index.is_none() {
                     return Err(CompilerError::Internal {
-                        message: "a discriminant projection value is absent from its result type"
+                        message: "a discriminant projection value absent from its result type"
                             .to_string(),
                     });
                 }
@@ -429,7 +430,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // require a direct receiver
         let dir::MemberReceiver::Direct(receiver) = receiver else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a member read through dynamic dispatch".to_string(),
             }
             .into());
@@ -445,32 +446,32 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<u32> {
         // locate storage beneath every reference layer of the selected receiver
         let mut stored = field.receiver.ty();
-        while let Some(layer) = self.lowerer.peel_indirection(stored)? {
+        while let Some(layer) = self.lower.peel_indirection(stored)? {
             if layer.stored == stored {
                 break;
             }
             stored = layer.stored;
         }
-        let mut stored = self.lowerer.peel_owned(stored)?;
+        let mut stored = self.lower.peel_owned(stored)?;
 
         // follow transparent alias and newtype definitions, re-peeling their owners
-        while let dir::Type::Application(instance) = self.lowerer.ty(stored)? {
-            let defined = match self.lowerer.definition(instance.symbol)? {
+        while let dir::Type::Application(instance) = self.lower.ty(stored)? {
+            let defined = match self.lower.definition(instance.symbol)? {
                 Some(dir::Definition::TypeAlias(alias)) => alias.value,
                 Some(dir::Definition::Newtype(newtype)) => newtype.backing,
                 _ => break,
             };
-            stored = self.lowerer.peel_owned(defined)?;
+            stored = self.lower.peel_owned(defined)?;
         }
 
         // find the field's position in the storage the receiver declares
-        let index = match self.lowerer.ty(stored)? {
+        let index = match self.lower.ty(stored)? {
             dir::Type::Tuple(_) => match field.target.key() {
                 dir::StaticKey::Index(index) => Some(index),
                 _ => None,
             },
             dir::Type::Application(instance) => {
-                let fields = self.lowerer.nominal_fields(instance.symbol)?;
+                let fields = self.lower.nominal_fields(instance.symbol)?;
 
                 fields.iter().position(|stored| match field.target {
                     dir::FieldTarget::Structural { key, .. } => stored.key == key,
@@ -479,7 +480,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             dir::Type::Object(shape) => {
                 let properties = self
-                    .lowerer
+                    .lower
                     .types(stored.module_id)?
                     .properties(shape.properties);
 
@@ -490,9 +491,9 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             stored_head => {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: format!(
-                        "a member read on a structural receiver ({})",
+                        "a member read on a '{}' receiver",
                         stored_head.variant_name()
                     ),
                 }

@@ -12,11 +12,8 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         literal: dir::Literal,
     ) -> CompilerResult<mir::Value> {
-        // a string or bigint at its singleton type stays zero sized: the content lives
-        //  in the type and widening materializes it
-        let is_const = matches!(self.node_type(expression)?, dir::Type::Literal(_));
-
         // settle the object-backed literals before the scalar representations
+        let is_const = matches!(self.node_type(expression)?, dir::Type::Literal(_));
         match literal {
             // materialize a widened string through its constant object
             dir::Literal::String(string) if !is_const => {
@@ -84,17 +81,26 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(self.builder.constant(mir::Constant::Undefined, ty))
             }
 
-            // reject every literal reaching a representation that cannot hold it
-            (literal, representation) => Err(CompilerError::Internal {
-                message: format!("representation {representation:?} for literal {literal:?}"),
+            // reject every literal outside its representation
+            (literal, _) => Err(CompilerError::Internal {
+                message: format!(
+                    "a '{}' literal outside its representation",
+                    literal.variant_name()
+                ),
             }),
         }
     }
 
     /// Lower one string literal to its constant String object reference.
     fn lower_string_literal(&mut self, string: StringId) -> CompilerResult<mir::Value> {
+        // declare the constant object on its first use
+        if !self.lower.string_literals.contains_key(&string) {
+            self.lower
+                .declare_string_literals(self.builder.tree_mut(), [string])?;
+        }
+
         // read the declared constant object, cascading its declare diagnostic
-        match self.lowerer.string_literals.get(&string) {
+        match self.lower.string_literals.get(&string) {
             Some(Ok((global, value))) => {
                 let global = *global;
                 let value = *value;
@@ -103,15 +109,21 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
             None => Err(CompilerError::Internal {
-                message: format!("string literal {} reached lowering undeclared", string.0),
+                message: format!("an undeclared string literal {}", string.0),
             }),
         }
     }
 
     /// Lower one bigint literal to its constant BigInt object reference.
     fn lower_bigint_literal(&mut self, bigint: i64) -> CompilerResult<mir::Value> {
+        // declare the constant object on its first use
+        if !self.lower.bigint_literals.contains_key(&bigint) {
+            self.lower
+                .declare_bigint_literals(self.builder.tree_mut(), [bigint])?;
+        }
+
         // read the declared constant object, cascading its declare diagnostic
-        match self.lowerer.bigint_literals.get(&bigint) {
+        match self.lower.bigint_literals.get(&bigint) {
             Some(Ok((global, value))) => {
                 let global = *global;
                 let value = *value;
@@ -120,7 +132,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
             None => Err(CompilerError::Internal {
-                message: format!("bigint literal {bigint} reached lowering undeclared"),
+                message: format!("an undeclared bigint literal {bigint}"),
             }),
         }
     }
@@ -133,7 +145,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Type> {
         // use the node's own type when concretely typed
         let ty = self.node_type_id(expression)?;
-        if !matches!(self.lowerer.ty(ty)?, dir::Type::Literal(_)) {
+        if !matches!(self.lower.ty(ty)?, dir::Type::Literal(_)) {
             let representation = self.lower_type(ty)?;
 
             return Ok(self.builder.tree().get(representation).clone());
@@ -146,14 +158,14 @@ impl FunctionLowerer<'_, '_, '_> {
             // require numeric literals to enter through a concrete value target
             dir::Literal::Integer(_) | dir::Literal::Float(_) => Err(CompilerError::Internal {
                 message: format!(
-                    "numeric literal expression {} reached lowering without a concrete target",
+                    "a numeric literal expression {} without a concrete target",
                     expression.id
                 ),
             }),
 
             // reject literal domains without scalar representations
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: format!("{} literals", other.variant_name()),
             }
             .into()),

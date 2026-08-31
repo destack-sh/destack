@@ -14,6 +14,7 @@ impl FunctionLowerer<'_, '_, '_> {
         mutability: dir::Mutability,
     ) -> CompilerResult<()> {
         match self.pattern_decision(pattern)? {
+            // bind nothing for a wildcard
             dir::PatternDecision::Ignore => Ok(()),
 
             // bind the whole value, then match any nested pattern over it
@@ -40,9 +41,10 @@ impl FunctionLowerer<'_, '_, '_> {
                         (&object.fields, object.rest.as_deref())
                     }
                     dir::PatternDestructureResolution::Tuple(tuple) => (&tuple.fields, None),
+                    // reject a sequence destructure
                     dir::PatternDestructureResolution::Sequence(_) => {
                         return Err(LowerError::Unsupported {
-                            anchor: self.lowerer.module.into(),
+                            anchor: self.lower.module.into(),
                             construct: "a sequence destructure".to_string(),
                         }
                         .into());
@@ -89,11 +91,11 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_pattern_bindings(nested, value, mutability)
             }
 
-            // reject variant payloads, since dispatch already selected the case
+            // reject variant payload patterns
             dir::PatternDecision::Variant(resolution) => {
                 if resolution.predicate.projection.is_some() {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a variant payload pattern".to_string(),
                     }
                     .into());
@@ -102,9 +104,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(())
             }
 
+            // reject every other binding pattern
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a '{other:?}' binding pattern"),
+                anchor: self.lower.module.into(),
+                construct: format!("a '{}' binding pattern", other.name()),
             }
             .into()),
         }
@@ -117,13 +120,14 @@ impl FunctionLowerer<'_, '_, '_> {
         value: mir::Value,
         mutability: dir::Mutability,
     ) -> CompilerResult<()> {
+        // project the field out of the destructured value
         let projected = self.lower_pattern_projection(&field.projection, value)?;
 
         // bind the declared symbol directly for a bare field
         let Some(nested) = field.pattern else {
-            let Some(symbol) = self.lowerer.symbol_declared_at(field.source)? else {
+            let Some(symbol) = self.lower.symbol_declared_at(field.source)? else {
                 return Err(CompilerError::Internal {
-                    message: "missing a symbol for one destructured field".to_string(),
+                    message: "a missing symbol for one destructured field".to_string(),
                 });
             };
 
@@ -144,7 +148,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let dir::OperationResolution::One(projection) = projection else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a destructure over a union receiver".to_string(),
             }
             .into());
@@ -181,9 +185,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(self.builder.load(value, pointee))
             }
 
+            // reject every other pattern projection
             other => Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
-                construct: format!("a '{other:?}' pattern projection"),
+                anchor: self.lower.module.into(),
+                construct: format!("a '{}' pattern projection", other.name()),
             }
             .into()),
         }
@@ -201,7 +206,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let result = self.lower_type(field.ty)?;
 
         // load fields through addresses for reference receivers
-        if let Some(layer) = self.lowerer.peel_indirection(receiver)? {
+        if let Some(layer) = self.lower.peel_indirection(receiver)? {
             let address = self.emit_field_address(value, index, result, layer.access);
 
             return Ok(self.builder.load(address, result));
@@ -224,8 +229,8 @@ impl FunctionLowerer<'_, '_, '_> {
             .try_into_typed::<dir::Expression>()
             .map_err(|message| CompilerError::Internal { message })?;
 
-        self.lower_absent_fallback(value, exact, |lowerer| {
-            lowerer.lower_expression(default).map(Some)
+        self.lower_absent_fallback(value, exact, |lower| {
+            lower.lower_expression(default).map(Some)
         })
     }
 
@@ -237,8 +242,8 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let exact = self.pattern_representation(nested)?;
 
-        self.lower_absent_fallback(value, exact, |lowerer| {
-            lowerer.builder.unreachable();
+        self.lower_absent_fallback(value, exact, |lower| {
+            lower.builder.unreachable();
 
             Ok(None)
         })
@@ -251,17 +256,18 @@ impl FunctionLowerer<'_, '_, '_> {
         exact: mir::LocalNodeId<mir::Type>,
         fallback: impl FnOnce(&mut Self) -> CompilerResult<Option<mir::Value>>,
     ) -> CompilerResult<mir::Value> {
+        // hand an input already at the exact representation through unchanged
         let representation = self.value_representation(value)?;
         if representation == exact {
             return Ok(value);
         }
 
-        // a statically absent input always takes the fallback
+        // take the fallback for a statically absent input
         if matches!(self.builder.tree().get(representation), mir::Type::Void) {
             return match fallback(self)? {
                 Some(value) => Ok(value),
                 None => Err(CompilerError::Internal {
-                    message: "a required pattern input is statically absent".to_string(),
+                    message: "a statically absent required pattern input".to_string(),
                 }),
             };
         }
@@ -350,6 +356,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     .builder
                     .binary(mir::BinaryOperator::Equal, value, undefined);
                 self.builder.branch(is_absent, absent_block, present_block);
+
+                // keep the present value at the exact representation
                 self.builder.switch_to_block(present_block);
                 let kept = self.builder.cast(mir::CastOperator::Bitcast, value, exact);
                 self.builder.local_set(slot, kept);
@@ -392,7 +400,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let binding = match mutability {
             dir::Mutability::Immutable => Binding::Value(value),
             _ => {
-                let ty = self.lowerer.symbol_type(symbol)?;
+                let ty = self.lower.symbol_type(symbol)?;
                 let ty = self.lower_type(ty)?;
                 let value = self.adapt_to_representation(value, ty)?;
                 let local = self.builder.local(ty, mir::Mutability::Mutable);
@@ -418,7 +426,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .types
                 .get_node_type_id(node)
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("missing a type for pattern node {}", node.local_id.id),
+                    message: format!("a missing type for pattern node {}", node.local_id.id),
                 })?;
 
         self.lower_type(ty)

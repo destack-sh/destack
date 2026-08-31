@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, GenericInstanceKey};
+use crate::lower::{Binding, FunctionLowerer, GenericInstanceKey};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -28,7 +28,7 @@ impl FunctionLowerer<'_, '_, '_> {
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<mir::Value> {
         // key the instance by the coercion's selected arguments
-        let bindings = self.lowerer.instance_bindings(arguments, self.instance)?;
+        let bindings = self.lower.instance_bindings(arguments, self.instance)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self.generic_instance_key(symbol, None, &arguments)?;
         let ty = self.lower_type(target)?;
@@ -48,10 +48,10 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<GenericInstanceKey> {
-        // read the instance the checker selected at this reference
+        // read the instance selected at this reference
         let node = expression.into_global_any(self.source);
         let selected = self
-            .lowerer
+            .lower
             .state(self.source)?
             .decisions
             .function_decision(node)
@@ -60,10 +60,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::OperationResolution::Union { .. } => None,
             });
 
-        // require the checker's selection behind every declared function reference
+        // require a selection behind every declared function reference
         if selected.is_none() {
             let kind = self
-                .lowerer
+                .lower
                 .state(symbol.module_id)?
                 .bindings
                 .get_symbol(symbol.local_id)
@@ -74,7 +74,7 @@ impl FunctionLowerer<'_, '_, '_> {
             );
             if is_reference && kind == dir::SymbolKind::Function {
                 return Err(CompilerError::Internal {
-                    message: format!("function reference {node:?} has no function decision"),
+                    message: format!("a function reference {node:?} without a function decision"),
                 });
             }
         }
@@ -84,13 +84,13 @@ impl FunctionLowerer<'_, '_, '_> {
             && !selection.arguments.is_empty()
         {
             let bindings = self
-                .lowerer
+                .lower
                 .instance_bindings(&selection.arguments, self.instance)?;
             let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
             // resolve the receiver through the enclosing instance's types
             let receiver = match selection.receiver {
-                Some(receiver) => Some(self.lowerer.instance_type(self.instance, receiver)?),
+                Some(receiver) => Some(self.lower.instance_type(self.instance, receiver)?),
                 None => None,
             };
 
@@ -98,14 +98,14 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // reject a generic reference whose instantiating coercion selected no instance
-        let declared = self.lowerer.symbol_type(symbol)?;
+        let declared = self.lower.symbol_type(symbol)?;
         if !self
-            .lowerer
+            .lower
             .signature_template_parameters(declared)?
             .is_empty()
         {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a generic function reference without an instantiating conversion"
                     .to_string(),
             }
@@ -124,7 +124,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         // emit by the callable representation
         match self.builder.tree().get(ty) {
-            // pair fat function values with an empty environment
+            // pair fat function values with their environment
             mir::Type::Function {
                 kind,
                 lifetime,
@@ -167,6 +167,81 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             // leave every other representation without a value
             _ => Ok(None),
+        }
+    }
+
+    /// Read the current value of one binding.
+    pub(in crate::lower) fn read_binding(&mut self, binding: Binding) -> mir::Value {
+        // read by the storage the binding holds
+        match binding {
+            Binding::Value(value) => value,
+            Binding::Local(local) => self.builder.local_get(local),
+            // load captured bindings through their frame field
+            Binding::Captured { frame, field, ty } => {
+                let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
+
+                self.builder.load(address, ty)
+            }
+        }
+    }
+
+    /// Lower one value expression that resolved to a symbol.
+    pub(in crate::lower) fn lower_resolved_value(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<mir::Value> {
+        // read a local binding, else a module or callable declaration
+        match self.values.get(&symbol.local_id).copied() {
+            Some(binding) => Ok(self.read_binding(binding)),
+            // load module constants through their globals
+            None => {
+                if let Some(global) = self.module_constant_global(symbol)? {
+                    return Ok(self.builder.load_global(global));
+                }
+
+                // materialize callable declarations as function values
+                if let Some(value) = self.lower_function_value(expression, symbol, None)? {
+                    return Ok(value);
+                }
+
+                Err(LowerError::Unsupported {
+                    anchor: self.lower.module.into(),
+                    construct: "a module or captured binding".to_string(),
+                }
+                .into())
+            }
+        }
+    }
+
+    /// Return the declared global behind one module constant.
+    fn module_constant_global(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
+        // declare the imported constant on its first read
+        if !self.lower.globals.contains_key(&symbol) {
+            // skip local constants and non-binding symbols
+            if symbol.module_id == self.lower.module || !self.lower.is_module_binding(symbol)? {
+                return Ok(None);
+            }
+
+            self.lower
+                .declare_imported_constant(self.builder.tree_mut(), symbol)?;
+        }
+
+        // read the global this module declared or imported
+        match self.lower.globals.get(&symbol) {
+            Some(Ok(global)) => Ok(Some(*global)),
+            // cascade the recorded declaration failure
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => {
+                let path = self.lower.symbol_path(symbol)?;
+
+                Err(CompilerError::Internal {
+                    message: format!("a missing global behind the constant '{path}'"),
+                })
+            }
         }
     }
 }

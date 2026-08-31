@@ -8,7 +8,7 @@ use destack_core::FxIndexMap;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
-use crate::lower::{LowerModuleState, ModuleLowerer};
+use crate::lower::{LowerModuleState, LowerState};
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 impl Compiler {
@@ -50,8 +50,7 @@ impl Compiler {
         context: &dyn ProviderContext,
         dependencies: &mut ArtifactDependencySet,
     ) -> CompilerResult<Vec<ModuleId>> {
-        // walk the import closure read by lowering, requiring the root
-        //  edges first so a blocked read schedules the graph
+        // require the root module's graph edges before reading the module graph
         let graph_key = ArtifactKey::module_graph(profile);
         dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
         let artifacts = self.artifact_reader(context);
@@ -65,7 +64,7 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
-        // seed the global modules so prelude extension instantiations resolve
+        // require the graph edges of every module reachable from the roots
         let roots = self.lowering_roots(module, profile, context)?;
         let reachable = graph.reachable(&roots)?;
         for current in reachable.iter().copied() {
@@ -103,11 +102,11 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // resolve the target ABI
+        // resolve the target configuration and its memory layout
         let target_config =
             self.target_or_builtin(context, target)?
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("target '{target}' not found"),
+                    message: format!("a missing configuration for the target '{target}'"),
                 })?;
         let target_layout = self
             .target_layout(&target_config, target)
@@ -118,7 +117,7 @@ impl Compiler {
                 message,
             })?;
 
-        // load provider inputs
+        // read the artifact stack of the module being lowered
         let artifacts = self.artifact_reader(context);
         let parsed = artifacts
             .read::<DirParsed>(module)
@@ -156,7 +155,7 @@ impl Compiler {
                 continue;
             }
 
-            // load the bound and checked state of every reachable module
+            // read the artifact stack of one reachable module
             let parsed = artifacts
                 .read::<DirParsed>(reachable)
                 .map_err(CompilerError::from)?;
@@ -194,8 +193,7 @@ impl Compiler {
             );
         }
 
-        // lower the module against the repository string pool
-        let strings = self.repository.string_pool();
+        // insert the state of the module being lowered
         let path = self.module_symbol_path(context, module)?;
         modules.insert(
             module,
@@ -210,10 +208,13 @@ impl Compiler {
                 path,
             ),
         );
-        let mut lowerer = ModuleLowerer::new(module, strings, modules);
-        let (lowered, mut errors) = lowerer.lower(target_layout)?;
 
-        // emit every lowering diagnostic and fail the artifact when any occurred
+        // lower the module against the repository string pool
+        let strings = self.repository.string_pool();
+        let mut lower = LowerState::new(module, strings, modules, target_layout);
+        let (lowered, mut errors) = lower.lower()?;
+
+        // emit every lowering diagnostic and fail the artifact on the last
         let Some(last) = errors.pop() else {
             return Ok(ArtifactPayload::MirLowered(Arc::new(lowered)));
         };
@@ -248,14 +249,15 @@ impl Compiler {
         let path = path.strip_suffix(".ds").unwrap_or(path);
         let path = path.trim_matches('/').replace('/', ".");
 
-        // qualify the module path under its package name
+        // read the name the package namespaces its modules under
         let name = package
             .name
             .as_deref()
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("package {:?} has no name for lowering", package.id),
+                message: format!("a missing name for the package {:?}", package.id),
             })?;
 
+        // qualify the module path under the package name
         if path.is_empty() {
             Ok(name.to_string())
         } else {

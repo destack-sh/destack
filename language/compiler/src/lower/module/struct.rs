@@ -14,15 +14,15 @@ impl TypeLowerer<'_, '_> {
         copy: mir::Copy,
     ) -> CompilerResult<Vec<NominalField>> {
         // gather the instance fields in declaration order
-        let fields = self.lowerer.instance_fields(&definition.members);
+        let fields = self.lower.instance_fields(&definition.members);
 
         // lower each field's type into a field node
         let mut field_nodes = Vec::with_capacity(fields.len());
         for field in &fields {
-            let ty = self.lowerer.symbol_type(field.symbol)?;
+            let ty = self.lower.symbol_type(field.symbol)?;
             let mut ty = self.lower(ty)?;
 
-            // widen optional fields so their absent case stores as undefined
+            // widen optional fields to store their absent case as undefined
             if field.is_optional {
                 ty = self.insert_optional_representation(ty)?;
             }
@@ -35,6 +35,7 @@ impl TypeLowerer<'_, '_> {
             field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
         }
 
+        // define the struct representation from its field nodes
         self.tree.define_type(
             ty,
             mir::Type::Struct {

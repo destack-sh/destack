@@ -549,6 +549,7 @@ entry(v0: ref<Circle, managed, mutable, local>):
 /// @layout.struct name=Drawable size=0 align=1
 
 /// @dispatch.shape constraint=type@5 function=draw
+/// @dispatch.table concrete=type@0 constraint=type@5 function@4
 "#,
     );
 }

@@ -2,7 +2,7 @@ use destack_core::FxIndexMap;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::ModuleLowerer;
+use crate::lower::LowerState;
 use crate::{CompilerError, CompilerResult};
 
 /// The lifetime slots declared for generic lifetime parameters.
@@ -19,27 +19,26 @@ pub(in crate::lower) struct LifetimeParameters {
 impl LifetimeParameters {
     /// Collect the lifetime slots declared by one generic template.
     pub(in crate::lower) fn from_template(
-        lowerer: &ModuleLowerer<'_>,
+        lower: &LowerState<'_>,
         template: dir::GlobalGenericTemplateId,
     ) -> CompilerResult<Self> {
-        let generics = &lowerer.state(template.module_id)?.generics;
-        let declared = generics.get_template(template.local_id);
-
         // give every declared lifetime parameter its own slot and printed name
+        let generics = &lower.state(template.module_id)?.generics;
+        let declared = generics.get_template(template.local_id);
         let mut parameters = Self::default();
         for parameter in &declared.parameters {
             let binding = generics.get_parameter(*parameter);
             if binding.memory_parameter() == Some(dir::MemoryParameter::Region) {
                 let slot = mir::LifetimeSlot(parameters.slots.len() as u32);
                 let name = match binding.key {
-                    dir::GenericParameterKey::Symbol(symbol) => lowerer.symbol_name(symbol)?,
+                    dir::GenericParameterKey::Symbol(symbol) => lower.symbol_name(symbol)?,
                     dir::GenericParameterKey::Generated(name) => Some(name),
                 };
 
                 let name = match name {
                     // keep tick names verbatim and add a tick to bare names
                     Some(name) => {
-                        let name = lowerer.strings.get(name);
+                        let name = lower.strings.get(name);
                         match name.starts_with('\'') {
                             true => name.to_string(),
                             false => format!("'{name}"),
@@ -60,8 +59,8 @@ impl LifetimeParameters {
                 continue;
             }
 
-            let left = parameters.parameter_slot(lowerer, predicate.left)?;
-            let right = parameters.parameter_slot(lowerer, predicate.right)?;
+            let left = parameters.parameter_slot(lower, predicate.left)?;
+            let right = parameters.parameter_slot(lower, predicate.right)?;
             if let (Some(left), Some(right)) = (left, right) {
                 parameters.outlives.push((left, right));
             }
@@ -73,10 +72,10 @@ impl LifetimeParameters {
     /// Return the slot of one type when it names a collected lifetime parameter.
     fn parameter_slot(
         &self,
-        lowerer: &ModuleLowerer<'_>,
+        lower: &LowerState<'_>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<mir::LifetimeSlot>> {
-        let dir::Type::Parameter(parameter) = lowerer.ty(ty)? else {
+        let dir::Type::Parameter(parameter) = lower.ty(ty)? else {
             return Ok(None);
         };
 
@@ -123,7 +122,7 @@ impl LifetimeParameters {
     }
 }
 
-impl ModuleLowerer<'_> {
+impl LowerState<'_> {
     /// Lower one lifetime into the current lifetime environment.
     pub(in crate::lower) fn lower_lifetime(
         &self,
@@ -162,7 +161,7 @@ impl ModuleLowerer<'_> {
                 Some(dir::Lifetime::Static) => Ok(mir::Lifetime::static_storage()),
                 Some(dir::Lifetime::Frame) => Ok(mir::Lifetime::frame()),
                 None => Err(CompilerError::Internal {
-                    message: "a lifetime in the wrong domain".to_string(),
+                    message: "an unknown lifetime value".to_string(),
                 }),
             },
         }

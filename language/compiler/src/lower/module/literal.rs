@@ -1,0 +1,184 @@
+use std::sync::Arc;
+
+use destack_core::StringId;
+use destack_dir as dir;
+use destack_mir as mir;
+
+use crate::lower::{LifetimeParameters, LowerState, NominalInstance};
+use crate::{CompilerError, CompilerResult};
+
+impl LowerState<'_> {
+    /// Declare the constant globals backing the given string literals.
+    pub(in crate::lower) fn declare_string_literals(
+        &mut self,
+        tree: &mut mir::Tree,
+        strings: impl IntoIterator<Item = StringId>,
+    ) -> CompilerResult<()> {
+        for string in strings {
+            // declare each distinct content once
+            if self.string_literals.contains_key(&string) {
+                continue;
+            }
+
+            // record declaration failures for the first reading body
+            match self.declare_string_literal(tree, string) {
+                Ok(declared) => {
+                    self.string_literals.insert(string, Ok(declared));
+                }
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.string_literals
+                        .insert(string, Err(Arc::from(diagnostic)));
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Declare the constant globals backing the given bigint literals.
+    pub(in crate::lower) fn declare_bigint_literals(
+        &mut self,
+        tree: &mut mir::Tree,
+        bigints: impl IntoIterator<Item = i64>,
+    ) -> CompilerResult<()> {
+        for bigint in bigints {
+            // declare each distinct value once
+            if self.bigint_literals.contains_key(&bigint) {
+                continue;
+            }
+
+            // record declaration failures for the first reading body
+            match self.declare_bigint_literal(tree, bigint) {
+                Ok(declared) => {
+                    self.bigint_literals.insert(bigint, Ok(declared));
+                }
+                Err(CompilerError::Diagnostic(diagnostic)) => {
+                    self.bigint_literals
+                        .insert(bigint, Err(Arc::from(diagnostic)));
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Declare one literal's constant String object over its value form.
+    fn declare_string_literal(
+        &mut self,
+        tree: &mut mir::Tree,
+        string: StringId,
+    ) -> CompilerResult<(mir::GlobalId, mir::LocalNodeId<mir::Type>)> {
+        // lower the String representation named by its language item
+        let nominal = self.lower_literal_nominal(tree, dir::LanguageItem::String)?;
+
+        // name the constant by module ordinal, keyed by content for link identity
+        let ordinal = self.string_literals.len();
+        let name = self.strings.intern(&format!("string.{ordinal}"));
+        let symbol = self.strings.intern(&format!("string.{}", string.0));
+
+        // insert the constant with its content as the initializer
+        let mut global = mir::Global::constant(
+            name,
+            nominal.storage,
+            mir::GlobalInitializer::String(string),
+        );
+        global.symbol = mir::Symbol::named(symbol);
+        let object = tree.insert(global);
+
+        Ok((object, nominal.value))
+    }
+
+    /// Declare one literal's constant BigInt object over its value form.
+    fn declare_bigint_literal(
+        &mut self,
+        tree: &mut mir::Tree,
+        bigint: i64,
+    ) -> CompilerResult<(mir::GlobalId, mir::LocalNodeId<mir::Type>)> {
+        // lower the BigInt representation named by its language item
+        let nominal = self.lower_literal_nominal(tree, dir::LanguageItem::BigInt)?;
+
+        // name the constant by module ordinal, keyed by value for link identity
+        let ordinal = self.bigint_literals.len();
+        let name = self.strings.intern(&format!("bigint.{ordinal}"));
+        let symbol = self
+            .strings
+            .intern(&format!("bigint.{}", Self::bigint_name(bigint)));
+
+        // insert the constant with its value as the initializer
+        let mut global = mir::Global::constant(
+            name,
+            nominal.storage,
+            mir::GlobalInitializer::BigInt(bigint),
+        );
+        global.symbol = mir::Symbol::named(symbol);
+        let object = tree.insert(global);
+
+        Ok((object, nominal.value))
+    }
+
+    /// Mirror one literal type's language item onto its MIR type declaration.
+    fn forward_literal_nominal(
+        &self,
+        tree: &mut mir::Tree,
+        storage: mir::LocalNodeId<mir::Type>,
+        item: dir::LanguageItem,
+    ) {
+        let Some(declaration) = tree.type_declaration(storage) else {
+            return;
+        };
+
+        // skip a declaration that already carries the attribute
+        let name = self.strings.intern("languageItem");
+        let already_tagged = tree
+            .attributes(declaration)
+            .iter()
+            .any(|attribute| attribute.name == mir::AttributeIdentifier::Identifier(name));
+        if already_tagged {
+            return;
+        }
+
+        // record the language item key on the declaration
+        let key = self.strings.intern(&item.key());
+        tree.push_attribute(
+            declaration,
+            mir::Attribute {
+                name: mir::AttributeIdentifier::Identifier(name),
+                args: mir::AttributeArgs::Value(mir::AttributeValue::String(key)),
+            },
+        );
+    }
+
+    /// Lower the nominal representation named by one literal language item.
+    fn lower_literal_nominal(
+        &mut self,
+        tree: &mut mir::Tree,
+        item: dir::LanguageItem,
+    ) -> CompilerResult<NominalInstance> {
+        // lower the nominal representation of the class the language item names
+        let symbol = self.language_item_symbol(item)?;
+        let source = self.symbol_type(symbol)?;
+        let lifetime_parameters = LifetimeParameters::default();
+        let pointer_bytes = self.pointer_bytes;
+        let mut lower = self.type_lowerer(tree, pointer_bytes, &lifetime_parameters);
+        let nominal = lower.lower_nominal(source)?;
+
+        // mirror the language item onto the lowered declaration
+        self.forward_literal_nominal(tree, nominal.storage, item);
+
+        Ok(nominal)
+    }
+
+    /// Render one bigint value as a global name segment.
+    fn bigint_name(bigint: i64) -> String {
+        // prefix negatives with `n` to keep the segment an identifier
+        if bigint < 0 {
+            format!("n{}", bigint.unsigned_abs())
+        }
+        // render the magnitude directly
+        else {
+            format!("{bigint}")
+        }
+    }
+}

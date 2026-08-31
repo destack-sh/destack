@@ -60,10 +60,10 @@ impl FunctionLowerer<'_, '_, '_> {
         then_expression: dir::LocalNodeId<dir::Expression>,
         else_expression: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<mir::Value> {
-        // require the else arm, which checking guarantees
+        // require the else arm
         let Some(else_expression) = else_expression else {
             return Err(CompilerError::Internal {
-                message: "missing an else arm on one ternary".to_string(),
+                message: "a missing else arm on one ternary".to_string(),
             });
         };
 
@@ -75,11 +75,13 @@ impl FunctionLowerer<'_, '_, '_> {
         let join = self.builder.block();
         self.builder.branch(condition, then_block, else_block);
 
-        // write the join local in each arm before joining
+        // write the join local in the then arm
         self.builder.switch_to_block(then_block);
         let value = self.lower_expression(then_expression)?;
         self.builder.local_set(join_value, value);
         self.builder.jump(join);
+
+        // write the join local in the else arm
         self.builder.switch_to_block(else_block);
         let value = self.lower_expression(else_expression)?;
         self.builder.local_set(join_value, value);
@@ -210,7 +212,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // reject a break carrying a value
         if value.is_some() {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a valued break".to_string(),
             }
             .into());
@@ -254,7 +256,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // reject a binding condition
         let Some(condition) = condition.as_expression() else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a binding condition".to_string(),
             }
             .into());
@@ -297,10 +299,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 .find(|frame| frame.label == Some(label)),
         };
 
-        // require an enclosing breakable statement, which checking guarantees
+        // require an enclosing breakable statement
         let Some(frame) = frame else {
             return Err(CompilerError::Internal {
-                message: "missing an enclosing statement for one break".to_string(),
+                message: "a missing enclosing statement for one break".to_string(),
             });
         };
 
@@ -321,10 +323,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
         });
 
-        // require an enclosing loop, which checking guarantees
+        // require an enclosing loop
         let Some(target) = frame.and_then(|frame| frame.continue_target) else {
             return Err(CompilerError::Internal {
-                message: "missing an enclosing loop for one continue".to_string(),
+                message: "a missing enclosing loop for one continue".to_string(),
             });
         };
 

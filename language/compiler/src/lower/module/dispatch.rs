@@ -5,7 +5,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionDeclaration, GenericInstanceKey, LifetimeParameters, ModuleLowerer};
+use crate::lower::{FunctionDeclaration, GenericInstanceKey, LifetimeParameters, LowerState};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The concrete implementer behind one erasure.
@@ -20,21 +20,21 @@ pub(in crate::lower) enum Implementer {
     },
 }
 
-impl ModuleLowerer<'_> {
-    /// Declare the implementer behind one collected erasure.
+impl LowerState<'_> {
+    /// Declare the implementer behind one erasure.
     pub(in crate::lower) fn declare_implementer(
         &mut self,
-        builder: &mut mir::ModuleBuilder,
+        tree: &mut mir::Tree,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
         // read the constraint from the erased target
-        let pointer_bytes = builder.pointer_bytes();
+        let pointer_bytes = self.pointer_bytes;
         let lifetimes = LifetimeParameters::default();
         let dynamic = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+            .type_lowerer(tree, pointer_bytes, &lifetimes)
             .lower(target)?;
-        let mir::Type::Dynamic { constraint, .. } = *builder.tree().get(dynamic) else {
+        let mir::Type::Dynamic { constraint, .. } = *tree.get(dynamic) else {
             return Err(CompilerError::Internal {
                 message: "a value erased outside a dynamic target".to_string(),
             });
@@ -43,9 +43,9 @@ impl ModuleLowerer<'_> {
         // register the concrete object's written property names
         if let dir::Type::Object(shape) = self.ty(source)? {
             let reference = self
-                .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+                .type_lowerer(tree, pointer_bytes, &lifetimes)
                 .lower(source)?;
-            let mir::Type::Reference { pointee, .. } = *builder.tree().get(reference) else {
+            let mir::Type::Reference { pointee, .. } = *tree.get(reference) else {
                 return Err(CompilerError::Internal {
                     message: "an object class without a reference representation".to_string(),
                 });
@@ -66,16 +66,16 @@ impl ModuleLowerer<'_> {
             return Ok(());
         }
 
-        // register the declaring class's constraint entries
+        // take the applied class behind the erased source
         let dir::Type::Application(instance) = self.ty(source)? else {
             // read the dispatch shape the constraint registered
             let Some(shape) = self.dynamic_shapes.get(&constraint) else {
                 return Err(CompilerError::Internal {
-                    message: "an erasure reached an unregistered constraint shape".to_string(),
+                    message: "an erasure without a registered constraint shape".to_string(),
                 });
             };
 
-            // erase directly when the shape has empty slots, since dispatch stays inert
+            // erase directly through a shape with empty slots
             if shape.slots.is_empty() {
                 return Ok(());
             }
@@ -89,9 +89,11 @@ impl ModuleLowerer<'_> {
 
         // lower the applied class at its concrete arguments
         let concrete = self
-            .type_lowerer(builder.tree_mut(), pointer_bytes, &lifetimes)
+            .type_lowerer(tree, pointer_bytes, &lifetimes)
             .lower_nominal(source)?
             .storage;
+
+        // register the class as the implementer of the constraint
         self.implementers
             .entry((concrete, constraint))
             .or_insert(Implementer::Class(instance.symbol));
@@ -105,6 +107,7 @@ impl ModuleLowerer<'_> {
         builder: &mut mir::ModuleBuilder,
         errors: &mut Vec<Box<dyn DiagnosticLike>>,
     ) -> CompilerResult<()> {
+        // take the shapes and implementers registered during lowering
         let shapes = mem::take(&mut self.dynamic_shapes);
         let implementers = mem::take(&mut self.implementers);
 
@@ -112,12 +115,12 @@ impl ModuleLowerer<'_> {
         for ((concrete, constraint), implementer) in implementers {
             let Some(shape) = shapes.get(&constraint) else {
                 return Err(CompilerError::Internal {
-                    message: "an erasure without its registered constraint shape".to_string(),
+                    message: "an erasure without a registered constraint shape".to_string(),
                 });
             };
             let fields = builder.layouts().named_field_offsets(concrete);
 
-            // keep unsupported implementers isolated per table
+            // record the diagnostic and skip an unsupported implementer
             let entries = match self.dispatch_entries(&shape.slots, &implementer, &fields) {
                 Ok(entries) => entries,
                 Err(CompilerError::Diagnostic(diagnostic)) => {
@@ -227,6 +230,7 @@ impl ModuleLowerer<'_> {
 
                     mir::DynamicEntry::Function { function }
                 }
+                // reject function members on structural constraints
                 (mir::DynamicSlot::Function { name: Some(_), .. }, Implementer::Object { .. }) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.module.into(),
@@ -234,6 +238,7 @@ impl ModuleLowerer<'_> {
                     }
                     .into());
                 }
+                // reject call-signature constraint members
                 (mir::DynamicSlot::Function { name: None, .. }, _) => {
                     return Err(LowerError::Unsupported {
                         anchor: self.module.into(),

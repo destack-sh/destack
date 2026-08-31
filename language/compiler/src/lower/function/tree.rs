@@ -11,11 +11,12 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         match &resolution.target {
+            // lower an element to its tag, attributes, and children
             dir::TreeTarget::Element { call, .. } => {
                 let call = self.tree_call(call)?;
                 let [tag, attributes, children] = call.arguments.as_slice() else {
                     return Err(CompilerError::Internal {
-                        message: "tree element call bound an unexpected argument count".to_string(),
+                        message: "an unexpected argument count on a tree element call".to_string(),
                     });
                 };
                 let tag = self.lower_tree_tag(tag)?;
@@ -26,12 +27,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.lower_tree_static_call(&call, vec![tag, attributes, children])
             }
+            // lower a fragment to its children alone
             dir::TreeTarget::Fragment { call } => {
                 let call = self.tree_call(call)?;
                 let [children] = call.arguments.as_slice() else {
                     return Err(CompilerError::Internal {
-                        message: "tree fragment call bound an unexpected argument count"
-                            .to_string(),
+                        message: "an unexpected argument count on a tree fragment call".to_string(),
                     });
                 };
                 let children =
@@ -39,12 +40,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 self.lower_tree_static_call(&call, vec![children])
             }
+            // lower a component through its selected invocation
             dir::TreeTarget::Component { invocation, .. } => match invocation {
+                // call a function component with its props
                 dir::TreeInvocation::Call(call) => {
                     let call = self.tree_call(call)?;
                     let [props] = call.arguments.as_slice() else {
                         return Err(CompilerError::Internal {
-                            message: "tree component call bound an unexpected argument count"
+                            message: "an unexpected argument count on a tree component call"
                                 .to_string(),
                         });
                     };
@@ -52,9 +55,11 @@ impl FunctionLowerer<'_, '_, '_> {
 
                     self.lower_tree_static_call(&call, vec![props])
                 }
+                // construct a class component with its props
                 dir::TreeInvocation::Construct(construct) => {
                     self.lower_tree_construct(construct, resolution)
                 }
+                // build a struct component directly from its props
                 dir::TreeInvocation::Struct { ty } => self.lower_tree_aggregate(*ty, resolution),
             },
         }
@@ -64,7 +69,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn tree_call(&self, call: &dir::CallDecision) -> CompilerResult<dir::Call> {
         let dir::OperationResolution::One(call) = call else {
             return Err(CompilerError::Internal {
-                message: "tree call resolved over a union receiver".to_string(),
+                message: "a tree call over a union receiver".to_string(),
             });
         };
 
@@ -79,11 +84,12 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         let dir::CallableTarget::Symbol { function, .. } = &call.target else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "an indirect tree component call".to_string(),
             }
             .into());
         };
+        // call the selected function instance
         let id = self.selection_function(&function.key)?;
         let value = self.builder.call_function(id, values);
 
@@ -94,10 +100,11 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Lower one tree tag to its literal constant.
     fn lower_tree_tag(&mut self, tag: &dir::ArgumentBinding) -> CompilerResult<mir::Value> {
+        // read the literal the tag parameter binds
         let argument_type = tag.argument_type;
-        let dir::Type::Literal(literal) = self.lowerer.ty(argument_type)? else {
+        let dir::Type::Literal(literal) = self.lower.ty(argument_type)? else {
             return Err(CompilerError::Internal {
-                message: "tree tag bound a non-literal parameter".to_string(),
+                message: "a non-literal tree tag parameter".to_string(),
             });
         };
         let representation = self.lower_type(argument_type)?;
@@ -112,9 +119,9 @@ impl FunctionLowerer<'_, '_, '_> {
         attributes: dir::GlobalTypeId,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let dir::Type::Application(_) = self.lowerer.ty(attributes)? else {
+        let dir::Type::Application(_) = self.lower.ty(attributes)? else {
             return Err(LowerError::Unsupported {
-                anchor: self.lowerer.module.into(),
+                anchor: self.lower.module.into(),
                 construct: "a structural tree attribute type".to_string(),
             }
             .into());
@@ -129,14 +136,15 @@ impl FunctionLowerer<'_, '_, '_> {
         attributes: dir::GlobalTypeId,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        let dir::Type::Application(_) = self.lowerer.ty(attributes)? else {
+        // read the nominal's fields in declaration order
+        let dir::Type::Application(_) = self.lower.ty(attributes)? else {
             return Err(CompilerError::Internal {
                 message: "a tree aggregate outside a nominal type".to_string(),
             });
         };
         let representation = self.lower_nominal(attributes)?;
         let ty = self.lower_type(attributes)?;
-        let nominal = self.lowerer.nominal(&representation.key)?;
+        let nominal = self.lower.nominal(&representation.key)?;
         let members = nominal
             .fields
             .iter()
@@ -153,12 +161,12 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // fill the children field with the children tuple
-        let children = self.lowerer.strings.intern("children");
+        let children = self.lower.strings.intern("children");
         let children_key = dir::StaticKey::Name(children);
         if !resolution.children.is_empty()
             && let Some((_, symbol)) = members.iter().find(|(key, _)| *key == children_key)
         {
-            let ty = self.lowerer.symbol_type(*symbol)?;
+            let ty = self.lower.symbol_type(*symbol)?;
             let value = self.lower_tree_children(ty, &resolution.children)?;
             values.push((children_key, value));
         }
@@ -168,7 +176,7 @@ impl FunctionLowerer<'_, '_, '_> {
         for field in fields {
             let Some((_, value)) = values.iter().find(|(key, _)| *key == field) else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a defaulted tree attribute".to_string(),
                 }
                 .into());
@@ -184,15 +192,18 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         attribute: &dir::TreeAttributeBinding,
     ) -> CompilerResult<mir::Value> {
+        // lower an attribute carrying an expression value
         if let Some(value) = attribute.value {
             let Ok(expression) = value.local_id.try_into_typed::<dir::Expression>() else {
                 return Err(CompilerError::Internal {
-                    message: "tree attribute bound a non-expression value".to_string(),
+                    message: "a non-expression tree attribute value".to_string(),
                 });
             };
 
             return self.lower_expression(expression);
         }
+
+        // take the text of a written attribute
         let literal = match attribute.text {
             Some(text) => dir::Literal::String(text),
             // provide true for bare attributes
@@ -210,26 +221,30 @@ impl FunctionLowerer<'_, '_, '_> {
         tuple: dir::GlobalTypeId,
         children: &[dir::TreeChildBinding],
     ) -> CompilerResult<mir::Value> {
+        // lower each child into the children tuple
         let ty = self.lower_type(tuple)?;
         let mut values = Vec::with_capacity(children.len());
         for child in children {
             match child {
+                // materialize a text child as a string constant
                 dir::TreeChildBinding::Text { value, ty } => {
                     let representation = self.lower_type(*ty)?;
                     let representation = self.builder.tree().get(representation).clone();
                     values.push(self.lower_constant(dir::Literal::String(*value), representation)?);
                 }
+                // lower an expression child
                 dir::TreeChildBinding::Expression { node, .. } => {
                     let Ok(expression) = node.local_id.try_into_typed::<dir::Expression>() else {
                         return Err(CompilerError::Internal {
-                            message: "tree child bound a non-expression value".to_string(),
+                            message: "a non-expression tree child value".to_string(),
                         });
                     };
                     values.push(self.lower_expression(expression)?);
                 }
+                // reject a spread child
                 dir::TreeChildBinding::Spread { .. } => {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "a spread tree child".to_string(),
                     }
                     .into());
@@ -246,14 +261,15 @@ impl FunctionLowerer<'_, '_, '_> {
         construct: &dir::ConstructDecision,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
+        // require a class target carrying a single props argument
         let dir::ConstructTarget::Class { key, constructor } = &construct.target else {
             return Err(CompilerError::Internal {
-                message: "tree component constructed a non-class target".to_string(),
+                message: "a non-class tree component target".to_string(),
             });
         };
         let [props] = construct.arguments.as_slice() else {
             return Err(CompilerError::Internal {
-                message: "tree component construction bound an unexpected argument count"
+                message: "an unexpected argument count on a tree component construction"
                     .to_string(),
             });
         };

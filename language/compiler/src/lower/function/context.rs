@@ -6,13 +6,13 @@ use crate::{CompilerError, CompilerResult};
 
 /// One execution context operation named by an intrinsic.
 pub(in crate::lower) enum ContextIntrinsic {
-    /// Load the current execution context.
+    /// A load of the current execution context.
     Current,
-    /// Replace the current execution context and return its previous value.
+    /// A replacement of the current execution context, yielding the previous one.
     Replace,
-    /// Extend one execution context with a variable value.
+    /// An extension of one execution context with a variable value.
     Bind,
-    /// Load one variable value from an execution context.
+    /// A load of one variable value from an execution context.
     Get,
 }
 
@@ -40,6 +40,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Option<mir::Value>> {
         let result = self.lower_type(resolution.return_type)?;
 
+        // emit the context operation the name denotes
         match operation {
             ContextIntrinsic::Current => Ok(Some(self.builder.context_current(result))),
             ContextIntrinsic::Replace => {
@@ -82,6 +83,7 @@ impl FunctionLowerer<'_, '_, '_> {
         variable: mir::Value,
         value: mir::Value,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // read the type of each bound value
         let parent = self.value_type(context, "context")?;
         let variable = self.value_type(variable, "context variable")?;
         let value = self.value_type(value, "context value")?;
@@ -90,7 +92,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let slots = [("parent", parent), ("variable", variable), ("value", value)];
         let mut fields = Vec::with_capacity(slots.len());
         for (name, ty) in slots {
-            let name = self.lowerer.strings.intern(name);
+            let name = self.lower.strings.intern(name);
             let field = self.builder.tree_mut().intern_field(
                 mir::Field {
                     name: Some(name),
@@ -101,7 +103,7 @@ impl FunctionLowerer<'_, '_, '_> {
             fields.push(field);
         }
 
-        // the header holds managed references, so nodes never copy
+        // intern the node as a managed struct
         Ok(self.builder.tree_mut().intern_type(mir::Type::Struct {
             fields,
             copy: mir::Copy::No,

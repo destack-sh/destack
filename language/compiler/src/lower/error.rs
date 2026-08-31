@@ -9,7 +9,7 @@ use crate::CompilerError;
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
 #[diagnostic(severity = Error, phase = Lower)]
 pub enum LowerError {
-    /// Invalid target configuration for lowering.
+    /// One invalid target configuration.
     #[diagnostic(
         id = "invalid-lower-target",
         message = "invalid target {target}: {message}"
@@ -25,13 +25,13 @@ pub enum LowerError {
         message: String,
     },
 
-    /// Construct is not supported by MIR lowering.
+    /// One construct the MIR lowering rejects.
     #[diagnostic(
         id = "unsupported-lower-construct",
         message = "unsupported construct: {construct}"
     )]
     Unsupported {
-        /// Anchor the error to the unsupported construct.
+        /// The module containing the unsupported construct.
         anchor: DiagnosticAnchor,
         /// The unsupported construct.
         construct: String,
@@ -48,12 +48,10 @@ impl From<(ModuleId, mir::LayoutError)> for CompilerError {
             }
             .into(),
             mir::LayoutError::InvalidDiscriminant { constant } => Self::Internal {
-                message: format!("variant case sealed a non-scalar tag {constant}"),
+                message: format!("a non-scalar variant tag {constant}"),
             },
             mir::LayoutError::InvalidNiche { offset } => Self::Internal {
-                message: format!(
-                    "variant niche at byte offset {offset} is absent from its representation"
-                ),
+                message: format!("a missing variant niche at byte offset {offset}"),
             },
         }
     }

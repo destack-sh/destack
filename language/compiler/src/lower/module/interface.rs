@@ -49,7 +49,7 @@ impl TypeLowerer<'_, '_> {
             }
         }
 
-        // hold the property storage in the constraint struct
+        // define the constraint storage from its field nodes
         self.tree.define_type(
             ty,
             mir::Type::Struct {
@@ -59,7 +59,7 @@ impl TypeLowerer<'_, '_> {
         );
 
         // register the constraint's unkeyed dispatch shape once
-        self.lowerer
+        self.lower
             .dynamic_shapes
             .entry(ty)
             .or_insert(mir::DynamicShape {
@@ -77,30 +77,30 @@ impl TypeLowerer<'_, '_> {
         definition: &dir::InterfaceDefinition,
         entries: &mut FxIndexMap<StringId, InterfaceMember>,
     ) -> CompilerResult<()> {
-        // flatten inherited members first so derived members override in place
+        // flatten the inherited members ahead of the derived ones
         for heritage in &definition.extends {
             let base = heritage.ty;
-            let dir::Type::Application(application) = self.lowerer.ty(base)? else {
+            let dir::Type::Application(application) = self.lower.ty(base)? else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "an interface inheriting a non-nominal target".to_string(),
                 }
                 .into());
             };
-            let base_definition = match self.lowerer.definition(application.symbol)? {
+            let base_definition = match self.lower.definition(application.symbol)? {
                 Some(dir::Definition::Interface(base_definition)) => base_definition.clone(),
                 _ => {
                     return Err(LowerError::Unsupported {
-                        anchor: self.lowerer.module.into(),
+                        anchor: self.lower.module.into(),
                         construct: "an interface inheriting a non-interface target".to_string(),
                     }
                     .into());
                 }
             };
 
-            // flatten the base members through the applied base instance's rows
+            // flatten the base members through the applied base instance's types
             let arguments = self
-                .lowerer
+                .lower
                 .types(base.module_id)?
                 .type_ids(application.arguments)
                 .to_vec();
@@ -108,13 +108,12 @@ impl TypeLowerer<'_, '_> {
                 true => None,
                 false => {
                     let specialization =
-                        self.lowerer
-                            .specialization_of(application.symbol, None, &arguments)?;
+                        self.lower.application_specialization(base, &application)?;
                     if specialization.is_none() {
-                        let path = self.lowerer.symbol_path(application.symbol)?;
+                        let path = self.lower.symbol_path(application.symbol)?;
 
                         return Err(CompilerError::Internal {
-                            message: format!("an instance of '{path}' was never materialized"),
+                            message: format!("a missing instance of '{path}'"),
                         });
                     }
 
@@ -126,14 +125,14 @@ impl TypeLowerer<'_, '_> {
         }
 
         // lower each property into a field node and dispatch slot
-        let fields = self.lowerer.instance_fields(&definition.members);
+        let fields = self.lower.instance_fields(&definition.members);
         for field in fields {
             // lower the declared property type and read its written name
-            let declared = self.lowerer.symbol_type(field.symbol)?;
+            let declared = self.lower.symbol_type(field.symbol)?;
             let declared = self.lower(declared)?;
             let dir::StaticKey::Name(name) = field.key else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "a computed interface member".to_string(),
                 }
                 .into());
@@ -157,20 +156,20 @@ impl TypeLowerer<'_, '_> {
             };
 
             // resolve the declared signature through the materialized instance
-            let declared = self.lowerer.symbol_type(method.symbol)?;
-            let declared = self.lowerer.instance_type(self.instance, declared)?;
-            let dir::Type::FunctionSignature(signature) = self.lowerer.ty(declared)? else {
+            let declared = self.lower.symbol_type(method.symbol)?;
+            let declared = self.lower.instance_type(self.instance, declared)?;
+            let dir::Type::FunctionSignature(signature) = self.lower.ty(declared)? else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "an interface method without a plain signature".to_string(),
                 }
                 .into());
             };
 
-            // skip methods with their own type parameters, since each instantiation needs a slot
-            let signature = *self.lowerer.types(declared.module_id)?.signature(signature);
+            // skip methods declaring their own type parameters
+            let signature = *self.lower.types(declared.module_id)?.signature(signature);
             if let Some(template) = signature.template {
-                let generics = &self.lowerer.state(template.module_id)?.generics;
+                let generics = &self.lower.state(template.module_id)?.generics;
                 let is_generic = generics
                     .get_template(template.local_id)
                     .parameters
@@ -187,9 +186,9 @@ impl TypeLowerer<'_, '_> {
             let signature = self.lower_bare_signature(&signature, declared.module_id)?;
 
             // key the slot by the name the method declares
-            let Some(name) = self.lowerer.symbol_name(method.symbol)? else {
+            let Some(name) = self.lower.symbol_name(method.symbol)? else {
                 return Err(LowerError::Unsupported {
-                    anchor: self.lowerer.module.into(),
+                    anchor: self.lower.module.into(),
                     construct: "an anonymous interface method".to_string(),
                 }
                 .into());

@@ -1,22 +1,13 @@
-mod alias;
-mod class;
-mod dispatch;
 mod dynamic;
-mod r#enum;
 mod form;
-mod interface;
 mod intrinsic;
 mod lifetime;
 mod lower;
-mod newtype;
 mod nominal;
 mod object;
 mod scalar;
 mod signature;
-mod r#struct;
 
-pub(in crate::lower) use alias::AliasForm;
-pub(in crate::lower) use dispatch::Implementer;
 pub(in crate::lower) use form::insert_reference_type;
 pub(in crate::lower) use lifetime::LifetimeParameters;
 pub(in crate::lower) use lower::TypeLowerer;

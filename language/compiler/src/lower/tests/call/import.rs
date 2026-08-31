@@ -227,3 +227,36 @@ entry(v0: ref<test.box.Box, managed, mutable, local>):
 "#,
     );
 }
+
+/// Lower a derived clone on a scalar to a synthesized receiver copy.
+#[test]
+fn test_lower_a_derived_clone_on_a_scalar() {
+    let session = TestSession::single(
+        r#"
+function duplicate(value: int32): int32 {
+    return value.clone();
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds",
+        r#"
+function test.main.duplicate(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: ref<int32, borrowed, 'frame, readonly, local> = local.address l0
+    v2: int32 = call Clone.clone<int32>(v1): <'a>(ref<int32, borrowed, 'a, readonly, local>) => int32
+    return v2
+}
+
+function Clone.clone<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+    v1: int32 = load v0
+    return v1
+}
+"#,
+    );
+}
