@@ -79,7 +79,9 @@ impl Formatter<'_, '_, '_> {
 
                 return self.generic_parameter_type(*parameter);
             }
-            dir::Type::Erased(_) => "*".to_string(),
+            dir::Type::Erased(parameter) => {
+                return self.generic_parameter_type(*parameter);
+            }
             dir::Type::Member(member) => return self.member(*self.types()?.member(*member)),
             dir::Type::Refined(refined) => {
                 let refined = *self.types()?.refined(*refined);

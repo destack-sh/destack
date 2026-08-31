@@ -5,6 +5,37 @@ use super::membership::{membership_member, membership_members};
 use crate::{CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult};
 
 impl CompletionCollector<'_, '_, '_> {
+    /// Format the interfaces whose requirements one member declaration satisfies.
+    fn format_member_interfaces(
+        &self,
+        declaration: &dir::MemberDeclaration,
+        formatter: &Formatter<'_, '_, '_>,
+    ) -> QueryResult<Vec<String>> {
+        let owner = declaration.owner;
+        let module = self.program.module(owner.module_id)?;
+        let definition = module
+            .definitions()?
+            .definition(owner)
+            .ok_or(QueryError::missing(format!(
+                "completion member owner: {owner:?}"
+            )))?;
+
+        // select each implemented interface satisfied by this declaration
+        let interfaces = definition
+            .implementations()
+            .iter()
+            .filter(|conformance| {
+                conformance
+                    .members
+                    .iter()
+                    .any(|member| member.member == declaration.symbol)
+            })
+            .map(|conformance| formatter.global_type(conformance.interface))
+            .collect::<QueryResult<Vec<_>>>()?;
+
+        Ok(interfaces)
+    }
+
     /// Collect members for one exact lookup site.
     pub(super) fn collect_members(
         &self,
@@ -91,7 +122,15 @@ impl CompletionCollector<'_, '_, '_> {
         } else {
             format!(": {}", formatter.global_type(type_id)?)
         };
-        let completion = completion.with_label_suffix(suffix).with_type_id(type_id);
+        let mut completion = completion.with_label_suffix(suffix).with_type_id(type_id);
+
+        // identify interfaces implemented by the selected declaration
+        if let Some(declaration) = declaration {
+            let interfaces = self.format_member_interfaces(declaration, &formatter)?;
+            if !interfaces.is_empty() {
+                completion = completion.with_description(format!("as {}", interfaces.join(", ")));
+            }
+        }
 
         // insert shared callable members without choosing one declaration
         if is_callable && declaration.is_none() {
