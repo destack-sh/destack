@@ -37,6 +37,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         // collect references from each DIR table
         indexer.collect_decisions()?;
         indexer.collect_names()?;
+        indexer.collect_paths()?;
         indexer.collect_properties()?;
         indexer.collect_declarations()?;
         indexer.collect_dependencies()?;
@@ -282,6 +283,37 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
             for symbol in resolution.symbols() {
                 self.index_reference(*symbol, source)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Collect path segments resolved by the checker.
+    fn collect_paths(&mut self) -> ProviderResult<()> {
+        let resolutions = self
+            .module
+            .resolutions()
+            .path_entries()
+            .map(|((source, segment), resolution)| (source, segment, resolution.clone()))
+            .collect::<Vec<_>>();
+
+        // index each exact authored path segment
+        for (source, segment, resolution) in resolutions {
+            let source_id = self.module.view().get_source_any(source.local_id);
+            let span_type = NodeSpanType::ListItem(NodeSpanList::Segment, segment);
+            let span = self
+                .module
+                .source_index()
+                .get_side(source_id, span_type)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "resolved path segment {source:?}, {segment} has no authored span"
+                    ))
+                })?;
+
+            for symbol in resolution.symbols() {
+                self.index_reference_span(*symbol, source, span)?;
             }
         }
 

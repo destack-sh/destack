@@ -703,6 +703,48 @@ const first = Buffer.Size;
 const second = Buffer.Size;
 ```
 
+## Associated Types
+
+### Rename an associated type
+
+Renaming an interface associated type updates its implementations and projections.
+
+```ds container.ds
+export interface Container {
+    type Item;
+         ^^^^ target
+}
+```
+
+```ds main.ds
+import { Container } from "./container.ds";
+
+class TextContainer implements Container {
+    type Item = string;
+}
+
+type Text = TextContainer.Item;
+```
+
+```query rename container.ds#target new_name=Element
+```
+
+```ds container.ds after
+export interface Container {
+    type Element;
+}
+```
+
+```ds main.ds after
+import { Container } from "./container.ds";
+
+class TextContainer implements Container {
+    type Element = string;
+}
+
+type Text = TextContainer.Element;
+```
+
 ## Enum Members
 
 ### Rename an enum member
