@@ -41,27 +41,27 @@ const hover = { color: tokens.accent };
 const styles = stylex.create({
     body: {
         alignItems: "center",
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
-        fontWeight: 700,
+        fontWeight: 500,
         gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
-        letterSpacing: "0.08em",
         minHeight: "3rem",
         minWidth: 0,
-        textTransform: "uppercase",
         width: "100%",
         [mobile]: {
             gap: "0.75rem",
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gridTemplateColumns: "auto minmax(0, 1fr)",
             paddingBlock: "0.75rem",
         },
     },
     brand: {
         color: tokens.ink,
+        fontFamily: tokens.monoFont,
+        fontWeight: 600,
         gridColumn: "1 / span 8",
         ":hover": hover,
         [mobile]: {
@@ -85,7 +85,7 @@ const styles = stylex.create({
         justifyContent: "flex-end",
         minWidth: 0,
         [mobile]: {
-            gap: "1rem",
+            gap: "0.875rem",
             gridColumn: 2,
             gridRow: 1,
         },
@@ -96,9 +96,6 @@ const styles = stylex.create({
     },
     root: {
         backgroundColor: tokens.page,
-        borderTopColor: tokens.accent,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.stroke,
         color: tokens.text,
         maxWidth: "100vw",
     },

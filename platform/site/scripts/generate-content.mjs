@@ -23,6 +23,7 @@ import {
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.mjs";
 import { writePageSources } from "./sources.mjs";
 import { readLibraryReference, renderLibraryDocuments } from "./reference.mjs";
+import { readLintReference, renderLintDocuments } from "./lint.mjs";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const siteDirectory = join(repositoryDirectory, "platform/site");
@@ -36,7 +37,7 @@ const documentDirectories = [
     {
         directory: join(repositoryDirectory, "language/library/docs"),
         hierarchy: [30],
-        path: "language/library",
+        path: "language/standard-library",
     },
 ];
 const generatedDirectory = join(siteDirectory, "src/generated");
@@ -56,30 +57,42 @@ const documentSegmentPattern = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
 const documentSources = readDocumentSources();
 const renderedDocuments = renderDocuments(documentSources);
 const libraryIndex = renderedDocuments.find(
-    (document) => document.path === "language/library/index.md",
+    (document) => document.path === "language/standard-library/modules/index.md",
 );
 if (libraryIndex == undefined) {
     throw new Error("missing standard library documentation index");
 }
 const libraryReference = readLibraryReference();
 const library = renderLibraryDocuments(libraryReference, libraryIndex);
+const lintIndex = renderedDocuments.find(
+    (document) => document.path === "language/static-analysis/linter/rules/index.md",
+);
+if (lintIndex == undefined) {
+    throw new Error("missing lint rule documentation index");
+}
+const lintReference = readLintReference();
+const lint = renderLintDocuments(lintReference, lintIndex);
 const documents = [
-    ...renderedDocuments.filter((document) => document !== libraryIndex),
+    ...renderedDocuments.filter((document) => (
+        document !== libraryIndex && document !== lintIndex
+    )),
     ...library.documents,
+    ...lint.documents,
 ].sort((left, right) => left.order - right.order || left.route.localeCompare(right.route));
 const postSources = readPostSources();
 const posts = renderPosts(postSources);
-const pages = [...documents, ...library.items, ...posts];
-const searchEntries = searchEntriesFor(posts, documents, library.items);
+const references = [...library.items, ...lint.items];
+const pages = [...documents, ...references, ...posts];
+const searchEntries = searchEntriesFor(posts, documents, references);
 if (!isCheck) {
     await writePageSources(pages, publicDirectory);
     writePageContent(pages);
-    writeLibraryItemMetadata(library.items);
+    writeReferenceMetadata(references);
     writeGeneratedFile(publicSearchFile, `${JSON.stringify(searchEntries)}\n`);
 }
 const documentSource = renderDocumentModule(documents);
 const postSource = renderPostModule(posts);
-const routeSource = renderRouteModule(posts, documents, library.items);
+const routeSource = renderRouteModule(posts, documents, references);
 
 if (isCheck) {
     checkGeneratedFile(generatedDocumentFile, documentSource);
@@ -131,32 +144,32 @@ function writePageContent(pages) {
     }
 }
 
-/// Write independently loaded metadata for every generated library item.
-function writeLibraryItemMetadata(items) {
-    for (const item of items) {
+/// Write independently loaded metadata for every generated reference.
+function writeReferenceMetadata(references) {
+    for (const reference of references) {
         const metadata = {
-            contentRoute: contentRouteFor(item),
-            description: item.description,
-            lead: item.lead,
-            markdownRoute: item.markdownRoute,
-            moduleRoute: item.moduleRoute,
-            moduleTitle: item.moduleTitle,
-            order: item.order,
-            path: item.path,
-            route: item.route,
-            tableOfContents: item.tableOfContents,
-            textRoute: item.textRoute,
-            title: item.title,
-            tokens: item.tokens,
+            contentRoute: contentRouteFor(reference),
+            description: reference.description,
+            lead: reference.lead,
+            markdownRoute: reference.markdownRoute,
+            moduleRoute: reference.moduleRoute,
+            moduleTitle: reference.moduleTitle,
+            order: reference.order,
+            path: reference.path,
+            route: reference.route,
+            tableOfContents: reference.tableOfContents,
+            textRoute: reference.textRoute,
+            title: reference.title,
+            tokens: reference.tokens,
         };
-        const file = join(publicDirectory, libraryItemMetadataRoute(item.route).slice(1));
+        const file = join(publicDirectory, referenceMetadataRoute(reference.route).slice(1));
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, `${JSON.stringify(metadata)}\n`);
     }
 }
 
-/// Return the static metadata route for one generated library item.
-function libraryItemMetadataRoute(route) {
+/// Return the static metadata route for one generated reference.
+function referenceMetadataRoute(route) {
     return `/_content${route}index.json`;
 }
 
@@ -596,26 +609,26 @@ function renderPostRecord(post) {
 }
 
 /// Generate the complete prerender route list.
-function renderRouteModule(posts, documents, libraryItems) {
+function renderRouteModule(posts, documents, references) {
     const routes = [
         "/",
         "/blog/",
         "/docs/",
         ...posts.map((post) => post.route),
         ...documents.map((document) => document.route),
-        ...libraryItems.map((item) => item.route),
+        ...references.map((reference) => reference.route),
     ];
 
     return `/// The complete static browser route set.\nexport const prerenderRoutes = ${JSON.stringify(routes, null, 4)} as const;\n`;
 }
 
 /// Return the complete full-text search index.
-function searchEntriesFor(posts, documents, libraryItems) {
+function searchEntriesFor(posts, documents, references) {
     return [
         ...documents.flatMap((document) => [
             {
-                context: document.path.startsWith("language/library/") ? "standard library" : "docs",
-                kind: document.path.startsWith("language/library/") ? "module" : "page",
+                context: document.path.startsWith("language/standard-library/") ? "standard library" : "docs",
+                kind: document.path.startsWith("language/standard-library/") ? "module" : "page",
                 route: document.route,
                 text: `${document.description} ${document.searchSections.find((section) => section.depth === 1)?.text ?? ""}`,
                 title: document.title,
@@ -648,12 +661,12 @@ function searchEntriesFor(posts, documents, libraryItems) {
                     title: section.title,
                 })),
         ]),
-        ...libraryItems.map((item) => ({
-            context: item.module.specifier,
-            kind: "symbol",
-            route: item.route,
-            text: item.searchSections[0].text,
-            title: item.title,
+        ...references.map((reference) => ({
+            context: reference.searchContext,
+            kind: reference.searchKind,
+            route: reference.route,
+            text: reference.searchSections[0].text,
+            title: reference.title,
         })),
     ];
 }

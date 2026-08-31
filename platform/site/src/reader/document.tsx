@@ -14,9 +14,12 @@ import { Reader } from "./reader";
 
 const mobile = "@media (max-width: 767px)";
 
-const guideIndex = "language/index.md";
-const standardLibraryPath = "language/library/";
-const standardLibraryIndex = `${standardLibraryPath}index.md`;
+const referenceIndex = "language/index.md";
+const standardLibraryPath = "language/standard-library/";
+const libraryModulePath = `${standardLibraryPath}modules/`;
+const libraryModuleIndex = `${libraryModulePath}index.md`;
+const lintRulePath = "language/static-analysis/linter/rules/";
+const lintRuleIndex = `${lintRulePath}index.md`;
 
 /// Properties for one rendered manual chapter.
 type DocumentArticleProps = {
@@ -30,9 +33,17 @@ type DocumentArticleProps = {
 /// Render one manual chapter with book and heading navigation.
 export function DocumentArticle(props: DocumentArticleProps) {
     // show reading size for authored manual chapters
-    const tokenCount = props.document.path.startsWith(standardLibraryPath)
+    const isGeneratedReference = (
+        props.document.path.startsWith(libraryModulePath) ||
+        props.document.path.startsWith(lintRulePath)
+    );
+    const tokenCount = isGeneratedReference
         ? undefined
         : props.document.tokens;
+    const isLintRule = (
+        props.document.path.startsWith(lintRulePath) &&
+        props.document.path !== lintRuleIndex
+    );
 
     return (
         <Reader
@@ -50,7 +61,12 @@ export function DocumentArticle(props: DocumentArticleProps) {
             tokenCount={tokenCount}
         >
             <header {...stylex.attrs(styles.articleHeader)}>
-                <h1 {...stylex.attrs(styles.articleTitle)}>
+                <h1
+                    {...stylex.attrs(
+                        styles.articleTitle,
+                        isLintRule && styles.lintRuleTitle,
+                    )}
+                >
                     {props.document.title}
                 </h1>
                 <Show when={props.document.lead}>
@@ -81,27 +97,30 @@ type DocumentNavigationProps = {
 
 /// Render the manual chapters and current article headings.
 function DocumentNavigation(props: DocumentNavigationProps) {
-    // show guide roots and the current section
-    const isStandardLibrary =
-        props.current.path.startsWith(standardLibraryPath);
+    // show reference roots and the current section
+    const isLibraryModule = props.current.path.startsWith(libraryModulePath);
+    const isLintRule = (
+        props.current.path.startsWith(lintRulePath) &&
+        props.current.path !== lintRuleIndex
+    );
     const currentSection = props.current.path.split("/")[1];
     const chapters = documents.filter((document) => {
-        const isGeneratedLibrary =
-            document.path.startsWith(standardLibraryPath) &&
-            document.path !== standardLibraryIndex;
-        if (document.path === guideIndex || isGeneratedLibrary) {
+        const isGeneratedModule =
+            document.path.startsWith(libraryModulePath) &&
+            document.path !== libraryModuleIndex;
+        if (document.path === referenceIndex || isGeneratedModule) {
             return false;
         }
 
         const section = document.path.split("/")[1];
 
-        return documentDepth(document) === 1 || section === currentSection;
+        return documentDepth(document) === 0 || section === currentSection;
     });
 
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
             <A {...stylex.attrs(styles.bookTitle)} href="/docs/">
-                <span>guide</span>
+                <span>reference</span>
             </A>
 
             <ol {...stylex.attrs(styles.bookList)}>
@@ -115,9 +134,10 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                     documentDepth(document) === 0 &&
                                         styles.section,
                                     (document.route === props.current.route ||
-                                        (document.path ===
-                                            standardLibraryIndex &&
-                                            isStandardLibrary)) &&
+                                        (document.path === libraryModuleIndex &&
+                                            isLibraryModule) ||
+                                        (document.path === lintRuleIndex &&
+                                            isLintRule)) &&
                                         styles.active,
                                 )}
                                 end
@@ -126,7 +146,12 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                 {document.title}
                             </A>
 
-                            <Show when={document.route === props.current.route}>
+                            <Show
+                                when={
+                                    document.route === props.current.route &&
+                                    props.contents.length > 0
+                                }
+                            >
                                 <div
                                     {...stylex.attrs(
                                         styles.documentContents,
@@ -143,10 +168,10 @@ function DocumentNavigation(props: DocumentNavigationProps) {
 
                             <Show
                                 when={
-                                    document.path === standardLibraryIndex &&
+                                    document.path === libraryModuleIndex &&
                                     props.current.path !==
-                                        standardLibraryIndex &&
-                                    isStandardLibrary
+                                        libraryModuleIndex &&
+                                    isLibraryModule
                                 }
                             >
                                 <Show
@@ -222,6 +247,25 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                     )}
                                 </Show>
                             </Show>
+
+                            <Show
+                                when={
+                                    document.path === lintRuleIndex &&
+                                    isLintRule
+                                }
+                            >
+                                <A
+                                    {...stylex.attrs(
+                                        styles.bookLink,
+                                        styles.depth3,
+                                        styles.active,
+                                    )}
+                                    end
+                                    href={props.current.route}
+                                >
+                                    {props.current.title}
+                                </A>
+                            </Show>
                         </li>
                     )}
                 </For>
@@ -230,12 +274,12 @@ function DocumentNavigation(props: DocumentNavigationProps) {
     );
 }
 
-/// Return the visual nesting of one manual chapter.
+/// Return the visual nesting below the manual root.
 function documentDepth(document: Document) {
-    // omit each collection index from its visual depth
+    // omit the collection root and each directory index
     const segments = document.path.split("/");
     const isDirectoryIndex = segments.at(-1) === "index.md";
-    const depth = segments.length - (isDirectoryIndex ? 2 : 1);
+    const depth = segments.length - (isDirectoryIndex ? 3 : 2);
 
     return Math.max(0, depth);
 }
@@ -277,7 +321,14 @@ function DocumentLocation(props: DocumentLocationProps) {
         ) {
             return [
                 { href: "/docs/language/", label: "language" },
-                { href: "/docs/language/library/", label: "library" },
+                {
+                    href: "/docs/language/standard-library/",
+                    label: "standard library",
+                },
+                {
+                    href: "/docs/language/standard-library/modules/",
+                    label: "modules",
+                },
                 {
                     href: props.document.moduleRoute,
                     label: props.document.moduleTitle,
@@ -328,13 +379,23 @@ function DocumentPagination(props: DocumentPaginationProps) {
             >
                 <Show when={previous()}>
                     {(document) => (
-                        <A href={document().route}>← {document().title}</A>
+                        <A
+                            {...stylex.attrs(styles.paginationLink)}
+                            href={document().route}
+                        >
+                            ← {document().title}
+                        </A>
                     )}
                 </Show>
 
                 <Show when={next()}>
                     {(document) => (
-                        <A href={document().route}>{document().title} →</A>
+                        <A
+                            {...stylex.attrs(styles.paginationLink)}
+                            href={document().route}
+                        >
+                            {document().title} →
+                        </A>
                     )}
                 </Show>
             </nav>
@@ -357,12 +418,12 @@ const styles = stylex.create({
         maxWidth: "42rem",
     },
     articleHeader: {
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: tokens.publicationSpace,
-        paddingBlock: `calc(${tokens.publicationSpace} * 3)`,
+        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
         [mobile]: {
             gap: tokens.publicationSpace,
             paddingBlock: "1rem",
@@ -390,7 +451,7 @@ const styles = stylex.create({
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
-            color: tokens.ink,
+            color: tokens.accent,
         },
     },
     bookList: {
@@ -402,19 +463,18 @@ const styles = stylex.create({
     },
     bookTitle: {
         alignItems: "center",
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         color: tokens.ink,
         display: "flex",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
-        fontWeight: 600,
+        fontWeight: 500,
         gap: "0.75rem",
-        letterSpacing: "0.02em",
         minHeight: tokens.publicationRow,
         ":hover": {
             color: tokens.orange,
@@ -437,7 +497,7 @@ const styles = stylex.create({
         paddingTop: `calc(${tokens.publicationSpace} * 0.5)`,
     },
     pagination: {
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "flex",
@@ -449,9 +509,19 @@ const styles = stylex.create({
         marginTop: `calc(${tokens.publicationSpace} * 4)`,
         paddingTop: `calc(${tokens.publicationSpace} * 2)`,
     },
+    paginationLink: {
+        color: tokens.ink,
+        ":hover": {
+            color: tokens.accent,
+        },
+    },
     section: {
         color: tokens.ink,
         fontWeight: 600,
         paddingTop: `calc(${tokens.publicationSpace} * 1.5)`,
+    },
+    lintRuleTitle: {
+        fontSize: "clamp(2rem, 3.5vw, 2.75rem)",
+        overflowWrap: "anywhere",
     },
 });

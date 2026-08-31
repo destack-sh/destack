@@ -6,9 +6,9 @@
     "type": "module",
     "description": "Destack website, documentation, and blog",
     "scripts": {
-        "build": "bun scripts/sync-assets.mjs && bun scripts/generate-release.mjs && bun scripts/generate-library.mjs && bun scripts/generate-content.mjs && vinxi build && bun scripts/postbuild.mjs",
-        "check": "bun scripts/generate-release.mjs --check && bun scripts/generate-library.mjs && bun scripts/generate-content.mjs --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
-        "dev": "bun scripts/sync-assets.mjs && bun scripts/generate-release.mjs && bun scripts/generate-library.mjs && bun scripts/generate-content.mjs && vinxi dev",
+        "build": "bun scripts/sync-assets.mjs && bun scripts/generate-release.mjs && bun scripts/generate-reference.mjs && bun scripts/generate-content.mjs && vinxi build && bun scripts/postbuild.mjs",
+        "check": "bun scripts/generate-release.mjs --check && bun scripts/generate-reference.mjs && bun scripts/generate-content.mjs --check && bun x tsc -p tsconfig.json --noEmit && bun run build",
+        "dev": "bun scripts/sync-assets.mjs && bun scripts/generate-release.mjs && bun scripts/generate-reference.mjs && bun scripts/generate-content.mjs && vinxi dev",
         "format": "echo \"No site formatter defined\"",
         "test": "bun scripts/test-highlighting.mjs",
         "typecheck": "bun x tsc -p tsconfig.json --noEmit"

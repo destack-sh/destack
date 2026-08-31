@@ -12,8 +12,8 @@ const libraryReferenceFile = join(
     repositoryDirectory,
     "platform/site/.generated/library-reference.json",
 );
-const standardLibraryPath = "language/library";
-const standardLibraryRoute = `/docs/${standardLibraryPath}/`;
+const moduleCatalogPath = "language/standard-library/modules";
+const moduleCatalogRoute = `/docs/${moduleCatalogPath}/`;
 const libraryKindOrder = [
     "namespace",
     "class",
@@ -279,10 +279,6 @@ function libraryItemScore(item) {
 
 /// Render the standard library catalog.
 function renderLibraryCatalog(reference, index) {
-    const exportCount = reference.modules.reduce(
-        (count, module) => count + module.exports.length,
-        0,
-    );
     const moduleRows = reference.modules.map((module) => {
         const moduleRoute = libraryModuleRoute(module.specifier);
 
@@ -290,18 +286,14 @@ function renderLibraryCatalog(reference, index) {
     }).join("");
     const markdown = `${index.markdown}
 
-${reference.modules.length} public modules · ${exportCount} public exports · toolchain ${reference.toolchainVersion}
-
-## Modules
-
 ${reference.modules.map((module) =>
         `- [${module.specifier}](${libraryModuleRoute(module.specifier)}) — ${module.exports.length} exports`
     ).join("\n")}`;
-    const html = `${index.html}<div class="reference-catalog"><dl><div><dt>modules</dt><dd>${reference.modules.length}</dd></div><div><dt>exports</dt><dd>${exportCount}</dd></div><div><dt>toolchain</dt><dd>${escapeHtml(reference.toolchainVersion)}</dd></div></dl><h2 id="modules">Modules</h2><ul class="reference-module-list">${moduleRows}</ul></div>`;
+    const html = `${index.html}<div class="reference-catalog"><ul class="reference-module-list">${moduleRows}</ul></div>`;
     const searchSections = [
         ...index.searchSections,
         {
-            depth: 2,
+            depth: 1,
             id: "modules",
             text: reference.modules.map((module) => module.specifier).join(" "),
             title: "Modules",
@@ -314,10 +306,7 @@ ${reference.modules.map((module) =>
         markdown,
         searchSections,
         searchText: searchSections.map((section) => section.text).join(" "),
-        tableOfContents: [
-            ...index.tableOfContents,
-            { depth: 2, id: "modules", text: "Modules" },
-        ],
+        tableOfContents: index.tableOfContents,
         tokens: tokenEstimateFor(plainTextFor(markdown)),
     };
 }
@@ -445,6 +434,8 @@ function renderLibraryItem(item, declarationHighlights, memberHighlights, order)
         order,
         path,
         route: item.route,
+        searchContext: item.module.specifier,
+        searchKind: "symbol",
         searchSections: [{
             depth: 1,
             id: libraryNameSlug(item.name),
@@ -635,7 +626,7 @@ function renderLibraryItemMarkdown(item) {
 function libraryModuleRoute(specifier) {
     const suffix = specifier === "destack" ? "destack" : specifier.slice("destack:".length);
 
-    return `${standardLibraryRoute}${suffix}/`;
+    return `${moduleCatalogRoute}${suffix}/`;
 }
 
 /// Return the concise public title for one standard library module.

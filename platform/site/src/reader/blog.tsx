@@ -184,7 +184,7 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
     const isNewer = props.direction === "newer";
 
     return (
-        <A href={props.post.route}>
+        <A {...stylex.attrs(styles.paginationLink)} href={props.post.route}>
             {isNewer ? `← ${props.post.title}` : `${props.post.title} →`}
         </A>
     );
@@ -197,12 +197,12 @@ const styles = stylex.create({
         fontWeight: 600,
     },
     articleHeader: {
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: tokens.publicationSpace,
-        paddingBlock: `calc(${tokens.publicationSpace} * 3)`,
+        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
         [mobile]: {
             gap: tokens.publicationSpace,
             paddingBlock: "1rem",
@@ -240,7 +240,7 @@ const styles = stylex.create({
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
-            color: tokens.ink,
+            color: tokens.accent,
         },
     },
     bookList: {
@@ -252,24 +252,23 @@ const styles = stylex.create({
     },
     bookTitle: {
         alignItems: "center",
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "flex",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
-        fontWeight: 600,
-        letterSpacing: "0.02em",
+        fontWeight: 500,
         minHeight: tokens.publicationRow,
         ":hover": {
             color: tokens.accent,
         },
     },
     pagination: {
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "flex",
@@ -279,5 +278,11 @@ const styles = stylex.create({
         gap: "1rem 2rem",
         justifyContent: "space-between",
         paddingTop: "1.25rem",
+    },
+    paginationLink: {
+        color: tokens.ink,
+        ":hover": {
+            color: tokens.accent,
+        },
     },
 });

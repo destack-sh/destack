@@ -24,7 +24,7 @@ export const tokens = stylex.defineVars({
     rust: "var(--publication-rust)",
     siteControlHeight: "2.5rem",
     siteFontSize: "0.95rem",
-    siteWidth: "68rem",
+    siteWidth: "72rem",
     soft: "var(--publication-soft)",
     stroke: "var(--publication-stroke)",
     text: "var(--publication-ink)",

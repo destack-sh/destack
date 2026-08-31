@@ -25,9 +25,11 @@ export function Footer() {
                             </SiteLink>
                         ))}
                     </nav>
-                    <span {...stylex.attrs(styles.location)}>
-                        {release.version} · {release.stability} · zurich, switzerland
-                    </span>
+                    <div {...stylex.attrs(styles.release)}>
+                        <span>{release.version}</span>
+                        <span>{release.stability}</span>
+                        <span>zurich, switzerland</span>
+                    </div>
                 </div>
             </div>
         </footer>
@@ -37,21 +39,21 @@ export function Footer() {
 const styles = stylex.create({
     body: {
         alignItems: "center",
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "grid",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
-        fontWeight: 700,
+        fontWeight: 500,
         gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
-        letterSpacing: "0.08em",
         minHeight: "3rem",
         minWidth: 0,
-        textTransform: "uppercase",
         width: "100%",
         [mobile]: {
-            gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+            gap: "1rem",
+            gridTemplateColumns: "auto minmax(0, 1fr)",
+            paddingBlock: "0.75rem",
         },
     },
     frame: {
@@ -69,18 +71,22 @@ const styles = stylex.create({
     },
     root: {
         backgroundColor: tokens.page,
-        borderBottomColor: tokens.accent,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.stroke,
         color: tokens.ink,
         maxWidth: "100vw",
     },
-    location: {
+    release: {
+        alignItems: "center",
+        display: "flex",
+        gap: "1.5rem",
         gridColumn: "9 / -1",
         justifySelf: "end",
         whiteSpace: "nowrap",
         [mobile]: {
+            flexWrap: "wrap",
+            gap: "0.25rem 0.875rem",
             gridColumn: 2,
+            justifyContent: "flex-end",
+            whiteSpace: "normal",
         },
     },
     navigation: {

@@ -241,6 +241,8 @@ function rankFor(kind: Command["kind"]) {
             return 1600;
         case "page":
             return 1200;
+        case "rule":
+            return 1100;
         case "section":
             return 800;
         case "module":

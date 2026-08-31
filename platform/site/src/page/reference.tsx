@@ -1,19 +1,19 @@
 import { createResource, Show, Suspense } from "solid-js";
 
-import { loadLibraryItem } from "../content/reference";
+import { loadGeneratedReference } from "../content/reference";
 import { DocumentArticle } from "../reader/document";
 import { MissingPage } from "../site/missing";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
-type LibraryItemPageProps = {
-    /// The canonical library item route.
+type GeneratedReferencePageProps = {
+    /// The canonical generated reference route.
     route: string;
 };
 
-/// Render one generated standard library item.
-export function LibraryItemPage(props: LibraryItemPageProps) {
-    const [item] = createResource(() => props.route, loadLibraryItem);
+/// Render one generated reference.
+export function GeneratedReferencePage(props: GeneratedReferencePageProps) {
+    const [item] = createResource(() => props.route, loadGeneratedReference);
 
     return (
         <Shell>
@@ -21,7 +21,7 @@ export function LibraryItemPage(props: LibraryItemPageProps) {
                 <Show
                     fallback={(
                         <Show when={!item.loading}>
-                            <MissingLibraryItem />
+                            <MissingReference />
                         </Show>
                     )}
                     keyed
@@ -49,15 +49,15 @@ export function LibraryItemPage(props: LibraryItemPageProps) {
     );
 }
 
-/// Render an unknown generated library item.
-function MissingLibraryItem() {
+/// Render an unknown generated reference.
+function MissingReference() {
     return (
         <MissingPage
-            backHref="/docs/language/library/"
-            backLabel="back to standard library"
-            description="This standard library item does not exist."
-            label="missing library item"
-            title="this library item does not exist"
+            backHref="/docs/"
+            backLabel="back to docs"
+            description="This reference does not exist."
+            label="missing reference"
+            title="this reference does not exist"
         />
     );
 }

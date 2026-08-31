@@ -8,7 +8,7 @@ _default:
 build:
     bun scripts/sync-assets.mjs
     bun scripts/generate-release.mjs
-    bun scripts/generate-library.mjs
+    bun scripts/generate-reference.mjs
     bun scripts/generate-content.mjs
     bun x vinxi build
     bun scripts/postbuild.mjs
@@ -24,13 +24,13 @@ format-check:
 # regenerate generated files
 generate:
     bun scripts/generate-release.mjs
-    bun scripts/generate-library.mjs
+    bun scripts/generate-reference.mjs
     bun scripts/generate-content.mjs
 
 # check generated files
 generate-check:
     bun scripts/generate-release.mjs --check
-    bun scripts/generate-library.mjs
+    bun scripts/generate-reference.mjs
     bun scripts/generate-content.mjs --check
 
 # type check source
@@ -63,7 +63,7 @@ check-full:
 dev:
     bun scripts/sync-assets.mjs
     bun scripts/generate-release.mjs
-    bun scripts/generate-library.mjs
+    bun scripts/generate-reference.mjs
     bun scripts/generate-content.mjs
     bun x vinxi dev
 

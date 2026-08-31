@@ -96,7 +96,7 @@ const mobile = "@media (max-width: 767px)";
 
 const styles = stylex.create({
     archive: {
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         listStyle: "none",
@@ -106,7 +106,7 @@ const styles = stylex.create({
     article: {
         alignContent: "start",
         display: "grid",
-        gridColumn: "6 / -1",
+        gridColumn: 2,
         minWidth: 0,
         width: "100%",
         [narrow]: {
@@ -114,12 +114,12 @@ const styles = stylex.create({
         },
     },
     articleHeader: {
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: tokens.publicationSpace,
-        paddingBlock: `calc(${tokens.publicationSpace} * 3)`,
+        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
         [mobile]: {
             gap: tokens.publicationSpace,
             paddingBlock: "1rem",
@@ -153,10 +153,11 @@ const styles = stylex.create({
         textIndent: "-0.04em",
     },
     index: {
+        columnGap: "4rem",
         display: "grid",
         fontFamily: tokens.textFont,
         fontSize: "var(--size-body)",
-        gridTemplateColumns: "repeat(16, minmax(0, 1fr))",
+        gridTemplateColumns: "15rem minmax(0, 1fr)",
         marginInline: "auto",
         maxWidth: tokens.siteWidth,
         padding: `1.5rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
@@ -193,9 +194,9 @@ const styles = stylex.create({
         alignContent: "start",
         alignSelf: "start",
         display: "none",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
-        gridColumn: "1 / span 4",
+        gridColumn: 1,
         gap: 0,
         "@media (min-width: 60rem)": {
             display: "grid",
@@ -215,10 +216,10 @@ const styles = stylex.create({
     },
     toolbar: {
         alignItems: "center",
-        borderBottomColor: tokens.ink,
+        borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-        borderTopColor: tokens.ink,
+        borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "grid",

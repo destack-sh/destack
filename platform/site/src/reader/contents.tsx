@@ -147,7 +147,7 @@ const styles = stylex.create({
         display: "block",
         paddingBlock: "0.25rem",
         ":hover": {
-            color: tokens.text,
+            color: tokens.accent,
         },
     },
     list: {

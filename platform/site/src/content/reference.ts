@@ -1,10 +1,18 @@
 import { loadContent } from "./load";
 import type { Document, DocumentContent } from "../generated/documents";
 
-const libraryRoute = "/docs/language/library/";
+const referenceRoutes = [
+    "/docs/language/standard-library/modules/",
+    "/docs/language/static-analysis/linter/rules/",
+] as const;
 
-/// One generated library item and its rendered body.
-export type LibraryItem = {
+/// Return whether one route can name a generated reference.
+export function isGeneratedReferenceRoute(route: string): boolean {
+    return referenceRoutes.some((prefix) => route.startsWith(prefix));
+}
+
+/// One generated reference and its rendered body.
+export type GeneratedReference = {
     /// The generated documentation metadata.
     document: Document;
 
@@ -12,26 +20,28 @@ export type LibraryItem = {
     content: DocumentContent;
 };
 
-/// Load one generated library item from its static artifacts.
-export async function loadLibraryItem(route: string): Promise<LibraryItem | undefined> {
-    if (!route.startsWith(libraryRoute) || route.includes("..")) {
+/// Load one generated reference from its static artifacts.
+export async function loadGeneratedReference(
+    route: string,
+): Promise<GeneratedReference | undefined> {
+    if (!isGeneratedReferenceRoute(route) || route.includes("..")) {
         return undefined;
     }
     const metadataRoute = `/_content${route}index.json`;
-    const document = await loadLibraryItemMetadata(metadataRoute);
+    const document = await loadReferenceMetadata(metadataRoute);
     if (document == undefined) {
         return undefined;
     }
     if (document.route !== route) {
-        throw new Error(`invalid library item route: ${document.route}`);
+        throw new Error(`invalid generated reference route: ${document.route}`);
     }
     const content = await loadContent(document.contentRoute);
 
     return { content, document };
 }
 
-/// Load and validate one generated library item metadata record.
-async function loadLibraryItemMetadata(route: string): Promise<Document | undefined> {
+/// Load and validate one generated reference metadata record.
+async function loadReferenceMetadata(route: string): Promise<Document | undefined> {
     let value: unknown;
 
     // read the same public artifact directly while rendering on the server
@@ -57,13 +67,13 @@ async function loadLibraryItemMetadata(route: string): Promise<Document | undefi
             return undefined;
         }
         if (!response.ok) {
-            throw new Error(`cannot load library item (${response.status}): ${route}`);
+            throw new Error(`cannot load generated reference (${response.status}): ${route}`);
         }
         value = await response.json();
     }
 
     if (!isDocument(value)) {
-        throw new Error(`invalid library item metadata: ${route}`);
+        throw new Error(`invalid generated reference metadata: ${route}`);
     }
 
     return value;
