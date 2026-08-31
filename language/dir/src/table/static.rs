@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Arena, GlobalStaticId, GlobalSymbolId, GlobalTypeId, LocalNodeIdAny, LocalStaticId,
-    SegmentView, StaticTerm, TypeFold,
+    SegmentView, StaticTerm, TypeFold, View,
 };
 
 /// Cumulative static values for one DIR module.
@@ -109,11 +109,20 @@ impl<'a> StaticTable<'a> {
         None
     }
 
-    /// Return whether one node roots a subtree removed by a closed static condition.
-    pub fn contains_absent_root(&self, node: LocalNodeIdAny) -> bool {
-        self.segments
-            .iter()
-            .any(|segment| segment.contains_absent_root(node))
+    /// Return whether one source node is inside a statically absent subtree.
+    pub fn is_absent(&self, view: View<'_>, node: LocalNodeIdAny) -> bool {
+        let mut current = Some(node);
+
+        // inspect the node and each enclosing static gate
+        while let Some(node) = current {
+            if self.presence(node) == Some(StaticPresence::Absent) {
+                return true;
+            }
+
+            current = view.get_parent_any(node);
+        }
+
+        false
     }
 
     /// Return one node's static gate decision.
@@ -229,11 +238,6 @@ impl StaticSegment {
     /// Return one node's static gate decision.
     pub fn presence(&self, node: LocalNodeIdAny) -> Option<StaticPresence> {
         self.gates.get(&node).copied()
-    }
-
-    /// Return whether one node roots a subtree removed by a closed static condition.
-    pub fn contains_absent_root(&self, node: LocalNodeIdAny) -> bool {
-        self.presence(node) == Some(StaticPresence::Absent)
     }
 
     /// Iterate static values keyed by symbol.
