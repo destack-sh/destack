@@ -358,6 +358,7 @@ impl ModuleQueryContext<'_> {
         // emit every exact binding recorded for each declarator pattern
         for declarator_id in declarators {
             let declarator = view.get::<dir::Declarator>(*declarator_id);
+            let is_absent = self.statics()?.is_absent(view, declarator_id.into_any());
             let mut bindings = Vec::new();
             collect_pattern_bindings(view, declarator.pattern, &mut bindings);
 
@@ -377,16 +378,20 @@ impl ModuleQueryContext<'_> {
                 let selection_range = self
                     .node_selection_span(view, binding_id)?
                     .ok_or(QueryError::missing(format!("outline span: {binding:?}")))?;
-                let type_id =
-                    self.types()?
-                        .get_symbol_type_id(symbol_id)
-                        .ok_or(QueryError::missing(format!(
-                            "outline symbol type: {symbol_id:?}"
-                        )))?;
-                let detail = Formatter::new(self, program).global_type(type_id)?;
+                let detail =
+                    if is_absent {
+                        None
+                    } else {
+                        let type_id = self.types()?.get_symbol_type_id(symbol_id).ok_or(
+                            QueryError::missing(format!("outline symbol type: {symbol_id:?}")),
+                        )?;
+
+                        Some(Formatter::new(self, program).global_type(type_id)?)
+                    };
+
                 symbols.push(OutlineSymbol {
                     name: self.strings().get(name_id).to_string(),
-                    detail: Some(detail),
+                    detail,
                     kind,
                     range,
                     selection_range,

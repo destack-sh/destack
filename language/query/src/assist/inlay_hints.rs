@@ -115,13 +115,17 @@ impl ModuleQueryContext<'_> {
         let types = self.types()?;
 
         // inspect inferred binding declarators
-        for (_declarator_id, declarator) in view.iter_nodes::<dir::Declarator>() {
+        for (declarator_id, declarator) in view.iter_nodes::<dir::Declarator>() {
             if declarator.ty.is_some() {
                 continue;
             }
 
             let pattern = view.get::<dir::Pattern>(declarator.pattern);
             if !matches!(pattern, dir::Pattern::Binding { .. }) {
+                continue;
+            }
+
+            if self.statics()?.is_absent(view, declarator_id.into_any()) {
                 continue;
             }
 

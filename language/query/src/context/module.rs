@@ -49,6 +49,8 @@ pub struct ModuleQueryContext<'a> {
     modules: OnceLock<dir::ModuleTable<'static>>,
     /// The cumulative type table.
     types: OnceLock<dir::TypeTable<'static>>,
+    /// The cumulative static table.
+    statics: OnceLock<dir::StaticTable<'static>>,
     /// The cumulative decorator table.
     decorators: OnceLock<dir::DecoratorTable<'static>>,
     /// The cumulative generic table.
@@ -101,6 +103,7 @@ impl<'a> ModuleQueryContext<'a> {
             bindings: OnceLock::new(),
             modules: OnceLock::new(),
             types: OnceLock::new(),
+            statics: OnceLock::new(),
             decorators: OnceLock::new(),
             generics: OnceLock::new(),
             definitions: OnceLock::new(),
@@ -351,6 +354,23 @@ impl<'a> ModuleQueryContext<'a> {
         Ok(self
             .types
             .get_or_init(|| checked.type_table(bound, expanded, declared, elaborated)))
+    }
+
+    /// Return the cumulative DIR static table.
+    pub(crate) fn statics(&self) -> QueryResult<&dir::StaticTable<'static>> {
+        if let Some(statics) = self.statics.get() {
+            return Ok(statics);
+        }
+
+        let checked = self.checked()?;
+        let bound = self.bound()?;
+        let expanded = self.expanded()?;
+        let declared = self.declared()?;
+        let elaborated = self.elaborated()?;
+
+        Ok(self
+            .statics
+            .get_or_init(|| checked.static_table(bound, expanded, declared, elaborated)))
     }
 
     /// Return the cumulative DIR decorator table.

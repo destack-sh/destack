@@ -168,6 +168,55 @@ const answer = 42;
 @outline.symbol depth=0 name=answer kind=constant detail=42 range=main.ds#answer_range selection=main.ds#answer_selection
 ```
 
+### Outline a statically absent declaration
+
+A false static gate remains in the authored outline without type detail.
+
+```ds main.ds
+struct Position {
+^ position_range:start
+       ^^^^^^^^ position_selection
+    x: float64;
+    ^^^^^^^^^^ x_range
+    ^ x_selection
+    y: float64;
+    ^^^^^^^^^^ y_range
+    ^ y_selection
+}
+^ position_range:end
+
+const position = Position { x: 1.0, y: 2.0 };
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ value_range
+      ^^^^^^^^ value_selection
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=Position kind=struct range=main.ds#position_range selection=main.ds#position_selection
+@outline.symbol depth=1 name=x kind=field detail=float64 range=main.ds#x_range selection=main.ds#x_selection
+@outline.symbol depth=1 name=y kind=field detail=float64 range=main.ds#y_range selection=main.ds#y_selection
+@outline.symbol depth=0 name=position kind=constant detail=Position range=main.ds#value_range selection=main.ds#value_selection
+```
+
+```diff main.ds
+@@ -13,3 +13,8 @@
+ const position = Position { x: 1.0, y: 2.0 };
+ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ value_range
+       ^^^^^^^^ value_selection
++
++@if(false)
++const position = 5;
++^^^^^^^^^^^^^^^^^^ absent_range
++      ^^^^^^^^ absent_selection
+```
+
+```query outline main.ds
+@outline.symbol depth=0 name=Position kind=struct range=main.ds#position_range selection=main.ds#position_selection
+@outline.symbol depth=1 name=x kind=field detail=float64 range=main.ds#x_range selection=main.ds#x_selection
+@outline.symbol depth=1 name=y kind=field detail=float64 range=main.ds#y_range selection=main.ds#y_selection
+@outline.symbol depth=0 name=position kind=constant detail=Position range=main.ds#value_range selection=main.ds#value_selection
+@outline.symbol depth=0 name=position kind=constant range=main.ds#absent_range selection=main.ds#absent_selection
+```
+
 ## Members
 
 ### Preserve hierarchical member order

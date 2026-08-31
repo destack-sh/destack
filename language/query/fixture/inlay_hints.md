@@ -235,6 +235,40 @@ const value = true;
 @inlay_hints.hint position=main.ds#binding@end label=": true" kind=type
 ```
 
+### Omit a statically absent binding hint
+
+A false static gate receives no inferred type hint.
+
+```ds main.ds
+struct Position {
+    x: float64;
+    y: float64;
+}
+
+const position = Position { x: 1.0, y: 2.0 };
+      ^^^^^^^^ position
+const coordinate = position.y + position.x;
+      ^^^^^^^^^^ coordinate
+```
+
+```query inlay_hints main.ds#coordinate
+@inlay_hints.hint position=main.ds#coordinate@end label=": float64" kind=type
+```
+
+```diff main.ds
+@@ -8,2 +8,6 @@
+ const coordinate = position.y + position.x;
+       ^^^^^^^^^^ coordinate
++
++@if(false)
++const position = 5;
++      ^^^^^^^^ absent
+```
+
+```query inlay_hints main.ds#absent
+@inlay_hints.none
+```
+
 ### Render an unresolved initializer type
 
 An unresolved initializer renders as `<error>`.
