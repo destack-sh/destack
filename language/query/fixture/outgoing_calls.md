@@ -23,7 +23,7 @@ function source(): void {
 
 ### Resolve the current outgoing call target
 
-Outgoing calls identify the function selected in each revision.
+Outgoing calls identify the function selected after each edit.
 
 ```ds main.ds
 function first(): void {}

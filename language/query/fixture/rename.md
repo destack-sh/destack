@@ -283,9 +283,9 @@ const greet = 1;
 const message = importedGreet("Destack");
 ```
 
-### Rename a function and query its new name
+### Rename a function and use its new name
 
-Hover, definition, reference, and token queries read the applied function name.
+Hover, definition, references, and highlighting use the applied function name.
 
 ```ds main.ds
 function greet(name: string): string {

@@ -212,7 +212,7 @@ function total(): int32 {
 
 ### Offer extraction for the current expression
 
-Code actions reflect the selected expression in the current revision.
+Code actions reflect the selected expression after each edit.
 
 ```ds main.ds
 const value = 42;
@@ -240,7 +240,7 @@ function total(): int32 {
 
 ### Inline a binding
 
-A binding name offers the same complete edit as the inline query.
+A binding name offers the same complete edit as the inline refactoring.
 
 ```ds main.ds
 const offset = 10;

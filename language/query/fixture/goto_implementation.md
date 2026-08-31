@@ -33,7 +33,7 @@ struct Rectangle implements Drawable {
 
 ### Return current implementations
 
-Implementation lookup includes declarations added in later revisions.
+Implementation lookup includes declarations added by later edits.
 
 ```ds main.ds
 interface Drawable {

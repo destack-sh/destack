@@ -582,7 +582,7 @@ const message = welcome("Destack");
 
 ### Resolve the current imported definition
 
-An imported reference follows the declaration in the selected revision.
+An imported reference follows the declaration selected after each edit.
 
 ```ds library.ds
 export function greet(name: string): string {

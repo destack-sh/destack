@@ -57,7 +57,7 @@ function get_element_by_id(): void {}
 
 ### Match ordered subsequences
 
-A compact query may match ordered characters when no stronger lexical match exists.
+A compact search term may match ordered characters when no stronger lexical match exists.
 
 ```ds main.ds
 function completionEngine(): void {}
@@ -72,7 +72,7 @@ function completionEngine(): void {}
 
 ### Rank exact, prefix, then substring matches
 
-The response follows relevance order.
+Matching symbols follow relevance order.
 
 ```ds main.ds
 export function orbit(): void {}
@@ -542,7 +542,7 @@ export let mutableSearchValue = 2;
 
 ### Search current declarations
 
-Search follows declarations across revisions.
+Search follows declarations across edits.
 
 ```ds alpha.ds
 export function existingAlpha(): void {}

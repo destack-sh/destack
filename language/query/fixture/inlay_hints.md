@@ -128,7 +128,7 @@ const { x, y } = Point { x: 1, y: 2 };
 
 ### Restrict hints to the requested range
 
-A range query does not return hints for neighboring declarations.
+A requested range excludes hints for neighboring declarations.
 
 ```ds main.ds
 const first = 1;
@@ -196,7 +196,7 @@ const result = identity(1);
 
 ### Omit a hint for an explicit declaration while typing
 
-Request inlay hints after every inserted scalar.
+Show inlay hints after every inserted character.
 
 ```ds main.ds
 // module

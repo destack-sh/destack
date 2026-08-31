@@ -39,7 +39,7 @@ class Leaf extends Middle {}
 
 ### Return current direct subtypes
 
-Subtype lookup includes declarations added in later revisions.
+Subtype lookup includes declarations added by later edits.
 
 ```ds main.ds
 class Base {}

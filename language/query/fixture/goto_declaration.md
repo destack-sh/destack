@@ -19,7 +19,7 @@ const other = value;
 
 ### Resolve the current binding
 
-A reference resolves to the declaration selected in each revision.
+A reference resolves to the declaration selected after each edit.
 
 ```ds main.ds
 const first = 1;

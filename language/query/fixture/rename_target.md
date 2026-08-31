@@ -31,7 +31,7 @@ const next = count;
 
 ### Resolve the current binding
 
-The rename target is the symbol selected in each revision.
+The rename target is the symbol selected after each edit.
 
 ```ds main.ds
 const first = 1;
@@ -606,7 +606,7 @@ function value(): int32 {
 
 ### Reject the constructor keyword
 
-The constructor role is fixed language syntax rather than a renameable identifier.
+The `constructor` keyword is fixed language syntax rather than a renameable identifier.
 
 ```ds main.ds
 class User {

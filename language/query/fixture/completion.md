@@ -250,7 +250,7 @@ const result = legacy;
 
 ### Complete visible symbols from current declarations
 
-Completion reflects the declarations in the selected revision.
+Completion reflects the declarations after each edit.
 
 ```ds main.ds
 const localRevisionAlpha = 1;
@@ -362,9 +362,9 @@ function read(point: Point): void {
 @completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"
 ```
 
-### Complete constructor receiver members throughout typing
+### Complete constructor receiver members while typing
 
-Member completion uses the enclosing class throughout typing inside its constructor.
+Member completion uses the enclosing class while typing inside its constructor.
 
 ```ds main.ds
 class User {
@@ -688,7 +688,7 @@ function read(box: Box<string>): string {
 @completion.item label=value kind=field replace=main.ds#prefix suffix=": string" matches=0,1,2
 ```
 
-### Take a generic method type from a later use
+### Complete a generic method inferred from a later use
 
 A method signature uses the type argument a later call pins down.
 
@@ -946,7 +946,7 @@ declare const packet: library.Pac;
 
 ### Complete members from the current declaration
 
-Member completion uses the receiver selected in each revision.
+Member completion uses the receiver selected after each edit.
 
 ```ds main.ds
 struct Box {
@@ -1065,8 +1065,7 @@ const selected = box.val;
 
 ### Complete a member throughout module typing
 
-Every requested query succeeds throughout incomplete source revisions, and completion returns the
-final member.
+Member completion remains available throughout incomplete edits and returns the final member.
 
 ```ds main.ds
 // module
@@ -1436,7 +1435,7 @@ const box: Box<string> = {
 @completion.item label=value kind=field replace=main.ds#prefix suffix=": string" insert="value: ${1}" snippet=true matches=0,1,2
 ```
 
-### Take a generic field type from a later use
+### Complete a generic field inferred from a later use
 
 An object field uses the type argument a later call pins down.
 
@@ -2490,7 +2489,7 @@ const value = beta;
 
 ### Complete an auto import from its current declaration
 
-Auto import completion reads the declaration selected in each revision.
+Auto-import completion reads the declaration selected after each edit.
 
 ```ds library.ds
 export function greet(name: string): string {

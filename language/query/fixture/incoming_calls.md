@@ -78,7 +78,7 @@ function second(): void {
 
 ### Return current incoming calls
 
-Incoming calls include call sites added in later revisions.
+Incoming calls include call sites added by later edits.
 
 ```ds main.ds
 function callee(): void {}

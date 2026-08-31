@@ -360,7 +360,7 @@ extension<Element> of Box<Element> {}
 
 ### Render the current type alias
 
-Hover uses the declaration from the selected revision.
+Hover uses the declaration selected after each edit.
 
 ```ds main.ds
 type Value = int32;

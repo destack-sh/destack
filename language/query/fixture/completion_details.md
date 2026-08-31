@@ -2,9 +2,9 @@
 
 ## Declaration Documentation
 
-### Resolve one callable entry
+### Resolve callable documentation
 
-The selected entry returns its full declaration and authored documentation.
+The selected completion returns its full declaration and authored documentation.
 
 ```ds main.ds
 /// Format one name.
@@ -21,9 +21,9 @@ const formatted = formatN;
 
 ## Auto Imports
 
-### Resolve one import edit
+### Resolve an auto-import edit
 
-The selected entry returns its exact import edit from the original revision.
+The selected completion returns its exact import edit from the original source.
 
 ```ds library.ds
 export function greetFixture(): void {}

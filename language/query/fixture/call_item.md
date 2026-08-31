@@ -24,7 +24,7 @@ callee();
 
 ### Resolve the current call target
 
-A call identifies the function selected in each revision.
+A call identifies the function selected after each edit.
 
 ```ds main.ds
 function first(): void {}

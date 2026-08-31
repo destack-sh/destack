@@ -78,7 +78,7 @@ class Service {}
 
 ### Return current decorator applications
 
-Decorator lookup includes applications added in later revisions.
+Decorator lookup includes applications added by later edits.
 
 ```ds main.ds
 function verify(): void {}

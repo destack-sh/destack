@@ -18,7 +18,7 @@ ping();
 
 ### Count current references
 
-Reference lenses count calls in the selected revision.
+Reference lenses count calls after each edit.
 
 ```ds main.ds
 function ping(): void {}

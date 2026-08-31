@@ -27,7 +27,7 @@ export const bar = 2;
 
 ### Resolve the current import target
 
-Links follow the resolved module path in each revision.
+Links follow the resolved module path after each edit.
 
 ```ds main.ds
 import { value } from "./library.ds";

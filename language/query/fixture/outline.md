@@ -117,7 +117,7 @@ const value = 1;
 
 ### Outline an incomplete declaration
 
-Request the outline after every inserted scalar.
+Show the outline after every inserted character.
 
 ```ds main.ds
 // module
@@ -137,7 +137,7 @@ declare const x: Clone;
 
 ### Outline current declarations
 
-The outline follows declarations added to the selected revision.
+The outline follows declarations added by each edit.
 
 ```ds main.ds
 function ping(): void {
@@ -251,9 +251,9 @@ struct Rectangle {
 @outline.symbol depth=1 name=area kind=method detail="(): float32" range=main.ds#area_range selection=main.ds#area_selection
 ```
 
-### Distinguish member roles
+### Distinguish fields, constructors, accessors, and methods
 
-Constructors, accessors, and static members use their distinct roles and signatures.
+Fields, constructors, accessors, and methods use their matching kinds and signatures.
 
 ```ds main.ds
 class Counter {
@@ -503,7 +503,7 @@ extension Integer of int32 {
 
 ### Preserve overload declarations
 
-Each overload remains a separate entry in source order.
+Each overload remains a separate symbol in source order.
 
 ```ds main.ds
 declare function parse(value: string): int32;
@@ -548,7 +548,7 @@ extension of int32 {
 
 ### Outline top-level bindings
 
-Each top-level binding is an entry, including bindings introduced by one destructuring declaration.
+Each top-level binding is a symbol, including bindings introduced by one destructuring declaration.
 
 ```ds main.ds
 const pair = { left: 1, right: 2 };

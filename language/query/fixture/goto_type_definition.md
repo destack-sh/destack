@@ -82,7 +82,7 @@ const color: Color = Color.Red;
 
 ### Resolve the current value type
 
-A value resolves to its nominal type in each revision.
+A value resolves to its nominal type after each edit.
 
 ```ds main.ds
 struct First {

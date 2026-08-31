@@ -261,7 +261,7 @@ const total = match (pair) {
 @selection_ranges.range selection=0 depth=5 range=main.ds#declaration
 ```
 
-## Lexical Tokens
+## Strings and Comments
 
 ### Select a complete string literal
 
