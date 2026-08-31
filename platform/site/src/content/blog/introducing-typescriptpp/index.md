@@ -314,9 +314,15 @@ There are also some TypeScript features that are not sound or just not needed in
 - fixed arrays `[T; N]`
 
 - slices are just fat pointers
-- subslices..?
 - `&[T]` is also a fat pointer, `[T]` is a managed slice, `^[T]` is an owned slice
 - `[T]` is managed by default (just like `Function` and `Dynamic` are managed fat pointers by default)
+
+- subslicing: a range subscript is a view, not a copy — `values[1..4]` borrows a window of the backing store
+- the view carries the receiver's access: a managed receiver gives a managed `[T]` view, `&readonly`/`&exclusive` give same-access borrowed views
+- `.slice()` keeps its TypeScript meaning and copies; `.toOwned()` copies a view into owned storage
+- `values[1..4] = other` copies in — lengths must match, elements must be `Copy`
+- `splitAt` through `&exclusive` yields two disjoint exclusive views, both mutable
+- a view keeps its backing array alive; owned slices `^[T]` move as a whole and never split
 
 ### Enums
 
@@ -455,6 +461,7 @@ newtype interface Add<T> {
 - sum types
 - regular unions
 - nominal and structural discriminated unions
+- discriminated tags lower as simple types
 
 ### Interfaces
 
@@ -704,6 +711,9 @@ return (message) => {
     return socket.write(`${this.prefix}: ${message}`);
 };
 ```
+
+- declarations do not nest in function bodies, except `function`, `type`, and `newtype` — a nested `class`, `struct`, `enum`, `interface`, or `extension` is a compiler error
+- nested `type` and `newtype` declarations may reference enclosing generics; both erase, so no instantiation identity is created
 
 - `"repeatable"` is the default multiplicity, while `"once"` is affine and consumed by its first invocation
 - closures preserve lexical `this` and use `Function<Parameters, Return, Multiplicity>`; 
