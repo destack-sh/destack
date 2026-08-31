@@ -1,157 +1,103 @@
-use super::{dim, visible_width};
+use super::{bold, dim, visible_width};
 
-/// Alignment of a table column.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Align {
+/// Spaces between adjacent table columns.
+const COLUMN_GAP: &str = "  ";
+
+/// Alignment of one table column.
+#[derive(Debug)]
+enum TableAlignment {
+    /// Align cells to the left edge.
     Left,
+    /// Align cells to the right edge.
     Right,
 }
 
-/// Render a table with headers, optional secondary headers, and data rows.
-/// - `headers`: column names
-/// - `rows`: matrix of cell strings (not necessarily rectangular; missing cells are empty)
-/// - `right_align_numeric`: detect numeric-like columns and right-align them
-/// - `padding`: spaces between columns
-/// - `secondary_headers`: optional dimmed second header row
-pub fn render_table(
-    headers: &[String],
-    rows: &[Vec<String>],
-    right_align_numeric: bool,
-    padding: usize,
-    secondary_headers: Option<&[String]>,
-) -> String {
-    let col_count = headers.len();
-    let mut col_widths = vec![0usize; col_count];
-
-    // calculate column widths from headers
-    for (i, header) in headers.iter().enumerate() {
-        col_widths[i] = col_widths[i].max(visible_width(header));
-    }
-
-    // include secondary headers in width calculation
-    if let Some(sec) = secondary_headers {
-        for (i, header) in sec.iter().enumerate().take(col_count) {
-            col_widths[i] = col_widths[i].max(visible_width(header));
-        }
-    }
-
-    // calculate column widths from data rows
-    for row in rows {
-        for (i, cell) in row.iter().enumerate().take(col_count) {
-            col_widths[i] = col_widths[i].max(max_visible_line_len(cell));
-        }
-    }
-
-    // determine which columns should be right-aligned
-    let mut right_align_cols = vec![false; col_count];
-    if right_align_numeric {
-        (0..col_count).for_each(|i| {
-            let mut all_numeric = true;
-            for row in rows {
-                if let Some(cell) = row.get(i)
-                    && !cell.is_empty()
-                    && !is_numeric_like(cell)
-                {
-                    all_numeric = false;
-                    break;
-                }
-            }
-            right_align_cols[i] = all_numeric;
-        });
-    }
-
-    let mut out = String::new();
-
-    // render primary headers
-    push_row(&mut out, headers, &col_widths, &right_align_cols, padding);
-
-    // render secondary headers if provided
-    if let Some(sec) = secondary_headers {
-        let dimmed: Vec<String> = sec.iter().map(|value| dim(value)).collect();
-        push_row(&mut out, &dimmed, &col_widths, &right_align_cols, padding);
-    }
-
-    // render separator line
-    for (i, w) in col_widths.iter().enumerate() {
-        if i > 0 {
-            out.push_str(&" ".repeat(padding));
-        }
-        out.push_str(&"─".repeat(*w));
-    }
-    out.push('\n');
-
-    // render data rows
-    for row in rows {
-        // normalize row size to match column count
-        let mut cells = vec![String::new(); col_count];
-        for (i, c) in row.iter().enumerate().take(col_count) {
-            cells[i] = c.clone();
-        }
-        push_row(&mut out, &cells, &col_widths, &right_align_cols, padding);
-    }
-
-    out
+/// One table column.
+#[derive(Debug)]
+pub struct TableColumn<'a> {
+    /// Column heading.
+    heading: &'a str,
+    /// Cell alignment.
+    alignment: TableAlignment,
 }
 
-/// Push a single row to the output, handling multiline cells and alignment.
-fn push_row(
-    out: &mut String,
-    cells: &[String],
-    widths: &[usize],
-    right_align: &[bool],
-    padding: usize,
-) {
-    // split cells into lines to handle multiline content
-    let split: Vec<Vec<&str>> = cells
-        .iter()
-        .map(|c| {
-            if c.is_empty() {
-                vec![""]
+impl<'a> TableColumn<'a> {
+    /// Create one left-aligned column.
+    pub const fn left(heading: &'a str) -> Self {
+        Self {
+            heading,
+            alignment: TableAlignment::Left,
+        }
+    }
+
+    /// Create one right-aligned column.
+    pub const fn right(heading: &'a str) -> Self {
+        Self {
+            heading,
+            alignment: TableAlignment::Right,
+        }
+    }
+}
+
+/// One rectangular console table.
+#[derive(Debug)]
+pub struct Table<'a, const N: usize> {
+    /// Columns in display order.
+    columns: [TableColumn<'a>; N],
+    /// Rows in display order.
+    rows: &'a [[String; N]],
+}
+
+impl<'a, const N: usize> Table<'a, N> {
+    /// Create one table from exact columns and rows.
+    pub const fn new(columns: [TableColumn<'a>; N], rows: &'a [[String; N]]) -> Self {
+        Self { columns, rows }
+    }
+
+    /// Render this table.
+    pub fn render(&self) -> String {
+        let mut widths = std::array::from_fn(|index| visible_width(self.columns[index].heading));
+
+        // measure every cell against its column
+        for row in self.rows {
+            for (index, cell) in row.iter().enumerate() {
+                widths[index] = widths[index].max(visible_width(cell));
+            }
+        }
+
+        // render the heading and separator
+        let headings = std::array::from_fn(|index| bold(self.columns[index].heading));
+        let mut output = String::new();
+        self.push_row(&mut output, &headings, &widths);
+        let separator = widths.map(|width| dim(&"─".repeat(width)));
+        self.push_row(&mut output, &separator, &widths);
+
+        // render every exact row
+        for row in self.rows {
+            self.push_row(&mut output, row, &widths);
+        }
+
+        output
+    }
+
+    /// Append one row with this table's column alignment.
+    fn push_row(&self, output: &mut String, cells: &[String; N], widths: &[usize; N]) {
+        for (index, ((cell, width), column)) in
+            cells.iter().zip(widths).zip(&self.columns).enumerate()
+        {
+            if index > 0 {
+                output.push_str(COLUMN_GAP);
+            }
+
+            let padding = width - visible_width(cell);
+            if matches!(column.alignment, TableAlignment::Right) {
+                output.push_str(&" ".repeat(padding));
+                output.push_str(cell);
             } else {
-                c.split('\n').collect()
-            }
-        })
-        .collect();
-
-    let height = split.iter().map(|v| v.len()).max().unwrap_or(1);
-
-    // render the physical line
-    for line_idx in 0..height {
-        for (i, parts) in split.iter().enumerate() {
-            if i > 0 {
-                out.push_str(&" ".repeat(padding));
-            }
-            let text = parts.get(line_idx).copied().unwrap_or("");
-
-            // apply alignment and padding (use visible length to ignore ANSI)
-            if right_align.get(i).copied().unwrap_or(false) {
-                let pad = widths[i].saturating_sub(visible_width(text));
-                out.push_str(&" ".repeat(pad));
-                out.push_str(text);
-            } else {
-                out.push_str(text);
-                let pad = widths[i].saturating_sub(visible_width(text));
-                out.push_str(&" ".repeat(pad));
+                output.push_str(cell);
+                output.push_str(&" ".repeat(padding));
             }
         }
-        out.push('\n');
+        output.push('\n');
     }
-}
-
-/// Check if a string looks like a numeric value.
-///
-/// Handles common numeric formats including commas and unit suffixes.
-fn is_numeric_like(s: &str) -> bool {
-    let t = s.trim();
-    if t.is_empty() {
-        return false;
-    }
-    let t = t.replace(',', "");
-    let t = t.trim_end_matches(['B', 's', '%', 'K', 'M', 'G', 'T']);
-    t.parse::<f64>().is_ok()
-}
-
-/// Find the maximum visible line length in a potentially multiline string.
-fn max_visible_line_len(s: &str) -> usize {
-    s.split('\n').map(visible_width).max().unwrap_or(0)
 }

@@ -256,23 +256,6 @@ pub fn format_bytes(bytes: u64) -> String {
     }
 }
 
-/// Render one named object as aligned fields.
-pub fn render_fields(title: &str, fields: &[(&str, String)]) -> String {
-    let mut output = format!("{}\n\n", bold(title));
-
-    // align every field to the longest label
-    let Some(width) = fields.iter().map(|(label, _)| label.chars().count()).max() else {
-        return output;
-    };
-
-    for (label, value) in fields {
-        let label = format!("{label:<width$}");
-        output.push_str(&format!("{}  {value}\n", color(&label, "36")));
-    }
-
-    output
-}
-
 /// Print one Cargo-style action status to stderr.
 pub fn status(action: &str, message: &str) {
     let action = format!("{action:>12}");
