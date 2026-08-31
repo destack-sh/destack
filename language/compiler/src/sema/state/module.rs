@@ -688,27 +688,28 @@ impl CheckModuleState {
         symbols
     }
 
-    /// Return the member subject selected at one site, reading the pass tail over the base.
+    /// Return the member subject and key at one site, reading the pass tail over the base.
     pub(in crate::sema) fn member_subject(
         &self,
         site: dir::MemberSite,
-    ) -> Option<dir::MemberSubject> {
+    ) -> Option<(dir::MemberSubject, Option<dir::StaticKey>)> {
         self.members_tail
             .subject(site)
             .or_else(|| self.members.iter().find_map(|base| base.subject(site)))
     }
 
-    /// Iterate member subjects with pass entries shadowing the committed bases.
+    /// Iterate member subjects and keys with pass entries shadowing the committed bases.
     pub(in crate::sema) fn iter_member_subjects(
         &self,
-    ) -> impl Iterator<Item = (dir::MemberSite, dir::MemberSubject)> + '_ {
+    ) -> impl Iterator<Item = (dir::MemberSite, dir::MemberSubject, Option<dir::StaticKey>)> + '_
+    {
         // drop the base entries a newer segment reselected
         let shadowed = self
             .members
             .iter()
             .enumerate()
             .flat_map(|(depth, base)| base.iter_subjects().map(move |entry| (depth, entry)))
-            .filter(|(depth, (site, _))| {
+            .filter(|(depth, (site, _, _))| {
                 self.members_tail.subject(*site).is_none()
                     && !self.members[..*depth]
                         .iter()
@@ -1270,7 +1271,7 @@ impl CheckState<'_> {
         // read whether the member declares a default
         match member {
             dir::DefinitionMember::Method(method) => {
-                method.implementation == dir::MethodImplementation::Default
+                method.implementation == dir::MemberImplementation::Default
             }
             dir::DefinitionMember::AssociatedType(associated) => associated.value.is_some(),
             dir::DefinitionMember::AssociatedConst(associated) => {

@@ -230,6 +230,7 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 /// @type.symbol symbol=readHeader type=<T: RegisterBlock<type Width = 16>>(T) => FixedArray<uint8, 16>
 /// @type.symbol symbol=readHeader.T source="T: RegisterBlock<const Width = 16>" type=T
 /// @resolution.name source=RegisterBlock target=RegisterBlock
+/// @resolution.name source="const Width = 16" target=RegisterBlock.Width
 /// @type.symbol symbol=readHeader.block source="block: T" type=T
 /// @resolution.name source=T target=readHeader.T
 

@@ -153,6 +153,7 @@ impl WalkState<'_, '_> {
                     .commit_subject(
                         dir::MemberSite::Node(id.into_global_any(self.module)),
                         subject,
+                        Some(dir::StaticKey::Name(name)),
                     );
 
                 self.intern_member(dir::MemberType {
@@ -1294,6 +1295,20 @@ impl WalkState<'_, '_> {
         ty: dir::GlobalTypeId,
         applied: &[GenericArgument],
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // retain each named argument's subject for the write pass to resolve after inference
+        for argument in applied {
+            let Some(name) = argument.name else {
+                continue;
+            };
+            let site = dir::MemberSite::Node(argument.id.into_global_any(self.module));
+            let subject = dir::MemberSubject::new(ty, ty, dir::MemberSpace::Static)
+                .with_scope(self.flow().template_scope());
+            self.check
+                .module_mut(self.module)
+                .members_tail
+                .commit_subject(site, subject, Some(dir::StaticKey::Name(name)));
+        }
+
         // sort by key, so equal refinement sets intern identically
         let mut refinements = applied
             .iter()
@@ -1361,7 +1376,7 @@ impl WalkState<'_, '_> {
             self.check
                 .module_mut(self.module)
                 .members_tail
-                .commit_subject(site, subject);
+                .commit_subject(site, subject, Some(dir::StaticKey::Name(segment)));
 
             ty = self.intern_member(dir::MemberType {
                 owner: ty,

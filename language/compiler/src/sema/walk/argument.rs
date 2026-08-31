@@ -7,6 +7,8 @@ use crate::sema::WalkState;
 /// One generic argument after walking its type or static value.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) struct GenericArgument {
+    /// The argument node.
+    pub(in crate::sema) id: dir::LocalNodeId<dir::GenericArgument>,
     /// The associated argument name, when written.
     pub(in crate::sema) name: Option<dir::StringId>,
     /// The argument type or singleton static term.
@@ -97,6 +99,11 @@ impl WalkState<'_, '_> {
         };
         self.commit_node_type(id, ty)?;
 
-        Ok(GenericArgument { name, ty, source })
+        Ok(GenericArgument {
+            id,
+            name,
+            ty,
+            source,
+        })
     }
 }

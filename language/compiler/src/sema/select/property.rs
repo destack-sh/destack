@@ -108,9 +108,11 @@ impl CheckState<'_> {
             let subject = self
                 .member_subject(origin, target, target, dir::MemberSpace::Instance)?
                 .with_key_source(key_type);
-            self.module_mut(module)
-                .members_tail
-                .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
+            self.module_mut(module).members_tail.commit_subject(
+                dir::MemberSite::Node(node.into_any()),
+                subject,
+                None,
+            );
         }
 
         // name the construct's write obligation as the parent cause of each field check

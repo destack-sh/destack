@@ -888,6 +888,7 @@ interface Container<S> {
         Container<S, type Item = string>.Item,
         /// @resolution.name source=Container target=Container
         /// @resolution.name source=S target=Container.S
+        /// @resolution.name source="type Item = string" target=Container.Item
 
     );
 }

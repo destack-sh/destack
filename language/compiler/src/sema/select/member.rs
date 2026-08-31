@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_dir::MemberRole;
 
 use crate::sema::{
-    ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, DeclaredCandidate, FlowSite,
+    ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, DeclaredSource, FlowSite,
     InferMode, MemberCandidate, MemberLookup, NullishPart, Origin, PlaceUse, Relation, Settle,
     SignatureMatch, Value, ValueUse, VariableKind, is_optional_member, member_arms, member_kind,
     selected_candidates,
@@ -422,9 +422,7 @@ impl CheckState<'_> {
 
         // report survivors from several blocks or interfaces as ambiguous
         let block = |candidate: &MemberCandidate| {
-            candidate
-                .declaration()
-                .map(DeclaredCandidate::declaring_block)
+            candidate.declaration().map(DeclaredSource::declaring_block)
         };
         // equally typed data requirements of distinct interfaces meet as one member
         let first_type = first.access.store();
@@ -639,10 +637,12 @@ impl CheckState<'_> {
             self.report_possibly_nullish(origin, rejected.label().to_string())?;
         }
 
-        // keep the lookup subject at this source site
-        self.module_mut(module)
-            .members_tail
-            .commit_subject(dir::MemberSite::Node(node), subject);
+        // keep the lookup subject at this source site, which selection resolves directly
+        self.module_mut(module).members_tail.commit_subject(
+            dir::MemberSite::Node(node),
+            subject,
+            None,
+        );
 
         // commit an error for an omitted member name
         let Some(name) = name else {

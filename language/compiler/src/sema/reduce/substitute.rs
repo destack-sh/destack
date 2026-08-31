@@ -364,7 +364,7 @@ impl CheckState<'_> {
 
         // rebuild each recorded member subject over normalized heads
         let subjects: Vec<_> = self.module.iter_member_subjects().collect();
-        for (site, mut subject) in subjects {
+        for (site, mut subject, key) in subjects {
             let origin = Origin::Node(site.node(), subject.scope);
             let receiver = self.substitute_graph(
                 module,
@@ -390,7 +390,7 @@ impl CheckState<'_> {
                 subject.receiver = receiver;
                 subject.target = target;
                 subject.key_source = key_type;
-                self.module.members_tail.commit_subject(site, subject);
+                self.module.members_tail.commit_subject(site, subject, key);
             }
         }
 

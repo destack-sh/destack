@@ -85,8 +85,7 @@ impl CheckState<'_> {
                 self.write_member_bindings(module)
             })?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.resolutions", || {
-                self.write_path_segment_resolutions(module)?;
-                self.write_member_type_resolutions(module)
+                self.write_member_resolutions(module)
             })?;
         }
 
@@ -148,15 +147,18 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
     ) -> CompilerResult<()> {
-        for (site, stored) in self.member_sites(module) {
-            self.resolve_member_site(module, site, stored)?;
+        for (site, stored, key) in self.member_sites(module) {
+            self.resolve_member_site(module, site, stored, key)?;
         }
 
         Ok(())
     }
 
     /// Return the member sites this pass stored, in selection order.
-    fn member_sites(&self, module: ModuleId) -> Vec<(dir::MemberSite, dir::MemberSubject)> {
+    fn member_sites(
+        &self,
+        module: ModuleId,
+    ) -> Vec<(dir::MemberSite, dir::MemberSubject, Option<dir::StaticKey>)> {
         self.module(module)
             .iter_member_subjects()
             .collect::<Vec<_>>()
@@ -168,12 +170,13 @@ impl CheckState<'_> {
         module: ModuleId,
         site: dir::MemberSite,
         stored: dir::MemberSubject,
+        key: Option<dir::StaticKey>,
     ) -> CompilerResult<dir::MemberSubject> {
         let subject = self.resolved_member_subject(stored)?;
         if subject != stored {
             self.module_mut(module)
                 .members_tail
-                .commit_subject(site, subject);
+                .commit_subject(site, subject, key);
         }
 
         Ok(subject)
@@ -181,9 +184,9 @@ impl CheckState<'_> {
 
     /// Store the membership each resolved subject selects.
     fn write_member_bindings(&mut self, module: ModuleId) -> CompilerResult<()> {
-        for (site, stored) in self.member_sites(module) {
+        for (site, stored, key) in self.member_sites(module) {
             // re-key the site against the subject inference solved
-            let subject = self.resolve_member_site(module, site, stored)?;
+            let subject = self.resolve_member_site(module, site, stored, key)?;
 
             // membership is a function of the resolved subject, one projection stands for all sites
             if self.module(module).membership(&subject).is_some() {
@@ -367,92 +370,36 @@ impl CheckState<'_> {
         })
     }
 
-    /// Write the declaration selected for each source path segment.
-    fn write_path_segment_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // collect exact path sites before mutating resolutions
-        let sites = self
-            .module(module)
-            .iter_member_subjects()
-            .filter_map(|(site, _)| match site {
-                dir::MemberSite::Path { node, segment } => Some((node, segment)),
-                dir::MemberSite::Node(_) => None,
-            })
-            .collect::<Vec<_>>();
-
-        // resolve each written path site
-        for (node, segment) in sites {
-            let site = dir::MemberSite::Path { node, segment };
-
-            // require the site to name a type expression
-            if node.local_id.ty != dir::NodeType::TypeExpression {
-                return Err(CompilerError::Internal {
-                    message: format!("path member site {site:?} is not a type expression"),
-                });
-            }
-
-            // read the key at this exact path site
-            let type_expression = node.local_id.into_typed::<dir::TypeExpression>();
-            let dir::TypeExpression::Reference { path, .. } =
-                self.module(module).view().get(type_expression)
-            else {
-                return Err(CompilerError::Internal {
-                    message: format!("path member site {site:?} is not a reference path"),
-                });
+    /// Write the declaration each member site's stored bindings select at its retained key.
+    fn write_member_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
+        for (site, _, key) in self.member_sites(module) {
+            // pass over the shape sites, which project a membership and retain no key
+            let Some(key) = key else {
+                continue;
             };
-            let name = path
-                .segments
-                .get(segment as usize)
-                .copied()
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("path member site {site:?} has no source segment"),
-                })?;
-            let key = dir::StaticKey::Name(name);
 
-            // commit the declaration the stored bindings select at this key
-            let resolution = self.member_site_resolution(module, site, key)?;
-            if let Some(resolution) = resolution {
-                self.commit_path_resolution(node, segment, resolution)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Settle each source member type expression to its selected symbol.
-    fn write_member_type_resolutions(&mut self, module: ModuleId) -> CompilerResult<()> {
-        // collect the member type expressions the walk stored subjects for
-        let sites = self
-            .module(module)
-            .iter_member_subjects()
-            .filter_map(|(site, _)| match site {
-                dir::MemberSite::Node(node)
-                    if node.local_id.ty == dir::NodeType::TypeExpression =>
+            // report an unknown key written as a refinement argument
+            let Some(resolution) = self.member_site_resolution(module, site, key)? else {
+                if let dir::MemberSite::Node(node) = site
+                    && node.local_id.ty == dir::NodeType::GenericArgument
+                    && let Some((subject, _)) = self.module(module).member_subject(site)
                 {
-                    Some(node)
+                    let key = self.format_static_key(&key);
+                    let origin = Origin::Node(node, subject.scope);
+                    self.report_missing_member(origin, subject.target, key, None, None)?;
                 }
-                dir::MemberSite::Node(_) | dir::MemberSite::Path { .. } => None,
-            })
-            .collect::<Vec<_>>();
 
-        // resolve each written node site
-        for node in sites {
-            let site = dir::MemberSite::Node(node);
-
-            // read the member key at this exact node
-            let type_expression = node.local_id.into_typed::<dir::TypeExpression>();
-            let dir::TypeExpression::Member { name, .. } =
-                self.module(module).view().get(type_expression)
-            else {
-                return Err(CompilerError::Internal {
-                    message: format!("member type site {site:?} is not a member expression"),
-                });
+                continue;
             };
-            let key = dir::StaticKey::Name(*name);
 
-            // commit the declaration the stored bindings select at this key
-            let resolution = self.member_site_resolution(module, site, key)?;
-            if let Some(resolution) = resolution {
-                self.commit_name(node, resolution)?;
+            // settle the site on the declaration it selected
+            match site {
+                dir::MemberSite::Path { node, segment } => {
+                    self.commit_path_resolution(node, segment, resolution)?;
+                }
+                dir::MemberSite::Node(node) => {
+                    self.commit_name(node, resolution)?;
+                }
             }
         }
 
@@ -467,7 +414,7 @@ impl CheckState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::NameResolution>> {
         // read the membership the site's resolved subject stored
-        let Some(subject) = self.module(module).member_subject(site) else {
+        let Some((subject, _)) = self.module(module).member_subject(site) else {
             return Ok(None);
         };
         let membership = self

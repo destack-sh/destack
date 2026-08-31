@@ -60,8 +60,8 @@ impl<'a> MemberTable<'a> {
         MemberTable::from_view(self.segments.with_tail(tail))
     }
 
-    /// Return the lookup subject selected at one source site.
-    pub fn subject(&self, site: MemberSite) -> Option<MemberSubject> {
+    /// Return the lookup subject and member key selected at one source site.
+    pub fn subject(&self, site: MemberSite) -> Option<(MemberSubject, Option<StaticKey>)> {
         self.segments
             .iter()
             .rev()
@@ -78,7 +78,7 @@ impl<'a> MemberTable<'a> {
 
     /// Return the membership projected at one source site.
     pub fn membership(&self, site: MemberSite) -> Option<&Membership> {
-        let subject = self.subject(site)?;
+        let (subject, _) = self.subject(site)?;
 
         self.segments
             .iter()
@@ -89,7 +89,7 @@ impl<'a> MemberTable<'a> {
     /// Return one member binding projected at a source site.
     pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
         // read the membership the site's subject selects
-        let subject = self.subject(site)?;
+        let (subject, _) = self.subject(site)?;
         let membership = self.membership(site)?;
 
         // answer from the structural bindings the subject projected
@@ -140,8 +140,8 @@ pub struct Membership {
 pub struct MemberSegment {
     /// The module id of the member segment.
     pub module_id: ModuleId,
-    /// Lookup subjects selected at source sites.
-    subjects: IndexMap<MemberSite, MemberSubject>,
+    /// Lookup subjects selected at source sites, each with the member key a keyed lookup names.
+    subjects: IndexMap<MemberSite, (MemberSubject, Option<StaticKey>)>,
     /// Member bindings flattened once per declared owner and space.
     bindings: IndexMap<(GlobalSymbolId, MemberSpace), Vec<MemberBinding>>,
     /// The membership each settled subject selects.
@@ -159,9 +159,14 @@ impl MemberSegment {
         }
     }
 
-    /// Commit the member lookup subject selected at one source site, where the resolved one wins.
-    pub fn commit_subject(&mut self, site: MemberSite, subject: MemberSubject) {
-        self.subjects.insert(site, subject);
+    /// Commit the member lookup subject and key at one source site, where the resolved one wins.
+    pub fn commit_subject(
+        &mut self,
+        site: MemberSite,
+        subject: MemberSubject,
+        key: Option<StaticKey>,
+    ) {
+        self.subjects.insert(site, (subject, key));
     }
 
     /// Set the member bindings flattened for one declared owner.
@@ -203,15 +208,17 @@ impl MemberSegment {
         self.memberships.iter()
     }
 
-    /// Iterate the member lookup subjects stored at source sites.
-    pub fn iter_subjects(&self) -> impl Iterator<Item = (MemberSite, MemberSubject)> + '_ {
+    /// Iterate the member lookup subjects and keys stored at source sites.
+    pub fn iter_subjects(
+        &self,
+    ) -> impl Iterator<Item = (MemberSite, MemberSubject, Option<StaticKey>)> + '_ {
         self.subjects
             .iter()
-            .map(|(site, subject)| (*site, *subject))
+            .map(|(site, (subject, key))| (*site, *subject, *key))
     }
 
-    /// Return the lookup subject selected at one source site.
-    pub fn subject(&self, site: MemberSite) -> Option<MemberSubject> {
+    /// Return the lookup subject and member key selected at one source site.
+    pub fn subject(&self, site: MemberSite) -> Option<(MemberSubject, Option<StaticKey>)> {
         self.subjects.get(&site).copied()
     }
 

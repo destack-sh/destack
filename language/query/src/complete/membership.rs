@@ -20,7 +20,7 @@ pub(crate) fn membership_members(
 ) -> QueryResult<Vec<ExposedMember>> {
     // read the membership the site's subject selects
     let members = module.members()?;
-    let subject = members
+    let (subject, _) = members
         .subject(site)
         .ok_or(QueryError::missing(format!("member subject: {site:?}")))?;
     let membership = members

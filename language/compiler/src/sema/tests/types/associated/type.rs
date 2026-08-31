@@ -150,6 +150,7 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 /// @type.symbol symbol=nextByte type=<I: Iterator<type Item = uint8>>(I) => uint8
 /// @type.symbol symbol=nextByte.I source="I: Iterator<type Item = uint8>" type=I
 /// @resolution.name source=Iterator target=Iterator
+/// @resolution.name source="type Item = uint8" target=Iterator.Item
 /// @type.symbol symbol=nextByte.iter source="iter: I" type=I
 /// @resolution.name source=I target=nextByte.I
 
@@ -637,4 +638,44 @@ const taken = take(0, new Factory());
 /// @resolution.name source=Factory target=Factory
 "#,
     );
+}
+
+#[test]
+fn test_reject_an_unknown_refinement_name() {
+    let session = TestSession::single(
+        r#"
+interface Container {
+    type Item;
+}
+
+type Bad = Container<type Wrong = string>;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+interface Container {
+    type Item;
+}
+
+type Bad = Container<type Wrong = string>;
+
+=== dir ===
+interface Container {
+/// @type.symbol symbol=Container type=Container
+/// @definition.interface symbol=Container
+/// @definition.where symbol=Container relation=satisfies left=this right=Container
+/// @definition.associated.type symbol=Container.Item source="type Item" key=Item
+
+    type Item;
+}
+
+type Bad = Container<type Wrong = string>;
+/// @type.symbol symbol=Bad source="type Bad = Container<type Wrong = string>" type=Container<type Wrong = string>
+/// @definition.type symbol=Bad source="type Bad = Container<type Wrong = string>" value=Container<type Wrong = string>
+/// @resolution.name source=Container target=Container
+"#, r#"
+/// @diagnostic.error id=missing-member message="member 'Wrong' does not exist on type 'Container'"
+/// @diagnostic.label line=6 column=27 span="Wrong" line_source="type Bad = Container<type Wrong = string>;"
+"#);
 }

@@ -70,9 +70,11 @@ impl CheckState<'_> {
                     dir::MemberSpace::Instance,
                 )?
                 .with_key_source(key_source);
-            self.module_mut(module)
-                .members_tail
-                .commit_subject(dir::MemberSite::Node(node.into_any()), subject);
+            self.module_mut(module).members_tail.commit_subject(
+                dir::MemberSite::Node(node.into_any()),
+                subject,
+                None,
+            );
         }
 
         // collect literal fields, methods, and spreads into one shape
@@ -644,7 +646,7 @@ impl CheckState<'_> {
             .with_key_source(key_type);
         self.module_mut(property.module_id)
             .members_tail
-            .commit_subject(dir::MemberSite::Node(property), subject);
+            .commit_subject(dir::MemberSite::Node(property), subject, None);
 
         Ok(())
     }
