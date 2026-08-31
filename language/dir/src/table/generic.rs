@@ -257,6 +257,26 @@ impl<'a> GenericTable<'a> {
         None
     }
 
+    /// Return the materialized symbol type one instance resolves.
+    pub fn instance_symbol(
+        &self,
+        instance: LocalInstanceId,
+        symbol: GlobalSymbolId,
+    ) -> Option<GlobalTypeId> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.instance_symbol(instance, symbol))
+    }
+
+    /// Iterate the application types every segment records.
+    pub fn iter_application_instances(
+        &self,
+    ) -> impl Iterator<Item = (GlobalTypeId, LocalInstanceId)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_application_instances())
+    }
+
     /// Get the number of instances in the table.
     pub fn instance_count(&self) -> u32 {
         self.segments
@@ -298,6 +318,10 @@ pub struct GenericSegment {
     pub(crate) instantiations: Vec<Instantiation>,
     /// Materialized types keyed by instance and template type.
     pub(crate) instance_types: IndexMap<(LocalInstanceId, GlobalTypeId), (GlobalTypeId, bool)>,
+    /// The interned instance behind each closed application type.
+    pub(crate) application_instances: IndexMap<GlobalTypeId, LocalInstanceId>,
+    /// Materialized symbol types keyed by instance and symbol.
+    pub(crate) instance_symbols: IndexMap<(LocalInstanceId, GlobalSymbolId), GlobalTypeId>,
 }
 
 impl GenericSegment {
@@ -315,6 +339,8 @@ impl GenericSegment {
             first_instance_id: 0,
             instances: Arena::new(),
             instance_types: IndexMap::default(),
+            application_instances: IndexMap::default(),
+            instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
     }
@@ -333,6 +359,8 @@ impl GenericSegment {
             first_instance_id: base.instance_count(),
             instances: Arena::new(),
             instance_types: IndexMap::default(),
+            application_instances: IndexMap::default(),
+            instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
     }
@@ -394,7 +422,7 @@ impl GenericSegment {
             self.templates_by_scope.resize(scope_index + 1, None);
         }
 
-        // one scope carries one template
+        // require one template per scope
         assert!(
             self.templates_by_scope[scope_index].is_none(),
             "DIR generic scope {:?} already has a template",
@@ -608,6 +636,39 @@ impl GenericSegment {
             .map(|((instance, source), (resolved, is_evaluated))| {
                 (*instance, *source, *resolved, *is_evaluated)
             })
+    }
+
+    /// Record the materialized symbol type one instance resolves.
+    pub fn bind_instance_symbol(
+        &mut self,
+        instance: LocalInstanceId,
+        symbol: GlobalSymbolId,
+        resolved: GlobalTypeId,
+    ) {
+        self.instance_symbols.insert((instance, symbol), resolved);
+    }
+
+    /// Return the materialized symbol type one instance resolves.
+    pub fn instance_symbol(
+        &self,
+        instance: LocalInstanceId,
+        symbol: GlobalSymbolId,
+    ) -> Option<GlobalTypeId> {
+        self.instance_symbols.get(&(instance, symbol)).copied()
+    }
+
+    /// Record the interned instance behind one closed application type.
+    pub fn bind_application_instance(&mut self, ty: GlobalTypeId, instance: LocalInstanceId) {
+        self.application_instances.insert(ty, instance);
+    }
+
+    /// Iterate the application types recorded by this segment.
+    pub fn iter_application_instances(
+        &self,
+    ) -> impl Iterator<Item = (GlobalTypeId, LocalInstanceId)> + '_ {
+        self.application_instances
+            .iter()
+            .map(|(ty, instance)| (*ty, *instance))
     }
 
     /// Record one instantiation a checked body performs.

@@ -909,6 +909,8 @@ pub enum OperatorApplication {
         target: OperatorTarget<BuiltinOperand>,
         /// The operator result type.
         ty: GlobalTypeId,
+        /// Whether the operation folded into its literal result type.
+        is_folded: bool,
     },
     /// One selected binary operator application.
     Binary {
@@ -918,6 +920,8 @@ pub enum OperatorApplication {
         target: OperatorTarget<[BuiltinOperand; 2]>,
         /// The operator result type.
         ty: GlobalTypeId,
+        /// Whether the operation folded into its literal result type.
+        is_folded: bool,
     },
 }
 
@@ -992,6 +996,13 @@ impl OperatorApplication {
         match self {
             Self::Unary { target, .. } => matches!(target, OperatorTarget::Builtin(_)),
             Self::Binary { target, .. } => matches!(target, OperatorTarget::Builtin(_)),
+        }
+    }
+
+    /// Return whether the operation folded into its literal result type.
+    pub fn is_folded(&self) -> bool {
+        match self {
+            Self::Unary { is_folded, .. } | Self::Binary { is_folded, .. } => *is_folded,
         }
     }
 
@@ -1086,6 +1097,14 @@ impl OperationResolution<OperatorApplication> {
     pub fn is_builtin(&self) -> bool {
         match self {
             Self::One(application) => application.is_builtin(),
+            Self::Union { .. } => false,
+        }
+    }
+
+    /// Return whether the operation folded into its literal result type.
+    pub fn is_folded(&self) -> bool {
+        match self {
+            Self::One(application) => application.is_folded(),
             Self::Union { .. } => false,
         }
     }

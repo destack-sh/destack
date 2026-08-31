@@ -147,7 +147,7 @@ impl DirSnapshotBuilder<'_> {
 
         // omit the receiver the stdlib elides
         let receiver = self.type_id_label(types, function.receiver);
-        let elided = format!("\"{}\"", dir::Access::Exclusive.text());
+        let elided = format!("\"{}\"", dir::ReceiverMode::ELIDED.text());
         if receiver == elided || receiver == "_" {
             format!("Function<{parameters}, {return_type}>")
         } else {

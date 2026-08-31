@@ -2482,6 +2482,9 @@ pub enum ReceiverMode {
 }
 
 impl ReceiverMode {
+    /// The mode an elided receiver takes: the highest access a local handle grants.
+    pub const ELIDED: Self = Self::Borrowed(Access::Exclusive);
+
     /// Parse one canonical receiver mode name.
     pub fn from_text(value: StringId) -> Option<Self> {
         if value == StringId::for_text(Self::Owned.text()) {
@@ -2489,6 +2492,11 @@ impl ReceiverMode {
         }
 
         Access::from_text(value).map(Self::Borrowed)
+    }
+
+    /// Return whether this mode is the elided default.
+    pub fn is_elided(self) -> bool {
+        self == Self::ELIDED
     }
 
     /// Return whether this mode grants one requested mode.
