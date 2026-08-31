@@ -251,12 +251,26 @@ async fn test_return_resolved_document_links() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_open_builtin_documents() {
     let source = "import { log } from \"destack:console\";\n";
-    let (mut server, document) = TestServer::open_workspace(
-        "builtin-module-links",
-        &[("src/main.ds", source)],
-        "src/main.ds",
-    )
-    .await;
+    let manifest = r#"{
+  "name": "builtin-module-links",
+  "workspace": {
+    "packages": ["app"]
+  }
+}
+"#;
+
+    // open a source from one configured workspace package
+    let mut server = TestServer::new("builtin-module-links");
+    server.write("destack.json", manifest);
+    server.create_package("app");
+    let document = server.write("app/main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, source).await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
     let target = server.builtin_uri("destack://console/index.ds");
 
     // resolve the import through its builtin module identity

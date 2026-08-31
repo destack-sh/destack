@@ -102,9 +102,14 @@ impl DestackLanguageServer {
             .ok_or_else(|| internal_error("language server is not initialized"))
     }
 
-    /// Return the semantic workspace that owns one source path.
-    fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
-        self.session()?.workspace(path)
+    /// Return one semantic workspace by its exact project root.
+    fn workspace(&self, root: &Path) -> jsonrpc::Result<Arc<Workspace>> {
+        self.session()?.workspace(root)
+    }
+
+    /// Select the semantic workspace containing one physical path.
+    fn select_workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
+        self.session()?.select_workspace(path)
     }
 
     /// Return features supported by the initialized client.
@@ -325,11 +330,11 @@ impl DestackLanguageServer {
     /// Load documents from one query revision.
     fn load_documents(
         &self,
-        path: &Path,
+        root: &Path,
         revision: Revision,
         file_ids: impl IntoIterator<Item = FileId>,
     ) -> jsonrpc::Result<DocumentSet> {
-        let workspace = self.workspace(path)?;
+        let workspace = self.workspace(root)?;
         DocumentSet::load(workspace.as_ref(), revision, file_ids)
     }
 
@@ -1231,8 +1236,8 @@ impl LanguageServer for DestackLanguageServer {
                 .ok_or_else(|| jsonrpc::Error::invalid_params("new URI is not a file URI"))?;
 
             // enforce one workspace for rename write consistency
-            let workspace = self.workspace(&old_path)?;
-            let new_workspace = self.workspace(&new_path)?;
+            let workspace = self.select_workspace(&old_path)?;
+            let new_workspace = self.select_workspace(&new_path)?;
             let root = workspace.root().to_path_buf();
             if !Arc::ptr_eq(&workspace, &new_workspace) {
                 return Err(jsonrpc::Error::invalid_params(
@@ -1344,7 +1349,7 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
 
-        let workspace = self.workspace(path)?;
+        let workspace = self.select_workspace(path)?;
         let (revision, mut diagnostics) = self
             .read_diagnostics(workspace.clone(), DiagnosticsRequest::File(path.clone()))
             .await?;

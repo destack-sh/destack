@@ -79,8 +79,22 @@ impl ServerSession {
         Ok(session)
     }
 
-    /// Resolve the project workspace that owns one source path.
-    pub(super) fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
+    /// Resolve one workspace by its exact project root.
+    pub(super) fn workspace(&self, root: &Path) -> jsonrpc::Result<Arc<Workspace>> {
+        let root = Self::normalize(root)?;
+        let projects = self.projects.read();
+        let workspace = projects.get(&root).map(Project::workspace);
+
+        workspace.ok_or_else(|| {
+            jsonrpc::Error::invalid_params(format!(
+                "Destack project is not open: {}",
+                root.display()
+            ))
+        })
+    }
+
+    /// Select the project workspace containing one physical path.
+    pub(super) fn select_workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let projects = self.projects.read();
         let workspace = projects.select(&path)?.map(Project::workspace);
