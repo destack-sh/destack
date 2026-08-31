@@ -25,8 +25,8 @@
     --publication-syntax-punctuation: #6d5b45;
     --publication-hairline: 1px;
     --publication-stroke: 3px;
-    --size-page-title: clamp(2.5rem, 4vw, 3.25rem);
-    --size-page-description: 1.1875rem;
+    --size-page-title: clamp(2.25rem, 3.5vw, 3rem);
+    --size-page-description: var(--size-body);
     --size-section-title: 1.625rem;
     --size-subsection-title: 1.25rem;
     --size-minor-title: 1.125rem;

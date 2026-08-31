@@ -503,6 +503,7 @@ const styles = stylex.create({
         display: "flex",
         flexWrap: "wrap",
         fontFamily: tokens.monoFont,
+        fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem 2rem",
         justifyContent: "space-between",
