@@ -82,7 +82,8 @@ impl ServerSession {
     /// Resolve the project workspace that owns one source path.
     pub(super) fn workspace(&self, path: &Path) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
-        let workspace = self.projects.read().select(&path).map(Project::workspace);
+        let projects = self.projects.read();
+        let workspace = projects.select(&path)?.map(Project::workspace);
 
         workspace.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
@@ -103,7 +104,7 @@ impl ServerSession {
     pub(super) fn revision(&self, path: &Path) -> jsonrpc::Result<(Arc<Workspace>, Revision)> {
         let path = Self::normalize(path)?;
         let projects = self.projects.read();
-        let project = projects.select(&path).ok_or_else(|| {
+        let project = projects.select(&path)?.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
         let workspace = project.workspace();
@@ -127,7 +128,7 @@ impl ServerSession {
         trace: &Trace,
     ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
-        if self.projects.read().select(&path).is_none() {
+        if self.projects.read().select(&path)?.is_none() {
             let directory = path
                 .parent()
                 .ok_or_else(|| jsonrpc::Error::invalid_params("document path has no parent"))?;
@@ -140,7 +141,7 @@ impl ServerSession {
         }
 
         let mut projects = self.projects.write();
-        let project = projects.select_mut(&path).ok_or_else(|| {
+        let project = projects.select_mut(&path)?.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
         project.open_document(path, uri, version, text, trace)?;
@@ -160,7 +161,7 @@ impl ServerSession {
     ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
-        let project = projects.select_mut(&path).ok_or_else(|| {
+        let project = projects.select_mut(&path)?.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
         project.change_document(&path, uri, version, changes, trace)?;
@@ -177,7 +178,7 @@ impl ServerSession {
     ) -> jsonrpc::Result<Arc<Workspace>> {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
-        let project = projects.select_mut(&path).ok_or_else(|| {
+        let project = projects.select_mut(&path)?.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
         project.save_document(&path, text, trace)?;
@@ -192,7 +193,7 @@ impl ServerSession {
     ) -> jsonrpc::Result<(Arc<Workspace>, Vec<PathBuf>)> {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
-        let project = projects.select_mut(&path).ok_or_else(|| {
+        let project = projects.select_mut(&path)?.ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
         })?;
         project.close_document(&path)?;
@@ -205,10 +206,9 @@ impl ServerSession {
     /// Return whether one editor document is open.
     pub(super) fn is_open(&self, path: &Path) -> jsonrpc::Result<bool> {
         let path = Self::normalize(path)?;
-        let is_open = self
-            .projects
-            .read()
-            .select(&path)
+        let projects = self.projects.read();
+        let is_open = projects
+            .select(&path)?
             .is_some_and(|project| project.is_open(&path));
 
         Ok(is_open)
@@ -263,7 +263,11 @@ impl ServerSession {
         trace: &Trace,
     ) -> jsonrpc::Result<Option<Arc<Workspace>>> {
         let path = Self::canonicalize(path)?;
-        let workspace = self.projects.read().select(&path).map(Project::workspace);
+        let workspace = {
+            let projects = self.projects.read();
+
+            projects.select(&path)?.map(Project::workspace)
+        };
         let workspace = if let Some(workspace) = workspace {
             Some(workspace)
         } else {

@@ -29,6 +29,72 @@ async fn test_open_nested_package() {
         .await;
 }
 
+/// Open a standalone package nested below a configured workspace.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_open_standalone_package_below_workspace() {
+    let manifest = r#"{
+  "name": "lsp-workspace",
+  "workspace": {
+    "packages": ["member"]
+  }
+}
+"#;
+    let source = r#"import { log } from "destack:console";
+
+export function answer(): float64 {
+  log("answer");
+  return 1;
+}
+
+declare const missing: MissingType;
+"#;
+
+    // open one package excluded from its parent workspace
+    let mut server = TestServer::new_editor_folder("standalone-package-below-workspace");
+    server.write("destack.json", manifest);
+    server.create_package("member");
+    server.create_package("standalone");
+    let document = server.write("standalone/main.ds", source);
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, source).await;
+
+    // query the source through its standalone package
+    let expected = lsp::Hover {
+        contents: lsp::HoverContents::Markup(markdown(
+            "`main.ds:3:17`\n\n```ds\nexport function answer(): float64\n```",
+        )),
+        range: Some(range(2, 16, 2, 22)),
+    };
+    server
+        .assert_request(document.hover(position(2, 16)), Ok(Some(expected)))
+        .await;
+
+    // resolve imports through the same project identity
+    let target = server.builtin_uri_at(
+        &server.root().join("standalone"),
+        "destack://console/index.ds",
+    );
+    let expected = Some(vec![lsp::DocumentLink {
+        range: range(0, 20, 0, 37),
+        target: Some(target),
+        tooltip: None,
+        data: None,
+    }]);
+    server.assert_request(document.links(), Ok(expected)).await;
+
+    // publish diagnostics from the standalone revision
+    let expected = vec![document.error(
+        range(7, 23, 7, 34),
+        "unresolved-reference",
+        "cannot find 'MissingType'",
+    )];
+    server.assert_diagnostics(&document, 1, expected).await;
+}
+
 /// Publish and query only the latest of several rapid document revisions.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_publish_latest_document_revision() {

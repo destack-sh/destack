@@ -104,9 +104,15 @@ impl Project {
         })
     }
 
-    /// Return whether this project contains one normalized path.
-    pub(super) fn contains(&self, path: &Path) -> bool {
-        self.workspace.contains(path)
+    /// Return whether this project's package index contains one physical path.
+    fn contains(&self, path: &Path) -> jsonrpc::Result<bool> {
+        let revision = self.revision()?;
+        let package = self
+            .workspace
+            .nearest_package(revision, path)
+            .map_err(workspace_error)?;
+
+        Ok(package.is_some())
     }
 
     /// Return whether this project and one editor folder contain one another.
@@ -382,18 +388,22 @@ pub(crate) struct ProjectSet {
 }
 
 impl ProjectSet {
-    /// Return the most specific project containing one normalized path.
-    pub(super) fn select(&self, path: &Path) -> Option<&Project> {
-        let index = self.select_index(path)?;
+    /// Return the project owning one normalized path.
+    pub(super) fn select(&self, path: &Path) -> jsonrpc::Result<Option<&Project>> {
+        let Some(index) = self.select_index(path)? else {
+            return Ok(None);
+        };
 
-        Some(&self.projects[index])
+        Ok(Some(&self.projects[index]))
     }
 
-    /// Return the most specific mutable project containing one normalized path.
-    pub(super) fn select_mut(&mut self, path: &Path) -> Option<&mut Project> {
-        let index = self.select_index(path)?;
+    /// Return the mutable project owning one normalized path.
+    pub(super) fn select_mut(&mut self, path: &Path) -> jsonrpc::Result<Option<&mut Project>> {
+        let Some(index) = self.select_index(path)? else {
+            return Ok(None);
+        };
 
-        Some(&mut self.projects[index])
+        Ok(Some(&mut self.projects[index]))
     }
 
     /// Return the project at one exact source root.
@@ -491,7 +501,7 @@ impl ProjectSet {
             let path = uri.to_file_path().ok_or_else(|| {
                 jsonrpc::Error::invalid_params(format!("unsupported source URI: {uri:?}"))
             })?;
-            let project = self.select(&path).ok_or_else(|| {
+            let project = self.select(&path)?.ok_or_else(|| {
                 jsonrpc::Error::invalid_params(format!(
                     "no Destack project owns {}",
                     path.display()
@@ -517,15 +527,15 @@ impl ProjectSet {
         Ok(())
     }
 
-    /// Reconcile changed physical paths through their most specific projects.
+    /// Reconcile changed physical paths through their owning projects.
     pub(super) fn reconcile(
         &mut self,
         paths: Vec<PathBuf>,
     ) -> jsonrpc::Result<Vec<Arc<Workspace>>> {
-        // group paths by their most specific project
+        // group paths by their owning project
         let mut selected = vec![Vec::new(); self.projects.len()];
         for path in paths {
-            if let Some(index) = self.select_index(&path) {
+            if let Some(index) = self.select_index(&path)? {
                 selected[index].push(path);
             }
         }
@@ -580,13 +590,35 @@ impl ProjectSet {
         removed
     }
 
-    /// Return the most specific project index containing one normalized path.
-    fn select_index(&self, path: &Path) -> Option<usize> {
-        self.projects
+    /// Return the project index owning one normalized path.
+    fn select_index(&self, path: &Path) -> jsonrpc::Result<Option<usize>> {
+        // retain the project that owns an open editor document
+        if let Some(index) = self
+            .projects
             .iter()
-            .enumerate()
-            .filter(|(_, project)| project.contains(path))
-            .max_by_key(|(_, project)| project.workspace.root().components().count())
-            .map(|(index, _)| index)
+            .position(|project| project.is_open(path))
+        {
+            return Ok(Some(index));
+        }
+
+        // select the single project containing the source package
+        let mut selected = None;
+        for (index, project) in self.projects.iter().enumerate() {
+            if !project.contains(path)? {
+                continue;
+            }
+
+            // reject ambiguous project membership
+            if selected.is_some() {
+                return Err(internal_error(format!(
+                    "source belongs to multiple Destack projects: {}",
+                    path.display()
+                )));
+            }
+
+            selected = Some(index);
+        }
+
+        Ok(selected)
     }
 }
