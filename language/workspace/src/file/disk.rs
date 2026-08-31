@@ -227,7 +227,7 @@ impl Workspace {
             Ok(false)
         } else {
             Err(Error::FileChanged {
-                path,
+                path: path.into_boxed_path(),
                 expected: change.before,
                 actual,
             })

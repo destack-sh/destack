@@ -198,7 +198,7 @@ fn test_edit_rejects_changed_physical_file() {
             path: error_path,
             expected: Some(expected),
             actual: Some(actual),
-        } if error_path == path
+        } if error_path.as_ref() == path
             && expected == Blob::for_bytes(before.as_bytes())
             && actual == Blob::for_bytes(changed.as_bytes())
     ));

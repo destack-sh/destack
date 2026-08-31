@@ -1,5 +1,5 @@
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use destack_core::Blob;
 use destack_query::QueryError;
@@ -89,7 +89,7 @@ pub enum Error {
     /// A physical file no longer matches the workspace revision.
     FileChanged {
         /// Physical file that changed.
-        path: PathBuf,
+        path: Box<Path>,
         /// Blob expected by the workspace revision.
         expected: Option<Blob>,
         /// Blob observed on the filesystem.
