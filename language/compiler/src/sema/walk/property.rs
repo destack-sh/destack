@@ -235,6 +235,13 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
+                // classify how the member receives its implementation
+                let implementation = if value.is_some() {
+                    dir::MemberImplementation::Body
+                } else {
+                    dir::MemberImplementation::Required
+                };
+
                 Ok(Some(dir::DefinitionMember::AssociatedType(
                     dir::AssociatedTypeDefinition {
                         symbol,
@@ -242,6 +249,7 @@ impl WalkState<'_, '_> {
                         key: dir::StaticKey::Name(name),
                         constraint,
                         value,
+                        implementation,
                     },
                 )))
             }
@@ -251,7 +259,13 @@ impl WalkState<'_, '_> {
                 declared_type,
                 value,
                 ..
-            } => self.walk_associated_constant(id.into_any(), *name, *declared_type, *value),
+            } => self.walk_associated_constant(
+                id.into_any(),
+                *name,
+                *declared_type,
+                *value,
+                dir::MemberImplementation::Body,
+            ),
             // field: T = value
             dir::Member::Field {
                 name,
@@ -372,11 +386,11 @@ impl WalkState<'_, '_> {
 
                 // classify how the method receives its implementation
                 let implementation = if body.is_some() {
-                    dir::MethodImplementation::Body
+                    dir::MemberImplementation::Body
                 } else {
-                    dir::MethodImplementation::Required
+                    dir::MemberImplementation::Required
                 };
-                let needs_body = implementation == dir::MethodImplementation::Required
+                let needs_body = implementation == dir::MemberImplementation::Required
                     && !is_ambient_scope
                     && !*is_ambient
                     && !abstraction.is_abstract();
@@ -734,9 +748,9 @@ impl WalkState<'_, '_> {
 
                 // classify how the member receives its implementation
                 let implementation = if body.is_some() {
-                    dir::MethodImplementation::Default
+                    dir::MemberImplementation::Default
                 } else {
-                    dir::MethodImplementation::Required
+                    dir::MemberImplementation::Required
                 };
 
                 Ok(Some(dir::DefinitionMember::Method(dir::MethodDefinition {
@@ -836,6 +850,13 @@ impl WalkState<'_, '_> {
                     return Ok(None);
                 };
 
+                // classify how the member receives its implementation
+                let implementation = if value.is_some() {
+                    dir::MemberImplementation::Default
+                } else {
+                    dir::MemberImplementation::Required
+                };
+
                 Ok(Some(dir::DefinitionMember::AssociatedType(
                     dir::AssociatedTypeDefinition {
                         symbol,
@@ -843,6 +864,7 @@ impl WalkState<'_, '_> {
                         key: dir::StaticKey::Name(name),
                         constraint,
                         value,
+                        implementation,
                     },
                 )))
             }
@@ -852,19 +874,28 @@ impl WalkState<'_, '_> {
                 declared_type,
                 value,
                 ..
-            } => self.walk_associated_constant(id.into_any(), *name, *declared_type, *value),
+            } => self.walk_associated_constant(
+                id.into_any(),
+                *name,
+                *declared_type,
+                *value,
+                dir::MemberImplementation::Default,
+            ),
             // ignore damaged nodes
             dir::TypeMember::Error => Ok(None),
         }
     }
 
     /// Walk one associated constant.
+    ///
+    /// A written value takes the given implementation, and an omitted value stays required.
     fn walk_associated_constant(
         &mut self,
         id: dir::LocalNodeIdAny,
         name: dir::StringId,
         declared_type: Option<dir::LocalNodeId<dir::TypeExpression>>,
         value: Option<dir::LocalNodeId<dir::Expression>>,
+        written_implementation: dir::MemberImplementation,
     ) -> CompilerResult<Option<dir::DefinitionMember>> {
         let source = id.into_global(self.module);
 
@@ -914,12 +945,20 @@ impl WalkState<'_, '_> {
             self.commit_static_value(symbol, written)?;
         }
 
+        // classify how the member receives its implementation
+        let implementation = if value.is_some() {
+            written_implementation
+        } else {
+            dir::MemberImplementation::Required
+        };
+
         // declare the associated const
         Ok(Some(dir::DefinitionMember::AssociatedConst(
             dir::AssociatedConstDefinition {
                 symbol,
                 source,
                 key: dir::StaticKey::Name(name),
+                implementation,
             },
         )))
     }

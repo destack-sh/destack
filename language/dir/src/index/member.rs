@@ -1,4 +1,4 @@
-use crate::{GlobalNodeIdAny, GlobalSymbolId, MemberImplementation, Postings};
+use crate::{GlobalNodeIdAny, GlobalSymbolId, ImplementationEdge, Postings};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +7,8 @@ use serde::{Deserialize, Serialize};
 pub struct MemberIndex {
     /// Symbol-backed members ordered by source node.
     entries: Vec<MemberEntry>,
-    /// Exact member implementations ordered by declaration symbol.
-    implementations: Vec<MemberImplementation>,
+    /// Exact member implementation edges ordered by declaration symbol.
+    implementations: Vec<ImplementationEdge>,
     /// Entry ordinals in member-symbol order.
     by_symbol: Vec<u32>,
     /// Implementation ordinals in implementation-symbol order.
@@ -26,7 +26,7 @@ pub struct MemberPostings {
 
 impl MemberIndex {
     /// Create a member index from declarations and implementation edges.
-    pub fn new(entries: Vec<MemberEntry>, implementations: Vec<MemberImplementation>) -> Self {
+    pub fn new(entries: Vec<MemberEntry>, implementations: Vec<ImplementationEdge>) -> Self {
         let mut index = Self {
             entries,
             implementations,
@@ -121,7 +121,7 @@ impl MemberIndex {
     }
 
     /// Return all indexed implementation edges.
-    pub fn implementation_entries(&self) -> &[MemberImplementation] {
+    pub fn implementation_entries(&self) -> &[ImplementationEdge] {
         &self.implementations
     }
 }

@@ -183,7 +183,7 @@ impl<'a> DefinitionTable<'a> {
     }
 
     /// Iterate member implementation edges.
-    pub fn member_implementations(&self) -> impl Iterator<Item = MemberImplementation> + '_ {
+    pub fn member_implementations(&self) -> impl Iterator<Item = ImplementationEdge> + '_ {
         self.iter_definitions()
             .flat_map(|(_, definition)| definition.member_implementations())
     }
@@ -374,7 +374,7 @@ pub enum Definition {
 
 /// One exact member implementation edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct MemberImplementation {
+pub struct ImplementationEdge {
     /// The declared member requirement.
     pub declaration: GlobalSymbolId,
     /// The member satisfying the declaration.
@@ -904,17 +904,17 @@ pub struct MethodDefinition {
     /// The overridden base member, selected while checking.
     pub overrides: Option<GlobalSymbolId>,
     /// How the method receives its implementation.
-    pub implementation: MethodImplementation,
+    pub implementation: MemberImplementation,
 }
 
-/// How one method receives its implementation.
+/// How one member receives its implementation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub enum MethodImplementation {
-    /// Implementers must supply a body.
+pub enum MemberImplementation {
+    /// Implementers must supply the implementation.
     Required,
-    /// The declaration supplies its own body.
+    /// The declaration supplies its own implementation.
     Body,
-    /// The declaring interface supplies a fallback body.
+    /// The declaring interface supplies a fallback implementation.
     Default,
 }
 
@@ -931,6 +931,8 @@ pub struct AssociatedTypeDefinition {
     pub constraint: Option<GlobalTypeId>,
     /// The concrete associated type value.
     pub value: Option<GlobalTypeId>,
+    /// How the associated type receives its implementation.
+    pub implementation: MemberImplementation,
 }
 
 /// One associated constant.
@@ -942,6 +944,8 @@ pub struct AssociatedConstDefinition {
     pub source: GlobalNodeIdAny,
     /// The associated const key.
     pub key: StaticKey,
+    /// How the associated const receives its implementation.
+    pub implementation: MemberImplementation,
 }
 
 /// One declared enum variant.
@@ -1315,16 +1319,16 @@ impl Definition {
     }
 
     /// Iterate selected member implementation edges.
-    pub fn member_implementations(&self) -> impl Iterator<Item = MemberImplementation> + '_ {
+    pub fn member_implementations(&self) -> impl Iterator<Item = ImplementationEdge> + '_ {
         let conformances = self
             .member_conformances()
-            .map(|conformance| MemberImplementation {
+            .map(|conformance| ImplementationEdge {
                 declaration: conformance.requirement,
                 implementation: conformance.member,
             });
         let overrides = self
             .member_overrides()
-            .map(|(implementation, declaration)| MemberImplementation {
+            .map(|(implementation, declaration)| ImplementationEdge {
                 declaration,
                 implementation,
             });
