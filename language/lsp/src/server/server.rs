@@ -15,8 +15,8 @@ use destack_repository::{
 use destack_session::{ArtifactPriority, Executor};
 use destack_source::{FileId, FileSystem, PatchSet, PhysicalFileSystem, TextRange};
 use destack_workspace::{
-    DiagnosticRun, DiagnosticsRequest, FileDiagnostics, FileEdit, QueryFile, QueryRun,
-    RevisionPolicy, RunQueryInput, RunQueryResponse, Workspace,
+    DiagnosticRun, FileDiagnostics, FileEdit, QueryFile, QueryRun, RevisionPolicy, RunQueryInput,
+    RunQueryResponse, Workspace,
 };
 use serde_json::to_value;
 
@@ -336,30 +336,6 @@ impl DestackLanguageServer {
     ) -> jsonrpc::Result<DocumentSet> {
         let workspace = self.workspace(root)?;
         DocumentSet::load(workspace.as_ref(), revision, file_ids)
-    }
-
-    /// Read diagnostics without blocking the async server.
-    async fn read_diagnostics(
-        &self,
-        workspace: Arc<Workspace>,
-        request: DiagnosticsRequest,
-    ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
-        let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-        let run = match request {
-            DiagnosticsRequest::All => Some(
-                workspace
-                    .start_diagnostics(revision, ArtifactPriority::Foreground)
-                    .map_err(workspace_error)?,
-            ),
-            DiagnosticsRequest::File(path) => workspace
-                .start_file_diagnostics(revision, &path, ArtifactPriority::Foreground)
-                .map_err(workspace_error)?,
-        };
-        let Some(run) = run else {
-            return Ok((revision, Vec::new()));
-        };
-
-        self.wait_diagnostics(workspace, run).await
     }
 
     /// Wait for scheduled diagnostics and reject superseded revisions.
@@ -1332,12 +1308,7 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::DocumentDiagnosticParams,
     ) -> jsonrpc::Result<lsp::DocumentDiagnosticReportResult> {
-        let tracked_path = params
-            .text_document
-            .uri
-            .to_file_path()
-            .map(|path| path.into_owned());
-        let Some(path) = tracked_path.as_ref() else {
+        let Some(query_file) = self.resolve_query_file(&params.text_document.uri)? else {
             let report =
                 lsp::DocumentDiagnosticReport::Full(lsp::RelatedFullDocumentDiagnosticReport {
                     related_documents: None,
@@ -1349,13 +1320,19 @@ impl LanguageServer for DestackLanguageServer {
             return Ok(lsp::DocumentDiagnosticReportResult::Report(report));
         };
 
-        let workspace = self.select_workspace(path)?;
-        let (revision, mut diagnostics) = self
-            .read_diagnostics(workspace.clone(), DiagnosticsRequest::File(path.clone()))
-            .await?;
+        // schedule the exact source module at its resolved revision
+        let workspace = self.workspace(&query_file.root)?;
+        let run = workspace
+            .start_file_diagnostics(
+                query_file.revision,
+                query_file.file.id,
+                ArtifactPriority::Foreground,
+            )
+            .map_err(workspace_error)?;
+        let (revision, mut diagnostics) = self.wait_diagnostics(workspace.clone(), run).await?;
         if diagnostics.len() > 1 {
             return Err(internal_error(format!(
-                "workspace returned {} diagnostic files for one path",
+                "workspace returned {} diagnostic files for one source file",
                 diagnostics.len()
             )));
         }
@@ -1418,13 +1395,16 @@ impl LanguageServer for DestackLanguageServer {
 
         let mut items = Vec::new();
         for workspace in self.session()?.workspaces() {
-            let (revision, diagnostics) = self
-                .read_diagnostics(workspace.clone(), DiagnosticsRequest::All)
-                .await?;
+            // schedule every source module at the current workspace revision
+            let revision = self.session()?.workspace_revision(workspace.as_ref())?;
+            let run = workspace
+                .start_diagnostics(revision, ArtifactPriority::Foreground)
+                .map_err(workspace_error)?;
+            let (revision, diagnostics) = self.wait_diagnostics(workspace.clone(), run).await?;
             let documents = self.session()?.documents(workspace.as_ref(), revision)?;
             let publisher = DiagnosticPublisher::new(self.client.clone(), workspace, documents);
 
-            // encode every diagnostic file from this semantic workspace
+            // encode every diagnostic file from this workspace
             for file_diagnostics in diagnostics {
                 let document = publisher.document(&file_diagnostics)?;
                 let uri = document.uri;

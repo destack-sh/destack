@@ -292,6 +292,7 @@ async fn test_open_builtin_documents() {
     // query the opened builtin index through its module
     let index = TestDocument::from(target);
     server.open(&index, 1, &expected.text).await;
+    server.assert_document_diagnostics(&index, Vec::new()).await;
     let console = server.builtin_uri("destack://console/console.ds");
     let expected = Some(vec![lsp::DocumentLink {
         range: range(0, 14, 0, 28),
@@ -305,6 +306,9 @@ async fn test_open_builtin_documents() {
     let source = server.virtual_document(console.clone()).await.text;
     let console = TestDocument::from(console);
     server.open(&console, 1, &source).await;
+    server
+        .assert_document_diagnostics(&console, Vec::new())
+        .await;
     let expected = Some(lsp::SemanticTokensRangeResult::Tokens(
         lsp::SemanticTokens {
             result_id: None,
