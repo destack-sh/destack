@@ -170,7 +170,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: isize, value: T): void {
+    indexSet(&this, index: isize, value: T): void {
         todo("SmallArray.indexSet");
     }
 
@@ -330,21 +330,11 @@ export extension<T, const N: usize, R: RangeBounds<isize>, const A: Access = "re
 }
 
 export extension<T, const N: usize, R: RangeBounds<isize>> of SmallArray<T, N>
-    implements IndexSet<R, [T]>
-    where T: Copy
-{
-    /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: [T]): void {
-        todo("SmallArray.indexSetRange");
-    }
-}
-
-export extension<T, const N: usize, R: RangeBounds<isize>> of SmallArray<T, N>
     implements IndexSet<R, &readonly [T]>
     where T: Copy
 {
     /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: &readonly [T]): void {
+    indexSet(&this, range: R, source: &readonly [T]): void {
         todo("SmallArray.indexSetRange");
     }
 }

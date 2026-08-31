@@ -145,7 +145,7 @@ export extension<T> of Deque<T>
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: isize, value: T): void {
+    indexSet(&this, index: isize, value: T): void {
         todo("Deque.indexSet");
     }
 

@@ -62,7 +62,7 @@ export extension<T> of Slice<T> implements Default {
 
     /// Store one element without bounds checks.
     @unsafe
-    unsafeSet(&exclusive this, index: usize, value: T): void {
+    unsafeSet(&this, index: usize, value: T): void {
         sliceSet<T>(this, index, value);
     }
 
@@ -98,7 +98,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Copy elements from `source` into this slice.
-    copyFrom(&exclusive this, source: &readonly [T]): void where T: Copy {
+    copyFrom(&this, source: &readonly [T]): void where T: Copy {
         if (source.size != this.size) {
             panic("slice copy length mismatch")
         }
@@ -238,7 +238,7 @@ export extension<T> of Slice<T> implements Index<isize>, IndexSet<isize, T> {
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: isize, value: T): void {
+    indexSet(&this, index: isize, value: T): void {
         todo("Slice.indexSet");
     }
 }
@@ -278,21 +278,12 @@ export extension<T, R: RangeBounds<isize>, const A: Access = "readonly"> of Slic
     }
 }
 
-export extension<T, R: RangeBounds<isize>> of Slice<T> implements IndexSet<R, [T]> where T: Copy {
-    /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: [T]): void {
-        let target = this.index(range);
-
-        target.copyFrom(&readonly source);
-    }
-}
-
 export extension<T, R: RangeBounds<isize>> of Slice<T>
     implements IndexSet<R, &readonly [T]>
     where T: Copy
 {
     /// Copy `source` into the selected range.
-    indexSet(&exclusive this, range: R, source: &readonly [T]): void {
+    indexSet(&this, range: R, source: &readonly [T]): void {
         let target = this.index(range);
 
         target.copyFrom(source);
@@ -326,7 +317,7 @@ export declare function sliceGet<T: Copy>(slice: &readonly [T], index: usize): T
 /// Store one element without bounds checks.
 @unsafe
 @intrinsic("collections.slice.set")
-export declare function sliceSet<T>(slice: &exclusive [T], index: usize, value: T): void;
+export declare function sliceSet<T>(slice: &[T], index: usize, value: T): void;
 
 /// Borrow a contiguous range of one slice as a view.
 @unsafe
