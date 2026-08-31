@@ -179,6 +179,38 @@ async fn test_query_successive_typed_revisions() {
         .await;
 }
 
+/// Complete constructor receiver members immediately after progressive typing.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn test_complete_constructor_receiver_after_typing() {
+    let source = r#"class User {
+    name: string;
+    age: uint;
+
+    constructor(name: string, age: uint) {
+        this.name = name;
+        this.age = age;
+        this."#;
+
+    // type the class through successive document revisions
+    let mut server = TestServer::new("constructor-receiver-typing");
+    let document = server.write("main.ds", "");
+    server
+        .initialize(lsp::ClientCapabilities::default(), None)
+        .await
+        .unwrap();
+    server.initialized().await;
+    server.open(&document, 1, "").await;
+    server.assert_diagnostics(&document, 1, Vec::new()).await;
+    let (_version, cursor) = server.type_text(&document, 1, position(0, 0), source).await;
+
+    // complete the current receiver while background work observes earlier revisions
+    let labels = server.completion_labels(document.completion(cursor)).await;
+    assert_eq!(
+        labels,
+        ["name", "age", "toString", "borrow", "into", "tryInto"],
+    );
+}
+
 /// Apply one ordered batch of ranged edits using UTF-16 source positions.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_apply_incremental_document_changes() {
