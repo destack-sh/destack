@@ -425,6 +425,7 @@ impl CheckState<'_> {
         let Some(symbol) = self.reference_symbol(source) else {
             return Ok(Err(StaticError::NotStatic(expression)));
         };
+        // read the static value the symbol already settled
         let term = if let Some(value) = self.static_value(symbol) {
             let value = self.shallow_resolve(value)?;
 
@@ -434,9 +435,9 @@ impl CheckState<'_> {
                 _ => return Ok(Err(StaticError::NotStatic(expression))),
             }
         }
-        // otherwise read a type declaration as a first-class value, skipping unread kinds
+        // otherwise read a type declaration as a first-class value
         else if self.symbol_kind(symbol)?.can_be_used_as_type() {
-            let ty = self.require_node_type(source)?;
+            let ty = self.symbol_type(symbol)?;
             let ty = self.shallow_resolve(ty)?;
 
             dir::StaticTerm::Type { ty }
