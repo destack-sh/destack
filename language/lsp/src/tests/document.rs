@@ -247,10 +247,13 @@ async fn test_return_resolved_document_links() {
     server.assert_request(document.links(), Ok(expected)).await;
 }
 
-/// Open builtin documents with links, navigation, and semantic tokens.
+/// Query builtin documents across physical and virtual sources.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn test_open_builtin_documents() {
-    let source = "import { log } from \"destack:console\";\n";
+async fn test_query_builtin_documents() {
+    let source = r#"import { log } from "destack:console";
+
+log("ready");
+"#;
     let manifest = r#"{
   "name": "builtin-module-links",
   "workspace": {
@@ -282,6 +285,18 @@ async fn test_open_builtin_documents() {
     }]);
     server.assert_request(document.links(), Ok(expected)).await;
 
+    // navigate from physical source to the builtin declaration
+    let console = server.builtin_uri("destack://console/console.ds");
+    let expected = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+        origin_selection_range: Some(range(2, 0, 2, 3)),
+        target_uri: console.clone(),
+        target_range: range(104, 0, 106, 1),
+        target_selection_range: range(104, 16, 104, 19),
+    }]));
+    server
+        .assert_request(document.definition(position(2, 1)), Ok(expected))
+        .await;
+
     // read the exact source exposed by the resolved link
     let expected = lsp::TextDocumentContentResult {
         text: "export * from \"./console.ds\";\n".to_string(),
@@ -293,7 +308,6 @@ async fn test_open_builtin_documents() {
     let index = TestDocument::from(target);
     server.open(&index, 1, &expected.text).await;
     server.assert_document_diagnostics(&index, Vec::new()).await;
-    let console = server.builtin_uri("destack://console/console.ds");
     let expected = Some(vec![lsp::DocumentLink {
         range: range(0, 14, 0, 28),
         target: Some(console.clone()),
@@ -329,14 +343,21 @@ async fn test_open_builtin_documents() {
         .await;
 
     // navigate one builtin type reference
-    let expected = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
+    let definition = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
         origin_selection_range: Some(range(20, 26, 20, 40)),
         target_uri: console.uri().clone(),
         target_range: range(5, 0, 14, 1),
         target_selection_range: range(5, 17, 5, 31),
     }]));
     server
-        .assert_request(console.definition(position(20, 27)), Ok(expected))
+        .assert_request(console.definition(position(20, 27)), Ok(definition.clone()))
+        .await;
+
+    // reopen immutable source through the same qualified identity
+    server.close(&console).await;
+    server.open(&console, 2, &source).await;
+    server
+        .assert_request(console.definition(position(20, 27)), Ok(definition))
         .await;
 }
 
