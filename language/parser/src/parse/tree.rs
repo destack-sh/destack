@@ -231,7 +231,7 @@ impl Parser {
         }
         // named attribute
         else {
-            let name = self.eat_tree_literal_identifier()?;
+            let (name, name_range) = self.eat_tree_literal_identifier_with_range()?;
 
             // explicit assignment, including newline wrapped forms
             let has_value_separator = self.peek_tree_attribute_assign_separator();
@@ -291,6 +291,8 @@ impl Parser {
                 },
                 self.range_since(&start),
             );
+            self.tree.set_main_range(attribute_id, name_range);
+
             Ok(attribute_id)
         }
     }

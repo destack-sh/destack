@@ -112,12 +112,14 @@ impl Parser {
             && self.peek_token_type_at(2) == TokenType::Assign
         {
             self.eat_keyword(Keyword::Type)?;
-            let name = self.eat_identifier()?;
+            let (name, name_range) = self.eat_identifier_with_range()?;
             self.eat_token(TokenType::Assign)?;
             let value = self.parse_type(TypePosition::Type, TypeStop::ANGLE_CLOSE)?;
             let argument = GenericArgument::AssociatedType { name, value };
+            let argument_id = self.insert_node(argument, self.range_since(start));
+            self.tree.set_main_range(argument_id, name_range);
 
-            return Ok(self.insert_node(argument, self.range_since(start)));
+            return Ok(argument_id);
         }
 
         // associated const refinement
@@ -127,12 +129,14 @@ impl Parser {
             && self.peek_token_type_at(2) == TokenType::Assign
         {
             self.eat_keyword(Keyword::Const)?;
-            let name = self.eat_identifier()?;
+            let (name, name_range) = self.eat_identifier_with_range()?;
             self.eat_token(TokenType::Assign)?;
             let value = self.parse_type(TypePosition::Type, TypeStop::ANGLE_CLOSE)?;
             let argument = GenericArgument::AssociatedConst { name, value };
+            let argument_id = self.insert_node(argument, self.range_since(start));
+            self.tree.set_main_range(argument_id, name_range);
 
-            return Ok(self.insert_node(argument, self.range_since(start)));
+            return Ok(argument_id);
         }
 
         // explicit type-space argument
