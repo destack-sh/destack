@@ -162,7 +162,7 @@ impl CheckState<'_> {
 
         // require the receiver to grant the access the body takes
         let requested = self.access_literal(required)?;
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Receiver));
         let verdict = self.constrain_type(
             origin,
             cause,
@@ -171,8 +171,8 @@ impl CheckState<'_> {
             function.receiver,
         )?;
         if verdict == Verdict::Fails {
-            let granted = self.access_of(function.receiver)?;
-            self.report_borrow_access_not_granted(origin, required, granted, callable)?;
+            let granted = self.receiver_mode(function.receiver)?;
+            self.report_receiver_access_not_granted(origin, required, granted)?;
         }
 
         Ok(())

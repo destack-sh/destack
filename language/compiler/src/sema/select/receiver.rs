@@ -501,7 +501,7 @@ impl CheckState<'_> {
         }
 
         // bound the value's requirement by the mode its slot grants
-        let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+        let cause = self.intern_cause(Cause::root(origin, CauseKind::Receiver));
         self.constrain_type(origin, cause, Relation::Storable, source, target)
     }
 

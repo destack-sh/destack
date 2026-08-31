@@ -362,7 +362,7 @@ import { describe, test } from "destack:test";
 
 test.each<{}, {}, {}, (int32,)>([(1,)] as Iterable<(int32,)>).only(
     "parameterized case",
-    ((value: int32): BodyResult => {}) as Function<(int32,), BodyResult> | undefined,
+    ((value: int32): BodyResult => {}) as Function<(int32,), BodyResult, "exclusive"> | undefined,
 );
 test.for<{}, {}, {}, int64>([1] as Iterable<int64>).only(
     "table case",
@@ -370,7 +370,7 @@ test.for<{}, {}, {}, int64>([1] as Iterable<int64>).only(
 );
 describe.each<(int32,)>([(1,)] as Iterable<(int32,)>)("parameterized suite", ((
     value: int32
-): void => {}) as Function<(int32,), void> | undefined);
+): void => {}) as Function<(int32,), void, "exclusive"> | undefined);
 describe.for<int32>([1] as Iterable<int32>)("table suite", ((value: int32): void => {}) as | ((
       arg0: int32,
   ) => void)
@@ -380,7 +380,7 @@ test.each<{}, {}, {}, (string, int64)>([("a", 2)] as Iterable<(string, int64)>)(
     count: int64,
 ): BodyResult => {
     const pair: (string, int64) = (text, count);
-}) as Function<(string, int64), BodyResult> | undefined);
+}) as Function<(string, int64), BodyResult, "exclusive"> | undefined);
 
 === dir ===
 import { describe, test } from "destack:test";
@@ -389,7 +389,7 @@ test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.name source=test target=test
 /// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
 /// @resolution.member source=test.each([(1,)]).only receiver=ParameterizedTest<(int32,)> type=ParameterizedTest<(int32,)> kind=field target_receiver=ParameterizedTest<(int32,)> dispatch=dynamic constraint=ParameterizedTest<(int32,)> key=only target=ParameterizedTest.only target_type=ParameterizedTest<(int32,)>
-/// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, Function<(int32,), BodyResult> | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as Function<(int32,), BodyResult> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(int32,)> constraint=ParameterizedTest<(int32,)>
+/// @resolution.call source="test.each([(1,)]).only(\"parameterized case\", (value: int32) => {})" parameters=(string, Function<(int32,), BodyResult, "exclusive"> | undefined) arguments=(provided("parameterized case") as string, provided((value: int32) => {}) as Function<(int32,), BodyResult, "exclusive"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(int32,)> constraint=ParameterizedTest<(int32,)>
 /// @resolution.call source=test.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedTest<(int32,)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (int32,))
 /// @resolution.place source=test placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=test root=test
@@ -419,7 +419,7 @@ test.for([1]).only("table case", (value: &readonly int64) => {});
 describe.each([(1,)])("parameterized suite", (value: int32) => {});
 /// @resolution.name source=describe target=describe
 /// @resolution.member source=describe.each receiver=TestSuite type=<TestSuite.each.P: (...unknown[],)>(this: TestSuite, Iterable<TestSuite.each.P>) => ParameterizedSuite<TestSuite.each.P> kind=symbol target_receiver=TestSuite dispatch=dynamic constraint=TestSuite target=TestSuite.each
-/// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, Function<(int32,), void> | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as Function<(int32,), void> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedSuite<(int32,)> constraint=ParameterizedSuite<(int32,)>
+/// @resolution.call source="describe.each([(1,)])(\"parameterized suite\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "exclusive"> | undefined) arguments=(provided("parameterized suite") as string, provided((value: int32) => {}) as Function<(int32,), void, "exclusive"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedSuite<(int32,)> constraint=ParameterizedSuite<(int32,)>
 /// @resolution.call source=describe.each([(1,)]) parameters=(Iterable<(int32,)>) arguments=(provided([(1,)]) as Iterable<(int32,)>) return=ParameterizedSuite<(int32,)> kind=dynamic target=TestSuite.each receiver=TestSuite constraint=TestSuite generic_arguments=((int32,))
 /// @resolution.place source=describe placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=describe root=describe
@@ -442,7 +442,7 @@ describe.for([1])("table suite", (value: int32) => {});
 test.each([("a", 2)])("pairs", (text, count) => {
 /// @resolution.name source=test target=test
 /// @resolution.member source=test.each receiver=Test<{}, {}, {}> type=<Test.each.P: (...unknown[],) & Copy>(this: Test<{}, {}, {}>, Iterable<Test.each.P>) => ParameterizedTest<Test.each.P> kind=symbol target_receiver=Test<{}, {}, {}> dispatch=dynamic constraint=Test<{}, {}, {}> target=Test.each
-/// @resolution.call parameters=(string, Function<(string, int64), BodyResult> | undefined) arguments=(provided("pairs") as string, provided(argument) as Function<(string, int64), BodyResult> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(string, int64)> constraint=ParameterizedTest<(string, int64)>
+/// @resolution.call parameters=(string, Function<(string, int64), BodyResult, "exclusive"> | undefined) arguments=(provided("pairs") as string, provided(argument) as Function<(string, int64), BodyResult, "exclusive"> | undefined) return=void kind=dynamic target=call(type_member) receiver=ParameterizedTest<(string, int64)> constraint=ParameterizedTest<(string, int64)>
 /// @resolution.call source="test.each([(\"a\", 2)])" parameters=(Iterable<(string, int64)>) arguments=(provided([("a", 2)]) as Iterable<(string, int64)>) return=ParameterizedTest<(string, int64)> kind=dynamic target=Test.each receiver=Test<{}, {}, {}> constraint=Test<{}, {}, {}> generic_arguments=({}, {}, {}, (string, int64))
 /// @resolution.place source=test placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=test root=test
@@ -618,10 +618,10 @@ iterTable([1])("iter table", (value: &readonly int32) => {});
 === annotated ===
 declare function run<P: (...unknown[],)>(
     cases: P[],
-): (name: string, body?: Function<P, void>) => void;
+): (name: string, body?: Function<P, void, "exclusive">) => void;
 declare function plain<P: (...unknown[],)>(
     cases: P[],
-): (name: string, body: Function<P, void>) => void;
+): (name: string, body: Function<P, void, "exclusive">) => void;
 declare function table<T>(
     values: T[],
 ): <'a>(name: string, body: (arg0: &'a readonly T) => void) => void;
@@ -635,7 +635,11 @@ declare function contextTable<T>(
     values: T[],
 ): <'a, 'b>(name: string, body: (arg0: &'a readonly T, arg1: &'b string) => void) => void;
 
-run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | Function<(int32,), void>
+run<(int32,)>([(1,)])("optional", ((value: int32): void => {}) as | Function<
+      (int32,),
+      void,
+      "exclusive"
+  >
 | undefined);
 plain<(int32,)>([(1,)])("plain", (value: int32): void => {});
 table<int32>([1])("table", <'a,>(value: &'a readonly int32): void => {});
@@ -653,23 +657,23 @@ iterTable<int32>([1] as Iterable<int32>)(
 === dir ===
 declare function run<P: (...unknown[],)>(cases: P[]): (name: string, body?: Function<P, void>) => void;
 /// @generic.template symbol=run parameters=(P#1: (...unknown[],))
-/// @type.symbol symbol=run type=<P#1: (...unknown[],)>(P#1[]) => Function<(string, Function<P#1, void> | undefined?), void>
+/// @type.symbol symbol=run type=<P#1: (...unknown[],)>(P#1[]) => Function<(string, Function<P#1, void, "exclusive"> | undefined?), void>
 /// @type.symbol symbol=run.P source="P: (...unknown[],)" type=P#1
 /// @type.symbol symbol=run.cases source="cases: P[]" type=P#1[]
 /// @resolution.name source=P target=run.P
 /// @type.symbol symbol=run.name source="name: string" type=string
-/// @type.symbol symbol=run.body source="body?: Function<P, void>" type=Function<P#1, void> | undefined
+/// @type.symbol symbol=run.body source="body?: Function<P, void>" type=Function<P#1, void, "exclusive"> | undefined
 /// @resolution.name source=Function target=Function
 /// @resolution.name source=P target=run.P
 
 declare function plain<P: (...unknown[],)>(cases: P[]): (name: string, body: Function<P, void>) => void;
 /// @generic.template symbol=plain parameters=(P#2: (...unknown[],))
-/// @type.symbol symbol=plain type=<P#2: (...unknown[],)>(P#2[]) => Function<(string, Function<P#2, void>), void>
+/// @type.symbol symbol=plain type=<P#2: (...unknown[],)>(P#2[]) => Function<(string, Function<P#2, void, "exclusive">), void>
 /// @type.symbol symbol=plain.P source="P: (...unknown[],)" type=P#2
 /// @type.symbol symbol=plain.cases source="cases: P[]" type=P#2[]
 /// @resolution.name source=P target=plain.P
 /// @type.symbol symbol=plain.name source="name: string" type=string
-/// @type.symbol symbol=plain.body source="body: Function<P, void>" type=Function<P#2, void>
+/// @type.symbol symbol=plain.body source="body: Function<P, void>" type=Function<P#2, void, "exclusive">
 /// @resolution.name source=Function target=Function
 /// @resolution.name source=P target=plain.P
 
@@ -738,8 +742,8 @@ declare function contextTable<T>(values: T[]): <'a, 'b>(name: string, body: (val
 
 run([(1,)])("optional", (value: int32) => {});
 /// @resolution.name source=run target=run
-/// @resolution.call source="run([(1,)])(\"optional\", (value: int32) => {})" parameters=(string, Function<(int32,), void> | undefined) arguments=(provided("optional") as string, provided((value: int32) => {}) as Function<(int32,), void> | undefined) return=void kind=expression target=expression
-/// @resolution.call source=run([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void> | undefined?), void> kind=symbol target=run instance=run<(int32,)>
+/// @resolution.call source="run([(1,)])(\"optional\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "exclusive"> | undefined) arguments=(provided("optional") as string, provided((value: int32) => {}) as Function<(int32,), void, "exclusive"> | undefined) return=void kind=expression target=expression
+/// @resolution.call source=run([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "exclusive"> | undefined?), void> kind=symbol target=run instance=run<(int32,)>
 /// @generic.instantiation id=run<(int32,)> template=run arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
 /// @generic.instantiation id=arrayFromSlice<(int32,)> template=arrayFromSlice arguments=((int32,))
@@ -748,8 +752,8 @@ run([(1,)])("optional", (value: int32) => {});
 
 plain([(1,)])("plain", (value: int32) => {});
 /// @resolution.name source=plain target=plain
-/// @resolution.call source="plain([(1,)])(\"plain\", (value: int32) => {})" parameters=(string, Function<(int32,), void>) arguments=(provided("plain") as string, provided((value: int32) => {}) as Function<(int32,), void>) return=void kind=expression target=expression
-/// @resolution.call source=plain([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void>), void> kind=symbol target=plain instance=plain<(int32,)>
+/// @resolution.call source="plain([(1,)])(\"plain\", (value: int32) => {})" parameters=(string, Function<(int32,), void, "exclusive">) arguments=(provided("plain") as string, provided((value: int32) => {}) as Function<(int32,), void, "exclusive">) return=void kind=expression target=expression
+/// @resolution.call source=plain([(1,)]) parameters=((int32,)[]) arguments=(provided([(1,)]) as (int32,)[]) return=Function<(string, Function<(int32,), void, "exclusive">), void> kind=symbol target=plain instance=plain<(int32,)>
 /// @generic.instantiation id=plain<(int32,)> template=plain arguments=((int32,))
 /// @resolution.call source=[(1,)] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest((1,)) as (int32,)) return=(int32,)[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<(int32,)>
 /// @type.symbol symbol=symbol45 source="(value: int32) => {}" type=Function<(int32,), void, "readonly">

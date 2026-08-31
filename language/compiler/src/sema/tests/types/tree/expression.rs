@@ -367,7 +367,7 @@ function render(title: string): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source=<div>hello<span/>{title}</div> builder=Panel form=element tag=div call=element children=(string, Panel, string) type=Panel
     /// @generic.instantiation id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string))
-    /// @generic.instance id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string))
+    /// @generic.instance id="element<\"div\", (string, Panel, string)>" template=element arguments=("div", (string, Panel, string)) evaluated=(<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel => <const Tag: keyof this.Tags, Children#1: (...unknown[],)>("div", { class?: string }, (string, Panel, string)) => Panel)
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
     /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
     /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())
@@ -1673,7 +1673,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source=<div>{...pair}</div> builder=Panel form=element tag=div call=element children=((Panel, Panel)) type=Panel
     /// @generic.instantiation id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel))
-    /// @generic.instance id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel))
+    /// @generic.instance id="element<\"div\", (Panel, Panel)>" template=element arguments=("div", (Panel, Panel)) evaluated=(<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel => <const Tag: keyof this.Tags, Children#1: (...unknown[],)>("div", { class?: string }, (Panel, Panel)) => Panel)
     /// @resolution.name source=pair target=render.pair
     /// @resolution.place source=pair placement="local" lifetime="frame" access="readonly"
     /// @resolution.access source=pair root=render.pair

@@ -289,6 +289,7 @@ if (value is &readonly Node) {
 /// @resolution.guard source="value is &readonly Node" kind=is value=unknown target=&'frame readonly Node predicate="dynamic.type(Type<unknown>) is type(&'frame readonly Node)" narrowed=Narrow<unknown, &'frame readonly Node> projection="dynamic.payload(&'frame readonly Node)"
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @generic.instance id=Type<unknown> template=Type arguments=(unknown)
 /// @resolution.name source=Node target=Node
 
     value.id satisfies int32;

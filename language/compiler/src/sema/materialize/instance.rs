@@ -81,7 +81,8 @@ impl CheckState<'_> {
                     return Ok(true);
                 }
                 dir::Type::Application(application)
-                    if self.is_computed_alias(application.symbol)? =>
+                    if self.is_computed_alias(application.symbol)?
+                        || self.is_partial_application(id.module_id, application)? =>
                 {
                     return Ok(true);
                 }
@@ -111,8 +112,18 @@ impl CheckState<'_> {
             }
 
             let ty = self.ty(id)?;
-            if let dir::Type::Application(application) = ty {
-                self.intern_application(id.module_id, &application, source, depth, worklist)?;
+            if let dir::Type::Application(application) = &ty {
+                self.intern_application(id, application, source, depth, worklist)?;
+            }
+            // pair a bare reference to a defaulted template like an empty application
+            else if let dir::Type::Reference(reference) = &ty
+                && self.symbol_template(reference.symbol)?.is_some()
+            {
+                let application = dir::GenericApplication {
+                    symbol: reference.symbol,
+                    arguments: dir::TypeListId::EMPTY,
+                };
+                self.intern_application(id, &application, source, depth, worklist)?;
             }
 
             self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
@@ -124,18 +135,18 @@ impl CheckState<'_> {
     /// Intern one written application as an instance through its canonical pairing.
     fn intern_application(
         &mut self,
-        module: ModuleId,
+        id: dir::GlobalTypeId,
         application: &dir::GenericApplication,
         source: dir::GlobalNodeIdAny,
         depth: u32,
         worklist: &mut InstanceWorklist,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Option<dir::LocalInstanceId>> {
         // skip an application that pairs with no instance
-        let Ok(substitution) = self.instance_substitution(module, application) else {
-            return Ok(());
+        let Ok(substitution) = self.instance_substitution(id.module_id, application) else {
+            return Ok(None);
         };
 
-        self.intern_instance(
+        let instance = self.intern_instance(
             application.symbol,
             None,
             substitution.bindings.to_vec(),
@@ -143,7 +154,16 @@ impl CheckState<'_> {
             dir::InstanceOrigin::Application,
             depth,
             worklist,
-        )
+        )?;
+
+        // record the instance this closed application selects
+        if let Some(instance) = instance {
+            self.module
+                .generics_tail
+                .bind_application_instance(id, instance);
+        }
+
+        Ok(instance)
     }
 
     /// Rewrite one instance argument with every lifetime erased to the frame literal.
@@ -247,7 +267,7 @@ impl CheckState<'_> {
         introduced: dir::InstanceOrigin,
         depth: u32,
         worklist: &mut InstanceWorklist,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Option<dir::LocalInstanceId>> {
         // reject runaway polymorphic recursion past the depth limit
         if depth > INSTANCE_DEPTH_LIMIT {
             return Err(CompilerError::Internal {
@@ -271,11 +291,11 @@ impl CheckState<'_> {
 
             // leave open instantiations to close under their enclosing instance
             let flags = self.type_flags(argument)?;
-            if flags.has_variable() || flags.has_this() {
-                return Ok(());
+            if flags.has_variable() || flags.has_this() || flags.has_infer() {
+                return Ok(None);
             }
             if flags.has_parameter() && self.has_open_parameter(argument)? {
-                return Ok(());
+                return Ok(None);
             }
 
             arguments.push(dir::GenericArgumentBinding::new(
@@ -284,9 +304,28 @@ impl CheckState<'_> {
             ));
         }
 
-        // require at least one type argument to close on
-        if arguments.is_empty() {
-            return Ok(());
+        // resolve the receiver like an argument, leaving open ones to their enclosing instance
+        let receiver = match receiver {
+            Some(receiver) => {
+                let resolved = self.deeply_resolve(origin, receiver)?;
+                let resolved = self.erase_argument_lifetimes(resolved, &mut Vec::new())?;
+                let resolved = self.ground_induced_memory_argument(resolved)?;
+                let flags = self.type_flags(resolved)?;
+                if flags.has_variable() || flags.has_this() || flags.has_infer() {
+                    return Ok(None);
+                }
+                if flags.has_parameter() && self.has_open_parameter(resolved)? {
+                    return Ok(None);
+                }
+
+                Some(resolved)
+            }
+            None => None,
+        };
+
+        // require a receiver or one type argument to close on
+        if arguments.is_empty() && receiver.is_none() {
+            return Ok(None);
         }
 
         // close unbound place parameters at local, dropping every other unbound selection
@@ -321,17 +360,17 @@ impl CheckState<'_> {
                 }
 
                 // drop the selection at every other unbound parameter
-                return Ok(());
+                return Ok(None);
             }
         }
 
         // allocate one instance per distinct closed identity
         let key = dir::InstanceKey::new(template, arguments.clone()).with_receiver(receiver);
         if let Some(admitted) = worklist.seen.get(&key).copied() {
-            // upgrade the row a type application introduced, re-closing it under the instantiation
+            // upgrade the instance a type application introduced, re-closing it under the instantiation
             if introduced == dir::InstanceOrigin::Instantiation
-                && let Some(row) = self.module.generics_tail.get_local_instance(admitted)
-                && row.origin == dir::InstanceOrigin::Application
+                && let Some(interned) = self.module.generics_tail.get_local_instance(admitted)
+                && interned.origin == dir::InstanceOrigin::Application
             {
                 self.module
                     .generics_tail
@@ -339,7 +378,7 @@ impl CheckState<'_> {
                 worklist.queue.push_back((admitted, depth));
             }
 
-            return Ok(());
+            return Ok(Some(admitted));
         }
 
         // allocate and queue the new instance
@@ -352,10 +391,10 @@ impl CheckState<'_> {
         worklist.seen.insert(key, instance);
         worklist.queue.push_back((instance, depth));
 
-        Ok(())
+        Ok(Some(instance))
     }
 
-    /// Close one instance: admit its template's instantiations and resolve its rows.
+    /// Close one instance: admit its template's instantiations and resolve its types.
     fn materialize_instance(
         &mut self,
         instance: dir::LocalInstanceId,
@@ -363,7 +402,7 @@ impl CheckState<'_> {
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<()> {
         // read the instance and the substitution its arguments select
-        let row = self
+        let interned = self
             .module
             .generics_tail
             .get_local_instance(instance)
@@ -371,19 +410,19 @@ impl CheckState<'_> {
                 message: "closed an unallocated instance".to_string(),
             })?
             .clone();
-        let origin = Origin::Node(row.source, None);
+        let origin = Origin::Node(interned.source, None);
         let mut substitution = TypeSubstitution {
-            bindings: row.key.arguments.iter().copied().collect(),
+            bindings: interned.key.arguments.iter().copied().collect(),
             receiver: None,
         };
-        substitution.receiver = match row.key.receiver {
+        substitution.receiver = match interned.key.receiver {
             Some(receiver) => Some(receiver),
-            None => self.instance_receiver(row.key.symbol, origin, &substitution)?,
+            None => self.instance_receiver(interned.key.symbol, origin, &substitution)?,
         };
 
         // substitute the template's recorded instantiations under this instance
         let mut reached = Vec::new();
-        for instantiation in self.template_instantiations(row.key.symbol)? {
+        for instantiation in self.template_instantiations(interned.key.symbol)? {
             let mut arguments = Vec::new();
             for binding in instantiation.key.arguments {
                 arguments.push(dir::GenericArgumentBinding::new(
@@ -404,33 +443,35 @@ impl CheckState<'_> {
                 template,
                 receiver,
                 arguments,
-                row.source,
-                row.origin,
+                interned.source,
+                interned.origin,
                 depth + 1,
                 worklist,
             )?;
         }
 
         // close the hook instance destructors call on this nominal
-        if let Some(member) = self.drop_hook_member(row.key.symbol)? {
-            match self.bind_drop_hook(member, &row.key.arguments)? {
-                Some(bindings) => self.intern_instance(
-                    member,
-                    None,
-                    bindings,
-                    row.source,
-                    dir::InstanceOrigin::Instantiation,
-                    depth + 1,
-                    worklist,
-                )?,
+        if let Some(member) = self.drop_hook_member(interned.key.symbol)? {
+            match self.bind_drop_hook(member, &interned.key.arguments)? {
+                Some(bindings) => {
+                    self.intern_instance(
+                        member,
+                        None,
+                        bindings,
+                        interned.source,
+                        dir::InstanceOrigin::Instantiation,
+                        depth + 1,
+                        worklist,
+                    )?;
+                }
                 None => {
-                    self.report_unmapped_drop_conformance(row.source);
+                    self.report_unmapped_drop_conformance(interned.source);
                 }
             }
         }
 
         // materialize the template under the substitution for this instance
-        match self.definition(row.key.symbol)?.cloned() {
+        match self.definition(interned.key.symbol)?.cloned() {
             Some(definition) => self.materialize_instance_definition(
                 instance,
                 origin,
@@ -442,7 +483,7 @@ impl CheckState<'_> {
             None => self.materialize_instance_body(
                 instance,
                 origin,
-                row.key.symbol,
+                interned.key.symbol,
                 &substitution,
                 depth,
                 worklist,
@@ -537,7 +578,7 @@ impl CheckState<'_> {
             return Ok(None);
         };
 
-        // rewrite each type the row carries, keeping the row where one moves
+        // rewrite each type the payload carries, keeping the payload where one moves
         let mut is_moved = false;
         dir::TypeFold::map_types(&mut row, &mut |ty| -> CompilerResult<_> {
             let resolved = self.materialize_member_type(origin, ty, substitution, worklist)?;
@@ -557,9 +598,9 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // move receiver references alone in a non generic body
+        // move receiver references and open computations alone in a non generic body
         let flags = self.type_flags(ty)?;
-        if !flags.has_this() {
+        if !flags.has_this() && !self.has_reachable_computation(ty)? {
             return Ok(ty);
         }
 
@@ -587,7 +628,7 @@ impl CheckState<'_> {
         origin: Origin,
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // a type template receives itself applied to the instance arguments
+        // give a type template itself applied to the instance arguments
         if self.definition(template)?.is_some() {
             let arguments: Vec<_> = substitution
                 .bindings
@@ -610,7 +651,7 @@ impl CheckState<'_> {
             return Ok(Some(self.evaluate_type(origin, receiver)?));
         }
 
-        // a member callable receives its owner's target
+        // give a member callable its owner's target
         let Some(owner) = self.template_member_owner(template) else {
             return Ok(None);
         };
@@ -661,10 +702,10 @@ impl CheckState<'_> {
         &self,
         template: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::Instantiation>> {
-        // read the rows this template owns
+        // read the instantiations this template owns
         let owner = Some(template);
 
-        // read the committed rows of the own module
+        // read the committed instantiations of the own module
         if self.is_own_module(template.module_id) {
             let checked = self
                 .module
@@ -681,13 +722,13 @@ impl CheckState<'_> {
                 .cloned()
                 .collect())
         }
-        // otherwise read the rows loaded from the foreign module
+        // otherwise read the instantiations loaded from the foreign module
         else {
             let external = self
                 .external_modules
                 .get(&template.module_id)
                 .ok_or_else(|| CompilerError::Internal {
-                    message: format!("template module {:?} was not loaded", template.module_id),
+                    message: format!("an unloaded template module {:?}", template.module_id),
                 })?;
 
             Ok(external
@@ -718,7 +759,7 @@ impl CheckState<'_> {
             if let Some(symbol) = symbol
                 && let Some(ty) = self.template_symbol_type(symbol)
             {
-                self.materialize_instance_type(
+                let resolved = self.materialize_instance_type(
                     instance,
                     origin,
                     ty,
@@ -726,6 +767,9 @@ impl CheckState<'_> {
                     depth,
                     worklist,
                 )?;
+                self.module
+                    .generics_tail
+                    .bind_instance_symbol(instance, symbol, resolved);
             }
         }
 
@@ -750,7 +794,17 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // materialize the template's own declared type
         if let Some(ty) = self.template_symbol_type(template) {
-            self.materialize_instance_type(instance, origin, ty, substitution, depth, worklist)?;
+            let resolved = self.materialize_instance_type(
+                instance,
+                origin,
+                ty,
+                substitution,
+                depth,
+                worklist,
+            )?;
+            self.module
+                .generics_tail
+                .bind_instance_symbol(instance, template, resolved);
         }
 
         // stop at a bodiless template
@@ -758,7 +812,7 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // fold each body node's committed type and rows under the substitution
+        // fold each body node's committed type and payloads under the substitution
         for node in nodes {
             if let Some(ty) = self.committed_template_type(template.module_id, node) {
                 self.materialize_instance_type(
@@ -883,33 +937,37 @@ impl CheckState<'_> {
         depth: u32,
         worklist: &mut InstanceWorklist,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // interface owners spell the receiver as their self application
+        let owner_self = match substitution.receiver {
+            Some(_) => {
+                let member = self
+                    .module
+                    .generics_tail
+                    .get_local_instance(instance)
+                    .map(|interned| interned.key.symbol);
+                match member {
+                    Some(member) => self.interface_owner_self(member)?,
+                    None => None,
+                }
+            }
+            None => None,
+        };
+
         // closed types are identical across instances and stay as written
         let flags = self.type_flags(ty)?;
-        if !flags.has_parameter() && !flags.has_this() {
+        if !flags.has_parameter() && !flags.has_this() && owner_self.is_none() {
             return Ok(ty);
         }
 
         // commit the materialized type wherever the instance moves the written one
         let substituted = self.substitute_type(ty, substitution)?;
 
-        // interface owners spell the receiver as their self application
-        let substituted = match substitution.receiver {
-            Some(receiver) => {
-                let member = self
-                    .module
-                    .generics_tail
-                    .get_local_instance(instance)
-                    .map(|row| row.key.symbol);
-                let base = match member {
-                    Some(member) => self.interface_owner_self(member)?,
-                    None => None,
-                };
-                match base {
-                    Some(base) => self.replace_type(self.module_id, substituted, base, receiver)?,
-                    None => substituted,
-                }
+        // close the self application at the instance receiver
+        let substituted = match (substitution.receiver, owner_self) {
+            (Some(receiver), Some(base)) => {
+                self.replace_type(self.module_id, substituted, base, receiver)?
             }
-            None => substituted,
+            _ => substituted,
         };
 
         // evaluate any computation the substituted type reaches
@@ -989,7 +1047,7 @@ impl CheckState<'_> {
             .get(&module)
             .map(|external| &external.parsed.tree)
             .ok_or_else(|| CompilerError::Internal {
-                message: format!("template module {module:?} was not loaded"),
+                message: format!("an unloaded template module {module:?}"),
             })
     }
 
@@ -999,7 +1057,7 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<dir::GlobalTypeId> {
-        // read the own module's rows
+        // read the own module's node types
         if self.is_own_module(module) {
             return self.module.types.get_node_type_id(node);
         }
@@ -1013,7 +1071,7 @@ impl CheckState<'_> {
 
     /// Return one template symbol's committed type.
     fn template_symbol_type(&self, symbol: dir::GlobalSymbolId) -> Option<dir::GlobalTypeId> {
-        // read the own module's rows
+        // read the own module's symbol types
         if self.is_own_module(symbol.module_id) {
             return self.module.types.get_symbol_type_id(symbol);
         }
@@ -1031,7 +1089,7 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<&dir::Decision> {
-        // read the own module's rows
+        // read the own module's decisions
         if self.is_own_module(module) {
             return self.module.checked.as_ref()?.decisions.decision(node);
         }
@@ -1046,7 +1104,7 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<&dir::PlaceResolution> {
-        // read the own module's rows
+        // read the own module's place resolutions
         if self.is_own_module(module) {
             return self
                 .module
@@ -1069,7 +1127,7 @@ impl CheckState<'_> {
         module: ModuleId,
         node: dir::GlobalNodeIdAny,
     ) -> Option<&dir::Coercion> {
-        // read the own module's rows
+        // read the own module's coercions
         if self.is_own_module(module) {
             return self.module.checked.as_ref()?.coercions.coercion(node);
         }

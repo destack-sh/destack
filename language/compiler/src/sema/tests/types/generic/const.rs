@@ -341,6 +341,7 @@ function put(destination: &exclusive [int32], value: int32): void {
     /// @resolution.pattern.assign source=destination[lane] kind=place
     /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, write as int32), return=void)" type=int32
     /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
+    /// @generic.instance id=Slice<int32> template=Slice arguments=(int32)
     /// @generic.instance id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
     /// @resolution.name source=lane target=put.lane
     /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"

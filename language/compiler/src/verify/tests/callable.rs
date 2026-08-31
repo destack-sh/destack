@@ -71,4 +71,3 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
 "#,
     );
 }
-

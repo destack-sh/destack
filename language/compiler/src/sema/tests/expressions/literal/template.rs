@@ -161,12 +161,12 @@ extension of Point implements Display {
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
     /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => MaybeOwned<string>
-    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=MaybeOwned
     /// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
     /// @generic.instance id=Cow<string> template=Cow arguments=(string)
     /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
 
         return todo("Point.display");
         /// @type.node source="todo(\"Point.display\")" type=never

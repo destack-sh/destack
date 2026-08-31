@@ -1968,6 +1968,12 @@ impl CheckState<'_> {
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
             let target_type = extension.target.r#type();
+            let declares_key = extension.members.iter().any(|member| {
+                matches!(
+                    member,
+                    dir::DefinitionMember::AssociatedType(associated) if associated.key == key
+                )
+            });
 
             // keep conformances whose interface declares the projected member
             let mut declaring = SmallVec::<[dir::GlobalTypeId; 2]>::new();
@@ -1978,6 +1984,11 @@ impl CheckState<'_> {
             }
             if declaring.is_empty() {
                 continue;
+            }
+
+            // one extension declaration serves every interface it conforms to
+            if declares_key {
+                declaring.truncate(1);
             }
 
             // require the declared target to bind every extension parameter

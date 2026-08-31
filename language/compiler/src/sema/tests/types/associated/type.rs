@@ -632,7 +632,7 @@ const taken = take(0, new Factory());
 /// @resolution.name source=take target=take
 /// @resolution.call source="take(0, new Factory())" parameters=(int32, Factory) arguments=(provided(0) as int32, provided(new Factory()) as Factory) return=int32 kind=symbol target=take instance=take<Factory>
 /// @generic.instantiation id=take<Factory> template=take arguments=(Factory)
-/// @generic.instance id=take<Factory> template=take arguments=(Factory) evaluated=(F.Output => int32)
+/// @generic.instance id=take<Factory> template=take arguments=(Factory) evaluated=(<F: Producing>(F.Output, F) => F.Output => <F: Producing>(int32, Factory) => int32, F.Output => int32)
 /// @resolution.construct source="new Factory()" parameters=() return=Factory kind=class target=Factory constructor=default
 /// @resolution.name source=Factory target=Factory
 "#,

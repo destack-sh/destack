@@ -119,6 +119,7 @@ const size = bytes.size;
 /// @resolution.access source=bytes root=bytes
 /// @generic.instantiation id="size<uint8, 4>" template=size arguments=(uint8, 4)
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="FixedArray<uint8, 4>" template=FixedArray arguments=(uint8, 4)
 /// @generic.instance id="size<uint8, 4>" template=size arguments=(uint8, 4)
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 "#,

@@ -52,7 +52,7 @@ impl TypeSubstitution {
             .any(|binding| binding.parameter == parameter)
         {
             return Err(CompilerError::Internal {
-                message: format!("generic parameter {parameter:?} was bound more than once"),
+                message: format!("a generic parameter {parameter:?} bound more than once"),
             });
         }
 
@@ -191,6 +191,12 @@ impl CheckState<'_> {
         // flag every affected path once, then rebuild along the flags
         let mut affected = FxIndexMap::default();
         self.substitution_affects(id, rule, &mut affected)?;
+
+        // rebuild the requested root under every normalize pass
+        if matches!(rule, SubstitutionRule::Normalize { .. }) {
+            affected.insert(id, true);
+        }
+
         let mut substituting = FxIndexSet::default();
 
         self.substitute_guarded(target, id, rule, &affected, &mut substituting)
@@ -291,7 +297,9 @@ impl CheckState<'_> {
         let (base, _) = self.refinements(implementation)?;
         let dir::Type::Application(application) = self.ty(base)? else {
             return Err(CompilerError::Internal {
-                message: format!("interface implementation {implementation:?} has no application"),
+                message: format!(
+                    "an interface implementation {implementation:?} without an application"
+                ),
             });
         };
         let module = base.module_id;
@@ -420,11 +428,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         // translate the types each definition holds
         match definition {
-            // an alias holds its aliased value
+            // translate an alias's value
             dir::Definition::TypeAlias(alias) => {
                 self.translate_root(module, origin, &mut alias.value)?;
             }
-            // a struct holds its conformances and members
+            // translate a struct's conformances and members
             dir::Definition::Struct(nominal) => {
                 for conformance in &mut nominal.implements {
                     self.translate_root(module, origin, &mut conformance.interface)?;
@@ -432,7 +440,7 @@ impl CheckState<'_> {
 
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
-            // a class holds its base, conformances, constructors, and members
+            // translate a class's base, conformances, constructors, and members
             dir::Definition::Class(nominal) => {
                 if let Some(heritage) = &mut nominal.extends {
                     self.translate_root(module, origin, &mut heritage.ty)?;
@@ -448,7 +456,7 @@ impl CheckState<'_> {
 
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
-            // an interface holds its bases and members
+            // translate an interface's bases and members
             dir::Definition::Interface(nominal) => {
                 for heritage in &mut nominal.extends {
                     self.translate_root(module, origin, &mut heritage.ty)?;
@@ -456,7 +464,7 @@ impl CheckState<'_> {
 
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
-            // an enum holds its conformances and members
+            // translate an enum's conformances and members
             dir::Definition::Enum(nominal) => {
                 for conformance in &mut nominal.implements {
                     self.translate_root(module, origin, &mut conformance.interface)?;
@@ -464,7 +472,7 @@ impl CheckState<'_> {
 
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
-            // a newtype holds its backing, constructors, and members
+            // translate a newtype's backing, constructors, and members
             dir::Definition::Newtype(nominal) => {
                 self.translate_root(module, origin, &mut nominal.backing)?;
 
@@ -475,7 +483,7 @@ impl CheckState<'_> {
 
                 self.translate_members(module, origin, &mut nominal.members)?;
             }
-            // an extension holds its target, conformances, and members
+            // translate an extension's target, conformances, and members
             dir::Definition::Extension(extension) => {
                 let (dir::ExtensionTarget::Rooted { ty, .. }
                 | dir::ExtensionTarget::Blanket { ty, .. }) = &mut extension.target;
@@ -501,12 +509,12 @@ impl CheckState<'_> {
     ) -> CompilerResult<()> {
         for member in members {
             match member {
-                // members whose types live on their own symbols
+                // skip the members whose types live on their own symbols
                 dir::DefinitionMember::Field(_)
                 | dir::DefinitionMember::Method(_)
                 | dir::DefinitionMember::AssociatedConst(_)
                 | dir::DefinitionMember::EnumVariant(_) => {}
-                // an associated type holds its constraint and its value
+                // translate an associated type's constraint and value
                 dir::DefinitionMember::AssociatedType(member) => {
                     if let Some(constraint) = &mut member.constraint {
                         self.translate_root(module, origin, constraint)?;
@@ -516,12 +524,12 @@ impl CheckState<'_> {
                         self.translate_root(module, origin, value)?;
                     }
                 }
-                // a call or construct signature holds its signature type
+                // translate a call or construct signature's type
                 dir::DefinitionMember::CallSignature(member)
                 | dir::DefinitionMember::ConstructSignature(member) => {
                     self.translate_root(module, origin, &mut member.ty)?;
                 }
-                // an index signature holds its key and value types
+                // translate an index signature's key and value types
                 dir::DefinitionMember::IndexSignature(member) => {
                     self.translate_root(module, origin, &mut member.key_type)?;
                     self.translate_root(module, origin, &mut member.value_type)?;
@@ -703,22 +711,44 @@ impl CheckState<'_> {
         // decide leaves directly and inherit composites from their children
         let ty = self.ty_raw(id)?;
         let hit = match (ty, rule) {
-            // a normalize pass rebuilds every node
-            _ if matches!(rule, SubstitutionRule::Normalize { .. }) => true,
-            // a replace pass hits its own source id or an equal application
+            // hit every member or elided application a normalize pass rebuilds
+            _ if matches!(rule, SubstitutionRule::Normalize { .. }) => match ty {
+                // follow a variable to its solution
+                dir::Type::Variable(variable) => match self.infer.solution(variable)? {
+                    Some(solution) => self.substitution_affects(solution, rule, affected)?,
+                    None => false,
+                },
+                ty => {
+                    let mut hit = match &ty {
+                        dir::Type::Member(_) => true,
+                        dir::Type::Application(application) => {
+                            self.is_partial_application(id.module_id, application)?
+                        }
+                        _ => false,
+                    };
+                    let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
+                    self.for_each_type_child(id.module_id, &ty, |child| children.push(child))?;
+                    for child in children {
+                        hit |= self.substitution_affects(child, rule, affected)?;
+                    }
+
+                    hit
+                }
+            },
+            // hit a replace pass's own source id or an equal application
             _ if matches!(rule, SubstitutionRule::Replace { from, .. }
                 if from == id || self.replaces_application(from, id)?) =>
             {
                 true
             }
-            // a bare reference to a conditional-infer binder
+            // hit a bare reference to a conditional-infer binder
             (dir::Type::Application(instance), _)
                 if instance.arguments.is_empty()
                     && rule.infer_capture(instance.symbol).is_some() =>
             {
                 true
             }
-            // a direct conditional-infer binder
+            // hit a direct conditional-infer binder
             (dir::Type::Operation(operation), _)
                 if let dir::TypeOperation::Infer(dir::InferType {
                     symbol: Some(symbol),
@@ -728,20 +758,20 @@ impl CheckState<'_> {
             {
                 true
             }
-            // a bound generic parameter
+            // hit a bound generic parameter
             (dir::Type::Parameter(parameter), SubstitutionRule::Substitute { .. }) => {
                 rule.substituted(parameter).is_some()
             }
-            // a receiver reference under a receiver rewrite
+            // hit a receiver reference under a receiver rewrite
             (dir::Type::This, SubstitutionRule::Substitute { .. }) => rule.receiver().is_some(),
             // follow a variable to its solution
             (dir::Type::Variable(variable), _) => match self.infer.solution(variable)? {
                 Some(solution) => self.substitution_affects(solution, rule, affected)?,
                 None => false,
             },
-            // an inference barrier under an erasing pass
+            // hit an inference barrier under an erasing pass
             (_, SubstitutionRule::EraseNoInfer) if self.no_infer_target(id)?.is_some() => true,
-            // every other head inherits from its children
+            // inherit every other head from its children
             _ => {
                 let mut hit = false;
                 let mut children = SmallVec::<[dir::GlobalTypeId; 8]>::new();
@@ -895,6 +925,14 @@ impl CheckState<'_> {
             ..
         } = rule
         {
+            // complete an elided application even under rigid arguments
+            if let dir::Type::Application(application) = self.ty(rebuilt)?
+                && let Some(filled) =
+                    self.fill_elided_application(rebuilt.module_id, &application)?
+            {
+                return Ok(filled);
+            }
+
             let flags = self.type_flags(rebuilt)?;
             if !flags.has_parameter() && !flags.has_this() && !flags.has_variable() {
                 return self.normalize(origin, rebuilt);

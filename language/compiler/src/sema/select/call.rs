@@ -1104,7 +1104,8 @@ impl CheckState<'_> {
                     constraint: *constraint,
                 },
                 function: dir::DynamicFunction::CallSignature(*source),
-                // record the signature's own instantiation
+                // record the signature's own bindings, dropping the parameters
+                //  the constraint application already carries
                 generic_arguments: signature
                     .generic_arguments
                     .iter()

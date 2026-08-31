@@ -18,44 +18,73 @@ impl CheckState<'_> {
         self.materialize_definitions(&mut worklist)?;
         self.materialize_symbol_types(&mut worklist)?;
         self.materialize_node_types(&mut worklist)?;
+        self.materialize_payloads(&mut worklist)?;
         self.materialize_member_bodies(&mut worklist)?;
         self.materialize_instances(&mut worklist)
     }
 
-    /// Evaluate each committed definition's types to their closed forms.
+    /// Materialize one committed type.
+    ///
+    /// Solved variables substitute into the spelling.
+    /// This-typed and unsolved types stay written for their instances.
+    /// Template types stay written and intern their closed applications.
+    /// Closed types evaluate the computations they reach and intern the result's applications.
+    fn materialize_type(
+        &mut self,
+        anchor: dir::GlobalNodeIdAny,
+        ty: dir::GlobalTypeId,
+        worklist: &mut InstanceWorklist,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let origin = Origin::Node(anchor, None);
+
+        // resolve solved variables into the committed spelling
+        let mut ty = ty;
+        let mut flags = self.type_flags(ty)?;
+        if flags.has_variable() {
+            ty = self.deeply_resolve(origin, ty)?;
+            flags = self.type_flags(ty)?;
+        }
+
+        // close this-typed and unsolved types under their instances
+        if flags.has_this() || flags.has_variable() {
+            return Ok(ty);
+        }
+
+        // keep template types written, interning their closable applications
+        if flags.has_parameter() {
+            self.intern_applications(ty, anchor, 0, worklist)?;
+
+            return Ok(ty);
+        }
+
+        // evaluate only computation results, keeping written aliases as written
+        let resolved = match self.has_reachable_computation(ty)? {
+            true => self.evaluate_type(origin, ty)?,
+            false => ty,
+        };
+        self.intern_applications(resolved, anchor, 0, worklist)?;
+
+        Ok(resolved)
+    }
+
+    /// Close the committed definitions, keeping the ones evaluation moves.
     fn materialize_definitions(&mut self, worklist: &mut InstanceWorklist) -> CompilerResult<()> {
-        // collect the committed rows once, evaluating outside the module borrow
+        // collect the committed definitions once, evaluating outside the module borrow
         let committed: Vec<(dir::GlobalSymbolId, dir::Definition)> = self
             .module
             .iter_definitions()
             .map(|(symbol, definition)| (symbol, definition.clone()))
             .collect();
 
-        // evaluate every embedded type and keep the definitions evaluation moves
         for (symbol, definition) in committed {
             let Some(source) = self.module.definition_source_maybe(symbol) else {
                 continue;
             };
 
-            let origin = Origin::Node(source, None);
+            // close every type the definition embeds
             let mut resolved = definition.clone();
-            dir::TypeFold::map_types(&mut resolved, &mut |ty| -> CompilerResult<_> {
-                // keep open template types written; instances materialize them
-                let flags = self.type_flags(ty)?;
-                if flags.has_parameter() || flags.has_this() || flags.has_variable() {
-                    return Ok(ty);
-                }
-
-                // evaluate only computation results, keeping written aliases as written
-                let resolved = match self.has_reachable_computation(ty)? {
-                    true => self.evaluate_type(origin, ty)?,
-                    false => ty,
-                };
-
-                // intern the concrete applications the evaluated type reaches
-                self.intern_applications(resolved, source, 0, worklist)?;
-
-                Ok(resolved)
+            dir::TypeFold::map_types(&mut resolved, &mut |ty| {
+                self.materialize_type(source, ty, worklist)
             })?;
 
             // override only the definitions evaluation moves
@@ -69,19 +98,13 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Materialize each committed symbol type.
+    /// Close the committed symbol types, keeping the ones evaluation moves.
     fn materialize_symbol_types(&mut self, worklist: &mut InstanceWorklist) -> CompilerResult<()> {
-        // collect the committed rows once, evaluating outside the module borrow
+        // collect the committed symbol types once, evaluating outside the module borrow
         let committed: Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)> =
             self.module.types.symbol_types().collect();
 
-        // materialize every closed symbol type, overriding the ones evaluation moves
         for (symbol, ty) in committed {
-            let flags = self.type_flags(ty)?;
-            if flags.has_parameter() || flags.has_this() || flags.has_variable() {
-                continue;
-            }
-
             // skip synthesized symbols without a declaration
             let declaration = self
                 .binding_table(symbol.module_id)
@@ -91,48 +114,70 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // evaluate only computation results, keeping written aliases as written
-            let mut resolved = ty;
-            if self.has_reachable_computation(ty)? {
-                let origin = Origin::Node(source, None);
-                resolved = self.evaluate_type(origin, ty)?;
-                if resolved != ty {
-                    self.module.types_tail.set_symbol_type(symbol, resolved);
-                }
+            // override only the symbol types evaluation moves
+            let resolved = self.materialize_type(source, ty, worklist)?;
+            if resolved != ty {
+                self.module.types_tail.set_symbol_type(symbol, resolved);
             }
-
-            // intern the concrete applications the materialized type reaches
-            self.intern_applications(resolved, source, 0, worklist)?;
         }
 
         Ok(())
     }
 
-    /// Materialize each committed node type.
+    /// Close the committed node types, keeping the ones evaluation moves.
     fn materialize_node_types(&mut self, worklist: &mut InstanceWorklist) -> CompilerResult<()> {
-        // collect the committed rows once, evaluating outside the module borrow
+        // collect the committed node types once, evaluating outside the module borrow
         let committed: Vec<(dir::GlobalNodeIdAny, dir::GlobalTypeId)> =
             self.module.types.node_types().collect();
 
-        // materialize every closed node type, overriding the ones evaluation moves
         for (node, ty) in committed {
-            let flags = self.type_flags(ty)?;
-            if flags.has_parameter() || flags.has_this() || flags.has_variable() {
-                continue;
+            // override only the node types evaluation moves
+            let resolved = self.materialize_type(node, ty, worklist)?;
+            if resolved != ty {
+                self.module.types_tail.set_node_type(node, resolved);
             }
+        }
 
-            // evaluate only computation results, keeping written aliases as written
-            let mut resolved = ty;
-            if self.has_reachable_computation(ty)? {
-                let origin = Origin::Node(node, None);
-                resolved = self.evaluate_type(origin, ty)?;
-                if resolved != ty {
-                    self.module.types_tail.set_node_type(node, resolved);
-                }
+        Ok(())
+    }
+
+    /// Close the committed decisions, place resolutions, and coercions.
+    fn materialize_payloads(&mut self, worklist: &mut InstanceWorklist) -> CompilerResult<()> {
+        let Some(checked) = self.module.checked.clone() else {
+            return Ok(());
+        };
+
+        // close the types each committed decision carries
+        for (node, decision) in checked.decisions.decision_entries() {
+            let mut resolved = decision.clone();
+            dir::TypeFold::map_types(&mut resolved, &mut |ty| {
+                self.materialize_type(node, ty, worklist)
+            })?;
+            if resolved != *decision {
+                self.module.decisions.set_decision(node, resolved);
             }
+        }
 
-            // intern the concrete applications the materialized type reaches
-            self.intern_applications(resolved, node, 0, worklist)?;
+        // close the types each committed place resolution carries
+        for (node, place) in checked.decisions.place_entries() {
+            let mut resolved = *place;
+            dir::TypeFold::map_types(&mut resolved, &mut |ty| {
+                self.materialize_type(node, ty, worklist)
+            })?;
+            if resolved != *place {
+                self.module.decisions.set_place_resolution(node, resolved);
+            }
+        }
+
+        // close the types each committed coercion carries
+        for (node, coercion) in checked.coercions.coercions() {
+            let mut resolved = coercion.clone();
+            dir::TypeFold::map_types(&mut resolved, &mut |ty| {
+                self.materialize_type(node, ty, worklist)
+            })?;
+            if resolved != *coercion {
+                self.module.coercions.bind_coercion(node, resolved);
+            }
         }
 
         Ok(())
@@ -175,10 +220,8 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
+        // accept any parameter beyond the memory kinds
         let parameters = template.parameters.clone();
-
-        // any parameter beyond the memory kinds makes the symbol generic,
-        //  since semantic identity is region and space free
         for parameter in parameters {
             let parameter = parameter.into_global(template_id.module_id);
             let is_memory = self
@@ -194,6 +237,7 @@ impl CheckState<'_> {
 
     /// Convert materialized state into one materialized DIR module.
     pub(in crate::sema) fn into_materialized(mut self) -> CompilerResult<DirMaterialized> {
+        // write this pass's results back into the module state
         self.write_back()?;
         let module = self.module_id;
         self.commit_instance_conformances(module)?;

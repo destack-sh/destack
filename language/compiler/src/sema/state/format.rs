@@ -234,7 +234,7 @@ impl CheckState<'_> {
             }
             // print the receiver the stdlib elides as the bare signature
             dir::Type::Function(function) => match self.receiver_mode(function.receiver)? {
-                dir::ReceiverMode::Borrowed(dir::Access::Exclusive) => {
+                mode if mode.is_elided() => {
                     self.format_depth_at(module, function.signature, next)?
                 }
                 mode => {

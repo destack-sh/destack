@@ -640,7 +640,7 @@ const value: boolean = probe(todo("iter" as string | undefined));
 import { Iter } from "./lib.ds";
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(inner.Iter<int32>) => boolean
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(inner.Iter<int32, unknown>) => boolean
 /// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
 /// @type.symbol symbol=probe.values source="values: Iter<int32>" type=inner.Iter<int32, unknown>
 /// @resolution.name source=Iter target=inner.Iter
@@ -649,7 +649,7 @@ const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(inner.Iter<int32>) arguments=(provided(todo("iter")) as inner.Iter<int32>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(inner.Iter<int32, unknown>) arguments=(provided(todo("iter")) as inner.Iter<int32, unknown>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 "#,
@@ -717,7 +717,7 @@ export interface Marker {
 }
 
 declare function probe(values: Iter<int32>): boolean;
-/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(b.Iter<int32>) => boolean
+/// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(b.Iter<int32, unknown>) => boolean
 /// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
 /// @type.symbol symbol=probe.values source="values: Iter<int32>" type=b.Iter<int32, unknown>
 /// @resolution.name source=Iter target=b.Iter
@@ -726,7 +726,7 @@ const value = probe(todo("iter"));
 /// @type.symbol symbol=value source=value type=boolean
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=probe target=probe
-/// @resolution.call source="probe(todo(\"iter\"))" parameters=(b.Iter<int32>) arguments=(provided(todo("iter")) as b.Iter<int32>) return=boolean kind=symbol target=probe
+/// @resolution.call source="probe(todo(\"iter\"))" parameters=(b.Iter<int32, unknown>) arguments=(provided(todo("iter")) as b.Iter<int32, unknown>) return=boolean kind=symbol target=probe
 /// @resolution.name source=todo target=todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 
@@ -1060,22 +1060,23 @@ export { Box } from "./a.ds";
 === annotated ===
 import { Box } from "./b.ds";
 
-declare const boxed: { value: Marker };
+declare const boxed: Box<Marker>;
 const value: Marker = boxed.value;
 
 === dir ===
 import { Box } from "./b.ds";
 
 declare const boxed: Box;
-/// @type.symbol symbol=boxed source=boxed type={ value: a.Marker }
+/// @type.symbol symbol=boxed source=boxed type=a.Box<a.Marker>
 /// @resolution.pattern source=boxed kind=binding target=boxed
+/// @generic.instance id=a.Box<a.Marker> template=a.Box arguments=(a.Marker)
 /// @resolution.name source=Box target=a.Box
 
 const value = boxed.value;
 /// @type.symbol symbol=value source=value type=a.Marker
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=boxed target=boxed
-/// @resolution.member source=boxed.value receiver={ value: a.Marker } type=a.Marker kind=field target_receiver={ value: a.Marker } key=value target_type=a.Marker
+/// @resolution.member source=boxed.value receiver=a.Box<a.Marker> type=a.Marker kind=field target_receiver=a.Box<a.Marker> key=value target_type=a.Marker
 /// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=boxed root=boxed
 /// @resolution.access source=boxed.value root=boxed keys=[value]

@@ -1205,6 +1205,7 @@ const box: local Box<string> = new Box<string>();
 class Box<T = string> {
 /// @generic.template symbol=Box parameters=(in out T = string)
 /// @type.symbol symbol=Box type=Box
+/// @generic.instance id=Box<string> template=Box arguments=(string)
 /// @definition.class symbol=Box template=(in out T = string)
 /// @definition.field symbol=Box.value source="value: T | undefined" key=value type=T | undefined
 /// @definition.method symbol=Box.constructor slot=constructor role=constructor type=<Box.constructor.P0: Place>() => Managed<this, Box.constructor.P0>
@@ -1237,7 +1238,6 @@ class Box<T = string> {
 const box = new Box();
 /// @type.symbol symbol=box source=box type=local Box<string>
 /// @resolution.pattern source=box kind=binding target=box
-/// @generic.instance id=Box<string> template=Box arguments=(string)
 /// @type.node source="new Box()" type=local Box<string>
 /// @resolution.construct source="new Box()" parameters=() return=local Box<string> kind=class target=Box constructor=Box.constructor instance=Box<string>
 /// @generic.instantiation id="Box.constructor<string, \"local\">" template=Box.constructor arguments=(string, "local")

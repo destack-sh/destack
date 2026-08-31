@@ -661,7 +661,7 @@ extension of int32 implements Doubling {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Doubling target=Doubling
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a readonly int32) => int32.Output
+/// @definition.method symbol=double slot=double type=<double.'a>(this: &double.'a readonly int32) => int32
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Doubling.Output
 /// @definition.conformance symbol=<module>#2 member=double requirement=Doubling.double
 /// @resolution.name source=Doubling target=Doubling
@@ -671,7 +671,7 @@ extension of int32 implements Doubling {
 
     double(): this.Output {
     /// @generic.template symbol=double parent=template#1 parameters=('a)
-    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly int32) => int32.Output
+    /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly int32) => int32
     /// @type.symbol symbol=double.this type=&double.'a readonly int32
 
         todo("double")
@@ -884,7 +884,7 @@ interface Container<S> {
         Container<string>.Item,
         /// @resolution.name source=Container target=Container
         /// @resolution.name source=Container<string>.Item target=Container.Item
-        /// @generic.instance id=Container<string> template=Container arguments=(string)
+        /// @generic.instance id=Container<string> template=Container arguments=(string) evaluated=((this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, Container<S><type Item = string>.Item) => (this: Container<string>, string) => (Container<string>.Item, Container<string>.Item, Container<string>.Item, Container<string>.Item, string))
 
         Container<S, type Item = string>.Item,
         /// @resolution.name source=Container target=Container
@@ -1121,7 +1121,7 @@ extension of int32 implements Halving {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Halving target=Halving
 /// @definition.associated.type symbol=Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32.Output
+/// @definition.method symbol=halve slot=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Halving.Output
 /// @definition.conformance symbol=<module>#2 member=halve requirement=Halving.halve
 /// @resolution.name source=Halving target=Halving
@@ -1131,7 +1131,7 @@ extension of int32 implements Halving {
 
     halve(&readonly this): this.Output {
     /// @generic.template symbol=halve parent=template#1 parameters=('a)
-    /// @type.symbol symbol=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32.Output
+    /// @type.symbol symbol=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32
     /// @type.symbol symbol=halve.this source="&readonly this" type=&halve.'a readonly this
 
         todo("halve")

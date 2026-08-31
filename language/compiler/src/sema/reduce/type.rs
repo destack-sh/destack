@@ -66,7 +66,7 @@ impl CheckState<'_> {
             )
             .then_some(ty)),
 
-            // every other value type carries its own representation
+            // leave every other value type at its own representation
             _ => Ok(None),
         }
     }
@@ -840,6 +840,42 @@ impl CheckState<'_> {
         }))?;
 
         Ok(Some(filled))
+    }
+
+    /// Return whether one application elides parameters carrying semantic identity.
+    pub(in crate::sema) fn is_partial_application(
+        &mut self,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<bool> {
+        // read the declared parameters beside the written arguments
+        let Some(template) = self.symbol_template(instance.symbol)? else {
+            return Ok(false);
+        };
+        let parameters = self.generic_template_parameters(template)?;
+        let written = self.type_ids(module, instance.arguments)?.to_vec();
+
+        // slot the written arguments over the parameters like an application
+        let mut supplied = written.iter().copied().peekable();
+        let mut elides_value = false;
+        for parameter in parameters {
+            let Some(binding) = self.generic_parameter(parameter).cloned() else {
+                continue;
+            };
+            match supplied.peek() {
+                // consume the written argument the parameter takes
+                Some(argument) if self.argument_fills_parameter(&binding, *argument)? => {
+                    supplied.next();
+                }
+                // elide memory parameters freely
+                _ if binding.memory_parameter().is_some() => {}
+                // leave a value parameter without a written argument open
+                _ => elides_value = true,
+            }
+        }
+
+        // keep a bare reference elided for its scope to select
+        Ok(!written.is_empty() && elides_value)
     }
 
     /// Return the substituted body of one transparent type alias application.

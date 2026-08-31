@@ -26,6 +26,7 @@ declare const transform: Function<(int32,), string>;
 /// @type.symbol symbol=transform source=transform type=Function<(int32,), string>
 /// @resolution.pattern source=transform kind=binding target=transform
 /// @resolution.name source=Function target=Function
+/// @generic.instance id="Function<(int32,), string, \"exclusive\">" template=Function arguments=((int32,), string, "exclusive")
 
 const text = transform(1);
 /// @type.symbol symbol=text source=text type=string
@@ -58,7 +59,7 @@ function invokeReadonly(run: &readonly Function<(), void>): void {
             .without_reference_types(),
         r#"
 === annotated ===
-function invokeReadonly<'a>(run: &'a readonly Function<(), void>): void {
+function invokeReadonly<'a>(run: &'a readonly Function<(), void, "exclusive">): void {
     run();
 }
 
@@ -66,7 +67,7 @@ function invokeReadonly<'a>(run: &'a readonly Function<(), void>): void {
 function invokeReadonly(run: &readonly Function<(), void>): void {
 /// @generic.template symbol=invokeReadonly parameters=('a)
 /// @type.symbol symbol=invokeReadonly type=<invokeReadonly.'a>(&invokeReadonly.'a readonly Function<(), void>) => void
-/// @type.symbol symbol=invokeReadonly.run source="run: &readonly Function<(), void>" type=&invokeReadonly.'a readonly Function<(), void>
+/// @type.symbol symbol=invokeReadonly.run source="run: &readonly Function<(), void>" type=&invokeReadonly.'a readonly Function<(), void, "exclusive">
 /// @resolution.name source=Function target=Function
 
     run();
@@ -79,7 +80,7 @@ function invokeReadonly(run: &readonly Function<(), void>): void {
 }
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Function<(), void>' is not assignable to the method's 'this' type '&exclusive local Function<(), void>'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly Function<(), void, \"exclusive\">' is not assignable to the method's 'this' type '&exclusive local Function<(), void, \"exclusive\">'"
 /// @diagnostic.label line=3 column=5 span="run()" line_source="run();"
 "#,
     );
@@ -630,7 +631,7 @@ function total(values: int32[]): int32 {
 
 }
 "#, r#"
-/// @diagnostic.error id=not-assignable message="type '\"mutable\"' is not assignable to type '\"readonly\"'"
+/// @diagnostic.error id=receiver-access-not-granted message="the callable requires 'mutable' access to its receiver, and its slot takes it 'readonly'"
 /// @diagnostic.label line=6 column=11 span="(value) => {\n        sum += value;\n    }" line_source="visit((value) => {"
 "#);
 }
@@ -705,4 +706,398 @@ function total(values: int32[]): int32 {
 "#, r#""#);
 }
 
+/// Reject a function reference stored where its return must widen into a union.
+#[test]
+fn test_reject_storing_a_function_reference_into_a_union_returning_slot() {
+    let session = TestSession::single(
+        r#"
+function increment(value: int32): int32 {
+    return value + 1;
+}
 
+const widened: (value: int32) => int32 | undefined = increment;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function increment(value: int32): int32 {
+    return value + 1;
+}
+
+const widened: (arg0: int32) => int32 | undefined = increment;
+
+=== dir ===
+function increment(value: int32): int32 {
+/// @type.symbol symbol=increment type=(int32) => int32
+/// @type.symbol symbol=increment.value source="value: int32" type=int32
+
+    return value + 1;
+    /// @resolution.name source=value target=increment.value
+    /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=increment.value
+
+}
+
+const widened: (value: int32) => int32 | undefined = increment;
+/// @type.symbol symbol=widened source=widened type=Function<(int32,), int32 | undefined>
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @type.symbol symbol=value source="value: int32" type=int32
+/// @resolution.name source=increment target=increment
+/// @resolution.function source=increment type=Function<(int32,), int32, "readonly"> target=increment
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'Function<(value: int32,), int32, \"readonly\">' is not assignable to type '(value: int32) => int32 | undefined'"
+/// @diagnostic.label line=6 column=54 span="increment" line_source="const widened: (value: int32) => int32 | undefined = increment;"
+/// @diagnostic.related line=6 column=16 span="(value: int32) => int32 | undefined" line_source="const widened: (value: int32) => int32 | undefined = increment;" message="expected due to this annotation"
+"#,
+    );
+}
+
+/// Reject a function reference argument whose return must widen into a union.
+#[test]
+fn test_reject_a_function_reference_argument_in_a_union_returning_callback_slot() {
+    let session = TestSession::single(
+        r#"
+function increment(value: int32): int32 {
+    return value + 1;
+}
+
+declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
+
+const out = applyOpen(increment);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function increment(value: int32): int32 {
+    return value + 1;
+}
+
+declare function applyOpen<U>(map: (arg0: int32) => U | undefined): U | undefined;
+
+const out: int32 | undefined = applyOpen<int32>(increment);
+
+=== dir ===
+function increment(value: int32): int32 {
+/// @type.symbol symbol=increment type=(int32) => int32
+/// @type.symbol symbol=increment.value source="value: int32" type=int32
+
+    return value + 1;
+    /// @resolution.name source=value target=increment.value
+    /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=increment.value
+
+}
+
+declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
+/// @generic.template symbol=applyOpen parameters=(U)
+/// @type.symbol symbol=applyOpen type=<U>(Function<(int32,), U | undefined>) => U | undefined
+/// @type.symbol symbol=applyOpen.U source=U type=U
+/// @type.symbol symbol=applyOpen.map source="map: (value: int32) => U | undefined" type=Function<(int32,), U | undefined>
+/// @type.symbol symbol=applyOpen.value source="value: int32" type=int32
+/// @resolution.name source=U target=applyOpen.U
+/// @resolution.name source=U target=applyOpen.U
+
+const out = applyOpen(increment);
+/// @type.symbol symbol=out source=out type=int32 | undefined
+/// @resolution.pattern source=out kind=binding target=out
+/// @resolution.name source=applyOpen target=applyOpen
+/// @resolution.call source=applyOpen(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=int32 | undefined kind=symbol target=applyOpen instance=applyOpen<int32>
+/// @generic.instantiation id=applyOpen<int32> template=applyOpen arguments=(int32)
+/// @resolution.name source=increment target=increment
+/// @resolution.function source=increment type=Function<(int32,), int32, "readonly"> target=increment
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-assignable message="argument of type 'Function<(value: int32,), int32, \"readonly\">' is not assignable to parameter of type '(value: int32) => int32 | undefined'"
+/// @diagnostic.label line=8 column=23 span="increment" line_source="const out = applyOpen(increment);"
+/// @diagnostic.related line=8 column=13 span="applyOpen(increment)" line_source="const out = applyOpen(increment);" message="in this call"
+"#,
+    );
+}
+
+/// Accept a lambda in a union-returning callback slot through contextual typing.
+#[test]
+fn test_accept_a_lambda_argument_in_a_union_returning_callback_slot() {
+    let session = TestSession::single(
+        r#"
+declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
+
+const out: int32 | undefined = applyOpen((value: int32) => value + 1);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+declare function applyOpen<U>(map: (arg0: int32) => U | undefined): U | undefined;
+
+const out: int32 | undefined = applyOpen<int32>(
+    (value: int32): int32 | undefined => (value + 1) as int32 | undefined,
+);
+
+=== dir ===
+declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
+/// @generic.template symbol=applyOpen parameters=(U)
+/// @type.symbol symbol=applyOpen type=<U>(Function<(int32,), U | undefined>) => U | undefined
+/// @type.symbol symbol=applyOpen.U source=U type=U
+/// @type.symbol symbol=applyOpen.map source="map: (value: int32) => U | undefined" type=Function<(int32,), U | undefined>
+/// @type.symbol symbol=applyOpen.value source="value: int32" type=int32
+/// @resolution.name source=U target=applyOpen.U
+/// @resolution.name source=U target=applyOpen.U
+
+const out: int32 | undefined = applyOpen((value: int32) => value + 1);
+/// @type.symbol symbol=out source=out type=int32 | undefined
+/// @resolution.pattern source=out kind=binding target=out
+/// @resolution.name source=applyOpen target=applyOpen
+/// @resolution.call source="applyOpen((value: int32) => value + 1)" parameters=(Function<(int32,), int32 | undefined>) arguments=(provided((value: int32) => value + 1) as Function<(int32,), int32 | undefined>) return=int32 | undefined kind=symbol target=applyOpen instance=applyOpen<int32>
+/// @generic.instantiation id=applyOpen<int32> template=applyOpen arguments=(int32)
+/// @type.symbol symbol=symbol5 source="(value: int32) => value + 1" type=Function<(int32,), int32 | undefined, "readonly">
+/// @type.symbol symbol=symbol5.value source="value: int32" type=int32
+/// @resolution.name source=value target=symbol5.value
+/// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.access source=value root=symbol5.value
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Accept a function reference upcasting its class return in a stored slot.
+#[test]
+fn test_accept_a_function_reference_upcasting_its_class_return() {
+    let session = TestSession::single(
+        r#"
+class Animal {}
+class Dog extends Animal {}
+
+declare function makeDog(): Dog;
+
+const covariant: () => Animal = makeDog;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Animal {}
+class Dog extends Animal {}
+
+declare function makeDog(): Dog;
+
+const covariant: () => Animal = makeDog;
+
+=== dir ===
+class Animal {}
+/// @type.symbol symbol=Animal source="class Animal {}" type=Animal
+/// @definition.class symbol=Animal source="class Animal {}"
+
+class Dog extends Animal {}
+/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=Dog
+/// @definition.class symbol=Dog source="class Dog extends Animal {}"
+/// @definition.extends symbol=Dog source=Animal target=Animal
+/// @resolution.name source=Animal target=Animal
+
+declare function makeDog(): Dog;
+/// @type.symbol symbol=makeDog source="declare function makeDog(): Dog" type=() => Dog
+/// @resolution.name source=Dog target=Dog
+
+const covariant: () => Animal = makeDog;
+/// @type.symbol symbol=covariant source=covariant type=Function<(), Animal>
+/// @resolution.pattern source=covariant kind=binding target=covariant
+/// @resolution.name source=Animal target=Animal
+/// @resolution.name source=makeDog target=makeDog
+/// @resolution.function source=makeDog type=Function<(), Dog, "readonly"> target=makeDog
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Accept a function reference narrowing its parameter in a stored slot.
+#[test]
+fn test_accept_a_function_reference_narrowing_its_parameter() {
+    let session = TestSession::single(
+        r#"
+class Animal {}
+class Dog extends Animal {}
+
+declare function eatAnimal(animal: Animal): void;
+
+const contravariant: (dog: Dog) => void = eatAnimal;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Animal {}
+class Dog extends Animal {}
+
+declare function eatAnimal(animal: Animal): void;
+
+const contravariant: (arg0: Dog) => void = eatAnimal;
+
+=== dir ===
+class Animal {}
+/// @type.symbol symbol=Animal source="class Animal {}" type=Animal
+/// @definition.class symbol=Animal source="class Animal {}"
+
+class Dog extends Animal {}
+/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=Dog
+/// @definition.class symbol=Dog source="class Dog extends Animal {}"
+/// @definition.extends symbol=Dog source=Animal target=Animal
+/// @resolution.name source=Animal target=Animal
+
+declare function eatAnimal(animal: Animal): void;
+/// @type.symbol symbol=eatAnimal source="declare function eatAnimal(animal: Animal): void" type=(Animal) => void
+/// @type.symbol symbol=eatAnimal.animal source="animal: Animal" type=Animal
+/// @resolution.name source=Animal target=Animal
+
+const contravariant: (dog: Dog) => void = eatAnimal;
+/// @type.symbol symbol=contravariant source=contravariant type=Function<(Dog,), void>
+/// @resolution.pattern source=contravariant kind=binding target=contravariant
+/// @type.symbol symbol=dog source="dog: Dog" type=Dog
+/// @resolution.name source=Dog target=Dog
+/// @resolution.name source=eatAnimal target=eatAnimal
+/// @resolution.function source=eatAnimal type=Function<(Animal,), void, "readonly"> target=eatAnimal
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Accept a type predicate function in a boolean-returning slot.
+#[test]
+fn test_accept_a_type_predicate_function_in_a_boolean_slot() {
+    let session = TestSession::single(
+        r#"
+class Animal {}
+class Dog extends Animal {}
+
+declare function isDog(animal: Animal): animal is Dog;
+
+const predicate: (animal: Animal) => boolean = isDog;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Animal {}
+class Dog extends Animal {}
+
+declare function isDog(animal: Animal): animal; is Dog;
+
+const predicate: (arg0: Animal) => boolean = isDog;
+
+=== dir ===
+class Animal {}
+/// @type.symbol symbol=Animal source="class Animal {}" type=Animal
+/// @definition.class symbol=Animal source="class Animal {}"
+
+class Dog extends Animal {}
+/// @type.symbol symbol=Dog source="class Dog extends Animal {}" type=Dog
+/// @definition.class symbol=Dog source="class Dog extends Animal {}"
+/// @definition.extends symbol=Dog source=Animal target=Animal
+/// @resolution.name source=Animal target=Animal
+
+declare function isDog(animal: Animal): animal is Dog;
+/// @resolution.guard source="declare function isDog(animal: Animal): animal is Dog" kind=is value=void target=Dog predicate="void is subtype(Dog)" narrowed=Narrow<void, Dog>
+/// @resolution.name source=Dog target=Dog
+
+const predicate: (animal: Animal) => boolean = isDog;
+/// @type.symbol symbol=predicate source=predicate type=Function<(Animal,), boolean>
+/// @resolution.pattern source=predicate kind=binding target=predicate
+/// @type.symbol symbol=animal source="animal: Animal" type=Animal
+/// @resolution.name source=Animal target=Animal
+/// @resolution.name source=isDog target=isDog
+/// @resolution.function source=isDog type=Function<(Animal,), boolean> target=isDog
+"#,
+        r#"
+"#,
+    );
+}
+
+/// Reject a function value stored where its return must change representation.
+#[test]
+fn test_reject_a_function_value_whose_return_changes_representation() {
+    let session = TestSession::single(
+        r#"
+class Dog {}
+
+declare const makeInt: () => int32;
+declare function makeDog(): Dog;
+
+const widened: () => int64 = makeInt;
+const erased: () => unknown = makeDog;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+class Dog {}
+
+declare const makeInt: () => int32;
+declare function makeDog(): Dog;
+
+const widened: () => int64 = makeInt;
+const erased: () => unknown = makeDog;
+
+=== dir ===
+class Dog {}
+/// @type.symbol symbol=Dog source="class Dog {}" type=Dog
+/// @definition.class symbol=Dog source="class Dog {}"
+
+declare const makeInt: () => int32;
+/// @type.symbol symbol=makeInt source=makeInt type=Function<(), int32>
+/// @resolution.pattern source=makeInt kind=binding target=makeInt
+
+declare function makeDog(): Dog;
+/// @type.symbol symbol=makeDog source="declare function makeDog(): Dog" type=() => Dog
+/// @resolution.name source=Dog target=Dog
+
+const widened: () => int64 = makeInt;
+/// @type.symbol symbol=widened source=widened type=Function<(), int64>
+/// @resolution.pattern source=widened kind=binding target=widened
+/// @resolution.name source=makeInt target=makeInt
+/// @resolution.place source=makeInt placement="local" lifetime="static" access="exclusive"
+/// @resolution.access source=makeInt root=makeInt
+
+const erased: () => unknown = makeDog;
+/// @type.symbol symbol=erased source=erased type=Function<(), unknown>
+/// @resolution.pattern source=erased kind=binding target=erased
+/// @resolution.name source=makeDog target=makeDog
+/// @resolution.function source=makeDog type=Function<(), Dog, "readonly"> target=makeDog
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type '() => int32' is not assignable to type '() => int64'"
+/// @diagnostic.label line=7 column=30 span="makeInt" line_source="const widened: () => int64 = makeInt;"
+/// @diagnostic.related line=7 column=16 span="() => int64" line_source="const widened: () => int64 = makeInt;" message="expected due to this annotation"
+/// @diagnostic.error id=not-assignable message="type 'Function<(), Dog, \"readonly\">' is not assignable to type '() => unknown'"
+/// @diagnostic.label line=8 column=31 span="makeDog" line_source="const erased: () => unknown = makeDog;"
+/// @diagnostic.related line=8 column=15 span="() => unknown" line_source="const erased: () => unknown = makeDog;" message="expected due to this annotation"
+"#,
+    );
+}

@@ -2597,7 +2597,7 @@ export newtype interface Suite {
 import { Iterable } from "destack:iter";
 
 export newtype interface Parameterized<in out P: readonly unknown[]> {
-    (name: string, body?: Function<P, void>): void;
+    (name: string, body?: Function<P, void, "exclusive">): void;
     readonly skip: Parameterized<P>;
 }
 
@@ -2614,12 +2614,12 @@ export newtype interface Parameterized<P: readonly unknown[]> {
 /// @definition.interface symbol=Parameterized template=(in out P#1: readonly unknown[]) nominal=true
 /// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P#1>
 /// @definition.field symbol=Parameterized.skip source="readonly skip: Parameterized<P>" key=skip type=Parameterized<P#1>
-/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P#1, void> | undefined?), void>
+/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P#1, void, "exclusive"> | undefined?), void>
 /// @type.symbol symbol=Parameterized.P source="P: readonly unknown[]" type=P#1
 
     (name: string, body?: Function<P, void>): void;
     /// @type.symbol symbol=Parameterized.name source="name: string" type=string
-    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P#1, void> | undefined
+    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P#1, void, "exclusive"> | undefined
     /// @resolution.name source=Function target=Function
     /// @resolution.name source=P target=Parameterized.P
 
@@ -2670,7 +2670,7 @@ export newtype interface Parameterized<P: readonly unknown[] & Copy> {
 import { Copy } from "destack:memory";
 
 export newtype interface Parameterized<in out P: readonly unknown[] & Copy> {
-    (name: string, body?: Function<P, void>): void;
+    (name: string, body?: Function<P, void, "exclusive">): void;
 }
 
 === dir ===
@@ -2681,13 +2681,13 @@ export newtype interface Parameterized<P: readonly unknown[] & Copy> {
 /// @type.symbol symbol=Parameterized type=Parameterized
 /// @definition.interface symbol=Parameterized template=(in out P: readonly unknown[] & Copy) nominal=true
 /// @definition.where symbol=Parameterized relation=satisfies left=this right=Parameterized<P>
-/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P, void> | undefined?), void>
+/// @definition.signature kind=call source="(name: string, body?: Function<P, void>): void" type=Function<(string, Function<P, void, "exclusive"> | undefined?), void>
 /// @type.symbol symbol=Parameterized.P source="P: readonly unknown[] & Copy" type=P
 /// @resolution.name source=Copy target=Copy
 
     (name: string, body?: Function<P, void>): void;
     /// @type.symbol symbol=Parameterized.name source="name: string" type=string
-    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P, void> | undefined
+    /// @type.symbol symbol=Parameterized.body source="body?: Function<P, void>" type=Function<P, void, "exclusive"> | undefined
     /// @resolution.name source=Function target=Function
     /// @resolution.name source=P target=Parameterized.P
 

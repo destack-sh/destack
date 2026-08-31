@@ -1980,8 +1980,20 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
-        // anchor the diagnostic at the site the cause names
+        // report a receiver access shortfall in its own vocabulary
         let root_kind = self.root_cause(cause).kind;
+        if root_kind == CauseKind::Receiver
+            && let dir::Type::Literal(dir::Literal::String(requested)) = self.ty(resolved_source)?
+            && let Some(required) = dir::Access::from_text(requested)
+            && let dir::Type::Literal(dir::Literal::String(taken)) = self.ty(resolved_target)?
+            && let Some(granted) = dir::ReceiverMode::from_text(taken)
+        {
+            self.report_receiver_access_not_granted(origin, required, granted)?;
+
+            return Ok(true);
+        }
+
+        // anchor the diagnostic at the site the cause names
         let value_use = value_use.or(match root_kind {
             CauseKind::Argument { .. } => Some(ValueUse::Argument),
             CauseKind::Return { .. } | CauseKind::ReturnSlot => Some(ValueUse::Output),
@@ -2696,6 +2708,26 @@ impl CheckState<'_> {
                 message: format!("readonly diagnostic has non-storage target {member:?}"),
             }),
         }
+    }
+
+    /// Report one callable body requiring more receiver access than its slot takes.
+    pub(in crate::sema) fn report_receiver_access_not_granted(
+        &mut self,
+        origin: Origin,
+        required: dir::Access,
+        granted: dir::ReceiverMode,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::ReceiverAccessNotGranted {
+            anchor,
+            module,
+            access: required.text().to_string(),
+            granted: granted.text().to_string(),
+        };
+
+        self.report(module, DiagnosticBuilder::new(error));
+
+        Ok(())
     }
 
     /// Format one uncovered pattern value.

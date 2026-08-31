@@ -148,6 +148,7 @@ const sound = horn.whisper();
 /// @resolution.place source=horn placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=horn root=horn
 /// @generic.instantiation id=whisper<Horn> template=whisper arguments=(Horn)
+/// @generic.instance id=Loud.shout<Horn> template=Loud.shout arguments=()
 /// @generic.instance id=whisper<Horn> template=whisper arguments=(Horn)
 
 sound satisfies string;
@@ -663,7 +664,7 @@ struct Flag {}
 /// @definition.struct symbol=Flag source="struct Flag {}"
 
 extension of Flag implements Parse<int32> {
-/// @generic.instance id="Outcome<Parse<int32>, Parse<int32>.Failure>" template=Outcome arguments=(Parse<int32>, Parse<int32>.Failure)
+/// @generic.instance id="Outcome<Parse<int32>, string>" template=Outcome arguments=(Parse<int32>, string)
 /// @generic.instance id=Parse<int32> template=Parse arguments=(int32)
 /// @definition.extension symbol=<module>#3 form=local target=Flag
 /// @definition.implements symbol=<module>#3 source=Parse<int32> target=Parse<int32>
@@ -731,8 +732,7 @@ function decode(value: int32): Outcome<Flag, boolean> {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=decode.value
     /// @generic.instantiation id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag)
-    /// @generic.instance id="Outcome<Flag, boolean>" template=Outcome arguments=(Flag, boolean)
-    /// @generic.instance id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag)
+    /// @generic.instance id="parseInto<int32, Flag>" template=parseInto arguments=(int32, Flag) evaluated=(Outcome<U, U.Failure> => Outcome<Flag, boolean>, (T#4) => Outcome<U, U.Failure> => (int32) => Outcome<Flag, boolean>)
     /// @generic.instance id=Parse.parse<int32> template=Parse.parse arguments=(int32)
 
 }
@@ -750,8 +750,7 @@ function label(value: int32): Outcome<Tag, string> {
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=label.value
     /// @generic.instantiation id="parseInto<int32, Tag>" template=parseInto arguments=(int32, Tag)
-    /// @generic.instance id="Outcome<Tag, string>" template=Outcome arguments=(Tag, string)
-    /// @generic.instance id="parseInto<int32, Tag>" template=parseInto arguments=(int32, Tag)
+    /// @generic.instance id="parseInto<int32, Tag>" template=parseInto arguments=(int32, Tag) evaluated=(Outcome<U, U.Failure> => Outcome<Tag, string>, (T#4) => Outcome<U, U.Failure> => (int32) => Outcome<Tag, string>)
 
 }
 "#);
@@ -1050,8 +1049,7 @@ struct Token {}
 /// @definition.struct symbol=Token source="struct Token {}"
 
 extension of Token implements TryFrom<string> {
-/// @generic.instance id="Result<TryFrom<string>, TryFrom<string>.Error>" template=Result arguments=(TryFrom<string>, TryFrom<string>.Error)
-/// @generic.instance id=Err<TryFrom<string>.Error> template=Err arguments=(TryFrom<string>.Error)
+/// @generic.instance id="Result<TryFrom<string>, Error>" template=Result arguments=(TryFrom<string>, Error)
 /// @generic.instance id=Ok<TryFrom<string>> template=Ok arguments=(TryFrom<string>)
 /// @generic.instance id=TryFrom<string> template=TryFrom arguments=(string)
 /// @definition.extension symbol=<module>#2 form=local target=Token
@@ -1087,7 +1085,6 @@ function parse(value: string): Result<Token, Token.Error> {
 /// @type.symbol symbol=parse type=(string) => Result<Token, Error>
 /// @type.symbol symbol=parse.value source="value: string" type=string
 /// @resolution.name source=Result target=Result
-/// @generic.instance id="Result<Token, Error>" template=Result arguments=(Token, Error)
 /// @resolution.name source=Token target=Token
 /// @resolution.name source=Token.Error target=Token
 /// @resolution.path source=Token.Error index=1 target=TryFrom.Error

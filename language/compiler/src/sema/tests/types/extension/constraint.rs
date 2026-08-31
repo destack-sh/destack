@@ -144,6 +144,7 @@ const text = boxed.read();
 /// @resolution.place source=boxed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=boxed root=boxed
 /// @generic.instantiation id=read<Document> template=read arguments=(Document)
+/// @generic.instance id=Readable.read<Document> template=Readable.read arguments=()
 /// @generic.instance id=read<Document> template=read arguments=(Document)
 "#,
     );

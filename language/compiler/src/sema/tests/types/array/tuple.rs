@@ -82,7 +82,6 @@ const name = tuple[0];
 /// @resolution.subscript source=tuple[0] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static \"id\" | 42, \"readonly\">)"
 /// @generic.instantiation id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
 /// @generic.instance id="WithAccess<&'frame \"id\" | 42, \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42, "readonly")
-/// @generic.instance id="WithAccess<&'frame \"id\" | 42[], \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42[], "readonly")
 /// @generic.instance id="index#1<\"id\" | 42, \"readonly\">" template=index#1 arguments=("id" | 42, "readonly")
 
 const count = tuple[1];
@@ -93,6 +92,7 @@ const count = tuple[1];
 /// @resolution.access source=tuple root=tuple
 /// @resolution.access source=tuple[1] root=tuple keys=[1]
 /// @resolution.subscript source=tuple[1] type="id" | 42 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static \"id\" | 42, \"readonly\">)"
+/// @generic.instance id="WithAccess<&'frame \"id\" | 42[], \"readonly\">" template=WithAccess arguments=(&'frame "id" | 42[], "readonly")
 "#,
     );
 }

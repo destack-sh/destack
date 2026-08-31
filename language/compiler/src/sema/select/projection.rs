@@ -127,6 +127,18 @@ impl CheckState<'_> {
             return match self.ty(base)? {
                 // project the applied interface's selected implementation
                 dir::Type::Application(_) => self.project_selected_member(origin, member, base),
+                // select the implementation for a bare interface qualifier
+                dir::Type::Reference(reference)
+                    if self.symbol_kind(reference.symbol)?.is_interface() =>
+                {
+                    let applied =
+                        self.intern_type(dir::Type::Application(dir::GenericApplication {
+                            symbol: reference.symbol,
+                            arguments: dir::TypeListId::EMPTY,
+                        }))?;
+
+                    self.project_selected_member(origin, member, applied)
+                }
                 // project the lexical extension scope's own associated member
                 dir::Type::Reference(reference) => {
                     self.project_scope_member(origin, member, reference.symbol)
@@ -298,7 +310,8 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(None)
+        // project the interface's declared default when nothing overrides it
+        self.project_qualified_default(origin, member, qualifier)
     }
 
     /// Project one associated member declared by a lexical extension scope.
@@ -572,6 +585,11 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut interfaces = SmallVec::<[dir::GlobalTypeId; 4]>::new();
         let owner = self.shallow_resolve(owner)?;
+
+        // an interface application qualifies its own associated projections
+        if self.has_associated_type(owner, key)? {
+            return Ok(Some(owner));
+        }
 
         // parameter projections select from their declared bounds
         if let dir::Type::Parameter(parameter) = self.ty(owner)? {

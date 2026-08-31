@@ -590,7 +590,8 @@ impl CheckState<'_> {
                     self.type_ids(granted.module_id, union.elements)?.into();
                 let mut verdict = Verdict::Holds;
                 for element in elements {
-                    verdict = verdict.and(self.relate_access_assignable(origin, element, requested)?);
+                    verdict =
+                        verdict.and(self.relate_access_assignable(origin, element, requested)?);
                     if verdict == Verdict::Fails {
                         break;
                     }

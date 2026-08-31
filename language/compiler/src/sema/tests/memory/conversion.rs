@@ -1491,6 +1491,9 @@ declare function inspectPoint(value: &readonly Point): void;
 declare function inspectValues(value: &readonly int32[]): void;
 /// @generic.template symbol=inspectValues parameters=('a)
 /// @type.symbol symbol=inspectValues source="declare function inspectValues(value: &readonly int32[]): void" type=<inspectValues.'a>(&inspectValues.'a readonly int32[]) => void
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @type.symbol symbol=inspectValues.value source="value: &readonly int32[]" type=&inspectValues.'a readonly int32[]
 
 declare const point: Point;
@@ -1501,9 +1504,6 @@ declare const point: Point;
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
-/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 
 inspectPoint(point);
 /// @resolution.name source=inspectPoint target=inspectPoint

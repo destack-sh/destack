@@ -39,6 +39,7 @@ const ok = value instanceof User;
 /// @resolution.guard source="value instanceof User" kind=instanceof value=unknown target=User target_type=User predicate="dynamic.type(Type<unknown>) is subtype(User)" narrowed=Narrow<unknown, User> projection=dynamic.payload(User)
 /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @generic.instance id=Type<unknown> template=Type arguments=(unknown)
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
 "#,

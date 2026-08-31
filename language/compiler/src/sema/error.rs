@@ -734,6 +734,26 @@ pub enum CheckError {
         source: String,
     },
 
+    /// Callable body requires more receiver access than its slot takes.
+    ///
+    /// ```ds
+    /// const callback: Function<(), void, "readonly"> = () => { count += 1; };
+    /// ```
+    #[diagnostic(
+        id = "receiver-access-not-granted",
+        message = "the callable requires '{access}' access to its receiver, and its slot takes it '{granted}'"
+    )]
+    ReceiverAccessNotGranted {
+        /// Report the callable expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The access the body requires.
+        access: String,
+        /// The receiver mode the slot takes.
+        granted: String,
+    },
+
     // -------------------------------------------------------------------------
     // selection
     // -------------------------------------------------------------------------

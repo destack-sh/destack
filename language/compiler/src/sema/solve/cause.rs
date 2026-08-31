@@ -89,6 +89,8 @@ pub(in crate::sema) enum CauseKind {
     },
     /// A value satisfies one written relation, like `satisfies` or a cast.
     Expression,
+    /// A callable value's body requires access from its receiver.
+    Receiver,
     /// A constraint descends into one structural field.
     Field {
         /// The field key.

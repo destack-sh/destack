@@ -768,7 +768,7 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<div class=\"intro\"><span/></div>" builder=Panel form=element tag=div call=element attributes=(class: "intro") children=(Panel) type=Panel
     /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
-    /// @generic.instance id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
+    /// @generic.instance id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,)) evaluated=(<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, this.Tags[Tag], Children#1) => Panel => <const Tag: keyof this.Tags, Children#1: (...unknown[],)>("div", { class?: string }, (Panel,)) => Panel)
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
     /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
     /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ())

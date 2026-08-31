@@ -288,7 +288,6 @@ type LaneCount<V> = V extends Vector<infer T, infer N> ? N : never;
 /// @type.symbol symbol=LaneCount.V source=V type=V
 /// @resolution.name source=V target=LaneCount.V
 /// @resolution.name source=Vector target=Vector
-/// @generic.instance id="Vector<infer T, infer N>" template=Vector arguments=(infer T, infer N)
 /// @resolution.name source=N target=LaneCount.N
 
 type Count = LaneCount<Vector<string, 4>>;

@@ -1210,6 +1210,7 @@ import { Region, Access } from "destack:memory";
 struct Pair<const R: Region, const A: Access = "mutable"> {
 /// @generic.template symbol=Pair parameters=(const R: Region, const A: Access = "mutable")
 /// @type.symbol symbol=Pair type=Pair
+/// @generic.instance id="Pair<\"mutable\">" template=Pair arguments=("mutable")
 /// @definition.struct symbol=Pair template=(const R: Region, const A: Access = "mutable")
 /// @definition.field symbol=Pair.size source="size: int32" key=size type=int32
 /// @type.symbol symbol=Pair.R source="const R: Region" type=R
@@ -1225,6 +1226,7 @@ struct Pair<const R: Region, const A: Access = "mutable"> {
 declare function read(pair: Pair<"readonly">): int32;
 /// @generic.template symbol=read parameters=('a)
 /// @type.symbol symbol=read source="declare function read(pair: Pair<\"readonly\">): int32" type=<read.'a>(Pair<read.'a, "readonly">) => int32
+/// @generic.instance id="Pair<\"readonly\">" template=Pair arguments=("readonly")
 /// @type.symbol symbol=read.pair source="pair: Pair<\"readonly\">" type=Pair<read.'a, "readonly">
 /// @resolution.name source=Pair target=Pair
 "#,
