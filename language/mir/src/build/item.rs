@@ -2,53 +2,54 @@ use crate::build::{BuildResult, FunctionBuilder, FunctionHeader, ModuleBuilder};
 use crate::{Binding, Function, Global, GlobalInitializer, LocalNodeId, Mutability, Type};
 
 impl ModuleBuilder {
-    /// Create a global variable (mutable).
+    /// Create one mutable global variable.
     pub fn global_variable(
         &mut self,
         name: &str,
         ty: LocalNodeId<Type>,
-        init: GlobalInitializer,
+        initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
-        let name_id = self.strings.intern(name);
+        let name = self.strings.intern(name);
         self.tree
-            .insert(Global::new(name_id, ty, Mutability::Mutable, init))
+            .insert(Global::new(name, ty, Mutability::Mutable, initializer))
     }
 
-    /// Create a Program constant.
+    /// Create one program constant.
     pub fn constant(
         &mut self,
         name: &str,
         ty: LocalNodeId<Type>,
-        init: GlobalInitializer,
+        initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
-        let name_id = self.strings.intern(name);
-        self.tree.insert(Global::constant(name_id, ty, init))
+        let name = self.strings.intern(name);
+        self.tree.insert(Global::constant(name, ty, initializer))
     }
 
-    /// Create a global with explicit mutability.
+    /// Create one global at an explicit mutability.
     pub fn global(
         &mut self,
         name: &str,
         ty: LocalNodeId<Type>,
         mutability: Mutability,
-        init: GlobalInitializer,
+        initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
-        let name_id = self.strings.intern(name);
-        self.tree.insert(Global::new(name_id, ty, mutability, init))
+        let name = self.strings.intern(name);
+        self.tree
+            .insert(Global::new(name, ty, mutability, initializer))
     }
 
-    /// Declare an external global (defined elsewhere).
+    /// Declare one external global.
     pub fn external_global(
         &mut self,
         name: &str,
         ty: LocalNodeId<Type>,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
-        let name_id = self.strings.intern(name);
-        self.tree.insert(Global::import(name_id, ty, mutability))
+        let name = self.strings.intern(name);
+        self.tree.insert(Global::import(name, ty, mutability))
     }
 
-    /// Start building a new function.
+    /// Start building one new function.
     pub fn function(&mut self, header: FunctionHeader) -> FunctionBuilder<'_> {
         FunctionBuilder::new(
             &mut self.tree,
@@ -58,7 +59,7 @@ impl ModuleBuilder {
         )
     }
 
-    /// Start building a body for an existing declared function.
+    /// Start building the body of one declared function.
     pub fn function_body(
         &mut self,
         function_id: LocalNodeId<Function>,
@@ -71,40 +72,14 @@ impl ModuleBuilder {
         )
     }
 
-    /// Declare a local function without a body.
+    /// Declare one local function without a body.
     pub fn declare_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
-        let FunctionHeader {
-            name,
-            arguments,
-            symbol,
-            lifetimes,
-            parameters,
-            result,
-        } = header;
-        let parameters = FunctionHeader::parameters_from_types(parameters);
-        let function = Function::declare(name, lifetimes, parameters, result)
-            .with_arguments(arguments)
-            .with_symbol(symbol);
-
-        self.tree.insert(function)
+        self.tree.insert(header.declared())
     }
 
-    /// Declare an external function (defined elsewhere).
+    /// Declare one external function.
     pub fn external_function(&mut self, header: FunctionHeader) -> LocalNodeId<Function> {
-        let FunctionHeader {
-            name,
-            arguments,
-            symbol,
-            lifetimes,
-            parameters,
-            result,
-        } = header;
-        let parameters = FunctionHeader::parameters_from_types(parameters);
-        let function = Function::import(name, lifetimes, parameters, result)
-            .with_arguments(arguments)
-            .with_symbol(symbol);
-
-        self.tree.insert(function)
+        self.tree.insert(header.imported())
     }
 
     /// Declare an external function dispatched through one runtime binding.
@@ -113,9 +88,6 @@ impl ModuleBuilder {
         header: FunctionHeader,
         binding: Binding,
     ) -> LocalNodeId<Function> {
-        let function_id = self.external_function(header);
-        self.tree.get_mut(function_id).binding = Some(Box::new(binding));
-
-        function_id
+        self.tree.insert(header.imported().with_binding(binding))
     }
 }

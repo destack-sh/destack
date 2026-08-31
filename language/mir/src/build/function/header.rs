@@ -1,7 +1,8 @@
 use destack_core::{StringId, StringPool};
 
 use crate::{
-    FunctionParameter, LifetimeParameter, LifetimeSlot, LocalNodeId, StaticId, Symbol, Type, Value,
+    Function, FunctionParameter, LifetimeParameter, LifetimeSlot, LocalNodeId, StaticId, Symbol,
+    Type, Value,
 };
 
 /// Header used to declare or build one MIR function.
@@ -25,7 +26,7 @@ pub struct FunctionHeader {
 #[derive(Debug)]
 pub struct FunctionHeaderBuilder<'a> {
     /// The string pool used for names.
-    strings: &'a mut StringPool,
+    strings: &'a StringPool,
     /// The function name.
     name: StringId,
     /// Concrete generic arguments specializing this function.
@@ -39,8 +40,8 @@ pub struct FunctionHeaderBuilder<'a> {
 }
 
 impl<'a> FunctionHeaderBuilder<'a> {
-    /// Create a function header builder.
-    pub(in crate::build) fn new(strings: &'a mut StringPool, name: &str) -> Self {
+    /// Create one function header builder.
+    pub fn new(strings: &'a StringPool, name: &str) -> Self {
         let name = strings.intern(name);
 
         Self {
@@ -75,7 +76,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
         self
     }
 
-    /// Add a lifetime parameter with declared outlives slots.
+    /// Add one lifetime parameter with its declared outlives slots.
     pub fn lifetime_outlives(mut self, name: &str, outlives: Vec<LifetimeSlot>) -> Self {
         let name = self.strings.intern(name);
         self.lifetimes
@@ -84,7 +85,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
         self
     }
 
-    /// Add lifetime parameters.
+    /// Add several lifetime parameters.
     pub fn lifetimes<const N: usize>(mut self, names: [&str; N]) -> Self {
         for name in names {
             let name = self.strings.intern(name);
@@ -101,7 +102,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
         self
     }
 
-    /// Add parameter types.
+    /// Add several parameter types.
     pub fn parameters(mut self, types: impl IntoIterator<Item = LocalNodeId<Type>>) -> Self {
         self.parameters.extend(types);
 
@@ -122,6 +123,24 @@ impl<'a> FunctionHeaderBuilder<'a> {
 }
 
 impl FunctionHeader {
+    /// Consume this header into a locally declared function.
+    pub fn declared(self) -> Function {
+        let parameters = Self::parameters_from_types(self.parameters);
+
+        Function::declare(self.name, self.lifetimes, parameters, self.result)
+            .with_arguments(self.arguments)
+            .with_symbol(self.symbol)
+    }
+
+    /// Consume this header into an imported function.
+    pub fn imported(self) -> Function {
+        let parameters = Self::parameters_from_types(self.parameters);
+
+        Function::import(self.name, self.lifetimes, parameters, self.result)
+            .with_arguments(self.arguments)
+            .with_symbol(self.symbol)
+    }
+
     /// Build SSA parameters from parameter types.
     pub(in crate::build) fn parameters_from_types(
         parameters: Vec<LocalNodeId<Type>>,
