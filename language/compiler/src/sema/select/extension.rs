@@ -5,8 +5,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     ActiveGoal, Answer, CandidateOutcome, Cause, CauseKind, CheckOutcome, CheckState,
-    DeclaredCandidate, DeclaredMember, ExtensionSource, GenericParameterId, GenericTemplateId,
-    Goal, Implementation, MemberCandidate, MemberLookup, Origin, Relation, RelationCheck, Settle,
+    DeclaredMember, DeclaredSource, ExtensionSource, GenericParameterId, GenericTemplateId, Goal,
+    Implementation, MemberCandidate, MemberLookup, Origin, Relation, RelationCheck, Settle,
     TypeArgumentInference, TypeSubstitution, Value, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
@@ -1921,10 +1921,10 @@ impl CheckState<'_> {
                 None => None,
             };
 
-            // carry the solved extension arguments onto the candidate
+            // attach the solved extension arguments to the candidate
             let generic_arguments = self.resolved_argument_bindings(&substitution.bindings)?;
             let requirement = self.requirement_interface(extension_symbol, member.key)?;
-            let mut declared = DeclaredCandidate::new(
+            let mut declared = DeclaredSource::new(
                 member.symbol,
                 extension_symbol,
                 member_origin,

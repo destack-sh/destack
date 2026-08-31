@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Answer, CallableArgument, Callee, CheckFailure, CheckOutcome, CheckState, Expectation,
-    FlowSite, InferMode, Origin, OverloadRule, PlaceUse, Selection, Settle, SignatureFamily,
-    SignatureMatch, SignatureSelection, Value, ValueCheck, ValueUse,
+    FlowSite, InferMode, Origin, OverloadRule, OverloadSelection, PlaceUse, Settle,
+    SignatureFamily, SignatureMatch, SignatureSelection, Value, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -59,7 +59,7 @@ impl CallableCandidate {
     /// Return the receiver after signature selection.
     fn selected_receiver(&self, signature: &SignatureSelection) -> Option<dir::MemberReceiver> {
         let mut receiver = self.receiver.as_ref()?.resolution.clone();
-        if let Some(steps) = &signature.receiver_steps {
+        if let Some(steps) = &signature.receiver_adjustments {
             receiver
                 .adjusted_mut()
                 .adjustments
@@ -969,7 +969,8 @@ impl CheckState<'_> {
                 },
             )?;
             match selection {
-                Selection::Selected {
+                // keep the overload this arm accepted
+                OverloadSelection::Selected {
                     position,
                     candidate,
                     signature,
@@ -990,20 +991,21 @@ impl CheckState<'_> {
                     selected.push((candidate, signature));
                 }
                 // keep the refused candidate so downstream passes keep a target
-                Selection::Refused => {
+                OverloadSelection::Refused => {
                     let attempt = self.sole_attempted_call(origin, asked, argument_nodes)?;
 
                     return self.commit_rejected_call(node, expectation, attempt);
                 }
                 // report that no candidate matched the arguments
-                Selection::Rejected(rejections) => {
+                OverloadSelection::Rejected(rejections) => {
                     let types = self.infer_argument_types(site, argument_nodes)?;
                     self.report_no_matching_call(origin, &types, &rejections)?;
                     let attempt = self.sole_attempted_call(origin, asked, argument_nodes)?;
 
                     return self.commit_rejected_call(node, expectation, attempt);
                 }
-                Selection::Ambiguous => {
+                // fail on an ambiguity an ordered rule settles
+                OverloadSelection::Ambiguous => {
                     return Err(CompilerError::Internal {
                         message: "ordered call selection reported an ambiguous overload"
                             .to_string(),

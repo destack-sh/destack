@@ -7,8 +7,8 @@ use smallvec::SmallVec;
 
 use crate::CompilerResult;
 use crate::sema::{
-    ApparentInstance, CheckState, DeclaredCandidate, LookupReceiver, MemberCandidate, MemberLookup,
-    MemberRole, MemberSource, Origin, ReceiverSteps,
+    ApparentInstance, CandidateSource, CheckState, DeclaredSource, LookupReceiver, MemberCandidate,
+    MemberLookup, MemberRole, Origin,
 };
 
 impl CheckState<'_> {
@@ -466,7 +466,7 @@ impl CheckState<'_> {
                 dir::MemberOrigin::Declaration => None,
                 _ => self.requirement_interface(declaration.owner, binding.key)?,
             };
-            let mut declared = DeclaredCandidate::new(
+            let mut declared = DeclaredSource::new(
                 declaration.symbol,
                 declaration.owner,
                 declaration.origin,
@@ -476,14 +476,14 @@ impl CheckState<'_> {
             declared.value = value;
             declared.value_type = value_type;
             candidates.push(MemberCandidate {
-                source: MemberSource::Declared(declared),
+                source: CandidateSource::Declared(declared),
                 space,
                 role: declaration.role,
                 kind: binding.kind,
                 access,
                 callable,
                 is_optional: binding.is_optional,
-                receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+                receiver: LookupReceiver::Direct(Vec::new()),
                 arm: None,
             });
         }

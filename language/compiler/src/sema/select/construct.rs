@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CallableArgument, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite, NewtypeMatch,
-    NewtypeSignature, Origin, OverloadRule, PlaceUse, Selection, SignatureFamily, SignatureMatch,
-    SignatureRejection, SignatureSelection, TypeArgumentInference, TypeSubstitution, ValueCheck,
-    ValueUse,
+    NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse, SignatureFamily,
+    SignatureMatch, SignatureRejection, SignatureSelection, TypeArgumentInference,
+    TypeSubstitution, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -428,7 +428,7 @@ impl CheckState<'_> {
         // commit or report the constructor the match selected
         match selection {
             // commit the selected construction under the constructor's declared visibility
-            Selection::Selected {
+            OverloadSelection::Selected {
                 candidate: constructor,
                 signature,
                 ..
@@ -448,15 +448,18 @@ impl CheckState<'_> {
                     &forms,
                 )
             }
-            Selection::Refused => {
+            // commit the rejection a sole candidate already reported
+            OverloadSelection::Refused => {
                 self.commit_decision(node, dir::Decision::Rejected)?;
 
                 self.commit_error_node(node)
             }
-            Selection::Rejected(rejections) => {
+            // report the arguments every candidate rejected
+            OverloadSelection::Rejected(rejections) => {
                 self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
             }
-            Selection::Ambiguous => Err(CompilerError::Internal {
+            // fail on an ambiguity an ordered rule settles
+            OverloadSelection::Ambiguous => Err(CompilerError::Internal {
                 message: "ordered construct selection reported an ambiguous constructor"
                     .to_string(),
             }),
@@ -855,7 +858,8 @@ impl CheckState<'_> {
 
         // commit or report the construct signature the match selected
         match selection {
-            Selection::Selected {
+            // commit the dynamic construction the signature match selected
+            OverloadSelection::Selected {
                 candidate,
                 signature,
                 ..
@@ -869,15 +873,18 @@ impl CheckState<'_> {
                 signature,
                 forms,
             ),
-            Selection::Refused => {
+            // commit the rejection a sole candidate already reported
+            OverloadSelection::Refused => {
                 self.commit_decision(node, dir::Decision::Rejected)?;
 
                 self.commit_error_node(node)
             }
-            Selection::Rejected(rejections) => {
+            // report the arguments every candidate rejected
+            OverloadSelection::Rejected(rejections) => {
                 self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)
             }
-            Selection::Ambiguous => Err(CompilerError::Internal {
+            // fail on an ambiguity an ordered rule settles
+            OverloadSelection::Ambiguous => Err(CompilerError::Internal {
                 message: "ordered construct selection reported an ambiguous signature".to_string(),
             }),
         }
@@ -987,7 +994,8 @@ impl CheckState<'_> {
 
         // commit or report the constructor the match selected
         match selection {
-            Selection::Selected {
+            // commit the base constructor the match selected
+            OverloadSelection::Selected {
                 candidate: constructor,
                 signature,
                 ..
@@ -1000,13 +1008,16 @@ impl CheckState<'_> {
                 argument_nodes,
                 signature,
             ),
-            Selection::Refused => self.commit_rejected_call(node, None, None),
-            Selection::Rejected(rejections) => {
+            // commit the rejection a sole candidate already reported
+            OverloadSelection::Refused => self.commit_rejected_call(node, None, None),
+            // report the arguments every candidate rejected
+            OverloadSelection::Rejected(rejections) => {
                 self.report_rejected_construct(site, node, origin, argument_nodes, &rejections)?;
 
                 self.commit_rejected_call(node, None, None)
             }
-            Selection::Ambiguous => Err(CompilerError::Internal {
+            // fail on an ambiguity an ordered rule settles
+            OverloadSelection::Ambiguous => Err(CompilerError::Internal {
                 message: "ordered super selection reported an ambiguous constructor".to_string(),
             }),
         }

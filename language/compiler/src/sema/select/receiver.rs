@@ -10,17 +10,13 @@ use crate::{CompilerError, CompilerResult};
 /// The most dereference steps one receiver lookup walks.
 const DEREFERENCE_LIMIT: usize = 8;
 
-/// The implicit adjustments selected for one receiver.
-/// FUGU #Cleanup: ReceiverSteps is a silly noun
-pub(in crate::sema) type ReceiverSteps = Vec<dir::ReceiverAdjustment>;
-
 /// One receiver reached by dereferencing the use-site receiver.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct ReceiverStep {
     /// The receiver type at this step.
     pub(in crate::sema) ty: dir::GlobalTypeId,
     /// The adjustments reaching this step from the use-site receiver.
-    pub(in crate::sema) adjustments: ReceiverSteps,
+    pub(in crate::sema) adjustments: Vec<dir::ReceiverAdjustment>,
 }
 
 impl CheckState<'_> {
@@ -232,9 +228,9 @@ impl CheckState<'_> {
         // start at the use-site receiver
         let mut steps = vec![ReceiverStep {
             ty: receiver.ty,
-            adjustments: ReceiverSteps::new(),
+            adjustments: Vec::new(),
         }];
-        let mut adjustments = ReceiverSteps::new();
+        let mut adjustments = Vec::new();
         let mut ty = receiver.ty;
 
         // step down until the receiver stops dereferencing
@@ -552,7 +548,7 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: Value,
         this_parameter: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<ReceiverSteps>> {
+    ) -> CompilerResult<Option<Vec<dir::ReceiverAdjustment>>> {
         // solve an open this-parameter place from the receiver
         let parameter_type = self.normalize(origin, this_parameter)?;
         if let Some(place) = self.form_chain(origin, parameter_type)?.place() {
@@ -600,7 +596,7 @@ impl CheckState<'_> {
         receiver: Value,
         step: &ReceiverStep,
         this_parameter: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<ReceiverSteps>> {
+    ) -> CompilerResult<Option<Vec<dir::ReceiverAdjustment>>> {
         // read the step as a value at this site
         let stepped = Value {
             ty: step.ty,
@@ -708,10 +704,10 @@ impl CheckState<'_> {
         origin: Origin,
         source: dir::GlobalTypeId,
         narrowed: dir::GlobalTypeId,
-    ) -> CompilerResult<ReceiverSteps> {
+    ) -> CompilerResult<Vec<dir::ReceiverAdjustment>> {
         // keep an unchanged receiver direct
         if source == narrowed {
-            return Ok(ReceiverSteps::new());
+            return Ok(Vec::new());
         }
 
         // project through newtypes while keeping their enclosing memory forms
@@ -758,7 +754,7 @@ impl CheckState<'_> {
         origin: Origin,
         representation: dir::GlobalTypeId,
         arm: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<ReceiverSteps>> {
+    ) -> CompilerResult<Option<Vec<dir::ReceiverAdjustment>>> {
         // require a physical union beneath the enclosing newtypes
         let (payload, mut steps) = self.project_newtype_receiver(origin, representation)?;
         let Some(arms) = self.union_arms(origin, payload)? else {
@@ -785,10 +781,10 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
-    ) -> CompilerResult<(dir::GlobalTypeId, ReceiverSteps)> {
+    ) -> CompilerResult<(dir::GlobalTypeId, Vec<dir::ReceiverAdjustment>)> {
         // start at the written receiver
         let mut receiver = source;
-        let mut steps = ReceiverSteps::new();
+        let mut adjustments = Vec::new();
 
         // unwrap each newtype while keeping its enclosing memory forms
         loop {
@@ -798,10 +794,10 @@ impl CheckState<'_> {
             };
             let backing = self.normalize(origin, instance.backing)?;
             let projected = self.replace_form_value(origin, receiver, backing)?;
-            steps.push(instance.into_receiver_adjustment(projected));
+            adjustments.push(instance.into_receiver_adjustment(projected));
             receiver = projected;
         }
 
-        Ok((receiver, steps))
+        Ok((receiver, adjustments))
     }
 }

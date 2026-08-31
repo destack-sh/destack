@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::smallvec;
 
 use crate::sema::{
-    AssignmentSelection, Cause, CauseKind, Check, CheckState, FlowSite, MemberCandidate,
-    MemberLookup, MemberRole, MemberSource, Origin, PlaceCheck, PlaceUse, Relation, Value,
+    AssignmentSelection, CandidateSource, Cause, CauseKind, Check, CheckState, FlowSite,
+    MemberCandidate, MemberLookup, MemberRole, Origin, PlaceCheck, PlaceUse, Relation, Value,
     WriteMode, member_arms,
 };
 use crate::{CompilerError, CompilerResult};
@@ -794,7 +794,7 @@ impl CheckState<'_> {
             // write a field once from its declaring constructor, else through its write access
             let read_type = field.read_type(self)?;
             let initializes = match &field.source {
-                MemberSource::Declared(declared) => {
+                CandidateSource::Declared(declared) => {
                     self.current_initializes() == Some(declared.owner)
                 }
                 _ => false,

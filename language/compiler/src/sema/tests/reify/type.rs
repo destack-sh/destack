@@ -497,7 +497,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
             // object types reify as their written field set
             dir::Type::Object(shape) => {
-                // FUGU #Incomplete: reify index and call signatures as object members
+                // TODO #Incomplete: reify index and call signatures as object members
                 if shape.declares_signatures() {
                     return Ok(None);
                 }

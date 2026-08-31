@@ -6,8 +6,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    ApparentInstance, CheckState, ExtensionHead, GenericParameterId, Origin, ReceiverSteps,
-    RelationCheck, TypeArgumentInference, TypeSubstitution, Verdict,
+    ApparentInstance, CheckState, ExtensionHead, GenericParameterId, Origin, RelationCheck,
+    TypeArgumentInference, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult, diagnostic_suggestion_distance};
 
@@ -93,7 +93,7 @@ impl DeclaredMember {
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct MemberCandidate {
     /// What the candidate reads.
-    pub(in crate::sema) source: MemberSource,
+    pub(in crate::sema) source: CandidateSource,
     /// The member space that selected this candidate.
     pub(in crate::sema) space: dir::MemberSpace,
     /// How the member behaves at a use site.
@@ -113,12 +113,11 @@ pub(in crate::sema) struct MemberCandidate {
 }
 
 /// What one member candidate reads.
-/// FUGU #Suspicious: the fuck is "MemberSource"..?
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone)]
-pub(in crate::sema) enum MemberSource {
+pub(in crate::sema) enum CandidateSource {
     /// One declaration member.
-    Declared(DeclaredCandidate),
+    Declared(DeclaredSource),
     /// One field a structural aggregate declares.
     Structural {
         /// The aggregate that declares the field.
@@ -129,9 +128,8 @@ pub(in crate::sema) enum MemberSource {
 }
 
 /// One declaration member selected by lookup.
-/// FUGU #Suspicious: DeclaredCandidate in addition to MemberCandidate..? too many nouns, weird
 #[derive(Debug, Clone)]
-pub(in crate::sema) struct DeclaredCandidate {
+pub(in crate::sema) struct DeclaredSource {
     /// The declaring member symbol.
     pub(in crate::sema) symbol: dir::GlobalSymbolId,
     /// The declaration that exposed the member.
@@ -154,8 +152,8 @@ pub(in crate::sema) struct DeclaredCandidate {
     pub(in crate::sema) site_parameters: SmallVec<[GenericParameterId; 2]>,
 }
 
-impl DeclaredCandidate {
-    /// Create a candidate over one owner with the arguments matched through it.
+impl DeclaredSource {
+    /// Create a declared source over one owner with the arguments matched through it.
     pub(in crate::sema) fn new(
         symbol: dir::GlobalSymbolId,
         owner: dir::GlobalSymbolId,
@@ -176,7 +174,7 @@ impl DeclaredCandidate {
         }
     }
 
-    /// Return the declaration block this candidate answers for: its requirement or its owner.
+    /// Return the declaration block this source answers for: its requirement or its owner.
     pub(in crate::sema) fn declaring_block(&self) -> dir::GlobalSymbolId {
         self.requirement.unwrap_or(self.owner)
     }
@@ -195,11 +193,11 @@ pub(in crate::sema) struct MemberArm {
 #[derive(Debug, Clone)]
 pub(in crate::sema) enum LookupReceiver {
     /// Direct adjustments attached to the use-site receiver on resolution.
-    Direct(ReceiverSteps),
+    Direct(Vec<dir::ReceiverAdjustment>),
     /// Erased receiver selected for dynamic dispatch.
     Dynamic {
         /// The receiver adjustments applied before dispatch.
-        adjustments: ReceiverSteps,
+        adjustments: Vec<dir::ReceiverAdjustment>,
         /// The interface constraint declaring the dispatch member.
         constraint: dir::GlobalTypeId,
     },
@@ -207,7 +205,7 @@ pub(in crate::sema) enum LookupReceiver {
 
 impl LookupReceiver {
     /// Return the adjustments applied before reaching the member.
-    fn adjustments(&self) -> &ReceiverSteps {
+    fn adjustments(&self) -> &[dir::ReceiverAdjustment] {
         match self {
             Self::Direct(steps)
             | Self::Dynamic {
@@ -249,20 +247,20 @@ impl LookupReceiver {
 impl MemberCandidate {
     /// Create a declared candidate reading directly through the use-site receiver.
     pub(in crate::sema) fn declared(
-        declared: DeclaredCandidate,
+        declared: DeclaredSource,
         member: &DeclaredMember,
         access: dir::PropertyAccess,
         callable: Option<dir::GlobalTypeId>,
     ) -> Self {
         Self {
-            source: MemberSource::Declared(declared),
+            source: CandidateSource::Declared(declared),
             space: member.space,
             role: member.role,
             kind: member.kind,
             access,
             callable,
             is_optional: member.is_optional,
-            receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+            receiver: LookupReceiver::Direct(Vec::new()),
             arm: None,
         }
     }
@@ -274,14 +272,14 @@ impl MemberCandidate {
         is_optional: bool,
     ) -> Self {
         Self {
-            source: MemberSource::Structural { owner },
+            source: CandidateSource::Structural { owner },
             space: dir::MemberSpace::Instance,
             role: MemberRole::Field,
             kind: dir::MemberKind::Field,
             access,
             callable: None,
             is_optional,
-            receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+            receiver: LookupReceiver::Direct(Vec::new()),
             arm: None,
         }
     }
@@ -290,30 +288,30 @@ impl MemberCandidate {
     pub(in crate::sema) fn projection(projection: dir::Projection) -> Self {
         Self {
             access: dir::PropertyAccess::Read(projection.ty()),
-            source: MemberSource::Projection(projection),
+            source: CandidateSource::Projection(projection),
             space: dir::MemberSpace::Instance,
             role: MemberRole::Field,
             kind: dir::MemberKind::Field,
             callable: None,
             is_optional: false,
-            receiver: LookupReceiver::Direct(ReceiverSteps::new()),
+            receiver: LookupReceiver::Direct(Vec::new()),
             arm: None,
         }
     }
 
     /// Return the declaration this candidate reads, when it reads one.
-    pub(in crate::sema) fn declaration(&self) -> Option<&DeclaredCandidate> {
+    pub(in crate::sema) fn declaration(&self) -> Option<&DeclaredSource> {
         match &self.source {
-            MemberSource::Declared(declared) => Some(declared),
-            MemberSource::Structural { .. } | MemberSource::Projection(_) => None,
+            CandidateSource::Declared(declared) => Some(declared),
+            CandidateSource::Structural { .. } | CandidateSource::Projection(_) => None,
         }
     }
 
     /// Return the declaration this candidate reads, mutably.
-    pub(in crate::sema) fn declaration_mut(&mut self) -> Option<&mut DeclaredCandidate> {
+    pub(in crate::sema) fn declaration_mut(&mut self) -> Option<&mut DeclaredSource> {
         match &mut self.source {
-            MemberSource::Declared(declared) => Some(declared),
-            MemberSource::Structural { .. } | MemberSource::Projection(_) => None,
+            CandidateSource::Declared(declared) => Some(declared),
+            CandidateSource::Structural { .. } | CandidateSource::Projection(_) => None,
         }
     }
 
@@ -326,12 +324,12 @@ impl MemberCandidate {
     pub(in crate::sema) fn reads_same(&self, other: &Self) -> bool {
         // compare the two candidates by their sources
         match (&self.source, &other.source) {
-            (MemberSource::Declared(left), MemberSource::Declared(right)) => {
+            (CandidateSource::Declared(left), CandidateSource::Declared(right)) => {
                 left.symbol == right.symbol
             }
             (
-                MemberSource::Structural { owner: left },
-                MemberSource::Structural { owner: right },
+                CandidateSource::Structural { owner: left },
+                CandidateSource::Structural { owner: right },
             ) => left == right,
             _ => false,
         }
@@ -399,7 +397,7 @@ impl MemberCandidate {
     /// Return the durable member candidate for this lookup candidate.
     pub(in crate::sema) fn resolution_candidate(
         &self,
-        declared: &DeclaredCandidate,
+        declared: &DeclaredSource,
         receiver: dir::GlobalTypeId,
         ty: dir::GlobalTypeId,
     ) -> dir::MemberCandidate {
@@ -422,7 +420,7 @@ impl MemberCandidate {
     ) -> dir::MemberAccess {
         // name the target each candidate source resolves to
         let target = match &self.source {
-            MemberSource::Declared(declared) => match self.field(key) {
+            CandidateSource::Declared(declared) => match self.field(key) {
                 Some(target) => dir::MemberTarget::Field(dir::FieldResolution {
                     receiver: self.receiver.resolve(receiver),
                     target,
@@ -432,16 +430,18 @@ impl MemberCandidate {
                     dir::MemberTarget::Symbol(self.resolution_candidate(declared, receiver, ty))
                 }
             },
-            MemberSource::Structural { owner } => dir::MemberTarget::Field(dir::FieldResolution {
-                receiver: self.receiver.resolve(receiver),
-                target: dir::FieldTarget::Structural { owner: *owner, key },
-                ty,
-            }),
-            MemberSource::Projection(projection) => dir::MemberTarget::Projection {
+            CandidateSource::Structural { owner } => {
+                dir::MemberTarget::Field(dir::FieldResolution {
+                    receiver: self.receiver.resolve(receiver),
+                    target: dir::FieldTarget::Structural { owner: *owner, key },
+                    ty,
+                })
+            }
+            CandidateSource::Projection(projection) => dir::MemberTarget::Projection {
                 key,
                 receiver: dir::AdjustedReceiver {
                     source: receiver,
-                    adjustments: self.receiver.adjustments().clone(),
+                    adjustments: self.receiver.adjustments().to_vec(),
                 },
                 projection: projection.clone(),
             },
@@ -470,14 +470,14 @@ impl MemberCandidate {
         }
 
         Some(match &self.source {
-            MemberSource::Declared(declared) => dir::FieldTarget::Member {
+            CandidateSource::Declared(declared) => dir::FieldTarget::Member {
                 symbol: declared.symbol,
                 key,
             },
-            MemberSource::Structural { owner } => {
+            CandidateSource::Structural { owner } => {
                 dir::FieldTarget::Structural { owner: *owner, key }
             }
-            MemberSource::Projection(_) => return None,
+            CandidateSource::Projection(_) => return None,
         })
     }
 
@@ -487,7 +487,7 @@ impl MemberCandidate {
     }
 }
 
-// FUGU #Cleanup: all of select/lookup.rs is insane and complex and the top level functions are disgusting I hate all of this
+// TODO #Cleanup: compress select/lookup.rs and its top level functions
 
 /// Return the candidates lookup precedence ranks first.
 pub(in crate::sema) fn selected_candidates<'candidate>(
@@ -575,7 +575,7 @@ pub(in crate::sema) fn direct_field_type(
     };
     if candidate.role != MemberRole::Field
         || candidate.is_optional
-        || matches!(candidate.source, MemberSource::Projection(_))
+        || matches!(candidate.source, CandidateSource::Projection(_))
         || !matches!(candidate.receiver, LookupReceiver::Direct(_))
     {
         return None;
@@ -601,13 +601,13 @@ pub(in crate::sema) fn select_dynamic(
 ) -> CompilerResult<()> {
     for candidate in candidates {
         // read a compiler-defined field projection's union representation directly
-        if matches!(candidate.source, MemberSource::Projection(_)) {
+        if matches!(candidate.source, CandidateSource::Projection(_)) {
             return Err(CompilerError::Internal {
                 message: "compiler-defined field projection selected dynamic dispatch".to_string(),
             });
         }
         candidate.receiver = LookupReceiver::Dynamic {
-            adjustments: ReceiverSteps::new(),
+            adjustments: Vec::new(),
             constraint,
         };
     }
@@ -1710,7 +1710,7 @@ impl CheckState<'_> {
                 Some(written) => Some(self.substitute_type(written, &substitution)?),
                 None => None,
             };
-            let mut declared = DeclaredCandidate::new(
+            let mut declared = DeclaredSource::new(
                 symbol,
                 instance.symbol,
                 dir::MemberOrigin::Declaration,
@@ -2107,7 +2107,7 @@ impl dir::TypeFold for LookupReceiver {
     }
 }
 
-impl dir::TypeFold for MemberSource {
+impl dir::TypeFold for CandidateSource {
     fn map_types<E>(
         &mut self,
         map: &mut impl FnMut(dir::GlobalTypeId) -> Result<dir::GlobalTypeId, E>,

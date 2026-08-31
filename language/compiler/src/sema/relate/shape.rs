@@ -29,7 +29,7 @@ impl SignatureInstantiation {
     }
 }
 
-// FUGU #Cleanup: this whole file relate/shape.rs is awful and must be compressed yuck 2k lines???
+// TODO #Cleanup: compress relate/shape.rs
 
 impl CheckState<'_> {
     /// Return whether two callables declare the same parameter list shape.

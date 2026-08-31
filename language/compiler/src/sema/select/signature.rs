@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 use crate::sema::infer::InferMode;
 use crate::sema::{
     CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, CheckState,
-    Expectation, Origin, REPORTED_REJECTIONS, ReceiverSteps, Relation, RelationCheck, Settle,
+    Expectation, Origin, REPORTED_REJECTIONS, Relation, RelationCheck, Settle,
     TypeArgumentInference, TypeSubstitution, Value, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
@@ -21,8 +21,8 @@ pub(in crate::sema) struct SignatureSelection {
     pub(in crate::sema) return_type: dir::GlobalTypeId,
     /// The solved generic argument bindings.
     pub(in crate::sema) generic_arguments: Vec<dir::GenericArgumentBinding>,
-    /// The projection steps when the declared this adjusted the receiver.
-    pub(in crate::sema) receiver_steps: Option<ReceiverSteps>,
+    /// The receiver adjustments the declared this selected.
+    pub(in crate::sema) receiver_adjustments: Option<Vec<dir::ReceiverAdjustment>>,
     /// Runtime coercions selected for the supplied arguments.
     pub(in crate::sema) coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
 }
@@ -37,21 +37,20 @@ pub(in crate::sema) struct ParameterSelection {
 }
 
 /// One invocation constrained against a candidate signature.
-struct Invocation {
+struct CandidateTrial {
     /// The rejection the constraints produced, set when the candidate fails.
     rejection: Option<SignatureRejection>,
     /// Whether the expected result refused the substituted return.
     is_return_mismatch: bool,
-    /// The projection steps the declared `this` derived for the receiver.
-    receiver_steps: Option<ReceiverSteps>,
+    /// The receiver adjustments the declared `this` derived.
+    receiver_adjustments: Option<Vec<dir::ReceiverAdjustment>>,
     /// The coercions selected for the supplied arguments.
     coercions: SmallVec<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>,
 }
 
-/// The callable one selection settled on, with the outcome its site commits.
-/// FUGU #Architecture: "Selection", "Invocation", .. selecT/signature,.rs is full of terrible nouns
+/// The callable this selection settled on, with the outcome its site commits.
 #[allow(clippy::large_enum_variant)]
-pub(in crate::sema) enum Selection<'candidate, C> {
+pub(in crate::sema) enum OverloadSelection<'candidate, C> {
     /// One candidate accepts the invocation, or a sole one rejects it with a reported reason.
     Selected {
         /// The candidate position.
@@ -189,11 +188,11 @@ impl SignatureSelection {
         key_receiver: Option<dir::GlobalTypeId>,
         arguments: Vec<dir::ArgumentBinding>,
     ) -> dir::Call {
-        if let Some(steps) = &self.receiver_steps {
+        if let Some(adjustments) = &self.receiver_adjustments {
             receiver
                 .adjusted_mut()
                 .adjustments
-                .extend(steps.iter().cloned());
+                .extend(adjustments.iter().cloned());
         }
 
         // dispatch directly on a value receiver, dynamically on an erased one
@@ -242,7 +241,7 @@ impl CheckState<'_> {
         rule: OverloadRule,
         candidate_type: impl Fn(&C) -> dir::GlobalTypeId,
         attempt: impl Fn(&mut Self, &C) -> CompilerResult<SignatureMatch>,
-    ) -> CompilerResult<Selection<'candidate, C>> {
+    ) -> CompilerResult<OverloadSelection<'candidate, C>> {
         // decide the candidate the rule selects
         let module = origin.module();
         let selected =
@@ -256,14 +255,14 @@ impl CheckState<'_> {
         let is_single = candidates.len() == 1;
         let selection = match attempt(self, candidate)? {
             // commit the accepted invocation
-            SignatureMatch::Selected(signature) => Selection::Selected {
+            SignatureMatch::Selected(signature) => OverloadSelection::Selected {
                 position,
                 candidate,
                 signature,
                 outcome: CheckOutcome::Holds,
             },
             // commit the invocation and fail it against the expected result
-            SignatureMatch::ReturnMismatch(signature) => Selection::Selected {
+            SignatureMatch::ReturnMismatch(signature) => OverloadSelection::Selected {
                 position,
                 candidate,
                 signature,
@@ -273,7 +272,7 @@ impl CheckState<'_> {
             SignatureMatch::Invalid { key, rejection } if is_single => {
                 self.report_signature_rejection(origin, rejection)?;
 
-                Selection::Selected {
+                OverloadSelection::Selected {
                     position,
                     candidate,
                     signature: key,
@@ -284,7 +283,7 @@ impl CheckState<'_> {
             SignatureMatch::Inapplicable(rejection) if is_single && rejection.is_precise() => {
                 self.report_signature_rejection(origin, rejection)?;
 
-                Selection::Refused
+                OverloadSelection::Refused
             }
             // leave a refused candidate to the shared report
             SignatureMatch::Invalid { rejection, .. } | SignatureMatch::Inapplicable(rejection) => {
@@ -293,7 +292,7 @@ impl CheckState<'_> {
                 rejections.push(described);
                 rejections.truncate(REPORTED_REJECTIONS);
 
-                Selection::Rejected(rejections)
+                OverloadSelection::Rejected(rejections)
             }
         };
 
@@ -308,7 +307,8 @@ impl CheckState<'_> {
         rule: OverloadRule,
         candidate_type: impl Fn(&C) -> dir::GlobalTypeId,
         attempt: impl Fn(&mut Self, &C) -> CompilerResult<SignatureMatch>,
-    ) -> CompilerResult<Result<(usize, &'candidate C, Vec<String>), Selection<'candidate, C>>> {
+    ) -> CompilerResult<Result<(usize, &'candidate C, Vec<String>), OverloadSelection<'candidate, C>>>
+    {
         if let [single] = candidates {
             return Ok(Ok((0, single, Vec::new())));
         }
@@ -328,14 +328,14 @@ impl CheckState<'_> {
                     return Ok(Ok((position, candidate, rejections)));
                 }
                 (Verdict::Holds, OverloadRule::Exclusive) if selected.is_some() => {
-                    return Ok(Err(Selection::Ambiguous));
+                    return Ok(Err(OverloadSelection::Ambiguous));
                 }
                 (Verdict::Holds, OverloadRule::Exclusive) => selected = Some((position, candidate)),
                 (Verdict::Ambiguous, OverloadRule::Ordered) => {
                     undecided.get_or_insert((position, candidate));
                 }
                 (Verdict::Ambiguous, OverloadRule::Exclusive) => {
-                    return Ok(Err(Selection::Ambiguous));
+                    return Ok(Err(OverloadSelection::Ambiguous));
                 }
             }
         }
@@ -346,7 +346,7 @@ impl CheckState<'_> {
             None => {
                 rejections.truncate(REPORTED_REJECTIONS);
 
-                Err(Selection::Rejected(rejections))
+                Err(OverloadSelection::Rejected(rejections))
             }
         })
     }
@@ -887,10 +887,10 @@ impl CheckState<'_> {
             expectation,
             arguments,
         )?;
-        let Some(Invocation {
+        let Some(CandidateTrial {
             rejection,
             is_return_mismatch,
-            receiver_steps,
+            receiver_adjustments,
             coercions,
         }) = invocation
         else {
@@ -907,7 +907,7 @@ impl CheckState<'_> {
             function_return,
             &substitution,
             receiver.map(|receiver| receiver.ty),
-            receiver_steps,
+            receiver_adjustments,
         )?;
         key.coercions = coercions;
 
@@ -935,10 +935,10 @@ impl CheckState<'_> {
         function_return: Option<dir::GlobalTypeId>,
         expectation: Option<Expectation>,
         arguments: &[CallableArgument],
-    ) -> CompilerResult<Option<Invocation>> {
+    ) -> CompilerResult<Option<CandidateTrial>> {
         // collect what the invocation decides about this candidate
         let mut is_return_mismatch = false;
-        let mut receiver_steps = None;
+        let mut receiver_adjustments = None;
         let mut coercions = SmallVec::new();
         // relate the receiver to the per-call parameter as written, else to the declared this
         if let (Some(receiver), Some(this_parameter)) =
@@ -951,17 +951,17 @@ impl CheckState<'_> {
                 self.substitute_type(this_parameter, &receiver_substitution)?
             };
             match self.constrain_receiver(origin, receiver, this_parameter)? {
-                Some(steps) => receiver_steps = Some(steps),
+                Some(adjustments) => receiver_adjustments = Some(adjustments),
                 None => {
                     let rejection = SignatureRejection::Receiver {
                         source: receiver.ty,
                         target: this_parameter,
                     };
 
-                    return Ok(Some(Invocation {
+                    return Ok(Some(CandidateTrial {
                         rejection: Some(rejection),
                         is_return_mismatch,
-                        receiver_steps,
+                        receiver_adjustments,
                         coercions,
                     }));
                 }
@@ -1074,10 +1074,10 @@ impl CheckState<'_> {
                     failure,
                 )?;
 
-                return Ok(Some(Invocation {
+                return Ok(Some(CandidateTrial {
                     rejection: Some(rejection),
                     is_return_mismatch,
-                    receiver_steps,
+                    receiver_adjustments,
                     coercions,
                 }));
             }
@@ -1101,20 +1101,20 @@ impl CheckState<'_> {
             if let Some(rejection) =
                 self.constrain_argument(origin, entry, &const_variables, &mut coercions)?
             {
-                return Ok(Some(Invocation {
+                return Ok(Some(CandidateTrial {
                     rejection: Some(rejection),
                     is_return_mismatch,
-                    receiver_steps,
+                    receiver_adjustments,
                     coercions,
                 }));
             }
         }
 
-        // carry the accepted invocation with its steps
-        Ok(Some(Invocation {
+        // answer with the accepted invocation and its adjustments
+        Ok(Some(CandidateTrial {
             rejection: None,
             is_return_mismatch,
-            receiver_steps,
+            receiver_adjustments,
             coercions,
         }))
     }
@@ -1193,7 +1193,7 @@ impl CheckState<'_> {
         function_return: Option<dir::GlobalTypeId>,
         substitution: &TypeSubstitution,
         receiver: Option<dir::GlobalTypeId>,
-        receiver_steps: Option<ReceiverSteps>,
+        receiver_adjustments: Option<Vec<dir::ReceiverAdjustment>>,
     ) -> CompilerResult<SignatureSelection> {
         // resolve the substituted return type
         let return_type = match function_return {
@@ -1232,7 +1232,7 @@ impl CheckState<'_> {
             parameters,
             return_type,
             generic_arguments: arguments.to_vec(),
-            receiver_steps,
+            receiver_adjustments,
             coercions: SmallVec::new(),
         })
     }
@@ -1369,7 +1369,7 @@ impl dir::TypeFold for SignatureSelection {
         self.parameters.map_types(map)?;
         self.return_type.map_types(map)?;
         self.generic_arguments.map_types(map)?;
-        self.receiver_steps.map_types(map)?;
+        self.receiver_adjustments.map_types(map)?;
         for (_, coercion) in &mut self.coercions {
             coercion.map_types(map)?;
         }

@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Answer, ArgumentValue, CallableArgument, Callee, CheckOutcome, CheckState, Expectation, Origin,
-    OverloadRule, Selection, SignatureMatch, SignatureSelection, TypeSubstitution, ValueUse,
+    OverloadRule, OverloadSelection, SignatureMatch, SignatureSelection, TypeSubstitution,
+    ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -137,7 +138,7 @@ impl CheckState<'_> {
             },
         )?;
         let (position, candidate, signature, outcome) = match selection {
-            Selection::Selected {
+            OverloadSelection::Selected {
                 position,
                 candidate,
                 signature,
@@ -148,9 +149,9 @@ impl CheckState<'_> {
                 signature,
                 outcome,
             ),
-            Selection::Rejected(notes) => return Ok(NewtypeMatch::Rejected(notes)),
-            Selection::Refused => return Ok(NewtypeMatch::Refused),
-            Selection::Ambiguous => return Ok(NewtypeMatch::Ambiguous),
+            OverloadSelection::Rejected(notes) => return Ok(NewtypeMatch::Rejected(notes)),
+            OverloadSelection::Refused => return Ok(NewtypeMatch::Refused),
+            OverloadSelection::Ambiguous => return Ok(NewtypeMatch::Ambiguous),
         };
 
         // remember the winning backing for equal asks

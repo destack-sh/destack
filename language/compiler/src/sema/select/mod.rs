@@ -34,14 +34,13 @@ pub(in crate::sema) use destack_dir::MemberRole;
 pub(in crate::sema) use extension::{ExtensionHead, ExtensionMatch, OpenBounds, UnboundParameters};
 pub(in crate::sema) use instantiation::TypeArgumentInference;
 pub(in crate::sema) use lookup::{
-    DeclaredCandidate, DeclaredMember, LookupReceiver, MemberCandidate, MemberLookup, MemberSource,
+    CandidateSource, DeclaredMember, DeclaredSource, LookupReceiver, MemberCandidate, MemberLookup,
     is_optional_member, member_arms, member_kind, prepend_adjustment, selected_candidates,
 };
 pub(in crate::sema) use newtype::{NewtypeMatch, NewtypeSignature, REPORTED_REJECTIONS};
 pub(in crate::sema) use operator::OperatorOperands;
 pub(in crate::sema) use protocol::*;
-pub(in crate::sema) use receiver::ReceiverSteps;
 pub(in crate::sema) use signature::{
-    ArgumentValue, CallableArgument, OverloadRule, Selection, SignatureMatch, SignatureRejection,
-    SignatureSelection,
+    ArgumentValue, CallableArgument, OverloadRule, OverloadSelection, SignatureMatch,
+    SignatureRejection, SignatureSelection,
 };
