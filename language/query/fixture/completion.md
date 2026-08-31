@@ -372,6 +372,8 @@ class User {
     age: uint;
 
     constructor(name: string, age: uint) {
+        this.name = name;
+        this.age = age;
     }
 }
 ```
@@ -382,7 +384,9 @@ class User {
     age: uint;
 
     constructor(name: string, age: uint) {
-        this.;
+        this.name = name;
+        this.age = age;
+        this.
              ^ cursor
     }
 }
