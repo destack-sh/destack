@@ -1,6 +1,10 @@
 ---
 title: Generated Inputs
-description: Test properties with generated values.
+description: Generated Inputs
 ---
 
 # Generated Inputs
+
+:::callout note
+TODO: coming soon.
+:::

@@ -1,9 +1,9 @@
 ---
-title: Editor
-description: Editor
+title: Web
+description: Web
 ---
 
-# Editor
+# Web
 
 :::callout note
 TODO: coming soon.

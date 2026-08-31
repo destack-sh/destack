@@ -1,21 +1,14 @@
 ---
 title: Functions
-description: Functions, lambdas, generics, and captures.
+description: Functions, lambdas and captures.
 ---
 
 # Functions
 
-Functions use TypeScript signatures. Lambdas may state how their environment is captured.
-
 ```ds:src/functions.ds
-export function identity<T>(value: T): T {
-    value
+function add(left: int32, right: int32): int32 {
+    left + right
 }
 
-export function multiplier(factor: int32): (int32) => int32 {
-    @capture({ factor: "copy" })
-    return (value) => value * factor;
-}
-
-export const double = multiplier(2);
+const double = (value: int32) => value * 2;
 ```

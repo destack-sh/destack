@@ -1,9 +1,9 @@
 ---
-title: Editor
-description: Editor
+title: Server
+description: Server
 ---
 
-# Editor
+# Server
 
 :::callout note
 TODO: coming soon.

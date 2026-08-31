@@ -1,9 +1,9 @@
 ---
-title: Editor
-description: Editor
+title: Releases
+description: Releases
 ---
 
-# Editor
+# Releases
 
 :::callout note
 TODO: coming soon.

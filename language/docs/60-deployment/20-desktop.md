@@ -1,9 +1,9 @@
 ---
-title: Editor
-description: Editor
+title: Desktop
+description: Desktop
 ---
 
-# Editor
+# Desktop
 
 :::callout note
 TODO: coming soon.

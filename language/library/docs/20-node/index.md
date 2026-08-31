@@ -1,9 +1,9 @@
 ---
-title: Editor
-description: Editor
+title: Node
+description: Node
 ---
 
-# Editor
+# Node
 
 :::callout note
 TODO: coming soon.

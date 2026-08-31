@@ -1,6 +1,10 @@
 ---
 title: Rewriting
-description: Rewrite source with structural queries.
+description: Rewriting
 ---
 
 # Rewriting
+
+```sh
+destack rewrite 'fetch($URL)' 'client.fetch($URL)' .
+```

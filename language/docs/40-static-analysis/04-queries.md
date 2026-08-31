@@ -1,6 +1,10 @@
 ---
 title: Queries
-description: Find declarations and expressions by structure.
+description: Queryable.
 ---
 
 # Queries
+
+```sh
+destack query 'fetch($URL)' .
+```

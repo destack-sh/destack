@@ -1,14 +1,14 @@
 ---
-title: Guide
-description: The Destack language and toolchain.
+title: Reference
+description: Safe, sound, predictable, and above all familiar.
 ---
 
-# Guide
+# Reference
 
-- [Start](00-start/index.md)
+- [Setup](00-setup.md)
 - [TypeScript](10-typescript/index.md)
 - [TypeScript++](20-typescriptpp/index.md)
-- [Standard Library](../library/docs/index.md)
+- [Standard Library](/docs/language/standard-library/)
 - [Static Analysis](40-static-analysis/index.md)
 - [Dynamic Analysis](50-dynamic-analysis/index.md)
-- [Build, Run, Deploy](60-build-run-deploy/index.md)
+- [Deployment](60-deployment/index.md)

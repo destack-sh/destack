@@ -1,6 +1,10 @@
 ---
 title: Type Checking
-description: Whole-project type checking.
+description: Strict, sound TypeScript with predictable module boundaries and type behavior.
 ---
 
 # Type Checking
+
+```sh
+destack check .
+```
