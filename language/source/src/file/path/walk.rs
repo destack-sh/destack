@@ -28,6 +28,7 @@ where
     // retain pending directories without recursive calls
     let mut directory_stack: Vec<PathBuf> = vec![options.root.clone()];
     let mut ignore_set = IgnoreSet::new();
+    ignore_set.load_root(file_system, &options.root)?;
 
     while let Some(directory) = directory_stack.pop() {
         // load ignore rules declared by this directory
@@ -49,7 +50,7 @@ where
             })?;
 
             // skip ignored entries
-            if ignore_set.is_ignored(&options.root, &path, metadata.is_directory) {
+            if ignore_set.is_ignored(&path, metadata.is_directory) {
                 continue;
             }
 

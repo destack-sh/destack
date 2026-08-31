@@ -418,6 +418,12 @@ fn collect_formattable_files(
 ) -> CommandResult<Vec<PathBuf>> {
     let mut files = Vec::new();
     let mut ignore_set = IgnoreSet::new();
+    ignore_set.load_root(fs, ignore_root).map_err(|error| {
+        CommandError::source(format!(
+            "failed to read ignore rules in {}: {error}",
+            ignore_root.display()
+        ))
+    })?;
 
     collect_formattable_files_in_dir(fs, ignore_root, directory, &mut ignore_set, &mut files)?;
     files.sort();
@@ -448,7 +454,7 @@ fn collect_formattable_files_in_dir(
         let metadata = fs.metadata(&entry).map_err(|error| {
             CommandError::source(format!("failed to inspect {}: {error}", entry.display()))
         })?;
-        if ignore_set.is_ignored(ignore_root, &entry, metadata.is_directory) {
+        if ignore_set.is_ignored(&entry, metadata.is_directory) {
             continue;
         }
         if metadata.is_directory {

@@ -1,13 +1,16 @@
 use std::collections::HashMap;
 use std::io::{self, ErrorKind};
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
-use crate::FileSystem;
+use crate::{FileSystem, PathExt};
 
 use super::matches;
 
 const GITIGNORE_FILE_NAME: &str = ".gitignore";
 const GITATTRIBUTES_FILE_NAME: &str = ".gitattributes";
+const GIT_DIRECTORY_NAME: &str = ".git";
+const GIT_COMMON_DIRECTORY_FILE_NAME: &str = "commondir";
+const GIT_EXCLUDE_PATH: &str = "info/exclude";
 const STATS_ATTRIBUTE_NAMES: &[&str] =
     &["linguist-generated", "linguist-vendored", "export-ignore"];
 
@@ -38,6 +41,101 @@ impl IgnoreSet {
         Self {
             loaded: HashMap::new(),
         }
+    }
+
+    /// Load root ignore files and repository-local Git exclusions.
+    pub fn load_root(&mut self, file_system: &dyn FileSystem, root: &Path) -> io::Result<()> {
+        // find the enclosing Git repository
+        let mut repository = None;
+        for directory in root.ancestors() {
+            let git_path = directory.join(GIT_DIRECTORY_NAME);
+            match file_system.symlink_metadata(&git_path) {
+                Ok(metadata) => {
+                    repository = Some((directory, git_path, metadata));
+                    break;
+                }
+                Err(error) if error.kind() == ErrorKind::NotFound => {}
+                Err(error) => return Err(error),
+            }
+        }
+        let Some((repository_root, git_path, git_metadata)) = repository else {
+            return self.load(file_system, root);
+        };
+
+        // load inherited ignore files through the walk root
+        let relative_root = root.strip_prefix(repository_root).map_err(|_| {
+            io::Error::other(format!(
+                "source root is outside Git repository: {}",
+                root.display()
+            ))
+        })?;
+        let mut directory = repository_root.to_path_buf();
+        self.load(file_system, &directory)?;
+        for component in relative_root.components() {
+            directory.push(component);
+            self.load(file_system, &directory)?;
+        }
+
+        // resolve the Git directory for regular and linked worktrees
+        let git_directory = if git_metadata.is_directory {
+            git_path
+        } else if git_metadata.is_file {
+            let declaration = file_system.read_to_string(&git_path)?;
+            let Some(path) = declaration.trim().strip_prefix("gitdir:") else {
+                return Err(io::Error::new(
+                    ErrorKind::InvalidData,
+                    format!("invalid Git directory declaration: {}", git_path.display()),
+                ));
+            };
+            let path = path.trim();
+            if path.is_empty() {
+                return Err(io::Error::new(
+                    ErrorKind::InvalidData,
+                    format!("empty Git directory declaration: {}", git_path.display()),
+                ));
+            }
+            let path = Path::new(path);
+            if path.is_absolute() {
+                path.to_path_buf()
+            } else {
+                repository_root.normalize_with(path)
+            }
+        } else {
+            return Err(io::Error::new(
+                ErrorKind::InvalidData,
+                format!("invalid Git directory entry: {}", git_path.display()),
+            ));
+        };
+
+        // resolve the shared Git directory for linked worktrees
+        let common_path = git_directory.join(GIT_COMMON_DIRECTORY_FILE_NAME);
+        let common_directory = match read_optional(file_system, &common_path)? {
+            Some(path) if !path.trim().is_empty() => git_directory.normalize_with(path.trim()),
+            Some(_) => {
+                return Err(io::Error::new(
+                    ErrorKind::InvalidData,
+                    format!("empty Git common directory: {}", common_path.display()),
+                ));
+            }
+            None => git_directory,
+        };
+
+        // prepend repository-local exclusions below .gitignore precedence
+        let exclude_path = common_directory.join(GIT_EXCLUDE_PATH);
+        let Some(text) = read_optional(file_system, &exclude_path)? else {
+            return Ok(());
+        };
+        let Some(ignore_file) = self.loaded.get_mut(repository_root) else {
+            return Err(io::Error::other(format!(
+                "repository ignore rules were not loaded: {}",
+                repository_root.display()
+            )));
+        };
+        let mut patterns = parse_patterns(&text);
+        patterns.append(&mut ignore_file.patterns);
+        ignore_file.patterns = patterns;
+
+        Ok(())
     }
 
     /// Load ignore files for a directory if not already loaded.
@@ -72,25 +170,36 @@ impl IgnoreSet {
     }
 
     /// Check if a path is ignored, considering all ancestor ignore files.
-    pub fn is_ignored(&self, root: &Path, path: &Path, is_directory: bool) -> bool {
-        let mut ignored = false;
-        let ancestors = get_ancestors_between(root, path.parent().unwrap_or(root));
+    pub fn is_ignored(&self, path: &Path, is_directory: bool) -> bool {
+        // keep Git control paths outside every source walk
+        if path
+            .file_name()
+            .is_some_and(|name| name == GIT_DIRECTORY_NAME)
+        {
+            return true;
+        }
+
+        // select the first match in Git precedence order
+        let ancestors = path.parent().into_iter().flat_map(Path::ancestors);
         for base in ancestors {
-            if let Some(ignore_file) = self.loaded.get(&base) {
-                let relative_path = strip_prefix(path, &ignore_file.base).unwrap_or(path);
+            if let Some(ignore_file) = self.loaded.get(base) {
+                let relative_path = path
+                    .strip_prefix(base)
+                    .expect("ignore file base must be a path ancestor");
                 let relative_path_string = unix_path(relative_path);
                 let file_name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                for pattern in &ignore_file.patterns {
+                for pattern in ignore_file.patterns.iter().rev() {
                     if pattern.directory_only && !is_directory {
                         continue;
                     }
                     if pattern_matches(&pattern.pattern, &relative_path_string, file_name) {
-                        ignored = !pattern.is_negation;
+                        return !pattern.is_negation;
                     }
                 }
             }
         }
-        ignored
+
+        false
     }
 }
 
@@ -231,55 +340,9 @@ fn pattern_matches(pattern: &str, relative_path: &str, file_name: &str) -> bool 
     }
 }
 
-/// Get vector of ancestors between root and end (inclusive of root and end).
-fn get_ancestors_between(root: &Path, end: &Path) -> Vec<PathBuf> {
-    let mut result = Vec::new();
-    let root_cleaned = clean_path(root);
-    let mut current = clean_path(end);
-    let mut stack = Vec::new();
-    loop {
-        stack.push(current.clone());
-        if current == root_cleaned {
-            break;
-        }
-        let Some(parent) = current.parent() else {
-            break;
-        };
-        let parent_path = parent.to_path_buf();
-        if parent_path == current {
-            break;
-        }
-        current = parent_path;
-    }
-    while let Some(path) = stack.pop() {
-        result.push(path);
-    }
-    result
-}
-
-/// Normalize a path by removing '.' and '..' components.
-fn clean_path(path: &Path) -> PathBuf {
-    let mut output = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::CurDir => {}
-            Component::ParentDir => {
-                output.pop();
-            }
-            _ => output.push(component.as_os_str()),
-        }
-    }
-    output
-}
-
 /// Create a unix style path string with forward slashes.
 fn unix_path(path: &Path) -> String {
     path.to_string_lossy().replace('\\', "/")
-}
-
-/// Strip prefix from path, returning None when not possible.
-fn strip_prefix<'a>(path: &'a Path, base: &Path) -> Option<&'a Path> {
-    path.strip_prefix(base).ok()
 }
 
 #[cfg(test)]
@@ -293,8 +356,12 @@ mod tests {
     #[test]
     fn test_parse_and_match_ignore() {
         let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_ignore");
-        fs.create_dir_all(Path::new("project"))
+        fs.create_dir_all(Path::new("project/src"))
             .expect("create ignore directory");
+        fs.create_dir_all(Path::new("meta/worktrees/project"))
+            .expect("create worktree directory");
+        fs.create_dir_all(Path::new("meta/info"))
+            .expect("create Git directory");
         let ignore_file = r"target/
 *.log
 !keep.log
@@ -302,28 +369,32 @@ mod tests {
 ";
         fs.write_bytes("project/.gitignore", ignore_file.as_bytes())
             .expect("write ignore file");
+        fs.write_bytes("project/.git", b"gitdir: ../meta/worktrees/project\n")
+            .expect("write Git directory file");
+        fs.write_bytes("meta/worktrees/project/commondir", b"../..\n")
+            .expect("write common directory file");
+        fs.write_bytes("meta/info/exclude", b"*.log\n**/.claude/worktrees/\n")
+            .expect("write repository exclude file");
 
         let mut ignore_set = IgnoreSet::new();
         ignore_set
-            .load(&fs, &fs.path_for("project"))
+            .load_root(&fs, &fs.path_for("project/src"))
             .expect("load ignore rules");
 
-        let target_file = fs.path_for("project/target");
-        assert!(ignore_set.is_ignored(fs.root(), &target_file, true));
+        let target_file = fs.path_for("project/src/target");
+        assert!(ignore_set.is_ignored(&target_file, true));
 
-        let log_file = fs.path_for("project/foo.log");
-        assert!(ignore_set.is_ignored(fs.root(), &log_file, false));
+        let log_file = fs.path_for("project/src/foo.log");
+        assert!(ignore_set.is_ignored(&log_file, false));
 
-        let keep_file = fs.path_for("project/keep.log");
-        assert!(!ignore_set.is_ignored(fs.root(), &keep_file, false));
-    }
+        let keep_file = fs.path_for("project/src/keep.log");
+        assert!(!ignore_set.is_ignored(&keep_file, false));
 
-    /// Ensure ancestor discovery stops when the filesystem root is reached.
-    #[test]
-    fn test_get_ancestors_between_handles_filesystem_root() {
-        let root = Path::new("workspace/root");
-        let ancestors = get_ancestors_between(root, Path::new("/"));
-        assert_eq!(ancestors, vec![PathBuf::from("/")]);
+        let worktree = fs.path_for("project/src/.claude/worktrees");
+        assert!(ignore_set.is_ignored(&worktree, true));
+
+        let git_directory = fs.path_for("project/.git");
+        assert!(ignore_set.is_ignored(&git_directory, true));
     }
 
     /// Match stats ignore patterns from gitattributes.
@@ -348,21 +419,21 @@ archive.tar export-ignore
             .expect("load attribute rules");
 
         let generated_file = fs.path_for("project/generated/parser.c");
-        assert!(ignore_set.is_ignored(fs.root(), &generated_file, false));
+        assert!(ignore_set.is_ignored(&generated_file, false));
 
         let kept_file = fs.path_for("project/generated/keep.c");
-        assert!(!ignore_set.is_ignored(fs.root(), &kept_file, false));
+        assert!(!ignore_set.is_ignored(&kept_file, false));
 
         let generated_rust_file = fs.path_for("project/runtime/bindings.generated.rs");
-        assert!(ignore_set.is_ignored(fs.root(), &generated_rust_file, false));
+        assert!(ignore_set.is_ignored(&generated_rust_file, false));
 
         let vendor_file = fs.path_for("project/vendor.txt");
-        assert!(ignore_set.is_ignored(fs.root(), &vendor_file, false));
+        assert!(ignore_set.is_ignored(&vendor_file, false));
 
         let archive_file = fs.path_for("project/archive.tar");
-        assert!(ignore_set.is_ignored(fs.root(), &archive_file, false));
+        assert!(ignore_set.is_ignored(&archive_file, false));
 
         let source_file = fs.path_for("project/source.rs");
-        assert!(!ignore_set.is_ignored(fs.root(), &source_file, false));
+        assert!(!ignore_set.is_ignored(&source_file, false));
     }
 }

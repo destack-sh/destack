@@ -251,6 +251,11 @@ pub fn run(args: &StatsArgs) -> i32 {
     let mut ignore_set = destack_source::IgnoreSet::new();
     let file_system = PhysicalFileSystem;
     let mut files = Vec::new();
+    if let Err(error) = ignore_set.load_root(&file_system, &root) {
+        console::error(&format!("error: failed to read ignore rules: {error}"));
+
+        return 1;
+    }
     if let Err(error) = walk_directory(&file_system, &root, &root, &mut files, &mut ignore_set) {
         console::error(&format!("error: failed to read source tree: {error}"));
 
@@ -321,7 +326,7 @@ fn walk_directory(
         }
 
         // check gitignore
-        if ignore_set.is_ignored(root, &path, metadata.is_directory) {
+        if ignore_set.is_ignored(&path, metadata.is_directory) {
             continue;
         }
 

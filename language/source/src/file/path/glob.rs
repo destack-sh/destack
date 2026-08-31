@@ -223,10 +223,16 @@ mod tests {
         let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_glob");
         fs.create_dir_all(Path::new("src/sub"))
             .expect("create glob directories");
+        fs.create_dir_all(Path::new(".git/info"))
+            .expect("create Git directories");
+        fs.create_dir_all(Path::new(".claude/worktrees/checkout"))
+            .expect("create ignored directories");
         fs.write_text_or_error("root.rs", "");
         fs.write_text_or_error("src/lib.rs", "");
         fs.write_text_or_error("src/main.rs", "");
         fs.write_text_or_error("src/sub/mod.rs", "");
+        fs.write_text_or_error(".git/info/exclude", "**/.claude/worktrees/\n");
+        fs.write_text_or_error(".claude/worktrees/checkout/foreign.rs", "");
 
         // search for all .rs files recursively
         let pattern = format!("{}/**/*.rs", fs.root().to_string_lossy());
