@@ -61,21 +61,12 @@ mod sealed {
 /// Provide methods to [`destack_lsp_types::Uri`] to fill blanks left by
 /// `fluent_uri` (the underlying type) especially when converting to and from file paths.
 pub trait UriExt: Sized + sealed::Sealed {
-    /// Assuming the URL is in the `file` scheme or similar,
-    /// convert its path to an absolute `std::path::Path`.
-    ///
-    /// **Note:** This does not actually check the URL’s `scheme`, and may
-    /// give nonsensical results for other schemes. It is the user’s
-    /// responsibility to check the URL’s scheme before calling this.
+    /// Convert one `file` URI to an absolute file system path.
     ///
     /// e.g. `Uri("file:///etc/passwd")` becomes `PathBuf("/etc/passwd")`
     fn to_file_path(&self) -> Option<Cow<'_, Path>>;
 
-    /// Convert a file path to a [`destack_lsp_types::Uri`].
-    ///
-    /// Create a [`destack_lsp_types::Uri`] from a file path.
-    ///
-    /// Returns `None` if the file does not exist.
+    /// Convert one absolute or resolvable relative path to a `file` URI.
     fn from_file_path<A: AsRef<Path>>(path: A) -> Option<Self>;
 }
 
@@ -93,6 +84,10 @@ const ASCII_SET: AsciiSet =
 
 impl UriExt for destack_lsp_types::Uri {
     fn to_file_path(&self) -> Option<Cow<'_, Path>> {
+        if self.scheme().as_str() != "file" {
+            return None;
+        }
+
         let path_str = self.path().decode().to_string_lossy();
         if path_str.is_empty() {
             return None;
