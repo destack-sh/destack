@@ -1,9 +1,10 @@
+use std::collections::BTreeSet;
+use std::path::{Path, PathBuf};
+
 use destack_repository::{DestackFile, TraceView};
 use destack_serde::Reflect;
 use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
 
 use super::CommandResult;
 use super::common::{
@@ -12,17 +13,12 @@ use super::common::{
 };
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
+
 /// Options for the clean command.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, Default)]
 pub struct CleanOptions {
     /// Optional directory override.
     pub dir: Option<PathBuf>,
-    /// Remove build output directories.
-    pub dist: bool,
-    /// Remove cache directories.
-    pub cache: bool,
-    /// Remove all build outputs and caches.
-    pub all: bool,
     /// Clean all packages in the workspace.
     pub all_packages: bool,
 }
@@ -69,21 +65,12 @@ pub struct CleanInput {
     pub trace: Option<TraceView>,
     /// Optional directory override.
     pub dir: Option<PathBuf>,
-    /// Remove build output directories.
-    pub dist: bool,
-    /// Remove cache directories.
-    pub cache: bool,
-    /// Remove all build outputs and caches.
-    pub all: bool,
     /// Clean all packages in the workspace.
     pub all_packages: bool,
 }
 
 impl_command_input_options!(CleanInput {
     dir: None,
-    dist: false,
-    cache: false,
-    all: false,
     all_packages: false,
 });
 
@@ -91,14 +78,9 @@ impl CommandContext<'_> {
     /// Execute a clean command.
     pub(crate) fn run_clean_command(
         &mut self,
-        _root: &Path,
         options: &CleanOptions,
     ) -> CommandResult<CommandOutcome<CleanPayload>> {
-        let fs = self.repository.file_system().clone();
-
-        // decide which outputs to clean
-        let clean_dist = options.dist || options.all || !options.cache;
-        let clean_cache = options.cache || options.all;
+        let file_system = self.repository.file_system().clone();
 
         // resolve workspace context
         let revision = self.revision();
@@ -108,26 +90,15 @@ impl CommandContext<'_> {
             self.workspace_configs(revision)?
         } else {
             let manifest = options.dir.as_deref().or(self.common.manifest.as_deref());
-            match self.resolve_destack_config_path(manifest) {
-                Ok(path) => vec![self.load_destack_config(&path)?],
-                Err(error) => {
-                    if clean_dist {
-                        return Err(error);
-                    }
-                    Vec::new()
-                }
-            }
+            let path = self.resolve_destack_config_path(manifest)?;
+
+            vec![self.load_destack_config(&path)?]
         };
 
         // collect paths for removal
-        let mut paths = HashSet::new();
-        if clean_dist {
-            for config in &destack_configs {
-                collect_output_paths(config, &mut paths);
-            }
-        }
-        if clean_cache {
-            paths.insert(self.repository.layout().cache.clone());
+        let mut paths = BTreeSet::new();
+        for config in &destack_configs {
+            collect_output_paths(config, &mut paths);
         }
 
         // delete selected paths
@@ -139,27 +110,11 @@ impl CommandContext<'_> {
                 continue;
             }
 
-            match fs.remove_path(&path) {
+            match file_system.remove_path(&path) {
                 Ok(true) => removed.push(path.display().to_string()),
                 Ok(false) => {}
                 Err(error) => errors.push(format!("{}: {error}", path.display())),
             }
-        }
-
-        // emit output messages
-        if self.common.dry_run {
-            for path in &removed {
-                self.output
-                    .push_stdout(format!("would remove {path}\n").into_bytes());
-            }
-        } else {
-            for path in &removed {
-                self.output
-                    .push_stdout(format!("removed {path}\n").into_bytes());
-            }
-        }
-        for error in &errors {
-            self.output.push_stderr(format!("{error}\n").into_bytes());
         }
 
         let exit_code = if errors.is_empty() { 0 } else { 1 };
@@ -177,7 +132,7 @@ impl CommandContext<'_> {
 }
 
 /// Collect output paths for one config.
-fn collect_output_paths(config: &DestackFile, paths: &mut HashSet<PathBuf>) {
+fn collect_output_paths(config: &DestackFile, paths: &mut BTreeSet<PathBuf>) {
     // collect the legacy compiler output directory
     if let Some(out_dir) = config.compiler.out_dir.as_ref() {
         paths.insert(resolve_path(out_dir, &config.directory));

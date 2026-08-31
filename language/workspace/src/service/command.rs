@@ -4,8 +4,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    BuildInput, CacheInput, CheckInput, CleanInput, DocInput, DoctorInput, FormatInput, InfoInput,
-    QueryInput, RewriteInput, SettingsInput, TargetsInput, TaskInput, TestInput,
+    BuildInput, CheckInput, CleanInput, DocInput, DoctorInput, FormatInput, InfoInput, QueryInput,
+    RewriteInput, SettingsInput, TargetsInput, TaskInput, TestInput,
 };
 
 /// Request to check one workspace root.
@@ -87,15 +87,6 @@ pub struct TargetsRequest {
     pub root: PathBuf,
     /// Target selection input.
     pub input: TargetsInput,
-}
-
-/// Request for cache locations.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
-pub struct CacheRequest {
-    /// Workspace root to inspect.
-    pub root: PathBuf,
-    /// Cache input.
-    pub input: CacheInput,
 }
 
 /// Request for resolved workspace settings.

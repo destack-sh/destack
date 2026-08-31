@@ -1,5 +1,4 @@
 mod build;
-mod cache;
 mod check;
 mod clean;
 mod common;
@@ -21,7 +20,6 @@ mod task;
 mod test;
 
 pub use build::*;
-pub use cache::*;
 pub use check::*;
 pub use clean::*;
 pub use common::*;

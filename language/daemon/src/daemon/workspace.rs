@@ -442,17 +442,6 @@ impl WorkspaceService for DaemonPeer {
         WorkspaceService::targets(&workspace, request, responses).await
     }
 
-    /// Return cache locations.
-    async fn cache(
-        &self,
-        request: Request<workspace::CacheRequest>,
-        responses: ResponseSender<ProgressEvent>,
-    ) -> Result<Response<workspace::CacheOutput>, Status> {
-        let workspace = self.workspace(&request.value.root)?;
-
-        WorkspaceService::cache(&workspace, request, responses).await
-    }
-
     /// Return resolved settings.
     async fn settings(
         &self,

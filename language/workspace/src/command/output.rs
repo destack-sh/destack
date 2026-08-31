@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use crate::{CommandOutputChunk, CommandOutputFile, FileImage, Message, OutputStream};
 
 use super::build::BuildPayload;
-use super::cache::CachePayload;
 use super::clean::CleanPayload;
 use super::common::CommandMessagePayload;
 use super::doc::DocPayload;
@@ -151,7 +150,6 @@ impl<T> CommandOutput for Output<T> {
 }
 
 command_output!(BuildOutput, BuildPayload);
-command_output!(CacheOutput, CachePayload);
 command_output!(CheckOutput, ());
 command_output!(CleanOutput, CleanPayload);
 command_output!(DocOutput, DocPayload);

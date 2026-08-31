@@ -7,10 +7,10 @@ use futures::{FutureExt, pin_mut, select_biased};
 
 use super::*;
 use crate::{
-    Branch, BuildOutput, CacheOutput, CheckOutput, CleanOutput, CommandProgress, DocOutput,
-    DoctorOutput, ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput,
-    RewriteOutput, RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, Watch,
-    WatchEvent, Workspace,
+    Branch, BuildOutput, CheckOutput, CleanOutput, CommandProgress, DocOutput, DoctorOutput,
+    ExportResult, FileImage, FormatOutput, InfoOutput, ProgressEvent, QueryOutput, RewriteOutput,
+    RunQueryResponse, SettingsOutput, TargetsOutput, TaskOutput, TestOutput, Watch, WatchEvent,
+    Workspace,
 };
 
 /// RPC operations over one Destack workspace.
@@ -147,14 +147,6 @@ pub trait WorkspaceService {
         idempotency = "no_side_effects"
     )]
     fn targets(request: TargetsRequest) -> TargetsOutput;
-
-    /// Return cache locations.
-    #[rpc(
-        name = "Cache",
-        response_stream(ProgressEvent),
-        idempotency = "no_side_effects"
-    )]
-    fn cache(request: CacheRequest) -> CacheOutput;
 
     /// Return resolved settings.
     #[rpc(
@@ -536,20 +528,6 @@ impl WorkspaceService for Workspace {
         self.resolve_root(&request.root)?;
         let (progress, events) = CommandProgress::channel();
         let command = Workspace::targets(self, request.input, Some(progress));
-
-        events.forward(responses, command).await
-    }
-
-    /// Return cache locations.
-    async fn cache(
-        &self,
-        request: Request<CacheRequest>,
-        responses: ResponseSender<ProgressEvent>,
-    ) -> Result<Response<CacheOutput>, Status> {
-        let request = request.value;
-        self.resolve_root(&request.root)?;
-        let (progress, events) = CommandProgress::channel();
-        let command = Workspace::cache(self, request.input, Some(progress));
 
         events.forward(responses, command).await
     }

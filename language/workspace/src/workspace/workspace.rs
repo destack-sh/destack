@@ -16,14 +16,14 @@ use parking_lot::Mutex;
 
 use super::{BackgroundRun, Lifecycle, State, WorkspacePin};
 use crate::{
-    BuildInput, BuildOutput, CacheInput, CacheOptions, CacheOutput, CheckInput, CheckOutput,
-    CleanInput, CleanOptions, CleanOutput, CommandContext, CommandError, CommandOptions,
-    CommandOutcome, CommandProgress, CommandResult, CommandRevision, DocInput, DocOptions,
-    DocOutput, DoctorInput, DoctorOptions, DoctorOutput, Error, ExportInput, ExportResult,
-    ExportedFile, FormatInput, FormatOutput, InfoInput, InfoOptions, InfoOutput, Output,
-    OutputBuffer, QueryInput, QueryOutput, RewriteInput, RewriteOutput, SettingsInput,
-    SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions, TargetsOutput, TaskInput,
-    TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput, WatchState,
+    BuildInput, BuildOutput, CheckInput, CheckOutput, CleanInput, CleanOptions, CleanOutput,
+    CommandContext, CommandError, CommandOptions, CommandOutcome, CommandProgress, CommandResult,
+    CommandRevision, DocInput, DocOptions, DocOutput, DoctorInput, DoctorOptions, DoctorOutput,
+    Error, ExportInput, ExportResult, ExportedFile, FormatInput, FormatOutput, InfoInput,
+    InfoOptions, InfoOutput, Output, OutputBuffer, QueryInput, QueryOutput, RewriteInput,
+    RewriteOutput, SettingsInput, SettingsOptions, SettingsOutput, TargetsInput, TargetsOptions,
+    TargetsOutput, TaskInput, TaskOptions, TaskOutput, TestInput, TestOptions, TestOutput,
+    WatchState,
 };
 
 /// One live Destack workspace rooted at one repository path.
@@ -380,22 +380,6 @@ impl Workspace {
         })
     }
 
-    /// Return cache locations.
-    pub fn cache<'a>(
-        &'a self,
-        request: CacheInput,
-        progress: Option<CommandProgress>,
-    ) -> BoxFuture<'a, Result<CacheOutput, CommandError>> {
-        Box::pin(async move {
-            let common = request.command_options();
-
-            self.run_command(&common, request.revision, progress, move |context| {
-                Box::pin(async move { context.run_cache_command(&CacheOptions) })
-            })
-            .await
-        })
-    }
-
     /// Return resolved settings.
     pub fn settings<'a>(
         &'a self,
@@ -461,19 +445,12 @@ impl Workspace {
         Box::pin(async move {
             let common = request.command_options();
 
-            let command_root = self.root.clone();
             self.run_command(&common, request.revision, progress, move |context| {
                 Box::pin(async move {
-                    context.run_clean_command(
-                        &command_root,
-                        &CleanOptions {
-                            dir: request.dir.clone(),
-                            dist: request.dist,
-                            cache: request.cache,
-                            all: request.all,
-                            all_packages: request.all_packages,
-                        },
-                    )
+                    context.run_clean_command(&CleanOptions {
+                        dir: request.dir.clone(),
+                        all_packages: request.all_packages,
+                    })
                 })
             })
             .await
