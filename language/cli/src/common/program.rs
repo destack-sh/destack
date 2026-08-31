@@ -319,6 +319,26 @@ impl ProgramArgs {
         self
     }
 
+    /// Resolve the machine artifact cache directory and size limit.
+    pub(crate) fn resolve_artifact_cache(&self) -> ConsoleResult<(PathBuf, Option<u64>)> {
+        let file_system = self.file_system();
+        let cwd = self.effective_cwd()?;
+        let mut environment = Environment::capture_process();
+        environment.cwd = Some(cwd.clone());
+        let (home, settings) = self.load_settings(file_system.as_ref(), &cwd, &environment)?;
+
+        // resolve the final cache path from every machine override
+        let directory = DestackLayout::resolve_cache(
+            &cwd,
+            &home,
+            &environment,
+            &settings,
+            self.cache_dir.as_deref(),
+        );
+
+        Ok((directory, settings.cache.maximum_bytes))
+    }
+
     /// Open a repository and its imported physical revision from these arguments.
     pub(crate) fn open_repository(&self) -> ConsoleResult<(Arc<Repository>, Revision)> {
         let file_system = self.file_system();
@@ -333,13 +353,7 @@ impl ProgramArgs {
             packages: self.package_dir.clone(),
             cache: self.cache_dir.clone(),
         };
-        let home = DestackLayout::resolve_home(&cwd, &environment, layout_override.home.as_deref());
-        let settings = Settings::load_from_home(file_system.as_ref(), &home).map_err(|error| {
-            ConsoleError::message(format!(
-                "failed to load Destack settings from {}: {error}",
-                home.display()
-            ))
-        })?;
+        let (home, settings) = self.load_settings(file_system.as_ref(), &cwd, &environment)?;
 
         // discover and import the repository in one step
         let build_id = Workspace::BUILD_ID;
@@ -393,6 +407,24 @@ impl ProgramArgs {
             .as_ref()
             .map(FileSystemOverride::file_system)
             .unwrap_or_else(|| Arc::new(PhysicalFileSystem::new()))
+    }
+
+    /// Load machine settings and return their resolved home directory.
+    fn load_settings(
+        &self,
+        file_system: &dyn FileSystem,
+        cwd: &Path,
+        environment: &Environment,
+    ) -> ConsoleResult<(PathBuf, Settings)> {
+        let home = DestackLayout::resolve_home(cwd, environment, self.home.as_deref());
+        let settings = Settings::load_from_home(file_system, &home).map_err(|error| {
+            ConsoleError::message(format!(
+                "failed to load Destack settings from {}: {error}",
+                home.display()
+            ))
+        })?;
+
+        Ok((home, settings))
     }
 
     /// Open a local workspace from these arguments.

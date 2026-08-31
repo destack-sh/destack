@@ -1,11 +1,13 @@
+use std::path::Path;
+
+use clap::Args;
+use destack_artifact::{ArtifactCache, ArtifactCacheStats};
+use serde::Serialize;
+
 use crate::common::{
-    CommandOptionsBuilder, CommandResult, ListEntry, ListPrinter, ListSpacing, ProgramArgs,
-    ReportArgs, command_error, ensure_no_watch_or_dev, list_payload, print_list_with, report_error,
-    report_from_payload, run_workspace_payload_command_or_report,
+    ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_json_payload_report, report_error,
 };
 use crate::console;
-use clap::Args;
-use destack_workspace::{CacheInput, CachePayload, CommandRevision};
 
 /// Arguments for the cache command.
 #[derive(Args, Debug, Clone)]
@@ -19,58 +21,72 @@ pub struct CacheArgs {
     pub report: ReportArgs,
 }
 
-/// Show cache directory locations.
+/// Machine artifact cache report.
+#[derive(Debug, Serialize)]
+struct CachePayload<'a> {
+    /// Machine cache directory.
+    directory: &'a Path,
+    /// Configured maximum cache size.
+    maximum_bytes: Option<u64>,
+    /// Exact cache usage.
+    #[serde(flatten)]
+    stats: ArtifactCacheStats,
+}
+
+/// Show machine artifact cache usage.
 pub async fn run(args: &CacheArgs) -> i32 {
     if let Some(code) = ensure_no_watch_or_dev("cache", &args.program, &args.report) {
         return code;
     }
 
-    // build workspace command options
-    let common = match CommandOptionsBuilder::new(&args.program) {
-        Ok(common) => common.build(),
+    // resolve and measure the machine cache directly
+    let (directory, maximum_bytes) = match args.program.resolve_artifact_cache() {
+        Ok(cache) => cache,
         Err(error) => return report_error("cache", &args.report, &error.to_string()),
     };
-    let request = CacheInput {
-        ..(CommandRevision::Current, common).into()
+    let stats = match ArtifactCache::measure(&directory, destack_workspace::Workspace::BUILD_ID) {
+        Ok(stats) => stats,
+        Err(error) => return report_error("cache", &args.report, &error.to_string()),
+    };
+    let payload = CachePayload {
+        directory: &directory,
+        maximum_bytes,
+        stats,
     };
 
-    run_workspace_payload_command_or_report::<CachePayload, _, _, _>(
-        "cache",
-        &args.report,
-        &args.program,
-        async |workspace, _| {
-            let result = workspace
-                .cache(request, None)
-                .await
-                .map_err(command_error)?;
+    // preserve exact values for machine-readable reports
+    if let Err(code) = print_json_payload_report("cache", &args.report, 0, &payload) {
+        return code;
+    }
+    if args.report.is_json() {
+        return 0;
+    }
 
-            CommandResult::from_output(result)
-        },
-        "cache",
-        |exit_code, payload, _| {
-            report_from_payload(
-                "cache",
-                exit_code,
-                Some(list_payload(payload.caches)),
-                None,
-                None,
-            )
-        },
-        |_, payload| {
-            let list_entries = payload.caches.into_iter().map(|entry| {
-                let location = entry.directory;
-                let kind = entry.kind;
-                let title = format!("{kind}: {location}");
-                ListEntry::new(title)
-            });
-            let list_entries: Vec<ListEntry> = list_entries.collect();
-            if list_entries.is_empty() {
-                console::info("cache: no entries");
-                return;
-            }
-            let printer = ListPrinter::info();
-            print_list_with(&list_entries, ListSpacing::Compact, &printer);
-        },
-    )
-    .await
+    // render one human-readable cache report
+    let size = match maximum_bytes {
+        Some(maximum) => format!(
+            "{} / {}",
+            console::format_bytes(stats.bytes),
+            console::format_bytes(maximum)
+        ),
+        None => console::format_bytes(stats.bytes),
+    };
+    let fields = [
+        ("Directory", directory.display().to_string()),
+        ("Size", size),
+        (
+            "Current build",
+            console::format_bytes(stats.current_build_bytes),
+        ),
+        (
+            "Other builds",
+            console::format_bytes(stats.other_build_bytes),
+        ),
+        ("Builds", stats.builds.to_string()),
+        ("Manifests", stats.manifests.to_string()),
+        ("Packs", stats.packs.to_string()),
+    ];
+    console::print(&console::render_fields("Artifact cache", &fields));
+
+    0
 }

@@ -15,6 +15,10 @@ pub const SYMBOL_FAILURE: &str = "✗";
 pub const SYMBOL_ARROW: &str = "→";
 /// Bullet/dot separator.
 pub const SYMBOL_DOT: &str = "·";
+/// Number of bytes in one binary unit.
+const BYTE_UNIT: f64 = 1024.0;
+/// Binary byte unit names in ascending order.
+const BYTE_UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
 
 /// Output stream variants for color handling and fallbacks.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -230,6 +234,49 @@ pub fn format_duration_colored(duration: Duration) -> String {
     } else {
         red(&text)
     }
+}
+
+/// Format a byte count with one compact binary unit.
+pub fn format_bytes(bytes: u64) -> String {
+    let mut value = bytes as f64;
+    let mut unit = 0;
+
+    // select the largest supported binary unit
+    while value >= BYTE_UNIT && unit + 1 < BYTE_UNITS.len() {
+        value /= BYTE_UNIT;
+        unit += 1;
+    }
+
+    if unit == 0 {
+        format!("{bytes} {}", BYTE_UNITS[unit])
+    } else if value >= 10.0 {
+        format!("{value:.0} {}", BYTE_UNITS[unit])
+    } else {
+        format!("{value:.1} {}", BYTE_UNITS[unit])
+    }
+}
+
+/// Render one named object as aligned fields.
+pub fn render_fields(title: &str, fields: &[(&str, String)]) -> String {
+    let mut output = format!("{}\n\n", bold(title));
+
+    // align every field to the longest label
+    let Some(width) = fields.iter().map(|(label, _)| label.chars().count()).max() else {
+        return output;
+    };
+
+    for (label, value) in fields {
+        let label = format!("{label:<width$}");
+        output.push_str(&format!("{}  {value}\n", color(&label, "36")));
+    }
+
+    output
+}
+
+/// Print one Cargo-style action status to stderr.
+pub fn status(action: &str, message: &str) {
+    let action = format!("{action:>12}");
+    eprintln!("{} {message}", green(&action));
 }
 
 /// Print a line to stdout.

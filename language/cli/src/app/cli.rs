@@ -119,7 +119,7 @@ pub enum Command {
     /// Remove build outputs and caches.
     Clean(CleanArgs),
 
-    /// Show cache locations.
+    /// Show artifact cache usage.
     Cache(CacheArgs),
 
     /// Show resolved machine and workspace settings.
