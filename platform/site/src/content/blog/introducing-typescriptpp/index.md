@@ -268,6 +268,9 @@ All of the inherited JavaScript legacy-era dynamisms must go:
 - no dynamic JS shenanigans or monkey patching, so goodbye to `__proto__` or anything like that
 - no `module.x = foo..`
 - no `Object.prototype`, `Object.isOwnProperty`, `Object.assign`, ...
+- no `Reflect.*`
+- no `Proxy`
+- no `delete obj.x`
 - no "truthiness"; conditionals always take booleans
 - no array holes
 - oh also: no sequence expressions, who needs sequence expressions
@@ -492,6 +495,13 @@ export type Record<K: PropertyKey, V> = {
 - when we want / need to be explicit, `Dynamic<T>` 
 - like explicit `dyn T` (but fixed size fat pointer)
 - `unknown` is just `Dynamic<unknown>`
+
+- obviously infer x and template inference and all that still works
+- also partial generics / partial application
+- explicit _ holes and inference
+- like `Array<_>`
+- or `^_` 
+- or ``
 
 ### Generics
 
