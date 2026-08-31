@@ -29,23 +29,41 @@ const COLLECTION_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 const LAST_COLLECTION_FILE: &str = "last-collection";
 
-/// Exact machine artifact cache usage.
+/// Artifact cache usage for one set of builds.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct ArtifactCacheStats {
-    /// Removable bytes retained by the cache.
+    /// Bytes retained by these builds.
     pub bytes: u64,
-    /// Bytes retained by the current Destack build.
-    pub current_build_bytes: u64,
-    /// Bytes retained by other Destack builds.
-    pub other_build_bytes: u64,
-    /// Removable files retained by the cache.
+    /// Files retained by these builds.
     pub files: u64,
-    /// Build directories retained by the cache.
+    /// Build directories in this set.
     pub builds: u64,
-    /// Repository manifests retained by the cache.
+    /// Repository manifests retained by these builds.
     pub manifests: u64,
-    /// Immutable packs retained by the cache.
+    /// Immutable packs retained by these builds.
     pub packs: u64,
+}
+
+impl ArtifactCacheStats {
+    /// Include one measured build directory.
+    fn include(&mut self, build: &CachedDirectory) {
+        self.bytes += build.bytes;
+        self.files += build.files;
+        self.builds += 1;
+        self.manifests += build.manifests;
+        self.packs += build.packs;
+    }
+}
+
+/// Cached build usage grouped by producer.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
+pub struct ArtifactCacheUsage {
+    /// Usage retained by the current Destack build.
+    pub current_build: ArtifactCacheStats,
+    /// Usage retained by other Destack builds.
+    pub other_builds: ArtifactCacheStats,
+    /// Usage retained by every Destack build.
+    pub total: ArtifactCacheStats,
 }
 
 /// Records removed from one machine artifact cache.
@@ -117,9 +135,9 @@ impl ArtifactCache {
     pub fn measure(
         directory: &Path,
         build_id: BuildId,
-    ) -> Result<ArtifactCacheStats, ArtifactCacheError> {
+    ) -> Result<ArtifactCacheUsage, ArtifactCacheError> {
         if !Self::exists(directory)? {
-            return Ok(ArtifactCacheStats::default());
+            return Ok(ArtifactCacheUsage::default());
         }
 
         // retain a stable cache view while measuring its records
@@ -127,7 +145,7 @@ impl ArtifactCache {
         let builds_directory = directory.join("builds");
 
         // validate and measure machine cache metadata
-        let mut stats = ArtifactCacheStats::default();
+        let mut usage = ArtifactCacheUsage::default();
         for path in Self::read_directory(directory)? {
             let name = path.file_name().and_then(|name| name.to_str());
             match name {
@@ -141,9 +159,6 @@ impl ArtifactCache {
                     if !metadata.is_file {
                         return Err(Self::invalid_entry(&path, "a collection marker file"));
                     }
-
-                    stats.bytes += metadata.size_bytes;
-                    stats.files += 1;
                 }
                 Some("builds") => {
                     if !Self::metadata(&path)?.is_directory {
@@ -159,22 +174,18 @@ impl ArtifactCache {
             let current = builds_directory.join(build_id.to_string());
             for path in Self::read_directory(&builds_directory)? {
                 let build = Self::cached_directory(path)?;
-                stats.builds += 1;
-                stats.bytes += build.bytes;
-                stats.files += build.files;
-                stats.manifests += build.manifests;
-                stats.packs += build.packs;
+                usage.total.include(&build);
 
-                // attribute bytes to the current or another build
+                // attribute this directory to its exact build set
                 if build.path == current {
-                    stats.current_build_bytes += build.bytes;
+                    usage.current_build.include(&build);
                 } else {
-                    stats.other_build_bytes += build.bytes;
+                    usage.other_builds.include(&build);
                 }
             }
         }
 
-        Ok(stats)
+        Ok(usage)
     }
 
     /// Remove every record after requiring all build caches to be inactive.
@@ -684,8 +695,8 @@ impl ArtifactCache {
     pub fn measure(
         _directory: &Path,
         _build_id: BuildId,
-    ) -> Result<ArtifactCacheStats, ArtifactCacheError> {
-        Ok(ArtifactCacheStats::default())
+    ) -> Result<ArtifactCacheUsage, ArtifactCacheError> {
+        Ok(ArtifactCacheUsage::default())
     }
 
     /// Remove no records where persistent storage is unavailable.
@@ -750,11 +761,11 @@ mod tests {
 
         // report the exact current build records
         let stats = ArtifactCache::measure(files.root(), BuildId::test()).expect("measure cache");
-        assert_eq!(stats.builds, 1);
-        assert_eq!(stats.manifests, 2);
-        assert_eq!(stats.packs, 1);
-        assert_eq!(stats.other_build_bytes, 0);
-        assert_eq!(stats.current_build_bytes, stats.bytes);
+        assert_eq!(stats.current_build.builds, 1);
+        assert_eq!(stats.current_build.manifests, 2);
+        assert_eq!(stats.current_build.packs, 1);
+        assert_eq!(stats.other_builds, ArtifactCacheStats::default());
+        assert_eq!(stats.current_build, stats.total);
 
         // evict the first selection while retaining its shared pack
         let removed = cache
@@ -799,10 +810,12 @@ mod tests {
 
         // account for the active obsolete build in cache usage
         let stats = ArtifactCache::measure(files.root(), BuildId::test()).expect("measure cache");
-        assert_eq!(stats.bytes, 8);
-        assert_eq!(stats.current_build_bytes, 0);
-        assert_eq!(stats.other_build_bytes, 8);
-        assert_eq!(stats.builds, 2);
+        assert_eq!(stats.total.bytes, 8);
+        assert_eq!(stats.total.builds, 2);
+        assert_eq!(stats.current_build.bytes, 0);
+        assert_eq!(stats.current_build.builds, 1);
+        assert_eq!(stats.other_builds.bytes, 8);
+        assert_eq!(stats.other_builds.builds, 1);
 
         // retain the obsolete build while its lease remains active
         let collected = current
