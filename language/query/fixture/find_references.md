@@ -107,6 +107,24 @@ const second = greet("two");
 @find_references.reference location=main.ds#second_reference symbol=library.ds#greet@1
 ```
 
+### Find builtin references from user source
+
+Builtin declarations and physical uses share one reference identity.
+
+```ds main.ds
+import { log } from "destack:console";
+         ^^^ import
+
+log("ready");
+^^^ reference
+```
+
+```query find_references main.ds#reference include_declaration=true
+@find_references.reference location=destack://console/console:105:17-105:20 symbol=destack://console/console#log@61
+@find_references.reference location=main.ds#import symbol=destack://console/console#log@61
+@find_references.reference location=main.ds#reference symbol=destack://console/console#log@61
+```
+
 ## Members
 
 ### Find field occurrences

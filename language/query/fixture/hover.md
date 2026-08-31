@@ -672,6 +672,21 @@ greet();
 @hover.none
 ```
 
+### Hover over a builtin package declaration
+
+Builtin imports retain their declaration and documentation.
+
+```ds main.ds
+import { log } from "destack:console";
+
+log("ready");
+^^^ reference
+```
+
+```query hover main.ds#reference
+@hover.item index=0 declaration="export function log(...values: unknown[]): Result<void, HostError>" documentation="Write a line to stdout." location=destack://console/console:105:1-107:2 selection=destack://console/console:105:17-105:20 range=main.ds#reference
+```
+
 ### Hover through a re-export
 
 A re-export resolves to the original declaration.
