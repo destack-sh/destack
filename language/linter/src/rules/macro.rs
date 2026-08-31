@@ -59,6 +59,8 @@ macro_rules! declare_lint {
             fixability: $crate::Fixability::$fixable,
             module_indexes: &[$($(destack_artifact::IndexKind::$index),*)?],
             check: $crate::LintCheck::$check($function),
+            source_path: file!(),
+            source_line: line!(),
         };
 
         #[cfg(test)]

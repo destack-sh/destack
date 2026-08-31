@@ -89,6 +89,40 @@ impl LintSource {
             Self::Unicorn => "eslint-plugin-unicorn",
         }
     }
+
+    /// Return the documentation URL for one earlier rule.
+    pub fn rule_url(self, rule: &str) -> String {
+        match self {
+            Self::Biome => format!("https://github.com/biomejs/biome/search?q={rule}&type=code"),
+            Self::Clippy => {
+                format!("https://rust-lang.github.io/rust-clippy/master/index.html#{rule}")
+            }
+            Self::Eslint => format!("https://eslint.org/docs/latest/rules/{rule}"),
+            Self::Jest => format!(
+                "https://github.com/jest-community/eslint-plugin-jest/blob/main/docs/rules/{rule}.md"
+            ),
+            Self::Oxc => {
+                format!("https://github.com/oxc-project/oxc/search?q={rule}&type=code")
+            }
+            Self::Playwright => format!(
+                "https://github.com/playwright-community/eslint-plugin-playwright/blob/main/docs/rules/{rule}.md"
+            ),
+            Self::React => format!(
+                "https://github.com/jsx-eslint/eslint-plugin-react/blob/master/docs/rules/{rule}.md"
+            ),
+            Self::Ruff => format!("https://docs.astral.sh/ruff/rules/{rule}/"),
+            Self::Rustc => format!(
+                "https://doc.rust-lang.org/rustc/lints/listing/allowed-by-default.html#{rule}"
+            ),
+            Self::SonarJs => {
+                format!("https://github.com/SonarSource/SonarJS/search?q={rule}&type=code")
+            }
+            Self::TypeScriptEslint => format!("https://typescript-eslint.io/rules/{rule}"),
+            Self::Unicorn => format!(
+                "https://github.com/sindresorhus/eslint-plugin-unicorn/blob/main/docs/rules/{rule}.md"
+            ),
+        }
+    }
 }
 
 impl fmt::Display for LintSource {
@@ -153,6 +187,17 @@ pub enum Fixability {
     Automatic,
     /// Emits corrections whose safety is decided for each report.
     Suggestion,
+}
+
+impl Fixability {
+    /// Return the correction kind.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::None => "none",
+            Self::Automatic => "automatic",
+            Self::Suggestion => "suggestion",
+        }
+    }
 }
 
 /// The result of one lint check.
@@ -291,6 +336,10 @@ pub struct Lint {
     pub module_indexes: &'static [IndexKind],
     /// The check.
     pub check: LintCheck,
+    /// The source file declaring the lint.
+    pub source_path: &'static str,
+    /// The one-based source line declaring the lint.
+    pub source_line: u32,
 }
 
 impl Lint {
