@@ -30,7 +30,7 @@ impl<'context, 'index> CallIndexer<'context, 'index> {
 
     /// Collect call edges from every checked decision.
     fn collect_calls(&mut self) -> ProviderResult<()> {
-        for (node_id, resolution) in self.module.decisions().decision_entries() {
+        for (node_id, resolution) in self.module.decisions().expression_entries() {
             // resolve shared source metadata per resolved node
             let label = match resolution {
                 dir::Decision::Call(_) => "call",

@@ -532,7 +532,7 @@ impl DirModule<'_> {
         &self,
     ) -> impl Iterator<Item = Result<dir::LocalNodeId<dir::Expression>, ProviderError>> + '_ {
         self.decisions
-            .decision_entries()
+            .expression_entries()
             .filter(|(_, decision)| matches!(decision, dir::Decision::Call(_)))
             .map(|(node, _)| {
                 if node.module_id != self.id {

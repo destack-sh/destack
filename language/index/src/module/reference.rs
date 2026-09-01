@@ -50,7 +50,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
 
     /// Collect targets selected by checked decisions.
     fn collect_decisions(&mut self) -> ProviderResult<()> {
-        for (source, decision) in self.module.decisions().decision_entries() {
+        for (source, decision) in self.module.decisions().expression_entries() {
             match decision {
                 // record symbol-backed function value selections
                 dir::Decision::Function(resolution) => {
@@ -118,7 +118,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         }
 
         // index decisions that directly select reference targets
-        for (source, decision) in self.module.decisions().decision_entries() {
+        for (source, decision) in self.module.decisions().expression_entries() {
             match decision {
                 // index implicit receiver selections
                 dir::Decision::Receiver(resolution) => {
@@ -1091,7 +1091,11 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             })?;
         let left = match self.module.view().get(expression_id) {
             dir::Expression::Call { left, .. } => *left,
-            dir::Expression::ArrayExpression { .. }
+            // protocol rows at awaits, yields, and coroutine bodies carry no authored callee
+            dir::Expression::Await { .. }
+            | dir::Expression::Yield { .. }
+            | dir::Expression::Block { .. }
+            | dir::Expression::ArrayExpression { .. }
             | dir::Expression::FixedArrayExpression { .. } => {
                 return Ok(None);
             }

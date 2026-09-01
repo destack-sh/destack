@@ -10,7 +10,7 @@ use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
     CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, GuardDecision, InstanceKey, InstanceKeyVisit, MemberAccess,
-    MemberDecision, OperationResolution, OperatorDecision, Pattern, PatternDecision,
+    MemberDecision, NodeType, OperationResolution, OperatorDecision, Pattern, PatternDecision,
     PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision, SubscriptTarget,
     TreeDecision, TypeFold,
 };
@@ -415,6 +415,12 @@ impl<'a> DecisionTable<'a> {
         self.segments
             .iter()
             .flat_map(|segment| segment.decision_entries())
+    }
+
+    /// Iterate visible decisions recorded at authored expression nodes.
+    pub fn expression_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Decision)> + '_ {
+        self.decision_entries()
+            .filter(|(node, _)| node.local_id.ty == NodeType::Expression)
     }
 
     /// Iterate visible access resolutions.
