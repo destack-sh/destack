@@ -237,7 +237,7 @@ impl WalkState<'_, '_> {
 
                 // classify how the member receives its implementation
                 let implementation = if value.is_some() {
-                    dir::MemberImplementation::Body
+                    dir::MemberImplementation::Own
                 } else {
                     dir::MemberImplementation::Required
                 };
@@ -264,7 +264,7 @@ impl WalkState<'_, '_> {
                 *name,
                 *declared_type,
                 *value,
-                dir::MemberImplementation::Body,
+                dir::MemberImplementation::Own,
             ),
             // field: T = value
             dir::Member::Field {
@@ -386,7 +386,7 @@ impl WalkState<'_, '_> {
 
                 // classify how the method receives its implementation
                 let implementation = if body.is_some() {
-                    dir::MemberImplementation::Body
+                    dir::MemberImplementation::Own
                 } else {
                     dir::MemberImplementation::Required
                 };

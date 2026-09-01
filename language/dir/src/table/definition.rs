@@ -913,7 +913,7 @@ pub enum MemberImplementation {
     /// Implementers must supply the implementation.
     Required,
     /// The declaration supplies its own implementation.
-    Body,
+    Own,
     /// The declaring interface supplies a fallback implementation.
     Default,
 }
