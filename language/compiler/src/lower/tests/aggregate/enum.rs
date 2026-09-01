@@ -80,19 +80,22 @@ function test.main.describe(v0: Mode): int32 {
     local l0: int32
 
 entry(v0: Mode):
-    variant.switch v0, 0 => b1, 1 => b2
+    variant.switch v0, 0 => b1, 1 => b2, else b3
 
 b1:
     v1: int32 = 10
     local.set l0, v1
-    jump b3
+    jump b4
 
 b2:
     v2: int32 = 20
     local.set l0, v2
-    jump b3
+    jump b4
 
 b3:
+    unreachable
+
+b4:
     v3: int32 = local.get l0
     return v3
 }
@@ -106,14 +109,17 @@ entry(v0: Mode):
 b1:
     v1: int32 = 10
     local.set l0, v1
-    jump b3
+    jump b4
 
 b2:
     v2: int32 = 0
     local.set l0, v2
-    jump b3
+    jump b4
 
 b3:
+    unreachable
+
+b4:
     v3: int32 = local.get l0
     return v3
 }

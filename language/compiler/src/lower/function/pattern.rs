@@ -104,12 +104,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(())
             }
 
-            // reject every other binding pattern
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("a '{}' binding pattern", other.name()),
-            }
-            .into()),
+            // accept tested patterns, their tests run before the bindings
+            dir::PatternDecision::Test(_) | dir::PatternDecision::Or(_) => Ok(()),
         }
     }
 
@@ -141,7 +137,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Project one pattern input value through its selected projection.
-    fn lower_pattern_projection(
+    pub(in crate::lower) fn lower_pattern_projection(
         &mut self,
         projection: &dir::ProjectionResolution,
         value: mir::Value,
@@ -433,7 +429,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return one nested pattern node inside this body's tree.
-    fn pattern_node(
+    pub(in crate::lower) fn pattern_node(
         &self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::LocalNodeId<dir::Pattern>> {

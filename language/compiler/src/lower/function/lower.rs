@@ -36,6 +36,18 @@ pub(in crate::lower) struct FunctionLowerer<'lower, 'builder, 'module> {
     pub(in crate::lower) this: Option<Binding>,
     /// The enclosing control statements, innermost last.
     pub(in crate::lower) controls: Vec<ControlFrame>,
+    /// The enclosing optional chains, innermost last.
+    pub(in crate::lower) chains: Vec<ChainFrame>,
+}
+
+/// One active optional chain.
+pub(in crate::lower) struct ChainFrame {
+    /// The chain's joined result representation.
+    pub(in crate::lower) representation: mir::LocalNodeId<mir::Type>,
+    /// The slot joining the chain value with its short circuit.
+    pub(in crate::lower) slot: mir::LocalNodeId<mir::Local>,
+    /// The block resuming after the chain.
+    pub(in crate::lower) exit: mir::LocalNodeId<mir::Block>,
 }
 
 /// One lowered value bound to a symbol.
@@ -128,6 +140,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             this: None,
             constructs,
             controls: Vec::new(),
+            chains: Vec::new(),
         };
 
         // bind the parameters in header order past any receiver
@@ -205,6 +218,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             this: None,
             constructs: None,
             controls: Vec::new(),
+            chains: Vec::new(),
         };
 
         // open the entry block and home the receiver like any declared constructor
@@ -254,6 +268,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             this: None,
             constructs: None,
             controls: Vec::new(),
+            chains: Vec::new(),
         };
 
         // copy the borrowed receiver's value and return it
@@ -303,6 +318,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             this: None,
             constructs: None,
             controls: Vec::new(),
+            chains: Vec::new(),
         };
 
         // open the entry block
@@ -807,6 +823,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // read a member
             dir::Expression::Member { left, .. } => self.lower_member(expression, left),
+
+            // join an optional chain
+            dir::Expression::Chain { expression: inner } => self.lower_chain(expression, inner),
 
             // read a subscript
             dir::Expression::Index { left, index, .. } => {

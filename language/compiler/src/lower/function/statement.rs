@@ -76,6 +76,16 @@ impl FunctionLowerer<'_, '_, '_> {
                 // dispatch on the switch value
                 dir::Expression::Switch { value, cases } => lower.lower_switch(value, &cases),
 
+                // dispatch on the matched value
+                dir::Expression::Match { value, arms } => lower.lower_match_statement(value, &arms),
+
+                // run an optional chain for its effects
+                dir::Expression::Chain { .. } => {
+                    lower.lower_expression(statement)?;
+
+                    Ok(false)
+                }
+
                 // loop while the condition holds
                 dir::Expression::While {
                     label,

@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::lower::ControlFrame;
+use crate::lower::function::lower::{ChainFrame, ControlFrame};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -252,7 +252,10 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one condition to a boolean value.
-    fn lower_condition(&mut self, condition: &dir::Condition) -> CompilerResult<mir::Value> {
+    pub(in crate::lower) fn lower_condition(
+        &mut self,
+        condition: &dir::Condition,
+    ) -> CompilerResult<mir::Value> {
         // reject a binding condition
         let Some(condition) = condition.as_expression() else {
             return Err(LowerError::Unsupported {
@@ -331,5 +334,87 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         Ok(target)
+    }
+
+    /// Lower one optional chain, joining its value with the short-circuit undefined.
+    pub(in crate::lower) fn lower_chain(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        inner: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        // stage the joined result slot and the exit block
+        let ty = self.node_type_id(expression)?;
+        let representation = self.lower_type(ty)?;
+        let slot = self
+            .builder
+            .local(representation, mir::Mutability::Immutable);
+        let exit = self.builder.block();
+
+        // lower the chained accesses under the frame their guards exit through
+        self.chains.push(ChainFrame {
+            representation,
+            slot,
+            exit,
+        });
+        let value = self.lower_expression(inner)?;
+        self.chains.pop();
+
+        // join the completed chain value
+        let value = self.adapt_to_representation(value, representation)?;
+        self.builder.local_set(slot, value);
+        self.builder.jump(exit);
+        self.builder.switch_to_block(exit);
+
+        Ok(self.builder.local_get(slot))
+    }
+
+    /// Branch one optional receiver, short-circuiting the enclosing chain when it is absent.
+    pub(in crate::lower) fn lower_chain_guard(
+        &mut self,
+        value: mir::Value,
+    ) -> CompilerResult<mir::Value> {
+        // pass receivers through outside a chain
+        let Some(frame) = self.chains.last() else {
+            return Ok(value);
+        };
+        let (representation, slot, exit) = (frame.representation, frame.slot, frame.exit);
+
+        // branch the receiver on its undefined case
+        let received = self.value_representation(value)?;
+        let present = self.builder.block();
+        let absent = self.builder.block();
+        match self.builder.tree().get(received).clone() {
+            // split a variant receiver on its undefined case
+            mir::Type::Variant { .. } => {
+                let Some(mir::NullishCase::Case(case)) =
+                    self.builder.tree().undefined_case(received)
+                else {
+                    return Ok(value);
+                };
+                self.builder
+                    .variant_switch(value, Some(present), vec![(case, absent)]);
+            }
+            // compare a nullable reference receiver against undefined
+            other if other.is_reference_representation() => {
+                let undefined = self.builder.constant(mir::Constant::Undefined, received);
+                let is_absent = self
+                    .builder
+                    .binary(mir::BinaryOperator::Equal, value, undefined);
+                self.builder.branch(is_absent, absent, present);
+            }
+            // fall back to passing the receiver through
+            _ => return Ok(value),
+        }
+
+        // short-circuit the chain with undefined when the receiver is absent
+        self.builder.switch_to_block(absent);
+        let undefined = self.absent_representation_value(representation)?;
+        self.builder.local_set(slot, undefined);
+        self.builder.jump(exit);
+
+        // continue the chain with the whole receiver
+        self.builder.switch_to_block(present);
+
+        Ok(value)
     }
 }
