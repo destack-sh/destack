@@ -243,3 +243,70 @@ b1:
 "#,
     );
 }
+
+#[test]
+fn test_lower_a_sole_spread_forwarding_into_a_rest_parameter() {
+    let session = TestSession::single(
+        r#"
+function sum(...values: int32[]): isize {
+    return values.length;
+}
+
+function forward(values: int32[]): isize {
+    return sum(...values);
+}
+"#,
+    );
+
+    session.assert_mir_lowered("main.ds", r#"
+type Array<int32> {
+    storage: slice<uninit<int32>, unique, exclusive, local>;
+    count: isize;
+    allocated: usize;
+}
+
+@languageItem("string.String")
+type String {
+    codeUnits: slice<uint16, unique, exclusive, local>;
+}
+
+constant string.0: String = "arrayFromSlice"
+
+function test.main.sum(v0: ref<Array<int32>, managed, mutable, local>): isize {
+entry(v0: ref<Array<int32>, managed, mutable, local>):
+    v1: ref<Array<int32>, borrowed, 'frame, readonly, local> = cast.bit v0 -> ref<Array<int32>, borrowed, 'frame, readonly, local>
+    v2: isize = call length<int32>(v1): <'a>(ref<Array<int32>, borrowed, 'a, readonly, local>) => isize
+    return v2
+}
+
+function test.main.forward(v0: ref<Array<int32>, managed, mutable, local>): isize {
+entry(v0: ref<Array<int32>, managed, mutable, local>):
+    v1: isize = call test.main.sum(v0): (ref<Array<int32>, managed, mutable, local>) => isize
+    return v1
+}
+
+function length<int32, 'a>(v0: ref<Array<int32>, borrowed, 'a, readonly, local>): isize {
+entry(v0: ref<Array<int32>, borrowed, 'a, readonly, local>):
+    v1: ref<isize, borrowed, readonly, local> = field.address v0, 1
+    v2: isize = load v1
+    return v2
+}
+
+function arrayFromSlice<int32, 'a>(v0: slice<int32, borrowed, 'a, readonly, local>): Array<int32> {
+entry(v0: slice<int32, borrowed, 'a, readonly, local>):
+    v1: ref<String, managed, mutable, local> = global.address string.0
+    v2: ref<String, managed, mutable, undefined, local> = cast.bit v1 -> ref<String, managed, mutable, undefined, local>
+    panic v2
+
+b1:
+    return
+}
+
+/// @layout.struct name=Array<int32> size=32 align=8
+/// @layout.field owner=Array<int32> index=0 name=storage offset=0 size=16 align=8
+/// @layout.field owner=Array<int32> index=1 name=count offset=16 size=8 align=8
+/// @layout.field owner=Array<int32> index=2 name=allocated offset=24 size=8 align=8
+/// @layout.struct name=String size=16 align=8
+/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+"#);
+}

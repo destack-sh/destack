@@ -17,9 +17,9 @@ impl LowerState<'_> {
             return Ok(None);
         };
 
-        // require every arm to share the first arm's scalar domain
+        // require every flattened arm to share the first arm's scalar domain
         let mut first = None;
-        for element in self.types(id.module_id)?.type_ids(union.elements).to_vec() {
+        for element in self.flatten_union_members(id.module_id, &union)? {
             let dir::Type::Literal(literal) = self.ty(element)? else {
                 return Ok(None);
             };
@@ -70,6 +70,10 @@ impl LowerState<'_> {
                 },
                 None if integer.is_signed() => mir::Type::Isize,
                 None => mir::Type::Usize,
+            }),
+            dir::PrimitiveType::Character => Ok(mir::Type::Int {
+                width: 32,
+                is_signed: false,
             }),
             dir::PrimitiveType::Float(float) => Ok(mir::Type::Float(match float {
                 dir::FloatType::Float32 => mir::FloatType::Float32,

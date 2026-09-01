@@ -70,6 +70,11 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(self.builder.fconst(value, float))
             }
 
+            // materialize characters as their unicode scalar values
+            (dir::Literal::Character(value), mir::Type::Int { width, is_signed }) => Ok(self
+                .builder
+                .iconst(i128::from(value as u32), width, is_signed)),
+
             // read string and bigint literals from their declared constant objects
             (dir::Literal::String(string), _) => self.lower_string_literal(string),
             (dir::Literal::Bigint(bigint), _) => self.lower_bigint_literal(bigint),
@@ -154,6 +159,12 @@ impl FunctionLowerer<'_, '_, '_> {
         match literal {
             // pick the single boolean representation
             dir::Literal::Boolean(_) => Ok(mir::Type::Boolean),
+
+            // pick the character scalar representation
+            dir::Literal::Character(_) => Ok(mir::Type::Int {
+                width: 32,
+                is_signed: false,
+            }),
 
             // require numeric literals to enter through a concrete value target
             dir::Literal::Integer(_) | dir::Literal::Float(_) => Err(CompilerError::Internal {

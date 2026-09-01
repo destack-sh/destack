@@ -161,6 +161,18 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(())
             }
+            // define profile instruments as their atomic words
+            Some(dir::LanguageItem::ProfileCounter | dir::LanguageItem::ProfileSampler) => {
+                self.tree.define_type(
+                    ty,
+                    mir::Type::Int {
+                        width: 64,
+                        is_signed: false,
+                    },
+                );
+
+                Ok(())
+            }
             // reject lifetime markers, which live in MIR lifetime slots alone
             Some(dir::LanguageItem::Lifetime) => Err(CompilerError::Internal {
                 message: "a runtime value of the 'memory.Lifetime' marker".to_string(),

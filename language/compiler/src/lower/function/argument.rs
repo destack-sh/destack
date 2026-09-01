@@ -6,8 +6,6 @@ use crate::{CompilerError, CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one argument list against its declared parameter representations.
-    ///
-    /// An empty parameter list lowers the arguments without representation adaptation.
     pub(in crate::lower) fn lower_call_arguments(
         &mut self,
         arguments: &[dir::ArgumentBinding],
@@ -118,6 +116,15 @@ impl FunctionLowerer<'_, '_, '_> {
         element_type: dir::GlobalTypeId,
         pack: Option<&dir::InstanceKey>,
     ) -> CompilerResult<mir::Value> {
+        // forward a sole spread argument whole
+        if let [source] = elements
+            && let Ok(argument) = source.local_id.try_into_typed::<dir::Argument>()
+            && let dir::Argument::Spread { value, .. } = self.source().tree().get(argument)
+        {
+            let value = *value;
+            return self.lower_expression(value);
+        }
+
         // materialize the elements into fixed stack storage
         let element = self.lower_type(element_type)?;
         let mut values = Vec::with_capacity(elements.len());

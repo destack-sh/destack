@@ -530,8 +530,17 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::Uninit { .. }
             | Type::ManuallyDrop { .. }
             | Type::Error
-            | Type::Never
             | Type::FunctionSignature { .. } => Err(self.unsupported("type")),
+
+            // give the uninhabited type the zero-sized layout
+            Type::Never => Ok(Layout {
+                shape: LayoutShape::None,
+                representation: Representation::Memory,
+                niche: None,
+                size: 0,
+                alignment: 1,
+                trace_map: TraceMap::Empty,
+            }),
         }
     }
 

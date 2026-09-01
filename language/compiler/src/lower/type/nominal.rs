@@ -107,10 +107,17 @@ impl LowerState<'_> {
                     | dir::Definition::Class(_)
             );
 
-            // skip the lifetime marker
-            let is_lifetime_kind = self.language_item(symbol) == Some(dir::LanguageItem::Lifetime);
+            // skip the lifetime, region, and derive markers
+            let is_marker_kind = matches!(
+                self.language_item(symbol),
+                Some(
+                    dir::LanguageItem::Lifetime
+                        | dir::LanguageItem::Region
+                        | dir::LanguageItem::Derive
+                )
+            );
             if is_nominal
-                && !is_lifetime_kind
+                && !is_marker_kind
                 && symbol.module_id == self.module
                 && !self.definition_is_parameterized(symbol.module_id, definition)?
             {
@@ -483,9 +490,12 @@ impl TypeLowerer<'_, '_> {
 
                 // take in-scope type parameters from the instance's own selection
                 let Some(argument) = self.instance_argument(parameter)? else {
-                    return Err(CompilerError::Internal {
-                        message: "a partially applied nominal argument list".to_string(),
-                    });
+                    return Err(LowerError::Unsupported {
+                        anchor: self.lower.module.into(),
+                        construct: "a bare generic reference outside its instance selection"
+                            .to_string(),
+                    }
+                    .into());
                 };
                 type_arguments.push(argument);
 
