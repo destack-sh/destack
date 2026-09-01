@@ -77,7 +77,7 @@ pub(crate) struct ExpressionStop(u8);
 impl ExpressionStop {
     /// A colon owned by an enclosing switch selector.
     pub(crate) const SWITCH_COLON: Self = Self(1 << 0);
-    /// An `in` or `of` token owned by an enclosing iteration clause.
+    /// An `of` token owned by an enclosing iteration clause.
     pub(crate) const FOR_EACH: Self = Self(1 << 1);
     /// A newline owned by an enclosing match arm.
     pub(crate) const MATCH_ARM_LINE: Self = Self(1 << 2);
@@ -544,13 +544,6 @@ impl Parser {
 
         // leave match continuation lines to the enclosing arm
         if stop.has(ExpressionStop::MATCH_ARM_LINE) && self.peek_is_on_new_line() {
-            return true;
-        }
-
-        // leave iteration relation keywords to the enclosing loop
-        if stop.has(ExpressionStop::FOR_EACH)
-            && matches!(operator, ExpressionOperator::Binary(BinaryOperator::In))
-        {
             return true;
         }
 

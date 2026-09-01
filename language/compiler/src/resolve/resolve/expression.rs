@@ -50,10 +50,7 @@ impl ResolveState<'_> {
                 // skip covered member prefixes, but resume normal visiting across expressions
                 self.walk_member_receiver(tree, *left);
             }
-            dir::Expression::ForEach {
-                operator: dir::ForEachOperator::Of,
-                ..
-            } => {
+            dir::Expression::ForEach { .. } => {
                 self.use_language_item(dir::LanguageItem::Iterable);
                 dir::walk_expression(self, tree, id, expression);
             }

@@ -20,9 +20,9 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_core::{StringId, ensure_sufficient_stack};
 use destack_dir::{
     Asynchrony, BindingKeyword, Block, BlockForm, Catch, Condition, ConditionOperand,
-    DecoratorPosition, Expression, ForEachBinding, ForEachOperator, IfForm, Keyword, LetKind,
-    LocalNodeId, MatchArm, Node, NodeType, Pattern, SwitchCase, SwitchSelector, Tree, TreeStore,
-    TypeExpression, WhileForm, YieldCardinality,
+    DecoratorPosition, Expression, ForEachBinding, IfForm, Keyword, LetKind, LocalNodeId, MatchArm,
+    Node, NodeType, Pattern, SwitchCase, SwitchSelector, Tree, TreeStore, TypeExpression,
+    WhileForm, YieldCardinality,
 };
 use destack_fir::format::{Format, FormatError, FormatResult};
 use destack_fir::prelude::{
@@ -1202,7 +1202,6 @@ pub(crate) fn format_for_each_expression<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     asynchrony: Asynchrony,
-    operator: ForEachOperator,
     binding: &ForEachBinding,
     iterator: LocalNodeId<Expression>,
     body: LocalNodeId<Block>,
@@ -1212,10 +1211,6 @@ pub(crate) fn format_for_each_expression<'ast>(
     if asynchrony == Asynchrony::Async {
         write!(f, [Keyword::Await, space()])?;
     }
-    let keyword = match operator {
-        ForEachOperator::In => Keyword::In,
-        ForEachOperator::Of => Keyword::Of,
-    };
 
     // binding
     write!(f, [token("(")])?;
@@ -1251,7 +1246,7 @@ pub(crate) fn format_for_each_expression<'ast>(
         f,
         [
             space(),
-            keyword,
+            Keyword::Of,
             space(),
             iterator,
             format_with(|f| write_comments_for_empty_statement_body(f, body)),

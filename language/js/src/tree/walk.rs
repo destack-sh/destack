@@ -137,13 +137,7 @@ pub fn walk_statement<V: NodeVisitor + ?Sized>(
             }
             visit_block(visitor, tree, *body);
         }
-        Statement::ForIn {
-            pattern,
-            iterator,
-            body,
-            ..
-        }
-        | Statement::ForOf {
+        Statement::ForOf {
             pattern,
             iterator,
             body,

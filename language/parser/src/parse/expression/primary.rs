@@ -434,10 +434,10 @@ impl Parser {
             return false;
         }
 
-        // keep type as the binding identifier in for (type in|of value)
+        // keep type as the binding identifier in for (type of value)
         if keyword == Keyword::Type
             && stop.has(ExpressionStop::FOR_EACH)
-            && matches!(next_keyword, Some(Keyword::In | Keyword::Of))
+            && next_keyword == Some(Keyword::Of)
         {
             return false;
         }

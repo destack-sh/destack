@@ -106,13 +106,6 @@ pub enum Statement {
         increment: Option<LocalNodeId<Expression>>,
         body: LocalNodeId<Block>,
     },
-    /// For in statement.
-    ForIn {
-        keyword: Option<BindingKeyword>,
-        pattern: LocalNodeId<Pattern>,
-        iterator: LocalNodeId<Expression>,
-        body: LocalNodeId<Block>,
-    },
     /// For of statement.
     ForOf {
         asynchrony: Asynchrony,
@@ -182,7 +175,6 @@ impl Statement {
             Statement::If { .. }
             | Statement::While { .. }
             | Statement::For { .. }
-            | Statement::ForIn { .. }
             | Statement::ForOf { .. }
             | Statement::Switch { .. }
             | Statement::Try { .. }

@@ -919,67 +919,30 @@ impl ModuleLowerer<'_> {
             dir::Expression::ForEach {
                 label,
                 asynchrony,
-                operator,
                 binding,
                 iterator,
                 body,
             } => {
                 let iterator = self.lower_expression_as::<js::Expression>(*iterator)?;
                 let body = self.lower_block(*body)?;
-                let statement = match operator {
-                    dir::ForEachOperator::Of => {
-                        let (pattern, keyword) = match binding {
-                            dir::ForEachBinding::Pattern { pattern, keyword } => (
-                                match keyword {
-                                    Some(_) => self.lower_pattern(*pattern)?,
-                                    None => self.lower_pattern(*pattern)?,
-                                },
-                                keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
-                            ),
-                            dir::ForEachBinding::Using { .. } => {
-                                return Err(self.unhandled(
-                                    expression_id.into_global_any(self.module.id),
-                                    Some(
-                                        "using bindings in for-of are not lowered to JS yet"
-                                            .to_string(),
-                                    ),
-                                ));
-                            }
-                        };
-                        js::Statement::ForOf {
-                            asynchrony: self.lower_asynchrony(*asynchrony),
-                            keyword,
-                            pattern,
-                            iterator,
-                            body,
-                        }
+                let (pattern, keyword) = match binding {
+                    dir::ForEachBinding::Pattern { pattern, keyword } => (
+                        self.lower_pattern(*pattern)?,
+                        keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
+                    ),
+                    dir::ForEachBinding::Using { .. } => {
+                        return Err(self.unhandled(
+                            expression_id.into_global_any(self.module.id),
+                            Some("using bindings in for-of are not lowered to JS yet".to_string()),
+                        ));
                     }
-                    dir::ForEachOperator::In => {
-                        let (pattern, keyword) = match binding {
-                            dir::ForEachBinding::Pattern { pattern, keyword } => (
-                                match keyword {
-                                    Some(_) => self.lower_pattern(*pattern)?,
-                                    None => self.lower_pattern(*pattern)?,
-                                },
-                                keyword.map(|keyword| self.lower_for_each_keyword(keyword)),
-                            ),
-                            dir::ForEachBinding::Using { .. } => {
-                                return Err(self.unhandled(
-                                    expression_id.into_global_any(self.module.id),
-                                    Some(
-                                        "using bindings in for-in are not lowered to JS yet"
-                                            .to_string(),
-                                    ),
-                                ));
-                            }
-                        };
-                        js::Statement::ForIn {
-                            keyword,
-                            pattern,
-                            iterator,
-                            body,
-                        }
-                    }
+                };
+                let statement = js::Statement::ForOf {
+                    asynchrony: self.lower_asynchrony(*asynchrony),
+                    keyword,
+                    pattern,
+                    iterator,
+                    body,
                 };
                 let statement = self.label_statement(*label, statement, expression_id);
                 self.tree

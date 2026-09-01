@@ -187,7 +187,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         }
     }
 
-    // inspect mutable bindings initialized by each for-in or for-of iteration
+    // inspect mutable bindings initialized by each for-of iteration
     for expression in view.iter_node_ids_of_type::<dir::Expression>() {
         let dir::Expression::ForEach {
             binding:
@@ -613,31 +613,6 @@ function visit(values: int32[]): void {
 function visit(values: int32[]): void {
     for (const value of values) {
         value;
-    }
-}
-"#,
-        );
-    }
-
-    /// Replace a for-in binding that remains immutable during each iteration.
-    #[test]
-    fn test_replaces_for_in_binding() {
-        let session = TestSession::dir(
-            &PREFER_CONST,
-            r#"
-function visit(target: { first: int32; second: int32 }): void {
-    for (let key in target) {
-        key;
-    }
-}
-"#,
-        );
-
-        session.assert_fixes(
-            r#"
-function visit(target: { first: int32; second: int32 }): void {
-    for (const key in target) {
-        key;
     }
 }
 "#,

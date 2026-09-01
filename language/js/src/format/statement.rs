@@ -280,24 +280,6 @@ impl<'ast> FormatNode<'ast, Statement> for Statement {
                 }
                 write!(f, [token(")"), space(), body])?;
             }
-            Statement::ForIn {
-                keyword,
-                pattern,
-                iterator,
-                body,
-            } => {
-                write!(f, [Keyword::For, token("(")])?;
-
-                if let Some(keyword) = keyword {
-                    format_for_each_binding_keyword(f, *keyword)?;
-                }
-
-                write!(
-                    f,
-                    [pattern, space(), token("in"), space(), iterator, token(")")]
-                )?;
-                write!(f, [space(), body])?;
-            }
             Statement::ForOf {
                 asynchrony,
                 keyword,

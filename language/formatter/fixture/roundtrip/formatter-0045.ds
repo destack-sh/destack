@@ -64,7 +64,7 @@ export function animateElements(
             elementTransition.delay = elementTransition.delay(i, numElements);
         }
 
-        for (const valueName in keyframes) {
+        for (const valueName of Object.keys(keyframes)) {
             let valueKeyframes = keyframes[valueName as keyof typeof keyframes]!;
 
             if (!Array.isArray(valueKeyframes)) {

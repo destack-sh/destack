@@ -520,7 +520,6 @@ module.exports = grammar(JavaScript, {
       $.decorated_statement,
       $.static_if_statement,
       $.const_block_statement,
-      $.for_in_binding_statement,
       $.type_satisfies_statement,
       $.value_satisfies_statement,
       $.let_else_statement,
@@ -686,7 +685,7 @@ module.exports = grammar(JavaScript, {
           )),
         ),
       ),
-      field('operator', choice('in', 'of')),
+      field('operator', 'of'),
       field('right', $._expressions),
       ')',
     ),
@@ -963,14 +962,6 @@ module.exports = grammar(JavaScript, {
       field('body', $.statement_block),
     ),
 
-    for_in_binding_statement: $ => prec.right('declaration', seq(
-      'for',
-      field('left', choice($.identifier, $._destructuring_pattern)),
-      'in',
-      field('right', $.expression),
-      field('body', $.statement_block),
-    )),
-
     decorated_statement: $ => prec.right('declaration', seq(
       repeat1(field('decorator', $.decorator)),
       choice(
@@ -1021,7 +1012,6 @@ module.exports = grammar(JavaScript, {
       $.continue_statement,
       $.return_statement,
       $.labeled_statement,
-      $.for_in_binding_statement,
       $.const_block_statement,
     ),
 

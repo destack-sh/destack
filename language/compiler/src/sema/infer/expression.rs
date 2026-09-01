@@ -156,12 +156,11 @@ impl CheckState<'_> {
             ),
             dir::Expression::ForEach {
                 label,
-                operator,
                 binding,
                 iterator,
                 body,
                 ..
-            } => self.infer_for_each_expression(site, label, operator, binding, iterator, body),
+            } => self.infer_for_each_expression(site, label, binding, iterator, body),
             dir::Expression::Member {
                 left,
                 name,

@@ -201,7 +201,7 @@ fn keywords() -> [dir::Keyword; 39] {
 fn keyword_snippet(keyword: dir::Keyword) -> Option<&'static str> {
     match keyword {
         dir::Keyword::If => Some("if (${1:condition}) {\n    $0\n}"),
-        dir::Keyword::For => Some("for (${1:item} in ${2:items}) {\n    $0\n}"),
+        dir::Keyword::For => Some("for (${1:item} of ${2:items}) {\n    $0\n}"),
         dir::Keyword::While => Some("while (${1:condition}) {\n    $0\n}"),
         dir::Keyword::Switch => {
             Some("switch (${1:value}) {\n    case ${2:pattern}:\n        $0\n    default:\n}")

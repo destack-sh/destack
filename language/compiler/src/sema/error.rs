@@ -2014,22 +2014,6 @@ pub enum CheckError {
         module: ModuleId,
     },
 
-    /// For-in source is not object-shaped.
-    ///
-    /// ```ds
-    /// for (const key in 1) {}
-    /// ```
-    #[diagnostic(
-        id = "for-in-source-not-object-shaped",
-        message = "for-in source must be object-shaped"
-    )]
-    ForInSourceNotObjectShaped {
-        /// Report the for-in expression.
-        anchor: DiagnosticAnchor,
-        /// The module being checked.
-        module: ModuleId,
-    },
-
     /// An argument leaves a value-consumed const parameter unfixed.
     ///
     /// ```ds

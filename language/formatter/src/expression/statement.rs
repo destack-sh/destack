@@ -169,21 +169,12 @@ pub(crate) fn format_statement_expression<'ast>(
         Expression::ForEach {
             label,
             asynchrony,
-            operator,
             binding,
             iterator,
             body,
         } => {
             format_loop_label(f, label.as_ref(), node_id)?;
-            format_for_each_expression(
-                f,
-                node_id,
-                *asynchrony,
-                *operator,
-                binding,
-                *iterator,
-                *body,
-            )?;
+            format_for_each_expression(f, node_id, *asynchrony, binding, *iterator, *body)?;
         }
 
         // for condition

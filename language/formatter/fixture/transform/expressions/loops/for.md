@@ -48,20 +48,6 @@ async function run() {
 }
 ```
 
-### bare for in loop
-
-For-in loops space the `in` keyword and expand their bodies.
-
-```ds
-for (key in object) { handle(key) }
-```
-
-```ds expected
-for (key in object) {
-    handle(key);
-}
-```
-
 ### for of with using binding
 
 Using bindings stay attached to for-of headers.
@@ -103,20 +89,6 @@ for(const item of items){process(item)}
 ```ds expected
 for (const item of items) {
     process(item);
-}
-```
-
-### const for in loop
-
-For-in loops iterate over object keys.
-
-```ds
-for(const key in obj){process(key)}
-```
-
-```ds expected
-for (const key in obj) {
-    process(key);
 }
 ```
 

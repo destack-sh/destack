@@ -67,24 +67,3 @@ const labeledValue = loop {
           (break_statement
             label: (statement_identifier)
             value: (number)))))))
-
-================================================================
-For in statement parses
-:language(destack)
-================================================================
-
-for value in values {
-    value;
-}
-
-
-
----
-
-(program
-  (for_in_binding_statement
-    (identifier)
-    (identifier)
-    (statement_block
-      (expression_statement
-        (identifier)))))

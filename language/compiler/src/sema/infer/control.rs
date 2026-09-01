@@ -760,12 +760,11 @@ impl CheckState<'_> {
         Ok(present)
     }
 
-    /// Infer one for-in or for-of expression.
+    /// Infer one for-of expression.
     pub(in crate::sema) fn infer_for_each_expression(
         &mut self,
         site: FlowSite,
         label: Option<dir::StringId>,
-        operator: dir::ForEachOperator,
         binding: dir::ForEachBinding,
         iterator: dir::LocalNodeId<dir::Expression>,
         body: dir::LocalNodeId<dir::Block>,
@@ -776,7 +775,7 @@ impl CheckState<'_> {
         let iterator_site = self.visit_site(iterator.into_global_any(module))?;
         let iterator_type = self.infer_node(iterator_site, PlaceUse::Read, InferMode::Regular)?;
         let iterator_type = self.flow_type_at(iterator_site, iterator_type)?;
-        let target = self.for_each_value_type(site.origin(), site.node, operator, iterator_type)?;
+        let target = self.for_of_value_type(site.origin(), site.node, iterator_type)?;
 
         // check the binding against the value produced by the iteration source
         let pattern = match binding {
@@ -807,47 +806,11 @@ impl CheckState<'_> {
         branches.push(normal_flow);
         self.merge_flow_branches_from(before_body, &branches);
 
-        // for-in and for-of evaluate to void
+        // for-of evaluates to void
         let void = self.intern_type(dir::Type::Void)?;
         self.commit_node_type(site.node, void)?;
 
         Ok(())
-    }
-
-    /// Return the value type bound by one for-in or for-of source.
-    fn for_each_value_type(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalNodeIdAny,
-        operator: dir::ForEachOperator,
-        iterator_type: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // bind by the iteration operator
-        match operator {
-            dir::ForEachOperator::In => self.for_in_value_type(origin, source, iterator_type),
-            dir::ForEachOperator::Of => self.for_of_value_type(origin, source, iterator_type),
-        }
-    }
-
-    /// Return the key type bound by one for-in source.
-    fn for_in_value_type(
-        &mut self,
-        origin: Origin,
-        source: dir::GlobalNodeIdAny,
-        iterator_type: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // require an enumerable source and bind its keys as strings
-        let scope = self.origin_scope(origin)?;
-        self.push_obligation(
-            Obligation::ForInSource(ForInSourceObligation {
-                source,
-                ty: iterator_type,
-            }),
-            scope,
-        )?;
-        let string = self.intern_type(dir::Type::Primitive(dir::PrimitiveType::String))?;
-
-        Ok(string)
     }
 
     /// Return the yielded value type of one for-of source.

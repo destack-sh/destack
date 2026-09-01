@@ -33,9 +33,6 @@ impl EventFormatter<'_, '_> {
                 "predicate",
                 self.runtime_predicate_label(&obligation.predicate),
             ),
-            Obligation::ForInSource(obligation) => {
-                event.text("type", self.type_label(obligation.ty))
-            }
             Obligation::WellFormedType(obligation) => {
                 event.text("type", self.type_label(obligation.ty))
             }
@@ -51,7 +48,6 @@ impl EventFormatter<'_, '_> {
             Obligation::PatternCoverage(_) => "pattern.coverage",
             Obligation::WritableTarget(_) => "writable.target",
             Obligation::RuntimePredicate(_) => "runtime.predicate",
-            Obligation::ForInSource(_) => "for.in.source",
             Obligation::WellFormedType(_) => "wellformed.type",
             Obligation::RangeElement(_) => "range.element",
         }

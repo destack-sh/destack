@@ -199,7 +199,7 @@ pub enum Expression {
     ///     y = 2
     /// }
     ///
-    /// for (const x in items) {
+    /// for (const x of items) {
     ///     if (y > 5) {
     ///         continue
     ///     }
@@ -209,7 +209,6 @@ pub enum Expression {
     ForEach {
         label: Option<StringId>,
         asynchrony: Asynchrony,
-        operator: ForEachOperator,
         binding: ForEachBinding,
         iterator: LocalNodeId<Expression>,
         body: LocalNodeId<Block>,
@@ -1246,15 +1245,6 @@ pub enum WhileForm {
     While,
     /// Do-while expression (like `do <body> while <condition>`)
     DoWhile,
-}
-
-/// The kind of a for each expression.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ForEachOperator {
-    /// Of expression.
-    Of,
-    /// In expression.
-    In,
 }
 
 /// The declaration keyword used by a for each pattern binding.

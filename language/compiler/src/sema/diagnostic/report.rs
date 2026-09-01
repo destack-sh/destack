@@ -2212,12 +2212,6 @@ impl CheckState<'_> {
 
                 self.report(module, diagnostic);
             }
-            ObligationFailure::ForInSourceNotObjectShaped { source } => {
-                let (module, anchor) = self.source_anchor(source);
-                let error = CheckError::ForInSourceNotObjectShaped { anchor, module };
-
-                self.report(module, error);
-            }
             ObligationFailure::IncompatibleRangeEndpoints { source, element } => {
                 let (module, anchor) = self.source_anchor(source);
                 let error = CheckError::IncompatibleRangeEndpoints {

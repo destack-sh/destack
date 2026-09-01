@@ -227,7 +227,6 @@ impl Matcher<'_, '_> {
                 dir::Expression::ForEach {
                     label: _,
                     asynchrony: pattern_asynchrony,
-                    operator: pattern_operator,
                     binding: pattern_binding,
                     iterator: pattern_iterator,
                     body: pattern_body,
@@ -235,14 +234,12 @@ impl Matcher<'_, '_> {
                 dir::Expression::ForEach {
                     label: _,
                     asynchrony: candidate_asynchrony,
-                    operator: candidate_operator,
                     binding: candidate_binding,
                     iterator: candidate_iterator,
                     body: candidate_body,
                 },
             ) => {
                 if pattern_asynchrony != candidate_asynchrony
-                    || pattern_operator != candidate_operator
                     || !self.match_for_each_binding(
                         nodes,
                         pattern_binding,

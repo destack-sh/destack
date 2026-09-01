@@ -860,7 +860,6 @@ pub fn walk_expression<V: NodeVisitor + ?Sized>(
         Expression::ForEach {
             label: _,
             asynchrony: _,
-            operator: _,
             binding,
             iterator,
             body,

@@ -1,11 +1,11 @@
 use destack_dir::{
-    Asynchrony, BindingKeyword, BlockContext, Condition, Expression, ForEachBinding,
-    ForEachOperator, Keyword, LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
+    Asynchrony, BindingKeyword, BlockContext, Condition, Expression, ForEachBinding, Keyword,
+    LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::{ExpressionPosition, ExpressionStop};
-use crate::{Parser, ParserError, ParserResult};
+use crate::{Parser, ParserResult};
 
 impl Parser {
     /// Parse one unconditional loop.
@@ -118,7 +118,7 @@ impl Parser {
 
             Ok(for_id)
         }
-        // for [await] (binding in|of iterator) body
+        // for [await] (binding of iterator) body
         else {
             // retain the binding declaration keyword
             let binding_keyword_range = self
@@ -128,13 +128,8 @@ impl Parser {
             // binding
             let binding = self.parse_for_each_binding()?;
 
-            // in or of
-            let operator_token = self.peek_token_span();
-            let operator = match self.eat_keyword_in(&[Keyword::In, Keyword::Of])? {
-                Keyword::In => ForEachOperator::In,
-                Keyword::Of => ForEachOperator::Of,
-                _ => return Err(ParserError::unexpected(operator_token)),
-            };
+            // of
+            self.eat_keyword(Keyword::Of)?;
 
             // iterator)
             let is_body_brace_ambiguous =
@@ -163,7 +158,6 @@ impl Parser {
                 Expression::ForEach {
                     label: None,
                     asynchrony,
-                    operator,
                     binding,
                     iterator: iterator_id,
                     body: body_id,
@@ -247,11 +241,6 @@ impl Parser {
             let declarator_keyword = self
                 .peek_using_binding_head_offset(asynchrony)
                 .and_then(|offset| self.peek_keyword_at(offset));
-
-            // `for (using in ...)` should parse as identifier `using`
-            if declarator_keyword == Some(Keyword::In) {
-                return None;
-            }
 
             // `for (using of of)` should parse as identifier `using` in semicolon statement forms
             if declarator_keyword == Some(Keyword::Of) && asynchrony == Asynchrony::Sync {

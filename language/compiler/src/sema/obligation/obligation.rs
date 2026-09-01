@@ -38,8 +38,6 @@ pub(in crate::sema) enum Obligation {
     WritableTarget(Box<WritableTargetObligation>),
     /// A runtime predicate must have valid operands.
     RuntimePredicate(Box<RuntimePredicateObligation>),
-    /// A for-in source must be enumerable.
-    ForInSource(ForInSourceObligation),
     /// A written type operation must be well-formed once its operands close.
     WellFormedType(WellFormedTypeObligation),
     /// A range's written endpoints share one element type.
@@ -54,7 +52,6 @@ impl Obligation {
             Self::PatternCoverage(obligation) => obligation.source,
             Self::WritableTarget(obligation) => obligation.target.source,
             Self::RuntimePredicate(obligation) => obligation.source,
-            Self::ForInSource(obligation) => obligation.source,
             Self::WellFormedType(obligation) => obligation.source,
             Self::RangeElement(obligation) => obligation.source,
         }
@@ -69,7 +66,6 @@ impl Obligation {
                 ExpectedType::Node(_) => SmallVec::new(),
             },
             Self::WritableTarget(obligation) => SmallVec::from_slice(&[obligation.ty]),
-            Self::ForInSource(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::RangeElement(obligation) => SmallVec::from_slice(&[obligation.element]),
             Self::RuntimePredicate(_) => SmallVec::new(),
@@ -140,11 +136,6 @@ pub(in crate::sema) enum ObligationFailure {
         source: dir::GlobalNodeIdAny,
         /// A representative uncovered value.
         missing: UncoveredValue,
-    },
-    /// A for-in source exposes no object keys.
-    ForInSourceNotObjectShaped {
-        /// The for-in expression.
-        source: dir::GlobalNodeIdAny,
     },
     /// A range's written endpoints carry different types.
     IncompatibleRangeEndpoints {
@@ -565,19 +556,6 @@ pub(in crate::sema) struct RuntimePredicateObligation {
     pub(in crate::sema) predicate: dir::GuardDecision,
 }
 
-/// Obliges a for-in source to have enumerable string keys.
-///
-/// ```ds
-/// for (const key in value) {}
-/// ```
-#[derive(Debug, Clone, PartialEq)]
-pub(in crate::sema) struct ForInSourceObligation {
-    /// The for-in expression.
-    pub(in crate::sema) source: dir::GlobalNodeIdAny,
-    /// The source type that must be object-shaped.
-    pub(in crate::sema) ty: dir::GlobalTypeId,
-}
-
 /// Obliges a range's written endpoints to share one element type.
 ///
 /// ```ds
@@ -699,7 +677,6 @@ impl CheckState<'_> {
             Obligation::RuntimePredicate(obligation) => {
                 self.check_runtime_predicate(origin, obligation)
             }
-            Obligation::ForInSource(obligation) => self.check_for_in_source(origin, obligation),
             Obligation::WellFormedType(obligation) => {
                 self.check_well_formed_type(origin, obligation)
             }
@@ -767,25 +744,6 @@ impl CheckState<'_> {
         let failure = ObligationFailure::IncompatibleRangeEndpoints {
             source: obligation.source,
             element,
-        };
-
-        Ok(ObligationCheck::fail(failure))
-    }
-
-    /// Check one for-in source obligation.
-    fn check_for_in_source(
-        &mut self,
-        origin: Origin,
-        obligation: &ForInSourceObligation,
-    ) -> CompilerResult<ObligationCheck> {
-        // hold for a source exposing string keys
-        if self.is_keyed_type(origin, obligation.ty)? {
-            return Ok(ObligationCheck::holds());
-        }
-
-        // report a source without enumerable keys
-        let failure = ObligationFailure::ForInSourceNotObjectShaped {
-            source: obligation.source,
         };
 
         Ok(ObligationCheck::fail(failure))

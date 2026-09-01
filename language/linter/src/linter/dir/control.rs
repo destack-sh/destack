@@ -254,7 +254,6 @@ impl DirModule<'_> {
         let view = self.view();
         let dir::Expression::ForEach {
             asynchrony,
-            operator: dir::ForEachOperator::Of,
             binding,
             iterator,
             body,
@@ -290,7 +289,6 @@ impl DirModule<'_> {
             // select authored ranges
             dir::Expression::ForEach {
                 asynchrony: dir::Asynchrony::Sync,
-                operator: dir::ForEachOperator::Of,
                 binding,
                 iterator,
                 body,

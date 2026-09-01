@@ -326,7 +326,6 @@ impl Rewriter<'_, '_> {
             js::Statement::While { body, .. }
             | js::Statement::DoWhile { body, .. }
             | js::Statement::For { body, .. }
-            | js::Statement::ForIn { body, .. }
             | js::Statement::ForOf { body, .. } => {
                 Self::elide_undefined_returns_in_block(module, body);
             }
