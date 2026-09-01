@@ -174,8 +174,6 @@ pub struct CoercionCase {
     pub source: GlobalTypeId,
     /// The selected target type.
     pub target: GlobalTypeId,
-    /// The selected arm position in the declared target union.
-    pub index: u32,
     /// The ordered adjustments converting the source to the target.
     pub adjustments: Vec<CoercionAdjustment>,
 }

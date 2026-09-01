@@ -45,9 +45,28 @@ impl LowerState<'_> {
             }
         }
 
+        // read the extensions declared on the type's root
+        let definitions = &self.state(symbol.module_id)?.definitions;
+        let root = dir::TypeRoot::Declaration(symbol);
+
+        // select the extension method carrying the member name
+        for extension in definitions.root_extensions(root) {
+            let Some(extension) = definitions.extension_definition(extension) else {
+                continue;
+            };
+            for member in &extension.members {
+                let dir::DefinitionMember::Method(method) = member else {
+                    continue;
+                };
+                if self.symbol_name(method.symbol)? == Some(name) {
+                    return Ok(method.symbol);
+                }
+            }
+        }
+
         Err(LowerError::Unsupported {
             anchor: self.module.into(),
-            construct: "an extension-implemented constraint member".to_string(),
+            construct: "a constraint member without an implementing method".to_string(),
         }
         .into())
     }

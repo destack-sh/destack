@@ -144,7 +144,11 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a method call outside a call expression".to_string(),
             });
         };
-        let dir::Expression::Member { left: receiver, .. } = *self.source().tree().get(callee)
+        let dir::Expression::Member {
+            left: receiver,
+            is_optional,
+            ..
+        } = *self.source().tree().get(callee)
         else {
             return Err(LowerError::Unsupported {
                 anchor: self.lower.module.into(),
@@ -153,7 +157,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .into());
         };
 
-        self.lower_function_target_call(receiver, resolution, function, None)
+        self.lower_function_target_call(receiver, resolution, function, None, is_optional)
     }
 
     /// Lower one function target over one explicit receiver expression.
@@ -163,6 +167,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         function: &dir::FunctionTarget,
         write: Option<dir::LocalNodeId<dir::Expression>>,
+        is_optional: bool,
     ) -> CompilerResult<Option<mir::Value>> {
         // require the receiver the selection named
         let adjusted = function
@@ -173,7 +178,7 @@ impl FunctionLowerer<'_, '_, '_> {
             })?;
 
         // apply the selected receiver adjustments
-        let receiver = self.lower_adjusted_receiver(receiver, adjusted)?;
+        let receiver = self.lower_adjusted_receiver(receiver, adjusted, is_optional)?;
 
         // resolve the declared function behind the selected method instance
         let function = self.selection_function(&function.key)?;
@@ -407,23 +412,35 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         receiver: dir::LocalNodeId<dir::Expression>,
         adjusted: &dir::AdjustedReceiver,
+        is_optional: bool,
     ) -> CompilerResult<mir::Value> {
+        // guard the receiver when an optional chain encloses it
+        let is_guarded = is_optional && !self.chains.is_empty();
+
         // take the receiver place directly when a borrow leads the adjustments
         let (value, rest) = match adjusted.adjustments.as_slice() {
-            [dir::ReceiverAdjustment::Borrow { ty }, rest @ ..] => {
+            [dir::ReceiverAdjustment::Borrow { ty }, rest @ ..] if !is_guarded => {
                 let target = self.lower_type(*ty)?;
 
                 (self.lower_borrowed_place(receiver, target)?, rest)
             }
             // otherwise lower the receiver as a value
-            rest => (self.lower_expression(receiver)?, rest),
+            rest => {
+                let value = self.lower_expression(receiver)?;
+                let value = match is_guarded {
+                    true => self.lower_chain_guard(value)?,
+                    false => value,
+                };
+
+                (value, rest)
+            }
         };
 
         self.lower_receiver_adjustments(value, rest)
     }
 
     /// Apply receiver adjustments to one lowered value in order.
-    fn lower_receiver_adjustments(
+    pub(in crate::lower) fn lower_receiver_adjustments(
         &mut self,
         mut value: mir::Value,
         adjustments: &[dir::ReceiverAdjustment],
@@ -457,24 +474,30 @@ impl FunctionLowerer<'_, '_, '_> {
                 // project a narrowed union value or stored union place
                 dir::ReceiverAdjustment::UnionPayload { union, arm, .. } => {
                     let members = self.union_members(*union)?;
-                    let Some(index) = members.iter().position(|member| member == arm) else {
-                        return Err(CompilerError::Internal {
-                            message: "a union payload adjustment selecting an absent arm"
-                                .to_string(),
-                        });
-                    };
+                    let index = self.union_case_position(&members, *arm)?;
 
+                    // retain the address form of stored tagged receivers
                     let value_type = self.value_representation(value)?;
-
-                    // retain the address form of stored receivers
-                    match self.builder.tree().get(value_type) {
-                        mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
+                    match self.builder.tree().get(value_type).clone() {
+                        mir::Type::Reference { pointee, .. }
+                        | mir::Type::Pointer { pointee, .. }
+                            if matches!(
+                                self.builder.tree().get(pointee),
+                                mir::Type::Variant { .. }
+                            ) =>
+                        {
                             let target = self.lower_type(adjustment.ty())?;
 
-                            self.builder
-                                .variant_payload_addr(value, index as u32, target)
+                            self.builder.variant_payload_addr(value, index, target)
                         }
-                        _ => self.builder.variant_payload(value, index as u32),
+                        // extract tagged payloads by their case
+                        mir::Type::Variant { .. } => self.builder.variant_payload(value, index),
+                        // niched references narrow to their arm in place
+                        _ => {
+                            let target = self.lower_type(adjustment.ty())?;
+
+                            self.builder.cast(mir::CastOperator::Bitcast, value, target)
+                        }
                     }
                 }
             };

@@ -886,6 +886,16 @@ impl FunctionLowerer<'_, '_, '_> {
                 .cast(mir::CastOperator::Bitcast, value, representation));
         }
 
+        // pass values whose contents match the representation
+        if self.builder.tree().types_equal(
+            mir::TypeId::from(value_base),
+            mir::TypeId::from(representation_base),
+        ) {
+            return Ok(self
+                .builder
+                .cast(mir::CastOperator::Bitcast, value, representation));
+        }
+
         // select the representation case the value type declares
         let mir::Type::Variant { cases, .. } = self.builder.tree().get(representation_base) else {
             return Err(CompilerError::Internal {
@@ -923,7 +933,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Materialize the undefined case of one optional representation.
-    fn absent_representation_value(
+    pub(in crate::lower) fn absent_representation_value(
         &mut self,
         representation: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {

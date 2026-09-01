@@ -255,12 +255,8 @@ impl<'lower, 'module> TypeLowerer<'lower, 'module> {
                     return self.lower_value_representation(&literal.widen());
                 }
 
-                // store every other union as an indexed variant
-                let elements = self
-                    .lower
-                    .types(id.module_id)?
-                    .type_ids(union.elements)
-                    .to_vec();
+                // store every other union as an indexed variant over its flat members
+                let elements = self.lower.flatten_union_members(id.module_id, &union)?;
                 let mut payloads = Vec::with_capacity(elements.len());
                 for element in elements {
                     payloads.push(self.lower(element)?);

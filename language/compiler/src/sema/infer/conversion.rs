@@ -1120,11 +1120,9 @@ impl CheckState<'_> {
                 let adjustments = conversion
                     .map(|coercion| coercion.adjustments)
                     .unwrap_or_default();
-                let index = self.declared_arm_index(&targets, member)?;
                 let case = dir::CoercionCase {
                     source: source.ty,
                     target: member,
-                    index,
                     adjustments,
                 };
                 let coercion =
@@ -1238,16 +1236,9 @@ impl CheckState<'_> {
             let adjustments = conversion
                 .map(|coercion| coercion.adjustments)
                 .unwrap_or_default();
-
-            // record the arm each case enters
-            let index = match &targets {
-                Some(targets) => self.declared_arm_index(targets, target_case)?,
-                None => 0,
-            };
             cases.push(dir::CoercionCase {
                 source: source_case.ty,
                 target: target_case,
-                index,
                 adjustments,
             });
         }
@@ -1256,22 +1247,6 @@ impl CheckState<'_> {
         let coercion = dir::Coercion::union(source.ty, target, cases, dir::CastOrigin::Implicit);
 
         Ok(Ok(Some(Box::new(coercion))))
-    }
-
-    /// Return one selected member's arm position in the declared target union.
-    fn declared_arm_index(
-        &self,
-        targets: &[dir::GlobalTypeId],
-        member: dir::GlobalTypeId,
-    ) -> CompilerResult<u32> {
-        let index = targets
-            .iter()
-            .position(|arm| *arm == member)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("union conversion selected the absent member {member:?}"),
-            })?;
-
-        Ok(index as u32)
     }
 
     /// Return the concrete cases represented by one source type.

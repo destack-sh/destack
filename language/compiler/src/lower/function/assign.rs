@@ -112,7 +112,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // call the setter with the assigned value
-        self.lower_function_target_call(left, call, function, Some(right))?;
+        self.lower_function_target_call(left, call, function, Some(right), false)?;
 
         Ok(())
     }

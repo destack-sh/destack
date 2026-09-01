@@ -484,21 +484,72 @@ impl LowerState<'_> {
         })
     }
 
+    /// Return the flattened members of one union, transparent aliases expanding in place.
+    pub(in crate::lower) fn flatten_union_members(
+        &self,
+        module: ModuleId,
+        union: &dir::UnionType,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let elements = self.types(module)?.type_ids(union.elements).to_vec();
+        let mut queue = std::collections::VecDeque::from(elements);
+        let mut members = Vec::new();
+        while let Some(element) = queue.pop_front() {
+            // peel owned forms and transparent aliases to the member's leaf
+            let mut leaf = self.peel_owned(element)?;
+            loop {
+                let dir::Type::Application(application) = self.ty(leaf)? else {
+                    break;
+                };
+                let Some(dir::Definition::TypeAlias(alias)) =
+                    self.definition(application.symbol)?
+                else {
+                    break;
+                };
+                let value = alias.value;
+
+                // read the body through the application's own instance
+                let specialization = self.application_specialization(leaf, &application)?;
+                let value = self.instance_type(specialization, value)?;
+                leaf = self.peel_owned(value)?;
+            }
+
+            // expand a nested union's members in declaration order
+            if let dir::Type::Union(nested) = self.ty(leaf)? {
+                let nested = self
+                    .types(leaf.module_id)?
+                    .type_ids(nested.elements)
+                    .to_vec();
+                for (offset, member) in nested.into_iter().enumerate() {
+                    queue.insert(offset, member);
+                }
+
+                continue;
+            }
+
+            // keep each member once
+            if !members.contains(&leaf) {
+                members.push(leaf);
+            }
+        }
+
+        Ok(members)
+    }
+
     /// Split one union into its nullish values and single reference representation.
     pub(in crate::lower) fn decompose_nullish_union(
         &self,
         module: ModuleId,
         union: &dir::UnionType,
     ) -> CompilerResult<Option<(mir::Nullability, dir::GlobalTypeId)>> {
-        // split the members into nullish values and reference representations
+        // split the flattened members into nullish values and reference representations
         let mut nullability = (false, false);
         let mut representations = Vec::new();
-        for id in self.types(module)?.type_ids(union.elements) {
-            match self.ty(*id)? {
+        for id in self.flatten_union_members(module, union)? {
+            match self.ty(id)? {
                 // take nullish members onto the representation's spare values
                 dir::Type::Null => nullability.0 = true,
                 dir::Type::Undefined => nullability.1 = true,
-                _ => representations.push(*id),
+                _ => representations.push(id),
             }
         }
 

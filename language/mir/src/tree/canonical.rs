@@ -71,9 +71,9 @@ impl Tree {
             return true;
         }
 
-        // compare the nodes shallowly with their children masked out
-        let mut left_type = self.get(left).clone();
-        let mut right_type = self.get(right).clone();
+        // compare the nodes shallowly with lifetimes erased and children masked out
+        let mut left_type = self.get(left).erased_lifetime();
+        let mut right_type = self.get(right).erased_lifetime();
         left_type.map_child_type_ids(&mut |_| left);
         right_type.map_child_type_ids(&mut |_| left);
         if left_type != right_type {

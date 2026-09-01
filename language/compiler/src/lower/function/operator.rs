@@ -12,7 +12,8 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::Call,
         function: &dir::FunctionTarget,
     ) -> CompilerResult<mir::Value> {
-        let Some(value) = self.lower_function_target_call(receiver, resolution, function, None)?
+        let Some(value) =
+            self.lower_function_target_call(receiver, resolution, function, None, false)?
         else {
             return Err(CompilerError::Internal {
                 message: "a void operator method".to_string(),
@@ -57,6 +58,40 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
+    /// Join one present reference at the coalesce result representation.
+    fn coalesce_present_value(
+        &mut self,
+        value: mir::Value,
+        result: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        // enter the present case of an optional variant result
+        if let mir::Type::Variant { cases, .. } = self.builder.tree().get(result).clone() {
+            // require the absent case beside exactly one present case
+            let Some(mir::NullishCase::Case(absent)) = self.builder.tree().undefined_case(result)
+            else {
+                return Err(CompilerError::Internal {
+                    message: "a coalesce variant result without an absent case".to_string(),
+                });
+            };
+            let [_, _] = cases.as_slice() else {
+                return Err(LowerError::Unsupported {
+                    anchor: self.lower.module.into(),
+                    construct: "a coalesce joining a union of several present cases".to_string(),
+                }
+                .into());
+            };
+
+            // adapt the value into the remaining present case
+            let present = 1 - absent;
+            let payload = cases[present as usize].ty;
+            let payload = self.adapt_to_representation(value, payload)?;
+
+            return Ok(self.builder.variant_new(result, present, Some(payload)));
+        }
+
+        self.adapt_to_representation(value, result)
+    }
+
     /// Lower one nullish coalescing operation over its variant or niched representation.
     pub(in crate::lower) fn lower_coalesce(
         &mut self,
@@ -90,18 +125,6 @@ impl FunctionLowerer<'_, '_, '_> {
 
             return self.adapt_to_representation(value, result);
         };
-
-        // require both sides to share a reference representation
-        if !self
-            .builder
-            .tree()
-            .get(result)
-            .is_reference_representation()
-        {
-            return Err(CompilerError::Internal {
-                message: "a coalesce joining reference and value representations".to_string(),
-            });
-        }
 
         // keep the value of a never-nullish reference
         let value = self.lower_expression(left)?;
@@ -141,9 +164,9 @@ impl FunctionLowerer<'_, '_, '_> {
         let join = self.builder.block();
         self.builder.branch(is_nullish, right_block, keep_block);
 
-        // keep the present reference at the narrowed result representation
+        // keep the present reference at the joined result representation
         self.builder.switch_to_block(keep_block);
-        let kept = self.adapt_to_representation(value, result)?;
+        let kept = self.coalesce_present_value(value, result)?;
         self.builder.local_set(join_value, kept);
         self.builder.jump(join);
 
@@ -513,7 +536,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // evaluate the discriminant receiver and computed key exactly once
-        let receiver = self.lower_adjusted_receiver(left, &receiver)?;
+        let receiver = self.lower_adjusted_receiver(left, &receiver, false)?;
         if let Some(index) = index {
             self.lower_expression(index)?;
         }

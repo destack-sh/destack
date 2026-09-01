@@ -268,13 +268,13 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // build the shared target case around the converted payload
-            let target_member = first.target;
-            self.require_union_case(&target_members, first.index, target_member)?;
-            let payload = self.union_payload(CoercionValue::Runtime(value), target_member)?;
+            let position = self.union_case_position(&target_members, first.target)?;
+            let payload = self.union_payload(
+                CoercionValue::Runtime(value),
+                target_members[position as usize],
+            )?;
 
-            return Ok(self
-                .builder
-                .variant_new(representation, first.index, payload));
+            return self.union_case_new(representation, position, &target_members, payload);
         }
 
         // enter the single declared case of a plain injection
@@ -283,16 +283,50 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a union injection requiring exactly one source case".to_string(),
             });
         };
-        let target_member = case.target;
-        self.require_union_case(&target_members, case.index, target_member)?;
+        let position = self.union_case_position(&target_members, case.target)?;
 
         // convert the source value before inserting its target case
         let value = self.lower_adjustments(value, source, &case.adjustments)?;
-        let payload = self.union_payload(value, target_member)?;
+        let payload = self.union_payload(value, target_members[position as usize])?;
 
-        Ok(self
-            .builder
-            .variant_new(representation, case.index, payload))
+        self.union_case_new(representation, position, &target_members, payload)
+    }
+
+    /// Build one union case at its representation, storing niched cases directly.
+    fn union_case_new(
+        &mut self,
+        representation: mir::LocalNodeId<mir::Type>,
+        position: u32,
+        members: &[dir::GlobalTypeId],
+        payload: Option<mir::Value>,
+    ) -> CompilerResult<mir::Value> {
+        // tag the case of an indexed variant representation
+        if matches!(
+            self.builder.tree().get(representation),
+            mir::Type::Variant { .. }
+        ) {
+            return Ok(self.builder.variant_new(representation, position, payload));
+        }
+
+        // store nullish cases of a niched representation as their sentinel values
+        let member = members[position as usize];
+        if let dir::Type::Null = self.lower.ty(member)? {
+            return Ok(self.builder.constant(mir::Constant::Null, representation));
+        }
+        if let dir::Type::Undefined = self.lower.ty(member)? {
+            return Ok(self
+                .builder
+                .constant(mir::Constant::Undefined, representation));
+        }
+
+        // store the value case of a niched representation directly
+        let Some(payload) = payload else {
+            return Err(CompilerError::Internal {
+                message: "a niched union case without a payload value".to_string(),
+            });
+        };
+
+        self.adapt_to_representation(payload, representation)
     }
 
     /// Convert one indexed union value into another ordered case set.
@@ -330,12 +364,10 @@ impl FunctionLowerer<'_, '_, '_> {
             let source_value = self.union_case_value(value, source_index, source_member)?;
             let source_value =
                 self.lower_adjustments(source_value, source_member, &mapping.adjustments)?;
-            let target_member = mapping.target;
-            self.require_union_case(&target_members, mapping.index, target_member)?;
-            let payload = self.union_payload(source_value, target_member)?;
-            let converted = self
-                .builder
-                .variant_new(representation, mapping.index, payload);
+            let position = self.union_case_position(&target_members, mapping.target)?;
+            let payload = self.union_payload(source_value, target_members[position as usize])?;
+            let converted =
+                self.union_case_new(representation, position, &target_members, payload)?;
             self.builder.local_set(result, converted);
             self.builder.jump(exit);
         }
@@ -458,27 +490,35 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // require the resolved type to be a union
         let dir::Type::Union(union) = self.lower.ty(stored)? else {
-            return Err(CompilerError::Internal {
-                message: "a non-union type in a union member read".to_string(),
-            });
+            return Err(LowerError::Unsupported {
+                anchor: self.lower.module.into(),
+                construct: "a union view behind an erased interface".to_string(),
+            }
+            .into());
         };
 
-        Ok(self
-            .lower
-            .types(stored.module_id)?
-            .type_ids(union.elements)
-            .to_vec())
+        Ok(self.lower.flatten_union_members(stored.module_id, &union)?)
     }
 
     /// Resolve the stored type one union name denotes, unfolding transparent aliases.
-    fn union_stored(&self, ty: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
+    pub(in crate::lower) fn union_stored(
+        &self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
         // resolve the union behind owned forms and transparent aliases
         let mut stored = self.lower.peel_owned(ty)?;
-        while let dir::Type::Application(instance) = self.lower.ty(stored)? {
-            let defined = match self.lower.definition(instance.symbol)? {
+        while let dir::Type::Application(application) = self.lower.ty(stored)? {
+            let defined = match self.lower.definition(application.symbol)? {
                 Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                Some(dir::Definition::Newtype(newtype)) => newtype.backing,
                 _ => break,
             };
+
+            // read the body through the application's own instance
+            let specialization = self
+                .lower
+                .application_specialization(stored, &application)?;
+            let defined = self.lower.instance_type(specialization, defined)?;
 
             stored = self.lower.peel_owned(defined)?;
         }
@@ -551,19 +591,52 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Require one selected union case to name its declared member at its index.
-    fn require_union_case(
-        &self,
+    /// Return the stored case position one recorded target member selects.
+    /// FUGU #Architecture: record conversion targets at exact stored member identities
+    pub(in crate::lower) fn union_case_position(
+        &mut self,
         members: &[dir::GlobalTypeId],
-        index: u32,
-        member: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
-        if members.get(index as usize) != Some(&member) {
-            return Err(CompilerError::Internal {
-                message: "a union conversion selecting an absent target member".to_string(),
-            });
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<u32> {
+        // match the recorded member exactly first
+        if let Some(position) = members.iter().position(|member| *member == target) {
+            return Ok(position as u32);
         }
 
-        Ok(())
+        // match the member stored beneath the target's enclosing forms
+        let mut base = target;
+        while let dir::Type::Form(form) = self.lower.ty(base)? {
+            base = form.value;
+        }
+        if let Some(position) = members.iter().position(|member| *member == base) {
+            return Ok(position as u32);
+        }
+
+        // match the member sharing the lowered representation
+        let representation = self.lower_type(base)?;
+        for (position, member) in members.iter().enumerate() {
+            if self.lower_type(*member)? == representation {
+                return Ok(position as u32);
+            }
+        }
+
+        // select the sole value member for a remaining value target
+        if !matches!(self.lower.ty(base)?, dir::Type::Null | dir::Type::Undefined) {
+            let mut values = members.iter().enumerate().filter_map(|(position, member)| {
+                let is_nullish = matches!(
+                    self.lower.ty(*member),
+                    Ok(dir::Type::Null | dir::Type::Undefined)
+                );
+
+                (!is_nullish).then_some(position)
+            });
+            if let (Some(sole), None) = (values.next(), values.next()) {
+                return Ok(sole as u32);
+            }
+        }
+
+        Err(CompilerError::Internal {
+            message: "a union conversion selecting an absent target member".to_string(),
+        })
     }
 }

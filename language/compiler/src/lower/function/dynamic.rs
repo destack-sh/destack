@@ -89,7 +89,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // select the constraint's declared slot and signature
-        let receiver = self.lower_adjusted_receiver(receiver, &dispatch.receiver)?;
+        let receiver = self.lower_adjusted_receiver(receiver, &dispatch.receiver, false)?;
         let constraint = self.lower_constraint(dispatch.constraint)?;
         let Some(shape) = self.lower.dynamic_shapes.get(&constraint) else {
             return Err(CompilerError::Internal {
@@ -147,7 +147,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // select the slot behind the name in the constraint shape
-        let receiver = self.lower_adjusted_receiver(left, &dispatch.receiver)?;
+        let receiver = self.lower_adjusted_receiver(left, &dispatch.receiver, false)?;
         let constraint = self.lower_constraint(dispatch.constraint)?;
         let Some(shape) = self.lower.dynamic_shapes.get(&constraint) else {
             return Err(CompilerError::Internal {
