@@ -1,0 +1,101 @@
+import { Deque } from "destack:collections";
+import { Cell } from "destack:memory";
+
+import { Fiber } from "./fiber.ds";
+import { Poll, Pollable } from "./poll.ds";
+
+/// Sending and receiving ends of one open channel.
+export local struct ChannelEnds<T> {
+    /// The producer end.
+    sender: ChannelSender<T>;
+
+    /// The consumer end.
+    receiver: ChannelReceiver<T>;
+}
+
+/// Shareable sending end of one channel.
+export local class ChannelSender<T> {
+    /// Shared channel state.
+    private readonly state: ChannelState<T>;
+
+    /// Create the sending end over shared state.
+    constructor(state: ChannelState<T>) {
+        this.state = state;
+    }
+
+    /// Send one value, waking a parked receiver.
+    send(&readonly this, value: T): void {
+        this.state.push(value);
+    }
+}
+
+/// Owned receiving end of one channel, polled for the next value.
+export local struct ChannelReceiver<T> {
+    /// Shared channel state.
+    state: ChannelState<T>;
+}
+
+export extension<T> of ChannelReceiver<T> implements Pollable<T> {
+    /// Return the next value when one is queued.
+    poll(&readonly this): Poll<T> {
+        this.state.pop()
+    }
+
+    /// Register one fiber to wake at the next send.
+    enlist(&readonly this, fiber: Fiber): void {
+        this.state.wait(fiber);
+    }
+}
+
+/// Open one channel and return both ends.
+export function channel<T>(): ChannelEnds<T> {
+    let state = new ChannelState<T>();
+
+    return ChannelEnds {
+        sender: new ChannelSender(state),
+        receiver: ChannelReceiver { state },
+    };
+}
+
+/// Shared queue and waiter state between the channel ends.
+local class ChannelState<T> {
+    /// The queued values in send order.
+    private readonly values: Cell<Deque<T>>;
+
+    /// The fiber parked on the next value.
+    private readonly waiter: Cell<Fiber | undefined>;
+
+    /// Create empty channel state.
+    constructor() {
+        this.values = Cell.new(Deque.new());
+        this.waiter = Cell.new(undefined);
+    }
+
+    /// Queue one value and wake the parked receiver.
+    push(&readonly this, value: T): void {
+        let values = this.values.replace(Deque.new());
+        values.pushBack(value);
+        this.values.set(values);
+        let waiter = this.waiter.replace(undefined);
+        if (waiter != undefined) {
+            waiter.wake();
+        }
+    }
+
+    /// Take the next queued value.
+    pop(&readonly this): Poll<T> {
+        let values = this.values.replace(Deque.new());
+        let next = values.popFront();
+        this.values.set(values);
+        if (next == undefined) {
+            return Poll.pending();
+        }
+
+        return Poll.ready(next);
+    }
+
+    /// Record the fiber to wake at the next send.
+    wait(&readonly this, fiber: Fiber): void {
+        this.waiter.set(fiber);
+    }
+}

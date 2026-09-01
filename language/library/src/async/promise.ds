@@ -113,10 +113,20 @@ export local class Promise<T: Copy> implements Awaitable<T> {
         };
     }
 
-    /// Create the pending promise owned by one lowered async function.
+    /// Create the promise carrying one lowered async body's result.
     @languageItem("async.Promise.create")
-    private static create<T: Copy>(): Promise<T> {
-        return Promise.pending<T>();
+    private static create<T: Copy>(body: ^Function<(), T, "once">): Promise<T> {
+        let promise = Promise.pending<T>();
+        let target = promise;
+
+        @capture("move")
+        let run: ^Function<(), void, "once"> = () => {
+            Promise.fulfill(target, body());
+        };
+        let fiber = Fiber.create(run);
+        fiber.resume();
+
+        return promise;
     }
 
     /// Park the current fiber until a promise fulfills.

@@ -13,15 +13,16 @@ export local struct Task<T> implements Awaitable<T>, Drop {
 
     /// Create an already completed task.
     static resolve<T>(value: T): Task<T> {
-        let start = Task.create<T>();
+        let start = Task.open<T>();
         start.producer.complete(value);
 
         return start.task;
     }
 
     /// Run one body on a fresh fiber and expose its result.
+    @languageItem("async.Task.create")
     static spawn<T>(body: ^Function<(), T, "once">): Task<T> {
-        let start = Task.create<T>();
+        let start = Task.open<T>();
         let producer = start.producer;
 
         @capture("move")
@@ -34,9 +35,8 @@ export local struct Task<T> implements Awaitable<T>, Drop {
         return start.task;
     }
 
-    /// Create one task and its producer.
-    @languageItem("async.Task.create")
-    private static create<T>(): TaskStart<T> {
+    /// Open one task and its producer.
+    private static open<T>(): TaskStart<T> {
         let state = new TaskState<T>();
 
         return TaskStart {

@@ -1,6 +1,9 @@
 import { From } from "destack:convert";
 import { ControlFlow, Try } from "destack:ops";
 
+import { Awaitable } from "./awaitable.ds";
+import { Fiber } from "./fiber.ds";
+
 /// Available poll result.
 export struct Ready<T> {
     /// The result tag.
@@ -83,6 +86,30 @@ export extension<T> of Poll<T> implements Try {
         match (this) {
             Ready { value } => ControlFlow.continue(value)
             Pending {} => ControlFlow.break(Pending {})
+        }
+    }
+}
+
+/// Value polled for readiness and woken through registered waiters.
+export newtype interface Pollable<T> {
+    /// Return the result when it is available.
+    poll(&readonly this): Poll<T>;
+
+    /// Register one fiber to wake when readiness may change.
+    enlist(&readonly this, fiber: Fiber): void;
+}
+
+export extension<T, P: Pollable<T>> of P implements Awaitable<T> {
+    /// Park the current fiber until the value polls ready.
+    static park(pollable: P): T {
+        loop {
+            match (pollable.poll()) {
+                Ready { value } => return value
+                Pending {} => {
+                    pollable.enlist(Fiber.current());
+                    Fiber.park();
+                }
+            }
         }
     }
 }
