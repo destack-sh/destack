@@ -4,7 +4,7 @@ use clap::{Args, CommandFactory, Parser, ValueEnum};
 
 use crate::{
     build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, init, lint,
-    lsp, query, rewrite, settings, targets, task, test, update, version,
+    lsp, query, rewrite, run, settings, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -13,7 +13,7 @@ use crate::command::DevCommand;
 use crate::command::dev::{release, stats};
 use crate::command::{
     BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs, DoctorArgs,
-    ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs, RewriteArgs,
+    ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs, RewriteArgs, RunArgs,
     SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 
@@ -96,6 +96,9 @@ pub enum Command {
     #[command(alias = "typecheck")]
     Check(CheckArgs),
 
+    /// Build a program and run it.
+    Run(RunArgs),
+
     /// Compile source files.
     #[command(alias = "compile")]
     Build(BuildArgs),
@@ -174,6 +177,7 @@ impl Command {
         match self {
             Self::Check(args) => check::run(&args).await,
             Self::Build(args) => build::run(&args).await,
+            Self::Run(args) => run::run(&args).await,
             Self::Lint(args) => lint::run(&args).await,
             Self::Format(args) => fmt::run(&args).await,
             Self::Query(args) => query::run(&args).await,

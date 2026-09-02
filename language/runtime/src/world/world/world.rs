@@ -206,6 +206,13 @@ impl World {
         Ok(world)
     }
 
+    /// Drain the host bootstrap events so spawned runtimes see a settled host.
+    pub fn bootstrap_host(&mut self) -> RuntimeResult<()> {
+        self.host_queue.poll(self.host.as_ref(), Some(0))?;
+
+        Ok(())
+    }
+
     /// Snapshot world policy state.
     pub fn policy(&self) -> Policy {
         self.state.policy.clone()

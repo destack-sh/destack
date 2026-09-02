@@ -28,9 +28,11 @@ destack_json = { workspace = true }
 destack_linter = { workspace = true }
 destack_mir = { workspace = true }
 destack_parser = { workspace = true }
+destack_program = { workspace = true }
 destack_query = { workspace = true }
 destack_repository = { workspace = true }
 destack_rpc = { workspace = true }
+destack_runtime = { workspace = true }
 destack_serde = { workspace = true }
 destack_session = { workspace = true, features = ["native"] }
 destack_source = { workspace = true }
@@ -38,6 +40,7 @@ destack_source = { workspace = true }
 # platform
 destack_daemon = { workspace = true }
 destack_lsp = { workspace = true }
+destack_vm = { workspace = true }
 destack_workspace = { workspace = true }
 
 # general
