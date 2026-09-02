@@ -868,6 +868,8 @@ pub struct FieldDefinition {
     pub source: GlobalNodeIdAny,
     /// The field key.
     pub key: StaticKey,
+    /// The type the field stores, undefined included for optional fields.
+    pub ty: GlobalTypeId,
     /// The field initializer expression, when one is declared.
     pub initializer: Option<GlobalNodeIdAny>,
     /// Whether the field is optional on its declaration.

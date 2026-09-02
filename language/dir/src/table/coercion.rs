@@ -292,6 +292,7 @@ impl CoercionAdjustment {
 
         // distinct scalar representations convert their stored values
         if let (Type::Primitive(source), Type::Primitive(target)) = (source, target)
+            && source != target
             && source.widens_to(*target)
         {
             return Some(Self::Scalar { target: target_id });

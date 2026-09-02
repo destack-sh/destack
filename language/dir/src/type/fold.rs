@@ -4,7 +4,7 @@ use destack_core::StringId;
 use destack_source::ModuleId;
 
 use crate::{
-    Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
+    Access, AutoInterface, AwaitTarget, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,
     EnumVariantValue, FunctionRole, FunctionSignature, GlobalGenericParameterId, GlobalNodeId,
     GlobalNodeIdAny, GlobalScopeId, GlobalStaticId, GlobalSymbolId, GlobalTypeId, InstanceOrigin,
     IntegerType, LanguageItem, Literal, LocalCaptureFrameId, LocalGenericParameterId,
@@ -184,6 +184,7 @@ type_fold_leaves!(
     StaticKey,
     UnaryOperator,
     Visibility,
+    AwaitTarget,
 );
 
 // source signatures name their checked types through their own nodes

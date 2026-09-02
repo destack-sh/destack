@@ -10,9 +10,9 @@ use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
     CallDecision, ConstructDecision, Expression, FunctionDecision, GlobalNodeId, GlobalNodeIdAny,
     GlobalSymbolId, GlobalTypeId, GuardDecision, InstanceKey, InstanceKeyVisit, MemberAccess,
-    MemberDecision, NodeType, OperationResolution, OperatorDecision, Pattern, PatternDecision,
-    PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision, SubscriptTarget,
-    TreeDecision, TypeFold,
+    MemberDecision, Narrowing, NodeType, OperationResolution, OperatorDecision, Pattern,
+    PatternDecision, PlaceResolution, ReceiverDecision, SegmentView, SubscriptDecision,
+    SubscriptTarget, TreeDecision, TypeFold,
 };
 
 /// The one decision inference made for a DIR node.
@@ -28,6 +28,8 @@ pub enum Decision {
     Transfer(GlobalNodeId<Expression>),
     /// Resolved try residual transfer.
     Residual(ResidualDecision),
+    /// Resolved iteration protocol calls.
+    Iteration(Box<IterationDecision>),
     /// Resolved pattern coverage proof.
     Coverage(CoverageDecision),
     /// Resolved operator application.
@@ -54,6 +56,41 @@ pub enum Decision {
     Rejected,
     /// Poisoned node with an already-reported error.
     Poisoned,
+}
+
+/// Iteration protocol calls selected for one for-of loop.
+///
+/// Examples:
+/// ```ds
+/// for (const item of items) {}       // Iterable.iterator, then Iterator.next each pass
+/// for await (const item of items) {} // AsyncIterator.next results parked before dispatch
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+pub struct IterationDecision {
+    /// The call opening the source's iterator.
+    pub iterator: Call,
+    /// The call advancing the iterator on every pass.
+    pub next: Call,
+    /// The await an async iteration runs on every pass.
+    pub awaits: Option<IterationAwait>,
+}
+
+/// The await one async iteration runs on every pass.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+pub struct IterationAwait {
+    /// The selected Awaitable.park call.
+    pub call: Call,
+    /// What the await produces for the loop.
+    pub target: AwaitTarget,
+}
+
+/// What one implicit await produces for its loop.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum AwaitTarget {
+    /// The result an async iterator's next returns.
+    Result,
+    /// Each element a sync iterable yields to a for-await loop.
+    Element,
 }
 
 /// One decided try residual transfer.
@@ -150,6 +187,7 @@ impl Decision {
             | Self::Function(_)
             | Self::Transfer(_)
             | Self::Residual(_)
+            | Self::Iteration(_)
             | Self::Coverage(_)
             | Self::Operator(_)
             | Self::Call(_)
@@ -308,6 +346,14 @@ impl<'a> DecisionTable<'a> {
         }
     }
 
+    /// Get the iteration protocol calls selected at a for-of node.
+    pub fn iteration_decision(&self, node_id: GlobalNodeIdAny) -> Option<&IterationDecision> {
+        match self.decision(node_id) {
+            Some(Decision::Iteration(decision)) => Some(decision),
+            _ => None,
+        }
+    }
+
     /// Get the calls selected at a node, reading through a retained attempt.
     pub fn selected_calls(&self, node_id: GlobalNodeIdAny) -> Option<&[Call]> {
         match self.decision(node_id)? {
@@ -410,6 +456,14 @@ impl<'a> DecisionTable<'a> {
             .find_map(|segment| segment.place_resolution(node_id))
     }
 
+    /// Get the narrowing one read sees.
+    pub fn narrowing(&self, node_id: GlobalNodeIdAny) -> Option<&Narrowing> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.narrowing(node_id))
+    }
+
     /// Iterate visible node decisions.
     pub fn decision_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Decision)> + '_ {
         self.segments
@@ -439,6 +493,13 @@ impl<'a> DecisionTable<'a> {
             .flat_map(|segment| segment.place_entries())
     }
 
+    /// Iterate the narrowings across every segment.
+    pub fn narrowing_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Narrowing)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.narrowing_entries())
+    }
+
     /// Return whether this table has no decisions.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(DecisionSegment::is_empty)
@@ -456,6 +517,8 @@ pub struct DecisionSegment {
     accesses: IndexMap<GlobalNodeIdAny, AccessResolution>,
     /// Decided place resolutions keyed by DIR node.
     places: IndexMap<GlobalNodeIdAny, PlaceResolution>,
+    /// The union members flow narrowings leave live at reads, by node.
+    narrowings: IndexMap<GlobalNodeIdAny, Narrowing>,
 }
 
 impl DecisionSegment {
@@ -466,6 +529,7 @@ impl DecisionSegment {
             decisions: IndexMap::default(),
             accesses: IndexMap::default(),
             places: IndexMap::default(),
+            narrowings: IndexMap::default(),
         }
     }
 
@@ -617,6 +681,28 @@ impl DecisionSegment {
             .map(|(node_id, resolution)| (*node_id, resolution))
     }
 
+    /// Set the narrowing one read sees.
+    pub fn set_narrowing(&mut self, node_id: GlobalNodeIdAny, narrowing: Narrowing) {
+        self.narrowings.insert(node_id, narrowing);
+    }
+
+    /// Get the narrowing one read sees.
+    pub fn narrowing(&self, node_id: GlobalNodeIdAny) -> Option<&Narrowing> {
+        self.narrowings.get(&node_id)
+    }
+
+    /// Drop the narrowing recorded at one read.
+    pub fn remove_narrowing(&mut self, node_id: GlobalNodeIdAny) {
+        self.narrowings.shift_remove(&node_id);
+    }
+
+    /// Iterate the narrowings in this segment.
+    pub fn narrowing_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Narrowing)> + '_ {
+        self.narrowings
+            .iter()
+            .map(|(node_id, narrowing)| (*node_id, narrowing))
+    }
+
     /// Drop every decision an earlier sealed segment already carries identically.
     pub fn drop_carried(&mut self, sealed: &DecisionSegment) {
         self.decisions
@@ -625,11 +711,16 @@ impl DecisionSegment {
             .retain(|node, resolution| sealed.accesses.get(node) != Some(resolution));
         self.places
             .retain(|node, resolution| sealed.places.get(node) != Some(resolution));
+        self.narrowings
+            .retain(|node, narrowing| sealed.narrowings.get(node) != Some(narrowing));
     }
 
     /// Return whether this segment has no decisions.
     pub fn is_empty(&self) -> bool {
-        self.decisions.is_empty() && self.accesses.is_empty() && self.places.is_empty()
+        self.decisions.is_empty()
+            && self.accesses.is_empty()
+            && self.places.is_empty()
+            && self.narrowings.is_empty()
     }
 }
 
@@ -643,6 +734,9 @@ impl TypeFold for DecisionSegment {
         }
         for place in self.places.values_mut() {
             place.map_types(map)?;
+        }
+        for narrowing in self.narrowings.values_mut() {
+            narrowing.map_types(map)?;
         }
 
         Ok(())

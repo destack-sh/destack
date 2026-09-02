@@ -6,7 +6,7 @@ use destack_core::StringId;
 use destack_source::ModuleId;
 
 use crate::{
-    Access, AutoInterface, BinaryOperator, CaptureMode, CastOrigin, ClassConstructor,
+    Access, AutoInterface, AwaitTarget, BinaryOperator, CaptureMode, CastOrigin, ClassConstructor,
     EnumBackingType, EnumVariantValue, FunctionRole, FunctionSignature, GenericArgumentBinding,
     GlobalGenericParameterId, GlobalNodeId, GlobalNodeIdAny, GlobalScopeId, GlobalStaticId,
     GlobalSymbolId, GlobalTypeId, IntegerType, LanguageItem, Literal, LocalCaptureFrameId,
@@ -189,4 +189,5 @@ instance_key_visit_leaves!(
     Space,
     StaticKey,
     UnaryOperator,
+    AwaitTarget,
 );
