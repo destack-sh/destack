@@ -139,7 +139,10 @@ impl FormatNode for Instruction {
             }
 
             Instruction::LocalAddr {
-                destination, local, ..
+                destination,
+                local,
+                kind,
+                ..
             } => {
                 let local_index = f.context().local_index(*local)?;
                 format_typed_destination(*destination, f)?;
@@ -149,7 +152,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("local.address"),
+                        copied_text(&format!("local.{}", kind.mnemonic())),
                         space(),
                         copied_text(&format!("l{local_index}"))
                     ]
@@ -174,6 +177,7 @@ impl FormatNode for Instruction {
             Instruction::GlobalAddr {
                 destination,
                 global,
+                kind,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -183,7 +187,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("global.address"),
+                        copied_text(&format!("global.{}", kind.mnemonic())),
                         space()
                     ]
                 )?;
@@ -512,6 +516,7 @@ impl FormatNode for Instruction {
                 destination,
                 variant,
                 case,
+                kind,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -521,7 +526,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("variant.payload.address"),
+                        copied_text(&format!("variant.payload.{}", kind.mnemonic())),
                         space(),
                         variant,
                         token(","),
@@ -535,6 +540,7 @@ impl FormatNode for Instruction {
                 destination,
                 aggregate,
                 field,
+                kind,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -544,7 +550,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("field.address"),
+                        copied_text(&format!("field.{}", kind.mnemonic())),
                         space(),
                         aggregate,
                         token(","),
@@ -606,6 +612,7 @@ impl FormatNode for Instruction {
                 destination,
                 base,
                 index,
+                kind,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -615,7 +622,7 @@ impl FormatNode for Instruction {
                         space(),
                         token("="),
                         space(),
-                        token("element.address"),
+                        copied_text(&format!("element.{}", kind.mnemonic())),
                         space(),
                         base,
                         token(","),

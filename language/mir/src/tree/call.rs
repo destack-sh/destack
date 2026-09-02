@@ -7,11 +7,11 @@ use crate::{
     Block, DispatchSlot, FunctionId, Instruction, LocalNodeId, Tree, TypeId, Value, ValueSlice,
 };
 
-/// Stable identifier for one callsite inside a function body.
+/// One program point inside a function body: an instruction or a block terminator.
 #[derive(
     Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
-pub enum CallSite {
+pub enum Point {
     /// Callsite stored as an instruction.
     Instruction(LocalNodeId<Instruction>),
     /// Callsite stored as a block terminator.

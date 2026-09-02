@@ -183,7 +183,7 @@ impl AliasTable {
         region
     }
 
-    /// Resolve address provenance in one memory region.
+    /// Resolve address origin in one memory region.
     pub fn resolve(&self, region: &MemoryRegion) -> MemoryRegion {
         match region.location() {
             Some(location) => self.region(location.address.value()).clone(),

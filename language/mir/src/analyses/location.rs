@@ -500,7 +500,7 @@ impl MemoryPlace {
 pub(super) struct MemoryRegionBuilder<'a> {
     /// Cached region results.
     cache: FxIndexMap<mir::Value, MemoryRegion>,
-    /// Value definitions for address provenance.
+    /// Value definitions for address origin.
     definitions: &'a DefinitionTable,
     /// The MIR tree.
     tree: &'a mir::Tree,
@@ -633,14 +633,14 @@ impl<'a> MemoryRegionBuilder<'a> {
                 region
             }
 
-            // preserve variant storage provenance without claiming disjoint payloads
+            // preserve variant storage origin without claiming disjoint payloads
             mir::Instruction::VariantPayloadAddr {
                 destination,
                 variant,
                 ..
             } if *destination == address => self.region(*variant),
 
-            // casts preserve provenance
+            // casts preserve origin
             mir::Instruction::Cast {
                 destination,
                 argument,

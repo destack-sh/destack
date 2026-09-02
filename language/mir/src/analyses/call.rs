@@ -35,7 +35,7 @@ pub struct CallEdge {
     /// The callee function id.
     pub callee: mir::LocalNodeId<mir::Function>,
     /// The callsite that performs the call.
-    pub callsite: mir::CallSite,
+    pub callsite: mir::Point,
     /// The dispatch for this callsite.
     pub dispatch: mir::CallDispatch,
 }
@@ -46,7 +46,7 @@ pub struct OpenCallSite {
     /// The caller function id.
     pub caller: mir::FunctionId,
     /// The callsite that performs the call.
-    pub callsite: mir::CallSite,
+    pub callsite: mir::Point,
     /// The dispatch for this callsite.
     pub dispatch: mir::CallDispatch,
 }
@@ -330,7 +330,7 @@ struct ScannedCallSite {
     /// The caller function id.
     caller: mir::LocalNodeId<mir::Function>,
     /// The callsite identity.
-    callsite: mir::CallSite,
+    callsite: mir::Point,
     /// Dispatch for the callsite.
     dispatch: mir::CallDispatch,
     /// Resolved target when known.
@@ -346,7 +346,7 @@ impl ScannedCallSite {
         resolution: &ResolutionTable,
     ) -> Option<Self> {
         let dispatch = instruction.call_dispatch()?;
-        let callsite = mir::CallSite::Instruction(instruction_id);
+        let callsite = mir::Point::Instruction(instruction_id);
         let known_target = instruction
             .call_direct_target()
             .or_else(|| resolution.target(callsite));
@@ -366,7 +366,7 @@ impl ScannedCallSite {
         terminator: &mir::Terminator,
         resolution: &ResolutionTable,
     ) -> Option<Self> {
-        let callsite = mir::CallSite::Terminator(block_id);
+        let callsite = mir::Point::Terminator(block_id);
         let dispatch = terminator.call_dispatch()?;
         let known_target = terminator
             .call_direct_target()
@@ -518,7 +518,7 @@ entry(v0: int32):
         let outgoing = calls.outgoing(test_id);
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
-        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
+        assert!(matches!(outgoing[0].callsite, mir::Point::Terminator(_)));
     }
 
     /// Tailcall.indirect remains open without tables.
@@ -543,7 +543,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         assert_eq!(open_callsite[0].dispatch, mir::CallDispatch::Indirect);
         assert!(matches!(
             open_callsite[0].callsite,
-            mir::CallSite::Terminator(_)
+            mir::Point::Terminator(_)
         ));
     }
 
@@ -608,7 +608,7 @@ b2:
         assert_eq!(outgoing.len(), 1);
         assert_eq!(outgoing[0].callee, callee_id);
         assert_eq!(outgoing[0].dispatch, mir::CallDispatch::Direct);
-        assert!(matches!(outgoing[0].callsite, mir::CallSite::Terminator(_)));
+        assert!(matches!(outgoing[0].callsite, mir::Point::Terminator(_)));
         assert!(calls.open_callsites(test_id).is_empty());
     }
 }

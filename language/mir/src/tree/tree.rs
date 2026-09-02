@@ -13,9 +13,9 @@ use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
     FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
     LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
-    Nullability, Origin, OriginTable, Path, Projection, ReferenceKind, Static, StaticId, Storage,
-    SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
-    TypedValueSpan, Value, ValueSlice,
+    Nullability, Path, Projection, Provenance, ProvenanceTable, ReferenceKind, Static, StaticId,
+    Storage, SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans,
+    TypeId, TypedValueSpan, Value, ValueSlice,
 };
 
 /// MIR tree for a single unit.
@@ -32,7 +32,7 @@ pub struct Tree {
     /// DIR source id keyed by MIR node id.
     pub(crate) source_id_by_node_id: Vec<Option<u32>>,
     /// How each pass-created node came to be.
-    pub(crate) origin_by_node_id: OriginTable,
+    pub(crate) provenance_by_node_id: ProvenanceTable,
 
     /// Source ranges and anchors for parsed MIR node ownership.
     pub source_index: SourceIndex,
@@ -135,7 +135,7 @@ impl Tree {
                 Default::default(),
             ),
             source_id_by_node_id: Vec::with_capacity(capacity),
-            origin_by_node_id: OriginTable::default(),
+            provenance_by_node_id: ProvenanceTable::default(),
             source_index: SourceIndex::with_capacity(capacity),
             source_text: None,
             tokens: Vec::new(),
@@ -440,8 +440,8 @@ impl Tree {
         self.type_borrowed_paths_with_lifetimes(ty, &[], false)
     }
 
-    /// Return borrowed paths used for provenance tracking.
-    pub fn type_provenance_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
+    /// Return borrowed paths used for origin tracking.
+    pub fn type_origin_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
         self.type_borrowed_paths_with_lifetimes(ty, &[], true)
     }
 
@@ -450,14 +450,14 @@ impl Tree {
         &self,
         ty: TypeId,
         lifetimes: &[Lifetime],
-        is_empty_included: bool,
+        is_tracking: bool,
     ) -> Vec<BorrowedPath> {
         let mut borrowed_paths = Vec::new();
 
         self.collect_type_borrowed_paths(
             ty,
             lifetimes,
-            is_empty_included,
+            is_tracking,
             Path::root(),
             &mut borrowed_paths,
         );
@@ -470,42 +470,43 @@ impl Tree {
         &self,
         ty: TypeId,
         lifetimes: &[Lifetime],
-        is_empty_included: bool,
+        is_tracking: bool,
         path: Path,
         borrowed_paths: &mut Vec<BorrowedPath>,
     ) {
         match self.get(ty) {
-            // record borrowed reference-like leaves
+            // record reference-like leaves
             Type::Dynamic {
-                kind: ReferenceKind::Borrowed,
+                kind,
                 lifetime,
                 access,
                 ..
             }
             | Type::Reference {
-                kind: ReferenceKind::Borrowed,
-                lifetime,
-                access,
-                ..
-            }
-            | Type::Slice {
-                kind: ReferenceKind::Borrowed,
+                kind,
                 lifetime,
                 access,
                 ..
             }
             | Type::Function {
-                kind: ReferenceKind::Borrowed,
+                kind,
                 lifetime,
                 access,
                 ..
             } => {
                 let lifetime = self.substitute_lifetime(lifetime, lifetimes);
-                if is_empty_included || !lifetime.is_empty() {
+                // track managed handles and empty borrows only for origin
+                let is_included = match kind {
+                    ReferenceKind::Borrowed => is_tracking || !lifetime.is_empty(),
+                    ReferenceKind::Managed => is_tracking,
+                    ReferenceKind::Unique => false,
+                };
+                if is_included {
                     borrowed_paths.push(BorrowedPath {
                         path,
                         lifetime,
                         access: *access,
+                        kind: *kind,
                     });
                 }
             }
@@ -520,7 +521,7 @@ impl Tree {
                     self.collect_type_borrowed_paths(
                         field.ty,
                         lifetimes,
-                        is_empty_included,
+                        is_tracking,
                         path,
                         borrowed_paths,
                     );
@@ -536,7 +537,7 @@ impl Tree {
                     self.collect_type_borrowed_paths(
                         *element,
                         lifetimes,
-                        is_empty_included,
+                        is_tracking,
                         path,
                         borrowed_paths,
                     );
@@ -549,7 +550,7 @@ impl Tree {
                 self.collect_type_borrowed_paths(
                     *inner,
                     lifetimes,
-                    is_empty_included,
+                    is_tracking,
                     path,
                     borrowed_paths,
                 );
@@ -564,21 +565,65 @@ impl Tree {
                     self.collect_type_borrowed_paths(
                         case.ty,
                         lifetimes,
-                        is_empty_included,
+                        is_tracking,
                         path,
                         borrowed_paths,
                     );
+                }
+            }
+            // record borrowed slices as leaves
+            Type::Slice {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                access,
+                ..
+            } => {
+                let lifetime = self.substitute_lifetime(lifetime, lifetimes);
+                if is_tracking || !lifetime.is_empty() {
+                    borrowed_paths.push(BorrowedPath {
+                        path,
+                        lifetime,
+                        access: *access,
+                        kind: ReferenceKind::Borrowed,
+                    });
                 }
             }
             // summarize repeated element lifetimes at the container path
             Type::FixedArray { element, .. }
             | Type::Slice { element, .. }
             | Type::Vector { element, .. } => {
+                // track a managed slice handle without element references by itself
+                if let Type::Slice {
+                    kind: ReferenceKind::Managed,
+                    lifetime,
+                    access,
+                    ..
+                } = self.get(ty)
+                    && is_tracking
+                {
+                    let mut element_paths = Vec::new();
+                    self.collect_type_borrowed_paths(
+                        *element,
+                        lifetimes,
+                        is_tracking,
+                        Path::root(),
+                        &mut element_paths,
+                    );
+                    if element_paths.is_empty() {
+                        borrowed_paths.push(BorrowedPath {
+                            path,
+                            lifetime: self.substitute_lifetime(lifetime, lifetimes),
+                            access: *access,
+                            kind: ReferenceKind::Managed,
+                        });
+                        return;
+                    }
+                }
                 let mut element_paths = Vec::new();
                 self.collect_type_borrowed_paths(
                     *element,
                     lifetimes,
-                    is_empty_included,
+                    is_tracking,
                     Path::root(),
                     &mut element_paths,
                 );
@@ -589,6 +634,14 @@ impl Tree {
                         .map(|borrowed| borrowed.access)
                         .max()
                         .unwrap_or(Access::Readonly);
+                    let is_borrowed = element_paths
+                        .iter()
+                        .any(|borrowed| borrowed.kind == ReferenceKind::Borrowed);
+                    let kind = if is_borrowed {
+                        ReferenceKind::Borrowed
+                    } else {
+                        ReferenceKind::Managed
+                    };
                     let lifetime = Lifetime::new(
                         element_paths
                             .into_iter()
@@ -598,6 +651,7 @@ impl Tree {
                         path,
                         lifetime,
                         access,
+                        kind,
                     });
                 }
             }
@@ -606,7 +660,7 @@ impl Tree {
                 self.collect_type_borrowed_paths(
                     *base,
                     lifetimes,
-                    is_empty_included,
+                    is_tracking,
                     path,
                     borrowed_paths,
                 );
@@ -658,7 +712,7 @@ impl Tree {
         self.node_index_by_node_id
             .push(NodeIndexEntry::new(local_id, T::TYPE));
         self.source_id_by_node_id.push(None);
-        self.origin_by_node_id.append();
+        self.provenance_by_node_id.append();
         self.source_index.append(Span::empty(FileId::new(0)));
 
         LocalNodeId::new(global_id)
@@ -672,8 +726,8 @@ impl Tree {
     {
         let id = self.insert(node);
         let index = self.node_index(id.id);
-        self.origin_by_node_id
-            .set(index, Origin::one(derivation, from));
+        self.provenance_by_node_id
+            .set(index, Provenance::one(derivation, from));
 
         id
     }
@@ -686,23 +740,23 @@ impl Tree {
     {
         let id = self.insert(node);
         let index = self.node_index(id.id);
-        self.origin_by_node_id
-            .set(index, Origin::synthetic(derivation));
+        self.provenance_by_node_id
+            .set(index, Provenance::synthetic(derivation));
 
         id
     }
 
     /// Set the origin for one node.
     #[inline]
-    pub fn set_origin(&mut self, id: u32, origin: Origin) {
+    pub fn set_provenance(&mut self, id: u32, origin: Provenance) {
         let index = self.node_index(id);
-        self.origin_by_node_id.set(index, origin);
+        self.provenance_by_node_id.set(index, origin);
     }
 
     /// Return the origin for one node.
     #[inline]
-    pub fn origin(&self, id: u32) -> Option<&Origin> {
-        self.origin_by_node_id.get(self.node_index(id))
+    pub fn provenance(&self, id: u32) -> Option<&Provenance> {
+        self.provenance_by_node_id.get(self.node_index(id))
     }
 
     /// Get the DIR source for a node, walking MIR derivation parents.
@@ -715,7 +769,7 @@ impl Tree {
                 return Some(source);
             }
 
-            let origin = self.origin_by_node_id.get(self.node_index(current))?;
+            let origin = self.provenance_by_node_id.get(self.node_index(current))?;
             current = origin.parent()?;
         }
 
@@ -1037,7 +1091,7 @@ impl Tree {
                 return Some(span);
             }
 
-            let origin = self.origin_by_node_id.get(self.node_index(current))?;
+            let origin = self.provenance_by_node_id.get(self.node_index(current))?;
             current = origin.parent()?;
             remaining -= 1;
         }
@@ -1482,16 +1536,16 @@ impl Tree {
             self.set_source(preserved_id.id, source_id);
         }
         let index = self.node_index(id.id);
-        if let Some(origin) = self.origin_by_node_id.take(index) {
+        if let Some(origin) = self.provenance_by_node_id.take(index) {
             let preserved_index = self.node_index(preserved_id.id);
-            self.origin_by_node_id.set(preserved_index, origin);
+            self.provenance_by_node_id.set(preserved_index, origin);
         }
 
         // derive the slot from the preserved original
         self.set(id, replacement);
         let index = self.node_index(id.id);
-        self.origin_by_node_id
-            .set(index, Origin::one(derivation, preserved_id.id));
+        self.provenance_by_node_id
+            .set(index, Provenance::one(derivation, preserved_id.id));
 
         preserved_id
     }

@@ -2,8 +2,8 @@ use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
 use crate::{
-    Access, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability, Nullability,
-    ReferenceKind, Storage, Type, Value,
+    Access, AddressKind, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
+    Nullability, ReferenceKind, Storage, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -42,12 +42,14 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         local: LocalNodeId<Local>,
         result_type: LocalNodeId<Type>,
+        kind: AddressKind,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::LocalAddr {
             destination,
             local,
             result_type,
+            kind,
         });
         self.define_value(destination, result_type);
         destination
@@ -63,12 +65,14 @@ impl<'a> FunctionBuilder<'a> {
         &mut self,
         global: LocalNodeId<Global>,
         result_type: LocalNodeId<Type>,
+        kind: AddressKind,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::GlobalAddr {
             destination,
             global,
             result_type,
+            kind,
         });
         self.define_value(destination, result_type);
         destination
@@ -96,7 +100,7 @@ impl<'a> FunctionBuilder<'a> {
             pointee: global_ty,
             nullability: Nullability::None,
         });
-        let pointer = self.global_addr(global, global_pointer);
+        let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
 
         self.load(pointer, global_ty)
     }
@@ -113,7 +117,7 @@ impl<'a> FunctionBuilder<'a> {
             pointee: global_ty,
             nullability: Nullability::None,
         });
-        let pointer = self.global_addr(global, global_pointer);
+        let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
 
         self.store(pointer, value);
     }

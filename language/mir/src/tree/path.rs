@@ -1,7 +1,7 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Access, Lifetime, Value};
+use crate::{Access, Lifetime, ReferenceKind, Value};
 
 /// One projection in a MIR type path.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -127,13 +127,15 @@ impl Path {
     }
 }
 
-/// One borrowed reference-like component in a type shape.
+/// One reference-like component in a type shape.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub struct BorrowedPath {
-    /// The path to the borrowed component.
+    /// The path to the component.
     pub path: Path,
-    /// The lifetime carried by the borrowed component.
+    /// The lifetime carried by the component.
     pub lifetime: Lifetime,
-    /// Access granted by the borrowed component.
+    /// Access granted by the component.
     pub access: Access,
+    /// The reference kind of the component.
+    pub kind: ReferenceKind,
 }

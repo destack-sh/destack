@@ -2,7 +2,7 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
+    AddressKind, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
     CompareExchangeAccess, ConvertMode, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
     FunctionId, Instruction, LocalNodeId, MemoryOrdering, SamplerId, StorageSet, TypeId,
     UnaryOperator, Value, VectorReduceOperator,
@@ -337,21 +337,25 @@ impl Parser {
                         let local = self.parse_local_segment(&mut segment_spans)?;
                         Instruction::LocalGet { destination, local }
                     }
-                    "local.address" => {
+                    "local.address" | "local.project" => {
+                        let kind = address_kind(opcode_text);
                         let local = self.parse_local_segment(&mut segment_spans)?;
                         Instruction::LocalAddr {
                             destination,
                             local,
                             result_type: destination_type,
+                            kind,
                         }
                     }
                     // global operations
-                    "global.address" => {
+                    "global.address" | "global.project" => {
+                        let kind = address_kind(opcode_text);
                         let global = self.parse_global_segment(&mut segment_spans)?;
                         Instruction::GlobalAddr {
                             destination,
                             global,
                             result_type: destination_type,
+                            kind,
                         }
                     }
                     "function.address" => {
@@ -474,7 +478,8 @@ impl Parser {
                             value,
                         }
                     }
-                    "field.address" => {
+                    "field.address" | "field.project" => {
+                        let kind = address_kind(opcode_text);
                         let aggregate = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let field = self.parse_int_segment(&mut segment_spans)?;
@@ -485,6 +490,7 @@ impl Parser {
                             aggregate,
                             field,
                             result_type: destination_type,
+                            kind,
                         }
                     }
                     "element.get" => {
@@ -514,7 +520,8 @@ impl Parser {
                             value,
                         }
                     }
-                    "element.address" => {
+                    "element.address" | "element.project" => {
+                        let kind = address_kind(opcode_text);
                         let base = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let index = self.parse_value_segment(&mut segment_spans)?;
@@ -523,6 +530,7 @@ impl Parser {
                             base,
                             index,
                             result_type: destination_type,
+                            kind,
                         }
                     }
 
@@ -572,7 +580,8 @@ impl Parser {
                             case,
                         }
                     }
-                    "variant.payload.address" => {
+                    "variant.payload.address" | "variant.payload.project" => {
+                        let kind = address_kind(opcode_text);
                         let variant = self.parse_value_segment(&mut segment_spans)?;
                         self.eat_token(TokenType::Comma)?;
                         let case = self.parse_int_segment(&mut segment_spans)?;
@@ -583,6 +592,7 @@ impl Parser {
                             variant,
                             case,
                             result_type: destination_type,
+                            kind,
                         }
                     }
 
@@ -1307,4 +1317,13 @@ impl Parser {
             .parse()
             .map_err(|_| ParseError::invalid("atomic rmw operator", start))
     }
+}
+
+/// Read the address kind spelled by one address mnemonic's final segment.
+fn address_kind(opcode: &str) -> AddressKind {
+    opcode
+        .rsplit('.')
+        .next()
+        .and_then(AddressKind::from_mnemonic)
+        .unwrap_or_default()
 }

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{CallSite, Edge, FunctionId, Instruction, LocalNodeId, Symbol, Type, Value};
+use crate::{Edge, FunctionId, Instruction, LocalNodeId, Point, Symbol, Type, Value};
 
 /// Loaded profile-guided optimization data for a program.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -158,9 +158,9 @@ pub enum SampleSite {
     /// Value distribution for one SSA value.
     Value(Value),
     /// Observed call target distribution for one callsite.
-    CallTarget(CallSite),
+    CallTarget(Point),
     /// Observed receiver type distribution for one callsite.
-    ReceiverType(CallSite),
+    ReceiverType(Point),
     /// Observed allocation behavior for one allocation instruction.
     Allocation(LocalNodeId<Instruction>),
     /// User instrument sampled under its declared name.

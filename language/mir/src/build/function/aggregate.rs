@@ -1,7 +1,7 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    BinaryOperator, ConvertMode, DispatchSlot, Instruction, LocalNodeId, Tree, Type, TypeId, Value,
-    VectorReduceOperator,
+    AddressKind, BinaryOperator, ConvertMode, DispatchSlot, Instruction, LocalNodeId, Tree, Type,
+    TypeId, Value, VectorReduceOperator,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -127,6 +127,7 @@ impl<'a> FunctionBuilder<'a> {
         variant: Value,
         case: u32,
         result_type: LocalNodeId<Type>,
+        kind: AddressKind,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::VariantPayloadAddr {
@@ -134,6 +135,7 @@ impl<'a> FunctionBuilder<'a> {
             variant,
             case,
             result_type,
+            kind,
         });
         self.define_value(destination, result_type);
 
@@ -146,6 +148,7 @@ impl<'a> FunctionBuilder<'a> {
         aggregate: Value,
         field: u32,
         result_type: LocalNodeId<Type>,
+        kind: AddressKind,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FieldAddr {
@@ -153,6 +156,7 @@ impl<'a> FunctionBuilder<'a> {
             aggregate,
             field,
             result_type,
+            kind,
         });
         self.define_value(destination, result_type);
         destination
@@ -197,6 +201,7 @@ impl<'a> FunctionBuilder<'a> {
         base: Value,
         index: Value,
         result_type: LocalNodeId<Type>,
+        kind: AddressKind,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::ElementAddr {
@@ -204,6 +209,7 @@ impl<'a> FunctionBuilder<'a> {
             base,
             index,
             result_type,
+            kind,
         });
         self.define_value(destination, result_type);
         destination

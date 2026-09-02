@@ -12,6 +12,35 @@ use crate::{
     VectorReduceOperator,
 };
 
+/// What one address instruction means for the borrow check.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
+pub enum AddressKind {
+    /// A borrow of the addressed place, issuing a loan.
+    #[default]
+    Borrow,
+    /// A step of a place path, feeding a load, a store, or another address.
+    Projection,
+}
+
+impl AddressKind {
+    /// Return the instruction mnemonic suffix spelling this kind.
+    pub const fn mnemonic(self) -> &'static str {
+        match self {
+            Self::Borrow => "address",
+            Self::Projection => "project",
+        }
+    }
+
+    /// Parse the instruction mnemonic suffix spelling one kind.
+    pub fn from_mnemonic(mnemonic: &str) -> Option<Self> {
+        match mnemonic {
+            "address" => Some(Self::Borrow),
+            "project" => Some(Self::Projection),
+            _ => None,
+        }
+    }
+}
+
 /// One MIR instruction.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Instruction {
@@ -65,9 +94,8 @@ pub enum Instruction {
     // conditional selection
     /// Select a value based on a boolean condition.
     ///
-    /// Returns `then_value` if `condition` is true, `else_value` otherwise.
-    /// Both values must have the same type. Unlike a branch, both values are
-    /// computed before the selection (no short-circuit evaluation).
+    /// The result is `then_value` when `condition` holds and `else_value` otherwise.
+    /// Both values share one type and both are computed before the selection.
     Select {
         /// The SSA value to define with the selected result.
         destination: Value,
@@ -95,6 +123,8 @@ pub enum Instruction {
         local: LocalId,
         /// The result reference type.
         result_type: TypeId,
+        /// Whether the address borrows the local or projects a place through it.
+        kind: AddressKind,
     },
     /// Store to a local variable (stack slot).
     LocalSet {
@@ -113,6 +143,8 @@ pub enum Instruction {
         global: GlobalId,
         /// The result reference type.
         result_type: TypeId,
+        /// What the address means for the borrow check.
+        kind: AddressKind,
     },
     /// Get a function pointer for a function (function.address).
     FunctionAddr {
@@ -245,6 +277,8 @@ pub enum Instruction {
         field: u32,
         /// The result type of the address.
         result_type: TypeId,
+        /// Whether the address borrows the field or projects a place through it.
+        kind: AddressKind,
     },
     /// Extract one statically selected fixed-array element.
     ElementGet {
@@ -276,6 +310,8 @@ pub enum Instruction {
         index: Value,
         /// The result type of the address.
         result_type: TypeId,
+        /// Whether the address borrows the element or projects a place through it.
+        kind: AddressKind,
     },
 
     // variant construction and projection
@@ -323,6 +359,8 @@ pub enum Instruction {
         case: u32,
         /// The result type of the address.
         result_type: TypeId,
+        /// Whether the address borrows the payload or projects a place through it.
+        kind: AddressKind,
     },
 
     // slice descriptors
@@ -763,9 +801,9 @@ impl Instruction {
         }
     }
 
-    /// Get inline values used by this instruction (excludes externalized arguments).
+    /// Return the values this instruction stores inline.
     ///
-    /// Call and intrinsic arguments are stored externally in the tree's value buffer.
+    /// Call and intrinsic arguments live in the tree's value buffer, which `argument_slice` reaches.
     pub fn uses(&self) -> SmallVec<[Value; 4]> {
         match self {
             Instruction::Error => smallvec![],
@@ -969,10 +1007,7 @@ impl Instruction {
         tree.get_values(arguments).iter().copied().collect()
     }
 
-    /// Get the argument slice for instructions that have externalized arguments.
-    ///
-    /// Returns `Some(ValueSlice)` for instructions that externalize value lists.
-    /// Returns `None` for all other instructions.
+    /// Return the argument slice of the instructions that externalize their value lists.
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
             Instruction::Aggregate { values, .. } => Some(*values),

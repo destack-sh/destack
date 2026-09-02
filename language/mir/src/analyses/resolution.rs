@@ -6,12 +6,12 @@ use super::{Analysis, AnalysisCache, Mutation};
 #[derive(Debug, Default)]
 pub struct ResolutionTable {
     /// Resolved targets sorted by callsite.
-    targets: Vec<(mir::CallSite, mir::FunctionId)>,
+    targets: Vec<(mir::Point, mir::FunctionId)>,
 }
 
 impl ResolutionTable {
     /// Return the resolved target for one callsite.
-    pub fn target(&self, callsite: mir::CallSite) -> Option<mir::FunctionId> {
+    pub fn target(&self, callsite: mir::Point) -> Option<mir::FunctionId> {
         let index = self
             .targets
             .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
@@ -55,7 +55,7 @@ impl ResolutionTable {
     }
 
     /// Record a resolved target.
-    fn resolve(&mut self, callsite: mir::CallSite, target: mir::FunctionId) {
+    fn resolve(&mut self, callsite: mir::Point, target: mir::FunctionId) {
         self.targets.push((callsite, target));
     }
 }
@@ -116,7 +116,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
         instruction_id: mir::LocalNodeId<mir::Instruction>,
         instruction: &mir::Instruction,
     ) {
-        let callsite = mir::CallSite::Instruction(instruction_id);
+        let callsite = mir::Point::Instruction(instruction_id);
         let mir::Instruction::Call { call, .. } = instruction else {
             return;
         };
@@ -126,7 +126,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
 
     /// Record one terminator call.
     fn record_terminator(&mut self, block_id: mir::BlockId, terminator: &mir::Terminator) {
-        let callsite = mir::CallSite::Terminator(block_id);
+        let callsite = mir::Point::Terminator(block_id);
         let call = match terminator {
             mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => call,
             _ => return,
@@ -136,7 +136,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
     }
 
     /// Record one call operation.
-    fn record_call(&mut self, callsite: mir::CallSite, call: &mir::Call) {
+    fn record_call(&mut self, callsite: mir::Point, call: &mir::Call) {
         match &call.callee {
             mir::Callee::Direct { .. } | mir::Callee::Indirect { .. } => {}
             mir::Callee::Virtual {
@@ -161,7 +161,7 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
     }
 
     /// Record a resolved target when present.
-    fn record_target(&mut self, callsite: mir::CallSite, target: Option<mir::FunctionId>) {
+    fn record_target(&mut self, callsite: mir::Point, target: Option<mir::FunctionId>) {
         if let Some(target) = target {
             self.analysis.resolve(callsite, target);
         }
@@ -384,7 +384,7 @@ entry(v0: int32):
     fn first_virtual_call(
         program: &TestProgram,
         function: mir::FunctionId,
-    ) -> (mir::CallSite, mir::TypeId) {
+    ) -> (mir::Point, mir::TypeId) {
         let function = program.tree.get(function);
 
         // scan the function body
@@ -400,7 +400,7 @@ entry(v0: int32):
                     ..
                 } = program.tree.get(instruction_id)
                 {
-                    return (mir::CallSite::Instruction(instruction_id), *class);
+                    return (mir::Point::Instruction(instruction_id), *class);
                 }
             }
         }
@@ -412,7 +412,7 @@ entry(v0: int32):
     fn first_dynamic_call(
         program: &TestProgram,
         function: mir::FunctionId,
-    ) -> (mir::CallSite, mir::TypeId, mir::TypeId) {
+    ) -> (mir::Point, mir::TypeId, mir::TypeId) {
         let function = program.tree.get(function);
 
         // scan the function body
@@ -441,7 +441,7 @@ entry(v0: int32):
                         .expect("missing receiver parameter type");
 
                     return (
-                        mir::CallSite::Instruction(instruction_id),
+                        mir::Point::Instruction(instruction_id),
                         concrete,
                         *constraint,
                     );

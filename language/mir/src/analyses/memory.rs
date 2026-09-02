@@ -1211,7 +1211,7 @@ impl<'a> MemoryAccessCollector<'a> {
         match terminator {
             mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => self
                 .callsite_effects(
-                    mir::CallSite::Terminator(block_id),
+                    mir::Point::Terminator(block_id),
                     terminator.call_direct_target(),
                 ),
 
@@ -1366,7 +1366,7 @@ impl<'a> MemoryAccessCollector<'a> {
         instruction: &mir::Instruction,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         self.callsite_effects(
-            mir::CallSite::Instruction(instruction_id),
+            mir::Point::Instruction(instruction_id),
             instruction.call_direct_target(),
         )
     }
@@ -1374,7 +1374,7 @@ impl<'a> MemoryAccessCollector<'a> {
     /// Return memory effects for one callsite.
     fn callsite_effects(
         &self,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
         direct_target: Option<mir::LocalNodeId<mir::Function>>,
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         // use callsite or callee tables for memory effects
@@ -2329,7 +2329,7 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
         let memcpy_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcpy);
         let accesses = instruction_accesses(memory, memcpy_inst);
 
-        // ensure we recorded a read and a write
+        // require one recorded read and one recorded write
         assert_eq!(accesses.len(), 2);
 
         // extract effects in order
@@ -2378,7 +2378,7 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
         let memcmp_inst = test.first_intrinsic_in_entry(function_id, mir::Intrinsic::Memcmp);
         let accesses = instruction_accesses(memory, memcmp_inst);
 
-        // ensure we recorded two reads
+        // require two recorded reads
         assert_eq!(accesses.len(), 2);
 
         for access_id in accesses {
@@ -2619,7 +2619,7 @@ entry(v0: ref<int32, borrowed, mutable>):
 
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
-        let callsite = mir::CallSite::Instruction(call_inst);
+        let callsite = mir::Point::Instruction(call_inst);
         test.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         let function = test.tree.get(function_id);

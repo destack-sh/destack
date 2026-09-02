@@ -345,7 +345,7 @@ pub fn instruction_allows_read_only_motion(
     }
 
     // require call tables to be present
-    let callsite = mir::CallSite::Instruction(instruction_id);
+    let callsite = mir::Point::Instruction(instruction_id);
     let Some(tables) = effects.call(callsite) else {
         return false;
     };
@@ -686,33 +686,39 @@ pub fn instruction_substitute_uses(
             variant,
             case,
             result_type,
+            kind,
         } => mir::Instruction::VariantPayloadAddr {
             destination: *destination,
             variant: substitute(variant),
             case: *case,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
             field,
             result_type,
+            kind,
         } => mir::Instruction::FieldAddr {
             destination: *destination,
             aggregate: substitute(aggregate),
             field: *field,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::ElementAddr {
             destination,
             base,
             index,
             result_type,
+            kind,
         } => mir::Instruction::ElementAddr {
             destination: *destination,
             base: substitute(base),
             index: substitute(index),
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::SliceView {
             destination,
@@ -1464,33 +1470,39 @@ pub fn instruction_map(
             variant,
             case,
             result_type,
+            kind,
         } => mir::Instruction::VariantPayloadAddr {
             destination: remap(*destination),
             variant: remap(*variant),
             case: *case,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
             field,
             result_type,
+            kind,
         } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             field: *field,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::ElementAddr {
             destination,
             base,
             index,
             result_type,
+            kind,
         } => mir::Instruction::ElementAddr {
             destination: remap(*destination),
             base: remap(*base),
             index: remap(*index),
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::SliceView {
             destination,
@@ -1571,10 +1583,12 @@ pub fn instruction_map(
             destination,
             global,
             result_type,
+            kind,
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::FunctionAddr {
             destination,
@@ -1648,10 +1662,12 @@ pub fn instruction_map(
             destination,
             local,
             result_type,
+            kind,
         } => mir::Instruction::LocalAddr {
             destination: remap(*destination),
             local: *local,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::Aggregate {
             destination,
@@ -1975,10 +1991,12 @@ pub fn instruction_map_with_locals(
             destination,
             global,
             result_type,
+            kind,
         } => mir::Instruction::GlobalAddr {
             destination: remap(*destination),
             global: *global,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::FunctionAddr {
             destination,
@@ -2052,10 +2070,12 @@ pub fn instruction_map_with_locals(
             destination,
             local,
             result_type,
+            kind,
         } => mir::Instruction::LocalAddr {
             destination: remap(*destination),
             local: *local,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::Aggregate {
             destination,
@@ -2218,33 +2238,39 @@ pub fn instruction_map_with_locals(
             variant,
             case,
             result_type,
+            kind,
         } => mir::Instruction::VariantPayloadAddr {
             destination: remap(*destination),
             variant: remap(*variant),
             case: *case,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::FieldAddr {
             destination,
             aggregate,
             field,
             result_type,
+            kind,
         } => mir::Instruction::FieldAddr {
             destination: remap(*destination),
             aggregate: remap(*aggregate),
             field: *field,
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::ElementAddr {
             destination,
             base,
             index,
             result_type,
+            kind,
         } => mir::Instruction::ElementAddr {
             destination: remap(*destination),
             base: remap(*base),
             index: remap(*index),
             result_type: *result_type,
+            kind: *kind,
         },
         mir::Instruction::SliceView {
             destination,
