@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 
 use destack_serde::Reflect;
 
-use crate::{CallSite, Function, LocalNodeId, StorageSet};
+use crate::{Binding, BindingEffect, Function, LocalNodeId, Point, StorageSet};
 
 /// Function and call effect tables for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -10,7 +10,7 @@ pub struct EffectTable {
     /// Function effects sorted by function id.
     functions: Vec<(LocalNodeId<Function>, FunctionEffect)>,
     /// Call effects sorted by callsite.
-    calls: Vec<(CallSite, CallEffect)>,
+    calls: Vec<(Point, CallEffect)>,
 }
 
 impl EffectTable {
@@ -42,7 +42,7 @@ impl EffectTable {
     }
 
     /// Return call effects when present.
-    pub fn call(&self, callsite: CallSite) -> Option<&CallEffect> {
+    pub fn call(&self, callsite: Point) -> Option<&CallEffect> {
         let index = self
             .calls
             .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
@@ -52,7 +52,7 @@ impl EffectTable {
     }
 
     /// Return mutable call effects when present.
-    pub fn call_mut(&mut self, callsite: CallSite) -> Option<&mut CallEffect> {
+    pub fn call_mut(&mut self, callsite: Point) -> Option<&mut CallEffect> {
         let index = self
             .calls
             .binary_search_by_key(&callsite, |(callsite, _)| *callsite)
@@ -62,7 +62,7 @@ impl EffectTable {
     }
 
     /// Return mutable call effects, inserting unknown effects when absent.
-    pub fn upsert_call(&mut self, callsite: CallSite) -> &mut CallEffect {
+    pub fn upsert_call(&mut self, callsite: Point) -> &mut CallEffect {
         let index = self
             .calls
             .binary_search_by_key(&callsite, |(callsite, _)| *callsite);
@@ -130,11 +130,19 @@ impl FunctionEffect {
         }
     }
 
-    /// Create an unknown effect.
-    pub fn unknown() -> Self {
+    /// Create the effect of linked code outside the program: unknown memory, external behavior.
+    pub fn external() -> Self {
         Self {
             memory: MemoryEffect::unknown(),
-            behavior: FunctionBehavior::unknown(),
+            behavior: FunctionBehavior::external(),
+        }
+    }
+
+    /// Create the effect one runtime binding declares: external memory with declared behavior.
+    pub fn binding(binding: &Binding) -> Self {
+        Self {
+            memory: MemoryEffect::unknown(),
+            behavior: FunctionBehavior::binding(binding),
         }
     }
 }
@@ -377,16 +385,37 @@ impl FunctionBehavior {
         }
     }
 
-    /// Create an unknown behavior.
-    pub const fn unknown() -> Self {
+    /// Create the behavior of one function no module defines: linked code outside the program, which cannot park.
+    pub const fn external() -> Self {
         Self {
             determinism: Determinism::NonDeterministic,
             panic: PanicBehavior::MayPanic,
             return_behavior: ReturnBehavior::MayReturn,
-            park: ParkBehavior::MayPark,
-            must_preserve_execution: false,
+            park: ParkBehavior::CannotPark,
+            must_preserve_execution: true,
             allocates: true,
             frees: true,
+        }
+    }
+
+    /// Create the behavior one runtime binding declares through its effect class and park option.
+    pub fn binding(binding: &Binding) -> Self {
+        let is_external = binding.effect == BindingEffect::External;
+
+        Self {
+            determinism: match binding.effect {
+                BindingEffect::Pure | BindingEffect::Deterministic => Determinism::Deterministic,
+                BindingEffect::External => Determinism::NonDeterministic,
+            },
+            panic: PanicBehavior::MayPanic,
+            return_behavior: ReturnBehavior::MayReturn,
+            park: match binding.is_park {
+                true => ParkBehavior::MayPark,
+                false => ParkBehavior::CannotPark,
+            },
+            must_preserve_execution: is_external,
+            allocates: true,
+            frees: is_external,
         }
     }
 
@@ -448,6 +477,6 @@ impl FunctionBehavior {
 
 impl Default for FunctionBehavior {
     fn default() -> Self {
-        Self::unknown()
+        Self::external()
     }
 }

@@ -6,6 +6,7 @@ mod language;
 mod layout;
 mod profile;
 mod retention;
+mod safepoint;
 mod target;
 mod trace;
 
@@ -17,5 +18,6 @@ pub use language::*;
 pub use layout::*;
 pub use profile::*;
 pub use retention::*;
+pub use safepoint::*;
 pub use target::*;
 pub use trace::*;

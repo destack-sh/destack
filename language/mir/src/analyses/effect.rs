@@ -21,6 +21,18 @@ impl mir::EffectTable {
             .functions()
             .map(|(function, effect)| (function, effect.clone()))
             .collect::<FxIndexMap<_, _>>();
+
+        // declare bodyless functions by their binding or as external code
+        for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+            if function.is_defined() || effects.contains_key(&function_id) {
+                continue;
+            }
+            let effect = match &function.binding {
+                Some(binding) => mir::FunctionEffect::binding(binding),
+                None => mir::FunctionEffect::external(),
+            };
+            effects.insert(function_id, effect);
+        }
         let mut worklist: VecDeque<_> = function_ids.iter().copied().collect();
 
         // propagate direct-call effects to a fixpoint
@@ -183,7 +195,7 @@ impl<'a> FunctionEffectBuilder<'a> {
     ) -> Option<mir::FunctionEffect> {
         instruction.call_dispatch()?;
 
-        let callsite = mir::CallSite::Instruction(instruction_id);
+        let callsite = mir::Point::Instruction(instruction_id);
         let callee = instruction.call_direct_target();
 
         Some(self.callsite_effect(callsite, callee))
@@ -242,9 +254,10 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::unknown(),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
-            mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => {
-                mir::FunctionEffect::unknown()
-            }
+            mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => mir::FunctionEffect {
+                memory: mir::MemoryEffect::none(),
+                behavior: mir::FunctionBehavior::none().with_preserved_execution(),
+            },
             mir::Instruction::Intrinsic { intrinsic, .. } => self.intrinsic_effect(*intrinsic),
             mir::Instruction::Breakpoint => mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
@@ -266,7 +279,7 @@ impl<'a> FunctionEffectBuilder<'a> {
                 mir::FunctionEffect::none()
             }
             mir::Terminator::Invoke { .. } | mir::Terminator::TailCall { .. } => {
-                let callsite = mir::CallSite::Terminator(block_id);
+                let callsite = mir::Point::Terminator(block_id);
                 let effect = self.callsite_effect(callsite, terminator.call_direct_target());
 
                 if !effect.behavior.return_behavior.is_no_return() {
@@ -286,7 +299,7 @@ impl<'a> FunctionEffectBuilder<'a> {
     /// Build an effect for one callsite.
     fn callsite_effect(
         &self,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
         callee: Option<mir::FunctionId>,
     ) -> mir::FunctionEffect {
         // seed effects from explicit call tables
@@ -295,7 +308,7 @@ impl<'a> FunctionEffectBuilder<'a> {
             .filter(|tables| tables.memory != mir::MemoryEffect::unknown())
             .map(|tables| tables.memory.clone());
         let behavior = tables
-            .filter(|tables| tables.behavior != mir::FunctionBehavior::unknown())
+            .filter(|tables| tables.behavior.park.may_park())
             .map(|tables| tables.behavior.clone());
 
         // fill missing effects from the best known direct target
@@ -311,13 +324,17 @@ impl<'a> FunctionEffectBuilder<'a> {
         memory: Option<mir::MemoryEffect>,
         behavior: Option<mir::FunctionBehavior>,
     ) -> mir::FunctionEffect {
-        let callee_effect = callee.and_then(|callee| self.effects.get(&callee));
+        // read the callee's effect, external code's for a callee outside the table
+        let callee_effect = callee.map(|callee| match self.effects.get(&callee) {
+            Some(effect) => effect.clone(),
+            None => mir::FunctionEffect::external(),
+        });
         let memory = memory
-            .or_else(|| callee_effect.map(|effect| effect.memory.clone()))
+            .or_else(|| callee_effect.as_ref().map(|effect| effect.memory.clone()))
             .unwrap_or_else(mir::MemoryEffect::unknown);
         let behavior = behavior
-            .or_else(|| callee_effect.map(|effect| effect.behavior.clone()))
-            .unwrap_or_else(mir::FunctionBehavior::unknown);
+            .or_else(|| callee_effect.map(|effect| effect.behavior))
+            .unwrap_or_else(mir::FunctionBehavior::external);
 
         mir::FunctionEffect { memory, behavior }
     }
@@ -790,7 +807,7 @@ entry:
 
     /// Open calls stay unknown until tables or dispatch proves a target.
     #[test]
-    fn test_function_effects_mark_open_calls_unknown() {
+    fn test_function_effects_mark_open_calls_external() {
         let program = TestProgram::new(
             r#"
 function test(v0: fn(int32) => int32, v1: int32): int32 {
@@ -812,7 +829,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         let effect = effects.function(function).expect("missing function effect");
 
         assert_eq!(effect.memory, mir::MemoryEffect::unknown());
-        assert_eq!(effect.behavior, mir::FunctionBehavior::unknown());
+        assert_eq!(effect.behavior, mir::FunctionBehavior::external());
     }
 
     /// Panic terminators are may-panic and no-return.

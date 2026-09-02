@@ -1,6 +1,7 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
-    Call, Callee, Function, Instruction, LocalNodeId, SignatureParameter, Type, TypeId, Value,
+    Call, Callee, Function, FunctionBehavior, Instruction, LocalNodeId, Point, SignatureParameter,
+    Type, TypeId, Value,
 };
 
 impl<'a> FunctionBuilder<'a> {
@@ -158,5 +159,18 @@ impl<'a> FunctionBuilder<'a> {
             }
             _ => Err(BuildError::MissingFunctionSignature { ty: signature }),
         }
+    }
+
+    /// Mark the call inserted last as parking the current fiber.
+    pub fn mark_park(&mut self) {
+        let block = self.current_block();
+        let instruction = *self
+            .tree
+            .get(block)
+            .instructions
+            .last()
+            .unwrap_or_else(|| unreachable!("a park mark before any instruction"));
+        let call = self.effects.upsert_call(Point::Instruction(instruction));
+        call.behavior = FunctionBehavior::none().with_park();
     }
 }
