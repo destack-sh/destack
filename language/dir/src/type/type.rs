@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cmp::Ordering;
 
 use destack_serde::Reflect;
@@ -831,22 +832,27 @@ pub enum Lifetime {
     Static,
     /// The enclosing frame's lifetime ('frame).
     Frame,
+    /// The region bound at one position of an instance's argument row ('bound0).
+    Bound(u32),
 }
 
 impl Lifetime {
     /// Return the canonical text of this lifetime.
-    pub const fn text(self) -> &'static str {
+    pub fn text(self) -> Cow<'static, str> {
         match self {
-            Self::Static => "static",
-            Self::Frame => "frame",
+            Self::Static => Cow::Borrowed("static"),
+            Self::Frame => Cow::Borrowed("frame"),
+            Self::Bound(position) => Cow::Owned(format!("bound{position}")),
         }
     }
 
-    /// Parse one canonical lifetime name.
-    pub fn from_text(value: StringId) -> Option<Self> {
-        [Self::Static, Self::Frame]
-            .into_iter()
-            .find(|lifetime| value == StringId::for_text(lifetime.text()))
+    /// Parse one canonical lifetime name, bound positions included.
+    pub fn parse(text: &str) -> Option<Self> {
+        match text {
+            "static" => Some(Self::Static),
+            "frame" => Some(Self::Frame),
+            other => other.strip_prefix("bound")?.parse().ok().map(Self::Bound),
+        }
     }
 }
 

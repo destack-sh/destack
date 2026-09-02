@@ -277,6 +277,15 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_application_instances())
     }
 
+    /// Iterate the application region rows across every segment.
+    pub fn iter_application_regions(
+        &self,
+    ) -> impl Iterator<Item = (GlobalTypeId, &[GlobalTypeId])> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_application_regions())
+    }
+
     /// Iterate the requirement selections recorded across every segment.
     pub fn iter_dispatch_selections(
         &self,
@@ -329,6 +338,8 @@ pub struct GenericSegment {
     pub(crate) instance_types: IndexMap<(LocalInstanceId, GlobalTypeId), (GlobalTypeId, bool)>,
     /// The interned instance behind each closed application type.
     pub(crate) application_instances: IndexMap<GlobalTypeId, LocalInstanceId>,
+    /// The region terms each closed application substitutes for its instance's bound regions.
+    pub(crate) application_regions: IndexMap<GlobalTypeId, Vec<GlobalTypeId>>,
     /// The implementing selection behind each closed interface requirement.
     pub(crate) dispatch_selections: IndexMap<InstanceKey, InstanceKey>,
     /// Materialized symbol types keyed by instance and symbol.
@@ -351,6 +362,7 @@ impl GenericSegment {
             instances: Arena::new(),
             instance_types: IndexMap::default(),
             application_instances: IndexMap::default(),
+            application_regions: IndexMap::default(),
             dispatch_selections: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
@@ -372,6 +384,7 @@ impl GenericSegment {
             instances: Arena::new(),
             instance_types: IndexMap::default(),
             application_instances: IndexMap::default(),
+            application_regions: IndexMap::default(),
             dispatch_selections: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
@@ -675,6 +688,20 @@ impl GenericSegment {
         self.application_instances.insert(ty, instance);
     }
 
+    /// Record the region terms one closed application substitutes, in bound order.
+    pub fn bind_application_regions(&mut self, ty: GlobalTypeId, regions: Vec<GlobalTypeId>) {
+        self.application_regions.insert(ty, regions);
+    }
+
+    /// Iterate the application region rows recorded by this segment.
+    pub fn iter_application_regions(
+        &self,
+    ) -> impl Iterator<Item = (GlobalTypeId, &[GlobalTypeId])> + '_ {
+        self.application_regions
+            .iter()
+            .map(|(ty, regions)| (*ty, regions.as_slice()))
+    }
+
     /// Record the implementing selection behind one interface requirement.
     pub fn bind_dispatch_selection(&mut self, requirement: InstanceKey, implementer: InstanceKey) {
         self.dispatch_selections.insert(requirement, implementer);
@@ -784,6 +811,11 @@ impl TypeFold for GenericSegment {
         }
         for instantiation in &mut self.instantiations {
             instantiation.map_types(map)?;
+        }
+        for regions in self.application_regions.values_mut() {
+            for region in regions {
+                *region = map(*region)?;
+            }
         }
 
         Ok(())

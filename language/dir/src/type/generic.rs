@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AutoInterfaceSet, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit,
-    LanguageItem, LocalNodeIdAny, LocalScopeId, StringId, TypeFold, VarianceModifier,
-    WhereRelation,
+    AutoInterfaceSet, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
+    InstanceKeyVisit, LanguageItem, LocalNodeIdAny, LocalScopeId, StringId, TypeFold, TypeListId,
+    VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -132,6 +132,19 @@ pub enum GenericParameterKind {
     Type,
     /// A const parameter of one well-known memory kind.
     Memory(MemoryParameter),
+}
+
+impl GenericParameterKind {
+    /// Classify one declared parameter by its declaration and the memory domain its constraint names.
+    pub fn declared(parameter: &GenericParameter, constraint: Option<LanguageItem>) -> Self {
+        match parameter {
+            GenericParameter::Lifetime { .. } => Self::Memory(MemoryParameter::Region),
+            _ => match constraint.and_then(MemoryParameter::from_language_item) {
+                Some(memory) => Self::Memory(memory),
+                None => Self::Type,
+            },
+        }
+    }
 }
 
 /// Well-known memory kind quantified by a const parameter.
@@ -358,7 +371,7 @@ pub struct GlobalInstanceId {
 /// pick<float64>(30.5, 40.5)  // template: pick, arguments: (float64)
 /// Array<int32>               // template: Array, arguments: (int32)
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct Instance {
     /// The closed declaration and its generic arguments, in parameter order.
     pub key: InstanceKey,
@@ -368,6 +381,18 @@ pub struct Instance {
     pub origin: InstanceOrigin,
     /// The auto interfaces this closed nominal satisfies, empty on callables.
     pub conformances: AutoInterfaceSet,
+    /// The region parameters the argument list abstracts, as bound literals in occurrence order.
+    pub regions: TypeListId,
+}
+
+impl TypeFold for Instance {
+    fn map_types<E>(
+        &mut self,
+        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
+    ) -> Result<(), E> {
+        self.key.map_types(map)?;
+        self.conformances.map_types(map)
+    }
 }
 
 /// One source introducing a generic instance.
@@ -375,7 +400,7 @@ pub struct Instance {
 pub enum InstanceOrigin {
     /// An instantiation a checked body performs, generating code.
     Instantiation,
-    /// A type application a materialized type mentions, carrying rows.
+    /// A type application a materialized type mentions, carrying its own arguments.
     Application,
 }
 
