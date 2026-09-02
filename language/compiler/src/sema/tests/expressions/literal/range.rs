@@ -48,6 +48,16 @@ for (const value of 0..10) {
 
 === dir ===
 for (const value of 0..10) {
+/// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int64>)" next="next(parameters=(), arguments=(), return=IteratorResult<int64>)"
+/// @generic.instantiation id=iterator#1<int64> template=iterator#1 arguments=(int64)
+/// @generic.instantiation id=next<int64> template=next arguments=(int64)
+/// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
+/// @generic.instance id=Bound<int64> template=Bound arguments=(int64)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int64> template=IteratorYield arguments=(int64)
+/// @generic.instance id=RangeIterator<int64> template=RangeIterator arguments=(int64)
+/// @generic.instance id=iterator#1<int64> template=iterator#1 arguments=(int64)
+/// @generic.instance id=next<int64> template=next arguments=(int64) evaluated=(<next.'a>(this: &next.'a readonly this) => IteratorResult<T> => <next.'a>(this: &next.'a readonly RangeIterator<int64>) => IteratorResult<int64, void>)
 /// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=0 type=0
@@ -96,6 +106,16 @@ declare const limit: int32;
 /// @resolution.pattern source=limit kind=binding target=limit
 
 for (const value of 0..limit) {
+/// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int32>)" next="next(parameters=(), arguments=(), return=IteratorResult<int32, void>)"
+/// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
+/// @generic.instantiation id=next<int32> template=next arguments=(int32)
+/// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+/// @generic.instance id=Bound<int32> template=Bound arguments=(int32)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
+/// @generic.instance id=RangeIterator<int32> template=RangeIterator arguments=(int32)
+/// @generic.instance id=iterator#1<int32> template=iterator#1 arguments=(int32)
+/// @generic.instance id=next<int32> template=next arguments=(int32) evaluated=(<next.'a>(this: &next.'a readonly this) => IteratorResult<T> => <next.'a>(this: &next.'a readonly RangeIterator<int32>) => IteratorResult<int32, void>)
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=0 type=0

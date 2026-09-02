@@ -48,6 +48,7 @@ if (route != undefined) {
     /// @resolution.name source=route target=route
     /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=route root=route
+    /// @resolution.narrowing source=route union=`api:${string}` | undefined arms=`api:${string}`
     /// @resolution.name source=Route target=Route
 
 }

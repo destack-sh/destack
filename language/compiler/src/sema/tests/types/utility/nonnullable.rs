@@ -117,3 +117,64 @@ let bad: Present = "no";
 "#,
     );
 }
+
+#[test]
+fn test_reject_nullish_values_against_the_empty_shape() {
+    let session = TestSession::single(
+        r#"
+function keep<T: {}>(value: T): T {
+    return value;
+}
+
+const shaped: {} = undefined;
+keep(null);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+function keep<T: {}>(value: T): T {
+    return value;
+}
+
+const shaped: {} = undefined;
+keep<null>(null);
+
+=== dir ===
+function keep<T: {}>(value: T): T {
+/// @generic.template symbol=keep parameters=(T: {})
+/// @type.symbol symbol=keep type=<T: {}>(T) => T
+/// @type.symbol symbol=keep.T source="T: {}" type=T
+/// @type.symbol symbol=keep.value source="value: T" type=T
+/// @resolution.name source=T target=keep.T
+/// @resolution.name source=T target=keep.T
+
+    return value;
+    /// @resolution.name source=value target=keep.value
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=value root=keep.value
+
+}
+
+const shaped: {} = undefined;
+/// @type.symbol symbol=shaped source=shaped type={}
+/// @resolution.pattern source=shaped kind=binding target=shaped
+
+keep(null);
+/// @resolution.name source=keep target=keep
+/// @resolution.call source=keep(null) parameters=(null) arguments=(provided(null) as null) return=null kind=symbol target=keep instance=keep<null>
+/// @generic.instantiation id=keep<null> template=keep arguments=(null)
+"#,
+        r#"
+/// @diagnostic.error id=not-assignable message="type 'undefined' is not assignable to type '{}'"
+/// @diagnostic.label line=6 column=20 span="undefined" line_source="const shaped: {} = undefined;"
+/// @diagnostic.related line=6 column=15 span="{}" line_source="const shaped: {} = undefined;" message="expected due to this annotation"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'null' does not satisfy '{}'"
+/// @diagnostic.label line=7 column=1 span="keep(null)" line_source="keep(null);"
+/// @diagnostic.related line=2 column=15 span="T" line_source="function keep<T: {}>(value: T): T {" message="required by this bound on 'T'"
+"#,
+    );
+}

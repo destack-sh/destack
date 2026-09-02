@@ -239,6 +239,8 @@ node satisfies Node;
 === dir ===
 struct Node {
 /// @type.symbol symbol=Node type=Node
+/// @generic.instance id=Box<Node> template=Box arguments=(Node)
+/// @generic.instance id=Unique<^Node> template=Unique arguments=(^Node)
 /// @definition.struct symbol=Node
 /// @definition.field symbol=Node.next source="next: Box<Node> | null" key=next type=Box<Node> | null
 /// @definition.field symbol=Node.value source="value: int32" key=value type=int32
@@ -248,8 +250,6 @@ struct Node {
 
     next: Box<Node> | null;
     /// @type.symbol symbol=Node.next source="next: Box<Node> | null" type=Box<Node> | null
-    /// @generic.instance id=Box<Node> template=Box arguments=(Node)
-    /// @generic.instance id=Unique<^Node> template=Unique arguments=(^Node)
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=Node target=Node
 

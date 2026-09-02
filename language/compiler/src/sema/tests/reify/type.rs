@@ -207,7 +207,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             }
             // write a reserved lifetime literal back with its tick
             dir::Type::Literal(dir::Literal::String(value)) => {
-                let Some(lifetime) = dir::Lifetime::from_text(value) else {
+                let Some(lifetime) = dir::Lifetime::parse(self.check.strings().get(value)) else {
                     return Ok(None);
                 };
 

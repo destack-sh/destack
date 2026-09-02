@@ -510,11 +510,34 @@ declare class Client {
 
 function make(): () => Promise<string> {
 /// @type.symbol symbol=make type=() => Function<(), Promise<string>>
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
 /// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
 /// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
 /// @generic.instance id=Promise<void> template=Promise arguments=(void)
-/// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
 /// @generic.instance id=PromiseAwaiter<void> template=PromiseAwaiter arguments=(void)
 /// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
 /// @generic.instance id=PromiseForwarded<void> template=PromiseForwarded arguments=(void)
@@ -548,10 +571,20 @@ function make(): () => Promise<string> {
     /// @resolution.pattern source=load kind=binding target=make.load
     /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
     /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
+    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), Promise.create.T, "once">) arguments=(write as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<string>
+    /// @generic.instantiation id=Promise.create<string> template=Promise.create arguments=(string)
+    /// @generic.instance id="Function<(), string, \"once\">" template=Function arguments=((), string, "once")
+    /// @generic.instance id=Promise.create<string> template=Promise.create arguments=(string)
     /// @capture.function function=make.symbol6 bindings=1
     /// @capture.binding function=make.symbol6 symbol=client mode=copy type=Client
     /// @capture.directive function=make.symbol6 default=copy rules=0
     /// @type.node source="await client.read()" type=string
+    /// @resolution.call source="await client.read()" parameters=(Promise<string>) arguments=(provided(client.read()) as Promise<string>) return=string kind=symbol target=Promise.park receiver=Promise<string> instance=Promise<string>.park<string>
+    /// @generic.instantiation id="Promise.park<string, string>" template=Promise.park arguments=(string, string)
+    /// @generic.instance id="Promise.park<string, string>" template=Promise.park arguments=(string, string)
+    /// @generic.instance id="PromiseAwaiter.symbol161<string, \"local\">" template=PromiseAwaiter.symbol161 arguments=(string, "local")
+    /// @generic.instance id="PromiseAwaiter<string, \"local\">" template=PromiseAwaiter arguments=(string, "local")
+    /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
     /// @type.node source=client type=Client
     /// @type.node source=client.read type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string>
     /// @type.node source=client.read() type=Promise<string>

@@ -430,17 +430,17 @@ type Bag = { [key: string]: int32 };
 
 struct Store {
 /// @type.symbol symbol=Store type=Store
+/// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
+/// @generic.instance id="MapEntry<string, int32>" template=MapEntry arguments=(string, int32)
+/// @generic.instance id="MapSlot<string, int32>" template=MapSlot arguments=(string, int32)
+/// @generic.instance id="MaybeUninit<MapSlot<string, int32>>" template=MaybeUninit arguments=(MapSlot<string, int32>)
+/// @generic.instance id="new<MaybeUninit<MapSlot<string, int32>>>" template=new arguments=(MaybeUninit<MapSlot<string, int32>>)
+/// @generic.instance id=new<uint32> template=new arguments=(uint32)
 /// @definition.struct symbol=Store
 /// @definition.field symbol=Store.storage source="storage: Map<string, int32>" key=storage type=Map<string, int32>
 
     storage: Map<string, int32>;
     /// @type.symbol symbol=Store.storage source="storage: Map<string, int32>" type=Map<string, int32>
-    /// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
-    /// @generic.instance id="MapEntry<string, int32>" template=MapEntry arguments=(string, int32)
-    /// @generic.instance id="MapSlot<string, int32>" template=MapSlot arguments=(string, int32)
-    /// @generic.instance id="MaybeUninit<MapSlot<string, int32>>" template=MaybeUninit arguments=(MapSlot<string, int32>)
-    /// @generic.instance id="new<MaybeUninit<MapSlot<string, int32>>>" template=new arguments=(MaybeUninit<MapSlot<string, int32>>)
-    /// @generic.instance id=new<uint32> template=new arguments=(uint32)
     /// @resolution.name source=Map target=Map
 
 }
@@ -490,8 +490,8 @@ extension of Store implements Index<string>, IndexSet<string, int32> {
         /// @resolution.access source=this.storage root=this keys=[storage]
         /// @resolution.subscript source=this.storage[key] type=int32 | undefined kind=call target="index(parameters=(Managed<string, R>), arguments=(provided(key) as Managed<string, R>), return=WithAccess<Borrowed<int32, R, \"mutable\">, \"readonly\"> | undefined)"
         /// @generic.instantiation id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly")
-        /// @generic.instance id="WithAccess<&'frame Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'frame Map<string, int32>, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'frame readonly Map<string, int32>)
-        /// @generic.instance id="WithAccess<&'frame int32, \"readonly\">" template=WithAccess arguments=(&'frame int32, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'frame readonly int32)
+        /// @generic.instance id="WithAccess<&'bound0 Map<string, int32>, \"readonly\">" template=WithAccess arguments=(&'bound0 Map<string, int32>, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'bound0 readonly Map<string, int32>)
+        /// @generic.instance id="WithAccess<&'bound0 int32, \"readonly\">" template=WithAccess arguments=(&'bound0 int32, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'bound0 readonly int32)
         /// @generic.instance id="index<string, int32, \"readonly\">" template=index arguments=(string, int32, "readonly") evaluated=(<const index.A: Access = "readonly", index.'a>(this: WithAccess<&index.'a Map<K#8, V#8>, index.A>, K#8) => WithAccess<&index.'a V#8, index.A> | undefined => <const index.A: Access = "readonly", index.'a>(this: &index.'a readonly Map<string, int32>, string) => &index.'a readonly int32 | undefined)
         /// @resolution.name source=key target=index.key
         /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"

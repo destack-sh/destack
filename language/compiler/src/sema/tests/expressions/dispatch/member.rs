@@ -483,12 +483,12 @@ const second: int32 = handler.run(2);
 === dir ===
 struct Handler {
 /// @type.symbol symbol=Handler type=Handler
+/// @generic.instance id="Function<(int32,), int32, \"readonly\">" template=Function arguments=((int32,), int32, "readonly")
 /// @definition.struct symbol=Handler
 /// @definition.field symbol=Handler.run source="readonly run: Function<(int32,), int32, \"readonly\">" key=run type=Function<(int32,), int32, "readonly">
 
     readonly run: Function<(int32,), int32, "readonly">;
     /// @type.symbol symbol=Handler.run source="readonly run: Function<(int32,), int32, \"readonly\">" type=Function<(int32,), int32, "readonly">
-    /// @generic.instance id="Function<(int32,), int32, \"readonly\">" template=Function arguments=((int32,), int32, "readonly")
     /// @resolution.name source=Function target=Function
 
 }
@@ -736,9 +736,9 @@ const chosen = store.pick<int32>(3);
 fn test_default_an_integer_binding_to_int64_at_a_method_call() {
     let session = TestSession::single(
         r#"
-function render(): MaybeOwned<string> {
+function render(): void {
     let x = 5;
-    return x.toFixed(1);
+    x.toFixed(1);
 }
 "#,
     );
@@ -748,33 +748,32 @@ function render(): MaybeOwned<string> {
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 === annotated ===
-function render(): MaybeOwned<string> {
+function render(): void {
     let x: int64 = 5;
-    return x.toFixed(1 as float64 | undefined);
+    x.toFixed(1 as float64 | undefined);
 }
 
 === dir ===
-function render(): MaybeOwned<string> {
-/// @type.symbol symbol=render type=() => MaybeOwned<string>
-/// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
-/// @generic.instance id=Cow<string> template=Cow arguments=(string)
-/// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
-/// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
-/// @resolution.name source=MaybeOwned target=MaybeOwned
+function render(): void {
+/// @type.symbol symbol=render type=() => void
 
     let x = 5;
     /// @type.symbol symbol=render.x source=x type=int64
     /// @resolution.pattern source=x kind=binding target=render.x
     /// @type.node source=5 type=5
 
-    return x.toFixed(1);
-    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<string>
-    /// @type.node source=x.toFixed(1) type=MaybeOwned<string>
+    x.toFixed(1);
+    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<Number.toFixed.'a, string>
+    /// @type.node source=x.toFixed(1) type=MaybeOwned<"frame" & "local", string>
     /// @resolution.name source=x target=render.x
-    /// @resolution.member source=x.toFixed receiver=int64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=int64 target=Number.toFixed
-    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toFixed receiver=int64 adjustments=(borrow(&'frame readonly int64))
+    /// @resolution.member source=x.toFixed receiver=int64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<Number.toFixed.'a, string> kind=symbol target_receiver=int64 target=Number.toFixed
+    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<"frame" & "local", string> kind=symbol target=Number.toFixed receiver=int64 adjustments=(borrow(&'frame readonly int64))
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=render.x
+    /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
+    /// @generic.instance id=Cow<string> template=Cow arguments=(string)
+    /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @type.node source=1 type=1
 
 }
@@ -787,9 +786,9 @@ function render(): MaybeOwned<string> {
 fn test_default_a_float_binding_to_float64_at_a_method_call() {
     let session = TestSession::single(
         r#"
-function render(): MaybeOwned<string> {
+function render(): void {
     let x = 1.5;
-    return x.toFixed(1);
+    x.toFixed(1);
 }
 "#,
     );
@@ -799,33 +798,32 @@ function render(): MaybeOwned<string> {
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 === annotated ===
-function render(): MaybeOwned<string> {
+function render(): void {
     let x: float64 = 1.5;
-    return x.toFixed(1 as float64 | undefined);
+    x.toFixed(1 as float64 | undefined);
 }
 
 === dir ===
-function render(): MaybeOwned<string> {
-/// @type.symbol symbol=render type=() => MaybeOwned<string>
-/// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
-/// @generic.instance id=Cow<string> template=Cow arguments=(string)
-/// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
-/// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
-/// @resolution.name source=MaybeOwned target=MaybeOwned
+function render(): void {
+/// @type.symbol symbol=render type=() => void
 
     let x = 1.5;
     /// @type.symbol symbol=render.x source=x type=float64
     /// @resolution.pattern source=x kind=binding target=render.x
     /// @type.node source=1.5 type=1.5
 
-    return x.toFixed(1);
-    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<string>
-    /// @type.node source=x.toFixed(1) type=MaybeOwned<string>
+    x.toFixed(1);
+    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<Number.toFixed.'a, string>
+    /// @type.node source=x.toFixed(1) type=MaybeOwned<"frame" & "local", string>
     /// @resolution.name source=x target=render.x
-    /// @resolution.member source=x.toFixed receiver=float64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=float64 target=Number.toFixed
-    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toFixed receiver=float64 adjustments=(borrow(&'frame readonly float64))
+    /// @resolution.member source=x.toFixed receiver=float64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<Number.toFixed.'a, string> kind=symbol target_receiver=float64 target=Number.toFixed
+    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<"frame" & "local", string> kind=symbol target=Number.toFixed receiver=float64 adjustments=(borrow(&'frame readonly float64))
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=render.x
+    /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
+    /// @generic.instance id=Cow<string> template=Cow arguments=(string)
+    /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @type.node source=1 type=1
 
 }
@@ -901,9 +899,9 @@ function feed(): int64 {
 fn test_suggest_the_closest_member_on_an_integer_binding() {
     let session = TestSession::single(
         r#"
-function render(): MaybeOwned<string> {
+function render(): void {
     let x = 5;
-    return x.toFixd(1);
+    x.toFixd(1);
 }
 "#,
     );
@@ -913,21 +911,20 @@ function render(): MaybeOwned<string> {
         DirRows::checked(),
         r#"
 === annotated ===
-function render(): MaybeOwned<string> {
+function render(): void {
     let x: int64 = 5;
-    return x.toFixd(1);
+    x.toFixd(1);
 }
 
 === dir ===
-function render(): MaybeOwned<string> {
-/// @type.symbol symbol=render type=() => MaybeOwned<string>
-/// @resolution.name source=MaybeOwned target=MaybeOwned
+function render(): void {
+/// @type.symbol symbol=render type=() => void
 
     let x = 5;
     /// @type.symbol symbol=render.x source=x type=int64
     /// @resolution.pattern source=x kind=binding target=render.x
 
-    return x.toFixd(1);
+    x.toFixd(1);
     /// @resolution.name source=x target=render.x
     /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=render.x
@@ -938,8 +935,8 @@ function render(): MaybeOwned<string> {
 "#,
         r#"
 /// @diagnostic.error id=missing-member message="member 'toFixd' does not exist on type 'int64'; did you mean 'toFixed'?"
-/// @diagnostic.label line=4 column=14 span="toFixd" line_source="return x.toFixd(1);"
-/// @diagnostic.suggestion message="rename to 'toFixed'" applicability=dangerous patched="return x.toFixed(1);"
+/// @diagnostic.label line=4 column=7 span="toFixd" line_source="x.toFixd(1);"
+/// @diagnostic.suggestion message="rename to 'toFixed'" applicability=dangerous patched="x.toFixed(1);"
 "#,
     );
 }

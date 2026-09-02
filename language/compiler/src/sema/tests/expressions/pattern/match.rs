@@ -764,6 +764,7 @@ switch (state) {
         /// @resolution.name source=state target=state
         /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
         /// @resolution.access source=state root=state
+        /// @resolution.narrowing source=state union=Ready | Pending arms=Ready
 
         break;
         /// @type.node source=break type=never
@@ -775,6 +776,7 @@ switch (state) {
         /// @resolution.name source=state target=state
         /// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
         /// @resolution.access source=state root=state
+        /// @resolution.narrowing source=state union=Ready | Pending arms=Pending
 
 }
 "#,
@@ -1722,6 +1724,7 @@ const label = match (status) {
     /// @resolution.name source=status target=status
     /// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=status root=status
+    /// @resolution.narrowing source=status union="ready" | "error" arms="error"
 
 };
 "#,

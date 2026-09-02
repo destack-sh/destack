@@ -1426,7 +1426,12 @@ impl CheckState<'_> {
             }
 
             cases.push(dir::DiscriminantCase {
-                arm: *element,
+                arm: self.canonical_union_leaf(
+                    origin,
+                    representation,
+                    *element,
+                    "a discriminant projection",
+                )?,
                 value,
             });
             types.push(ty);

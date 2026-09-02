@@ -667,21 +667,23 @@ impl CheckState<'_> {
         narrowed: dir::GlobalTypeId,
         lookup: &mut MemberLookup,
     ) -> CompilerResult<()> {
-        // project union lookups through each physical arm
-        if lookup.iter().any(|candidate| candidate.arm.is_some())
-            && self.union_arms(origin, narrowed)?.is_some()
-        {
-            for candidate in lookup.iter_mut() {
-                let Some(arm) = candidate.arm else {
-                    continue;
-                };
-                let adjustments = self.project_narrowed_receiver(origin, source, arm.element)?;
-                for adjustment in adjustments.into_iter().rev() {
-                    candidate.prepend_adjustment(adjustment);
+        // project union lookups through each physical arm, peeling enclosing newtypes
+        if lookup.iter().any(|candidate| candidate.arm.is_some()) {
+            let (payload, _) = self.project_newtype_receiver(origin, narrowed)?;
+            if self.union_arms(origin, payload)?.is_some() {
+                for candidate in lookup.iter_mut() {
+                    let Some(arm) = candidate.arm else {
+                        continue;
+                    };
+                    let adjustments =
+                        self.project_narrowed_receiver(origin, source, arm.element)?;
+                    for adjustment in adjustments.into_iter().rev() {
+                        candidate.prepend_adjustment(adjustment);
+                    }
                 }
-            }
 
-            return Ok(());
+                return Ok(());
+            }
         }
 
         // unchanged receivers keep their direct form
@@ -722,12 +724,16 @@ impl CheckState<'_> {
         };
 
         // project a precise physical union arm
+        let union = self.form_chain(origin, payload)?.base();
         if arms.contains(&narrowed) {
-            let union = self.form_chain(origin, payload)?.base();
-            let arm = self.form_chain(origin, narrowed)?.base();
+            // keep the payload for an arm spanning several flat leaves
+            if self.union_arms(origin, narrowed)?.is_some() {
+                return Ok(steps);
+            }
+
             steps.push(dir::ReceiverAdjustment::UnionPayload {
                 union,
-                arm,
+                arm: self.canonical_union_leaf(origin, union, narrowed, "a narrowed receiver")?,
                 ty: narrowed,
             });
 
@@ -735,17 +741,26 @@ impl CheckState<'_> {
         }
 
         // keep the physical payload for a narrowing that stays inside its arms
-        let Some(narrowed_arms) = self.union_arms(origin, narrowed)? else {
-            return Ok(steps);
-        };
-        if narrowed_arms.iter().all(|arm| arms.contains(arm)) {
-            return Ok(steps);
+        if let Some(narrowed_arms) = self.union_arms(origin, narrowed)? {
+            if narrowed_arms.iter().all(|arm| arms.contains(arm)) {
+                return Ok(steps);
+            }
+
+            // fail loudly on a narrowing the representation cannot represent
+            return Err(CompilerError::Internal {
+                message: "a narrowed receiver outside its physical union representation"
+                    .to_string(),
+            });
         }
 
-        // fail loudly on a narrowing the representation cannot represent
-        Err(CompilerError::Internal {
-            message: "narrowed receiver is outside its physical union representation".to_string(),
-        })
+        // project a flattened arm onto its canonical leaf
+        steps.push(dir::ReceiverAdjustment::UnionPayload {
+            union,
+            arm: self.canonical_union_leaf(origin, union, narrowed, "a flattened narrowing")?,
+            ty: narrowed,
+        });
+
+        Ok(steps)
     }
 
     /// Project one representation onto the union arm it keeps beside itself.
@@ -766,10 +781,9 @@ impl CheckState<'_> {
 
         // project onto the named arm
         let union = self.form_chain(origin, payload)?.base();
-        let payload = self.form_chain(origin, arm)?.base();
         steps.push(dir::ReceiverAdjustment::UnionPayload {
             union,
-            arm: payload,
+            arm: self.canonical_union_leaf(origin, union, arm, "a carried arm")?,
             ty: arm,
         });
 

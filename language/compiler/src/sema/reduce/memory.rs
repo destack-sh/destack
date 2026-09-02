@@ -1373,7 +1373,9 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::Lifetime>> {
         let lifetime = self.shallow_resolve(lifetime)?;
         let literal = match self.ty(lifetime)? {
-            dir::Type::Literal(dir::Literal::String(value)) => dir::Lifetime::from_text(value),
+            dir::Type::Literal(dir::Literal::String(value)) => {
+                dir::Lifetime::parse(self.strings().get(value))
+            }
             _ => None,
         };
 

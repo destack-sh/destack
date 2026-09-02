@@ -126,7 +126,7 @@ struct Point {
 }
 
 extension of Point implements Display {
-    display(&readonly this): MaybeOwned<string> {
+    display(&readonly this): MaybeOwned<'a, string> {
         return todo("Point.display" as string | undefined);
     }
 }
@@ -153,20 +153,20 @@ struct Point {
 extension of Point implements Display {
 /// @definition.extension symbol=<module>#2 form=local target=Point
 /// @definition.implements symbol=<module>#2 source=Display target=Display
-/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly Point) => MaybeOwned<string>
+/// @definition.method symbol=display slot=display type=<display.'a>(this: &display.'a readonly Point) => MaybeOwned<display.'a, string>
 /// @definition.conformance symbol=<module>#2 member=display requirement=Display.display
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Display target=Display
 
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
-    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => MaybeOwned<string>
+    /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => MaybeOwned<display.'a, string>
+    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=MaybeOwned
-    /// @generic.instance id="CowBorrowed<&'frame readonly string>" template=CowBorrowed arguments=(&'frame readonly string)
+    /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
     /// @generic.instance id=Cow<string> template=Cow arguments=(string)
     /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
-    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
 
         return todo("Point.display");
         /// @type.node source="todo(\"Point.display\")" type=never

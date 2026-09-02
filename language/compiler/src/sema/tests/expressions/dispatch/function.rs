@@ -56,7 +56,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @generic.instance id="IteratorResult<int32 | undefined, void>" template=IteratorResult arguments=(int32 | undefined, void)
     /// @generic.instance id="IteratorYield<int32 | undefined>" template=IteratorYield arguments=(int32 | undefined)
     /// @generic.instance id="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=MapIterator arguments=(Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
-    /// @generic.instance id="PeekableIterator<Iterator<int32 | undefined>, int32 | undefined>" template=PeekableIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
+    /// @generic.instance id="PeekableIterator<Iterator<int32 | undefined>, int32 | undefined>" template=PeekableIterator arguments=(Iterator<int32 | undefined>, int32 | undefined) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int32 | undefined, void> | undefined)
     /// @generic.instance id="TakeIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="TakeWhileIterator<Iterator<int32 | undefined>, int32 | undefined>" template=TakeWhileIterator arguments=(Iterator<int32 | undefined>, int32 | undefined)
     /// @generic.instance id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
@@ -77,6 +77,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
     /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
     /// @resolution.access source=value root=firstPositive.symbol5.value
+    /// @resolution.narrowing source=value union=&type_expression.'a readonly int32 | undefined arms=&type_expression.'a readonly int32
 
 }
 "#,

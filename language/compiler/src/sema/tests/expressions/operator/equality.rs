@@ -156,6 +156,7 @@ function use(onValue?: (value: unknown) => void): void {
         /// @resolution.call source=onValue(1) parameters=(unknown) arguments=(provided(1) as unknown) return=void kind=expression target=expression
         /// @resolution.place source=onValue placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=onValue root=use.onValue
+        /// @resolution.narrowing source=onValue union=Function<(unknown,), void> | undefined arms=Function<(unknown,), void>
         /// @type.node source=1 type=1
 
     } else {

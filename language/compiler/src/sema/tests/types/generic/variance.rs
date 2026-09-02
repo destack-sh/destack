@@ -929,6 +929,8 @@ forEach(async (value) => value);
 /// @resolution.name source=forEach target=forEach
 /// @resolution.call source="forEach(async (value) => value)" parameters=(Function<(int32,), void>) arguments=(provided(async (value) => value) as Function<(int32,), void>) return=void kind=symbol target=forEach
 /// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>, "readonly">
+/// @resolution.call source="async (value) => value" parameters=(^Function<(), Promise.create.T, "once">) arguments=(write as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<int32>
+/// @generic.instantiation id=Promise.create<int32> template=Promise.create arguments=(int32)
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=value target=symbol4.value
 /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"

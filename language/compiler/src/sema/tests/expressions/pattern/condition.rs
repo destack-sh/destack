@@ -301,6 +301,7 @@ if (let "ready" = status) {
     /// @resolution.name source=status target=status
     /// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=status root=status
+    /// @resolution.narrowing source=status union="ready" | "error" arms="ready"
 
 } else {
     status satisfies "error";
@@ -309,6 +310,7 @@ if (let "ready" = status) {
     /// @resolution.name source=status target=status
     /// @resolution.place source=status placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=status root=status
+    /// @resolution.narrowing source=status union="ready" | "error" arms="error"
 
 }
 "#,
@@ -363,6 +365,7 @@ if (let 1 | 2 = value) {
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=1 | 2 | 3 arms=1 | 2
 
 } else {
     value satisfies 3;
@@ -371,6 +374,7 @@ if (let 1 | 2 = value) {
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=1 | 2 | 3 arms=3
 
 }
 "#,

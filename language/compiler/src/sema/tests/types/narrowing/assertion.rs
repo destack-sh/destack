@@ -41,6 +41,7 @@ function first(value: int32 | undefined): int32 {
         /// @resolution.name source=value target=first.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=first.value
+        /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
     }
     return 0;
@@ -91,6 +92,7 @@ function first(value: int32 | undefined): int32 {
         /// @resolution.name source=value target=first.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=first.value
+        /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
     }
     return 0;
@@ -197,6 +199,7 @@ function render(message: string | (() => string) | undefined): string {
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=render.message
+        /// @resolution.narrowing source=message union=string | Function<(), string> | undefined arms=Function<(), string>
 
     }
     return message ?? "fallback";
@@ -204,6 +207,7 @@ function render(message: string | (() => string) | undefined): string {
     /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=render.message
+    /// @resolution.narrowing source=message union=string | Function<(), string> | undefined arms=string | undefined
 
 }
 "#, "");
@@ -260,6 +264,7 @@ function render(message: Message | undefined): string {
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
         /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=message root=render.message
+        /// @resolution.narrowing source=message union=Message | undefined arms=Function<(), string>
 
     }
     return message ?? "fallback";
@@ -267,6 +272,7 @@ function render(message: Message | undefined): string {
     /// @resolution.operator source="message ?? \"fallback\"" type=string operator="??" kind=builtin operands=[message as string | undefined families=(string | undefined), "fallback" as "fallback" families=(string)]
     /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=render.message
+    /// @resolution.narrowing source=message union=Message | undefined arms=string | undefined
 
 }
 "#,

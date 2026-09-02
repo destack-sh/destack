@@ -38,7 +38,7 @@ impl CheckState<'_> {
         // read the coercion an earlier pass recorded at the node
         let previous = self
             .module(node.module_id)
-            .coercions
+            .coercions_tail
             .coercion(node)
             .cloned();
 
@@ -61,7 +61,7 @@ impl CheckState<'_> {
 
         // bind the first selection
         self.module_mut(node.module_id)
-            .coercions
+            .coercions_tail
             .bind_coercion(node, coercion);
 
         Ok(())
@@ -922,10 +922,10 @@ impl CheckState<'_> {
             verdict = verdict.and(placement);
         }
 
-        // bind an elided borrow region to the source place provenance
-        let provenance = self.intern_region(place.lifetime, place.placement)?;
+        // bind an elided borrow region to the source place's region
+        let region = self.intern_region(place.lifetime, place.placement)?;
         let lifetime =
-            self.constrain_type(origin, cause, Relation::Storable, provenance, borrow.region)?;
+            self.constrain_type(origin, cause, Relation::Storable, region, borrow.region)?;
         if lifetime == Verdict::Fails {
             return Ok(Verdict::Fails);
         }
@@ -1109,7 +1109,7 @@ impl CheckState<'_> {
                     Some(_) => target,
                     None => self.structurally_normalize(origin, target)?,
                 };
-                let Some(targets) = self.union_arms(origin, head)? else {
+                let Some(targets) = self.canonical_union_members(origin, head)? else {
                     return self.convert_existing_value(site, origin, cause, source, target, use_);
                 };
                 let (member, conversion) =
@@ -1122,7 +1122,7 @@ impl CheckState<'_> {
                     .unwrap_or_default();
                 let case = dir::CoercionCase {
                     source: source.ty,
-                    target: member,
+                    target: self.canonical_union_leaf(origin, head, member, "a union injection")?,
                     adjustments,
                 };
                 let coercion =
@@ -1203,7 +1203,7 @@ impl CheckState<'_> {
         }
 
         // convert every source case into its target arm
-        let targets = self.union_arms(origin, target)?;
+        let targets = self.canonical_union_members(origin, target)?;
         let mut cases = Vec::with_capacity(sources.len());
         for source_case in sources {
             let source_case = Value {
@@ -1212,7 +1212,7 @@ impl CheckState<'_> {
             };
             let (target_case, conversion) = match &targets {
                 Some(targets) => {
-                    match self.convert_union_case(
+                    let (selected, conversion) = match self.convert_union_case(
                         site,
                         origin,
                         cause,
@@ -1222,7 +1222,15 @@ impl CheckState<'_> {
                     )? {
                         Ok(selection) => selection,
                         Err(failure) => return Ok(Err(failure)),
-                    }
+                    };
+                    let canonical = self.canonical_union_leaf(
+                        origin,
+                        target,
+                        selected,
+                        "a union case conversion",
+                    )?;
+
+                    (canonical, conversion)
                 }
                 None => {
                     let conversion =
@@ -1256,9 +1264,9 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
-        // take the arms of a union directly, aliased members expanded
+        // take the canonical flat arms of a union directly, aliased members expanded
         let expanded = self.structurally_normalize(origin, source)?;
-        if let Some(cases) = self.union_arms(origin, expanded)? {
+        if let Some(cases) = self.canonical_union_members(origin, expanded)? {
             return Ok(Some(cases));
         }
 

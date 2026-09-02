@@ -103,8 +103,32 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
+/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
+/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
+/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
 /// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
 /// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
+/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
+/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
+/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
+/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
+/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
 /// @generic.instance id=Promise<void> template=Promise arguments=(void)
 /// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
@@ -126,7 +150,19 @@ declare const input: Promise<int32>;
 const result: Promise<string> = input.then(() => "done");
 /// @type.symbol symbol=result source=result type=Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
 /// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
 /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
 /// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
@@ -147,19 +183,7 @@ const result: Promise<string> = input.then(() => "done");
 /// @generic.instantiation id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol167<int32, \"local\">" template=PromiseReaction.symbol167 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @type.symbol symbol=symbol3 source="() => \"done\"" type=Function<(), string, "readonly">
 /// @type.node source="() => \"done\"" type=Function<(), string, "readonly">
 /// @type.node source="\"done\"" type="done"
@@ -196,8 +220,32 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
+/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
+/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
+/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
 /// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
 /// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
+/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
+/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
+/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
+/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
+/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
 /// @generic.instance id=Promise<void> template=Promise arguments=(void)
 /// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
@@ -219,7 +267,19 @@ declare const input: Promise<int32>;
 declare const next: Promise<string>;
 /// @type.symbol symbol=next source=next type=Promise<string>
 /// @resolution.pattern source=next kind=binding target=next
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
 /// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
 /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
 /// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
@@ -245,24 +305,7 @@ const result: Promise<string> = input.then(() => next);
 /// @generic.instantiation id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol167<int32, \"local\">" template=PromiseReaction.symbol167 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction.symbol167<string, \"local\">" template=PromiseReaction.symbol167 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @type.symbol symbol=symbol4 source="() => next" type=Function<(), Promise<string>, "readonly">
 /// @type.node source="() => next" type=Function<(), Promise<string>, "readonly">
 /// @type.node source=next type=Promise<string>
@@ -304,8 +347,32 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
+/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
+/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
+/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
 /// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
 /// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
+/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
+/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
+/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
+/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
+/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
 /// @generic.instance id=Promise<void> template=Promise arguments=(void)
 /// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
@@ -327,7 +394,19 @@ declare const input: Promise<int32>;
 const result: Promise<string> = input.then((value) => {
 /// @type.symbol symbol=result source=result type=Promise<string>
 /// @resolution.pattern source=result kind=binding target=result
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
 /// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
 /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
 /// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
@@ -348,23 +427,7 @@ const result: Promise<string> = input.then((value) => {
 /// @generic.instantiation id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
-/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
 /// @generic.instance id="Promise.then#1<int32, string>" template=Promise.then#1 arguments=(int32, string)
-/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
-/// @generic.instance id="PromiseReaction.symbol167<int32, \"local\">" template=PromiseReaction.symbol167 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction.symbol167<string, \"local\">" template=PromiseReaction.symbol167 arguments=(string, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
-/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
-/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @type.symbol symbol=symbol3 type=Function<(int32,), Promise<string>, "readonly">
 /// @type.node type=Function<(int32,), Promise<string>, "readonly">
 /// @type.symbol symbol=symbol3.value source=value type=int32
@@ -380,7 +443,6 @@ const result: Promise<string> = input.then((value) => {
     /// @resolution.access source=input root=input
     /// @generic.instantiation id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
     /// @generic.instance id="Promise.then#2<int32, string>" template=Promise.then#2 arguments=(int32, string)
-    /// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
     /// @type.symbol symbol=symbol3.symbol5 source="() => \"done\"" type=Function<(), string, "readonly">
     /// @type.node source="() => \"done\"" type=Function<(), string, "readonly">
     /// @type.node source="\"done\"" type="done"
@@ -427,8 +489,32 @@ import { Promise } from "destack:async";
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
 /// @resolution.pattern source=input kind=binding target=input
+/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
+/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
+/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
+/// @generic.instance id="PromiseReaction.symbol173<int32, \"local\">" template=PromiseReaction.symbol173 arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
+/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
+/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
 /// @generic.instance id=Awaitable<int32> template=Awaitable arguments=(int32)
 /// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
+/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
+/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
+/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+/// @generic.instance id=Promise.forward<int32> template=Promise.forward arguments=(int32)
+/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
+/// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
+/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
+/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+/// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
+/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+/// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
+/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
 /// @generic.instance id=Promise<void> template=Promise arguments=(void)
 /// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
@@ -450,7 +536,19 @@ declare const input: Promise<int32>;
 declare const next: Promise<string>;
 /// @type.symbol symbol=next source=next type=Promise<string>
 /// @resolution.pattern source=next kind=binding target=next
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
 /// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
 /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
 /// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
@@ -469,11 +567,23 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @type.symbol symbol=result source=result type=Promise<string | Promise<string>>
 /// @resolution.pattern source=result kind=binding target=result
 /// @generic.instance id="Awaitable<string | Promise<string>>" template=Awaitable arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.addReaction<string | Promise<string>>" template=Promise.addReaction arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.addWaiter<string | Promise<string>>" template=Promise.addWaiter arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.forward<string | Promise<string>>" template=Promise.forward arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.fulfill<string | Promise<string>>" template=Promise.fulfill arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.observe<string | Promise<string>>" template=Promise.observe arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.pending<string | Promise<string>>" template=Promise.pending arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.queueWaiter<string | Promise<string>>" template=Promise.queueWaiter arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.queueWaiters<string | Promise<string>>" template=Promise.queueWaiters arguments=(string | Promise<string>)
+/// @generic.instance id="Promise.symbol12<string | Promise<string>, \"local\">" template=Promise.symbol12 arguments=(string | Promise<string>, "local")
+/// @generic.instance id="Promise<string | Promise<string>, \"local\">" template=Promise arguments=(string | Promise<string>, "local")
 /// @generic.instance id="Promise<string | Promise<string>>" template=Promise arguments=(string | Promise<string>)
 /// @generic.instance id="PromiseAwaiter<string | Promise<string>>" template=PromiseAwaiter arguments=(string | Promise<string>)
 /// @generic.instance id="PromiseForwarded<string | Promise<string>>" template=PromiseForwarded arguments=(string | Promise<string>)
 /// @generic.instance id="PromiseFulfilled<string | Promise<string>>" template=PromiseFulfilled arguments=(string | Promise<string>)
 /// @generic.instance id="PromisePending<string | Promise<string>>" template=PromisePending arguments=(string | Promise<string>)
+/// @generic.instance id="PromiseReaction.symbol173<string | Promise<string>, \"local\">" template=PromiseReaction.symbol173 arguments=(string | Promise<string>, "local")
+/// @generic.instance id="PromiseReaction<string | Promise<string>, \"local\">" template=PromiseReaction arguments=(string | Promise<string>, "local")
 /// @generic.instance id="PromiseReaction<string | Promise<string>>" template=PromiseReaction arguments=(string | Promise<string>)
 /// @generic.instance id="PromiseState<string | Promise<string>>" template=PromiseState arguments=(string | Promise<string>)
 /// @generic.instance id="PromiseWaiter<string | Promise<string>>" template=PromiseWaiter arguments=(string | Promise<string>)
@@ -490,19 +600,7 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 /// @generic.instantiation id="Promise.then#2<int32, string | Promise<string>>" template=Promise.then#2 arguments=(int32, string | Promise<string>)
 /// @generic.instantiation id=Promise.then#1<int32> template=Promise.then#1 arguments=(int32)
 /// @generic.instantiation id=Promise.then#2<int32> template=Promise.then#2 arguments=(int32)
-/// @generic.instance id="Promise.fulfill<string | Promise<string>>" template=Promise.fulfill arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.pending<string | Promise<string>>" template=Promise.pending arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.queueWaiter<string | Promise<string>>" template=Promise.queueWaiter arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.queueWaiters<string | Promise<string>>" template=Promise.queueWaiters arguments=(string | Promise<string>)
-/// @generic.instance id="Promise.symbol12<string | Promise<string>, \"local\">" template=Promise.symbol12 arguments=(string | Promise<string>, "local")
 /// @generic.instance id="Promise.then#2<int32, string | Promise<string>>" template=Promise.then#2 arguments=(int32, string | Promise<string>)
-/// @generic.instance id="Promise<string | Promise<string>, \"local\">" template=Promise arguments=(string | Promise<string>, "local")
-/// @generic.instance id="PromiseReaction.symbol167<int32, \"local\">" template=PromiseReaction.symbol167 arguments=(int32, "local")
-/// @generic.instance id="PromiseReaction<int32, \"local\">" template=PromiseReaction arguments=(int32, "local")
-/// @generic.instance id=Promise.addReaction<int32> template=Promise.addReaction arguments=(int32)
-/// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
-/// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
-/// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
 /// @type.symbol symbol=symbol5 type=Function<(), string | Promise<string>, "readonly">
 /// @type.node type=Function<(), string | Promise<string>, "readonly">
 
@@ -550,8 +648,32 @@ import { Promise } from "destack:async";
 declare const input: Promise<string>;
 /// @type.symbol symbol=input source=input type=Promise<string>
 /// @resolution.pattern source=input kind=binding target=input
+/// @generic.instance id="Promise.symbol12<string, \"local\">" template=Promise.symbol12 arguments=(string, "local")
+/// @generic.instance id="Promise.symbol12<void, \"local\">" template=Promise.symbol12 arguments=(void, "local")
+/// @generic.instance id="Promise<string, \"local\">" template=Promise arguments=(string, "local")
+/// @generic.instance id="Promise<void, \"local\">" template=Promise arguments=(void, "local")
+/// @generic.instance id="PromiseReaction.symbol173<string, \"local\">" template=PromiseReaction.symbol173 arguments=(string, "local")
+/// @generic.instance id="PromiseReaction.symbol173<void, \"local\">" template=PromiseReaction.symbol173 arguments=(void, "local")
+/// @generic.instance id="PromiseReaction<string, \"local\">" template=PromiseReaction arguments=(string, "local")
+/// @generic.instance id="PromiseReaction<void, \"local\">" template=PromiseReaction arguments=(void, "local")
 /// @generic.instance id=Awaitable<string> template=Awaitable arguments=(string)
 /// @generic.instance id=Awaitable<void> template=Awaitable arguments=(void)
+/// @generic.instance id=Promise.addReaction<string> template=Promise.addReaction arguments=(string)
+/// @generic.instance id=Promise.addReaction<void> template=Promise.addReaction arguments=(void)
+/// @generic.instance id=Promise.addWaiter<string> template=Promise.addWaiter arguments=(string)
+/// @generic.instance id=Promise.addWaiter<void> template=Promise.addWaiter arguments=(void)
+/// @generic.instance id=Promise.forward<string> template=Promise.forward arguments=(string)
+/// @generic.instance id=Promise.forward<void> template=Promise.forward arguments=(void)
+/// @generic.instance id=Promise.fulfill<string> template=Promise.fulfill arguments=(string)
+/// @generic.instance id=Promise.fulfill<void> template=Promise.fulfill arguments=(void)
+/// @generic.instance id=Promise.observe<string> template=Promise.observe arguments=(string)
+/// @generic.instance id=Promise.observe<void> template=Promise.observe arguments=(void)
+/// @generic.instance id=Promise.pending<string> template=Promise.pending arguments=(string)
+/// @generic.instance id=Promise.pending<void> template=Promise.pending arguments=(void)
+/// @generic.instance id=Promise.queueWaiter<string> template=Promise.queueWaiter arguments=(string)
+/// @generic.instance id=Promise.queueWaiter<void> template=Promise.queueWaiter arguments=(void)
+/// @generic.instance id=Promise.queueWaiters<string> template=Promise.queueWaiters arguments=(string)
+/// @generic.instance id=Promise.queueWaiters<void> template=Promise.queueWaiters arguments=(void)
 /// @generic.instance id=Promise<string> template=Promise arguments=(string)
 /// @generic.instance id=Promise<void> template=Promise arguments=(void)
 /// @generic.instance id=PromiseAwaiter<string> template=PromiseAwaiter arguments=(string)
@@ -2014,6 +2136,7 @@ const defined = filterMap(values, (value) => {
         /// @resolution.name source=value target=symbol8.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=symbol8.value
+        /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
     }
     return undefined;
@@ -2382,6 +2505,7 @@ if (value != null) {
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=int32 | null | undefined arms=int32
 
 }
 "#,
@@ -2538,6 +2662,9 @@ for (const value of 0..10) {
 
 === dir ===
 for (const value of 0..10) {
+/// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int64>)" next="next(parameters=(), arguments=(), return=IteratorResult<int64>)"
+/// @generic.instantiation id=iterator#1<int64> template=iterator#1 arguments=(int64)
+/// @generic.instantiation id=next<int64> template=next arguments=(int64)
 /// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 
@@ -2721,6 +2848,7 @@ const doubled = collect(collect(starts, (start) => {
         /// @resolution.name source=start target=symbol8.start
         /// @resolution.place source=start placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=start root=symbol8.start
+        /// @resolution.narrowing source=start union=int32 | undefined arms=int32
 
     }
     return undefined;

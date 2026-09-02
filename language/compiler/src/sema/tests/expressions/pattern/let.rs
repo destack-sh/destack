@@ -49,6 +49,7 @@ function parse(status: "ready" | "error"): "ready" {
     /// @resolution.name source=status target=parse.status
     /// @resolution.place source=status placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=status root=parse.status
+    /// @resolution.narrowing source=status union="ready" | "error" arms="ready"
 
 }
 "#,

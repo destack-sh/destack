@@ -500,6 +500,9 @@ function double(depth: isize): string {
     /// @resolution.pattern source=output kind=binding target=double.output
 
     for (const _ of 0..depth) {
+    /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<isize>)" next="next(parameters=(), arguments=(), return=IteratorResult<isize, void>)"
+    /// @generic.instantiation id=iterator#1<isize> template=iterator#1 arguments=(isize)
+    /// @generic.instantiation id=next<isize> template=next arguments=(isize)
     /// @resolution.pattern source=_ kind=wildcard
     /// @resolution.name source=depth target=double.depth
     /// @resolution.place source=depth placement="local" lifetime="frame" access="exclusive"

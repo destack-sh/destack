@@ -665,10 +665,8 @@ impl CheckState<'_> {
             dir::Access::Readonly,
         )?;
 
-        // materialize the answer for narrowed receivers
-        if receiver != subject.target {
-            self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
-        }
+        // project the answer onto its physical receiver arms
+        self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
 
         // report a key the receiver exposes nowhere, else commit what the lookup found
         if lookup.is_empty() {

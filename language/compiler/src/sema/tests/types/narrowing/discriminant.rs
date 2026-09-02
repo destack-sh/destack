@@ -374,6 +374,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
         /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values[0] root=read.values keys=[0]
         /// @resolution.subscript source=values[0] type="pending" | "ready" kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame \"pending\" | \"ready\", \"exclusive\">)"
+        /// @resolution.narrowing source=values[0] union="pending" | "ready" arms="ready"
 
     }
 
@@ -485,7 +486,7 @@ function read(state: State): int32 {
     /// @type.node source=state type=Pending | Fulfilled
     /// @type.node source=state.kind type="pending" | "fulfilled"
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending, target=field(receiver=dynamic(Pending, constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled, target=field(receiver=dynamic(Fulfilled, constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
+    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending, target=field(receiver=dynamic(Pending adjustments=(union.payload(Pending | Fulfilled, Pending, Pending)), constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled, target=field(receiver=dynamic(Fulfilled adjustments=(union.payload(Pending | Fulfilled, Fulfilled, Fulfilled)), constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
     /// @resolution.operator source="state.kind == \"pending\"" type=boolean operator="==" kind=builtin operands=[state.kind as "pending" | "fulfilled" families=(string), "pending" as "pending" families=(string)]
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
@@ -500,6 +501,7 @@ function read(state: State): int32 {
         /// @resolution.member source=state.reactions receiver=Pending type=int32 kind=field target_receiver=Pending dispatch=dynamic constraint=Pending key=reactions target=Pending.reactions target_type=int32
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
+        /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Pending
         /// @resolution.place source=state.reactions placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state.reactions root=read.state keys=[reactions]
 
@@ -512,6 +514,7 @@ function read(state: State): int32 {
     /// @resolution.member source=state.value receiver=Fulfilled type=int32 kind=field target_receiver=Fulfilled dispatch=dynamic constraint=Fulfilled key=value target=Fulfilled.value target_type=int32
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
+    /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Fulfilled
     /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.value root=read.state keys=[value]
 
@@ -635,6 +638,7 @@ function read(state: State): int32 {
         /// @resolution.member source=state.reactions receiver=Pending type=int32 kind=field target_receiver=Pending dispatch=dynamic constraint=Pending key=reactions target=Pending.reactions target_type=int32
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
+        /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Pending
         /// @resolution.place source=state.reactions placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state.reactions root=read.state keys=[reactions]
 
@@ -647,6 +651,7 @@ function read(state: State): int32 {
     /// @resolution.member source=state.value receiver=Fulfilled type=int32 kind=field target_receiver=Fulfilled dispatch=dynamic constraint=Fulfilled key=value target=Fulfilled.value target_type=int32
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
+    /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Fulfilled
     /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.value root=read.state keys=[value]
 
@@ -769,7 +774,7 @@ function read(initial: State, next: State): int32 {
     /// @type.node source=state type=Pending | Fulfilled
     /// @type.node source=state.kind type="pending" | "fulfilled"
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending, target=field(receiver=dynamic(Pending, constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled, target=field(receiver=dynamic(Fulfilled, constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
+    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending, target=field(receiver=dynamic(Pending adjustments=(union.payload(Pending | Fulfilled, Pending, Pending)), constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled, target=field(receiver=dynamic(Fulfilled adjustments=(union.payload(Pending | Fulfilled, Fulfilled, Fulfilled)), constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
     /// @resolution.operator source="state.kind == \"pending\"" type=boolean operator="==" kind=builtin operands=[state.kind as "pending" | "fulfilled" families=(string), "pending" as "pending" families=(string)]
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
@@ -806,6 +811,7 @@ function read(initial: State, next: State): int32 {
     /// @resolution.member source=state.value receiver=Fulfilled type=int32 kind=field target_receiver=Fulfilled dispatch=dynamic constraint=Fulfilled key=value target=Fulfilled.value target_type=int32
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
+    /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Fulfilled
     /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.value root=read.state keys=[value]
 
@@ -1114,6 +1120,7 @@ class Cell<T> {
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.state placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
+            /// @resolution.narrowing source=this.state union=State<T#5> arms=Fulfilled<T#5>
             /// @resolution.place source=this.state.value placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state.value root=this keys=[state, value]
 
@@ -1129,6 +1136,7 @@ class Cell<T> {
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.state placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this.state root=this keys=[state]
+        /// @resolution.narrowing source=this.state union=State<T#5> arms=Pending<T#5>
         /// @resolution.place source=this.state.tail placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
         /// @resolution.access source=this.state.tail root=this keys=[state, tail]
 
@@ -1139,6 +1147,7 @@ class Cell<T> {
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.state placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
+            /// @resolution.narrowing source=this.state union=State<T#5> arms=Pending<T#5>
             /// @resolution.pattern.assign source=this.state.head kind=place
             /// @resolution.access source=this.state.head root=this keys=[state, head]
             /// @resolution.assignment source=this.state.head write="receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.head, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
@@ -1153,6 +1162,7 @@ class Cell<T> {
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.state placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
+            /// @resolution.narrowing source=this.state union=State<T#5> arms=Pending<T#5>
             /// @resolution.pattern.assign source=this.state.tail kind=place
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
             /// @resolution.assignment source=this.state.tail write="receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.tail, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
@@ -1169,8 +1179,10 @@ class Cell<T> {
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.state placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
+            /// @resolution.narrowing source=this.state union=State<T#5> arms=Pending<T#5>
             /// @resolution.place source=this.state.tail placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
+            /// @resolution.narrowing source=this.state.tail union=Waiter<T#5> | undefined arms=Waiter<T#5>
             /// @resolution.pattern.assign source=this.state.tail.next kind=place
             /// @resolution.access source=this.state.tail.next root=this keys=[state, tail, next]
             /// @resolution.assignment source=this.state.tail.next write="receiver=Waiter<T#5>, target=field(receiver=Waiter<T#5>, target=Waiter.next, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
@@ -1185,6 +1197,7 @@ class Cell<T> {
             /// @resolution.access source=this root=this
             /// @resolution.place source=this.state placement=Cell.poke.'a lifetime=Cell.poke.'a access="exclusive"
             /// @resolution.access source=this.state root=this keys=[state]
+            /// @resolution.narrowing source=this.state union=State<T#5> arms=Pending<T#5>
             /// @resolution.pattern.assign source=this.state.tail kind=place
             /// @resolution.access source=this.state.tail root=this keys=[state, tail]
             /// @resolution.assignment source=this.state.tail write="receiver=Pending<T#5>, target=field(receiver=Pending<T#5>, target=Pending.tail, type=Waiter<T#5> | undefined), type=Waiter<T#5> | undefined" type=Waiter<T#5> | undefined
@@ -1291,6 +1304,7 @@ class Child extends Base {
         /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
         /// @resolution.access source=super.label root=this keys=[label]
+        /// @resolution.narrowing source=super.label union=string | undefined arms=string
 
         super.label = next;
         /// @resolution.receiver source=super kind=super declaration=Child type=Base
@@ -1412,6 +1426,7 @@ class Child extends Base {
         /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=super root=this
         /// @resolution.access source=super.label root=this keys=[label]
+        /// @resolution.narrowing source=super.label union=string | undefined arms=string
 
         super.label = next;
         /// @resolution.receiver source=super kind=super declaration=Child type=Base
@@ -1540,6 +1555,7 @@ class Child extends Base {
             /// @resolution.place source=super placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=super root=this
             /// @resolution.access source=super.label root=this keys=[label]
+            /// @resolution.narrowing source=super.label union=string | undefined arms=string
 
             super.label = next;
             /// @resolution.receiver source=super kind=super declaration=Child type=Base
@@ -1641,6 +1657,7 @@ function read(this: Box): string {
     /// @resolution.access source=this root=this
     /// @resolution.place source=this.label placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=this.label root=this keys=[label]
+    /// @resolution.narrowing source=this.label union=string | undefined arms=string
 
 }
 "#);
@@ -1886,6 +1903,7 @@ function read(frame: Frame): int32 {
         /// @resolution.member source=frame.length receiver=Header type=int32 kind=field target_receiver=Header key=length target=Header.length target_type=int32
         /// @resolution.place source=frame placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=frame root=read.frame
+        /// @resolution.narrowing source=frame union=Header | Trailer arms=Header
         /// @resolution.place source=frame.length placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=frame.length root=read.frame keys=[length]
 
@@ -1898,6 +1916,7 @@ function read(frame: Frame): int32 {
     /// @resolution.member source=frame.checksum receiver=Trailer type=int32 kind=field target_receiver=Trailer key=checksum target=Trailer.checksum target_type=int32
     /// @resolution.place source=frame placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=frame root=read.frame
+    /// @resolution.narrowing source=frame union=Header | Trailer arms=Trailer
     /// @resolution.place source=frame.checksum placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=frame.checksum root=read.frame keys=[checksum]
 
@@ -2014,6 +2033,7 @@ function read(outcome: Outcome): int32 {
         /// @resolution.member source=outcome.value receiver=Success type=int32 kind=field target_receiver=Success key=value target=Success.value target_type=int32
         /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=outcome root=read.outcome
+        /// @resolution.narrowing source=outcome union=Success | Failure arms=Success
         /// @resolution.place source=outcome.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=outcome.value root=read.outcome keys=[value]
 
@@ -2026,6 +2046,7 @@ function read(outcome: Outcome): int32 {
     /// @resolution.member source=outcome.code receiver=Failure type=int32 kind=field target_receiver=Failure key=code target=Failure.code target_type=int32
     /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=read.outcome
+    /// @resolution.narrowing source=outcome union=Success | Failure arms=Failure
     /// @resolution.place source=outcome.code placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome.code root=read.outcome keys=[code]
 
@@ -2404,6 +2425,7 @@ function read(state: &readonly State): int32 {
         /// @resolution.member source=state.value receiver=&read.'a readonly Ready type=int32 kind=field target_receiver=&read.'a readonly Ready key=value target=Ready.value target_type=int32
         /// @resolution.place source=state placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=state root=read.state
+        /// @resolution.narrowing source=state union=&read.'a readonly State arms=&read.'a readonly Ready
         /// @resolution.place source=state.value placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=state.value root=read.state keys=[value]
 
@@ -2416,6 +2438,7 @@ function read(state: &readonly State): int32 {
     /// @resolution.member source=state.waiting receiver=&read.'a readonly Pending type=int32 kind=field target_receiver=&read.'a readonly Pending key=waiting target=Pending.waiting target_type=int32
     /// @resolution.place source=state placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=state root=read.state
+    /// @resolution.narrowing source=state union=&read.'a readonly State arms=&read.'a readonly Pending
     /// @resolution.place source=state.waiting placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=state.waiting root=read.state keys=[waiting]
 
@@ -2519,7 +2542,7 @@ function read(state: State): int32 {
     /// @type.node source=state type=Pending | Fulfilled
     /// @type.node source=state.kind type="pending" | "fulfilled"
     /// @resolution.name source=state target=read.state
-    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending, target=field(receiver=dynamic(Pending, constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled, target=field(receiver=dynamic(Fulfilled, constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
+    /// @resolution.member source=state.kind type="pending" | "fulfilled" kind=union arms=[receiver=Pending, target=field(receiver=dynamic(Pending adjustments=(union.payload(Pending | Fulfilled, Pending, Pending)), constraint=Pending), target=Pending.kind, type="pending"), type="pending", receiver=Fulfilled, target=field(receiver=dynamic(Fulfilled adjustments=(union.payload(Pending | Fulfilled, Fulfilled, Fulfilled)), constraint=Fulfilled), target=Fulfilled.kind, type="fulfilled"), type="fulfilled"]
     /// @resolution.operator source="state.kind !== \"pending\"" type=boolean operator="!==" kind=builtin operands=[state.kind as "pending" | "fulfilled" families=(string), "pending" as "pending" | "fulfilled" families=(string)]
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
@@ -2534,6 +2557,7 @@ function read(state: State): int32 {
         /// @resolution.member source=state.value receiver=Fulfilled type=int32 kind=field target_receiver=Fulfilled dispatch=dynamic constraint=Fulfilled key=value target=Fulfilled.value target_type=int32
         /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state root=read.state
+        /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Fulfilled
         /// @resolution.place source=state.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=state.value root=read.state keys=[value]
 
@@ -2546,6 +2570,7 @@ function read(state: State): int32 {
     /// @resolution.member source=state.reactions receiver=Pending type=int32 kind=field target_receiver=Pending dispatch=dynamic constraint=Pending key=reactions target=Pending.reactions target_type=int32
     /// @resolution.place source=state placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state root=read.state
+    /// @resolution.narrowing source=state union=Pending | Fulfilled arms=Pending
     /// @resolution.place source=state.reactions placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=state.reactions root=read.state keys=[reactions]
 

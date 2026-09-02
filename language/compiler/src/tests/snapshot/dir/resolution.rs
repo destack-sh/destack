@@ -51,6 +51,9 @@ impl SnapshotTable for dir::DecisionTable<'_> {
                 dir::Decision::Residual(resolution) => {
                     add_residual_decision_row(builder, node_id, *resolution);
                 }
+                dir::Decision::Iteration(resolution) => {
+                    add_iteration_decision_row(builder, node_id, resolution);
+                }
                 dir::Decision::Coverage(resolution) => {
                     add_coverage_decision_row(builder, node_id, resolution);
                 }
@@ -107,19 +110,24 @@ impl SnapshotTable for dir::DecisionTable<'_> {
         for (node_id, resolution) in self.place_entries() {
             add_place_resolution_row(builder, node_id, resolution);
         }
+        for (node_id, narrowing) in self.narrowing_entries() {
+            add_narrowing_row(builder, node_id, narrowing);
+        }
 
         // summarize the visible decisions
         let decision_count = self.decision_entries().count();
         let access_count = self.access_entries().count();
         let place_count = self.place_entries().count();
-        if decision_count == 0 && access_count == 0 && place_count == 0 {
+        let narrowing_count = self.narrowing_entries().count();
+        if decision_count == 0 && access_count == 0 && place_count == 0 && narrowing_count == 0 {
             return;
         }
 
         let row = SnapshotRow::new(SnapshotAnchor::End, "resolution", "summary")
             .count_field("resolutions", decision_count)
             .count_field("accesses", access_count)
-            .count_field("places", place_count);
+            .count_field("places", place_count)
+            .count_field("narrowings", narrowing_count);
         builder.push(row);
     }
 }
@@ -650,6 +658,31 @@ fn add_call_decision_row(
     }
 }
 
+/// Add one iteration protocol row.
+fn add_iteration_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::IterationDecision,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "iteration")
+        .optional_field("source", builder.node_source(node_id))
+        .field("iterator", call_label(builder, &resolution.iterator))
+        .field("next", call_label(builder, &resolution.next));
+    let row = match &resolution.awaits {
+        Some(awaited) => row
+            .field("await", call_label(builder, &awaited.call))
+            .field(
+                "awaits",
+                match awaited.target {
+                    dir::AwaitTarget::Result => "result",
+                    dir::AwaitTarget::Element => "element",
+                },
+            ),
+        None => row,
+    };
+    builder.push(row);
+}
+
 /// Add one singular call row.
 fn add_call_row(
     builder: &mut DirSnapshotBuilder<'_>,
@@ -763,6 +796,26 @@ fn add_place_resolution_row(
         .type_field("placement", builder.global_type_label(resolution.placement))
         .type_field("lifetime", builder.global_type_label(resolution.lifetime))
         .type_field("access", builder.global_type_label(resolution.access));
+
+    builder.push(row);
+}
+
+/// Add one narrowing row.
+fn add_narrowing_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    narrowing: &dir::Narrowing,
+) {
+    let arms = narrowing
+        .arms
+        .iter()
+        .map(|arm| builder.global_type_label(*arm))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "narrowing")
+        .optional_field("source", builder.node_source(node_id))
+        .type_field("union", builder.global_type_label(narrowing.union))
+        .type_field("arms", arms);
 
     builder.push(row);
 }

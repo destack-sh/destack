@@ -334,6 +334,30 @@ impl CheckState<'_> {
             origin,
             dir::TypeOperation::Awaited(dir::UnaryType { target: value }),
         )?;
+
+        // select and record the park call this await runs
+        let flags = self.type_flags(result)?;
+        if !flags.has_error() {
+            let receiver = self.expression_value(awaited_site, value)?;
+            let key = dir::StaticKey::Name(self.strings().intern("park"));
+            let selected = self.select_language_protocol_call(
+                origin,
+                receiver,
+                value,
+                dir::MemberSpace::Static,
+                key,
+                dir::LanguageItem::Awaitable,
+                &[result],
+                &[result],
+                &[dir::ArgumentSource::Provided(
+                    awaited.into_global_any(module),
+                )],
+            )?;
+            if let Some((_, call)) = selected {
+                self.commit_decision(node.into_any(), dir::Decision::Call(call.resolution))?;
+            }
+        }
+
         self.commit_node_type(node.into_any(), result)?;
 
         Ok(())

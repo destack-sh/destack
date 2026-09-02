@@ -251,9 +251,13 @@ impl CheckState<'_> {
         let elements = match variants {
             Some(variants) => SmallVec::from_vec(variants),
             None => match self.ty(source)? {
-                dir::Type::Union(union) => {
-                    SmallVec::<[_; 4]>::from_slice(self.type_ids(source.module_id, union.elements)?)
-                }
+                // distribute over the canonical flat members, seeing through alias arms
+                dir::Type::Union(union) => match self.canonical_union_members(origin, source)? {
+                    Some(members) => members,
+                    None => SmallVec::<[_; 4]>::from_slice(
+                        self.type_ids(source.module_id, union.elements)?,
+                    ),
+                },
                 dir::Type::Variable(_) | dir::Type::Parameter(_) => SmallVec::from_slice(&[source]),
                 // expand or defer operations before distributing
                 dir::Type::Operation(operation) => {

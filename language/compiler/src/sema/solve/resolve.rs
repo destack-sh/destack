@@ -1167,7 +1167,7 @@ impl CheckState<'_> {
             }
         }
 
-        // keep the space of a region slot's first closed provenance, meeting its extents
+        // keep the space of a region slot's first closed region, meeting its extents
         if side == BoundSide::Lower
             && let dir::Type::Region(region) = self.ty(self.shallow_resolve(bound)?)?
             && let Some(space) = self.place_space(region.space)?
@@ -1211,7 +1211,7 @@ impl CheckState<'_> {
             self.settle_numeric_kind(variable, origin, cause)?;
         }
 
-        // take a place slot's first closed provenance, checking later provenances against it
+        // take a place slot's first closed place, checking later places against it
         if side == BoundSide::Lower
             && self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Place)
             && !self.type_flags(bound.ty)?.has_variable()

@@ -207,7 +207,7 @@ function read(grid: &readonly Grid): int32 {
     /// @resolution.place source=grid placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=grid root=read.grid
     /// @generic.instantiation id="view<\"readonly\">" template=view arguments=("readonly")
-    /// @generic.instance id="WithAccess<&'frame Grid, \"readonly\">" template=WithAccess arguments=(&'frame Grid, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'frame readonly Grid)
+    /// @generic.instance id="WithAccess<&'bound0 Grid, \"readonly\">" template=WithAccess arguments=(&'bound0 Grid, "readonly") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'bound0 readonly Grid)
     /// @generic.instance id="view<\"readonly\">" template=view arguments=("readonly") evaluated=(<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 => <view.'a>(this: &view.'a readonly Grid) => int32, WithAccess<&view.'a Grid, A> => &view.'a readonly Grid)
 
 }
@@ -228,7 +228,7 @@ function write(grid: &exclusive Grid): int32 {
     /// @resolution.place source=grid placement=write.'a lifetime=write.'a access="exclusive"
     /// @resolution.access source=grid root=write.grid
     /// @generic.instantiation id="view<\"exclusive\">" template=view arguments=("exclusive")
-    /// @generic.instance id="WithAccess<&'frame Grid, \"exclusive\">" template=WithAccess arguments=(&'frame Grid, "exclusive") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'frame exclusive Grid)
+    /// @generic.instance id="WithAccess<&'bound0 Grid, \"exclusive\">" template=WithAccess arguments=(&'bound0 Grid, "exclusive") evaluated=(<WithAccess.Q, const WithAccess.A: Access>(intrinsic) => WithAccess<WithAccess.Q, WithAccess.A> => <WithAccess.Q, const WithAccess.A: Access>(intrinsic) => &'bound0 exclusive Grid)
     /// @generic.instance id="view<\"exclusive\">" template=view arguments=("exclusive") evaluated=(<view.'a>(this: WithAccess<&view.'a Grid, A>) => int32 => <view.'a>(this: &view.'a exclusive Grid) => int32, WithAccess<&view.'a Grid, A> => &view.'a exclusive Grid)
 
 }

@@ -323,3 +323,88 @@ class Store {
 "#, r#"
 "#);
 }
+
+#[test]
+fn test_tie_an_elided_method_return_to_its_implicit_receiver() {
+    let session = TestSession::single(
+        r#"
+struct Own {
+    message: string;
+
+    inherent(): &readonly string {
+        return this.message;
+    }
+}
+
+export extension of Own {
+    extended(): &readonly string {
+        return this.message;
+    }
+}
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+struct Own {
+    message: string;
+
+    inherent(): &'a readonly string {
+        return this.message as &'a readonly string;
+    }
+}
+
+export extension of Own {
+    extended(): &'a readonly string {
+        return this.message as &'a readonly string;
+    }
+}
+
+=== dir ===
+struct Own {
+/// @type.symbol symbol=Own type=Own
+/// @definition.struct symbol=Own
+/// @definition.field symbol=Own.message source="message: string" key=message type=string
+/// @definition.method symbol=Own.inherent slot=inherent type=<Own.inherent.'a>(this: &Own.inherent.'a readonly this) => &Own.inherent.'a readonly string
+
+    message: string;
+    /// @type.symbol symbol=Own.message source="message: string" type=string
+
+    inherent(): &readonly string {
+    /// @generic.template symbol=Own.inherent parameters=('a)
+    /// @type.symbol symbol=Own.inherent type=<Own.inherent.'a>(this: &Own.inherent.'a readonly this) => &Own.inherent.'a readonly string
+    /// @type.symbol symbol=Own.inherent.this type=&Own.inherent.'a readonly Own
+
+        return this.message;
+        /// @resolution.member source=this.message receiver=&Own.inherent.'a readonly Own type=Readonly<string> kind=field target_receiver=&Own.inherent.'a readonly Own key=message target=Own.message target_type=Readonly<string>
+        /// @resolution.receiver source=this kind=this declaration=Own type=&Own.inherent.'a readonly Own
+        /// @resolution.place source=this placement=Own.inherent.'a lifetime=Own.inherent.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.message placement=Own.inherent.'a lifetime=Own.inherent.'a access="readonly"
+        /// @resolution.access source=this.message root=this keys=[message]
+
+    }
+}
+
+export extension of Own {
+/// @definition.extension symbol=<module>#2 form=exported target=Own
+/// @definition.method symbol=extended slot=extended type=<extended.'a>(this: &extended.'a readonly this) => &extended.'a readonly string
+/// @resolution.name source=Own target=Own
+
+    extended(): &readonly string {
+    /// @generic.template symbol=extended parameters=('a)
+    /// @type.symbol symbol=extended type=<extended.'a>(this: &extended.'a readonly this) => &extended.'a readonly string
+    /// @type.symbol symbol=extended.this type=&extended.'a readonly Own
+
+        return this.message;
+        /// @resolution.member source=this.message receiver=&extended.'a readonly Own type=Readonly<string> kind=field target_receiver=&extended.'a readonly Own key=message target=Own.message target_type=Readonly<string>
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&extended.'a readonly Own
+        /// @resolution.place source=this placement=extended.'a lifetime=extended.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @resolution.place source=this.message placement=extended.'a lifetime=extended.'a access="readonly"
+        /// @resolution.access source=this.message root=this keys=[message]
+
+    }
+}
+"#, "");
+}

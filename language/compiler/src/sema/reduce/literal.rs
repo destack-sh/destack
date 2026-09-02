@@ -5,8 +5,18 @@ use smallvec::SmallVec;
 use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
 
-/// Maximum alternatives one template literal expands into.
-const TEMPLATE_EXPANSION_LIMIT: usize = 4096;
+/// The member count past which a template literal stops expanding.
+const TEMPLATE_EXPANSION_LIMIT: usize = 100_000;
+
+/// The printable alternatives one template span closes to.
+enum SpanChoices {
+    /// Every alternative the span prints.
+    Closed(Vec<String>),
+    /// The span stays symbolic.
+    Open,
+    /// The span alone outruns the expansion bound.
+    TooComplex,
+}
 
 impl CheckState<'_> {
     /// Reduce one string mapping operation.
@@ -179,9 +189,15 @@ impl CheckState<'_> {
             }
 
             match self.template_span_choices(origin, span)? {
-                Some(choices) => printed.push(choices),
+                SpanChoices::Closed(choices) => printed.push(choices),
+                // reject a span past the expansion bound
+                SpanChoices::TooComplex => {
+                    self.report_template_literal_too_complex(origin)?;
+
+                    return Ok(Some(self.intern_type(dir::Type::Error)?));
+                }
                 // keep the flattened template symbolic while a span stays open
-                None => {
+                SpanChoices::Open => {
                     if !spliced {
                         return Ok(None);
                     }
@@ -200,10 +216,15 @@ impl CheckState<'_> {
             }
         }
 
-        // wide distributions stay symbolic
-        let combinations: usize = printed.iter().map(Vec::len).product();
-        if combinations > TEMPLATE_EXPANSION_LIMIT {
-            return Ok(None);
+        // reject distributions past the expansion bound
+        let combinations = printed
+            .iter()
+            .map(Vec::len)
+            .try_fold(1usize, |product, len| product.checked_mul(len));
+        if combinations.is_none_or(|combinations| combinations > TEMPLATE_EXPANSION_LIMIT) {
+            self.report_template_literal_too_complex(origin)?;
+
+            return Ok(Some(self.intern_type(dir::Type::Error)?));
         }
 
         // interleave literal segments with every printed alternative
@@ -241,7 +262,7 @@ impl CheckState<'_> {
         &mut self,
         origin: Origin,
         span: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<Vec<String>>> {
+    ) -> CompilerResult<SpanChoices> {
         let choices = match self.ty(span)? {
             // distribute a union span's printable alternatives
             dir::Type::Union(union) => {
@@ -251,8 +272,8 @@ impl CheckState<'_> {
                 for element in elements {
                     let element = self.normalize(origin, element)?;
                     match self.template_span_choices(origin, element)? {
-                        Some(texts) => choices.extend(texts),
-                        None => return Ok(None),
+                        SpanChoices::Closed(texts) => choices.extend(texts),
+                        open => return Ok(open),
                     }
                 }
 
@@ -262,13 +283,31 @@ impl CheckState<'_> {
             dir::Type::Primitive(dir::PrimitiveType::Boolean) => {
                 vec!["false".to_string(), "true".to_string()]
             }
+            // print every integer of a bounded range span
+            dir::Type::Range(dir::RangeType {
+                start: Some(dir::Literal::Integer(start)),
+                end: Some(dir::Literal::Integer(end)),
+                is_inclusive,
+            }) => {
+                let end = if is_inclusive { end } else { end - 1 };
+                if end < start {
+                    return Ok(SpanChoices::Closed(Vec::new()));
+                }
+                let fits = usize::try_from(end - start + 1)
+                    .is_ok_and(|count| count <= TEMPLATE_EXPANSION_LIMIT);
+                if !fits {
+                    return Ok(SpanChoices::TooComplex);
+                }
+
+                (start..=end).map(|value| value.to_string()).collect()
+            }
             _ => match self.template_piece_text(span)? {
                 Some(text) => vec![text],
-                None => return Ok(None),
+                None => return Ok(SpanChoices::Open),
             },
         };
 
-        Ok(Some(choices))
+        Ok(SpanChoices::Closed(choices))
     }
 
     /// Evaluate one static binary operation over literal operands.

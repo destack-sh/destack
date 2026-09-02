@@ -179,6 +179,7 @@ if (value is string) {
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=string | int32 arms=string
 
 } else {
     value satisfies int32;
@@ -187,6 +188,7 @@ if (value is string) {
     /// @resolution.name source=value target=value
     /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=string | int32 arms=int32
 
 }
 "#,

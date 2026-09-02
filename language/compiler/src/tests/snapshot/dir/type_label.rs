@@ -396,6 +396,9 @@ impl DirSnapshotBuilder<'_> {
                 let tick = match lifetime.as_str() {
                     "\"static\"" => Some("'static".to_string()),
                     "\"frame\"" => Some("'frame".to_string()),
+                    bound if bound.starts_with("\"bound") => {
+                        Some(format!("'{}", bound.trim_matches('"')))
+                    }
                     _ => lifetime
                         .rsplit('.')
                         .next()

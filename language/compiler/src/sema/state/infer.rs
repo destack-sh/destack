@@ -26,7 +26,7 @@ pub(in crate::sema) struct InferContext {
     /// Open variables standing for uninferred symbol types.
     pub(in crate::sema) symbol_variables: FxIndexMap<dir::GlobalSymbolId, dir::TypeVariableId>,
 
-    // provenance
+    // regions
     /// Interned check origins.
     pub(in crate::sema) origins: OriginArena,
     /// Interned constraint causes.

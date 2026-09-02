@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{CheckState, Origin};
+use crate::{CompilerError, CompilerResult};
 
 /// One union type split around its nullish elements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -99,8 +99,8 @@ impl CheckState<'_> {
         }
     }
 
-    /// Canonicalize one union element through import binders and aliases to one form.
-    fn canonical_union_element(
+    /// Canonicalize one union application through import binders and aliases to one form.
+    fn canonical_union_application(
         &mut self,
         element: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -148,7 +148,7 @@ impl CheckState<'_> {
         let mut key_domains = SmallVec::<[dir::PrimitiveType; 2]>::new();
         for element in elements {
             let element = self.shallow_resolve(element)?;
-            let element = self.canonical_union_element(element)?;
+            let element = self.canonical_union_application(element)?;
 
             // flatten nested unions into one element list
             let elements = match self.ty(element)? {
@@ -513,5 +513,84 @@ impl CheckState<'_> {
         let union = self.normalized_union_type(reduced)?;
 
         Ok(Some(union))
+    }
+
+    /// Resolve one selected member to its canonical leaf in the union's flat view.
+    pub(in crate::sema) fn canonical_union_leaf(
+        &mut self,
+        origin: Origin,
+        union: dir::GlobalTypeId,
+        member: dir::GlobalTypeId,
+        site: &'static str,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // resolve against the bare union head the member lists are recorded on
+        let union = self.form_chain(origin, union)?.base();
+        let Some(leaves) = self.union_leaves(origin, union)? else {
+            return Err(CompilerError::Internal {
+                message: format!("{site} canonicalizing a member outside a union"),
+            });
+        };
+
+        // match the member exactly first
+        if leaves.contains(&member) {
+            return Ok(member);
+        }
+
+        // match the member stored beneath its enclosing forms
+        let base = self.form_chain(origin, member)?.base();
+        if leaves.contains(&base) {
+            return Ok(base);
+        }
+
+        // match the normalized member against each normalized leaf
+        let normal = self.normalize(origin, base)?;
+        for leaf in leaves {
+            if leaf == normal || self.normalize(origin, leaf)? == normal {
+                return Ok(leaf);
+            }
+        }
+
+        Err(CompilerError::Internal {
+            message: format!("{site} selecting a member outside its union's canonical leaves"),
+        })
+    }
+
+    /// Return one union target's members in their canonical flat order.
+    pub(in crate::sema) fn canonical_union_members(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 4]>>> {
+        // reuse the memoized flattening for closed targets
+        let flags = self.type_flags(target)?;
+        let is_closed = !flags.has_variable() && !flags.has_infer() && !flags.has_error();
+        if is_closed && let Some(members) = self.canonical_unions.get(&target) {
+            return Ok(members.clone());
+        }
+
+        let Some(leaves) = self.union_leaves(origin, target)? else {
+            if is_closed {
+                self.canonical_unions.insert(target, None);
+            }
+
+            return Ok(None);
+        };
+
+        // order the members canonically by their bare identity, nullish members last
+        let mut keyed = Vec::with_capacity(leaves.len());
+        for member in leaves {
+            let base = self.form_chain(origin, member)?.base();
+            let is_nullish = matches!(self.ty(base)?, dir::Type::Null | dir::Type::Undefined);
+            keyed.push(((is_nullish, base), member));
+        }
+        keyed.sort();
+        keyed.dedup();
+
+        let members: SmallVec<_> = keyed.into_iter().map(|(_, member)| member).collect();
+        if is_closed {
+            self.canonical_unions.insert(target, Some(members.clone()));
+        }
+
+        Ok(Some(members))
     }
 }

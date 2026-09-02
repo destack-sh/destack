@@ -130,6 +130,7 @@ if (value instanceof User) {
     /// @resolution.member source=value.name receiver=Narrow<User | Team, User> type=string kind=field target_receiver=Narrow<User | Team, User> key=name target=User.name target_type=string
     /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=User | Team arms=User
     /// @resolution.place source=value.name placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value.name root=value keys=[name]
 
@@ -225,6 +226,7 @@ if (value instanceof User) {
     /// @resolution.member source=value.title receiver=Team type=string kind=field target_receiver=Team key=title target=Team.title target_type=string
     /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union=User | Team arms=Team
     /// @resolution.place source=value.title placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value.title root=value keys=[title]
 
@@ -505,7 +507,7 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @type.node source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void kind=union arms=[receiver=Deferred<T#2>, target=Deferred.then, type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void]
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(T#2,), void>) arguments=(provided((value) => {}) as Function<(T#2,), void>) return=void kind=symbol target=Deferred.then receiver=Deferred<T#2> instance="Deferred<T#2>.then<\"local\">"
+        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(T#2,), void>) arguments=(provided((value) => {}) as Function<(T#2,), void>) return=void kind=symbol target=Deferred.then receiver=Deferred<T#2> adjustments=(union.payload(Deferred<T#2> | T#2 & Deferred<*>, Deferred<T#2>, Deferred<T#2>)) instance="Deferred<T#2>.then<\"local\">"
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
         /// @generic.instantiation id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local") owner=adopt
@@ -597,7 +599,7 @@ function adopt<T>(value: T | Deferred<T>): void {
         /// @type.node source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void kind=union arms=[receiver=Deferred<T#2>, target=Deferred.then, type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void]
-        /// @resolution.call source="value.then(() => {})" parameters=(Function<(T#2,), void>) arguments=(provided(() => {}) as Function<(T#2,), void>) return=void kind=symbol target=Deferred.then receiver=Deferred<T#2> instance="Deferred<T#2>.then<\"local\">"
+        /// @resolution.call source="value.then(() => {})" parameters=(Function<(T#2,), void>) arguments=(provided(() => {}) as Function<(T#2,), void>) return=void kind=symbol target=Deferred.then receiver=Deferred<T#2> adjustments=(union.payload(Deferred<T#2> | T#2 & Deferred<*>, Deferred<T#2>, Deferred<T#2>)) instance="Deferred<T#2>.then<\"local\">"
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
         /// @generic.instantiation id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local") owner=adopt

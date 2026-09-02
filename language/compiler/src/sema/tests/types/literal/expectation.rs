@@ -137,9 +137,12 @@ function count(values: &readonly int32[]): int32 {
     /// @resolution.pattern source=total kind=binding target=count.total
 
     for (const value of values) {
+    /// @resolution.iteration iterator="iterator#2(parameters=(), arguments=(), return=Managed<Iterator<int32>, count.'a>)" next="dynamic(Managed<Iterator<int32>, count.'a> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)"
+    /// @generic.instantiation id="iterator#2<int32, count.'a>" template=iterator#2 arguments=(int32, count.'a)
     /// @type.symbol symbol=count.value source=value type=int32
     /// @resolution.pattern source=value kind=binding target=count.value
     /// @resolution.name source=values target=count.values
+    /// @resolution.place source=values placement=count.'a lifetime=count.'a access="readonly"
     /// @resolution.access source=values root=count.values
 
         total += value;
@@ -457,6 +460,9 @@ function sequence(depth: isize): string {
     /// @resolution.pattern source=output kind=binding target=sequence.output
 
     for (const index of 0..depth) {
+    /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<isize>)" next="next(parameters=(), arguments=(), return=IteratorResult<isize, void>)"
+    /// @generic.instantiation id=iterator#1<isize> template=iterator#1 arguments=(isize)
+    /// @generic.instantiation id=next<isize> template=next arguments=(isize)
     /// @type.symbol symbol=sequence.index source=index type=isize
     /// @resolution.pattern source=index kind=binding target=sequence.index
     /// @resolution.name source=depth target=sequence.depth
@@ -550,12 +556,14 @@ const taken = take(() => {
 fn test_default_integer_literals_to_int64_across_operators_and_members() {
     let session = TestSession::single(
         r#"
-const sum = 1 + 1;
-const text = (1).toString();
-const mixed = [1, 2.5];
-let counter = 1;
-counter += 2;
-const compared = counter < 10;
+function settle(): void {
+    const sum = 1 + 1;
+    const text = (1).toString();
+    const mixed = [1, 2.5];
+    let counter = 1;
+    counter += 2;
+    const compared = counter < 10;
+}
 "#,
     );
 
@@ -564,50 +572,57 @@ const compared = counter < 10;
         DirRows::checked(),
         r#"
 === annotated ===
-const sum: 2 = 1 + 1;
-const text: MaybeOwned<string> = (1).toString();
-const mixed: float64[] = [1, 2.5];
-let counter: int64 = 1;
-counter += 2;
-const compared: boolean = counter < 10;
+function settle(): void {
+    const sum: 2 = 1 + 1;
+    const text: MaybeOwned<"frame" & "local", string> = (1).toString();
+    const mixed: float64[] = [1, 2.5];
+    let counter: int64 = 1;
+    counter += 2;
+    const compared: boolean = counter < 10;
+}
 
 === dir ===
-const sum = 1 + 1;
-/// @type.symbol symbol=sum source=sum type=2
-/// @resolution.pattern source=sum kind=binding target=sum
-/// @resolution.operator source="1 + 1" type=2 operator="+" kind=builtin operands=[1 as 1 families=(integer), 1 as 1 families=(integer)]
+function settle(): void {
+/// @type.symbol symbol=settle type=() => void
 
-const text = (1).toString();
-/// @type.symbol symbol=text source=text type=MaybeOwned<string>
-/// @resolution.pattern source=text kind=binding target=text
-/// @resolution.member source=(1).toString receiver=1 type=<Number.toString.'a>(this: &Number.toString.'a readonly 1, float64 | undefined?) => MaybeOwned<string> kind=symbol target_receiver=1 target=Number.toString
-/// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<string> kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1))
+    const sum = 1 + 1;
+    /// @type.symbol symbol=settle.sum source=sum type=2
+    /// @resolution.pattern source=sum kind=binding target=settle.sum
+    /// @resolution.operator source="1 + 1" type=2 operator="+" kind=builtin operands=[1 as 1 families=(integer), 1 as 1 families=(integer)]
 
-const mixed = [1, 2.5];
-/// @type.symbol symbol=mixed source=mixed type=float64[]
-/// @resolution.pattern source=mixed kind=binding target=mixed
-/// @resolution.call source=[1, 2.5] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
-/// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
+    const text = (1).toString();
+    /// @type.symbol symbol=settle.text source=text type=MaybeOwned<"frame" & "local", string>
+    /// @resolution.pattern source=text kind=binding target=settle.text
+    /// @resolution.member source=(1).toString receiver=1 type=<Number.toString.'a>(this: &Number.toString.'a readonly 1, float64 | undefined?) => MaybeOwned<Number.toString.'a, string> kind=symbol target_receiver=1 target=Number.toString
+    /// @resolution.call source=(1).toString() parameters=(float64 | undefined) arguments=(omitted as float64 | undefined) return=MaybeOwned<"frame" & "local", string> kind=symbol target=Number.toString receiver=1 adjustments=(borrow(&'frame readonly 1))
 
-let counter = 1;
-/// @type.symbol symbol=counter source=counter type=int64
-/// @resolution.pattern source=counter kind=binding target=counter
+    const mixed = [1, 2.5];
+    /// @type.symbol symbol=settle.mixed source=mixed type=float64[]
+    /// @resolution.pattern source=mixed kind=binding target=settle.mixed
+    /// @resolution.call source=[1, 2.5] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
+    /// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
 
-counter += 2;
-/// @resolution.name source=counter target=counter
-/// @resolution.operator source="counter += 2" type=int64 operator="+" kind=builtin operands=[counter as int64 families=(integer), 2 as int64 families=(integer)]
-/// @resolution.pattern.assign source=counter kind=place
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
-/// @resolution.assignment source=counter read=binding(counter) write=binding(counter) type=int64
-/// @resolution.access source=counter root=counter
+    let counter = 1;
+    /// @type.symbol symbol=settle.counter source=counter type=int64
+    /// @resolution.pattern source=counter kind=binding target=settle.counter
 
-const compared = counter < 10;
-/// @type.symbol symbol=compared source=compared type=boolean
-/// @resolution.pattern source=compared kind=binding target=compared
-/// @resolution.name source=counter target=counter
-/// @resolution.operator source="counter < 10" type=boolean operator="<" kind=builtin operands=[counter as int64 families=(integer), 10 as int64 families=(integer)]
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
-/// @resolution.access source=counter root=counter
+    counter += 2;
+    /// @resolution.name source=counter target=settle.counter
+    /// @resolution.operator source="counter += 2" type=int64 operator="+" kind=builtin operands=[counter as int64 families=(integer), 2 as int64 families=(integer)]
+    /// @resolution.pattern.assign source=counter kind=place
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.assignment source=counter read=binding(settle.counter) write=binding(settle.counter) type=int64
+    /// @resolution.access source=counter root=settle.counter
+
+    const compared = counter < 10;
+    /// @type.symbol symbol=settle.compared source=compared type=boolean
+    /// @resolution.pattern source=compared kind=binding target=settle.compared
+    /// @resolution.name source=counter target=settle.counter
+    /// @resolution.operator source="counter < 10" type=boolean operator="<" kind=builtin operands=[counter as int64 families=(integer), 10 as int64 families=(integer)]
+    /// @resolution.place source=counter placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=counter root=settle.counter
+
+}
 "#,
         r#"
 

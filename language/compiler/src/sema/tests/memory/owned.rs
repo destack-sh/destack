@@ -155,14 +155,14 @@ let buffer: Buffer = makeBuffer();
 === dir ===
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 /// @definition.struct symbol=Buffer
 /// @definition.field symbol=Buffer.values source="values: int32[]" key=values type=int32[]
 
     values: int32[];
     /// @type.symbol symbol=Buffer.values source="values: int32[]" type=int32[]
-    /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-    /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
-    /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
 
 }
 
@@ -1024,7 +1024,7 @@ const values = Deque.from([1, 2, 3]);
 /// @generic.instance id="InspectIterator<Iterator<int64>, int64>" template=InspectIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id="Iterator.collect<Iterator<int64>, int64, ^int64[]>" template=Iterator.collect arguments=(int64, ^int64[])
 /// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
-/// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64)
+/// @generic.instance id="PeekableIterator<Iterator<int64>, int64>" template=PeekableIterator arguments=(Iterator<int64>, int64) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int64, void> | undefined)
 /// @generic.instance id="TakeIterator<Iterator<int64>, int64>" template=TakeIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id="TakeWhileIterator<Iterator<int64>, int64>" template=TakeWhileIterator arguments=(Iterator<int64>, int64)
 /// @generic.instance id=Iterable<int64> template=Iterable arguments=(int64)

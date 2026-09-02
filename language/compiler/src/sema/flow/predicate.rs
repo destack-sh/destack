@@ -24,7 +24,7 @@ impl CheckState<'_> {
         // require a selected stored access path
         let Some(path) = self
             .module(site.node.module_id)
-            .decisions
+            .decisions_tail
             .access_resolution(site.node)
             .cloned()
         else {
@@ -32,9 +32,36 @@ impl CheckState<'_> {
         };
 
         // narrow through the predicates visible at this site
-        let narrowed = self.flow_narrowed_type(site, path.path(), ty)?;
+        let Some(narrowed) = self.flow_narrowed_type(site, path.path(), ty)? else {
+            return Ok(ty);
+        };
+        self.commit_narrowing(site, ty, narrowed)?;
 
-        Ok(narrowed.unwrap_or(ty))
+        Ok(narrowed)
+    }
+
+    /// Record the narrowing one read sees, settled to live members at writeback.
+    fn commit_narrowing(
+        &mut self,
+        site: FlowSite,
+        declared: dir::GlobalTypeId,
+        narrowed: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // keep the union the first narrowing of this read declared
+        let node = site.node;
+        let decisions = &mut self.module_mut(node.module_id).decisions_tail;
+        let union = decisions
+            .narrowing(node)
+            .map_or(declared, |narrowing| narrowing.union);
+        decisions.set_narrowing(
+            node,
+            dir::Narrowing {
+                union,
+                arms: vec![narrowed],
+            },
+        );
+
+        Ok(())
     }
 
     /// Return the type after narrowings visible at one flow site, none without a narrowing.

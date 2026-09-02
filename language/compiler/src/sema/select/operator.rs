@@ -162,8 +162,26 @@ impl CheckState<'_> {
             dir::BinaryOperator::Coalesce => {
                 let output = self
                     .reduce_operation_type(origin, dir::TypeOperation::TryOutput { value: left })?;
+                let result = self.normalized_union_type([output, right])?;
 
-                Some((self.normalized_union_type([output, right])?, left, right))
+                // record the fallback's conversion into the joined result
+                if result != right {
+                    let right_site = self.visit_site(right_source)?;
+                    let right_value = self.expression_value(right_site, right)?;
+                    let cause =
+                        self.intern_cause(Cause::root(right_site.origin(), CauseKind::Expression));
+                    self.convert_value(
+                        right_site,
+                        cause,
+                        Relation::Storable,
+                        right_value,
+                        result,
+                        ValueUse::Output,
+                        InferMode::Regular,
+                    )?;
+                }
+
+                Some((result, left, right))
             }
             _ => None,
         };

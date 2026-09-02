@@ -867,6 +867,10 @@ struct Box<T> {
 
 class State {
 /// @type.symbol symbol=State type=State
+/// @generic.instance id=Array<User> template=Array arguments=(User)
+/// @generic.instance id=Box<User> template=Box arguments=(User)
+/// @generic.instance id=MaybeUninit<User> template=MaybeUninit arguments=(User)
+/// @generic.instance id=new<MaybeUninit<User>> template=new arguments=(MaybeUninit<User>)
 /// @definition.class symbol=State
 /// @definition.field symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" key=boxed type=Box<User>
 /// @definition.field symbol=State.user source="user: User = new User()" key=user type=User
@@ -880,7 +884,6 @@ class State {
 
     boxed: Box<User> = Box { value: new User() };
     /// @type.symbol symbol=State.boxed source="boxed: Box<User> = Box { value: new User() }" type=Box<User>
-    /// @generic.instance id=Box<User> template=Box arguments=(User)
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=User target=User
     /// @resolution.name source=Box target=Box
@@ -889,9 +892,6 @@ class State {
 
     users: User[] = [];
     /// @type.symbol symbol=State.users source="users: User[] = []" type=User[]
-    /// @generic.instance id=Array<User> template=Array arguments=(User)
-    /// @generic.instance id=MaybeUninit<User> template=MaybeUninit arguments=(User)
-    /// @generic.instance id=new<MaybeUninit<User>> template=new arguments=(MaybeUninit<User>)
     /// @resolution.name source=User target=User
     /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
     /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)

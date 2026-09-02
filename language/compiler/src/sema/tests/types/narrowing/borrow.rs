@@ -93,6 +93,7 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
         /// @resolution.member source=shape.width receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> type=int32 kind=field target_receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> key=width target=Rectangle.width target_type=int32
         /// @resolution.place source=shape placement='a lifetime='a access="mutable"
         /// @resolution.access source=shape root=read.shape
+        /// @resolution.narrowing source=shape union=&'a Rectangle | Circle arms=&'a Rectangle
         /// @resolution.place source=shape.width placement='a lifetime='a access="mutable"
         /// @resolution.access source=shape.width root=read.shape keys=[width]
 

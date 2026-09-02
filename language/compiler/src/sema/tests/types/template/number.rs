@@ -413,3 +413,64 @@ const octal: Count = "0o12";
 "#,
     );
 }
+
+#[test]
+fn test_expand_a_template_over_a_bounded_integer_range() {
+    let session = TestSession::single(
+        r#"
+type Width = `int${1..=3}` | `uint${8..10}`;
+
+declare const width: Width;
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+type Width = `int${1..=3}` | `uint${8..10}`;
+
+declare const width: "int1" | "int2" | "int3" | "uint8" | "uint9";
+
+=== dir ===
+type Width = `int${1..=3}` | `uint${8..10}`;
+/// @type.symbol symbol=Width source="type Width = `int${1..=3}` | `uint${8..10}`" type=`int${1..=3}` | `uint${8..10}`
+/// @definition.type symbol=Width source="type Width = `int${1..=3}` | `uint${8..10}`" value=`int${1..=3}` | `uint${8..10}`
+
+declare const width: Width;
+/// @type.symbol symbol=width source=width type="int1" | "int2" | "int3" | "uint8" | "uint9"
+/// @resolution.pattern source=width kind=binding target=width
+/// @resolution.name source=Width target=Width
+"#);
+}
+
+#[test]
+fn test_reject_a_template_expanding_past_the_member_bound() {
+    let session = TestSession::single(
+        r#"
+type Wide = `${0..=1000000}`;
+
+declare const wide: Wide;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+=== annotated ===
+type Wide = `${0..=1000000}`;
+
+declare const wide: Wide;
+
+=== dir ===
+type Wide = `${0..=1000000}`;
+/// @type.symbol symbol=Wide source="type Wide = `${0..=1000000}`" type=<error>
+/// @definition.type symbol=Wide source="type Wide = `${0..=1000000}`" value=<error>
+
+declare const wide: Wide;
+/// @type.symbol symbol=wide source=wide type=<error>
+/// @resolution.pattern source=wide kind=binding target=wide
+/// @resolution.name source=Wide target=Wide
+"#, r#"
+/// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
+/// @diagnostic.label line=2 column=6 span="Wide" line_source="type Wide = `${0..=1000000}`;"
+/// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
+/// @diagnostic.label line=4 column=15 span="wide" line_source="declare const wide: Wide;"
+"#);
+}

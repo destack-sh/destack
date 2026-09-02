@@ -736,8 +736,10 @@ impl CheckState<'_> {
         &mut self,
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut current = self.shallow_resolve(receiver)?;
+        let mut current = receiver;
         loop {
+            // read through each layer's solution before matching its head
+            current = self.shallow_resolve(current)?;
             let dir::Type::Form(form) = self.ty(current)? else {
                 // bare nominal instances live in their declared or inherited space
                 if let dir::Type::Application(instance) = self.ty(current)?

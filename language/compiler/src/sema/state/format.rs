@@ -506,7 +506,7 @@ impl CheckState<'_> {
                     _ => (borrow.region, None),
                 };
 
-                // render named and static provenance, eliding the frame default
+                // render named and static regions, eliding the frame default
                 let lifetime = match self.ty(self.shallow_resolve(extent)?)? {
                     dir::Type::Parameter(parameter) | dir::Type::Erased(parameter) => {
                         let binding = self.generic_parameter(parameter);
@@ -532,7 +532,8 @@ impl CheckState<'_> {
                         }
                     }
                     dir::Type::Literal(dir::Literal::String(value))
-                        if dir::Lifetime::from_text(value) == Some(dir::Lifetime::Static) =>
+                        if dir::Lifetime::parse(self.strings().get(value))
+                            == Some(dir::Lifetime::Static) =>
                     {
                         "'static ".to_string()
                     }

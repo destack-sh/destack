@@ -683,7 +683,7 @@ impl CheckState<'_> {
         Ok(measured)
     }
 
-    /// Relate same-template applications, slotting written arguments by kind first.
+    /// Relate same-template applications, binding written arguments by kind first.
     pub(in crate::sema) fn relate_application_arguments(
         &mut self,
         origin: Origin,

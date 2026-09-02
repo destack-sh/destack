@@ -6,6 +6,7 @@ mod context;
 mod conversion;
 mod declaration;
 mod deref;
+mod exclusive_push;
 mod exclusivity;
 mod generic;
 mod index;
