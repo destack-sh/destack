@@ -59,6 +59,14 @@ enum RunQueue {
     Microtask,
 }
 
+/// What one worker run starts from.
+enum EntryTarget<'a> {
+    /// An entrypoint named by the caller.
+    Entry(&'a Entry),
+    /// A linked function selected by id.
+    Function(program::FunctionId),
+}
+
 impl Worker {
     /// Refresh derived debug sets when debugger configuration changed.
     fn refresh_debugger(&mut self, world: &WorldState) {
@@ -84,6 +92,55 @@ impl Worker {
         entry: &Entry,
         args: &[program::Value],
     ) -> RuntimeResult<program::Value> {
+        self.run_target(
+            world,
+            collection,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            EntryTarget::Entry(entry),
+            args,
+        )
+    }
+
+    /// Run one linked function through this worker event loop.
+    pub(crate) fn run_function(
+        &mut self,
+        world: &mut WorldState,
+        collection: &Arc<SharedCollectionState>,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticSpace,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        function: program::FunctionId,
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
+        self.run_target(
+            world,
+            collection,
+            shared_static,
+            constant_space,
+            host,
+            host_queue,
+            EntryTarget::Function(function),
+            args,
+        )
+    }
+
+    /// Run one entry target on a fresh fiber through this worker event loop.
+    #[allow(clippy::too_many_arguments)]
+    fn run_target(
+        &mut self,
+        world: &mut WorldState,
+        collection: &Arc<SharedCollectionState>,
+        shared_static: &mut program::StaticSpace,
+        constant_space: &program::StaticSpace,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        target: EntryTarget<'_>,
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
         self.refresh_debugger(world);
 
         // execute the entrypoint on one fresh fiber
@@ -99,7 +156,7 @@ impl Worker {
             host_queue,
             fiber_id,
             execution,
-            entry,
+            target,
             args,
         );
         let retired = self.event_loop.retire_fiber(fiber_id);
@@ -121,7 +178,7 @@ impl Worker {
         host_queue: &HostQueue,
         fiber_id: program::FiberId,
         mut execution: vm::Fiber,
-        entry: &Entry,
+        target: EntryTarget<'_>,
         args: &[program::Value],
     ) -> RuntimeResult<program::Value> {
         let mut context = program::Context::empty();
@@ -156,15 +213,27 @@ impl Worker {
                 constants: constant_space,
             },
         };
-        let outcome = self.machine.run(
-            &mut execution,
-            activation,
-            entry,
-            args,
-            Some(&self.stop_points),
-            Some(&self.watch_points),
-            self.profile.as_mut(),
-        );
+        let outcome = match target {
+            EntryTarget::Entry(entry) => self.machine.run(
+                &mut execution,
+                activation,
+                entry,
+                args,
+                Some(&self.stop_points),
+                Some(&self.watch_points),
+                self.profile.as_mut(),
+            ),
+            EntryTarget::Function(function) => self.machine.run_function(
+                &mut execution,
+                activation,
+                function,
+                None,
+                args,
+                Some(&self.stop_points),
+                Some(&self.watch_points),
+                self.profile.as_mut(),
+            ),
+        };
         let mut outcome = outcome?;
 
         // service polls without interleaving another runnable

@@ -67,6 +67,32 @@ impl From<(WorkerId, WorkerRunOutcome)> for RuntimeRunOutcome {
 }
 
 impl Runtime {
+    /// Run one linked function through one runtime worker event loop.
+    pub(crate) fn run_function(
+        &mut self,
+        world: &mut WorldState,
+        host: &dyn Host,
+        host_queue: &HostQueue,
+        worker_id: WorkerId,
+        function: program::FunctionId,
+        args: &[program::Value],
+    ) -> RuntimeResult<program::Value> {
+        let worker = self
+            .workers
+            .get_mut(&worker_id)
+            .ok_or_else(|| RuntimeError::worker_not_found(worker_id.0).boxed())?;
+        worker.run_function(
+            world,
+            &self.shared_collection,
+            &mut self.shared_static,
+            &self.constant_space,
+            host,
+            host_queue,
+            function,
+            args,
+        )
+    }
+
     /// Run one entrypoint through one runtime worker event loop.
     pub(crate) fn run_entrypoint(
         &mut self,

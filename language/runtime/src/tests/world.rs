@@ -10,8 +10,8 @@ use destack_vm as vm;
 use crate::binding::BindingTable;
 use crate::host::time::TimerClock;
 use crate::host::{HostEvent, HostEventKind, ResourceId};
-use crate::machine::Engine;
 use crate::machine::native::{Loader, Platform};
+use crate::machine::{Engine, Entry};
 use crate::runtime::RuntimeId;
 use crate::scheduler::{Callback, Invocation, RunnableId, ScheduledTimer, TimerDeadline};
 use crate::tests::{TestProgram, TestWorker};
@@ -611,4 +611,42 @@ impl TestWorld {
 
         (function, value)
     }
+}
+
+#[test]
+fn test_run_initializers_stores_module_state() {
+    let program = TestProgram::mir(
+        r#"
+global test.state: int32 = zeroinit
+
+export function test.init(): void {
+entry:
+    v0: int32 = 7
+    v1: ref<int32, borrowed, mutable, static> = global.address test.state
+    store v1, v0
+    return
+}
+
+export function read(): int32 {
+entry:
+    v0: ref<int32, borrowed, mutable, static> = global.address test.state
+    v1: int32 = load v0
+    return v1
+}
+"#,
+    )
+    .initializer("test.init");
+    let mut world = TestWorld::build(&RuntimeOptions::default(), program);
+    let runtime_id = world.runtime_id();
+
+    // run the initializer, then observe the state it stored
+    world
+        .world_mut()
+        .run_initializers(runtime_id)
+        .expect("initializers should run");
+    let value = world
+        .world_mut()
+        .invoke(runtime_id, &Entry::new("read"), &[])
+        .expect("read should run");
+    assert_eq!(value.words(), &[program::Word::int32(7)]);
 }

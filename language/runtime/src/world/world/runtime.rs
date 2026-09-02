@@ -185,6 +185,33 @@ impl World {
         Ok(result)
     }
 
+    /// Run one stored Runtime's module initializers in dependency order.
+    pub fn run_initializers(&mut self, runtime_id: RuntimeId) -> RuntimeResult<()> {
+        let runtime = self
+            .runtimes
+            .get_mut(&runtime_id)
+            .ok_or_else(|| RuntimeError::runtime_not_found(runtime_id.0).boxed())?;
+        let worker_id = runtime.default_worker_id();
+        let initializers: Vec<program::FunctionId> = runtime
+            .program
+            .initializers()
+            .iter()
+            .map(|initializer| initializer.function())
+            .collect();
+        for initializer in initializers {
+            runtime.run_function(
+                &mut self.state,
+                self.host.as_ref(),
+                &self.host_queue,
+                worker_id,
+                initializer,
+                &[],
+            )?;
+        }
+
+        Ok(())
+    }
+
     /// Return the stored runtime ids in stable order.
     pub fn runtime_ids(&self) -> Vec<RuntimeId> {
         self.runtimes.keys().copied().collect()

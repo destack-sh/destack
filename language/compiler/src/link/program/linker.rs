@@ -1,12 +1,13 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use destack_core::{StringId, StringPool};
 use destack_heap::DropId;
 use destack_mir as mir;
 use destack_program::{
-    AllocationSiteId, CounterId, DropEntry, DynamicTableId, FunctionId, GlobalId, LayoutId, Object,
-    Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId, VirtualTableId,
+    AllocationSiteId, CounterId, DropEntry, DynamicTableId, EntryPoint, FunctionId, GlobalId,
+    LayoutId, Object, Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId,
+    VirtualTableId,
 };
 use destack_source::{ModuleId, PackageId};
 
@@ -21,6 +22,8 @@ use super::{
 /// Build one Program from optimized module objects and an immutable string pool.
 #[derive(Debug)]
 pub struct ProgramLinker<'a> {
+    /// The target root modules, the entry module first.
+    roots: Vec<ModuleId>,
     /// Package that owns the linked program.
     package: PackageId,
     /// Module objects in stable link order.
@@ -100,6 +103,7 @@ impl<'a> ProgramLinker<'a> {
 
         Ok(Self {
             package,
+            roots: Vec::new(),
             objects,
             object_ids,
             target_layout,
@@ -123,6 +127,51 @@ impl<'a> ProgramLinker<'a> {
         })
     }
 
+    /// Set the target root modules, the entry module first.
+    pub fn with_roots(mut self, roots: Vec<ModuleId>) -> Self {
+        self.roots = roots;
+
+        self
+    }
+
+    /// Return the module initializers in dependency order, the roots' last.
+    fn initializers(&self) -> Vec<EntryPoint> {
+        // walk dependencies before their dependents, roots in their given order
+        let roots: Vec<ModuleId> = match self.roots.is_empty() {
+            true => self.objects.iter().map(|(module, _)| *module).collect(),
+            false => self.roots.clone(),
+        };
+        let mut visited = HashSet::new();
+        let mut ordered = Vec::new();
+        let mut stack: Vec<(ModuleId, bool)> =
+            roots.iter().rev().map(|root| (*root, false)).collect();
+        while let Some((module, expanded)) = stack.pop() {
+            if expanded {
+                ordered.push(module);
+                continue;
+            }
+            if !visited.insert(module) {
+                continue;
+            }
+            stack.push((module, true));
+            for dependency in self.object(module).dependencies().iter().rev() {
+                if !visited.contains(dependency) {
+                    stack.push((*dependency, false));
+                }
+            }
+        }
+
+        // keep the initializer each ordered module declares
+        ordered
+            .into_iter()
+            .filter_map(|module| {
+                let initializer = self.object(module).initializer()?;
+
+                Some(EntryPoint::from(self.function_id(module, initializer)))
+            })
+            .collect()
+    }
+
     /// Link the program.
     pub fn link(self) -> LinkResult<Program> {
         // project engine-neutral program tables
@@ -142,10 +191,12 @@ impl<'a> ProgramLinker<'a> {
 
         // assemble the durable program image
         let package = self.package;
+        let initializers = self.initializers();
         let mut program = ProgramBuilder::new(self.target_layout)
             .strings(self.strings, self.string_ids()?)
             .types(types)
             .drops(self.drops)
+            .initializers(initializers)
             .layouts(layouts.layouts)
             .frames(frames)
             .functions(functions)

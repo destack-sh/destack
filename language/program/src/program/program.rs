@@ -16,13 +16,14 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     ActivationImage, Binding, BindingId, BindingTable, CallSite, CallSiteId, DispatchTable,
-    DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, Error, FrameLayout,
-    FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable, Function,
-    FunctionId, FunctionTable, Global, GlobalId, GlobalLocation, GlobalTable, Layout, LayoutField,
-    LayoutId, LayoutTable, ProgramInfo, ProgramPoint, Result, SampleKey, SampleSite, SampleValue,
-    ScalarFormat, Signature, SignatureEntry, SignatureId, SiteTable, StaticImage, StaticSpace,
-    StringTable, Symbol, TypeFingerprint, TypeId, TypeTable, Value, VariantCaseLayout,
-    VariantLayout, VirtualTable, VirtualTableId, Word, WordLayout,
+    DropEntry, DropTable, DynamicEntry, DynamicTable, DynamicTableId, EntryPoint, Error,
+    FrameLayout, FrameLayoutId, FramePoint, FrameSlot, FrameState, FrameStateId, FrameTable,
+    Function, FunctionId, FunctionTable, Global, GlobalId, GlobalLocation, GlobalTable,
+    InitializerTable, Layout, LayoutField, LayoutId, LayoutTable, ProgramInfo, ProgramPoint,
+    Result, SampleKey, SampleSite, SampleValue, ScalarFormat, Signature, SignatureEntry,
+    SignatureId, SiteTable, StaticImage, StaticSpace, StringTable, Symbol, TypeFingerprint, TypeId,
+    TypeTable, Value, VariantCaseLayout, VariantLayout, VirtualTable, VirtualTableId, Word,
+    WordLayout,
 };
 
 /// Linked program.
@@ -37,6 +38,8 @@ pub struct Program {
     pub(crate) types: TypeTable,
     /// Destructors keyed by drop id.
     pub(crate) drops: DropTable,
+    /// Module initializers in dependency order.
+    pub(crate) initializers: InitializerTable,
     /// Runtime layouts keyed by layout id.
     pub(crate) layouts: LayoutTable,
     /// Canonical frame states and layouts.
@@ -427,6 +430,11 @@ impl Program {
     /// Return the program drop table.
     pub fn drops(&self) -> &DropTable {
         &self.drops
+    }
+
+    /// Return the module initializers in dependency order, the entry module's last.
+    pub fn initializers(&self) -> &[EntryPoint] {
+        self.initializers.entries(self.sections())
     }
 
     /// Return the destructor for one concrete type when it requires cleanup.

@@ -127,6 +127,20 @@ impl TestProgram {
             .expect("runtime test object should link")
     }
 
+    /// Mark one parsed function as the module initializer.
+    pub(crate) fn initializer(mut self, name: &str) -> Self {
+        let function = self
+            .lowered
+            .tree
+            .iter_nodes::<mir::Function>()
+            .find(|(_, function)| self.strings.get(function.name) == name)
+            .map(|(id, _)| id)
+            .expect("runtime test initializer should exist");
+        self.lowered.initializer = Some(function);
+
+        self
+    }
+
     /// Complete physical layouts and project optimized MIR for emission.
     fn optimized(&self) -> MirOptimized {
         let tree = self.lowered.tree.clone();

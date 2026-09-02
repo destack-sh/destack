@@ -1,8 +1,32 @@
-use destack_core::SectionEntry;
+use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::FunctionId;
+
+/// Module initializers in dependency order, the entry module's last.
+#[repr(C)]
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry,
+)]
+pub struct InitializerTable {
+    /// The initializer functions to run before the program is live.
+    initializers: SectionSlice<EntryPoint>,
+}
+
+impl InitializerTable {
+    /// Pack the ordered initializers into one program table.
+    pub(crate) fn pack(sections: &mut SectionBuilder, initializers: Vec<EntryPoint>) -> Self {
+        Self {
+            initializers: sections.insert(initializers),
+        }
+    }
+
+    /// Return the ordered initializers.
+    pub fn entries<'a>(&self, sections: SectionImage<'a>) -> &'a [EntryPoint] {
+        sections.entries(self.initializers)
+    }
+}
 
 /// One program entrypoint id.
 #[repr(transparent)]

@@ -138,6 +138,7 @@ impl Compiler {
         }
 
         let artifacts = self.artifact_reader(context);
+        let roots = resolved.modules.clone();
         let mut modules = resolved.modules;
         let mut discovered: HashSet<ModuleId> = modules.iter().copied().collect();
         let mut objects = Vec::new();
@@ -157,7 +158,9 @@ impl Compiler {
             index += 1;
         }
         // link module objects into one Program
-        let program = ProgramLinker::new(package, objects, self.strings())?.link()?;
+        let program = ProgramLinker::new(package, objects, self.strings())?
+            .with_roots(roots)
+            .link()?;
 
         Ok(ArtifactPayload::Program(Arc::new(program)))
     }

@@ -15,10 +15,10 @@ use destack_webassembly as wasm;
 use super::Program;
 use crate::{
     BindingBuilder, BindingTable, DispatchTable, DispatchTableBuilder, DropEntry, DropTable,
-    FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
-    GlobalTableBuilder, LayoutBuilder, LayoutTable, ProgramInfo, ProgramInfoBuilder, SiteTable,
-    SiteTableBuilder, StaticBytes, StaticImage, StringEntry, StringTable, TypeTable,
-    TypeTableBuilder,
+    EntryPoint, FrameTable, FrameTableBuilder, FunctionTable, FunctionTableBuilder, GlobalTable,
+    GlobalTableBuilder, InitializerTable, LayoutBuilder, LayoutTable, ProgramInfo,
+    ProgramInfoBuilder, SiteTable, SiteTableBuilder, StaticBytes, StaticImage, StringEntry,
+    StringTable, TypeTable, TypeTableBuilder,
 };
 
 /// Program image load failure.
@@ -88,6 +88,8 @@ pub struct ProgramBuilder {
     types: TypeTableBuilder,
     /// Destructors keyed by drop id.
     drops: Vec<DropEntry>,
+    /// Module initializers in dependency order.
+    initializers: Vec<EntryPoint>,
     /// Runtime layouts.
     layouts: Vec<LayoutBuilder>,
     /// Canonical frame states and layouts.
@@ -146,6 +148,8 @@ struct ProgramHeader {
     types: TypeTable,
     /// Destructor table.
     drops: DropTable,
+    /// Module initializer table.
+    initializers: InitializerTable,
     /// Runtime layout table.
     layouts: LayoutTable,
     /// Canonical frame table.
@@ -198,6 +202,7 @@ impl ProgramHeader {
             strings: StringTable::default(),
             types: TypeTable::default(),
             drops: DropTable::default(),
+            initializers: InitializerTable::default(),
             layouts: LayoutTable::default(),
             frames: FrameTable::default(),
             functions: FunctionTable::default(),
@@ -312,6 +317,7 @@ impl ProgramBuilder {
             string_bytes: Vec::new(),
             types: TypeTableBuilder::default(),
             drops: Vec::new(),
+            initializers: Vec::new(),
             layouts: Vec::new(),
             frames: FrameTableBuilder::default(),
             functions: FunctionTableBuilder::default(),
@@ -369,6 +375,13 @@ impl ProgramBuilder {
     /// Set the runtime type table.
     pub fn types(mut self, types: TypeTableBuilder) -> Self {
         self.types = types;
+
+        self
+    }
+
+    /// Set the module initializers in dependency order.
+    pub fn initializers(mut self, initializers: impl IntoIterator<Item = EntryPoint>) -> Self {
+        self.initializers = initializers.into_iter().collect();
 
         self
     }
@@ -488,6 +501,7 @@ impl ProgramBuilder {
         header.strings = StringTable::pack(&mut sections, self.string_entries, self.string_bytes);
         header.types = TypeTable::pack(self.types, &mut sections);
         header.drops = DropTable::pack(&mut sections, self.drops);
+        header.initializers = InitializerTable::pack(&mut sections, self.initializers);
         header.layouts = LayoutTable::pack(&mut sections, self.layouts);
         header.frames = FrameTable::pack(self.frames, &mut sections);
         header.functions = self.functions.build(&mut sections);
@@ -568,6 +582,7 @@ impl Program {
             strings: header.strings,
             types: header.types,
             drops: header.drops,
+            initializers: header.initializers,
             layouts: header.layouts,
             frames: header.frames,
             functions: header.functions,
