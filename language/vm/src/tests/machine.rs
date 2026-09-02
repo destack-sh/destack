@@ -49,6 +49,8 @@ pub(crate) struct TestMachine {
     local_statics: program::StaticSpace,
     /// Runtime-shared static memory.
     shared_statics: program::StaticSpace,
+    /// The request word polled at safepoints.
+    handshake: program::Handshake,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -109,6 +111,7 @@ impl TestMachine {
             constants,
             local_statics,
             shared_statics,
+            handshake: program::Handshake::new(),
         }
     }
 
@@ -288,6 +291,7 @@ impl TestMachine {
                 local_statics: &mut self.local_statics,
                 shared_statics: &mut self.shared_statics,
                 constants: &self.constants,
+                handshake: &self.handshake,
             },
         };
 
