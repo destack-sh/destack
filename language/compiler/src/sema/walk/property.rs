@@ -328,10 +328,11 @@ impl WalkState<'_, '_> {
                     self.restore_flow(before_default);
                 }
 
-                let Some(symbol) = symbol else {
+                let (Some(symbol), Some(field_type)) = (symbol, field_type) else {
                     return Ok(None);
                 };
                 let key = name.into();
+                let ty = self.field_storage_type(field_type, is_optional)?;
 
                 Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
                     space: if is_static {
@@ -343,6 +344,7 @@ impl WalkState<'_, '_> {
                     symbol,
                     source: id.into_global_any(self.module),
                     key,
+                    ty,
                     initializer: default.map(|default| default.into_global_any(self.module)),
                     is_optional,
                     is_readonly,
@@ -664,6 +666,7 @@ impl WalkState<'_, '_> {
                 self.commit_symbol_type(symbol, field_type)?;
 
                 let key = name.into();
+                let ty = self.field_storage_type(field_type, is_optional)?;
 
                 Ok(Some(dir::DefinitionMember::Field(dir::FieldDefinition {
                     space: if is_static {
@@ -675,6 +678,7 @@ impl WalkState<'_, '_> {
                     symbol,
                     source,
                     key,
+                    ty,
                     initializer: None,
                     is_optional,
                     is_readonly,
@@ -1197,5 +1201,19 @@ impl WalkState<'_, '_> {
         }
 
         self.walk_function_result_type(id.into_any(), signature, body)
+    }
+
+    /// Return the type one field stores, holding undefined beside an optional field's value.
+    fn field_storage_type(
+        &mut self,
+        declared: dir::GlobalTypeId,
+        is_optional: bool,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        if !is_optional {
+            Ok(declared)
+        } else {
+            let undefined = self.intern_type(dir::Type::Undefined)?;
+            self.check.normalized_union_type([declared, undefined])
+        }
     }
 }

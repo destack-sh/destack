@@ -2,8 +2,9 @@ use destack_core::FxIndexSet;
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
-use crate::sema::{CheckState, Origin};
+use crate::sema::reduce::substitute::TypeSubstitution;
+use crate::sema::{CheckState, CoroutineBody, CoroutineForm, Origin};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Return the completed value carried by one async function result type.
@@ -186,5 +187,321 @@ impl CheckState<'_> {
         }
 
         Ok(Some(target))
+    }
+}
+
+impl CheckState<'_> {
+    /// Record the creation call every checked coroutine body wraps itself in.
+    pub(in crate::sema) fn commit_coroutine_creations(&mut self) -> CompilerResult<()> {
+        // read the registered coroutine bodies
+        let bodies = self.coroutines.clone();
+
+        for body in bodies {
+            // anchor the row at the declaring node
+            let Some(node) = self.coroutine_declaration_node(body.symbol) else {
+                continue;
+            };
+            if self.decision(node).is_some() {
+                continue;
+            }
+
+            // leave failed and open targets to their own reports
+            let mut resolved: SmallVec<[dir::GlobalTypeId; 4]> = SmallVec::new();
+            let mut open = false;
+            for target in body.form.targets() {
+                let target = self.fully_resolve(target)?;
+                let flags = self.type_flags(target)?;
+                open |= flags.has_error() || flags.has_variable() || flags.has_infer();
+                resolved.push(target);
+            }
+            if open {
+                continue;
+            }
+
+            // select the creation item the function form names
+            let Some(item) = self.coroutine_creation_item(body)? else {
+                continue;
+            };
+            let create = self.coroutine_creation_call(item, &resolved)?;
+            self.commit_decision(
+                node,
+                dir::Decision::Call(dir::OperationResolution::One(create)),
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /// Return the node declaring one coroutine, the anchor of its creation row.
+    fn coroutine_declaration_node(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Option<dir::GlobalNodeIdAny> {
+        self.module(symbol.module_id)
+            .bindings
+            .get_symbol(symbol.local_id)
+            .declaration
+    }
+
+    /// Return the creation item for one coroutine form, promises split by their written carrier.
+    fn coroutine_creation_item(
+        &mut self,
+        body: CoroutineBody,
+    ) -> CompilerResult<Option<dir::LanguageItem>> {
+        // name a generator form's creation by asynchrony alone
+        if let CoroutineForm::Generator { .. } = body.form {
+            return Ok(Some(match body.asynchrony {
+                dir::Asynchrony::Sync => dir::LanguageItem::GeneratorCreate,
+                dir::Asynchrony::Async => dir::LanguageItem::AsyncGeneratorCreate,
+            }));
+        }
+
+        // read the carrier an async function names in its declared result
+        let Some(declared) = self.adopt_symbol_type_maybe(body.symbol)? else {
+            return Ok(None);
+        };
+        let declared = self.shallow_strip_forms(declared)?;
+        let signature = match self.ty(declared)? {
+            dir::Type::FunctionSignature(signature) => signature,
+            // lambdas declare their signature behind a callable value
+            dir::Type::Function(function) => match self.ty(function.signature)? {
+                dir::Type::FunctionSignature(signature) => signature,
+                _ => return Ok(None),
+            },
+            _ => return Ok(None),
+        };
+        let signature = self.type_signature(declared.module_id, signature)?;
+        let Some(declared_result) = signature.return_type else {
+            return Ok(None);
+        };
+        let result = self.shallow_strip_forms(declared_result)?;
+        let dir::Type::Application(instance) = self.ty(result)? else {
+            return Ok(None);
+        };
+
+        Ok(match self.language_item(instance.symbol)? {
+            Some(dir::LanguageItem::Promise) => Some(dir::LanguageItem::PromiseCreate),
+            Some(dir::LanguageItem::Task) => Some(dir::LanguageItem::TaskCreate),
+            _ => None,
+        })
+    }
+
+    /// Record the producer yield call one yield statement runs.
+    pub(in crate::sema) fn commit_yield_call(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        asynchrony: dir::Asynchrony,
+        targets: &[dir::GlobalTypeId],
+        value: Option<dir::GlobalNodeIdAny>,
+    ) -> CompilerResult<()> {
+        if self.decision(node).is_some() {
+            return Ok(());
+        }
+
+        // select the yield item the generator family names
+        let item = match asynchrony {
+            dir::Asynchrony::Sync => dir::LanguageItem::GeneratorYield,
+            dir::Asynchrony::Async => dir::LanguageItem::AsyncGeneratorYield,
+        };
+        let mut call = self.coroutine_creation_call(item, targets)?;
+
+        // bind the yielded value as the provided argument
+        if let Some(value) = value
+            && let Some(binding) = call.arguments.last_mut()
+        {
+            binding.source = dir::ArgumentSource::Provided(value);
+        }
+
+        // bind the owner's parameters positionally at the producer its creation hands the body
+        let producer = self.coroutine_producer_type(asynchrony, targets)?;
+        let dir::CallableTarget::Symbol { function, .. } = &mut call.target else {
+            return Err(CompilerError::Internal {
+                message: "a yield call outside a direct symbol target".to_string(),
+            });
+        };
+        let dir::Type::Application(application) = self.ty(producer)? else {
+            return Err(CompilerError::Internal {
+                message: "a generator producer outside an applied struct".to_string(),
+            });
+        };
+        let arguments = self
+            .type_ids(producer.module_id, application.arguments)?
+            .to_vec();
+        let Some(template) = self.symbol_template(function.key.symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "a yield method without a template".to_string(),
+            });
+        };
+        let owners = self.owner_template_parameters(template)?;
+        if owners.len() != arguments.len() {
+            return Err(CompilerError::Internal {
+                message: "a generator producer application outrunning its owner parameters"
+                    .to_string(),
+            });
+        }
+        for (parameter, argument) in owners.iter().zip(arguments) {
+            function
+                .key
+                .arguments
+                .push(dir::GenericArgumentBinding::new(*parameter, argument));
+        }
+
+        // close the signature at the producer and the key's bindings
+        let substitution = TypeSubstitution {
+            bindings: function.key.arguments.iter().copied().collect(),
+            receiver: Some(producer),
+        };
+        for binding in &mut call.arguments {
+            binding.parameter_type = self.substitute_type(binding.parameter_type, &substitution)?;
+            binding.argument_type = self.substitute_type(binding.argument_type, &substitution)?;
+        }
+        call.return_type = self.substitute_type(call.return_type, &substitution)?;
+
+        self.commit_decision(
+            node,
+            dir::Decision::Call(dir::OperationResolution::One(call)),
+        )
+    }
+
+    /// Return the producer type one generator creation hands its body closure.
+    fn coroutine_producer_type(
+        &mut self,
+        asynchrony: dir::Asynchrony,
+        targets: &[dir::GlobalTypeId],
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the creation call's body closure slot
+        let item = match asynchrony {
+            dir::Asynchrony::Sync => dir::LanguageItem::GeneratorCreate,
+            dir::Asynchrony::Async => dir::LanguageItem::AsyncGeneratorCreate,
+        };
+        let create = self.coroutine_creation_call(item, targets)?;
+        let Some(slot) = create
+            .arguments
+            .iter()
+            .find(|binding| matches!(binding.source, dir::ArgumentSource::Write))
+        else {
+            return Err(CompilerError::Internal {
+                message: "a generator creation without its body closure slot".to_string(),
+            });
+        };
+        let dir::CallableTarget::Symbol { function, .. } = &create.target else {
+            return Err(CompilerError::Internal {
+                message: "a generator creation outside a direct symbol target".to_string(),
+            });
+        };
+
+        // take the closure's first parameter, the producer
+        let closure = self.shallow_strip_forms(slot.parameter_type)?;
+        let dir::Type::Application(application) = self.ty(closure)? else {
+            return Err(CompilerError::Internal {
+                message: "a generator body slot outside a function application".to_string(),
+            });
+        };
+        let arguments = self
+            .type_ids(closure.module_id, application.arguments)?
+            .to_vec();
+        let Some(parameters) = arguments.first().copied() else {
+            return Err(CompilerError::Internal {
+                message: "a generator body slot without its parameter list".to_string(),
+            });
+        };
+        let dir::Type::Tuple(tuple) = self.ty(parameters)? else {
+            return Err(CompilerError::Internal {
+                message: "a generator body slot outside a parameter tuple".to_string(),
+            });
+        };
+        let elements = self
+            .tuple_elements(parameters.module_id, tuple.elements)?
+            .to_vec();
+        let Some(producer) = elements.first().map(|element| element.ty) else {
+            return Err(CompilerError::Internal {
+                message: "a generator body slot without its producer parameter".to_string(),
+            });
+        };
+
+        // close the producer at the creation's bound arguments
+        let substitution = TypeSubstitution {
+            bindings: function.key.arguments.iter().copied().collect(),
+            receiver: None,
+        };
+
+        self.substitute_type(producer, &substitution)
+    }
+
+    /// Build one creation call instantiated at the body's solved targets.
+    fn coroutine_creation_call(
+        &mut self,
+        item: dir::LanguageItem,
+        targets: &[dir::GlobalTypeId],
+    ) -> CompilerResult<dir::Call> {
+        // bind the item's type parameters to the targets in declaration order
+        let symbol = self.language_symbol(item)?;
+        let Some(template) = self.symbol_template(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "a coroutine creation item declares no template".to_string(),
+            });
+        };
+        let parameters = self.generic_template_parameters(template)?;
+        let mut bindings = Vec::with_capacity(parameters.len());
+        let mut index = 0;
+        for parameter in parameters {
+            // bind memory parameters to the local place the machinery runs in
+            if self.is_memory_parameter(parameter) || self.is_lifetime_parameter(parameter) {
+                let local = self.local_place()?;
+                bindings.push(dir::GenericArgumentBinding::new(parameter, local));
+
+                continue;
+            }
+            let Some(target) = targets.get(index).copied() else {
+                return Err(CompilerError::Internal {
+                    message: "a coroutine creation item outruns its targets".to_string(),
+                });
+            };
+            bindings.push(dir::GenericArgumentBinding::new(parameter, target));
+            index += 1;
+        }
+        let key = dir::InstanceKey::new(symbol, bindings);
+
+        // bind the body closure slot the lowered function supplies
+        let Some(callable_type) = self.adopt_symbol_type_maybe(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "a coroutine creation item declares no type".to_string(),
+            });
+        };
+        let signature = match self.ty(callable_type)? {
+            dir::Type::FunctionSignature(signature) => {
+                self.type_signature(callable_type.module_id, signature)?
+            }
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a coroutine creation item declares no signature".to_string(),
+                });
+            }
+        };
+        let parameters = self
+            .signature_parameters(callable_type.module_id, signature.parameters)?
+            .to_vec();
+        let arguments = parameters
+            .iter()
+            .map(|parameter| dir::ArgumentBinding {
+                parameter_type: parameter.ty,
+                argument_type: parameter.ty,
+                source: dir::ArgumentSource::Write,
+            })
+            .collect();
+
+        Ok(dir::Call {
+            target: dir::CallableTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: None,
+                    generic_scope: None,
+                    key,
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            callable_type,
+            arguments,
+            return_type: signature.return_type.unwrap_or(callable_type),
+        })
     }
 }

@@ -1,9 +1,19 @@
+use destack_artifact::{DirBound, DirParsed, DirResolved};
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{CheckState, Origin, TypeSubstitution, VariableKind};
 use crate::{CompilerError, CompilerResult};
+
+/// One template parameter as its declaration writes it.
+#[derive(Debug, Clone, Copy)]
+pub(in crate::sema) struct TemplateParameter {
+    /// The kind the declaration and its constraint name.
+    pub(in crate::sema) kind: dir::GenericParameterKind,
+    /// Whether the declaration writes a default.
+    pub(in crate::sema) has_default: bool,
+}
 
 /// Stable id for one declaration-side generic parameter.
 pub(in crate::sema) type GenericParameterId = dir::GlobalGenericParameterId;
@@ -503,26 +513,120 @@ impl CheckState<'_> {
     }
 
     /// Return whether one written argument may fill one parameter.
-    ///
-    /// Region, place, and access parameters take only arguments of their own kind.
-    /// An elided parameter slides the argument onward.
-    /// A bare space term also fills a region parameter, lifting to the region holding that space.
     pub(in crate::sema) fn argument_fills_parameter(
         &self,
         binding: &dir::GenericParameterBinding,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
+        self.argument_fills_kind(binding.kind, argument)
+    }
+
+    /// Return whether one written argument fills a parameter of the given kind.
+    pub(in crate::sema) fn argument_fills_kind(
+        &self,
+        kind: dir::GenericParameterKind,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
         // admit the argument by the parameter's own kind
-        match binding.memory_parameter() {
-            Some(dir::MemoryParameter::Region) => Ok(matches!(
+        match kind {
+            dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => Ok(matches!(
                 self.memory_kind(argument)?,
                 Some(dir::MemoryParameter::Region | dir::MemoryParameter::Place)
             )),
-            Some(kind @ (dir::MemoryParameter::Place | dir::MemoryParameter::Access)) => {
-                Ok(self.memory_kind(argument)? == Some(kind))
-            }
+            dir::GenericParameterKind::Memory(
+                memory @ (dir::MemoryParameter::Place | dir::MemoryParameter::Access),
+            ) => Ok(self.memory_kind(argument)? == Some(memory)),
             _ => Ok(true),
         }
+    }
+
+    /// Return one template's parameters in declaration order with their declared kinds and defaults.
+    pub(in crate::sema) fn template_parameters(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Vec<TemplateParameter>> {
+        let module = symbol.module_id;
+        let parsed = self
+            .artifacts
+            .read::<DirParsed>(module)
+            .map_err(CompilerError::from)?;
+        let bound = self
+            .artifacts
+            .read::<DirBound>((module, self.profile))
+            .map_err(CompilerError::from)?;
+        let resolved = self
+            .artifacts
+            .read::<DirResolved>((module, self.profile))
+            .map_err(CompilerError::from)?;
+        let bindings = dir::BindingTable::from_segment(bound.bindings.clone());
+        let Some(declaration) =
+            bindings
+                .get_symbol(symbol.local_id)
+                .declaration
+                .and_then(|declaration| {
+                    declaration
+                        .local_id
+                        .try_into_typed::<dir::Declaration>()
+                        .ok()
+                })
+        else {
+            return Err(CompilerError::Internal {
+                message: "a template application of a symbol without a declaration".to_string(),
+            });
+        };
+        let view = dir::View::new(&parsed.tree);
+        let mut parameters = Vec::new();
+        for id in view
+            .get(declaration)
+            .generic_parameters()
+            .unwrap_or_default()
+        {
+            let parameter = view.get(*id);
+            let constraint = match parameter {
+                dir::GenericParameter::Type { constraint, .. }
+                | dir::GenericParameter::VariadicType { constraint, .. } => *constraint,
+                _ => None,
+            };
+            let has_default = matches!(
+                parameter,
+                dir::GenericParameter::Type {
+                    default: Some(_),
+                    ..
+                } | dir::GenericParameter::VariadicType {
+                    default: Some(_),
+                    ..
+                }
+            );
+            parameters.push(TemplateParameter {
+                kind: self.declared_parameter_kind(module, &resolved, parameter, constraint)?,
+                has_default,
+            });
+        }
+
+        Ok(parameters)
+    }
+
+    /// Classify one declared parameter by its declaration and the language item its constraint resolves to.
+    pub(in crate::sema) fn declared_parameter_kind(
+        &self,
+        module: ModuleId,
+        resolved: &DirResolved,
+        parameter: &dir::GenericParameter,
+        constraint: Option<dir::LocalNodeId<dir::TypeExpression>>,
+    ) -> CompilerResult<dir::GenericParameterKind> {
+        let item = match constraint {
+            Some(constraint) => resolved
+                .references
+                .get(constraint.into_global_any(module))
+                .and_then(|reference| reference.symbols())
+                .and_then(|symbols| symbols.first().copied())
+                .map(|target| self.language_item(target))
+                .transpose()?
+                .flatten(),
+            None => None,
+        };
+
+        Ok(dir::GenericParameterKind::declared(parameter, item))
     }
 
     /// Return the memory kind one type term inhabits.
@@ -538,7 +642,7 @@ impl CheckState<'_> {
 
             // reserved lifetime, space, and access names write as string literals
             dir::Type::Literal(dir::Literal::String(value)) => {
-                if dir::Lifetime::from_text(value).is_some() {
+                if dir::Lifetime::parse(self.strings().get(value)).is_some() {
                     Ok(Some(dir::MemoryParameter::Region))
                 } else if dir::Space::from_text(value).is_some() {
                     Ok(Some(dir::MemoryParameter::Place))
@@ -555,6 +659,7 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
                 match (binding.memory_parameter(), binding.constraint) {
+                    (Some(dir::MemoryParameter::Space), _) => Ok(Some(dir::MemoryParameter::Place)),
                     (Some(kind), _) => Ok(Some(kind)),
                     (None, Some(constraint))
                         if let dir::Type::Application(_) = self.ty(constraint)? =>
@@ -694,8 +799,8 @@ impl CheckState<'_> {
     fn next_induced_lifetime_name(&self, template: GenericTemplateId) -> String {
         // collect the tick names the template already declares
         let mut taken = Vec::new();
-        if let Some(row) = self.generic_template(template) {
-            for parameter in &row.parameters {
+        if let Some(declared) = self.generic_template(template) {
+            for parameter in &declared.parameters {
                 let id = parameter.into_global(template.module_id);
                 let Some(binding) = self.generic_parameter(id) else {
                     continue;
@@ -730,30 +835,15 @@ impl CheckState<'_> {
         constraint: Option<dir::GlobalTypeId>,
         default: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<()> {
-        // classify a memory parameter from the constraint it declares
         let current =
             self.generic_parameter(parameter)
                 .cloned()
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("generic parameter {parameter:?} is not bound"),
                 })?;
-        let kind = if current.kind == dir::GenericParameterKind::Type {
-            let item = match constraint
-                .map(|constraint| self.ty(constraint))
-                .transpose()?
-            {
-                Some(dir::Type::Application(instance)) => self.language_item(instance.symbol)?,
-                _ => None,
-            };
-
-            item.and_then(dir::MemoryParameter::from_language_item)
-        } else {
-            None
-        };
-
         // store memory defaults canonically, like written memory arguments
-        let default = match (kind.is_some(), default) {
-            (true, Some(default)) => {
+        let default = match (current.kind, default) {
+            (dir::GenericParameterKind::Memory(_), Some(default)) => {
                 let origin = Origin::Node(current.source, None);
 
                 Some(self.normalize_memory_component(origin, default)?)
@@ -778,9 +868,6 @@ impl CheckState<'_> {
         };
         binding.constraint = constraint;
         binding.default = default;
-        if let Some(kind) = kind {
-            binding.kind = dir::GenericParameterKind::Memory(kind);
-        }
 
         Ok(())
     }
@@ -928,7 +1015,7 @@ impl CheckState<'_> {
         Ok(bounds)
     }
 
-    /// Return the substitution one applied argument row selects, filling elided slots.
+    /// Return the substitution one applied argument list selects, filling elided slots.
     pub(in crate::sema) fn applied_substitution(
         &mut self,
         template: GenericTemplateId,
@@ -939,13 +1026,13 @@ impl CheckState<'_> {
         self.parameter_substitution(&parameters, arguments)
     }
 
-    /// Slot one applied argument row over ordered parameters, filling elided slots.
+    /// Slot one applied argument list over ordered parameters, filling elided slots.
     fn parameter_substitution(
         &mut self,
         parameters: &[GenericParameterId],
         arguments: &[dir::GlobalTypeId],
     ) -> CompilerResult<TypeSubstitution> {
-        // reject rows longer than the parameter list
+        // reject argument lists longer than the parameter list
         if arguments.len() > parameters.len() {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -956,7 +1043,7 @@ impl CheckState<'_> {
             });
         }
 
-        // bind a complete row positionally, blind to unresolved argument shapes
+        // bind a complete argument list positionally, blind to unresolved argument shapes
         if arguments.len() == parameters.len() {
             let bindings = parameters
                 .iter()
@@ -971,7 +1058,7 @@ impl CheckState<'_> {
             });
         }
 
-        // slot each parameter over the written row in order
+        // slot each parameter over the written arguments in order
         let mut substitution = TypeSubstitution::default();
         let mut cursor = 0usize;
         for parameter in parameters.iter().copied() {
@@ -996,9 +1083,9 @@ impl CheckState<'_> {
             else if let Some(default) = binding.default {
                 self.substitute_type(default, &substitution)?
             }
-            // fill elided lifetimes with the frame literal
+            // keep omitted region parameters symbolic for the erased instance
             else if binding.memory_parameter() == Some(dir::MemoryParameter::Region) {
-                self.lifetime_literal(dir::Lifetime::Frame)?
+                self.intern_type(dir::Type::Parameter(parameter))?
             }
             // fill elided places with the local literal
             else if binding.memory_parameter() == Some(dir::MemoryParameter::Place) {

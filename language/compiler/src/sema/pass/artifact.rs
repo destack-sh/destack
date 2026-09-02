@@ -35,7 +35,7 @@ impl CheckState<'_> {
             definitions_tail: definitions,
             members_tail: members,
             resolutions,
-            decisions,
+            decisions_tail: decisions,
             flows,
             ..
         } = self.module;
@@ -99,7 +99,7 @@ impl CheckState<'_> {
         let statics = self.module.statics_tail;
         let controls = self.module.controls;
         let resolutions = self.module.resolutions;
-        let decisions = self.module.decisions;
+        let decisions = self.module.decisions_tail;
         let flows = self.module.flows;
 
         // collect the foreign modules the stored entries recorded as they interned
@@ -158,11 +158,11 @@ impl CheckState<'_> {
             controls,
             statics_tail: statics,
             resolutions,
-            decisions,
+            decisions_tail: decisions,
             generics_tail: generics,
             definitions_tail: definitions,
             members_tail: members,
-            coercions,
+            coercions_tail: coercions,
             captures,
             flows,
             references,

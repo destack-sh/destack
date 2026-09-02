@@ -14,7 +14,7 @@ impl CheckState<'_> {
         let module = self.module(node.module_id);
 
         // accept identical selections and reject conflicting access identities
-        if let Some(previous) = module.decisions.access_resolution(node) {
+        if let Some(previous) = module.decisions_tail.access_resolution(node) {
             if previous == &resolution {
                 return Ok(());
             }
@@ -28,7 +28,7 @@ impl CheckState<'_> {
         }
 
         self.module_mut(node.module_id)
-            .decisions
+            .decisions_tail
             .set_access_resolution(node, resolution);
 
         Ok(())
@@ -42,7 +42,7 @@ impl CheckState<'_> {
     ) {
         let Some(access) = self
             .module(node.module_id)
-            .decisions
+            .decisions_tail
             .access_resolution(node)
         else {
             return;
@@ -77,7 +77,7 @@ impl CheckState<'_> {
         // project from the receiver's own access, or root a static member at its declaration
         let mut path = match self
             .module(receiver.module_id)
-            .decisions
+            .decisions_tail
             .access_resolution(receiver)
         {
             Some(access) => access.path().clone(),
@@ -113,7 +113,7 @@ impl CheckState<'_> {
             });
         };
         let resolution = module
-            .decisions
+            .decisions_tail
             .access_resolution(expression.into_global_any(node.module_id))
             .cloned();
 

@@ -82,7 +82,7 @@ impl CheckState<'_> {
             // read the right value's own access
             let access = self
                 .module(module)
-                .decisions
+                .decisions_tail
                 .access_resolution(right_node)
                 .cloned();
 

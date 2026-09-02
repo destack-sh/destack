@@ -47,26 +47,34 @@ impl WalkState<'_, '_> {
             return Ok(Some(parameter));
         }
 
-        // shape the parameter binding by its declared kind
-        let (variance, kind, is_variadic, is_const) = match generic_parameter {
+        // shape the parameter binding by its declaration and the item its constraint names
+        let (variance, constraint, is_variadic, is_const) = match generic_parameter {
             // <T>
             dir::GenericParameter::Type {
-                variance, is_const, ..
-            } => (*variance, dir::GenericParameterKind::Type, false, *is_const),
+                variance,
+                constraint,
+                is_const,
+                ..
+            } => (*variance, *constraint, false, *is_const),
             // <...T>
             dir::GenericParameter::VariadicType {
-                variance, is_const, ..
-            } => (*variance, dir::GenericParameterKind::Type, true, *is_const),
+                variance,
+                constraint,
+                is_const,
+                ..
+            } => (*variance, *constraint, true, *is_const),
             // <'a>
-            dir::GenericParameter::Lifetime { .. } => (
-                None,
-                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region),
-                false,
-                false,
-            ),
+            dir::GenericParameter::Lifetime { .. } => (None, None, false, false),
             // ignore damaged nodes
             dir::GenericParameter::Error => return Ok(None),
         };
+        let resolved = self.check.module.resolved.clone();
+        let kind = self.check.declared_parameter_kind(
+            self.module,
+            &resolved,
+            generic_parameter,
+            constraint,
+        )?;
         let parameter = self.check.push_generic_parameter(
             template,
             id.into_global_any(self.module),

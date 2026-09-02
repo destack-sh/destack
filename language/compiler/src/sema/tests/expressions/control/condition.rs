@@ -35,7 +35,7 @@ if (true) {
 }
 
 #[test]
-fn test_warn_on_an_infinite_while_condition() {
+fn test_warn_about_an_endless_while_condition() {
     let session = TestSession::single(
         r#"
 while (true) {

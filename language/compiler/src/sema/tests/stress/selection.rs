@@ -29,7 +29,7 @@ check.members.derived=0
 check.members.refused=0
 check.instantiations=1000
 check.interns=14008
-check.reduces=87004
+check.reduces=75010
 "#,
     );
 }
@@ -61,7 +61,7 @@ check.members.derived=0
 check.members.refused=0
 check.instantiations=1000
 check.interns=14008
-check.reduces=87004
+check.reduces=77006
 "#,
     );
 }

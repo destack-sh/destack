@@ -191,7 +191,7 @@ impl CheckState<'_> {
             ("check.solve.solutions", solutions as u64),
             (
                 "check.solve.decisions",
-                self.module.decisions.decision_entries().count() as u64,
+                self.module.decisions_tail.decision_entries().count() as u64,
             ),
         ]);
         self.counters.record(context);

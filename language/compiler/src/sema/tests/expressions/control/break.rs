@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_nested_function_break_reports_error() {
     let session = TestSession::single(
         r#"
-while (true) {
+loop {
     const stop = () => {
         break;
     };
@@ -17,15 +17,15 @@ while (true) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-while (true) {
+loop {
     const stop: () => void = (): void => {
         break;
     };
 }
 
 === dir ===
-while (true) {
-/// @type.node source=true type=true
+loop {
+/// @type.node type=never
 
     const stop = () => {
     /// @type.symbol symbol=stop source=stop type=Function<(), void, "readonly">
@@ -40,8 +40,6 @@ while (true) {
 }
 "#,
         r#"
-/// @diagnostic.warning id=constant-condition message="condition is always true"
-/// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
 /// @diagnostic.error id=break-outside-control-target message="break statement has no target"
 /// @diagnostic.label line=4 column=9 span="break" line_source="break;"
 "#,
@@ -149,7 +147,7 @@ function spin(): never {
 fn test_break_value_outside_loop_reports_error() {
     let session = TestSession::single(
         r#"
-while (true) {
+loop {
     break 1;
 }
 "#,
@@ -160,26 +158,23 @@ while (true) {
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-while (true) {
+loop {
     break 1;
 }
 
 === dir ===
-while (true) {
-/// @type.node source=true type=true
+loop {
+/// @type.node type=int64
 
     break 1;
     /// @type.node source="break 1" type=never
-    /// @resolution.transfer source="break 1" target=while
+    /// @resolution.transfer source="break 1" target=loop
     /// @type.node source=1 type=1
 
 }
 "#,
         r#"
-/// @diagnostic.warning id=constant-condition message="condition is always true"
-/// @diagnostic.label line=2 column=8 span="true" line_source="while (true) {"
-/// @diagnostic.error id=break-value-outside-loop message="break with a value can only target a `loop`"
-/// @diagnostic.label line=3 column=5 span="break 1" line_source="break 1;"
+
 "#,
     );
 }

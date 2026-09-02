@@ -57,8 +57,12 @@ pub(in crate::sema) struct CheckModuleState {
     pub(in crate::sema) types: dir::TypeTable<'static>,
     /// The committed base static table.
     pub(in crate::sema) statics: dir::StaticTable<'static>,
-    /// The committed definitions this pass shadows.
-    pub(in crate::sema) definitions: Vec<Arc<dir::DefinitionSegment>>,
+    /// The committed base definition table.
+    pub(in crate::sema) definitions: dir::DefinitionTable<'static>,
+    /// The committed base decision table, the checked decisions materialization reads.
+    pub(in crate::sema) decisions: dir::DecisionTable<'static>,
+    /// The committed base coercion table, the checked coercions materialization reads.
+    pub(in crate::sema) coercions: dir::CoercionTable<'static>,
     /// The committed member entries this pass shadows.
     pub(in crate::sema) members: Vec<Arc<dir::MemberSegment>>,
 
@@ -84,9 +88,9 @@ pub(in crate::sema) struct CheckModuleState {
     /// Checked node resolutions.
     pub(in crate::sema) resolutions: dir::ResolutionSegment,
     /// Decisions inference made this pass.
-    pub(in crate::sema) decisions: dir::DecisionSegment,
+    pub(in crate::sema) decisions_tail: dir::DecisionSegment,
     /// Checked implicit coercions.
-    pub(in crate::sema) coercions: dir::CoercionSegment,
+    pub(in crate::sema) coercions_tail: dir::CoercionSegment,
     /// Checked captures.
     pub(in crate::sema) captures: dir::CaptureSegment,
     /// Checked flow conclusions.
@@ -289,28 +293,50 @@ impl CheckModuleState {
         }
         let generics = dir::GenericTable::from_segments(generic_segments);
 
-        // shadow the committed definitions and member entries, which key by symbol and site
-        let mut definitions = Vec::new();
+        // stack the committed definition segments in stage order under one view
+        let mut definition_segments = Vec::new();
+        if let Some(declared) = &declared {
+            definition_segments.push(Arc::clone(&declared.definitions));
+        }
+        if let Some(elaborated) = &elaborated {
+            definition_segments.push(Arc::clone(&elaborated.definitions));
+        }
+        if let Some(checked) = &checked {
+            definition_segments.push(Arc::clone(&checked.definitions));
+        }
+        if definition_segments.is_empty() {
+            definition_segments.push(Arc::new(dir::DefinitionSegment::new(module.id)));
+        }
+        let definitions = dir::DefinitionTable::from_segments(definition_segments);
+
+        // shadow the committed member entries, which key by site
         let mut members = Vec::new();
         if let Some(checked) = &checked {
-            definitions.push(checked.definitions.clone());
             members.push(checked.members.clone());
         }
         if let Some(elaborated) = &elaborated {
-            definitions.push(elaborated.definitions.clone());
             members.push(elaborated.members.clone());
         }
         if let Some(declared) = &declared {
-            definitions.push(declared.definitions.clone());
             members.push(declared.members.clone());
         }
         let definitions_tail = dir::DefinitionSegment::new(module.id);
         let members_tail = dir::MemberSegment::new(module.id);
 
+        // read the checked decisions and coercions as committed bases
+        let decisions = dir::DecisionTable::from_segment(match &checked {
+            Some(checked) => Arc::clone(&checked.decisions),
+            None => Arc::new(dir::DecisionSegment::new(module.id)),
+        });
+        let coercions = dir::CoercionTable::from_segment(match &checked {
+            Some(checked) => Arc::clone(&checked.coercions),
+            None => Arc::new(dir::CoercionSegment::new(module.id)),
+        });
+
         // open the remaining segments and this module's diagnostic controls
         let resolutions = dir::ResolutionSegment::new(module.id);
-        let decisions = dir::DecisionSegment::new(module.id);
-        let coercions = dir::CoercionSegment::new(module.id);
+        let decisions_tail = dir::DecisionSegment::new(module.id);
+        let coercions_tail = dir::CoercionSegment::new(module.id);
         let captures = dir::CaptureSegment::new(module.id);
         let flows = dir::FlowSegment::new(module.id);
         // carry the diagnostic controls the latest stage wrote
@@ -341,6 +367,8 @@ impl CheckModuleState {
             types,
             statics,
             definitions,
+            decisions,
+            coercions,
             members,
             bindings_tail,
             types_tail,
@@ -351,8 +379,8 @@ impl CheckModuleState {
             generics_tail,
             decorators_tail,
             resolutions,
-            decisions,
-            coercions,
+            decisions_tail,
+            coercions_tail,
             captures,
             flows,
             controls,
@@ -597,9 +625,7 @@ impl CheckModuleState {
             return Some(definition);
         }
 
-        self.definitions
-            .iter()
-            .find_map(|base| base.definition(symbol))
+        self.definitions.definition(symbol)
     }
 
     /// Return one definition for rewriting, copying the committed base in once.
@@ -609,12 +635,8 @@ impl CheckModuleState {
     ) -> Option<&mut dir::Definition> {
         // copy the committed definition into the pass tail on first write
         if self.definitions_tail.definition(symbol).is_none() {
-            let base = self
-                .definitions
-                .iter()
-                .find(|base| base.definition(symbol).is_some())?;
-            let definition = base.definition(symbol)?.clone();
-            let source = base.definition_source_maybe(symbol)?;
+            let definition = self.definitions.definition(symbol)?.clone();
+            let source = self.definitions.definition_source(symbol)?;
             self.definitions_tail
                 .insert_definition(symbol, source, definition);
         }
@@ -632,28 +654,18 @@ impl CheckModuleState {
             return Some(source);
         }
 
-        self.definitions
-            .iter()
-            .find_map(|base| base.definition_source_maybe(symbol))
+        self.definitions.definition_source(symbol)
     }
 
     /// Iterate definitions with pass entries shadowing the committed base.
     pub(in crate::sema) fn iter_definitions(
         &self,
     ) -> impl Iterator<Item = (dir::GlobalSymbolId, &dir::Definition)> + '_ {
-        // drop the base entries this pass or a newer base redefined
+        // drop the base entries this pass redefined
         let shadowed = self
             .definitions
-            .iter()
-            .enumerate()
-            .flat_map(|(depth, base)| base.iter_definitions().map(move |entry| (depth, entry)))
-            .filter(|(depth, (symbol, _))| {
-                self.definitions_tail.definition(*symbol).is_none()
-                    && !self.definitions[..*depth]
-                        .iter()
-                        .any(|newer| newer.definition(*symbol).is_some())
-            })
-            .map(|(_, entry)| entry);
+            .iter_definitions()
+            .filter(|(symbol, _)| self.definitions_tail.definition(*symbol).is_none());
 
         shadowed.chain(self.definitions_tail.iter_definitions())
     }
@@ -662,11 +674,9 @@ impl CheckModuleState {
     pub(in crate::sema) fn root_extensions(&self, root: dir::TypeRoot) -> Vec<dir::GlobalSymbolId> {
         // collect this pass's symbols, then the base symbols beneath them
         let mut symbols: Vec<_> = self.definitions_tail.root_extensions(root).to_vec();
-        for base in self.definitions.iter() {
-            for symbol in base.root_extensions(root) {
-                if !symbols.contains(symbol) {
-                    symbols.push(*symbol);
-                }
+        for symbol in self.definitions.root_extensions(root) {
+            if !symbols.contains(&symbol) {
+                symbols.push(symbol);
             }
         }
 
@@ -677,11 +687,9 @@ impl CheckModuleState {
     pub(in crate::sema) fn blanket_extensions(&self) -> Vec<dir::GlobalSymbolId> {
         // collect this pass's symbols, then the base symbols beneath them
         let mut symbols: Vec<_> = self.definitions_tail.blanket_extensions().to_vec();
-        for base in self.definitions.iter() {
-            for symbol in base.blanket_extensions() {
-                if !symbols.contains(symbol) {
-                    symbols.push(*symbol);
-                }
+        for symbol in self.definitions.blanket_extensions() {
+            if !symbols.contains(&symbol) {
+                symbols.push(symbol);
             }
         }
 
@@ -1551,7 +1559,7 @@ impl CheckState<'_> {
         let uses = resolution.binding_uses();
 
         // refuse refinements that would invalidate already committed uses
-        if let Some(previous) = self.module(node.module_id).decisions.decision(node) {
+        if let Some(previous) = self.module(node.module_id).decisions_tail.decision(node) {
             let previous_uses = previous.binding_uses();
             if !previous_uses.is_empty() && previous_uses != uses {
                 return Err(CompilerError::Internal {
@@ -1574,7 +1582,7 @@ impl CheckState<'_> {
 
         // keep the last committed payload as later derivations refine the same targets
         self.module_mut(node.module_id)
-            .decisions
+            .decisions_tail
             .set_decision(node, resolution);
         self.record_event(CheckEvent::NodeDecided { node });
 
@@ -1626,7 +1634,7 @@ impl CheckState<'_> {
 
     /// Return one node's committed resolution.
     pub(in crate::sema) fn decision(&self, node: dir::GlobalNodeIdAny) -> Option<&dir::Decision> {
-        self.module(node.module_id).decisions.decision(node)
+        self.module(node.module_id).decisions_tail.decision(node)
     }
 
     /// Return one module's committed resolutions.
@@ -1634,8 +1642,8 @@ impl CheckState<'_> {
         &self.module(module).resolutions
     }
 
-    /// Return one module's committed decisions.
+    /// Return one module's decisions committed this pass.
     pub(in crate::sema) fn decisions(&self, module: ModuleId) -> &dir::DecisionSegment {
-        &self.module(module).decisions
+        &self.module(module).decisions_tail
     }
 }

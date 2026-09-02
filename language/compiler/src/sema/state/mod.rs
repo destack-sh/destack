@@ -1,5 +1,7 @@
 mod capture;
 mod check;
+mod committed;
+mod coroutine;
 mod external;
 mod format;
 mod generic;
@@ -11,6 +13,7 @@ mod trace;
 
 pub(in crate::sema) use capture::*;
 pub(in crate::sema) use check::*;
+pub(in crate::sema) use coroutine::*;
 pub(in crate::sema) use external::*;
 pub(in crate::sema) use generic::*;
 pub(in crate::sema) use infer::*;

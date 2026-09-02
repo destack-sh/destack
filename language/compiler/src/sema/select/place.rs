@@ -465,7 +465,7 @@ impl CheckState<'_> {
 
         // commit the selected place
         self.module_mut(node.module_id)
-            .decisions
+            .decisions_tail
             .set_place_resolution(node, place);
 
         Ok(())
@@ -540,7 +540,7 @@ impl CheckState<'_> {
                     ty: receiver,
                     ..receiver_value
                 };
-                let lookup = self.match_member(
+                let mut lookup = self.match_member(
                     origin,
                     module,
                     receiver_value,
@@ -548,6 +548,10 @@ impl CheckState<'_> {
                     key,
                     dir::Access::Mutable,
                 )?;
+
+                // project the answer onto its physical receiver arms
+                self.adjust_narrowed_lookup(origin, receiver, subject.target, &mut lookup)?;
+
                 let Some(selection) =
                     self.select_member_assignment(origin, receiver_value, key, use_, lookup)?
                 else {

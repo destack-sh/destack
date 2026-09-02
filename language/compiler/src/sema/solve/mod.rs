@@ -5,6 +5,7 @@ mod check;
 mod decide;
 mod fulfill;
 mod goal;
+mod members;
 mod relation;
 mod report;
 mod resolve;

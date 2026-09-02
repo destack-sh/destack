@@ -11,10 +11,10 @@ use smallvec::SmallVec;
 
 use crate::export::ExportResolver;
 use crate::sema::{
-    Answer, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, DecoratorApplication,
-    ExtensionHead, ExternalModuleTable, FieldInitializationObligation, FlowBranch, FlowState,
-    Fulfillment, FunctionBody, GenericParameterId, GoalKey, HeritageReach, InferContext, NodeTable,
-    Origin, OriginId, Relation, RelationKey, VarianceForm, VarianceState,
+    Answer, Cause, CauseId, CheckCounters, CheckModuleState, CheckTrace, CoroutineBody,
+    DecoratorApplication, ExtensionHead, ExternalModuleTable, FieldInitializationObligation,
+    FlowBranch, FlowState, Fulfillment, FunctionBody, GenericParameterId, GoalKey, HeritageReach,
+    InferContext, NodeTable, Origin, OriginId, Relation, RelationKey, VarianceForm, VarianceState,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -85,6 +85,8 @@ pub(in crate::sema) struct CheckState<'a> {
     pub(in crate::sema) functions: FxIndexMap<dir::GlobalSymbolId, FunctionBody>,
     /// Lambda bodies keyed by their value expression.
     pub(in crate::sema) lambdas: FxIndexMap<dir::GlobalNodeIdAny, FunctionBody>,
+    /// Coroutine bodies in discovery order, kept until their creation rows commit.
+    pub(in crate::sema) coroutines: Vec<CoroutineBody>,
     /// Member block bodies discovered while checking, in discovery order.
     pub(in crate::sema) blocks: Vec<dir::GlobalNodeIdAny>,
     /// Resolved decorators in module walk order.
@@ -130,6 +132,9 @@ pub(in crate::sema) struct CheckState<'a> {
         FxIndexMap<dir::GlobalTypeId, Option<dir::ScalarFamilySet>>,
     /// Memoized aliasing per closed type.
     pub(in crate::sema) aliasing: FxIndexMap<dir::GlobalTypeId, bool>,
+    /// Memoized canonical flat union members per closed union target.
+    pub(in crate::sema) canonical_unions:
+        FxIndexMap<dir::GlobalTypeId, Option<SmallVec<[dir::GlobalTypeId; 4]>>>,
     /// Decided relations over closed operands.
     pub(in crate::sema) decided_relations: FxIndexMap<RelationKey, bool>,
     /// Extension targets closed receivers failed to match, by declared target and receiver.
@@ -240,6 +245,7 @@ impl<'a> CheckState<'a> {
             flow: FlowState::default(),
             functions: FxIndexMap::default(),
             lambdas: FxIndexMap::default(),
+            coroutines: Vec::new(),
             blocks: Vec::new(),
             decorators: Vec::new(),
             claimed_induced: FxIndexSet::default(),
@@ -256,6 +262,7 @@ impl<'a> CheckState<'a> {
             erasures: FxIndexMap::default(),
             substitutions: FxIndexMap::default(),
             scalar_families: FxIndexMap::default(),
+            canonical_unions: FxIndexMap::default(),
             aliasing: FxIndexMap::default(),
             decided_relations: FxIndexMap::default(),
             unmatched_targets: FxIndexSet::default(),
@@ -791,7 +798,7 @@ impl CheckState<'_> {
         extent: dir::GlobalTypeId,
         space: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // name a region term's whole provenance
+        // name a region term's whole extent and space
         if self.memory_kind(space)? == Some(dir::MemoryParameter::Region) {
             return Ok(space);
         }
@@ -834,7 +841,7 @@ impl CheckState<'_> {
         &mut self,
         lifetime: dir::Lifetime,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let value = self.strings().intern(lifetime.text());
+        let value = self.strings().intern(&lifetime.text());
 
         self.intern_type(dir::Type::Literal(dir::Literal::String(value)))
     }
@@ -1276,34 +1283,23 @@ impl CheckState<'_> {
             return Ok(*entry);
         }
 
-        // import the member's foreign module before the scan
+        // import the member's foreign module before the lookup
         if !self.is_own_module(member.module_id) {
             self.import_external_module(member.module_id)?;
         }
 
-        // find the declaring owner in the member's own or loaded foreign module
-        let entry = if self.is_own_module(member.module_id) {
-            self.module
-                .iter_definitions()
-                .find_map(|(owner, definition)| {
-                    definition
-                        .member_visibility(member)
-                        .map(|visibility| (owner, visibility))
-                })
-        } else {
-            self.external_modules
-                .get(&member.module_id)
-                .and_then(|external| {
-                    external
-                        .definitions
-                        .iter_definitions()
-                        .find_map(|(owner, definition)| {
-                            definition
-                                .member_visibility(member)
-                                .map(|visibility| (owner, visibility))
-                        })
-                })
-        };
+        // read the visibility off the declaring definition
+        let entry = self
+            .member_owner(member)
+            .and_then(|owner| {
+                self.definition_maybe(owner)
+                    .map(|definition| (owner, definition))
+            })
+            .and_then(|(owner, definition)| {
+                definition
+                    .member_visibility(member)
+                    .map(|visibility| (owner, visibility))
+            });
         self.member_visibilities.insert(member, entry);
 
         Ok(entry)

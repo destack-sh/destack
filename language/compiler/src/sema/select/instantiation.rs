@@ -21,8 +21,8 @@ pub(in crate::sema) enum TypeArgumentInference<'a> {
 }
 
 impl CheckState<'_> {
-    /// Interpret one written argument for a parameter slot.
-    fn slot_written_argument(
+    /// Bind one written argument to one parameter.
+    fn bind_written_argument(
         &mut self,
         binding: &dir::GenericParameterBinding,
         written: dir::GlobalTypeId,
@@ -73,7 +73,7 @@ impl CheckState<'_> {
                 && self.argument_fills_parameter(&binding, written[cursor])?
             {
                 // interpret a value binding argument by the slot's kind
-                let Some(argument) = self.slot_written_argument(&binding, written[cursor])? else {
+                let Some(argument) = self.bind_written_argument(&binding, written[cursor])? else {
                     return Ok(None);
                 };
                 substitution.bind(parameter, argument)?;
@@ -141,7 +141,7 @@ impl CheckState<'_> {
                 && self.argument_fills_parameter(&binding, written[cursor])?
             {
                 // interpret a value binding argument by the slot's kind
-                let Some(argument) = self.slot_written_argument(&binding, written[cursor])? else {
+                let Some(argument) = self.bind_written_argument(&binding, written[cursor])? else {
                     return Ok(None);
                 };
                 substitution.bind(parameter, argument)?;

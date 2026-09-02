@@ -59,11 +59,13 @@ impl CheckState<'_> {
         // collect condition sites directly from visible checked DIR
         for expression in view.iter_node_ids_of_type::<dir::Expression>() {
             match view.get(expression) {
-                dir::Expression::If { condition, .. }
-                | dir::Expression::While { condition, .. } => {
+                dir::Expression::If { condition, .. } => {
                     for condition in condition.expressions() {
                         conditions.insert(condition);
                     }
+                }
+                dir::Expression::While { condition, .. } => {
+                    conditions.extend(condition.expressions());
                 }
                 dir::Expression::For {
                     condition: Some(condition),

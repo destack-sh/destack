@@ -1,6 +1,7 @@
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_dir::{InstanceKeyVisit, TypeFold};
+use destack_source::ModuleId;
 
 use crate::sema::{CheckModuleState, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};
@@ -28,9 +29,6 @@ impl CheckState<'_> {
                 false => resolved,
             };
             self.node_types.insert(node, resolved);
-            if self.is_checking() {
-                self.commit_array_construction(node)?;
-            }
             let written = self
                 .module
                 .types_tail
@@ -40,6 +38,9 @@ impl CheckState<'_> {
                 self.module.types_tail.set_node_type(node, resolved);
             }
         }
+
+        // commit what waited on resolved types
+        self.commit_resolved()?;
 
         // resolve declaration types and normalize their declared entries
         for index in 0..self.declaration_types.len() {
@@ -80,7 +81,7 @@ impl CheckState<'_> {
         // resolve the types every segment this pass wrote carries
         let module = self.module_id;
         self.resolve_segment_types(dir::DecisionSegment::new(module), |state| {
-            &mut state.decisions
+            &mut state.decisions_tail
         })?;
         self.resolve_segment_types(dir::DefinitionSegment::new(module), |state| {
             &mut state.definitions_tail
@@ -92,7 +93,7 @@ impl CheckState<'_> {
             &mut state.statics_tail
         })?;
         self.resolve_segment_types(dir::CoercionSegment::new(module), |state| {
-            &mut state.coercions
+            &mut state.coercions_tail
         })?;
         self.resolve_segment_types(dir::CaptureSegment::new(module), |state| {
             &mut state.captures
@@ -114,7 +115,7 @@ impl CheckState<'_> {
         // collect the selections that bind generic arguments under their template
         let mut seen = FxIndexSet::default();
         let mut instantiations = Vec::new();
-        for (node, decision) in self.module.decisions.decision_entries() {
+        for (node, decision) in self.module.decisions_tail.decision_entries() {
             decision.visit_instance_keys(&mut |selection| {
                 if selection.arguments.is_empty() && selection.receiver.is_none() {
                     return;
@@ -141,13 +142,13 @@ impl CheckState<'_> {
         }
 
         // collect instantiating conversions behind callable references
-        for (node, coercion) in self.module.coercions.coercions() {
+        for (node, coercion) in self.module.coercions_tail.coercions() {
             for adjustment in &coercion.adjustments {
                 let dir::CoercionAdjustment::Instantiate { arguments, .. } = adjustment else {
                     continue;
                 };
                 let Some(dir::Decision::Function(dir::OperationResolution::One(value))) =
-                    self.module.decisions.decision(node)
+                    self.module.decisions_tail.decision(node)
                 else {
                     continue;
                 };
@@ -184,11 +185,11 @@ impl CheckState<'_> {
 
     /// Return the innermost parameterized declaration enclosing one node.
     fn governing_template_symbol(&self, node: dir::GlobalNodeIdAny) -> Option<dir::GlobalSymbolId> {
-        // climb structural parents until a parameterized declaration owns the node
+        // climb from the node through its structural parents to a parameterized declaration
         let tree = &self.module.parsed.tree;
-        let mut current = node.local_id.id;
+        let mut current = Some(node.local_id);
         let mut method = None;
-        while let Some(parent) = tree.get_parent(current) {
+        while let Some(parent) = current {
             if let Some(symbol) = self.module.declaration_symbol(parent) {
                 // resolve parameterized owners through their selecting method
                 let is_parameterized = self
@@ -213,7 +214,7 @@ impl CheckState<'_> {
                 }
             }
 
-            current = parent.id;
+            current = tree.get_parent(parent.id);
         }
 
         None
@@ -454,5 +455,50 @@ impl CheckState<'_> {
 
             _ => Ok(false),
         }
+    }
+
+    /// Commit the decisions that wait on resolved types while checking: array constructions and coroutine creations.
+    fn commit_resolved(&mut self) -> CompilerResult<()> {
+        if !self.is_checking() {
+            return Ok(());
+        }
+        for node in self.node_types.nodes() {
+            self.commit_array_construction(node)?;
+        }
+
+        self.commit_coroutine_creations()
+    }
+
+    /// Settle each recorded narrowing on the solved members it keeps, dropping the vacuous ones.
+    pub(in crate::sema) fn settle_narrowings(&mut self, module: ModuleId) -> CompilerResult<()> {
+        let entries: Vec<_> = self
+            .module(module)
+            .decisions_tail
+            .narrowing_entries()
+            .map(|(node, narrowing)| (node, narrowing.clone()))
+            .collect();
+        for (node, narrowing) in entries {
+            let origin = Origin::Node(node, None);
+            let union = self.fully_resolve(narrowing.union)?;
+            let narrowed = self.fully_resolve(narrowing.arms[0])?;
+            let narrowed = self.evaluate_type(origin, narrowed)?;
+
+            // keep the declared members the narrowed type still names
+            let members = self.canonical_union_members(origin, union)?;
+            let arms = match self.canonical_union_members(origin, narrowed)? {
+                Some(arms) => arms.to_vec(),
+                None => vec![narrowed],
+            };
+            let is_projection = members.as_ref().is_some_and(|members| {
+                arms.len() < members.len() && arms.iter().all(|arm| members.contains(arm))
+            });
+            let decisions = &mut self.module_mut(module).decisions_tail;
+            match is_projection {
+                true => decisions.set_narrowing(node, dir::Narrowing { union, arms }),
+                false => decisions.remove_narrowing(node),
+            }
+        }
+
+        Ok(())
     }
 }

@@ -971,15 +971,16 @@ impl WalkState<'_, '_> {
             return self.intern_type(dir::Type::Parameter(parameter));
         }
 
-        // keep foreign references symbolic while declaring
+        // slot foreign references over their binder kinds while declaring
         if self.check.is_declaring() && !self.check.is_own_module(symbol.module_id) {
             let positional = applied
                 .iter()
                 .filter(|argument| argument.name.is_none())
                 .map(|argument| argument.ty)
                 .collect::<Vec<_>>();
+            let arguments = self.bind_foreign_arguments(source, symbol, &positional)?;
 
-            return self.build_application_type(source, symbol, &positional, applied);
+            return self.build_application_type(source, symbol, &arguments, applied);
         }
 
         // load foreign declarations before reading their templates
@@ -1171,7 +1172,7 @@ impl WalkState<'_, '_> {
                 .push(dir::GenericArgumentBinding::new(parameter, argument));
         }
 
-        // reject written arguments no slot consumed
+        // reject written arguments that no slot consumed
         if cursor < written.len() {
             self.report_binding_arity(source, symbol, &parameters, written.len());
 
@@ -1203,6 +1204,58 @@ impl WalkState<'_, '_> {
         };
 
         self.apply_named_refinements(ty, applied)
+    }
+
+    /// Bind written arguments to a foreign template's parameters by kind, eliding omitted memory parameters by site.
+    fn bind_foreign_arguments(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        symbol: dir::GlobalSymbolId,
+        written: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        // memory forms build their canonical form from the written arguments alone
+        if self
+            .check
+            .language_item(symbol)?
+            .is_some_and(|item| item.is_memory_form())
+        {
+            return Ok(written.to_vec());
+        }
+        let parameters = self.check.template_parameters(symbol)?;
+        let mut arguments = Vec::with_capacity(parameters.len());
+        let mut cursor = 0;
+        for parameter in parameters {
+            // take the next written argument the parameter's kind admits
+            let fills = cursor < written.len()
+                && self
+                    .check
+                    .argument_fills_kind(parameter.kind, written[cursor])?;
+            if fills {
+                arguments.push(written[cursor]);
+                cursor += 1;
+
+                continue;
+            }
+
+            // leave omitted parameters with defaults to their declared defaults
+            if parameter.has_default {
+                break;
+            }
+
+            // elide omitted memory parameters like unwritten borrow lifetimes
+            match parameter.kind {
+                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => {
+                    arguments.push(self.elided_borrow_region(source)?);
+                }
+                dir::GenericParameterKind::Memory(memory) => {
+                    arguments.push(self.elided_memory_component(source, memory)?);
+                }
+                dir::GenericParameterKind::Type => break,
+            }
+        }
+        arguments.extend(written[cursor..].iter().copied());
+
+        Ok(arguments)
     }
 
     /// Build one written memory form application as its canonical form.
