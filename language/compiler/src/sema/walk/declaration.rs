@@ -880,6 +880,7 @@ impl WalkState<'_, '_> {
         receiver: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
         let function = dir::FunctionSignatureType {
+            parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template: None,
             this_parameter: None,

@@ -63,6 +63,11 @@ impl CheckState<'_> {
             .is_some_and(|function| function.generator.is_some())
     }
 
+    /// Return the enclosing function's symbol.
+    pub(in crate::sema) fn current_function_symbol(&self) -> Option<dir::GlobalSymbolId> {
+        self.flow.current_function().map(|function| function.symbol)
+    }
+
     /// Return the enclosing generator body's targets.
     pub(in crate::sema) fn current_generator(&self) -> Option<GeneratorTargets> {
         self.flow

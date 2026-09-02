@@ -716,6 +716,7 @@ impl CheckState<'_> {
         // intern the erased callable signature
         let parameters = self.intern_parameters(&parameters)?;
         let callable_type = self.intern_signature(dir::FunctionSignatureType {
+            parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template: None,
             this_parameter: Some(constraint),

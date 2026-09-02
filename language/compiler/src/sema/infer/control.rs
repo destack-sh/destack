@@ -4,9 +4,9 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, CheckAttempt, CheckOutcome, CheckState, ConditionBranch, ControlTargetForm,
-    Expectation, ExpectedType, FlowBranch, FlowSite, ForInSourceObligation, InferMode, Obligation,
-    Origin, PatternArm, PatternCoverage, PatternCoverageObligation, PlaceUse, Relation,
-    RelationCheck, ValueCheck, ValueUse,
+    Expectation, ExpectedType, FlowBranch, FlowSite, InferMode, Obligation, Origin, PatternArm,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, ProtocolCall, Relation, RelationCheck,
+    Value, ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -45,12 +45,41 @@ impl CheckState<'_> {
         let result = match self.chain_short_circuits(site.origin(), module, inner)? {
             true => {
                 let undefined = self.intern_type(dir::Type::Undefined)?;
-                self.normalized_union_type([ty, undefined])?
+                let result = self.normalized_union_type([ty, undefined])?;
+                self.convert_chain_completion(inner_site, ty, result)?;
+
+                result
             }
             false => ty,
         };
         self.commit_node_type(node, result)?;
         self.commit_chain_access(node)?;
+
+        Ok(())
+    }
+
+    /// Record the completed chain value's conversion into the joined result.
+    fn convert_chain_completion(
+        &mut self,
+        inner_site: FlowSite,
+        ty: dir::GlobalTypeId,
+        result: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        if result == ty {
+            return Ok(());
+        }
+
+        let value = self.expression_value(inner_site, ty)?;
+        let cause = self.intern_cause(Cause::root(inner_site.origin(), CauseKind::Expression));
+        self.convert_value(
+            inner_site,
+            cause,
+            Relation::Storable,
+            value,
+            result,
+            ValueUse::Output,
+            InferMode::Regular,
+        )?;
 
         Ok(())
     }
@@ -77,8 +106,10 @@ impl CheckState<'_> {
         let result = match self.chain_short_circuits(site.origin(), module, inner)? {
             true => {
                 let undefined = self.intern_type(dir::Type::Undefined)?;
+                let result = self.normalized_union_type([check.source, undefined])?;
+                self.convert_chain_completion(inner_site, check.source, result)?;
 
-                self.normalized_union_type([check.source, undefined])?
+                result
             }
             false => check.source,
         };
@@ -765,6 +796,7 @@ impl CheckState<'_> {
         &mut self,
         site: FlowSite,
         label: Option<dir::StringId>,
+        asynchrony: dir::Asynchrony,
         binding: dir::ForEachBinding,
         iterator: dir::LocalNodeId<dir::Expression>,
         body: dir::LocalNodeId<dir::Block>,
@@ -775,7 +807,7 @@ impl CheckState<'_> {
         let iterator_site = self.visit_site(iterator.into_global_any(module))?;
         let iterator_type = self.infer_node(iterator_site, PlaceUse::Read, InferMode::Regular)?;
         let iterator_type = self.flow_type_at(iterator_site, iterator_type)?;
-        let target = self.for_of_value_type(site.origin(), site.node, iterator_type)?;
+        let target = self.for_of_value_type(site, asynchrony, iterator, iterator_type)?;
 
         // check the binding against the value produced by the iteration source
         let pattern = match binding {
@@ -813,43 +845,189 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the yielded value type of one for-of source.
+    /// Select the iteration protocol calls one for-of source takes, returning its value type.
     fn for_of_value_type(
         &mut self,
-        origin: Origin,
-        source: dir::GlobalNodeIdAny,
+        site: FlowSite,
+        asynchrony: dir::Asynchrony,
+        iterator: dir::LocalNodeId<dir::Expression>,
         iterator_type: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // select the source's iterator member through the Iterable protocol
+        let origin = site.origin();
+        let source = iterator.into_global_any(site.node.module_id);
         let anchored = self.origin_at(origin, source)?;
-        let key = dir::StaticKey::Name(self.strings().intern("iterator"));
         let source_site = self.visit_site(source)?;
         let source_value = self.expression_value(source_site, iterator_type)?;
-        let selected = self.select_language_protocol_call(
-            anchored,
-            source_value,
-            iterator_type,
-            dir::MemberSpace::Instance,
-            key,
-            dir::LanguageItem::Iterable,
-            &[],
-            &[],
-            &[],
-        )?;
 
-        // sources without an implementation cannot be iterated
-        let Some((protocol, _call)) = selected else {
+        // open the async protocol first, falling back to the sync one as JS does
+        let mut protocols = match asynchrony {
+            dir::Asynchrony::Sync => vec![(
+                dir::LanguageItem::Iterable,
+                "iterator",
+                dir::LanguageItem::Iterator,
+            )],
+            dir::Asynchrony::Async => vec![
+                (
+                    dir::LanguageItem::AsyncIterable,
+                    "asyncIterator",
+                    dir::LanguageItem::AsyncIterator,
+                ),
+                (
+                    dir::LanguageItem::Iterable,
+                    "iterator",
+                    dir::LanguageItem::Iterator,
+                ),
+            ],
+        };
+        let mut opened = None;
+        for (iterable, iterator_key, iterator_item) in protocols.drain(..) {
+            let key = dir::StaticKey::Name(self.strings().intern(iterator_key));
+            let selected = self.select_language_protocol_call(
+                anchored,
+                source_value,
+                iterator_type,
+                dir::MemberSpace::Instance,
+                key,
+                iterable,
+                &[],
+                &[],
+                &[],
+            )?;
+            if let Some((protocol, call)) = selected {
+                opened = Some((protocol, call, iterable, iterator_item));
+                break;
+            }
+        }
+
+        // report a source without an iteration protocol implementation
+        let Some((protocol, opened, iterable, iterator_item)) = opened else {
             self.report_for_of_source_not_iterable(source);
             let error = self.intern_type(dir::Type::Error)?;
 
             return Ok(error);
         };
-        let Some(value) = protocol.arguments.first().copied() else {
+        let Some(element) = protocol.arguments.first().copied() else {
             return Err(CompilerError::Internal {
                 message: "Iterable protocol implementation has no value argument".to_owned(),
             });
         };
 
+        // select the iterator's next member over the opened iterator
+        let next_key = dir::StaticKey::Name(self.strings().intern("next"));
+        let iterator_value = Value {
+            ty: opened.return_type,
+            node: None,
+            place: None,
+            is_fresh: false,
+        };
+        let selected = self.select_language_protocol_call(
+            anchored,
+            iterator_value,
+            opened.return_type,
+            dir::MemberSpace::Instance,
+            next_key,
+            iterator_item,
+            &[],
+            &[],
+            &[],
+        )?;
+        let Some((_, next)) = selected else {
+            self.report_for_of_source_not_iterable(source);
+            let error = self.intern_type(dir::Type::Error)?;
+
+            return Ok(error);
+        };
+
+        // park each result of an async iterator, or each element a sync iterable yields
+        let (park, value) = match (asynchrony, iterable) {
+            (dir::Asynchrony::Sync, _) => (None, element),
+            (dir::Asynchrony::Async, dir::LanguageItem::AsyncIterable) => {
+                let park = self.select_iteration_await(anchored, next.return_type)?;
+
+                (park.map(|call| (call, dir::AwaitTarget::Result)), element)
+            }
+            (dir::Asynchrony::Async, _) => match self.select_iteration_await(anchored, element)? {
+                Some(call) => {
+                    let awaited = call.return_type;
+
+                    (Some((call, dir::AwaitTarget::Element)), awaited)
+                }
+                None => (None, element),
+            },
+        };
+
+        // record the protocol calls the loop lowers through
+        let (
+            dir::OperationResolution::One(iterator_call),
+            dir::OperationResolution::One(next_call),
+        ) = (opened.resolution, next.resolution)
+        else {
+            return Err(CompilerError::Internal {
+                message: "an iteration protocol selected on a union receiver".to_owned(),
+            });
+        };
+        let park = park.and_then(|(park, target)| match park.resolution {
+            dir::OperationResolution::One(call) => Some(dir::IterationAwait { call, target }),
+            _ => None,
+        });
+        self.commit_decision(
+            site.node,
+            dir::Decision::Iteration(Box::new(dir::IterationDecision {
+                iterator: iterator_call,
+                next: next_call,
+                awaits: park,
+            })),
+        )?;
+
         Ok(value)
+    }
+
+    /// Select the park awaiting one type an async iteration produces, when it is awaitable.
+    fn select_iteration_await(
+        &mut self,
+        origin: Origin,
+        awaited: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<ProtocolCall>> {
+        let parked = self.reduce_operation_type(
+            origin,
+            dir::TypeOperation::Awaited(dir::UnaryType { target: awaited }),
+        )?;
+        let value = Value {
+            ty: awaited,
+            node: None,
+            place: None,
+            is_fresh: false,
+        };
+        let key = dir::StaticKey::Name(self.strings().intern("park"));
+        let selected = self.select_language_protocol_call(
+            origin,
+            value,
+            awaited,
+            dir::MemberSpace::Static,
+            key,
+            dir::LanguageItem::Awaitable,
+            &[parked],
+            &[parked],
+            &[dir::ArgumentSource::Write],
+        )?;
+        let Some((_, park)) = selected else {
+            return Ok(None);
+        };
+
+        // bind the park's parameter to the value it receives
+        if let dir::OperationResolution::One(call) = &park.resolution
+            && let Some(binding) = call.arguments.first()
+        {
+            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            self.push_relation(RelationCheck::new(
+                origin,
+                Relation::Subtype,
+                awaited,
+                binding.parameter_type,
+                cause,
+            ))?;
+        }
+
+        Ok(Some(park))
     }
 }

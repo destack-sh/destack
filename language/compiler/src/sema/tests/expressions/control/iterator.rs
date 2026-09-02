@@ -39,10 +39,27 @@ const values: int32[] = [1, 2, 3];
 /// @type.node source=3 type=3
 
 for (const value of values) {
+/// @resolution.iteration iterator="iterator#2(parameters=(), arguments=(), return=Iterator<int32>)" next="dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)"
+/// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+/// @generic.instance id="DropIterator<Iterator<int32>, int32>" template=DropIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="DropWhileIterator<Iterator<int32>, int32>" template=DropWhileIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="Iterator.collect<Iterator<int32>, int32, ^int32[]>" template=Iterator.collect arguments=(int32, ^int32[])
+/// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+/// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int32, void> | undefined)
+/// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
+/// @generic.instance id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+/// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32) evaluated=(<Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: this, Function<(Iterator.T, isize), Iterator.flatMap.V>) => FlatMapIterator<this, Iterator.T, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U> => <Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: Iterator<int32>, Function<(int32, isize), Iterator.flatMap.V>) => FlatMapIterator<Iterator<int32>, int32, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U>, <Iterator.chain.V: Iterable<Iterator.T>>(this: this, Iterator.chain.V) => ChainIterator<this, Iterator.chain.V.Iterator, Iterator.T> => <Iterator.chain.V: Iterable<Iterator.T>>(this: Iterator<int32>, Iterator.chain.V) => ChainIterator<Iterator<int32>, Iterator.chain.V.Iterator, int32>, <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: this, Iterator.zip.V) => ZipIterator<this, Iterator.zip.V.Iterator, Iterator.T, Iterator.zip.U> => <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: Iterator<int32>, Iterator.zip.V) => ZipIterator<Iterator<int32>, Iterator.zip.V.Iterator, int32, Iterator.zip.U>, <Iterator.tryFold.F: Try>(this: this, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, Iterator.T, isize), Iterator.tryFold.F>) => Iterator.tryFold.F => <Iterator.tryFold.F: Try>(this: Iterator<int32>, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, int32, isize), Iterator.tryFold.F>) => Iterator.tryFold.F)
+/// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+/// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
 /// @type.symbol symbol=value source=value type=int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 
     value satisfies int32;
@@ -92,7 +109,7 @@ for (const value of 1) {
 "#,
         r#"
 /// @diagnostic.error id=for-of-source-not-iterable message="for-of source must be iterable"
-/// @diagnostic.label line=2 column=1 span="for" line_source="for (const value of 1) {"
+/// @diagnostic.label line=2 column=21 span="1" line_source="for (const value of 1) {"
 "#,
     );
 }
@@ -129,9 +146,26 @@ function visit(values: int32[]): void {
 /// @type.symbol symbol=visit.values source="values: int32[]" type=int32[]
 
     for (let value of values) {
+    /// @resolution.iteration iterator="iterator#2(parameters=(), arguments=(), return=Iterator<int32>)" next="dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)"
+    /// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+    /// @generic.instance id="DropIterator<Iterator<int32>, int32>" template=DropIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="DropWhileIterator<Iterator<int32>, int32>" template=DropWhileIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="EnumeratedIterator<Iterator<int32>, int32>" template=EnumeratedIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="FilterIterator<Iterator<int32>, int32>" template=FilterIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="Iterator.collect<Iterator<int32>, int32, ^int32[]>" template=Iterator.collect arguments=(int32, ^int32[])
+    /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+    /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int32, void> | undefined)
+    /// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+    /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32) evaluated=(<Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: this, Function<(Iterator.T, isize), Iterator.flatMap.V>) => FlatMapIterator<this, Iterator.T, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U> => <Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: Iterator<int32>, Function<(int32, isize), Iterator.flatMap.V>) => FlatMapIterator<Iterator<int32>, int32, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U>, <Iterator.chain.V: Iterable<Iterator.T>>(this: this, Iterator.chain.V) => ChainIterator<this, Iterator.chain.V.Iterator, Iterator.T> => <Iterator.chain.V: Iterable<Iterator.T>>(this: Iterator<int32>, Iterator.chain.V) => ChainIterator<Iterator<int32>, Iterator.chain.V.Iterator, int32>, <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: this, Iterator.zip.V) => ZipIterator<this, Iterator.zip.V.Iterator, Iterator.T, Iterator.zip.U> => <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: Iterator<int32>, Iterator.zip.V) => ZipIterator<Iterator<int32>, Iterator.zip.V.Iterator, int32, Iterator.zip.U>, <Iterator.tryFold.F: Try>(this: this, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, Iterator.T, isize), Iterator.tryFold.F>) => Iterator.tryFold.F => <Iterator.tryFold.F: Try>(this: Iterator<int32>, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, int32, isize), Iterator.tryFold.F>) => Iterator.tryFold.F)
+    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
+    /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
     /// @type.symbol symbol=visit.value source=value type=int32
     /// @resolution.pattern source=value kind=binding target=visit.value
     /// @resolution.name source=values target=visit.values
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=visit.values
 
         value += 1;
@@ -188,6 +222,14 @@ function total(values: int32[]): int32 {
     /// @resolution.pattern source=sum kind=binding target=total.sum
 
     for (const (index, value) of values.iterator().enumerate()) {
+    /// @resolution.iteration iterator="iterator(parameters=(), arguments=(), return=EnumeratedIterator<Iterator<int32>, int32>)" next="next#1(parameters=(), arguments=(), return=IteratorResult<(isize, int32), void>)"
+    /// @generic.instantiation id="iterator<(isize, int32), EnumeratedIterator<Iterator<int32>, int32>>" template=iterator arguments=((isize, int32), EnumeratedIterator<Iterator<int32>, int32>)
+    /// @generic.instantiation id="next#1<int32, Iterator<int32>>" template=next#1 arguments=(int32, Iterator<int32>)
+    /// @generic.instance id="IteratorResult<(isize, int32), void>" template=IteratorResult arguments=((isize, int32), void)
+    /// @generic.instance id="IteratorYield<(isize, int32)>" template=IteratorYield arguments=((isize, int32))
+    /// @generic.instance id="iterator<(isize, int32), EnumeratedIterator<Iterator<int32>, int32>>" template=iterator arguments=((isize, int32), EnumeratedIterator<Iterator<int32>, int32>)
+    /// @generic.instance id="next#1<int32, Iterator<int32>>" template=next#1 arguments=(int32, Iterator<int32>)
+    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
     /// @resolution.pattern source=(index, value) kind=tuple fields=(total.index, total.value)
     /// @type.symbol symbol=total.index source=index type=isize
     /// @resolution.pattern source=index kind=binding target=total.index
@@ -210,12 +252,11 @@ function total(values: int32[]): int32 {
     /// @generic.instance id="InspectIterator<Iterator<int32>, int32>" template=InspectIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="Iterator.collect<Iterator<int32>, int32, ^int32[]>" template=Iterator.collect arguments=(int32, ^int32[])
     /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
-    /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32)
+    /// @generic.instance id="PeekableIterator<Iterator<int32>, int32>" template=PeekableIterator arguments=(Iterator<int32>, int32) evaluated=(IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> => IteratorResult<int32, void>, IteratorResult<PeekableIterator.T, PeekableIterator.I.Return> | undefined => IteratorResult<int32, void> | undefined)
     /// @generic.instance id="TakeIterator<Iterator<int32>, int32>" template=TakeIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="TakeWhileIterator<Iterator<int32>, int32>" template=TakeWhileIterator arguments=(Iterator<int32>, int32)
     /// @generic.instance id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
     /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32) evaluated=(<Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: this, Function<(Iterator.T, isize), Iterator.flatMap.V>) => FlatMapIterator<this, Iterator.T, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U> => <Iterator.flatMap.U, Iterator.flatMap.V: Iterable<Iterator.flatMap.U>>(this: Iterator<int32>, Function<(int32, isize), Iterator.flatMap.V>) => FlatMapIterator<Iterator<int32>, int32, Iterator.flatMap.V, Iterator.flatMap.V.Iterator, Iterator.flatMap.U>, <Iterator.chain.V: Iterable<Iterator.T>>(this: this, Iterator.chain.V) => ChainIterator<this, Iterator.chain.V.Iterator, Iterator.T> => <Iterator.chain.V: Iterable<Iterator.T>>(this: Iterator<int32>, Iterator.chain.V) => ChainIterator<Iterator<int32>, Iterator.chain.V.Iterator, int32>, <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: this, Iterator.zip.V) => ZipIterator<this, Iterator.zip.V.Iterator, Iterator.T, Iterator.zip.U> => <Iterator.zip.U, Iterator.zip.V: Iterable<Iterator.zip.U>>(this: Iterator<int32>, Iterator.zip.V) => ZipIterator<Iterator<int32>, Iterator.zip.V.Iterator, int32, Iterator.zip.U>, <Iterator.tryFold.F: Try>(this: this, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, Iterator.T, isize), Iterator.tryFold.F>) => Iterator.tryFold.F => <Iterator.tryFold.F: Try>(this: Iterator<int32>, Iterator.tryFold.F.Output, Function<(Iterator.tryFold.F.Output, int32, isize), Iterator.tryFold.F>) => Iterator.tryFold.F)
-    /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
     /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
 
         sum = sum + value;

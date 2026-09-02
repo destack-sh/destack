@@ -1328,6 +1328,41 @@ pub enum CheckError {
         target: String,
     },
 
+    /// A template literal type expands past the member bound.
+    ///
+    /// ```ds
+    /// type Wide = `${0..=1000000}`;
+    /// ```
+    #[diagnostic(
+        id = "template-literal-too-complex",
+        message = "template literal type expands to a union that is too complex to represent"
+    )]
+    TemplateLiteralTooComplex {
+        /// Report the template literal type.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A closed instance type keeps a type computation no reduction settles.
+    ///
+    /// ```ds
+    /// type Name<T> = `${T}`;
+    /// declare const value: Name<unknown>;
+    /// ```
+    #[diagnostic(
+        id = "type-computation-not-reduced",
+        message = "type '{ty}' does not reduce to a representable type"
+    )]
+    TypeComputationNotReduced {
+        /// Report the instantiation site.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+        /// The unreduced type.
+        ty: String,
+    },
+
     /// `is` target cannot be tested at runtime.
     ///
     /// ```ds
@@ -1961,6 +1996,24 @@ pub enum CheckError {
     )]
     ExpressionPatternNotLiteral {
         /// Report the expression pattern.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A parking call appears outside `await`, `yield`, and the parking protocol's implementations.
+    ///
+    /// ```ds
+    /// function wait(): void {
+    ///     Fiber.park();
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "park-outside-protocol",
+        message = "cannot park outside 'await' and 'yield'"
+    )]
+    ParkOutsideProtocol {
+        /// Report the call expression.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

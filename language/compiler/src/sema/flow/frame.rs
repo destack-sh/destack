@@ -7,7 +7,7 @@ use crate::sema::{FlowBranch, FlowCheckpoint, GeneratorTargets, InferMode, Recei
 #[derive(Debug)]
 pub(in crate::sema) struct FunctionFrame {
     /// The function symbol.
-    pub(in crate::sema::flow) symbol: dir::GlobalSymbolId,
+    pub(in crate::sema) symbol: dir::GlobalSymbolId,
     /// The flow position before entering the function.
     pub(in crate::sema::flow) checkpoint: FlowCheckpoint,
     /// The first control target visible inside this function.

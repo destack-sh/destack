@@ -3,8 +3,8 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CauseKind, FunctionBody, GeneratorTargets, GenericTemplateId, InducedParameterOwner, Origin,
-    ReceiverBinding, Relation, VariableKind, WalkState,
+    CauseKind, CoroutineBody, CoroutineForm, FunctionBody, GeneratorTargets, GenericTemplateId,
+    InducedParameterOwner, Origin, ReceiverBinding, Relation, VariableKind, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -51,9 +51,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
         let this_parameter = header.this_parameter.or(synthesized_this).or(receiver_type);
         let template = self.signature_template(header.template, owner)?;
 
-        // intern the signature the walked header describes
+        // intern the signature the walked header describes, with the park color its declaration carries
+        let parks = self.declaration_parks(source)?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
+            parks,
             asynchrony: signature.asynchrony,
             template,
             this_parameter,
@@ -83,7 +85,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // collect the input regions, preferring the receiver's own
         let mut seen = FxIndexSet::default();
         let mut input_lifetimes = Vec::new();
-        if let Some(this_parameter) = this_parameter {
+        if let Some(this_parameter) = this_parameter.or(receiver_type) {
             input_lifetimes.extend(self.input_region_terms(this_parameter)?);
             input_lifetimes.retain(|lifetime| seen.insert(*lifetime));
         }
@@ -255,6 +257,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         // intern the walked signature
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
+            parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template,
             this_parameter,
@@ -312,6 +315,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             self.apply_result_elision(source, None, None, &parameters, return_type, tracked)?;
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
+            parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template,
             this_parameter: None,
@@ -523,6 +527,24 @@ impl<'check, 'state> WalkState<'check, 'state> {
             entries,
             flow: None,
         };
+        let form = match (body.asynchrony, &body.generator, body.return_type) {
+            (dir::Asynchrony::Async, None, Some(completed)) => {
+                Some(CoroutineForm::Async { completed })
+            }
+            (_, Some(generator), Some(completed)) => Some(CoroutineForm::Generator {
+                yielded: generator.yielded,
+                completed,
+                resumed: generator.resumed,
+            }),
+            _ => None,
+        };
+        if let Some(form) = form {
+            self.check.coroutines.push(CoroutineBody {
+                symbol,
+                asynchrony: body.asynchrony,
+                form,
+            });
+        }
         if self.check.functions.insert(symbol, body).is_some() {
             return Err(CompilerError::Internal {
                 message: format!("function {symbol:?} has multiple checked bodies"),

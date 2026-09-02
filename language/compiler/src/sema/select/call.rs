@@ -1174,6 +1174,15 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         resolution: dir::CallDecision,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // a written call to a parking callable needs a body that parks itself
+        let mut parks = false;
+        for call in resolution.arms() {
+            parks |= self.signature_parks(call.callable_type)?;
+        }
+        if parks && !self.current_function_parks()? {
+            self.report_park_outside_protocol(node.module_id, node.local_id);
+        }
+
         let return_type = resolution.return_type();
         self.commit_decision(node, dir::Decision::Call(resolution))?;
         self.commit_node_type(node, return_type)?;

@@ -735,6 +735,7 @@ impl CheckState<'_> {
                 continue;
             };
             signatures.push(self.intern_signature(dir::FunctionSignatureType {
+                parks: head.parks,
                 is_construct: true,
                 return_type: head.return_type.or(Some(instance)),
                 ..head

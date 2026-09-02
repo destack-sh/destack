@@ -462,6 +462,7 @@ impl CheckState<'_> {
 
         // intern the selected signature
         let signature = self.intern_signature(dir::FunctionSignatureType {
+            parks: signature.parks,
             asynchrony: signature.asynchrony,
             template: None,
             this_parameter,

@@ -421,8 +421,19 @@ impl CheckState<'_> {
             else {
                 continue;
             };
+            // dispatch erased value receivers through their dynamic payload
+            let constraint = match space {
+                dir::MemberSpace::Instance => self.erased_constraint(stepped)?,
+                _ => None,
+            };
             for candidate in &mut candidates {
-                candidate.receiver = LookupReceiver::Direct(step.adjustments.clone());
+                candidate.receiver = match constraint {
+                    Some(constraint) => LookupReceiver::Dynamic {
+                        adjustments: step.adjustments.clone(),
+                        constraint,
+                    },
+                    None => LookupReceiver::Direct(step.adjustments.clone()),
+                };
             }
 
             return Ok(Some(candidates));

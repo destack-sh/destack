@@ -291,6 +291,15 @@ impl CheckState<'_> {
             }
         };
 
+        // select and record the producer yield call this statement runs
+        if let (Some(targets), Some(completed)) = (generator, self.current_return_target())
+            && !matches!(cardinality, dir::YieldCardinality::Generator)
+        {
+            let bound = [targets.yielded, completed, targets.resumed];
+            let value = value.map(|value| value.into_global_any(module));
+            self.commit_yield_call(node, targets.asynchrony, &bound, value)?;
+        }
+
         self.commit_node_type(node, ty)?;
 
         Ok(())

@@ -178,6 +178,7 @@ impl CheckState<'_> {
         // intern the spread signature
         let parameters = self.intern_parameters(&rebuilt)?;
         let spread = self.intern_signature(dir::FunctionSignatureType {
+            parks: signature.parks,
             parameters,
             ..signature
         })?;

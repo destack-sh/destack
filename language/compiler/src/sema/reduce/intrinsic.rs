@@ -328,6 +328,7 @@ impl CheckState<'_> {
         // intern the signature over the read parameters and written return
         let parameters = self.intern_parameters(&parameters)?;
         let function = dir::FunctionSignatureType {
+            parks: false,
             asynchrony: dir::Asynchrony::Sync,
             template: None,
             this_parameter: None,

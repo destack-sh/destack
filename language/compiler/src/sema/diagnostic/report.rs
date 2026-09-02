@@ -213,6 +213,17 @@ impl CheckState<'_> {
     }
 
     /// Report a yield delegation without a delegated value.
+    pub(in crate::sema) fn report_park_outside_protocol(
+        &mut self,
+        module: ModuleId,
+        source: dir::LocalNodeIdAny,
+    ) {
+        let anchor = self.diagnostic_anchor(module, source);
+        let diagnostic = CheckError::ParkOutsideProtocol { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     pub(in crate::sema) fn report_yield_delegate_missing_value(
         &mut self,
         module: ModuleId,
@@ -2856,6 +2867,36 @@ impl CheckState<'_> {
         let error = self.circular_type_error(origin)?;
         let module = origin.module();
 
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one template literal type that expands past the member bound.
+    pub(in crate::sema) fn report_template_literal_too_complex(
+        &mut self,
+        origin: Origin,
+    ) -> CompilerResult<()> {
+        // report once the checking pass evaluates the template
+        if self.is_declaring() {
+            return Ok(());
+        }
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let error = CheckError::TemplateLiteralTooComplex { anchor, module };
+        self.report(module, error);
+
+        Ok(())
+    }
+
+    /// Report one closed type that keeps a computation no reduction settles.
+    pub(in crate::sema) fn report_type_computation_not_reduced(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (module, anchor) = self.origin_diagnostic_anchor(origin)?;
+        let ty = self.format_type(ty);
+        let error = CheckError::TypeComputationNotReduced { anchor, module, ty };
         self.report(module, error);
 
         Ok(())

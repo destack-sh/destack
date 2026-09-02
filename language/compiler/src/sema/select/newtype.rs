@@ -290,6 +290,7 @@ impl CheckState<'_> {
             };
             let parameters = self.intern_parameters(&parameters)?;
             let function = dir::FunctionSignatureType {
+                parks: false,
                 asynchrony: dir::Asynchrony::Sync,
                 template,
                 this_parameter: None,
