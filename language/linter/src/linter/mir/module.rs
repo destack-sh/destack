@@ -81,7 +81,7 @@ impl MirModule {
         };
 
         // resolve direct and statically dispatched calls
-        let callsite = mir::CallSite::Instruction(instruction);
+        let callsite = mir::Point::Instruction(instruction);
         let target = operation
             .call_direct_target()
             .or_else(|| resolution.target(callsite))?;

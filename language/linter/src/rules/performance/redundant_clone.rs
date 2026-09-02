@@ -53,12 +53,12 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
         let liveness = module.analyses.liveness(function_id, tree);
         let moves = module.analyses.moves(function_id, tree);
         let places = module.analyses.place(function_id, tree);
-        let provenance = module.analyses.provenance(function_id, tree, &resolution);
-        let loans = provenance.loans();
+        let origin = module.analyses.origin(function_id, tree, &resolution);
+        let loans = origin.loans();
 
         // inspect reachable instructions with their forward analysis states
         for &block_id in function.blocks() {
-            let Some(mut state) = provenance.entry(block_id).cloned() else {
+            let Some(mut state) = origin.entry(block_id).cloned() else {
                 continue;
             };
             let block = tree.get(block_id);
@@ -76,8 +76,8 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
 
                 // report move-only sources that are movable and dead afterward
                 if let Some(receiver) = receiver {
-                    let receiver_provenance = state.value(receiver);
-                    if let [loan_id] = receiver_provenance.loans() {
+                    let receiver_origin = state.value(receiver);
+                    if let [loan_id] = receiver_origin.loans() {
                         let loan = loans.get(*loan_id);
 
                         if loan.parents().is_empty()
@@ -100,7 +100,8 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
                 }
 
                 let instruction = tree.get(instruction_id);
-                state.advance(instruction_id, function, tree, &places, &resolution, loans);
+                let cx = mir::OriginContext::new(function, tree, &places, &resolution, loans);
+                state.advance(&cx, instruction_id);
                 live.advance(instruction, tree);
             }
         }
@@ -113,7 +114,7 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
 fn is_redundant_clone(
     place: &mir::Place,
     receiver_loan: mir::LoanId,
-    state: &mir::ProvenanceState,
+    state: &mir::OriginState,
     live: &mir::LiveSet<'_>,
     aliases: &mir::AliasTable,
     moves: &mir::MoveTable,
