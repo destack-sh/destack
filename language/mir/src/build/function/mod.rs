@@ -5,6 +5,7 @@ mod context;
 mod control;
 mod header;
 mod memory;
+mod profile;
 mod rewrite;
 mod ssa;
 mod value;

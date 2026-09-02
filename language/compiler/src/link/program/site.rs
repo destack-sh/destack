@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::Optional;
+use destack_core::{Optional, StringId};
 use destack_mir as mir;
 use destack_program::{
     AllocationSite, AllocationSiteId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
@@ -170,6 +170,18 @@ impl<'a> SiteLinker<'a> {
         }
     }
 
+    /// Intern one instrument name into the program strings.
+    fn instrument_name(&self, name: Option<StringId>) -> Optional<StringId> {
+        match name {
+            Some(name) => {
+                let text = self.program.strings().get(name).to_string();
+
+                Optional::some(self.program.intern_string(&text))
+            }
+            None => Optional::none(),
+        }
+    }
+
     /// Link one explicit counter site.
     fn counter(&self, module: ModuleId, site: &object::CounterSite) -> CounterSite {
         CounterSite {
@@ -177,6 +189,7 @@ impl<'a> SiteLinker<'a> {
             counter: self
                 .program
                 .counter_id(module, site.point.function, site.counter),
+            name: self.instrument_name(site.name),
         }
     }
 
@@ -188,6 +201,7 @@ impl<'a> SiteLinker<'a> {
                 .program
                 .sampler_id(module, site.point.function, site.sampler),
             value_type: self.program.type_id(module, site.value_type),
+            name: self.instrument_name(site.name),
         }
     }
 

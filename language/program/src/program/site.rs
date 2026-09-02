@@ -1,4 +1,4 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
 use destack_mir::{Space, Storage};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -429,6 +429,8 @@ pub struct CounterSite {
     pub point: ProgramPoint,
     /// The counter incremented at this site.
     pub counter: CounterId,
+    /// The instrument name a user counter declares.
+    pub name: Optional<StringId>,
 }
 
 /// Explicit sample operation at one program point.
@@ -443,6 +445,8 @@ pub struct SampleSite {
     pub sampler: SamplerId,
     /// The sampled value type.
     pub value_type: TypeId,
+    /// The instrument name a user sampler declares.
+    pub name: Optional<StringId>,
 }
 
 /// Call return mode.

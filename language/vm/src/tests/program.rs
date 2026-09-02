@@ -155,6 +155,7 @@ impl TestProgram {
     /// Create one counter site.
     pub(crate) const fn counter(function: u32, operation: u32, counter: u32) -> CounterSite {
         CounterSite {
+            name: Optional::none(),
             point: Self::point(function, operation),
             counter: CounterId(counter),
         }
@@ -163,6 +164,7 @@ impl TestProgram {
     /// Create one word-sized sample site.
     pub(crate) const fn sample(function: u32, operation: u32, sampler: u32) -> SampleSite {
         SampleSite {
+            name: Optional::none(),
             point: Self::point(function, operation),
             sampler: SamplerId(sampler),
             value_type: TypeId(0),

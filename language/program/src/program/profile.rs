@@ -1,3 +1,4 @@
+use destack_core::{FxIndexMap, StringId};
 use destack_heap::{HeapReference, SharedHeapReference};
 use destack_mir::FloatType;
 use destack_serde::Reflect;
@@ -149,6 +150,20 @@ impl Profile {
             edges: vec![EdgeProfile::new(); sites.edge_count(sections)],
             samples: vec![SampleProfile::new(); sampler_count],
         }
+    }
+
+    /// Return the total count of every named counter, in first-site order.
+    pub fn named_counters(&self, program: &Program) -> Vec<(StringId, u64)> {
+        let sections = program.sections();
+        let mut totals: FxIndexMap<StringId, u64> = FxIndexMap::default();
+        for site in program.sites().counters(sections) {
+            let Some(name) = site.name.get() else {
+                continue;
+            };
+            *totals.entry(name).or_default() += self.counters[site.counter.index()].count;
+        }
+
+        totals.into_iter().collect()
     }
 
     /// Return whether this profile has no runtime observations.

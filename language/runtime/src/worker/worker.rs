@@ -199,6 +199,7 @@ impl Worker {
         let event_loop = EventLoop::default();
 
         // worker state
+        let profile = Self::instrument_profile(&program);
         Ok(Self {
             id: worker_id,
             runtime_id,
@@ -210,7 +211,7 @@ impl Worker {
             debug_generation: world.debugger.generation(),
             stop_points: world.debugger.stop_set(runtime_id, worker_id),
             watch_points: world.debugger.watch_set(runtime_id, worker_id),
-            profile: None,
+            profile,
             resources,
             diagnostics,
             binding_table,
@@ -256,6 +257,15 @@ impl Worker {
     /// Return whether this worker still has pending scheduler work.
     pub fn has_pending_work(&self) -> bool {
         self.retained.is_some() || self.event_loop.has_pending_work()
+    }
+
+    /// Start a profile for programs carrying instrument sites, so their counts are kept.
+    fn instrument_profile(program: &program::Program) -> Option<program::Profile> {
+        let sections = program.sections();
+        let sites = program.sites();
+        let instruments = sites.counter_count(sections) + sites.sampler_count(sections);
+
+        (instruments > 0).then(|| program::Profile::new(program, program::ProfileOptions::STANDARD))
     }
 
     /// Return the accumulated runtime profile when active.

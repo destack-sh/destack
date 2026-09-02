@@ -667,6 +667,12 @@ pub enum IntrinsicInstruction {
     SliceLength,
     /// A slice view over a contiguous range.
     SliceView,
+    /// Allocate one owned slice of uninitialized elements.
+    SliceUninit,
+    /// Increment the named profile counter.
+    ProfileIncrement,
+    /// Record one value under the named profile sampler.
+    ProfileSample,
 }
 
 impl IntrinsicInstruction {
@@ -685,6 +691,9 @@ impl IntrinsicInstruction {
             "collections.slice.length" => Self::SliceLength,
             "collections.slice.set" => Self::SliceSet,
             "collections.slice.subslice" => Self::SliceView,
+            "collections.slice.uninit" => Self::SliceUninit,
+            "profile.increment" => Self::ProfileIncrement,
+            "profile.sample" => Self::ProfileSample,
             "memory.ptr.read" => Self::PointerLoad,
             "memory.ptr.write" => Self::PointerStore,
             "memory.ptr.replace" => Self::PointerReplace,

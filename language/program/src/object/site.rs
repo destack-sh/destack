@@ -1,3 +1,4 @@
+use destack_core::StringId;
 use destack_mir as mir;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -65,6 +66,8 @@ pub struct EdgeSite {
 /// One explicit profile counter operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct CounterSite {
+    /// The instrument name a user counter declares.
+    pub name: Option<StringId>,
     /// The operation incrementing the counter.
     pub point: Point,
     /// The function-local counter.
@@ -74,6 +77,8 @@ pub struct CounterSite {
 /// One explicit profile sample operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct SampleSite {
+    /// The instrument name a user sampler declares.
+    pub name: Option<StringId>,
     /// The operation recording the sample.
     pub point: Point,
     /// The function-local sampler.

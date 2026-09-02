@@ -1,4 +1,4 @@
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, StringId};
 
 use serde::{Deserialize, Serialize};
 
@@ -148,6 +148,8 @@ pub enum CounterSite {
     Entry,
     /// Control-flow edge count.
     Edge(Edge),
+    /// User instrument counted under its declared name.
+    Named(StringId),
 }
 
 /// Semantic meaning of one profile sampler.
@@ -161,6 +163,8 @@ pub enum SampleSite {
     ReceiverType(CallSite),
     /// Observed allocation behavior for one allocation instruction.
     Allocation(LocalNodeId<Instruction>),
+    /// User instrument sampled under its declared name.
+    Named(StringId),
 }
 
 /// Profile data for one function, addressed by its persistent symbol.
