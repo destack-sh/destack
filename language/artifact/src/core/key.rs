@@ -317,7 +317,7 @@ impl ArtifactKey {
         Self::EnvironmentDeclared { profile }
     }
 
-    /// Build one component graph artifact key.
+    /// Build one module graph artifact key.
     pub fn module_graph(profile: ProfileId) -> Self {
         Self::ModuleGraph { profile }
     }
@@ -516,8 +516,7 @@ impl ArtifactKey {
             }
             Self::ModuleLinted { .. } | Self::ProgramLinted { .. } => ArtifactStage::Lint,
             Self::ModuleIndex { .. } | Self::ProgramIndex { .. } => ArtifactStage::Index,
-            Self::EnvironmentBound { .. } => ArtifactStage::Init,
-            Self::EnvironmentDeclared { .. } => ArtifactStage::Init,
+            Self::EnvironmentBound { .. } | Self::EnvironmentDeclared { .. } => ArtifactStage::Init,
         }
     }
 

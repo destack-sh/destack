@@ -307,7 +307,7 @@ impl ArtifactPayload {
         match self {
             Self::EnvironmentBound(_) => "environment_bound",
             Self::EnvironmentDeclared(_) => "environment_declared",
-            Self::ModuleGraph(_) => "component_graph",
+            Self::ModuleGraph(_) => "module_graph",
             Self::ProgramAnalysis(_) => "program_analysis",
             Self::DirParsed(_) => "dir_parsed",
             Self::Data(_) => "data",

@@ -58,6 +58,8 @@ impl Default for MirLowered {
 pub struct MirVerified {
     /// Ownership retention required by drop elaboration.
     pub retention: mir::RetentionTable,
+    /// The safepoints elaboration pins and polls at.
+    pub safepoints: mir::SafepointTable,
 }
 
 /// MIR produced by drop elaboration.

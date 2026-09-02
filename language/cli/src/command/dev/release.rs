@@ -64,7 +64,9 @@ pub fn run(args: &ReleaseArgs) -> i32 {
 fn validate_repository_root() -> Result<(), String> {
     // ensure the workspace manifest exists
     if !Path::new("destack.json").exists() {
-        return Err("destack.json not found, run this command from the repository root".to_string());
+        return Err(
+            "destack.json not found, run this command from the repository root".to_string(),
+        );
     }
 
     // ensure app and bridge justfiles exist

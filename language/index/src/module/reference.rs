@@ -1091,10 +1091,8 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
             })?;
         let left = match self.module.view().get(expression_id) {
             dir::Expression::Call { left, .. } => *left,
-            // protocol rows at awaits, yields, and coroutine bodies carry no authored callee
             dir::Expression::Await { .. }
             | dir::Expression::Yield { .. }
-            | dir::Expression::Block { .. }
             | dir::Expression::ArrayExpression { .. }
             | dir::Expression::FixedArrayExpression { .. } => {
                 return Ok(None);
