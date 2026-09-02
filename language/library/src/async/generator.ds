@@ -95,10 +95,13 @@ export local struct GeneratorProducer<Y, R, N> {
     /// Shared producer state.
     private readonly state: GeneratorState<Y, R, N>;
 
-    /// Yield one value and receive the next consumer request.
+    /// Yield one value, suspend the producer, and receive the next consumer request.
     @languageItem("async.Generator.yield")
     yield(&exclusive this, value: Y): GeneratorRequest<R, N> {
-        return this.state.yield(value);
+        this.state.publish(value);
+        Fiber.yield();
+
+        return this.state.takeRequest();
     }
 }
 
@@ -160,8 +163,8 @@ local class GeneratorState<Y, R, N> {
         return this.takeRequest();
     }
 
-    /// Publish one yielded value and suspend the producer.
-    yield(&readonly this, value: Y): GeneratorRequest<R, N> {
+    /// Publish one yielded value ahead of the producer's suspension.
+    publish(&readonly this, value: Y): void {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
             GeneratorRunning {} => {
                 this.phase.set(GeneratorYielded { kind: "yielded", value });
@@ -171,9 +174,6 @@ local class GeneratorState<Y, R, N> {
                 trap("generator yielded outside producer execution")
             }
         }
-        Fiber.yield();
-
-        return this.takeRequest();
     }
 
     /// Publish the producer's return value.
@@ -191,7 +191,7 @@ local class GeneratorState<Y, R, N> {
     }
 
     /// Take the request submitted before producer execution.
-    private takeRequest(&readonly this): GeneratorRequest<R, N> {
+    takeRequest(&readonly this): GeneratorRequest<R, N> {
         match (this.phase.replace(GeneratorMoving { kind: "moving" })) {
             GeneratorRequested { request } => {
                 this.phase.set(GeneratorRunning { kind: "running" });
@@ -287,10 +287,13 @@ export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
     /// Shared producer state.
     private readonly state: AsyncGeneratorState<Y, R, N>;
 
-    /// Yield one value and await the next consumer request.
+    /// Yield one value, park the producer, and receive the next consumer request.
     @languageItem("async.AsyncGenerator.yield")
     yield(&exclusive this, value: Y): GeneratorRequest<R, N> {
-        return this.state.yield(value);
+        this.state.publish(value);
+        Fiber.park();
+
+        return this.state.takeRequest();
     }
 }
 
@@ -364,8 +367,8 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
         return this.takeRequest();
     }
 
-    /// Publish one yielded value and park until another request arrives.
-    yield(&readonly this, value: Y): GeneratorRequest<R, N> {
+    /// Publish one yielded value and schedule the producer's wake when a request already waits.
+    publish(&readonly this, value: Y): void {
         let request = this.takeActive();
         request.settlement.resolve(IteratorResult(IteratorYield { value }));
         this.phase.set(AsyncGeneratorPhase.Suspended);
@@ -376,9 +379,6 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
                 producer.wake();
             });
         }
-        Fiber.park();
-
-        return this.takeRequest();
     }
 
     /// Publish the producer's return value and drain queued requests.
@@ -405,7 +405,7 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     }
 
     /// Move the next queued request into producer ownership.
-    private takeRequest(&readonly this): GeneratorRequest<R, N> {
+    takeRequest(&readonly this): GeneratorRequest<R, N> {
         let request = this.pop();
         let operation = request.take();
         this.active.set(request);
