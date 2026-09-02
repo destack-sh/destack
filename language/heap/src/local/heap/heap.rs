@@ -191,6 +191,11 @@ impl Heap {
         self.request_gc(GcRequest::Full);
     }
 
+    /// Return whether one collection is requested for the next safepoint.
+    pub fn is_gc_requested(&self) -> bool {
+        self.gc_request.is_some()
+    }
+
     /// Return and consume one local collection byte budget.
     pub fn take_collection_budget_bytes(&mut self) -> usize {
         self.refresh_gc_request();

@@ -399,6 +399,11 @@ impl SharedHeap {
         self.collection_requested.store(true, Ordering::Release);
     }
 
+    /// Return whether one collection is requested for the next safepoint.
+    pub fn is_gc_requested(&self) -> bool {
+        self.collection_requested.load(Ordering::Acquire)
+    }
+
     /// Start one requested or pressure-driven shared collection cycle.
     pub fn start_gc(&self) -> HeapResult<bool> {
         // active cycle
