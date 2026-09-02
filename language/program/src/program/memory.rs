@@ -7,7 +7,9 @@ use destack_heap::{
 };
 use destack_mir::Space;
 
-use crate::{AllocationSiteId, Global, GlobalAddress, GlobalLocation, StaticSpace};
+use crate::{
+    AllocationSiteId, Global, GlobalAddress, GlobalLocation, Handshake, Request, StaticSpace,
+};
 
 /// Memory available to one program activation.
 pub struct Memory<'a> {
@@ -27,6 +29,8 @@ pub struct Memory<'a> {
     pub shared_statics: &'a mut StaticSpace,
     /// Program constant memory.
     pub constants: &'a StaticSpace,
+    /// The request word polled at safepoints.
+    pub handshake: &'a Handshake,
 }
 
 impl Memory<'_> {
@@ -47,6 +51,7 @@ impl Memory<'_> {
             local_statics: self.local_statics,
             shared_statics: self.shared_statics,
             constants: self.constants,
+            handshake: self.handshake,
         }
     }
 
@@ -205,6 +210,9 @@ impl Memory<'_> {
             Payload::Zeroed => self.local_heap.allocate_zeroed(plan, &trace_map)?,
             Payload::Uninit => self.local_heap.allocate_uninit(plan, &trace_map)?,
         };
+        if self.local_heap.is_gc_requested() {
+            self.handshake.request(Request::Collect);
+        }
 
         Ok(HeapEdge::Local(reference))
     }
@@ -256,6 +264,9 @@ impl Memory<'_> {
                 trace_view,
             )?,
         };
+        if self.shared_heap.is_gc_requested() {
+            self.handshake.request(Request::Collect);
+        }
 
         Ok(HeapEdge::Shared(reference))
     }
