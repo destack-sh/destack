@@ -68,7 +68,7 @@ fn run_optimize_globals(
     function_effects: &EffectTable,
 ) -> bool {
     // collect global address definitions and pointer uses
-    let addr_info = collect_global_addr_info(tree);
+    let addresses = collect_global_addresses(tree);
     let use_tables: FxIndexMap<_, _> = tree
         .iter_nodes::<mir::Function>()
         .filter(|(_, function)| function.entry().is_some())
@@ -77,7 +77,7 @@ fn run_optimize_globals(
 
     // identify globals that are written
     let written_globals =
-        collect_written_globals(tree, &addr_info, effects, resolution, function_effects);
+        collect_written_globals(tree, &addresses, effects, resolution, function_effects);
 
     // track whether anything changed
     let mut changed = false;
@@ -98,12 +98,12 @@ fn run_optimize_globals(
         if written_globals.contains(&global_id) {
             continue;
         }
-        let Some(addr_entries) = addr_info.by_global.get(&global_id) else {
+        let Some(entries) = addresses.by_global.get(&global_id) else {
             continue;
         };
 
-        // ensure all global.address uses are direct loads
-        if !addr_entries.iter().all(|entry| {
+        // require every global.address use to be a direct load
+        if !entries.iter().all(|entry| {
             let uses = use_tables.get(&entry.function_id).unwrap_or_else(|| {
                 panic!(
                     "missing global address use table for function: {:?}",
@@ -132,28 +132,27 @@ fn run_optimize_globals(
     changed
 }
 
-/// Description of a global.address instruction.
+/// One global.address instruction and the function holding it.
 #[derive(Debug, Clone, Copy)]
-struct GlobalAddrEntry {
+struct GlobalAddress {
     /// The function containing the instruction.
     function_id: mir::LocalNodeId<mir::Function>,
     /// The destination value for the global.address.
     destination: mir::Value,
 }
 
-/// Collected global.address instructions for the module.
+/// The global.address instructions of one module, indexed by global and by reference value.
 #[derive(Debug, Default)]
-struct GlobalAddrInfo {
+struct GlobalAddresses {
     /// Map from global id to its address instructions.
-    by_global: FxIndexMap<mir::LocalNodeId<mir::Global>, Vec<GlobalAddrEntry>>,
+    by_global: FxIndexMap<mir::LocalNodeId<mir::Global>, Vec<GlobalAddress>>,
     /// Map from reference value to global id.
     by_value: FxIndexMap<mir::Value, mir::LocalNodeId<mir::Global>>,
 }
 
 /// Collect global.address instructions for the module.
-fn collect_global_addr_info(tree: &mir::Tree) -> GlobalAddrInfo {
-    // prepare the address info container
-    let mut info = GlobalAddrInfo::default();
+fn collect_global_addresses(tree: &mir::Tree) -> GlobalAddresses {
+    let mut addresses = GlobalAddresses::default();
 
     // scan function bodies for global.address
     for (function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -177,24 +176,24 @@ fn collect_global_addr_info(tree: &mir::Tree) -> GlobalAddrInfo {
                 let destination = *destination;
                 let global = *global;
 
-                let entry = GlobalAddrEntry {
+                let entry = GlobalAddress {
                     function_id,
                     destination,
                 };
 
-                info.by_global.entry(global).or_default().push(entry);
-                info.by_value.insert(destination, global);
+                addresses.by_global.entry(global).or_default().push(entry);
+                addresses.by_value.insert(destination, global);
             }
         }
     }
 
-    info
+    addresses
 }
 
 /// Collect globals that are written by stores or memory effects.
 fn collect_written_globals(
     tree: &mir::Tree,
-    addr_info: &GlobalAddrInfo,
+    addresses: &GlobalAddresses,
     effects: &mir::EffectTable,
     resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
@@ -219,7 +218,7 @@ fn collect_written_globals(
                 // detect direct stores through global pointers
                 if let mir::Instruction::Store { pointer, .. } = instruction
                     && let Some(global_id) =
-                        global_addr_base(*pointer, &definitions, addr_info, tree)
+                        global_addr_base(*pointer, &definitions, addresses, tree)
                 {
                     written.insert(global_id);
                     continue;
@@ -227,7 +226,7 @@ fn collect_written_globals(
 
                 // detect local stores of global pointers
                 if let mir::Instruction::LocalSet { value, .. } = instruction
-                    && let Some(global_id) = global_addr_base(*value, &definitions, addr_info, tree)
+                    && let Some(global_id) = global_addr_base(*value, &definitions, addresses, tree)
                 {
                     written.insert(global_id);
                     continue;
@@ -236,7 +235,7 @@ fn collect_written_globals(
                 // detect frees through global pointers
                 if let mir::Instruction::Free { value: pointer } = instruction
                     && let Some(global_id) =
-                        global_addr_base(*pointer, &definitions, addr_info, tree)
+                        global_addr_base(*pointer, &definitions, addresses, tree)
                 {
                     written.insert(global_id);
                     continue;
@@ -249,12 +248,12 @@ fn collect_written_globals(
                     ..
                 } = instruction
                     && intrinsic_writes_memory(*intrinsic)
-                    && any_argument_global(arguments, &definitions, addr_info, tree)
+                    && any_argument_global(arguments, &definitions, addresses, tree)
                 {
                     written.extend(globals_from_arguments(
                         arguments,
                         &definitions,
-                        addr_info,
+                        addresses,
                         tree,
                     ));
                     continue;
@@ -269,12 +268,12 @@ fn collect_written_globals(
                         resolution,
                         function_effects,
                     )
-                    && any_argument_global(&call.arguments, &definitions, addr_info, tree)
+                    && any_argument_global(&call.arguments, &definitions, addresses, tree)
                 {
                     written.extend(globals_from_arguments(
                         &call.arguments,
                         &definitions,
-                        addr_info,
+                        addresses,
                         tree,
                     ));
                     continue;
@@ -291,12 +290,12 @@ fn collect_written_globals(
                 function_effects,
             );
             if let Some(arguments) = terminator_arguments
-                && any_argument_global_values(&arguments, &definitions, addr_info, tree)
+                && any_argument_global_values(&arguments, &definitions, addresses, tree)
             {
                 written.extend(globals_from_values(
                     &arguments,
                     &definitions,
-                    addr_info,
+                    addresses,
                     tree,
                 ));
             }
@@ -310,49 +309,49 @@ fn collect_written_globals(
 fn any_argument_global(
     arguments: &mir::ValueSlice,
     definitions: &DefinitionTable,
-    addr_info: &GlobalAddrInfo,
+    addresses: &GlobalAddresses,
     tree: &mir::Tree,
 ) -> bool {
     tree.get_values(*arguments)
         .iter()
         .copied()
-        .any(|value| global_addr_base(value, definitions, addr_info, tree).is_some())
+        .any(|value| global_addr_base(value, definitions, addresses, tree).is_some())
 }
 
 /// Return true when any value is derived from a global pointer.
 fn any_argument_global_values(
     arguments: &[mir::Value],
     definitions: &DefinitionTable,
-    addr_info: &GlobalAddrInfo,
+    addresses: &GlobalAddresses,
     tree: &mir::Tree,
 ) -> bool {
     arguments
         .iter()
         .copied()
-        .any(|value| global_addr_base(value, definitions, addr_info, tree).is_some())
+        .any(|value| global_addr_base(value, definitions, addresses, tree).is_some())
 }
 
 /// Collect globals referenced by argument slice values.
 fn globals_from_arguments(
     arguments: &mir::ValueSlice,
     definitions: &DefinitionTable,
-    addr_info: &GlobalAddrInfo,
+    addresses: &GlobalAddresses,
     tree: &mir::Tree,
 ) -> FxIndexSet<mir::LocalNodeId<mir::Global>> {
-    globals_from_values(tree.get_values(*arguments), definitions, addr_info, tree)
+    globals_from_values(tree.get_values(*arguments), definitions, addresses, tree)
 }
 
 /// Collect globals referenced by value list.
 fn globals_from_values(
     values: &[mir::Value],
     definitions: &DefinitionTable,
-    addr_info: &GlobalAddrInfo,
+    addresses: &GlobalAddresses,
     tree: &mir::Tree,
 ) -> FxIndexSet<mir::LocalNodeId<mir::Global>> {
     let mut globals = FxIndexSet::default();
 
     for value in values.iter().copied() {
-        if let Some(global_id) = global_addr_base(value, definitions, addr_info, tree) {
+        if let Some(global_id) = global_addr_base(value, definitions, addresses, tree) {
             globals.insert(global_id);
         }
     }
@@ -364,7 +363,7 @@ fn globals_from_values(
 fn global_addr_base(
     value: mir::Value,
     definitions: &DefinitionTable,
-    addr_info: &GlobalAddrInfo,
+    addresses: &GlobalAddresses,
     tree: &mir::Tree,
 ) -> Option<mir::LocalNodeId<mir::Global>> {
     // walk reference definitions to find the base address
@@ -376,7 +375,7 @@ fn global_addr_base(
             return None;
         }
 
-        if let Some(global) = addr_info.by_value.get(&current) {
+        if let Some(global) = addresses.by_value.get(&current) {
             return Some(*global);
         }
 
@@ -429,7 +428,7 @@ fn call_writes_memory(
     resolution: &mir::ResolutionTable,
     function_effects: &EffectTable,
 ) -> bool {
-    let callsite = mir::CallSite::Instruction(instruction_id);
+    let callsite = mir::Point::Instruction(instruction_id);
     let tables = effects.call(callsite);
     if let Some(tables) = tables
         && tables.memory != mir::MemoryEffect::unknown()
@@ -457,7 +456,7 @@ fn terminator_write_arguments(
 ) -> Option<Vec<mir::Value>> {
     match terminator {
         mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
-            let callsite = mir::CallSite::Terminator(block_id);
+            let callsite = mir::Point::Terminator(block_id);
             let target = call
                 .callee
                 .function()

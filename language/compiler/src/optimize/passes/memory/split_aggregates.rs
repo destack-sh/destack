@@ -231,6 +231,7 @@ fn find_candidates(
                 destination,
                 local,
                 result_type,
+                ..
             } = inst
             {
                 if address_counts.get(local) != Some(&1) {
@@ -524,6 +525,7 @@ fn split_local(
             destination: new_value,
             local,
             result_type,
+            kind: mir::AddressKind::Projection,
         };
 
         // materialize each scalar address at function entry
@@ -821,8 +823,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v4: ref<int32, borrowed, mutable, frame> = local.address l0
-    v5: ref<int32, borrowed, mutable, frame> = local.address l1
+    v4: ref<int32, borrowed, mutable, frame> = local.project l0
+    v5: ref<int32, borrowed, mutable, frame> = local.project l1
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -858,8 +860,8 @@ function test(): int32 {
     local l1: int64
 
 entry:
-    v4: ref<int32, borrowed, mutable, frame> = local.address l0
-    v5: ref<int64, borrowed, mutable, frame> = local.address l1
+    v4: ref<int32, borrowed, mutable, frame> = local.project l0
+    v5: ref<int64, borrowed, mutable, frame> = local.project l1
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -898,10 +900,10 @@ function test(): int32 {
     local l3: int32
 
 entry:
-    v5: ref<int32, borrowed, mutable, frame> = local.address l0
-    v6: ref<int32, borrowed, mutable, frame> = local.address l1
-    v7: ref<int32, borrowed, mutable, frame> = local.address l2
-    v8: ref<int32, borrowed, mutable, frame> = local.address l3
+    v5: ref<int32, borrowed, mutable, frame> = local.project l0
+    v6: ref<int32, borrowed, mutable, frame> = local.project l1
+    v7: ref<int32, borrowed, mutable, frame> = local.project l2
+    v8: ref<int32, borrowed, mutable, frame> = local.project l3
     v1: int64 = 0
     v3: int32 = 42
     store v5, v3
@@ -1030,8 +1032,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v8: ref<int32, borrowed, mutable, frame> = local.address l0
-    v9: ref<int32, borrowed, mutable, frame> = local.address l1
+    v8: ref<int32, borrowed, mutable, frame> = local.project l0
+    v9: ref<int32, borrowed, mutable, frame> = local.project l1
     v2: int32 = 10
     store v8, v2
     v4: int32 = 20
@@ -1092,8 +1094,8 @@ function test(): int64 {
     local l1: int64
 
 entry:
-    v4: ref<Inner, borrowed, mutable, frame> = local.address l0
-    v5: ref<int64, borrowed, mutable, frame> = local.address l1
+    v4: ref<Inner, borrowed, mutable, frame> = local.project l0
+    v5: ref<int64, borrowed, mutable, frame> = local.project l1
     v2: int64 = 42
     store v5, v2
     v3: int64 = load v5
@@ -1184,7 +1186,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v4: ref<int32, borrowed, mutable, frame> = local.address l0
+    v4: ref<int32, borrowed, mutable, frame> = local.project l0
     v2: int32 = 42
     store v4, v2
     v3: int32 = load v4
@@ -1252,8 +1254,8 @@ function test(v0: boolean): int32 {
     local l1: int32
 
 entry(v0: boolean):
-    v7: ref<int32, borrowed, mutable, frame> = local.address l0
-    v8: ref<int32, borrowed, mutable, frame> = local.address l1
+    v7: ref<int32, borrowed, mutable, frame> = local.project l0
+    v8: ref<int32, borrowed, mutable, frame> = local.project l1
     v1: int64 = 0
     branch v0 => b1(v1) | b1(v1)
 
@@ -1303,8 +1305,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v6: ref<int32, borrowed, mutable, frame> = local.address l0
-    v7: ref<int32, borrowed, mutable, frame> = local.address l1
+    v6: ref<int32, borrowed, mutable, frame> = local.project l0
+    v7: ref<int32, borrowed, mutable, frame> = local.project l1
     v1: int32 = 1
     v2: int32 = 2
     v3: Point = aggregate (v1, v2)
@@ -1349,8 +1351,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v7: ref<int32, borrowed, mutable, frame> = local.address l0
-    v8: ref<int32, borrowed, mutable, frame> = local.address l1
+    v7: ref<int32, borrowed, mutable, frame> = local.project l0
+    v8: ref<int32, borrowed, mutable, frame> = local.project l1
     v1: int32 = 10
     v2: int32 = 20
     v3: [int32; 2] = aggregate (v1, v2)

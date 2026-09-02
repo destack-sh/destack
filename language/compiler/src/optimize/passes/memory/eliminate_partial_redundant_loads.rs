@@ -82,7 +82,7 @@ impl FunctionPass for EliminatePartialRedundantLoads {
     }
 }
 
-/// Candidate load to PRE.
+/// One load considered for partial redundancy elimination.
 #[derive(Clone, Copy)]
 struct LoadCandidate {
     /// Block containing the load.
@@ -97,10 +97,10 @@ struct LoadCandidate {
     result_type: mir::LocalNodeId<mir::Type>,
 }
 
-/// MemoryTable data for a candidate load.
+/// The memory phi one candidate load reads through.
 #[derive(Clone, Copy)]
-struct LoadAccessInfo {
-    /// MemoryTable phi access for the load block.
+struct LoadAccess {
+    /// The memory phi access at the load block entry.
     phi_access: MemoryAccessId,
 }
 
@@ -115,7 +115,7 @@ struct EdgeInsertion {
     existing_value: Option<mir::Value>,
 }
 
-/// Run load PRE and return true when changes are made.
+/// Eliminate the partially redundant loads of one function, answering whether any moved.
 fn run_eliminate_partial_redundant_loads(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -124,7 +124,7 @@ fn run_eliminate_partial_redundant_loads(
     _ctx: &PipelineContext<'_>,
     analyses: &mut mir::FunctionCache,
 ) -> bool {
-    // gather analyses
+    // read the analyses this pass runs against
     let cfg = analyses.control(function, tree).clone();
     let domtree = analyses.dominator(function, tree).clone();
     let memory = analyses.memory(function, tree, accesses, effects);
@@ -150,11 +150,11 @@ fn run_eliminate_partial_redundant_loads(
     for block_id in block_ids {
         // collect block parameters for edge resolution
         let block = tree.get(block_id).clone();
-        let param_indices = block
+        let parameter_indices = block
             .parameters
             .iter()
             .enumerate()
-            .map(|(index, param)| (param.value, index))
+            .map(|(index, parameter)| (parameter.value, index))
             .collect::<FxIndexMap<_, _>>();
 
         // scan block instructions for load candidates
@@ -181,9 +181,8 @@ fn run_eliminate_partial_redundant_loads(
                 _ => continue,
             };
 
-            // validate load eligibility
-            let Some(access_info) =
-                load_access_info(&load, &block, function, tree, effects, memory.as_ref())
+            // require the load to read through a block-entry memory phi
+            let Some(access) = load_access(&load, &block, function, tree, effects, memory.as_ref())
             else {
                 continue;
             };
@@ -191,12 +190,12 @@ fn run_eliminate_partial_redundant_loads(
             // build edge insertions for each predecessor
             let Some(edge_insertions) = collect_edge_insertions(
                 &load,
-                &access_info,
+                &access,
                 &cfg,
                 &domtree,
                 tree,
                 &definitions,
-                &param_indices,
+                &parameter_indices,
                 memory.as_ref(),
                 &alias,
             ) else {
@@ -204,13 +203,13 @@ fn run_eliminate_partial_redundant_loads(
             };
 
             // allocate a new block parameter for the load value
-            let param_value = function.next_typed_value(load.result_type);
-            let param = mir::BlockParameter {
-                value: param_value,
+            let parameter_value = function.next_typed_value(load.result_type);
+            let parameter = mir::BlockParameter {
+                value: parameter_value,
                 ty: load.result_type,
             };
             let mut updated_block = tree.get(block_id).clone();
-            updated_block.parameters.push(param);
+            updated_block.parameters.push(parameter);
             tree.set(block_id, updated_block);
             changed = true;
 
@@ -254,7 +253,7 @@ fn run_eliminate_partial_redundant_loads(
                     );
 
                     // clone memory access entries when present
-                    clone_load_metadata(accesses, load.load_id, load_id, insertion.pointer);
+                    clone_load_accesses(accesses, load.load_id, load_id, insertion.pointer);
                     load_value
                 };
 
@@ -263,7 +262,7 @@ fn run_eliminate_partial_redundant_loads(
             }
 
             // record substitution and remove the original load
-            substitutions.insert(load.destination, param_value);
+            substitutions.insert(load.destination, parameter_value);
             to_remove.insert(load.load_id);
         }
     }
@@ -285,15 +284,15 @@ fn run_eliminate_partial_redundant_loads(
     changed || updated
 }
 
-/// Return MemoryTable data when a load is eligible for load PRE.
-fn load_access_info(
+/// Return the memory phi one load reads through when the load is eligible to move.
+fn load_access(
     load: &LoadCandidate,
     block: &mir::Block,
     function: &mir::Function,
     tree: &mir::Tree,
     effects: &mir::EffectTable,
     memory: &MemoryTable,
-) -> Option<LoadAccessInfo> {
+) -> Option<LoadAccess> {
     // resolve the memory ssa use access
     let use_access_id = memory.first_use_access(load.load_id)?;
 
@@ -307,6 +306,7 @@ fn load_access_info(
     let MemoryNode::Use(use_access) = memory.access(use_access_id) else {
         return None;
     };
+
     // require a trackable effect
     if !use_access.effect.is_trackable() {
         return None;
@@ -317,7 +317,7 @@ fn load_access_info(
         return None;
     }
 
-    Some(LoadAccessInfo { phi_access })
+    Some(LoadAccess { phi_access })
 }
 
 /// Return true when a load can be moved to the block entry.
@@ -373,15 +373,14 @@ fn load_can_move_to_entry(
 }
 
 /// Collect edge insertions for each predecessor of the load block.
-// allow many arguments to keep the edge selection explicit
 fn collect_edge_insertions(
     load: &LoadCandidate,
-    access_info: &LoadAccessInfo,
+    access: &LoadAccess,
     cfg: &ControlTable,
     domtree: &DominatorTable,
     tree: &mir::Tree,
     definitions: &DefinitionTable,
-    param_indices: &FxIndexMap<mir::Value, usize>,
+    parameter_indices: &FxIndexMap<mir::Value, usize>,
     memory: &MemoryTable,
     alias: &AliasTable,
 ) -> Option<Vec<EdgeInsertion>> {
@@ -395,17 +394,17 @@ fn collect_edge_insertions(
     }
 
     // resolve incoming memory accesses for the load block
-    let MemoryNode::Phi(phi) = memory.access(access_info.phi_access) else {
+    let MemoryNode::Phi(phi) = memory.access(access.phi_access) else {
         return None;
     };
-    let incoming_by_pred: FxIndexMap<_, _> = phi
+    let incoming_by_predecessor: FxIndexMap<_, _> = phi
         .incoming
         .iter()
-        .map(|(block, access)| (*block, *access))
+        .map(|(block, incoming)| (*block, *incoming))
         .collect();
 
     // reject pointers defined in the load block
-    if !param_indices.contains_key(&load.pointer)
+    if !parameter_indices.contains_key(&load.pointer)
         && definitions.block(load.pointer) == Some(load.block)
     {
         return None;
@@ -420,7 +419,7 @@ fn collect_edge_insertions(
             load.block,
             predecessor_block,
             tree,
-            param_indices,
+            parameter_indices,
         )?;
 
         // ensure the reference value is available on this edge
@@ -429,7 +428,7 @@ fn collect_edge_insertions(
         }
 
         // read the incoming memory access for this predecessor
-        let incoming_access = incoming_by_pred.get(&predecessor).copied()?;
+        let incoming_access = incoming_by_predecessor.get(&predecessor).copied()?;
 
         // reuse an existing load when possible
         let existing_value = reusable_predecessor_load(
@@ -506,19 +505,19 @@ fn reusable_predecessor_load(
     reusable
 }
 
-/// Clone load tables to a new instruction.
-fn clone_load_metadata(
+/// Clone one load's memory access entries onto a new instruction.
+fn clone_load_accesses(
     accesses: &mut mir::AccessTable,
     source: mir::LocalNodeId<mir::Instruction>,
     destination: mir::LocalNodeId<mir::Instruction>,
     pointer: mir::Value,
 ) {
-    // skip when there is no tables to clone
+    // return early when the source records no access entry
     let Some(entries) = accesses.get(source) else {
         return;
     };
 
-    // update reference targets for cloned tables
+    // point every cloned entry at the new pointer
     let mut cloned = Vec::with_capacity(entries.len());
     for access in entries {
         let mut updated = access.clone();
@@ -710,7 +709,7 @@ external function readOnly(): void
         let function = test.optimized.tree.get(function_id);
         let join_block = function.block(3);
         let call_inst = test.instructions_in_block(join_block)[0];
-        let callsite = mir::CallSite::Instruction(call_inst);
+        let callsite = mir::Point::Instruction(call_inst);
         let tables = test.optimized.effects.upsert_call(callsite);
         tables.memory = mir::MemoryEffect::read_only(mir::StorageSet::ANY);
         tables.behavior = mir::FunctionBehavior::none();

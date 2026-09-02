@@ -72,7 +72,7 @@ impl FunctionPass for ForwardStoredValues {
             None => return Mutation::NONE,
         };
 
-        // get analyses
+        // read the analyses this pass runs against
         let (aliases, memory, dom_children) = {
             let domtree = analyses.dominator(function, tree);
             let aliases = analyses.alias(function, tree).clone();
@@ -129,20 +129,18 @@ fn run_forward_stored_values(
     true
 }
 
-/// Build a map from each block to its children in the dominator tree.
+/// Map each block to its children in the dominator tree.
 fn build_dominator_children(
     function: &mir::Function,
     domtree: &DominatorTable,
 ) -> FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<mir::LocalNodeId<mir::Block>>> {
-    // prepare the child mapping
+    // map every block to an empty child list
     let mut children: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
-
-    // initialize all blocks with empty children lists
     for &block_id in function.blocks() {
         children.insert(block_id, Vec::new());
     }
 
-    // build parent to children mapping from idom relationships
+    // record each block under its immediate dominator
     for &block_id in function.blocks() {
         if let Some(idom) = domtree.immediate_dominator(block_id) {
             children.get_mut(&idom).unwrap().push(block_id);
@@ -159,19 +157,19 @@ struct AvailableMemory {
 }
 
 impl AvailableMemory {
-    /// Create a new empty scoped table with one scope.
+    /// Create an empty scoped table holding one root scope.
     fn new() -> Self {
         Self {
             scopes: vec![Vec::new()],
         }
     }
 
-    /// Push a new scope for entering a dominated block.
+    /// Push one scope on entering a dominated block.
     fn push_scope(&mut self) {
         self.scopes.push(Vec::new());
     }
 
-    /// Pop the current scope when leaving a dominated block.
+    /// Pop the current scope on leaving a dominated block.
     fn pop_scope(&mut self) {
         // keep at least one scope
         if self.scopes.len() > 1 {
@@ -261,12 +259,20 @@ impl AvailableMemory {
         }
     }
 
-    /// Clear all tracked entries.
+    /// Clear every tracked entry.
     fn clear(&mut self) {
         for scope in &mut self.scopes {
             scope.clear();
         }
     }
+}
+
+/// One step of the dominator tree walk.
+enum Action {
+    /// Enter one block and process its instructions.
+    Enter(mir::LocalNodeId<mir::Block>),
+    /// Leave the block whose children are done.
+    Leave,
 }
 
 /// Find loads that can be forwarded using dominator tree traversal.
@@ -285,14 +291,6 @@ fn find_forwardable_loads(
     let mut substitutions: FxIndexMap<mir::Value, mir::Value> = FxIndexMap::default();
     let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     let mut available = AvailableMemory::new();
-
-    /// One step of the dominator tree walk.
-    enum Action {
-        /// Enter one block and process its instructions.
-        Enter(mir::LocalNodeId<mir::Block>),
-        /// Leave the block whose children are done.
-        Leave,
-    }
 
     // seed traversal with the entry block
     let mut stack = vec![Action::Enter(entry)];
@@ -1219,7 +1217,7 @@ entry:
         let (call_instruction, _callee) = test.first_call_in_entry(function_id);
 
         // strip the call's memory effect so the store stays available
-        let callsite = mir::CallSite::Instruction(call_instruction);
+        let callsite = mir::Point::Instruction(call_instruction);
         test.optimized.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&ForwardStoredValues);

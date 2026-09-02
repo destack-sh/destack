@@ -472,7 +472,7 @@ impl TestProgram {
     pub(crate) fn profile_dispatch_call(
         &mut self,
         caller: mir::FunctionId,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
         callee: mir::FunctionId,
         receiver_type: mir::TypeId,
         hot_count: u64,
@@ -509,7 +509,7 @@ impl TestProgram {
         &mut self,
         profile: &mut mir::Profile,
         function: mir::FunctionId,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
         callee: mir::FunctionId,
         hot_count: u64,
         unknown_count: u64,
@@ -535,7 +535,7 @@ impl TestProgram {
         &mut self,
         profile: &mut mir::Profile,
         function: mir::FunctionId,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
         receiver_type: mir::TypeId,
         hot_count: u64,
         unknown_count: u64,
@@ -903,6 +903,7 @@ mod tests {
             destination,
             local,
             result_type: pointer,
+            kind: mir::AddressKind::Projection,
         };
         assert!(instruction_is_speculatable(&pointer_addr, &function, &tree));
 
@@ -910,6 +911,7 @@ mod tests {
             destination,
             local,
             result_type: borrowed_ref,
+            kind: mir::AddressKind::Projection,
         };
         assert!(instruction_is_speculatable(&local_addr, &function, &tree));
 
@@ -918,6 +920,7 @@ mod tests {
             aggregate,
             field: 0,
             result_type: borrowed_ref,
+            kind: mir::AddressKind::Projection,
         };
         assert!(instruction_is_speculatable(&field_addr, &function, &tree));
 
@@ -926,6 +929,7 @@ mod tests {
             base: array,
             index,
             result_type: borrowed_ref,
+            kind: mir::AddressKind::Projection,
         };
         assert!(instruction_is_speculatable(&element_addr, &function, &tree));
     }
@@ -954,6 +958,7 @@ mod tests {
             aggregate: mir::Value::new(1),
             field: 0,
             result_type: managed_ref,
+            kind: mir::AddressKind::Projection,
         };
         assert!(!instruction_is_speculatable(&field_addr, &function, &tree));
     }

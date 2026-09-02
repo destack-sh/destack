@@ -87,7 +87,7 @@ impl FunctionPass for EliminateRedundantExpressions {
     }
 }
 
-/// Core redundant-expression elimination logic. Returns true if changes were made.
+/// Remove the redundant expressions of one function, answering whether any was removed.
 fn run_eliminate_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mut mir::Function,
@@ -101,7 +101,7 @@ fn run_eliminate_redundant_expressions(
     let (substitutions, to_remove) =
         find_redundant_expressions(entry, function, tree, dom_children, alias, memory);
 
-    // nothing to do if no redundancies found
+    // return early when the walk found no redundancy
     if to_remove.is_empty() {
         return false;
     }
@@ -138,8 +138,8 @@ fn build_dominator_children(
 
 /// Scoped hash table for value numbering across the dominator tree.
 ///
-/// Supports pushing and popping scopes as we enter and leave dominated blocks.
-/// Lookups search from innermost to outermost scope.
+/// One scope opens on entering a dominated block and closes on leaving it, and lookups search from the innermost
+/// scope outward.
 struct ScopedValueTable {
     /// Stack of scopes, each mapping expression keys to values.
     scopes: Vec<FxIndexMap<PureExpression, mir::Value>>,
@@ -329,9 +329,15 @@ impl ScopedValueTable {
     }
 }
 
-/// Find redundant expressions by walking the dominator tree.
-///
-/// Returns a tuple of (substitutions, instructions_to_remove).
+/// One step of the dominator tree walk.
+enum Action {
+    /// Enter one block and process its instructions.
+    Enter(mir::LocalNodeId<mir::Block>),
+    /// Leave the block whose children are done.
+    Leave,
+}
+
+/// Walk the dominator tree, answering the value substitutions and the instructions they make redundant.
 fn find_redundant_expressions(
     entry: mir::LocalNodeId<mir::Block>,
     function: &mir::Function,
@@ -348,19 +354,12 @@ fn find_redundant_expressions(
     let mut to_remove: FxIndexSet<mir::LocalNodeId<mir::Instruction>> = FxIndexSet::default();
     let mut value_table = ScopedValueTable::new();
 
-    // work stack for dominator tree traversal
-    enum Action {
-        Enter(mir::LocalNodeId<mir::Block>),
-        Leave,
-    }
-
     // seed traversal with the entry block
     let mut stack = vec![Action::Enter(entry)];
     while let Some(action) = stack.pop() {
         match action {
             Action::Enter(block_id) => {
-                // push a new scope for this block's expressions
-                // children see this scope, siblings do not
+                // push a scope this block's children see and its siblings do not
                 value_table.push_scope();
 
                 // process instructions in this block
@@ -553,9 +552,8 @@ fn process_block(
         // apply existing substitutions to the key
         let key = key.substitute(substitutions);
 
-        // check if we've seen this expression in any dominating scope
+        // substitute an expression a dominating scope already recorded
         if let Some(existing_value) = value_table.get(&key) {
-            // found a match: mark for substitution and removal
             if function.can_substitute(destination, existing_value) {
                 substitutions.insert(destination, existing_value);
                 to_remove.insert(instruction_id);
@@ -568,7 +566,6 @@ fn process_block(
     }
 }
 
-/// Return true when two values can be safely substituted.
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1365,7 +1362,7 @@ entry:
         let function_id = test.entry_function_id();
         let (call_inst, _callee) = test.first_call_in_entry(function_id);
 
-        let callsite = mir::CallSite::Instruction(call_inst);
+        let callsite = mir::Point::Instruction(call_inst);
         test.optimized.effects.upsert_call(callsite).memory = mir::MemoryEffect::none();
 
         test.run_pass(&EliminateRedundantExpressions);

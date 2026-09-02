@@ -98,7 +98,7 @@ impl Devirtualization {
 
         // collect instruction calls
         for &instruction in &node.instructions {
-            let callsite = mir::CallSite::Instruction(instruction);
+            let callsite = mir::Point::Instruction(instruction);
             let Some(function) = resolution.target(callsite) else {
                 continue;
             };
@@ -109,7 +109,7 @@ impl Devirtualization {
         }
 
         // collect terminator calls
-        let callsite = mir::CallSite::Terminator(block);
+        let callsite = mir::Point::Terminator(block);
         let Some(function) = resolution.target(callsite) else {
             return;
         };

@@ -185,7 +185,7 @@ fn run_eliminate_partial_redundant_stores(
             };
 
             // validate store eligibility
-            let Some(candidate) = store_access_info(
+            let Some(candidate) = store_access(
                 block_id,
                 instruction_id,
                 pointer,
@@ -278,7 +278,7 @@ fn run_eliminate_partial_redundant_stores(
 }
 
 /// Return MemoryTable data when a store is eligible for PRE.
-fn store_access_info(
+fn store_access(
     block_id: mir::LocalNodeId<mir::Block>,
     instruction_id: mir::LocalNodeId<mir::Instruction>,
     pointer: Option<mir::Value>,
@@ -416,7 +416,7 @@ fn collect_edge_insertions(
     let MemoryNode::Phi(phi) = memory.access(memory.block_phi(store.block)?) else {
         return None;
     };
-    let incoming_by_pred: FxIndexMap<_, _> = phi
+    let incoming_by_predecessor: FxIndexMap<_, _> = phi
         .incoming
         .iter()
         .map(|(block, access)| (*block, *access))
@@ -457,7 +457,7 @@ fn collect_edge_insertions(
         }
 
         // read the incoming memory access for this predecessor
-        let incoming_access = incoming_by_pred.get(&predecessor).copied()?;
+        let incoming_access = incoming_by_predecessor.get(&predecessor).copied()?;
 
         // detect equivalent stores on this edge
         let already_stored = incoming_def_matches(

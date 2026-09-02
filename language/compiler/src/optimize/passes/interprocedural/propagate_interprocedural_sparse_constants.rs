@@ -114,14 +114,14 @@ impl LatticeConstant {
 #[derive(Debug, Clone)]
 struct FunctionState {
     /// Parameter lattice values.
-    param_states: Vec<LatticeConstant>,
+    parameter_states: Vec<LatticeConstant>,
     /// Return lattice value.
     return_state: LatticeConstant,
     /// True when the function is externally reachable.
     is_exposed: bool,
 }
 
-/// Direct callsite tables for SCCP.
+/// One direct callsite considered for interprocedural constant propagation.
 #[derive(Debug, Clone)]
 struct DirectCallSite {
     /// The caller function id.
@@ -136,9 +136,9 @@ struct DirectCallSite {
     arguments: Vec<mir::Value>,
 }
 
-/// Collected callsite data for IPSCCP.
+/// The direct callsites and indirect signatures of one module.
 #[derive(Debug, Default)]
-struct CallData {
+struct ModuleCalls {
     /// Direct callsites in the module.
     callsites: Vec<DirectCallSite>,
     /// Signatures that may be targeted by indirect calls.
@@ -154,7 +154,7 @@ fn run_interprocedural_sccp(
     function_effects: &EffectTable,
 ) -> (bool, FxIndexSet<mir::FunctionId>) {
     // collect callsite information up front
-    let call_data = collect_call_data(tree);
+    let module_calls = collect_module_calls(tree);
 
     // collect functions with bodies
     let function_ids: Vec<_> = tree
@@ -163,7 +163,7 @@ fn run_interprocedural_sccp(
         .collect();
 
     // seed lattice state for each function
-    let mut states = seed_function_states(tree, &function_ids, &call_data);
+    let mut states = seed_function_states(tree, &function_ids, &module_calls);
 
     // reach a fixed point for parameter and return constants
     loop {
@@ -174,7 +174,7 @@ fn run_interprocedural_sccp(
         let mut state_changed = update_parameter_states(
             tree,
             &function_ids,
-            &call_data,
+            &module_calls,
             &constants_by_function,
             &mut states,
             ctx.target_layout(),
@@ -216,13 +216,13 @@ fn run_interprocedural_sccp(
     if replace_constant_calls(
         tree,
         accesses,
-        &call_data,
+        &module_calls,
         &states,
         ctx.target_layout(),
         effects,
         function_effects,
     ) {
-        for callsite in &call_data.callsites {
+        for callsite in &module_calls.callsites {
             cleanup_functions.insert(callsite.caller);
         }
         changed = true;
@@ -235,7 +235,7 @@ fn run_interprocedural_sccp(
 fn seed_function_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
-    call_data: &CallData,
+    module_calls: &ModuleCalls,
 ) -> FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState> {
     // build the state map
     let mut states = FxIndexMap::default();
@@ -244,7 +244,7 @@ fn seed_function_states(
         // read the function signature
         let function = tree.get(*function_id);
         let signature = SignatureKey::from_function(function);
-        let is_indirect = call_data.indirect_signatures.contains(&signature);
+        let is_indirect = module_calls.indirect_signatures.contains(&signature);
 
         // mark functions reachable from outside or indirectly as exposed
         let is_exposed = linkage.is_exported() || is_indirect;
@@ -255,13 +255,13 @@ fn seed_function_states(
         } else {
             LatticeConstant::Unknown
         };
-        let param_states = vec![seed_state; function.parameters.len()];
+        let parameter_states = vec![seed_state; function.parameters.len()];
 
         // insert the initial state
         states.insert(
             *function_id,
             FunctionState {
-                param_states,
+                parameter_states,
                 return_state: LatticeConstant::Unknown,
                 is_exposed,
             },
@@ -275,7 +275,7 @@ fn seed_function_states(
 fn update_parameter_states(
     tree: &mir::Tree,
     function_ids: &[(mir::LocalNodeId<mir::Function>, mir::Linkage)],
-    call_data: &CallData,
+    module_calls: &ModuleCalls,
     constants_by_function: &FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable>,
     states: &mut FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
@@ -287,7 +287,7 @@ fn update_parameter_states(
     let mut callsites_by_callee: FxIndexMap<mir::LocalNodeId<mir::Function>, Vec<&DirectCallSite>> =
         FxIndexMap::default();
 
-    for callsite in &call_data.callsites {
+    for callsite in &module_calls.callsites {
         callsites_by_callee
             .entry(callsite.callee)
             .or_default()
@@ -330,13 +330,13 @@ fn update_parameter_states(
                     continue;
                 };
 
-                merge_param_constants(&argument_constants, &mut next_states);
+                merge_parameter_constants(&argument_constants, &mut next_states);
             }
         }
 
         // record changes
-        if next_states != state.param_states {
-            state.param_states = next_states;
+        if next_states != state.parameter_states {
+            state.parameter_states = next_states;
             changed = true;
         }
     }
@@ -345,7 +345,7 @@ fn update_parameter_states(
 }
 
 /// Merge callsite constants into parameter lattice values.
-fn merge_param_constants(constants: &[Option<mir::Constant>], states: &mut [LatticeConstant]) {
+fn merge_parameter_constants(constants: &[Option<mir::Constant>], states: &mut [LatticeConstant]) {
     // merge each constant into the matching state
     for (index, constant) in constants.iter().enumerate() {
         let state = &mut states[index];
@@ -477,24 +477,23 @@ fn return_state_for_function(
     merged
 }
 
-/// Build constant propagation results for each function.
+/// Build the constant propagation state of each function.
 fn build_constant_maps(
     tree: &mir::Tree,
     states: &FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
 ) -> FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
-    // prepare the result map
     let mut maps = FxIndexMap::default();
 
     // build a constant propagation analysis per function
     for (function_id, state) in states {
         let function = tree.get(*function_id);
-        let param_constants = param_constants_for_function(function, state);
+        let parameter_constants = parameter_constants_for_function(function, state);
         let constants = ConstantTable::with_parameter_constants(
             function,
             tree,
             target_layout,
-            &param_constants,
+            &parameter_constants,
         );
         maps.insert(*function_id, constants);
     }
@@ -502,17 +501,21 @@ fn build_constant_maps(
     maps
 }
 
-/// Build constant parameter maps from lattice state.
-fn param_constants_for_function(
+/// Build the constant parameter values one lattice state pins down.
+fn parameter_constants_for_function(
     function: &mir::Function,
     state: &FunctionState,
 ) -> FxIndexMap<mir::Value, mir::Constant> {
     // collect constants for each parameter
     let mut constants = FxIndexMap::default();
-    for (param, param_state) in function.parameters.iter().zip(state.param_states.iter()) {
+    for (parameter, parameter_state) in function
+        .parameters
+        .iter()
+        .zip(state.parameter_states.iter())
+    {
         // skip non constant parameter states
-        if let LatticeConstant::Constant(constant) = param_state {
-            let value = param.value;
+        if let LatticeConstant::Constant(constant) = parameter_state {
+            let value = parameter.value;
 
             constants.insert(value, constant.clone());
         }
@@ -524,9 +527,9 @@ fn param_constants_for_function(
 /// Convert parameter lattice values into constant options.
 fn state_constants(state: &FunctionState) -> Vec<Option<mir::Constant>> {
     // collect parameter constants in order
-    let mut constants = Vec::with_capacity(state.param_states.len());
-    for param_state in &state.param_states {
-        constants.push(param_state.constant().cloned());
+    let mut constants = Vec::with_capacity(state.parameter_states.len());
+    for parameter_state in &state.parameter_states {
+        constants.push(parameter_state.constant().cloned());
     }
 
     constants
@@ -536,7 +539,7 @@ fn state_constants(state: &FunctionState) -> Vec<Option<mir::Constant>> {
 fn replace_constant_calls(
     tree: &mut mir::Tree,
     accesses: &mut mir::AccessTable,
-    call_data: &CallData,
+    module_calls: &ModuleCalls,
     states: &FxIndexMap<mir::LocalNodeId<mir::Function>, FunctionState>,
     target_layout: mir::TargetLayout,
     effects: &mir::EffectTable,
@@ -546,7 +549,7 @@ fn replace_constant_calls(
     let mut changed = false;
 
     // replace direct call instructions when safe
-    for callsite in &call_data.callsites {
+    for callsite in &module_calls.callsites {
         // skip callsites without direct call instructions
         let Some(call_instruction) = callsite.call_instruction else {
             continue;
@@ -607,9 +610,8 @@ fn replace_constant_calls(
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::Tree) -> CallData {
-    // prepare the callsite data container
-    let mut data = CallData::default();
+fn collect_module_calls(tree: &mir::Tree) -> ModuleCalls {
+    let mut calls = ModuleCalls::default();
 
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -633,7 +635,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     {
                         let arguments = tree.get_values(call.arguments).to_vec();
 
-                        data.callsites.push(DirectCallSite {
+                        calls.callsites.push(DirectCallSite {
                             caller: caller_id,
                             callee,
                             block: block_id,
@@ -647,7 +649,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         .call_signature()
                         .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
-                        data.indirect_signatures.insert(signature);
+                        calls.indirect_signatures.insert(signature);
                     }
                 }
             }
@@ -658,7 +660,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     if let Some(callee) = call.callee.function() {
                         let arguments = tree.get_values(call.arguments).to_vec();
 
-                        data.callsites.push(DirectCallSite {
+                        calls.callsites.push(DirectCallSite {
                             caller: caller_id,
                             callee,
                             block: block_id,
@@ -668,7 +670,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     } else if let Some(signature) =
                         SignatureKey::from_signature_type(tree, &call.signature)
                     {
-                        data.indirect_signatures.insert(signature);
+                        calls.indirect_signatures.insert(signature);
                     }
                 }
                 _ => {}
@@ -676,7 +678,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
         }
     }
 
-    data
+    calls
 }
 
 /// Check whether a call is pure enough to replace with a constant.
@@ -687,7 +689,7 @@ fn call_is_pure(
     function_effects: &EffectTable,
 ) -> bool {
     // resolve callsite effects when present
-    let callsite = mir::CallSite::Instruction(call_instruction);
+    let callsite = mir::Point::Instruction(call_instruction);
     let call_entries = effects.call(callsite);
     let function_effect = function_effects.function(callee);
     let memory = call_entries
@@ -695,7 +697,7 @@ fn call_is_pure(
         .map(|effect| effect.memory.clone())
         .or_else(|| function_effect.map(|effect| effect.memory.clone()));
     let behavior = call_entries
-        .filter(|effect| effect.behavior != mir::FunctionBehavior::unknown())
+        .filter(|effect| effect.behavior.park.may_park())
         .map(|effect| effect.behavior.clone())
         .or_else(|| function_effect.map(|effect| effect.behavior.clone()));
 

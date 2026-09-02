@@ -1,13 +1,13 @@
+use destack_core::{FxIndexMap, FxIndexSet, StringPool};
+
 use crate::optimize::declare_pass;
 use destack_mir as mir;
-
-use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 
 use crate::optimize::{MirOptimized, ModulePass, PipelineContext};
 use destack_mir::{DefinitionTable, Mutation, clone_instruction_tables};
 
 declare_pass! {
-    /// Eliminates tail-recursive calls by converting them to jumps.
+    /// Rewrite tail-recursive calls as jumps.
     #[pass(id = "eliminate-tail-calls")]
     pub EliminateTailCalls,
     "Eliminate tail-recursive calls"
@@ -43,7 +43,7 @@ fn eliminate_tail_calls(
 ) -> bool {
     let mut changed = false;
 
-    // collect function ids first to avoid borrow issues
+    // collect every function id before mutating the tree
     let function_ids: Vec<_> = tree
         .iter_nodes::<mir::Function>()
         .map(|(id, _)| id)
@@ -60,8 +60,7 @@ fn eliminate_tail_calls(
         // clone function for mutation
         let mut function = function.clone();
 
-        // phase 1: try accumulator transformation to enable more tail calls
-        // (this may modify call sites in other functions, or create wrapper for exported)
+        // phase 1: thread an accumulator through the recursion, rewriting every call site
         if try_accumulator_transform(
             &mut function,
             tree,
@@ -81,8 +80,7 @@ fn eliminate_tail_calls(
             }
         }
 
-        // phase 3: transform sibling tail calls (calls to OTHER functions)
-        // These become TailCall terminators for codegen optimization
+        // phase 3: turn sibling tail calls into tail call terminators
         for &block_id in function.blocks() {
             if transform_sibling_tail_call(block_id, function_id, tree) {
                 changed = true;
@@ -96,14 +94,14 @@ fn eliminate_tail_calls(
     changed
 }
 
-/// Information about a block with the accumulator pattern.
+/// One block matching the accumulator pattern.
 #[derive(Debug)]
 struct AccumulatorPattern {
     /// The block containing the pattern.
     block_id: mir::LocalNodeId<mir::Block>,
-    /// The binary operator used.
+    /// The binary operator combining the call result.
     operator: mir::BinaryOperator,
-    /// The "other" operand (not the call result).
+    /// The operand standing beside the call result.
     other_operand: mir::Value,
     /// Index of the call instruction in the block.
     call_index: usize,
@@ -125,14 +123,12 @@ struct FunctionClone {
     blocks: FxIndexMap<mir::LocalNodeId<mir::Block>, mir::LocalNodeId<mir::Block>>,
 }
 
-/// Try to transform a non-tail-recursive function into tail-recursive form.
+/// Turn one non-tail-recursive function into tail-recursive form.
 ///
-/// Pattern: `v1 = call self(...); v2 = OP v1, x; return v2` (or OP x, v1)
-/// Transform: add accumulator parameter, accumulate before recursing.
-///
-/// For local functions: modifies in place and updates all call sites.
-/// For exported functions: creates internal `func_impl` with accumulator,
-/// rewrites original as a thin wrapper that calls impl with identity.
+/// The pattern is `v1 = call self(...); v2 = OP v1, x; return v2`, which gains an accumulator parameter that
+/// combines before recursing.
+/// A local function transforms in place and every call site gains the identity argument, while an exported function
+/// keeps its signature and forwards to an internal `func_impl`.
 fn try_accumulator_transform(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -153,17 +149,17 @@ fn try_accumulator_transform(
     if !is_associative_operator(operator) {
         return false;
     }
-    if !patterns.iter().all(|p| p.operator == operator) {
+    if !patterns.iter().all(|pattern| pattern.operator == operator) {
         return false;
     }
 
-    // get the return type to determine the identity constant
+    // read the identity constant the return type and operator select
     let return_type = function.return_type;
     let Some(identity) = identity_constant_for_operator(operator, return_type, tree) else {
         return false;
     };
 
-    // exported functions need special handling: create impl + wrapper
+    // keep an exported signature intact by forwarding to an internal implementation
     if function.linkage.is_exported() {
         return try_accumulator_transform_exported(
             function,
@@ -181,10 +177,10 @@ fn try_accumulator_transform(
 
     // local function: transform in place and update call sites
     let base_cases = find_base_case_blocks(function, tree, current_function_id, &identity);
-    let recursive_call_blocks: Vec<_> = patterns.iter().map(|p| p.block_id).collect();
+    let recursive_call_blocks: Vec<_> = patterns.iter().map(|pattern| pattern.block_id).collect();
     let call_sites = find_external_call_sites(current_function_id, &recursive_call_blocks, tree);
 
-    // ensure we allocate fresh values with types recorded
+    // allocate fresh values with their types recorded
     function.recompute_next_value_id(tree);
 
     // add accumulator parameter to entry block
@@ -241,10 +237,9 @@ fn try_accumulator_transform(
     true
 }
 
-/// Transform an exported function using the wrapper approach.
+/// Transform one exported function by cloning it into an internal `func_impl` carrying the accumulator.
 ///
-/// Creates an internal `func_impl` with the accumulator parameter,
-/// and rewrites the original exported function as a thin wrapper.
+/// The original function keeps its signature and forwards to that implementation with the identity constant.
 fn try_accumulator_transform_exported(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -266,20 +261,20 @@ fn try_accumulator_transform_exported(
     // clone the internal accumulator function
     let cloned = clone_function(function, tree, accesses, impl_name);
 
-    // find base cases in the IMPL function (using mapped block IDs)
+    // find the implementation's base cases and patterns through the mapped block ids
     let impl_function = tree.get(cloned.function).clone();
     let impl_base_cases =
         find_base_case_blocks(&impl_function, tree, current_function_id, identity);
     let impl_patterns: Vec<AccumulatorPattern> = patterns
         .iter()
-        .map(|p| AccumulatorPattern {
-            block_id: cloned.blocks[&p.block_id],
-            operator: p.operator,
-            other_operand: p.other_operand,
-            call_index: p.call_index,
-            binary_index: p.binary_index,
-            call_arguments: p.call_arguments,
-            call_signature: p.call_signature,
+        .map(|pattern| AccumulatorPattern {
+            block_id: cloned.blocks[&pattern.block_id],
+            operator: pattern.operator,
+            other_operand: pattern.other_operand,
+            call_index: pattern.call_index,
+            binary_index: pattern.binary_index,
+            call_arguments: pattern.call_arguments,
+            call_signature: pattern.call_signature,
         })
         .collect();
 
@@ -325,7 +320,7 @@ fn try_accumulator_transform_exported(
 
     *tree.get_mut(cloned.function) = impl_function;
 
-    // rewrite original function as wrapper: call impl with identity
+    // forward the original function to the implementation with the identity constant
     rewrite_as_wrapper(
         function,
         tree,
@@ -350,7 +345,7 @@ fn clone_function(
 
     // clone all blocks
     for &old_block_id in original.blocks() {
-        // clone block first to release borrow on tree
+        // read the block out of the tree
         let old_block = tree.get(old_block_id).clone();
 
         // clone instructions
@@ -368,7 +363,7 @@ fn clone_function(
             new_instructions.push(new_instr_id);
         }
 
-        // create new block (terminator block refs fixed up later)
+        // create the new block, leaving its terminator's block references for the remap below
         let new_terminator = tree.get(old_block.terminator).clone();
         let new_terminator_id = tree.insert(new_terminator);
         let new_block = mir::Block {
@@ -380,7 +375,7 @@ fn clone_function(
         block_map.insert(old_block_id, new_block_id);
     }
 
-    // fix up terminators to use new block IDs
+    // point every terminator at the cloned block ids
     for &new_block_id in block_map.values() {
         let block = tree.get(new_block_id).clone();
         let terminator = tree.get(block.terminator).clone();
@@ -388,7 +383,7 @@ fn clone_function(
         tree.set(block.terminator, fixed_terminator);
     }
 
-    // create impl function
+    // build the internal implementation over the cloned blocks
     let Some(entry) = original.entry() else {
         unreachable!("defined function must have an entry block");
     };
@@ -407,7 +402,7 @@ fn clone_function(
     impl_function.replace_blocks(impl_blocks, tree);
     impl_function.replace_value_types(original.value_types().to_vec());
 
-    // recompute next_value_id after cloning
+    // restate the next value id over the cloned blocks
     impl_function.recompute_next_value_id(tree);
 
     let impl_function_id = tree.insert(impl_function);
@@ -546,7 +541,7 @@ fn remap_terminator_blocks(
             target: clone_target(target),
             unwind: clone_target(unwind),
         },
-        // return, unreachable, tailcall don't reference blocks that need remapping
+        // keep the terminators that reference no block
         mir::Terminator::Return { .. }
         | mir::Terminator::Abort { .. }
         | mir::Terminator::Panic { .. }
@@ -556,7 +551,7 @@ fn remap_terminator_blocks(
     }
 }
 
-/// Rewrite a function as a thin wrapper that calls impl with identity.
+/// Rewrite one function as a thin forwarder calling the implementation with the identity constant.
 fn rewrite_as_wrapper(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -565,10 +560,10 @@ fn rewrite_as_wrapper(
     signature: mir::TypeId,
     identity: &mir::Constant,
 ) {
-    // ensure new values get typed ids
+    // give the new values typed ids
     function.recompute_next_value_id(tree);
 
-    // resolve the return type for wrapper values
+    // resolve the return type the forwarded values take
     let return_type = function.return_type;
 
     // create identity constant
@@ -588,7 +583,7 @@ fn rewrite_as_wrapper(
     call_args.push(identity_value);
     let call_arguments = tree.add_values(&call_args);
 
-    // create call to impl
+    // call the implementation
     let result_value = function.next_typed_value(return_type);
     let call_instr = mir::Instruction::Call {
         destination: Some(result_value),
@@ -602,7 +597,7 @@ fn rewrite_as_wrapper(
     };
     let call_id = tree.insert(call_instr);
 
-    // create new entry block with just: const, call, return
+    // rebuild the entry block as const, call, return
     let entry = tree.get(entry_block).clone();
     let entry_terminator = tree.insert(mir::Terminator::Return {
         value: Some(result_value),
@@ -614,11 +609,11 @@ fn rewrite_as_wrapper(
     };
     tree.set(entry_block, new_entry);
 
-    // clear other blocks from function (they're now orphaned, DCE will clean up)
+    // leave the remaining blocks orphaned for dead code elimination to collect
     function.replace_blocks(vec![entry_block], tree);
 }
 
-/// Information about a call site that needs to be updated.
+/// One call site the accumulator transform rewrites.
 #[derive(Debug)]
 struct CallSite {
     /// The function containing the call.
@@ -631,9 +626,7 @@ struct CallSite {
     instruction_id: mir::LocalNodeId<mir::Instruction>,
 }
 
-/// Find all call sites to the target function, excluding recursive calls.
-///
-/// These are the call sites we need to update to pass the identity constant.
+/// Find the call sites of one function that take the identity constant, leaving its recursive calls alone.
 fn find_external_call_sites(
     target_function_id: mir::LocalNodeId<mir::Function>,
     recursive_call_blocks: &[mir::LocalNodeId<mir::Block>],
@@ -641,33 +634,33 @@ fn find_external_call_sites(
 ) -> Vec<CallSite> {
     let mut call_sites = Vec::new();
 
-    // scan all functions in the module
-    for (func_id, func) in tree.iter_nodes::<mir::Function>() {
-        // skip imported functions (no body)
-        let Some(_entry) = func.entry() else {
+    // scan every function in the module
+    for (function_id, function) in tree.iter_nodes::<mir::Function>() {
+        // skip imported functions, which carry no body
+        let Some(_entry) = function.entry() else {
             continue;
         };
 
-        // check all blocks in this function
-        for &block_id in func.blocks() {
-            // skip the recursive call blocks (they become jumps)
-            if func_id == target_function_id && recursive_call_blocks.contains(&block_id) {
+        // scan every block of this function
+        for &block_id in function.blocks() {
+            // skip the recursive call blocks, which become jumps
+            if function_id == target_function_id && recursive_call_blocks.contains(&block_id) {
                 continue;
             }
 
             let block = tree.get(block_id);
 
-            // check all instructions for calls to target
-            for (idx, &instr_id) in block.instructions.iter().enumerate() {
-                let instr = tree.get(instr_id);
-                if let mir::Instruction::Call { call, .. } = instr
+            // record every instruction calling the target
+            for (index, &instruction_id) in block.instructions.iter().enumerate() {
+                let instruction = tree.get(instruction_id);
+                if let mir::Instruction::Call { call, .. } = instruction
                     && call.callee.function() == Some(target_function_id)
                 {
                     call_sites.push(CallSite {
-                        function_id: func_id,
+                        function_id,
                         block_id,
-                        instruction_index: idx,
-                        instruction_id: instr_id,
+                        instruction_index: index,
+                        instruction_id,
                     });
                 }
             }
@@ -685,56 +678,54 @@ fn update_call_site(
     signature: mir::TypeId,
     tree: &mut mir::Tree,
 ) {
-    // get the existing call instruction
-    let call_instr = tree.get(call_site.instruction_id).clone();
+    // read the existing call instruction
+    let call_instruction = tree.get(call_site.instruction_id).clone();
     let mir::Instruction::Call {
         destination,
         mut call,
-    } = call_instr
+    } = call_instruction
     else {
         return;
     };
-    // create a value for the identity constant
-    // create the const instruction
-    let const_instr = mir::Instruction::Const {
+
+    // materialize the identity constant
+    let const_instruction = mir::Instruction::Const {
         destination: identity_value,
         value: identity.clone(),
     };
-    let const_id = tree.insert(const_instr);
+    let const_id = tree.insert(const_instruction);
 
-    // get the existing arguments and append the identity
-    let mut new_args: Vec<mir::Value> = tree.get_values(call.arguments).to_vec();
-    new_args.push(identity_value);
+    // append the identity to the existing arguments
+    let mut arguments: Vec<mir::Value> = tree.get_values(call.arguments).to_vec();
+    arguments.push(identity_value);
 
-    // create new call with extended arguments
-    let new_arguments = tree.add_values(&new_args);
+    // build the call over the extended arguments
+    let new_arguments = tree.add_values(&arguments);
     call.arguments = new_arguments;
     call.signature = signature;
     let new_call = mir::Instruction::Call { destination, call };
     let new_call_id = tree.insert(new_call);
 
-    // update the block: insert const before call, replace call
+    // place the constant ahead of the rewritten call
     let block = tree.get(call_site.block_id).clone();
     let mut new_instructions = Vec::with_capacity(block.instructions.len() + 1);
 
-    for (idx, &instr_id) in block.instructions.iter().enumerate() {
-        if idx == call_site.instruction_index {
-            // insert const before the call
+    for (index, &instruction_id) in block.instructions.iter().enumerate() {
+        if index == call_site.instruction_index {
             new_instructions.push(const_id);
-            // replace old call with new call
             new_instructions.push(new_call_id);
         } else {
-            new_instructions.push(instr_id);
+            new_instructions.push(instruction_id);
         }
     }
 
     tree.replace_block_instructions(call_site.function_id, call_site.block_id, new_instructions);
 }
 
-/// Check if an operator is associative (and commutative for safety).
-fn is_associative_operator(op: mir::BinaryOperator) -> bool {
+/// Return whether one operator is both associative and commutative.
+fn is_associative_operator(operator: mir::BinaryOperator) -> bool {
     matches!(
-        op,
+        operator,
         mir::BinaryOperator::Add
             | mir::BinaryOperator::Multiply
             | mir::BinaryOperator::And
@@ -743,9 +734,9 @@ fn is_associative_operator(op: mir::BinaryOperator) -> bool {
     )
 }
 
-/// Get the identity constant for an operator and type.
+/// Return the identity constant one operator takes at one integer type.
 fn identity_constant_for_operator(
-    op: mir::BinaryOperator,
+    operator: mir::BinaryOperator,
     type_id: mir::LocalNodeId<mir::Type>,
     tree: &mir::Tree,
 ) -> Option<mir::Constant> {
@@ -760,7 +751,7 @@ fn identity_constant_for_operator(
         return None;
     };
 
-    let identity_value: i64 = match op {
+    let identity_value: i64 = match operator {
         mir::BinaryOperator::Add | mir::BinaryOperator::Or | mir::BinaryOperator::Xor => 0,
         mir::BinaryOperator::Multiply => 1,
         mir::BinaryOperator::And => {
@@ -787,7 +778,7 @@ fn identity_constant_for_operator(
     })
 }
 
-/// Find all blocks with the accumulator pattern.
+/// Find every block matching the accumulator pattern.
 fn find_accumulator_patterns(
     function: &mir::Function,
     tree: &mir::Tree,
@@ -807,9 +798,7 @@ fn find_accumulator_patterns(
     patterns
 }
 
-/// Detect the accumulator pattern in a single block.
-///
-/// Pattern: call self => binary op using call result -> return binary result
+/// Detect the accumulator pattern in one block: a self call, a binary operation over its result, and a return.
 fn detect_accumulator_pattern(
     block_id: mir::LocalNodeId<mir::Block>,
     tree: &mir::Tree,
@@ -819,7 +808,7 @@ fn detect_accumulator_pattern(
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
 
-    // must end with return of a value
+    // require a return of a value
     let mir::Terminator::Return {
         value: Some(returned_value),
     } = terminator
@@ -827,41 +816,41 @@ fn detect_accumulator_pattern(
         return None;
     };
 
-    // need at least two instructions (call and binary op)
+    // require the call and the binary operation
     if block.instructions.len() < 2 {
         return None;
     }
 
     // find the binary instruction that produces the return value
     let mut binary_index = None;
-    let mut binary_info = None;
+    let mut binary_operands = None;
 
-    for (idx, &instr_id) in block.instructions.iter().enumerate() {
-        let instr = tree.get(instr_id);
+    for (index, &instruction_id) in block.instructions.iter().enumerate() {
+        let instruction = tree.get(instruction_id);
         if let mir::Instruction::Binary {
             destination,
             operator,
             left,
             right,
-        } = instr
+        } = instruction
             && *destination == *returned_value
         {
-            binary_index = Some(idx);
-            binary_info = Some((*operator, *left, *right));
+            binary_index = Some(index);
+            binary_operands = Some((*operator, *left, *right));
             break;
         }
     }
 
-    let (binary_idx, (operator, left, right)) = binary_index.zip(binary_info)?;
+    let (binary_index, (operator, left, right)) = binary_index.zip(binary_operands)?;
 
-    // collect recursive call results
+    // collect the results of every recursive call in the block
     let mut recursive_call_results: FxIndexSet<mir::Value> = FxIndexSet::default();
-    for &instr_id in &block.instructions {
-        let instr = tree.get(instr_id);
+    for &instruction_id in &block.instructions {
+        let instruction = tree.get(instruction_id);
         if let mir::Instruction::Call {
             destination: Some(destination),
             call,
-        } = instr
+        } = instruction
             && call.callee.function() == Some(current_function_id)
         {
             recursive_call_results.insert(*destination);
@@ -869,54 +858,52 @@ fn detect_accumulator_pattern(
     }
 
     // find the call instruction that produces one of the binary operands
-    for (idx, &instr_id) in block.instructions.iter().enumerate() {
-        let instr = tree.get(instr_id);
+    for (index, &instruction_id) in block.instructions.iter().enumerate() {
+        let instruction = tree.get(instruction_id);
         if let mir::Instruction::Call {
-            destination: Some(call_dest),
+            destination: Some(call_destination),
             call,
-        } = instr
+        } = instruction
         {
-            // must be calling ourselves
+            // require a self call
             if call.callee.function() != Some(current_function_id) {
                 continue;
             }
 
-            // call result must be used by the binary op
-            let other_operand = if *call_dest == left {
+            // require the binary operation to consume the call result
+            let other_operand = if *call_destination == left {
                 right
-            } else if *call_dest == right {
+            } else if *call_destination == right {
                 left
             } else {
                 continue;
             };
 
-            // skip when the other operand is another recursive call result
+            // skip an operand that is itself a recursive call result
             if recursive_call_results.contains(&other_operand) {
                 continue;
             }
 
-            // the call must come before the binary op
-            if idx >= binary_idx {
+            // require the call to come before the binary operation
+            if index >= binary_index {
                 continue;
             }
 
-            // the other operand must be available before the call
+            // require the other operand to be available before the call
             if let Some(definition) = definitions.instruction(other_operand)
                 && definitions.block(other_operand) == Some(block_id)
-                && !block.instructions[..idx].contains(&definition)
+                && !block.instructions[..index].contains(&definition)
             {
                 continue;
             }
 
-            // the binary op must be the last instruction using the call result
-            // (no other uses between call and return)
-            let call_result_used_elsewhere =
-                block.instructions[idx + 1..binary_idx]
-                    .iter()
-                    .any(|&other_id| {
-                        let other = tree.get(other_id);
-                        other.uses().contains(call_dest)
-                    });
+            // require the binary operation to be the last use of the call result
+            let call_result_used_elsewhere = block.instructions[index + 1..binary_index]
+                .iter()
+                .any(|&other_id| {
+                    let other = tree.get(other_id);
+                    other.uses().contains(call_destination)
+                });
 
             if call_result_used_elsewhere {
                 continue;
@@ -926,8 +913,8 @@ fn detect_accumulator_pattern(
                 block_id,
                 operator,
                 other_operand,
-                call_index: idx,
-                binary_index: binary_idx,
+                call_index: index,
+                binary_index,
                 call_arguments: call.arguments,
                 call_signature: call.signature,
             });
@@ -937,10 +924,7 @@ fn detect_accumulator_pattern(
     None
 }
 
-/// Find blocks that return without recursion (base cases).
-///
-/// Returns (block_id, is_identity) pairs where is_identity indicates
-/// whether the returned value is the identity constant.
+/// Find the base case blocks, pairing each with whether it returns the identity constant.
 fn find_base_case_blocks(
     function: &mir::Function,
     tree: &mir::Tree,
@@ -953,23 +937,23 @@ fn find_base_case_blocks(
         let block = tree.get(block_id);
         let terminator = tree.get(block.terminator);
 
-        // must end with return
+        // require a return
         let mir::Terminator::Return { value } = terminator else {
             continue;
         };
 
-        // check if block contains a recursive call
-        let has_recursive_call = block.instructions.iter().any(|&instr_id| {
-            let instr = tree.get(instr_id);
-            matches!(instr, mir::Instruction::Call { call, .. } if call.callee.function() == Some(current_function_id))
+        // skip blocks holding a recursive call
+        let has_recursive_call = block.instructions.iter().any(|&instruction_id| {
+            let instruction = tree.get(instruction_id);
+            matches!(instruction, mir::Instruction::Call { call, .. } if call.callee.function() == Some(current_function_id))
         });
         if has_recursive_call {
             continue;
         }
 
-        // check if return value is the identity
-        let is_identity = if let Some(ret_val) = value {
-            is_value_identity(*ret_val, identity, function, tree)
+        // classify the returned value against the identity constant
+        let is_identity = if let Some(returned) = value {
+            is_value_identity(*returned, identity, function, tree)
         } else {
             false
         };
@@ -980,27 +964,25 @@ fn find_base_case_blocks(
     base_cases
 }
 
-/// Check if a value is the identity constant.
-///
-/// Searches all blocks in the function to find where the value is defined.
+/// Return whether one value is defined as the identity constant anywhere in the function.
 fn is_value_identity(
     value: mir::Value,
     identity: &mir::Constant,
     function: &mir::Function,
     tree: &mir::Tree,
 ) -> bool {
-    // search all blocks for the defining instruction
+    // search every block for the defining instruction
     for &block_id in function.blocks() {
         let block = tree.get(block_id);
-        for &instr_id in &block.instructions {
-            let instr = tree.get(instr_id);
+        for &instruction_id in &block.instructions {
+            let instruction = tree.get(instruction_id);
             if let mir::Instruction::Const {
                 destination,
-                value: const_val,
-            } = instr
+                value: constant,
+            } = instruction
                 && *destination == value
             {
-                return const_val == identity;
+                return constant == identity;
             }
         }
     }
@@ -1008,10 +990,9 @@ fn is_value_identity(
     false
 }
 
-/// Transform an accumulator pattern block.
+/// Transform one accumulator pattern block.
 ///
-/// Replaces: `v1 = call self(args); v2 = OP v1, x; return v2`
-/// With: `v_new = OP acc, x; jump entry(args..., v_new)`
+/// `v1 = call self(args); v2 = OP v1, x; return v2` becomes `v_new = OP acc, x; jump entry(args..., v_new)`.
 fn transform_accumulator_block(
     pattern: &AccumulatorPattern,
     entry_block: mir::LocalNodeId<mir::Block>,
@@ -1019,14 +1000,14 @@ fn transform_accumulator_block(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
 ) {
-    // get the call arguments before any mutations
+    // read the call arguments before any mutation
     let call_args: Vec<mir::Value> = tree.get_values(pattern.call_arguments).to_vec();
 
-    // create new accumulator value
+    // allocate the combined accumulator value
     let acc_type = function.return_type;
     let new_acc = function.next_typed_value(acc_type);
 
-    // create new binary instruction: new_acc = OP acc, other
+    // combine the accumulator with the other operand
     let new_binary = mir::Instruction::Binary {
         destination: new_acc,
         operator: pattern.operator,
@@ -1034,13 +1015,13 @@ fn transform_accumulator_block(
         right: pattern.other_operand,
     };
 
-    // build new instructions list: keep everything except call and old binary
+    // keep every instruction except the call and the old binary operation
     let block = tree.get(pattern.block_id);
     let mut new_instructions: Vec<mir::LocalNodeId<mir::Instruction>> = block
         .instructions
         .iter()
         .enumerate()
-        .filter(|&(i, _)| i != pattern.call_index && i != pattern.binary_index)
+        .filter(|&(index, _)| index != pattern.call_index && index != pattern.binary_index)
         .map(|(_, &id)| id)
         .collect();
 
@@ -1048,7 +1029,7 @@ fn transform_accumulator_block(
     let new_binary_id = tree.insert(new_binary);
     new_instructions.push(new_binary_id);
 
-    // create jump with accumulated value
+    // jump back to the entry with the accumulated value
     let mut jump_args = call_args;
     jump_args.push(new_acc);
     let jump_arguments: Vec<_> = jump_args.into_iter().collect();
@@ -1063,14 +1044,12 @@ fn transform_accumulator_block(
     function.replace_block_instructions(pattern.block_id, new_instructions, tree);
     tree.set(terminator_id, new_terminator);
 
-    // old instructions become orphaned (not referenced by any block)
-    // they will be cleaned up by DCE or tree compaction
+    // leave the replaced instructions orphaned for dead code elimination and tree compaction
 }
 
-/// Transform a base case block to return the accumulator.
+/// Transform one base case block to return the accumulator.
 ///
-/// If the base case returns the identity, simply return acc.
-/// Otherwise, return OP(acc, original_value).
+/// A base case returning the identity returns the accumulator itself, every other one returns their combination.
 fn transform_base_case_block(
     block_id: mir::LocalNodeId<mir::Block>,
     acc_value: mir::Value,
@@ -1079,7 +1058,7 @@ fn transform_base_case_block(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
 ) {
-    // clone block first to avoid borrow conflicts
+    // read the block out of the tree
     let block = tree.get(block_id).clone();
     let terminator = tree.get(block.terminator);
     let mir::Terminator::Return {
@@ -1090,29 +1069,30 @@ fn transform_base_case_block(
     };
     let original_value = *original_value;
 
+    // return the accumulator itself
     if is_identity {
-        // just return the accumulator
         let new_terminator = mir::Terminator::Return {
             value: Some(acc_value),
         };
         tree.set(block.terminator, new_terminator);
-    } else {
-        // return OP(acc, original_value)
+    }
+    // otherwise combine the accumulator with the returned value
+    else {
         let acc_type = function.return_type;
-        let result_val = function.next_typed_value(acc_type);
+        let result_value = function.next_typed_value(acc_type);
 
-        let combine_instr = mir::Instruction::Binary {
-            destination: result_val,
+        let combine_instruction = mir::Instruction::Binary {
+            destination: result_value,
             operator,
             left: acc_value,
             right: original_value,
         };
-        let combine_id = tree.insert(combine_instr);
+        let combine_id = tree.insert(combine_instruction);
 
         let mut instructions = block.instructions.clone();
         instructions.push(combine_id);
         let new_terminator = mir::Terminator::Return {
-            value: Some(result_val),
+            value: Some(result_value),
         };
         let terminator_id = block.terminator;
         function.replace_block_instructions(block_id, instructions, tree);
@@ -1120,10 +1100,10 @@ fn transform_base_case_block(
     }
 }
 
-/// Checks if a block ends with a self-recursive tail call and transforms it to a jump.
+/// Turn one block ending in a self-recursive tail call into a jump to the entry.
 ///
-/// The pattern is: last instruction is `v = call self(args...)`, terminator is `return v`.
-/// For void functions: last instruction is `call self(args...)`, terminator is `return`.
+/// The pattern is `v = call self(args...)` followed by `return v`, or a bare `call self(args...)` and `return` in a
+/// void function.
 fn transform_self_recursive_tail_call(
     block_id: mir::LocalNodeId<mir::Block>,
     current_function_id: mir::LocalNodeId<mir::Function>,
@@ -1133,31 +1113,31 @@ fn transform_self_recursive_tail_call(
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
 
-    // must end with a return
+    // require a return
     let returned_value = match terminator {
         mir::Terminator::Return { value } => *value,
         _ => return false,
     };
 
-    // need at least one instruction
+    // require a trailing instruction
     let Some(&last_instruction_id) = block.instructions.last() else {
         return false;
     };
 
-    // last instruction must be a call
+    // require the trailing instruction to be a call
     let last_instruction = tree.get(last_instruction_id);
     let mir::Instruction::Call { destination, call } = last_instruction else {
         return false;
     };
 
-    // must be calling ourselves
+    // require a self call
     if call.callee.function() != Some(current_function_id) {
         return false;
     }
 
-    // return value must match call result
+    // require the return value to be the call result
     let is_tail_position = match (destination, returned_value) {
-        (Some(call_result), Some(return_val)) => *call_result == return_val,
+        (Some(call_result), Some(returned)) => *call_result == returned,
         (None, None) => true,
         _ => false,
     };
@@ -1166,11 +1146,11 @@ fn transform_self_recursive_tail_call(
         return false;
     }
 
-    // extract call arguments before mutating
+    // read the call arguments before mutating
     let call_args: Vec<mir::Value> = tree.get_values(call.arguments).to_vec();
     let jump_arguments: Vec<_> = call_args.into_iter().collect();
 
-    // rewrite the block: remove call, replace return with jump to entry
+    // drop the call and replace the return with a jump to the entry
     let (terminator_id, mut new_instructions) = {
         let block = tree.get(block_id);
         (block.terminator, block.instructions.clone())
@@ -1188,12 +1168,10 @@ fn transform_self_recursive_tail_call(
     true
 }
 
-/// Checks if a block ends with a sibling tail call (call to ANOTHER function) and transforms it.
+/// Turn one block ending in a call to another function into a `tail.call` terminator.
 ///
-/// The pattern is: last instruction is `v = call other(args...)`, terminator is `return v`.
-/// For void functions: last instruction is `call other(args...)`, terminator is `return`.
-///
-/// Transforms to: `tail.call other(args...)` (or `tail.call.indirect` for indirect calls).
+/// The pattern is `v = call other(args...)` followed by `return v`, or a bare `call other(args...)` and `return` in a
+/// void function.
 fn transform_sibling_tail_call(
     block_id: mir::LocalNodeId<mir::Block>,
     current_function_id: mir::LocalNodeId<mir::Function>,
@@ -1202,30 +1180,30 @@ fn transform_sibling_tail_call(
     let block = tree.get(block_id);
     let terminator = tree.get(block.terminator);
 
-    // must end with a return
+    // require a return
     let returned_value = match terminator {
         mir::Terminator::Return { value } => *value,
         _ => return false,
     };
 
-    // need at least one instruction
+    // require a trailing instruction
     let Some(&last_instruction_id) = block.instructions.last() else {
         return false;
     };
 
-    // last instruction must be a call
+    // require the trailing instruction to be a call
     let last_instruction = tree.get(last_instruction_id).clone();
 
     match &last_instruction {
         mir::Instruction::Call { destination, call } => {
-            // skip self-recursive calls (handled by transform_self_recursive_tail_call)
+            // leave self-recursive calls to transform_self_recursive_tail_call
             if call.callee.function() == Some(current_function_id) {
                 return false;
             }
 
-            // return value must match call result
+            // require the return value to be the call result
             let is_tail_position = match (destination, returned_value) {
-                (Some(call_result), Some(return_val)) => *call_result == return_val,
+                (Some(call_result), Some(returned)) => *call_result == returned,
                 (None, None) => true,
                 _ => false,
             };
@@ -1234,10 +1212,10 @@ fn transform_sibling_tail_call(
                 return false;
             }
 
-            // extract call arguments before mutating
+            // read the call arguments before mutating
             let call_args: Vec<mir::Value> = tree.get_values(call.arguments).to_vec();
 
-            // rewrite the block: remove call, replace return with TailCall
+            // drop the call and replace the return with a tail call
             let (terminator_id, mut new_instructions) = {
                 let block = tree.get(block_id);
                 (block.terminator, block.instructions.clone())
@@ -1262,6 +1240,7 @@ fn transform_sibling_tail_call(
 mod tests {
     use super::*;
     use crate::optimize::common::tests::TestProgram;
+
     #[test]
     fn test_eliminate_basic_tail_recursion() {
         // factorial(n, acc) with accumulator style
@@ -1305,6 +1284,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_eliminate_void_tail_recursion() {
         // countdown to zero
@@ -1346,6 +1326,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_factorial_with_accumulator() {
         // classic factorial: n * factorial(n-1), transformed via accumulator
@@ -1388,6 +1369,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_preserve_non_associative_operation() {
         // subtraction is not associative, cannot transform
@@ -1414,6 +1396,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
+
     #[test]
     fn test_transform_sibling_tail_call() {
         // sibling call (to different function) in tail position becomes tailcall
@@ -1445,6 +1428,7 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_eliminate_gcd_recursion() {
         // euclidean gcd is naturally tail recursive
@@ -1484,6 +1468,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_convert_infinite_recursion_to_loop() {
         // infinite recursion becomes infinite loop
@@ -1505,6 +1490,7 @@ entry:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_preserve_return_value_mismatch() {
         // returning different value than call result
@@ -1521,6 +1507,7 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
+
     #[test]
     fn test_eliminate_fibonacci_recursion() {
         // fib(n, a, b) where a and b are accumulators
@@ -1564,6 +1551,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_eliminate_multiple_tail_calls() {
         // function with multiple blocks that have tail calls
@@ -1622,6 +1610,7 @@ b4:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_eliminate_reordered_args_call() {
         // swap(a, b) calls swap(b, a)
@@ -1657,6 +1646,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_handle_empty_block() {
         // block with only terminator, no instructions
@@ -1671,6 +1661,7 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
+
     #[test]
     fn test_preserve_non_final_call() {
         // call followed by other instruction before return
@@ -1689,6 +1680,7 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
+
     #[test]
     fn test_transform_mutual_recursion() {
         // even/odd mutual recursion becomes sibling tail calls
@@ -1765,6 +1757,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_sum_with_accumulator() {
         // sum(n) = n + sum(n-1), identity for add is 0
@@ -1808,6 +1801,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_bitwise_or_accumulator() {
         // or_bits(n) = n | or_bits(n-1), identity for or is 0
@@ -1851,6 +1845,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_non_identity_base_case() {
         // sum with non-zero base: returns 5 when n=0
@@ -1898,6 +1893,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_preserve_call_result_used_twice() {
         // call result used in multiple places, not just the binary op
@@ -1924,6 +1920,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_unchanged(input);
     }
+
     #[test]
     fn test_preserve_mixed_operators() {
         // multiple recursive sites with different operators
@@ -1960,6 +1957,7 @@ b4:
         // should not transform: different operators in different paths
         test.assert_unchanged(input);
     }
+
     #[test]
     fn test_transform_with_external_caller() {
         // factorial with accumulator pattern, called from main
@@ -2017,6 +2015,7 @@ entry:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_exported_with_wrapper() {
         // exported factorial: should create impl + wrapper
@@ -2066,6 +2065,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_indirect_tail_call() {
         // indirect call in tail position becomes tail.call.indirect
@@ -2087,6 +2087,7 @@ entry(v0: fn(int32) => int32, v1: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_void_sibling_tail_call() {
         // void sibling tail call
@@ -2118,6 +2119,7 @@ entry(v0: int32):
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_bitwise_and_accumulator() {
         // and_bits(n) = n & and_bits(n-1), identity for and is all-ones (-1)
@@ -2164,6 +2166,7 @@ b2:
         test.run_module_pass(&EliminateTailCalls);
         test.assert_output(expected);
     }
+
     #[test]
     fn test_transform_bitwise_xor_accumulator() {
         // xor_bits(n) = n ^ xor_bits(n-1), identity for bxor is 0

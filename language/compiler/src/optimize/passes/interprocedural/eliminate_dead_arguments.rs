@@ -70,9 +70,9 @@ enum DirectCallSite {
     Terminator(mir::LocalNodeId<mir::Block>),
 }
 
-/// Collected callsite data for dead argument elimination.
+/// The direct callsites and indirect signatures of one module.
 #[derive(Debug, Default)]
-struct CallData {
+struct ModuleCalls {
     /// Direct callsites keyed by callee function id.
     direct_calls: FxIndexMap<mir::LocalNodeId<mir::Function>, Vec<DirectCallSite>>,
     /// Signatures that may be targeted by indirect calls.
@@ -86,7 +86,7 @@ fn run_eliminate_dead_arguments(
     effects: &mut mir::EffectTable,
 ) -> bool {
     // collect callsite information up front
-    let call_data = collect_call_data(tree);
+    let module_calls = collect_module_calls(tree);
 
     // track whether anything changed
     let mut changed = false;
@@ -107,7 +107,7 @@ fn run_eliminate_dead_arguments(
         let signature = SignatureKey::from_function(function);
 
         // skip functions that might be called indirectly
-        if call_data.indirect_signatures.contains(&signature) {
+        if module_calls.indirect_signatures.contains(&signature) {
             continue;
         }
 
@@ -121,7 +121,7 @@ fn run_eliminate_dead_arguments(
         apply_parameter_removals(function_id, &unused, tree);
 
         // update direct callsites that target this function
-        if let Some(calls) = call_data.direct_calls.get(&function_id) {
+        if let Some(calls) = module_calls.direct_calls.get(&function_id) {
             update_call_sites(function_id, calls, &unused, tree, layouts, effects);
         }
 
@@ -132,9 +132,8 @@ fn run_eliminate_dead_arguments(
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::Tree) -> CallData {
-    // prepare the callsite data container
-    let mut data = CallData::default();
+fn collect_module_calls(tree: &mir::Tree) -> ModuleCalls {
+    let mut calls = ModuleCalls::default();
 
     // scan each function body for calls
     for (_function_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -152,7 +151,8 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                     if let mir::CallDispatch::Direct = dispatch
                         && let Some(function) = instruction.call_direct_target()
                     {
-                        data.direct_calls
+                        calls
+                            .direct_calls
                             .entry(function)
                             .or_default()
                             .push(DirectCallSite::Instruction(instruction_id));
@@ -163,7 +163,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         .call_signature()
                         .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
-                        data.indirect_signatures.insert(signature);
+                        calls.indirect_signatures.insert(signature);
                     }
                 }
             }
@@ -173,14 +173,15 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
             match terminator {
                 mir::Terminator::Invoke { call, .. } | mir::Terminator::TailCall { call } => {
                     if let Some(function) = call.callee.function() {
-                        data.direct_calls
+                        calls
+                            .direct_calls
                             .entry(function)
                             .or_default()
                             .push(DirectCallSite::Terminator(block_id));
                     } else if let Some(signature) =
                         SignatureKey::from_signature_type(tree, &call.signature)
                     {
-                        data.indirect_signatures.insert(signature);
+                        calls.indirect_signatures.insert(signature);
                     }
                 }
                 _ => {}
@@ -188,7 +189,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
         }
     }
 
-    data
+    calls
 }
 
 /// Collect unused parameter indices for a function body.
@@ -201,12 +202,12 @@ fn unused_parameter_indices(function: &mir::Function, tree: &mir::Tree) -> Vec<u
 
     // collect parameters that have no uses
     let mut unused = Vec::new();
-    for (index, param) in function.parameters.iter().enumerate() {
+    for (index, parameter) in function.parameters.iter().enumerate() {
         if required.contains(index) {
             continue;
         }
 
-        let value = param.value;
+        let value = parameter.value;
 
         if !uses.is_used(value) {
             unused.push(index);
@@ -272,12 +273,12 @@ fn update_call_sites(
                 // filter the argument list
                 let arguments = remap.filter_by_index(tree.get_values(slice));
 
-                // preserve the no storage signature layout
+                // carry the callee's layout entries onto the rewritten signature
                 layouts.copy_type_entries(call.signature, signature);
 
                 // update the call instruction with the new argument slice
                 let new_slice = tree.add_values(&arguments);
-                let callsite = mir::CallSite::Instruction(instruction_id);
+                let callsite = mir::Point::Instruction(instruction_id);
                 let mut call = call;
                 call.arguments = new_slice;
                 call.signature = signature;
@@ -285,7 +286,7 @@ fn update_call_sites(
                 let updated = mir::Instruction::Call { destination, call };
                 *tree.get_mut(instruction_id) = updated;
 
-                // preserve tables when the callsite carries it
+                // trim the call effect arguments the callsite carries
                 if let Some(tables) = effects.call_mut(callsite) {
                     tables.arguments = remap.filter_by_index(&tables.arguments);
                 }
@@ -330,8 +331,8 @@ fn update_call_sites(
                     _ => panic!("stale direct callsite terminator: {block_id:?}"),
                 }
 
-                // preserve tables when the terminator carries it
-                let callsite = mir::CallSite::Terminator(block_id);
+                // trim the call effect arguments the terminator carries
+                let callsite = mir::Point::Terminator(block_id);
                 if let Some(tables) = effects.call_mut(callsite) {
                     tables.arguments = remap.filter_by_index(&tables.arguments);
                 }
@@ -540,7 +541,7 @@ entry(v0: int32):
             })
             .expect("missing call instruction");
 
-        let callsite = mir::CallSite::Instruction(call_id);
+        let callsite = mir::Point::Instruction(call_id);
         test.optimized.effects.upsert_call(callsite).arguments = vec![
             mir::CallArgumentEffect::default(),
             mir::CallArgumentEffect::default(),
@@ -548,7 +549,7 @@ entry(v0: int32):
 
         test.run_module_pass(&EliminateDeadArguments);
         test.assert_output(expected);
-        let callsite = mir::CallSite::Instruction(call_id);
+        let callsite = mir::Point::Instruction(call_id);
         let tables = test
             .optimized
             .effects

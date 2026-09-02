@@ -82,9 +82,7 @@ impl FunctionPass for EliminateDeadStores {
     }
 }
 
-/// Remove the dead stores from one function.
-///
-/// Returns true when a store was removed.
+/// Remove the dead stores of one function, answering whether any was removed.
 fn run_eliminate_dead_stores(
     function: &mut mir::Function,
     tree: &mut mir::Tree,
@@ -699,7 +697,7 @@ entry:
             escape: mir::ArgumentEscape::None,
         };
 
-        let call = mir::CallSite::Instruction(call_inst);
+        let call = mir::Point::Instruction(call_inst);
         let tables = test.optimized.effects.upsert_call(call);
         tables.memory = mir::MemoryEffect::none();
         tables.arguments = vec![arg0];

@@ -85,7 +85,7 @@ impl ModulePass for SpecializeArguments {
     }
 }
 
-/// Direct callsite tables for specialization.
+/// One direct callsite considered for specialization.
 #[derive(Debug, Clone)]
 struct DirectCallSite {
     /// The caller function id.
@@ -100,9 +100,9 @@ struct DirectCallSite {
     arguments: Vec<mir::Value>,
 }
 
-/// Collected callsite data for specialization.
+/// The direct callsites and indirect signatures of one module.
 #[derive(Debug, Default)]
-struct CallData {
+struct ModuleCalls {
     /// Direct callsites in the module.
     callsites: Vec<DirectCallSite>,
     /// Signatures that may be targeted by indirect calls.
@@ -164,7 +164,7 @@ fn run_specialize_arguments(
             ..
         } = optimized;
 
-        let call_data = collect_call_data(tree);
+        let module_calls = collect_module_calls(tree);
         let callgraph = analyses.call(tree, dispatch);
         let constants_by_function = build_constant_maps(tree, ctx.target_layout());
 
@@ -182,7 +182,7 @@ fn run_specialize_arguments(
             FxIndexMap::default();
 
         // process callsites for specialization
-        for callsite in &call_data.callsites {
+        for callsite in &module_calls.callsites {
             // skip recursive callees
             if callgraph.is_recursive_function(callsite.callee) {
                 continue;
@@ -280,9 +280,8 @@ fn run_specialize_arguments(
 }
 
 /// Collect direct callsites and indirect signatures for the module.
-fn collect_call_data(tree: &mir::Tree) -> CallData {
-    // prepare the callsite data container
-    let mut data = CallData::default();
+fn collect_module_calls(tree: &mir::Tree) -> ModuleCalls {
+    let mut calls = ModuleCalls::default();
 
     // scan each function body for callsites
     for (caller_id, function) in tree.iter_nodes::<mir::Function>() {
@@ -304,7 +303,7 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         && let Some(callee) = call.callee.function()
                     {
                         let arguments = tree.get_values(call.arguments).to_vec();
-                        data.callsites.push(DirectCallSite {
+                        calls.callsites.push(DirectCallSite {
                             caller: caller_id,
                             callee,
                             block: block_id,
@@ -318,22 +317,21 @@ fn collect_call_data(tree: &mir::Tree) -> CallData {
                         .call_signature()
                         .and_then(|signature| SignatureKey::from_signature_type(tree, &signature))
                     {
-                        data.indirect_signatures.insert(signature);
+                        calls.indirect_signatures.insert(signature);
                     }
                 }
             }
         }
     }
 
-    data
+    calls
 }
 
-/// Build constant propagation data for each defined function.
+/// Build the constant propagation state for each defined function.
 fn build_constant_maps(
     tree: &mir::Tree,
     target_layout: mir::TargetLayout,
 ) -> FxIndexMap<mir::LocalNodeId<mir::Function>, ConstantTable> {
-    // prepare the constants map
     let mut maps = FxIndexMap::default();
 
     // build a constant propagation analysis per function
@@ -432,7 +430,7 @@ fn constant_key(constant: &mir::Constant) -> ConstantKey {
 /// Specialize a callee by cloning and substituting constants.
 fn specialize_callee(
     callee: mir::LocalNodeId<mir::Function>,
-    spec_index: usize,
+    index: usize,
     constants: &[Option<mir::Constant>],
     removal_indices: &[usize],
     tree: &mut mir::Tree,
@@ -441,7 +439,7 @@ fn specialize_callee(
 ) -> mir::LocalNodeId<mir::Function> {
     // build the specialized function name
     let base_name = ctx.strings.get(tree.get(callee).name).to_string();
-    let suffix = specialized_suffix(spec_index);
+    let suffix = specialized_suffix(index);
     let name = ctx.strings.intern(&format!("{base_name}{suffix}"));
 
     // clone the function body
@@ -480,8 +478,8 @@ fn simplify_specialized_functions(
 }
 
 /// Create a suffix for specialized function names.
-fn specialized_suffix(spec_index: usize) -> String {
-    format!("_spec{spec_index}")
+fn specialized_suffix(index: usize) -> String {
+    format!("_spec{index}")
 }
 
 /// Clone a function body for specialization.
@@ -573,10 +571,12 @@ fn clone_function(
 
     // insert the specialized function
     let new_function_id = tree.insert(new_function);
-    // recompute value id state for the clone
+
+    // restate the next value id over the cloned blocks
     let mut cloned_function = tree.get(new_function_id).clone();
     cloned_function.recompute_next_value_id(tree);
     *tree.get_mut(new_function_id) = cloned_function;
+
     new_function_id
 }
 
@@ -669,7 +669,7 @@ fn update_callsite(
     let updated = mir::Instruction::Call { destination, call };
     tree.set(callsite.call_instruction, updated);
 
-    let callsite_id = mir::CallSite::Instruction(callsite.call_instruction);
+    let callsite_id = mir::Point::Instruction(callsite.call_instruction);
     if let Some(tables) = effects.call_mut(callsite_id) {
         tables.arguments = remap.filter_by_index(&tables.arguments);
     }
@@ -772,7 +772,7 @@ entry:
         let mut test = TestProgram::new(input);
         let root_id = test.function_id_by_name("root");
         let (call_id, _callee_id) = test.first_call_in_entry(root_id);
-        let callsite = mir::CallSite::Instruction(call_id);
+        let callsite = mir::Point::Instruction(call_id);
         test.optimized.effects.upsert_call(callsite).arguments =
             vec![mir::CallArgumentEffect::default(); 2];
 
@@ -781,7 +781,7 @@ entry:
 
         let (call_id, callee_id) = test.first_call_in_entry(root_id);
         let callee = test.optimized.tree.get(callee_id);
-        let callsite = mir::CallSite::Instruction(call_id);
+        let callsite = mir::Point::Instruction(call_id);
         let tables = test
             .optimized
             .effects
@@ -957,7 +957,7 @@ entry:
 
         let mut test = TestProgram::new(input);
 
-        // without a function entry count the caller hotness is unknown, so skip
+        // leave the caller hotness unknown by omitting the function entry count
         let profile = mir::Profile::new();
 
         test.run_module_pass_with_profile(&SpecializeArguments, profile);

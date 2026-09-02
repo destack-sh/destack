@@ -214,7 +214,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         &self,
         function_profile: &mir::FunctionProfile,
         profile_map: &mir::FunctionProfileTable,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
         functions_by_symbol: &FxIndexMap<mir::Symbol, mir::FunctionId>,
     ) -> Option<mir::FunctionId> {
         let sampler = profile_map.sampler(&SampleSite::CallTarget(callsite))?;
@@ -240,7 +240,7 @@ impl<'a> DevirtualizeGuardedState<'a> {
         &self,
         function_profile: &mir::FunctionProfile,
         profile_map: &mir::FunctionProfileTable,
-        callsite: mir::CallSite,
+        callsite: mir::Point,
     ) -> Option<mir::TypeId> {
         let sampler = profile_map.sampler(&SampleSite::ReceiverType(callsite))?;
         let value_profile = function_profile.values.get(&sampler)?;
@@ -512,10 +512,10 @@ enum CallNode {
 
 impl CallNode {
     /// Return this node as a stable profile point.
-    fn callsite(self) -> mir::CallSite {
+    fn callsite(self) -> mir::Point {
         match self {
-            Self::Instruction(instruction) => mir::CallSite::Instruction(instruction),
-            Self::Terminator(block) => mir::CallSite::Terminator(block),
+            Self::Instruction(instruction) => mir::Point::Instruction(instruction),
+            Self::Terminator(block) => mir::Point::Terminator(block),
         }
     }
 }
@@ -703,7 +703,7 @@ cleanup:
         let callee = test.function_id_by_name("callee");
         let concrete = test.type_id_by_name("ReaderImpl");
         let constraint = test.type_id_by_name("Reader");
-        let callsite = mir::CallSite::Terminator(test.entry_block_id(caller));
+        let callsite = mir::Point::Terminator(test.entry_block_id(caller));
         test.add_dynamic_method_table(concrete, constraint, callee);
         let profile = test.profile_dispatch_call(caller, callsite, callee, concrete, 900, 0);
 
@@ -853,10 +853,7 @@ entry(v0: dynamic<Reader, managed, mutable>):
     }
 
     /// Return the first dynamic instruction call in a function.
-    fn first_dynamic_instruction_call(
-        test: &TestProgram,
-        function: mir::FunctionId,
-    ) -> mir::CallSite {
+    fn first_dynamic_instruction_call(test: &TestProgram, function: mir::FunctionId) -> mir::Point {
         let function = test.optimized.tree.get(function);
 
         // scan blocks in layout order
@@ -869,7 +866,7 @@ entry(v0: dynamic<Reader, managed, mutable>):
                     .call_dispatch()
                     .is_some_and(|dispatch| matches!(dispatch, mir::CallDispatch::Dynamic { .. }))
                 {
-                    return mir::CallSite::Instruction(instruction);
+                    return mir::Point::Instruction(instruction);
                 }
             }
         }
