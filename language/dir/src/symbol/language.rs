@@ -282,6 +282,12 @@ define_language_items! {
             /// Generator result type alias.
             GeneratorResult => (Type, "async/generator", "GeneratorResult"),
 
+            /// Continue a generator producer with one sent value.
+            GeneratorNext => (Struct, "async/generator", "GeneratorNext"),
+
+            /// Run a generator producer's return path.
+            GeneratorReturn => (Struct, "async/generator", "GeneratorReturn"),
+
             /// Create one generator from its producer body.
             GeneratorCreate => (
                 Function,
@@ -2483,6 +2489,22 @@ define_language_items! {
 
             /// Profile sampler.
             ProfileSampler => (Newtype, "profile/instrument", "Sampler"),
+
+            /// Increment one profile counter at its call site.
+            ProfileCounterIncrement => (
+                Function,
+                "profile/instrument",
+                "increment",
+                "profile.Counter.increment"
+            ),
+
+            /// Record one profile sample at its call site.
+            ProfileSamplerSample => (
+                Function,
+                "profile/instrument",
+                "sample",
+                "profile.Sampler.sample"
+            ),
 
             /// Profile measurement unit.
             ProfileUnit => (Newtype, "profile/instrument", "Unit"),

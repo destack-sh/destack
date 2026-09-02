@@ -15,6 +15,7 @@ export type GeneratorResult<Y, R = void> = IteratorResult<Y, R>;
 export type GeneratorRequest<R, N> = GeneratorNext<N> | GeneratorReturn<R>;
 
 /// Continue the producer with one sent value.
+@languageItem("async.GeneratorNext")
 export local struct GeneratorNext<N> {
     /// The request tag.
     kind: "next";
@@ -24,6 +25,7 @@ export local struct GeneratorNext<N> {
 }
 
 /// Run the producer's return path with one completion value.
+@languageItem("async.GeneratorReturn")
 export local struct GeneratorReturn<R> {
     /// The request tag.
     kind: "return";

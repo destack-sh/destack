@@ -1,13 +1,10 @@
-/// Profile sample value.
-export type SampleValue = boolean | number | bigint;
-
-/// Profile counter instrument.
+/// Profile counter instrument, identified by its name.
 @languageItem("profile.Counter")
-export newtype Counter = intrinsic;
+export newtype Counter<Name: string> = intrinsic;
 
-/// Profile sampler instrument.
+/// Profile sampler instrument, identified by its name.
 @languageItem("profile.Sampler")
-export newtype Sampler = intrinsic;
+export newtype Sampler<Name: string> = intrinsic;
 
 /// Profile unit label.
 @languageItem("profile.Unit")
@@ -24,30 +21,28 @@ export struct InstrumentOptions {
 
 /// Define one statically named profile counter.
 @intrinsic("profile.counter")
-export declare function counter(name: string, options?: InstrumentOptions): Counter;
+export declare function counter<Name: string>(
+    name: Name,
+    options?: InstrumentOptions,
+): Counter<Name>;
 
 /// Define one statically named profile sampler.
 @intrinsic("profile.sampler")
-export declare function sampler(name: string, options?: InstrumentOptions): Sampler;
+export declare function sampler<Name: string>(
+    name: Name,
+    options?: InstrumentOptions,
+): Sampler<Name>;
 
-export extension of Counter {
-    /// Increment this counter.
-    increment(&readonly this): void {
-        incrementCounter(this);
-    }
+export extension<Name: string> of Counter<Name> {
+    /// Increment this counter at the calling site.
+    @languageItem("profile.Counter.increment")
+    @intrinsic("profile.increment")
+    declare increment(&readonly this): void;
 }
 
-export extension of Sampler {
-    /// Record one sample.
-    sample(&readonly this, value: SampleValue): void {
-        sampleValue(this, value);
-    }
+export extension<Name: string> of Sampler<Name> {
+    /// Record one sample at the calling site.
+    @languageItem("profile.Sampler.sample")
+    @intrinsic("profile.sample")
+    declare sample(&readonly this, value: number): void;
 }
-
-/// Increment one profile counter.
-@intrinsic("profile.increment")
-declare function incrementCounter(counter: &readonly Counter): void;
-
-/// Record one profile sample.
-@intrinsic("profile.sample")
-declare function sampleValue(sampler: &readonly Sampler, value: SampleValue): void;

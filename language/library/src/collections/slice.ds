@@ -1,7 +1,16 @@
 import { From, ToOwned } from "destack:convert";
 import { panic, todo } from "destack:error";
 import { FromIterator, Iterable, Iterator } from "destack:iter";
-import { Access, Borrowed, Clone, Copy, Default, Raw, WithAccess } from "destack:memory";
+import {
+    Access,
+    Borrowed,
+    Clone,
+    Copy,
+    Default,
+    MaybeUninit,
+    Raw,
+    WithAccess,
+} from "destack:memory";
 import { Compare, Index, IndexSet, Ordering } from "destack:ops";
 import { Bound, RangeBounds } from "destack:range";
 
@@ -16,6 +25,11 @@ export extension<T> of Slice<T> implements Default {
     /// Create an empty slice.
     static new(): ^[T] {
         todo("Slice.new")
+    }
+
+    /// Allocate `length` uninitialized elements.
+    static uninit(length: usize): ^[MaybeUninit<T>] {
+        sliceUninit<T>(length)
     }
 
     /// Create a slice from `values`.
@@ -304,6 +318,10 @@ export extension<T> of Slice<T> implements ToOwned where T: Clone {
 @unsafe
 @intrinsic("collections.slice.fromRaw")
 export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
+
+/// Allocate one owned slice of `length` uninitialized elements.
+@intrinsic("collections.slice.uninit")
+export declare function sliceUninit<T>(length: usize): ^[MaybeUninit<T>];
 
 /// Return the element count of one slice view.
 @intrinsic("collections.slice.length")
