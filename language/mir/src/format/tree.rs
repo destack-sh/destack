@@ -100,6 +100,11 @@ fn item_start<T>(tree: &Tree, id: LocalNodeId<T>) -> Option<u32>
 where
     T: Node,
 {
+    // skip items anchored at a lowered source origin
+    if tree.get_source(id.id).is_some() {
+        return None;
+    }
+
     if let Some(span) = tree.leading_comment_span(id) {
         Some(span.start)
     } else {

@@ -10,6 +10,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn return_(&mut self, return_value: Option<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Return {
@@ -24,6 +25,7 @@ impl<'a> FunctionBuilder<'a> {
         let arguments = self.tree.add_values(&[]);
 
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Jump {
@@ -45,6 +47,7 @@ impl<'a> FunctionBuilder<'a> {
         let else_arguments = self.tree.add_values(&[]);
 
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Branch {
@@ -79,6 +82,7 @@ impl<'a> FunctionBuilder<'a> {
         let cases = self.tree.add_switch_cases(&cases);
 
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Switch {
@@ -117,6 +121,7 @@ impl<'a> FunctionBuilder<'a> {
         let cases = self.tree.add_switch_cases(&cases);
 
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::VariantSwitch {
@@ -140,6 +145,7 @@ impl<'a> FunctionBuilder<'a> {
         let failure_arguments = self.tree.add_values(&[]);
 
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Check {
@@ -153,6 +159,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn abort(&mut self, payload: Option<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Abort { payload };
@@ -162,6 +169,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn panic(&mut self, payload: Option<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Panic { payload };
@@ -171,6 +179,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn unreachable(&mut self) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::Unreachable;
@@ -180,6 +189,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn resume_unwind(&mut self) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let terminator = self.tree.get_mut(terminator_id);
 
         *terminator = Terminator::UnwindResume;
@@ -217,6 +227,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn tail_call(&mut self, callee: Callee, signature: TypeId, arguments: Vec<Value>) {
         let block = self.current_block();
         let terminator_id = self.tree.get(block).terminator;
+        self.stamp_terminator(terminator_id);
         let arguments = self.tree.add_values(&arguments);
 
         *self.tree.get_mut(terminator_id) = Terminator::TailCall {

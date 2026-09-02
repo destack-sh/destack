@@ -4,8 +4,8 @@ use indexmap::{IndexMap, IndexSet};
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
 use crate::{
     AllocationMode, Block, EffectTable, Function, FunctionBehavior, FunctionBody,
-    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Node, Tree, TreeMut,
-    Type, TypeId, Value,
+    FunctionParameter, Instruction, Linkage, Local, LocalNodeId, MemoryEffect, Node, Terminator,
+    Tree, TreeMut, Type, TypeId, Value,
 };
 
 /// The builder for one MIR function, constructing SSA as it goes.
@@ -323,6 +323,14 @@ impl<'a> FunctionBuilder<'a> {
                 id
             }
             None => self.tree.insert(node),
+        }
+    }
+
+    /// Anchor one block's terminator at the active source location.
+    pub(super) fn stamp_terminator(&mut self, id: LocalNodeId<Terminator>) {
+        if let Some((source_node, span)) = self.source {
+            self.tree.set_source(id.id, source_node);
+            self.tree.set_span(id, span);
         }
     }
 
