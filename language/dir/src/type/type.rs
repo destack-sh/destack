@@ -2438,6 +2438,8 @@ pub struct FunctionSignatureType {
     pub is_generator: bool,
     /// Whether this signature constructs its return type.
     pub is_construct: bool,
+    /// Whether a call to this signature parks the current fiber.
+    pub parks: bool,
 }
 
 /// A runtime parameter in a function type.

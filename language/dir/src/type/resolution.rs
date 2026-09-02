@@ -43,14 +43,6 @@ impl<T> OperationResolution<T> {
         }
     }
 
-    /// Return the selected operations in runtime arm order for editing.
-    pub fn arms_mut(&mut self) -> &mut [T] {
-        match self {
-            Self::One(operation) => slice::from_mut(operation),
-            Self::Union { arms, .. } => arms,
-        }
-    }
-
     /// Return the first selected operation.
     pub fn first(&self) -> &T {
         self.arms().first().expect("resolution has no arms")
@@ -522,8 +514,6 @@ pub struct Call {
     pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
     pub return_type: GlobalTypeId,
-    /// Whether the call parks the current fiber.
-    pub parks: bool,
 }
 
 /// Callable selected at a call site.
