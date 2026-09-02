@@ -287,7 +287,7 @@ impl Tree {
                 value: self.intern_representation(value),
             },
 
-            // erase borrowed provenance while retaining reference representation
+            // erase borrowed origin while retaining reference representation
             Type::Reference {
                 kind,
                 lifetime: _,
@@ -470,7 +470,7 @@ impl Tree {
                 value: self.instantiate_type_lifetimes(value, arguments),
             },
 
-            // instantiate borrowed provenance and nested value types
+            // instantiate borrowed origin and nested value types
             Type::Reference {
                 kind,
                 lifetime,

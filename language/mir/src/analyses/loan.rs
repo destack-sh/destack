@@ -93,6 +93,14 @@ impl LoanTable {
         self.loans.is_empty()
     }
 
+    /// Iterate every loan with its identity.
+    pub fn iter(&self) -> impl Iterator<Item = (LoanId, &Loan)> {
+        self.loans
+            .iter()
+            .enumerate()
+            .map(|(index, loan)| (LoanId(index as u32), loan))
+    }
+
     /// Return one loan by identity.
     pub fn get(&self, loan: LoanId) -> &Loan {
         self.loans
@@ -129,22 +137,12 @@ impl LoanTable {
         active: &[LoanId],
         mut may_overlap: impl FnMut(&Place, &Place) -> bool,
     ) -> Option<LoanId> {
-        for &current in active {
+        active.iter().copied().find(|&current| {
             let current_loan = self.get(current);
-            if loan.parents.contains(&current) {
-                continue;
-            }
-            if !current_loan.may_overlap(loan, &mut may_overlap) {
-                continue;
-            }
-            if !current_loan.is_exclusive() && !loan.is_exclusive() {
-                continue;
-            }
-
-            return Some(current);
-        }
-
-        None
+            !loan.parents.contains(&current)
+                && current_loan.may_overlap(loan, &mut may_overlap)
+                && (current_loan.is_exclusive() || loan.is_exclusive())
+        })
     }
 
     /// Insert one loan carried by one value path.
