@@ -60,9 +60,7 @@ impl ModuleQueryContext<'_> {
         let position = request.position;
 
         // use only the exact callable key at a call head
-        if let Some(key) =
-            self.selected_callable_at_offset(position.file_id, position.offset)?
-        {
+        if let Some(key) = self.selected_callable_at_offset(position.file_id, position.offset)? {
             let item = CallItem::from_selection(program, key)?;
 
             return Ok(CallItemResponse { item });
@@ -345,9 +343,7 @@ impl CallableSelection<'_> {
         }
 
         // otherwise require the ordinary call key
-        let resolution = call.ok_or(QueryError::missing(format!(
-            "call item key: {node_id:?}"
-        )))?;
+        let resolution = call.ok_or(QueryError::missing(format!("call item key: {node_id:?}")))?;
 
         // represent only one singular declaration as an item
         match resolution.target_symbols().as_slice() {
@@ -377,10 +373,7 @@ impl CallableSelection<'_> {
     /// Return the callable represented by one construction.
     fn from_resolution(resolution: &dir::ConstructDecision) -> QueryResult<CallableSelection<'_>> {
         match &resolution.target {
-            dir::ConstructTarget::Class {
-                key,
-                constructor,
-            } => match constructor.call_symbol() {
+            dir::ConstructTarget::Class { key, constructor } => match constructor.call_symbol() {
                 Some(symbol) => Ok(CallableSelection::Symbol(symbol)),
                 None => Ok(CallableSelection::Symbol(key.symbol)),
             },
