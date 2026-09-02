@@ -211,6 +211,7 @@ impl Worker {
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
                 constants: constant_space,
+                handshake: self.handshake.as_ref(),
             },
         };
         let outcome = match target {
@@ -303,6 +304,7 @@ impl Worker {
                             local_statics: &mut self.local_static,
                             shared_statics: shared_static,
                             constants: constant_space,
+                            handshake: self.handshake.as_ref(),
                         },
                     };
                     let continued = self.machine.continue_execution(
@@ -918,6 +920,7 @@ impl Worker {
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
                 constants: constant_space,
+                handshake: self.handshake.as_ref(),
             },
         };
 
@@ -1176,6 +1179,7 @@ impl Worker {
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
                 constants: constant_space,
+                handshake: self.handshake.as_ref(),
             },
         };
 
@@ -1270,6 +1274,7 @@ impl Worker {
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
                 constants: constant_space,
+                handshake: self.handshake.as_ref(),
             },
         };
 
@@ -1399,6 +1404,7 @@ impl Worker {
                 local_statics: &mut self.local_static,
                 shared_statics: shared_static,
                 constants: constant_space,
+                handshake: self.handshake.as_ref(),
             },
         };
 
