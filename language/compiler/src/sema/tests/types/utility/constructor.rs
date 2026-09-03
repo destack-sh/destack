@@ -173,9 +173,9 @@ const ok: Value = new User();
 ok.name satisfies string;
 /// @resolution.name source=ok target=ok
 /// @resolution.member source=ok.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
-/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=ok root=ok
-/// @resolution.place source=ok.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok.name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=ok.name root=ok keys=[name]
 "#,
     );

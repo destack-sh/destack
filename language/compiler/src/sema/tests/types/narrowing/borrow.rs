@@ -320,7 +320,7 @@ function value<'a, 'b>(
     /// @resolution.member source=left.value receiver=&'a Text type=string kind=field target_receiver=&'a Text key=value target=Text.value target_type=string
     /// @resolution.place source=left placement='a lifetime='a access="mutable"
     /// @resolution.access source=left root=value.left
-    /// @resolution.place source=left.value placement='a lifetime='a access="mutable"
+    /// @resolution.place source=left.value placement='a lifetime="managed" access="mutable"
     /// @resolution.access source=left.value root=value.left keys=[value]
     /// @type.node source=&right.value type=&'b string
     /// @type.node source=right type=&'b Text
@@ -329,7 +329,7 @@ function value<'a, 'b>(
     /// @resolution.member source=right.value receiver=&'b Text type=string kind=field target_receiver=&'b Text key=value target=Text.value target_type=string
     /// @resolution.place source=right placement='b lifetime='b access="mutable"
     /// @resolution.access source=right root=value.right
-    /// @resolution.place source=right.value placement='b lifetime='b access="mutable"
+    /// @resolution.place source=right.value placement='b lifetime="managed" access="mutable"
     /// @resolution.access source=right.value root=value.right keys=[value]
 
 }

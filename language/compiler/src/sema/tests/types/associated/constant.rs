@@ -173,7 +173,7 @@ declare const lane: Segment<string>.Lane;
 /// @resolution.pattern source=lane kind=binding target=lane
 /// @resolution.name source=Segment target=Segment
 /// @resolution.name source=Segment<string>.Lane target=Segment.Lane
-/// @generic.instance id=Segment<string> template=Segment arguments=(string)
+/// @generic.instance id=Segment<string> template=Segment arguments=(string) evaluated=(Row extends string ? 8 : 4 => 8)
 "#,
     );
 }

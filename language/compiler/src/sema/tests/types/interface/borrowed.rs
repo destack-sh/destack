@@ -232,7 +232,7 @@ const named = requireHash(name);
 /// @resolution.call source=requireHash(name) parameters=(Name) arguments=(provided(name) as Name) return=Name kind=symbol target=requireHash instance=requireHash<Name>
 /// @generic.instantiation id=requireHash<Name> template=requireHash arguments=(Name)
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=name root=name
 
 const derived = requireHash(Key { foo: new Foo(), name });
@@ -245,7 +245,7 @@ const derived = requireHash(Key { foo: new Foo(), name });
 /// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=default
 /// @resolution.name source=Foo target=Foo
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=name root=name
 "#,
         r#"

@@ -12,6 +12,7 @@ mod generic;
 mod index;
 mod lifetime;
 mod manage;
+mod managed_extent;
 mod operator;
 mod owned;
 mod placement;

@@ -44,7 +44,7 @@ declare const stringSet: Set<string>;
 
 integers.includes<int32, int32>(integer as &'static readonly int32);
 floats.includes<float64, float64>(float as &'static readonly float64);
-strings.includes<string, string>(stringValue as &'static readonly string);
+strings.includes<string, string>(stringValue as &'managed readonly string);
 strings.includes<string, StringSlice>(stringSlice);
 stringMap.has<string, int32, StringSlice>(stringSlice);
 stringSet.has<string, StringSlice>(stringSlice);
@@ -98,8 +98,8 @@ declare const stringSet: Set<string>;
 integers.includes(integer);
 /// @resolution.name source=integers target=integers
 /// @resolution.member source=integers.includes receiver=int32[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly int32[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=int32[] target=includes
-/// @resolution.call source=integers.includes(integer) parameters=(&'static readonly constant int32, isize | undefined) arguments=(provided(integer) as &'static readonly constant int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=int32[] adjustments=(borrow(&'static readonly int32[])) instance=Array<int32>.<extension#5>.includes<int32>
-/// @resolution.place source=integers placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=integers.includes(integer) parameters=(&'static readonly constant int32, isize | undefined) arguments=(provided(integer) as &'static readonly constant int32, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "readonly">)) instance=Array<int32>.<extension#6>.includes<int32>
+/// @resolution.place source=integers placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=integers root=integers
 /// @generic.instantiation id="includes<int32, int32>" template=includes arguments=(int32, int32)
 /// @generic.instantiation id=includes<int32> template=includes arguments=(int32)
@@ -110,8 +110,8 @@ integers.includes(integer);
 floats.includes(float);
 /// @resolution.name source=floats target=floats
 /// @resolution.member source=floats.includes receiver=float64[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly float64[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=float64[] target=includes
-/// @resolution.call source=floats.includes(float) parameters=(&'static readonly constant float64, isize | undefined) arguments=(provided(float) as &'static readonly constant float64, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=float64[] adjustments=(borrow(&'static readonly float64[])) instance=Array<float64>.<extension#5>.includes<float64>
-/// @resolution.place source=floats placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=floats.includes(float) parameters=(&'static readonly constant float64, isize | undefined) arguments=(provided(float) as &'static readonly constant float64, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=float64[] adjustments=(borrow(Borrowed<float64[], "managed" & "local", "readonly">)) instance=Array<float64>.<extension#6>.includes<float64>
+/// @resolution.place source=floats placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=floats root=floats
 /// @generic.instantiation id="includes<float64, float64>" template=includes arguments=(float64, float64)
 /// @generic.instantiation id=includes<float64> template=includes arguments=(float64)
@@ -122,20 +122,20 @@ floats.includes(float);
 strings.includes(stringValue);
 /// @resolution.name source=strings target=strings
 /// @resolution.member source=strings.includes receiver=string[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly string[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=string[] target=includes
-/// @resolution.call source=strings.includes(stringValue) parameters=(&'static readonly string, isize | undefined) arguments=(provided(stringValue) as &'static readonly string, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=string[] adjustments=(borrow(&'static readonly string[])) instance=Array<string>.<extension#5>.includes<string>
-/// @resolution.place source=strings placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=strings.includes(stringValue) parameters=(Borrowed<string, "managed" & "local", "readonly">, isize | undefined) arguments=(provided(stringValue) as Borrowed<string, "managed" & "local", "readonly">, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=string[] adjustments=(borrow(Borrowed<string[], "managed" & "local", "readonly">)) instance=Array<string>.<extension#6>.includes<string>
+/// @resolution.place source=strings placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=strings root=strings
 /// @generic.instantiation id="includes<string, string>" template=includes arguments=(string, string)
 /// @generic.instantiation id=includes<string> template=includes arguments=(string)
 /// @resolution.name source=stringValue target=stringValue
-/// @resolution.place source=stringValue placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=stringValue placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=stringValue root=stringValue
 
 strings.includes(stringSlice);
 /// @resolution.name source=strings target=strings
 /// @resolution.member source=strings.includes receiver=string[] type=<includes.Q, includes.'a, includes.'b>(this: &includes.'a readonly string[], &includes.'b readonly includes.Q, isize | undefined?) => boolean kind=symbol target_receiver=string[] target=includes
-/// @resolution.call source=strings.includes(stringSlice) parameters=(&'static readonly constant StringSlice, isize | undefined) arguments=(provided(stringSlice) as &'static readonly constant StringSlice, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=string[] adjustments=(borrow(&'static readonly string[])) instance=Array<string>.<extension#5>.includes<StringSlice>
-/// @resolution.place source=strings placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=strings.includes(stringSlice) parameters=(&'static readonly constant StringSlice, isize | undefined) arguments=(provided(stringSlice) as &'static readonly constant StringSlice, omitted as isize | undefined) return=boolean kind=symbol target=includes receiver=string[] adjustments=(borrow(Borrowed<string[], "managed" & "local", "readonly">)) instance=Array<string>.<extension#6>.includes<StringSlice>
+/// @resolution.place source=strings placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=strings root=strings
 /// @generic.instantiation id="includes<string, StringSlice>" template=includes arguments=(string, StringSlice)
 /// @resolution.name source=stringSlice target=stringSlice
@@ -145,8 +145,8 @@ strings.includes(stringSlice);
 stringMap.has(stringSlice);
 /// @resolution.name source=stringMap target=stringMap
 /// @resolution.member source=stringMap.has receiver=Map<string, int32> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Map<string, int32>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Map<string, int32> target=has
-/// @resolution.call source=stringMap.has(stringSlice) parameters=(&'static readonly constant StringSlice) arguments=(provided(stringSlice) as &'static readonly constant StringSlice) return=boolean kind=symbol target=has receiver=Map<string, int32> adjustments=(borrow(&'static readonly Map<string, int32>)) instance="Map<string, int32>.<extension#8>.has<StringSlice>"
-/// @resolution.place source=stringMap placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=stringMap.has(stringSlice) parameters=(&'static readonly constant StringSlice) arguments=(provided(stringSlice) as &'static readonly constant StringSlice) return=boolean kind=symbol target=has receiver=Map<string, int32> adjustments=(borrow(Borrowed<Map<string, int32>, "managed" & "local", "readonly">)) instance="Map<string, int32>.<extension#8>.has<StringSlice>"
+/// @resolution.place source=stringMap placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=stringMap root=stringMap
 /// @generic.instantiation id="has<string, int32, StringSlice>" template=has arguments=(string, int32, StringSlice)
 /// @generic.instantiation id="has<string, int32>" template=has arguments=(string, int32)
@@ -157,8 +157,8 @@ stringMap.has(stringSlice);
 stringSet.has(stringSlice);
 /// @resolution.name source=stringSet target=stringSet
 /// @resolution.member source=stringSet.has receiver=Set<string> type=<has.Q: Hash, has.'a, has.'b>(this: &has.'a readonly Set<string>, &has.'b readonly has.Q) => boolean kind=symbol target_receiver=Set<string> target=has
-/// @resolution.call source=stringSet.has(stringSlice) parameters=(&'static readonly constant StringSlice) arguments=(provided(stringSlice) as &'static readonly constant StringSlice) return=boolean kind=symbol target=has receiver=Set<string> adjustments=(borrow(&'static readonly Set<string>)) instance=Set<string>.<extension#5>.has<StringSlice>
-/// @resolution.place source=stringSet placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=stringSet.has(stringSlice) parameters=(&'static readonly constant StringSlice) arguments=(provided(stringSlice) as &'static readonly constant StringSlice) return=boolean kind=symbol target=has receiver=Set<string> adjustments=(borrow(Borrowed<Set<string>, "managed" & "local", "readonly">)) instance=Set<string>.<extension#5>.has<StringSlice>
+/// @resolution.place source=stringSet placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=stringSet root=stringSet
 /// @generic.instantiation id="has<string, StringSlice>" template=has arguments=(string, StringSlice)
 /// @generic.instantiation id=has<string> template=has arguments=(string)

@@ -51,8 +51,8 @@ const managedLeft = text + fresh();
 /// @type.symbol symbol=managedLeft source=managedLeft type=string
 /// @resolution.pattern source=managedLeft kind=binding target=managedLeft
 /// @resolution.name source=text target=text
-/// @resolution.operator source="text + fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(&'static readonly string))
-/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.operator source="text + fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=text root=text
 /// @coercion.node source="text + fresh()" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=fresh target=fresh
@@ -66,7 +66,7 @@ const ownedLeft = fresh() + text;
 /// @resolution.operator source="fresh() + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly ^string))
 /// @coercion.node source="fresh() + text" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=text root=text
 
 const bothOwned = fresh() + fresh();
@@ -87,7 +87,7 @@ const same = fresh() == text;
 /// @resolution.operator source="fresh() == text" type=boolean operator="==" kind=builtin operands=[fresh() as string families=(string), text as string families=(string)]
 /// @coercion.node source=fresh() from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=text root=text
 
 function append(target: string): string {
@@ -102,9 +102,9 @@ function append(target: string): string {
 
     result += fresh();
     /// @resolution.name source=result target=append.result
-    /// @resolution.operator source="result += fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
+    /// @resolution.operator source="result += fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
     /// @resolution.pattern.assign source=result kind=place
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="managed" access="exclusive"
     /// @resolution.assignment source=result read=binding(append.result) write=binding(append.result) type=string
     /// @resolution.access source=result root=append.result
     /// @coercion.node source="result += fresh()" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
@@ -113,7 +113,7 @@ function append(target: string): string {
 
     return result;
     /// @resolution.name source=result target=append.result
-    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=result placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=result root=append.result
 
 }

@@ -2,7 +2,7 @@ use destack_dir as dir;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Origin, PlaceUse, Relation,
-    RelationCheck, ValueUse,
+    RelationCheck, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -252,6 +252,18 @@ impl CheckState<'_> {
                 }
             }
         };
+
+        // require a copyable element, every slot repeating the one written value
+        let is_repeated = !matches!(
+            self.ty(count)?,
+            dir::Type::Literal(dir::Literal::Integer(0 | 1))
+        );
+        if is_repeated
+            && self.decide_auto_interface(site.origin(), element, dir::AutoInterface::Copy)?
+                == Verdict::Fails
+        {
+            self.report_repeated_element_not_copyable(value.into_global_any(module));
+        }
 
         // intern the fixed array over that element
         let array = self.intern_type(dir::Type::FixedArray(dir::FixedArrayType {

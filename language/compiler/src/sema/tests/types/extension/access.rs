@@ -692,7 +692,7 @@ function firstDefined(values: It<int32>): int32 | undefined {
     /// @resolution.member source=values.map receiver=It<int32, void> type=<U#1>(this: It<int32, void>, Function<(int32,), U#1>) => Wrap<It<int32, void>, int32, U#1> kind=symbol target_receiver=It<int32, void> dispatch=dynamic constraint=It<int32, void> target=It.map
     /// @resolution.call source="values.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Wrap<It<int32, void>, int32, int32> kind=dynamic target=It.map receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void, int32)
     /// @resolution.call source="values.map((value) => value).find()" parameters=() return=int32 | undefined kind=symbol target=It.find receiver=Wrap<It<int32, void>, int32, int32> instance="Wrap<It<int32, void>, int32, int32>.<extension#1>.find"
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=firstDefined.values
     /// @generic.instantiation id="It.find<int32, void, int32, int32, void, It<int32, void>>" template=It.find arguments=(int32, void, int32, int32, void, It<int32, void>)
     /// @generic.instantiation id="It.map<int32, void>" template=It.map arguments=(int32, void)

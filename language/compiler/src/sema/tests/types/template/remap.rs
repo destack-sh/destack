@@ -77,19 +77,19 @@ declare const handlers: Handlers<Events>;
 
 handlers["on-ready"] satisfies (value: boolean) => void;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source="handlers[\"on-ready\"]" root=handlers keys=[on-ready]
 /// @resolution.subscript source="handlers[\"on-ready\"]" type=Function<(Events["ready"],), void> kind=member target="receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=field(receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=on-ready, type=Function<(Events[\"ready\"],), void>), type=Function<(Events[\"ready\"],), void>"
-/// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handlers placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handlers root=handlers
 /// @type.symbol symbol=value#1 source="value: boolean" type=boolean
 
 handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source="handlers[\"on-message\"]" root=handlers keys=[on-message]
 /// @resolution.subscript source="handlers[\"on-message\"]" type=Function<(Events["message"],), void> kind=member target="receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=field(receiver={ on-ready: Function<(Events[\"ready\"],), void>; on-message: Function<(Events[\"message\"],), void> }, target=on-message, type=Function<(Events[\"message\"],), void>), type=Function<(Events[\"message\"],), void>"
-/// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handlers placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handlers root=handlers
 /// @type.symbol symbol=value#2 source="value: string" type=string
 "#,
@@ -174,17 +174,17 @@ declare const getters: Getters<Person>;
 getters.getName satisfies () => string;
 /// @resolution.name source=getters target=getters
 /// @resolution.member source=getters.getName receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } type=Function<(), Person["name"]> kind=field target_receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } key=getName target_type=Function<(), Person["name"]>
-/// @resolution.place source=getters placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=getters placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=getters root=getters
-/// @resolution.place source=getters.getName placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=getters.getName placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=getters.getName root=getters keys=[getName]
 
 getters.getAge satisfies () => int32;
 /// @resolution.name source=getters target=getters
 /// @resolution.member source=getters.getAge receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } type=Function<(), Person["age"]> kind=field target_receiver={ getName: Function<(), Person["name"]>; getAge: Function<(), Person["age"]> } key=getAge target_type=Function<(), Person["age"]>
-/// @resolution.place source=getters placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=getters placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=getters root=getters
-/// @resolution.place source=getters.getAge placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=getters.getAge placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=getters.getAge root=getters keys=[getAge]
 "#,
     );
@@ -249,7 +249,7 @@ declare const value: Value;
 
 value satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -331,9 +331,9 @@ declare const names: Names<Events>;
 names.user satisfies string;
 /// @resolution.name source=names target=names
 /// @resolution.member source=names.user receiver={ user: string } type=string kind=field target_receiver={ user: string } key=user target_type=string
-/// @resolution.place source=names placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=names placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=names root=names
-/// @resolution.place source=names.user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=names.user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=names.user root=names keys=[user]
 "#,
     );
@@ -414,7 +414,7 @@ const missing = names.orderPaid;
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=names target=names
-/// @resolution.place source=names placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=names placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=names root=names
 /// @resolution.rejected source=names.orderPaid
 "#,
@@ -488,10 +488,10 @@ const handlers = {
 
 handlers["on-open"] satisfies boolean;
 /// @resolution.name source=handlers target=handlers
-/// @resolution.place source="handlers[\"on-open\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source="handlers[\"on-open\"]" placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source="handlers[\"on-open\"]" root=handlers keys=[on-open]
 /// @resolution.subscript source="handlers[\"on-open\"]" type=boolean kind=member target="receiver={ on-open: boolean; on-close: boolean }, target=field(receiver={ on-open: boolean; on-close: boolean }, target=on-open, type=boolean), type=boolean"
-/// @resolution.place source=handlers placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handlers placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handlers root=handlers
 "#,
     );

@@ -121,7 +121,7 @@ function fallback(): &readonly int32 {
 === annotated ===
 const shared: int32 = 1;
 
-function fallback(): &'static readonly int32 {
+function fallback(): &'managed readonly int32 {
     return &readonly shared;
 }
 
@@ -131,7 +131,7 @@ const shared: ^int32 = 1;
 /// @resolution.pattern source=shared kind=binding target=shared
 
 function fallback(): &readonly int32 {
-/// @type.symbol symbol=fallback type=() => &'static readonly constant int32
+/// @type.symbol symbol=fallback type=() => Borrowed<int32, "managed" & "local", "readonly">
 
     return &readonly shared;
     /// @resolution.name source=shared target=shared
@@ -165,7 +165,7 @@ class Store {
 class Store {
     value: int32 = 0;
 
-    view(this): &'static readonly int32 {
+    view(this): &'managed readonly int32 {
         return &readonly this.value;
     }
 }
@@ -175,13 +175,13 @@ class Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.class symbol=Store
 /// @definition.field symbol=Store.value source="value: int32 = 0" key=value type=int32
-/// @definition.method symbol=Store.view slot=view type=(this: this) => &'static readonly constant int32
+/// @definition.method symbol=Store.view slot=view type=(this: this) => Borrowed<int32, "managed" & "local", "readonly">
 
     value: int32 = 0;
     /// @type.symbol symbol=Store.value source="value: int32 = 0" type=int32
 
     view(this): &readonly int32 {
-    /// @type.symbol symbol=Store.view type=(this: this) => &'static readonly constant int32
+    /// @type.symbol symbol=Store.view type=(this: this) => Borrowed<int32, "managed" & "local", "readonly">
     /// @type.symbol symbol=Store.view.this source=this type=this
 
         return &readonly this.value;
@@ -195,8 +195,7 @@ class Store {
     }
 }
 "#, r#"
-/// @diagnostic.error id=return-not-assignable message="type '&readonly local int32' is not assignable to the declared result type '&'static readonly constant int32'"
-/// @diagnostic.label line=6 column=16 span="&readonly this.value" line_source="return &readonly this.value;"
+
 "#);
 }
 
@@ -222,7 +221,7 @@ function first<'a>(values: &'a readonly [int32]): &'a readonly int32 {
     return &readonly values[0];
 }
 
-function escape(): &'static readonly int32 {
+function escape(): &'managed readonly int32 {
     const values: ^[int32] = [1, 2];
 
     return first(&readonly values);
@@ -246,13 +245,13 @@ function first(values: &readonly [int32]): &readonly int32 {
 }
 
 function escape(): &readonly int32 {
-/// @type.symbol symbol=escape type=() => &'static readonly constant int32
+/// @type.symbol symbol=escape type=() => Borrowed<int32, "managed" & "local", "readonly">
 
     const values: ^[int32] = [1, 2];
     /// @type.symbol symbol=escape.values source=values type=^Slice<int32>
     /// @resolution.pattern source=values kind=binding target=escape.values
-    /// @resolution.call source=[1, 2] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
-    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+    /// @resolution.call source=[1, 2] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 
     return first(&readonly values);
     /// @resolution.name source=first target=first
@@ -266,8 +265,6 @@ function escape(): &readonly int32 {
 /// @diagnostic.error id=not-assignable message="type '^int32[]' is not assignable to type '^Slice<int32>'"
 /// @diagnostic.label line=7 column=30 span="[1, 2]" line_source="const values: ^[int32] = [1, 2];"
 /// @diagnostic.related line=7 column=19 span="^" line_source="const values: ^[int32] = [1, 2];" message="expected due to this annotation"
-/// @diagnostic.error id=return-not-assignable message="type '&readonly local int32' is not assignable to the declared result type '&'static readonly constant int32'"
-/// @diagnostic.label line=9 column=12 span="first(&readonly values)" line_source="return first(&readonly values);"
 "#);
 }
 
@@ -380,7 +377,7 @@ struct Own {
         /// @resolution.receiver source=this kind=this declaration=Own type=&Own.inherent.'a readonly Own
         /// @resolution.place source=this placement=Own.inherent.'a lifetime=Own.inherent.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.message placement=Own.inherent.'a lifetime=Own.inherent.'a access="readonly"
+        /// @resolution.place source=this.message placement=Own.inherent.'a lifetime="managed" access="readonly"
         /// @resolution.access source=this.message root=this keys=[message]
 
     }
@@ -401,7 +398,7 @@ export extension of Own {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&extended.'a readonly Own
         /// @resolution.place source=this placement=extended.'a lifetime=extended.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.message placement=extended.'a lifetime=extended.'a access="readonly"
+        /// @resolution.place source=this.message placement=extended.'a lifetime="managed" access="readonly"
         /// @resolution.access source=this.message root=this keys=[message]
 
     }

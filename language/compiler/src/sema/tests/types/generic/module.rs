@@ -1077,7 +1077,7 @@ const value = boxed.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=boxed target=boxed
 /// @resolution.member source=boxed.value receiver=a.Box<a.Marker> type=a.Marker kind=field target_receiver=a.Box<a.Marker> key=value target_type=a.Marker
-/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=boxed placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=boxed root=boxed
 /// @resolution.access source=boxed.value root=boxed keys=[value]
 "#,

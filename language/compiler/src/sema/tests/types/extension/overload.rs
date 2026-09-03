@@ -124,7 +124,7 @@ extension of User {
 
         return name;
         /// @resolution.name source=name target=greet.name#1
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=greet.name#1
 
     }
@@ -155,7 +155,7 @@ extension of User {
 
         return value;
         /// @resolution.name source=value target=label.value#2
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=value root=label.value#2
 
     }
@@ -178,7 +178,7 @@ extension of User {
 
         return right;
         /// @resolution.name source=right target=pair.right
-        /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=right placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=right root=pair.right
 
     }

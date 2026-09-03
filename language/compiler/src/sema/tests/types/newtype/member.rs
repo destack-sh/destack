@@ -87,7 +87,7 @@ extension<T> of Sealed<T> {
         /// @resolution.member source=this.open receiver=Managed<Sealed<T#3>, reveal.P0> type=<Wrapper.open.P0: Place>(this: Managed<Wrapper<T#3>, Wrapper.open.P0>) => T#3 kind=symbol target_receiver=Managed<Sealed<T#3>, reveal.P0> adjustments=(newtype.payload(Sealed, Managed<Wrapper<T#3>, reveal.P0>)) target=Wrapper.open
         /// @resolution.call source=this.open() parameters=() return=T#3 kind=symbol target=Wrapper.open receiver=Managed<Sealed<T#3>, reveal.P0> adjustments=(newtype.payload(Sealed, Managed<Wrapper<T#3>, reveal.P0>)) instance=Wrapper<T#3>.open<reveal.P0>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<Sealed<T#3>, reveal.P0>
-        /// @resolution.place source=this placement=reveal.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=reveal.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="Wrapper.open<T#3, reveal.P0>" template=Wrapper.open arguments=(T#3, reveal.P0) owner=reveal
         /// @generic.instantiation id=Sealed<T#3> template=Sealed arguments=(T#3) owner=reveal

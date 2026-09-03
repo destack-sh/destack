@@ -68,7 +68,7 @@ local class Counter {
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=Counter.constructor.name
 
     }
@@ -85,7 +85,7 @@ local class Counter {
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
         /// @resolution.place source=this placement=Counter.describe.'a lifetime=Counter.describe.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=Counter.describe.'a lifetime=Counter.describe.'a access="readonly"
+        /// @resolution.place source=this.name placement=Counter.describe.'a lifetime="managed" access="readonly"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }
@@ -201,7 +201,7 @@ local class Meter {
         /// @resolution.access source=this.sink root=this keys=[sink]
         /// @resolution.assignment source=this.sink write="receiver=Meter, target=field(receiver=Meter, target=Meter.sink, type=Sink), type=Sink" type=Sink
         /// @resolution.name source=sink target=Meter.constructor.sink
-        /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=sink placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=sink root=Meter.constructor.sink
 
     }
@@ -218,7 +218,7 @@ local class Meter {
         /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.leak.'a readonly Meter
         /// @resolution.place source=this placement=Meter.leak.'a lifetime=Meter.leak.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.sink placement=Meter.leak.'a lifetime=Meter.leak.'a access="readonly"
+        /// @resolution.place source=this.sink placement=Meter.leak.'a lifetime="managed" access="readonly"
         /// @resolution.access source=this.sink root=this keys=[sink]
 
     }
@@ -235,7 +235,7 @@ local class Meter {
         /// @resolution.receiver source=this kind=this declaration=Meter type=&Meter.forward.'a readonly Meter
         /// @resolution.place source=this placement=Meter.forward.'a lifetime=Meter.forward.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.sink placement=Meter.forward.'a lifetime=Meter.forward.'a access="readonly"
+        /// @resolution.place source=this.sink placement=Meter.forward.'a lifetime="managed" access="readonly"
         /// @resolution.access source=this.sink root=this keys=[sink]
 
     }
@@ -311,7 +311,7 @@ local class Counter {
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Counter, target=field(receiver=Counter, target=Counter.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Counter.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=Counter.constructor.name
 
     }
@@ -328,7 +328,7 @@ local class Counter {
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.describe.'a readonly Counter
         /// @resolution.place source=this placement=Counter.describe.'a lifetime=Counter.describe.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=Counter.describe.'a lifetime=Counter.describe.'a access="readonly"
+        /// @resolution.place source=this.name placement=Counter.describe.'a lifetime="managed" access="readonly"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }
@@ -406,9 +406,9 @@ declare const person: readonly Person;
 person.profile.count = 5;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.profile receiver=Readonly<Person> type=Profile kind=field target_receiver=Readonly<Person> key=profile target=Person.profile target_type=Profile
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.count kind=place
 /// @resolution.access source=person.profile.count root=person keys=[profile, count]

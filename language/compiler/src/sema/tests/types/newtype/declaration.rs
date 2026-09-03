@@ -72,7 +72,7 @@ struct Buffer {
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
         /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
-        /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=bytes placement="local" lifetime="managed" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
         /// @generic.instantiation id=length<uint8> template=length arguments=(uint8)
 

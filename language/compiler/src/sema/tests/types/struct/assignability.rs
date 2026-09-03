@@ -66,7 +66,7 @@ const value: HasX = Point { x: 1 };
 
 value satisfies HasX;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.name source=HasX target=HasX
 "#,
@@ -330,7 +330,7 @@ const value: { readonly x: int32 } = point;
 
 value satisfies { readonly x: int32 };
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 /// @type.symbol symbol=x#2 source="readonly x: int32" type=int32
 "#,
@@ -407,7 +407,7 @@ const counter: HasCount = Counter { count: 1 };
 
 counter satisfies HasCount;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.name source=HasCount target=HasCount
 "#,
@@ -679,7 +679,7 @@ const value: Point = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=point root=point
 "#,
         r#"

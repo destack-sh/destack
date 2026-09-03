@@ -301,3 +301,67 @@ const undecided = mode as 1;
 /// @diagnostic.label line=18 column=19 span="mode" line_source="const undecided = mode as 1;"
 "#);
 }
+
+/// An enum absorbs its own variant in a union, so a nullish fallback to a variant keeps the enum type.
+#[test]
+fn test_absorb_an_enum_variant_into_its_enum_in_a_union() {
+    let session = TestSession::single(
+        r#"
+enum Kind {
+    Internal,
+    Server,
+}
+
+function pick(kind?: Kind): Kind {
+    return kind ?? Kind.Internal;
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+enum Kind {
+    Internal,
+    Server,
+}
+
+function pick(kind?: Kind): Kind {
+    return kind ?? Kind.Internal;
+}
+
+=== dir ===
+enum Kind {
+/// @type.symbol symbol=Kind type=Kind
+/// @definition.enum symbol=Kind
+/// @definition.variant symbol=Kind.Internal source=Internal key=Internal value=0
+/// @definition.variant symbol=Kind.Server source=Server key=Server value=1
+
+    Internal,
+    /// @type.symbol symbol=Kind.Internal source=Internal type=Kind.Internal
+
+    Server,
+    /// @type.symbol symbol=Kind.Server source=Server type=Kind.Server
+
+}
+
+function pick(kind?: Kind): Kind {
+/// @type.symbol symbol=pick type=(Kind | undefined?) => Kind
+/// @type.symbol symbol=pick.kind source="kind?: Kind" type=Kind | undefined
+/// @resolution.name source=Kind target=Kind
+/// @resolution.name source=Kind target=Kind
+
+    return kind ?? Kind.Internal;
+    /// @resolution.name source=kind target=pick.kind
+    /// @resolution.operator source="kind ?? Kind.Internal" type=Kind operator="??" kind=builtin operands=[kind as Kind | undefined families=(Kind | undefined), Kind.Internal as Kind.Internal families=(Kind)]
+    /// @resolution.place source=kind placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=kind root=pick.kind
+    /// @resolution.name source=Kind target=Kind
+    /// @resolution.member source=Kind.Internal receiver=Kind type=Kind.Internal kind=symbol target_receiver=Kind target=Kind.Internal
+
+}
+"#,
+    );
+}

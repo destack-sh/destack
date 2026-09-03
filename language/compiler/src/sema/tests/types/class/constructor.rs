@@ -415,7 +415,7 @@ class Box {
         /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=string
         /// @resolution.name source=value target=Box.constructor.value#1
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=value root=Box.constructor.value#1
 
     }
@@ -539,7 +539,7 @@ class Box {
         /// @resolution.assignment source=this.value write="receiver=Box, target=field(receiver=Box, target=Box.value, type=string | int32), type=string | int32" type=string | int32
         /// @type.node source=value type=string
         /// @resolution.name source=value target=Box.constructor.value#1
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=value root=Box.constructor.value#1
 
     }
@@ -746,7 +746,7 @@ class Animal {
         /// @resolution.access source=this.name root=this keys=[name]
         /// @resolution.assignment source=this.name write="receiver=Animal, target=field(receiver=Animal, target=Animal.name, type=string), type=string" type=string
         /// @resolution.name source=name target=Animal.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=Animal.constructor.name
 
     }
@@ -780,7 +780,7 @@ class Dog extends Animal {
         /// @generic.instance id="Animal.constructor<\"local\">" template=Animal.constructor arguments=("local")
         /// @generic.instance id="Animal<\"local\">" template=Animal arguments=("local")
         /// @resolution.name source=name target=Dog.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=Dog.constructor.name
 
         this.tricks = tricks;

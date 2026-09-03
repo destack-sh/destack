@@ -42,7 +42,7 @@ const segment = parse("row-row");
 
 segment satisfies "row";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -140,12 +140,12 @@ const segment = withParsed("id:users", (segment) => segment);
 /// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users", "readonly">
 /// @type.symbol symbol=symbol7.segment source=segment type="users"
 /// @resolution.name source=segment target=symbol7.segment
-/// @resolution.place source=segment placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=symbol7.segment
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=segment
 "#,
     );

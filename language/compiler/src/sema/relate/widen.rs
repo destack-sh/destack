@@ -132,7 +132,9 @@ impl CheckState<'_> {
         }
     }
 
-    /// Meet lifetime bounds, where frame absorbs the join and static drops beside others.
+    /// Meet lifetime bounds.
+    ///
+    /// The shortest closed extent absorbs the join, and static drops beside others.
     fn meet_lifetime_survivors(
         &mut self,
         survivors: SmallVec<[dir::GlobalTypeId; 4]>,
@@ -141,10 +143,12 @@ impl CheckState<'_> {
             return Ok(survivors);
         }
 
-        // let one frame bound absorb the whole meet
-        for bound in survivors.iter().copied() {
-            if self.lifetime_of(bound)? == Some(dir::Lifetime::Frame) {
-                return Ok(SmallVec::from_slice(&[bound]));
+        // let one frame bound absorb the whole meet, else one managed bound
+        for extent in [dir::Lifetime::Frame, dir::Lifetime::Managed] {
+            for bound in survivors.iter().copied() {
+                if self.lifetime_of(bound)? == Some(extent) {
+                    return Ok(SmallVec::from_slice(&[bound]));
+                }
             }
         }
 

@@ -36,7 +36,7 @@ declare const present: Present;
 
 present satisfies string;
 /// @resolution.name source=present target=present
-/// @resolution.place source=present placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=present placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=present root=present
 "#,
     );

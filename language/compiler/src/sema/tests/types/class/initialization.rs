@@ -353,7 +353,7 @@ class User {
         /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=User.constructor.name
 
     }
@@ -427,7 +427,7 @@ class User {
             /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
             /// @type.node source=name type=string
             /// @resolution.name source=name target=User.constructor.name
-            /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
             /// @resolution.access source=name root=User.constructor.name
 
         }

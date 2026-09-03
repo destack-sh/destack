@@ -53,9 +53,9 @@ handler.run(1) satisfies number;
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver={ run: Function<(float64,), float64, "readonly"> } type=Function<(float64,), float64, "readonly"> kind=field target_receiver={ run: Function<(float64,), float64, "readonly"> } key=run target_type=Function<(float64,), float64, "readonly">
 /// @resolution.call source=handler.run(1) parameters=(float64) arguments=(provided(1) as float64) return=float64 kind=expression target=expression
-/// @resolution.place source=handler placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handler placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handler root=handler
-/// @resolution.place source=handler.run placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handler.run placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handler.run root=handler keys=[run]
 "#,
     );
@@ -98,9 +98,9 @@ const config = { mode: "dev" } satisfies { mode: Mode };
 config.mode satisfies "dev";
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.mode receiver={ mode: "dev" } type="dev" kind=field target_receiver={ mode: "dev" } key=mode target_type="dev"
-/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=config placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=config root=config
-/// @resolution.place source=config.mode placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=config.mode placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=config.mode root=config keys=[mode]
 "#,
     );

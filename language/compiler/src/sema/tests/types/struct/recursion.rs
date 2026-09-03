@@ -50,7 +50,7 @@ const tree: TreeB = source;
 /// @resolution.name source=TreeB target=TreeB
 /// @type.node source=source type={ value: float64; child: TreeA | null }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=source root=source
 "#,
     );
@@ -195,7 +195,7 @@ export class Player {
         /// @resolution.access source=this.world root=this keys=[world]
         /// @resolution.assignment source=this.world write="receiver=Player, target=field(receiver=Player, target=Player.world, type=world.World), type=world.World" type=world.World
         /// @resolution.name source=world target=Player.constructor.world
-        /// @resolution.place source=world placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=world placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=world root=Player.constructor.world
 
     }
@@ -242,7 +242,7 @@ export class World {
         /// @resolution.access source=this.player root=this keys=[player]
         /// @resolution.assignment source=this.player write="receiver=World, target=field(receiver=World, target=World.player, type=player.Player), type=player.Player" type=player.Player
         /// @resolution.name source=player target=World.constructor.player
-        /// @resolution.place source=player placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=player placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=player root=World.constructor.player
 
     }

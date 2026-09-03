@@ -55,7 +55,7 @@ let person: MutableFields<Person> = { name: "Ada", age: 42 };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
 /// @resolution.access source=person.name root=person keys=[name]
@@ -64,9 +64,9 @@ person.name = "Grace";
 person.name satisfies string;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver={ name: string; age: int32 } type=string kind=field target_receiver={ name: string; age: int32 } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -129,14 +129,14 @@ const named: MutableFields<Person> = { name: "Ada" };
 
 empty satisfies MutableFields<Person>;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=empty placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 named satisfies MutableFields<Person>;
 /// @resolution.name source=named target=named
-/// @resolution.place source=named placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=named placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=named root=named
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
@@ -200,9 +200,9 @@ let person: MutableFields<Person> = { profile: { name: "Ada" } };
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.profile receiver={ profile: Readonly<{ name: string }> } type=Readonly<{ name: string }> kind=field target_receiver={ profile: Readonly<{ name: string }> } key=profile target_type=Readonly<{ name: string }>
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
 /// @resolution.access source=person.profile.name root=person keys=[profile, name]

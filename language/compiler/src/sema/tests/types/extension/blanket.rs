@@ -153,7 +153,7 @@ const sound = horn.whisper();
 
 sound satisfies string;
 /// @resolution.name source=sound target=sound
-/// @resolution.place source=sound placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=sound placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=sound root=sound
 "#,
     );
@@ -1093,7 +1093,7 @@ function parse(value: string): Result<Token, Token.Error> {
     /// @resolution.member source=Token.tryFrom receiver=Token type=(string) => Result<Token, Error> kind=symbol target_receiver=Token target=tryFrom
     /// @resolution.call source=Token.tryFrom(value) parameters=(string) arguments=(provided(value) as string) return=Result<Token, Error> kind=symbol target=tryFrom
     /// @resolution.name source=value target=parse.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=parse.value
 
 }
@@ -1106,7 +1106,7 @@ declare const failure: Token.Error;
 
 failure satisfies Error;
 /// @resolution.name source=failure target=failure
-/// @resolution.place source=failure placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=failure placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=failure root=failure
 /// @resolution.name source=Error target=Error
 "#);

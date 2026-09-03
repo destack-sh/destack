@@ -54,9 +54,9 @@ declare const person: Readonly<Person>;
 person.age satisfies int32;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.age receiver=Readonly<Person> type=int32 kind=field target_receiver=Readonly<Person> dispatch=dynamic constraint=Person key=age target=Person.age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.age placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person.age placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.age root=person keys=[age]
 "#,
     );
@@ -110,9 +110,9 @@ const person: Readonly<Person> = {};
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Readonly<Person> type=Readonly<string> | undefined kind=field target_receiver=Readonly<Person> dispatch=dynamic constraint=Person key=name target=Person.name target_type=Readonly<string> | undefined
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -171,7 +171,7 @@ declare const person: Readonly<Person>;
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
 /// @resolution.access source=person.name root=person keys=[name]
@@ -240,9 +240,9 @@ const person: Readonly<Person> = { profile: { name: "Ada" } };
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.profile receiver=Readonly<Person> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<Person> dispatch=dynamic constraint=Person key=profile target=Person.profile target_type=Readonly<{ name: string }>
-/// @resolution.place source=person placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.profile placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=person.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
 /// @resolution.access source=person.profile.name root=person keys=[profile, name]

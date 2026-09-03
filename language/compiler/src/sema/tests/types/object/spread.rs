@@ -235,7 +235,7 @@ const fromRequired: Named = full;
 /// @resolution.pattern source=fromRequired kind=binding target=fromRequired
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=full target=full
-/// @resolution.place source=full placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=full placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=full root=full
 "#,
         r#"

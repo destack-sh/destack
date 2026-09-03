@@ -1880,14 +1880,14 @@ export class Bag<K, V> {
     keys: K[] = [];
     /// @type.symbol symbol=Bag.keys source="keys: K[] = []" type=K#2[]
     /// @resolution.name source=K target=Bag.K
-    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<K#2>
-    /// @generic.instantiation id=arrayFromSlice<K#2> template=arrayFromSlice arguments=(K#2) owner=Bag
+    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<K#2>
+    /// @generic.instantiation id=arrayFromOwnedSlice<K#2> template=arrayFromOwnedSlice arguments=(K#2) owner=Bag
 
     values: V[] = [];
     /// @type.symbol symbol=Bag.values source="values: V[] = []" type=V#2[]
     /// @resolution.name source=V target=Bag.V
-    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<V#2>
-    /// @generic.instantiation id=arrayFromSlice<V#2> template=arrayFromSlice arguments=(V#2) owner=Bag
+    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<V#2>
+    /// @generic.instantiation id=arrayFromOwnedSlice<V#2> template=arrayFromOwnedSlice arguments=(V#2) owner=Bag
 
 }
 
@@ -2049,7 +2049,7 @@ const greeter: Greeter = robot;
 /// @resolution.pattern source=greeter kind=binding target=greeter
 /// @resolution.name source=Greeter target=Greeter
 /// @resolution.name source=robot target=robot
-/// @resolution.place source=robot placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=robot placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=robot root=robot
 "#,
     );

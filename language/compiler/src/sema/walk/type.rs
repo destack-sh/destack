@@ -98,6 +98,7 @@ impl WalkState<'_, '_> {
                 let literal = match self.check.strings().get(name) {
                     "'static" => Some(dir::Lifetime::Static),
                     "'frame" => Some(dir::Lifetime::Frame),
+                    "'managed" => Some(dir::Lifetime::Managed),
                     _ => None,
                 };
                 match literal {

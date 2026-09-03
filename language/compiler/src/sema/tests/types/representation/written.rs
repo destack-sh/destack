@@ -169,7 +169,7 @@ rectangle.start satisfies Point;
 /// @resolution.member source=rectangle.start receiver=Rectangle type=Point kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=Point
 /// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start placement="constant" lifetime="managed" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
 /// @resolution.name source=Point target=Point
 
@@ -179,9 +179,9 @@ rectangle.start.x satisfies int32;
 /// @resolution.member source=rectangle.start.x receiver=constant Point type=int32 kind=field target_receiver=constant Point key=x target_type=int32
 /// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start placement="constant" lifetime="managed" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
-/// @resolution.place source=rectangle.start.x placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start.x placement="constant" lifetime="managed" access="readonly"
 /// @resolution.access source=rectangle.start.x root=rectangle keys=[start, x]
 "#,
     );
@@ -423,7 +423,7 @@ rectangle.start satisfies PointLike;
 /// @resolution.member source=rectangle.start receiver=Rectangle type=PointLike kind=field target_receiver=Rectangle key=start target=Rectangle.start target_type=PointLike
 /// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.start placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.start placement="constant" lifetime="managed" access="readonly"
 /// @resolution.access source=rectangle.start root=rectangle keys=[start]
 /// @resolution.name source=PointLike target=PointLike
 
@@ -432,7 +432,7 @@ rectangle.end satisfies PointLike;
 /// @resolution.member source=rectangle.end receiver=Rectangle type=PointLike kind=field target_receiver=Rectangle key=end target=Rectangle.end target_type=PointLike
 /// @resolution.place source=rectangle placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=rectangle root=rectangle
-/// @resolution.place source=rectangle.end placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=rectangle.end placement="constant" lifetime="managed" access="readonly"
 /// @resolution.access source=rectangle.end root=rectangle keys=[end]
 /// @resolution.name source=PointLike target=PointLike
 "#,
@@ -523,14 +523,32 @@ type Shape = Circle | Rectangle;
 const shapes: Array<Shape> = [
 /// @type.symbol symbol=shapes source=shapes type=Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
+/// @generic.instance id="initAsPointer<Shape, \"exclusive\">" template=initAsPointer arguments=(Shape, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<Shape>) => Raw<Shape>)
 /// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
+/// @generic.instance id=MaybeUninit<MaybeUninit<Shape>> template=MaybeUninit arguments=(MaybeUninit<Shape>)
 /// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
+/// @generic.instance id=assumeInitDrop#1<Shape> template=assumeInitDrop#1 arguments=(Shape)
+/// @generic.instance id=assumeInitDrop<Shape> template=assumeInitDrop arguments=(Shape) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<Shape>) => Raw<Shape>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<Shape>)
+/// @generic.instance id=clear<Shape> template=clear arguments=(Shape)
+/// @generic.instance id=drop<Shape> template=drop arguments=(Shape)
+/// @generic.instance id=dropInPlace<Shape> template=dropInPlace arguments=(Shape)
 /// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<Shape>> template=sliceAssumeInit arguments=(MaybeUninit<Shape>)
+/// @generic.instance id=sliceUninit<MaybeUninit<Shape>> template=sliceUninit arguments=(MaybeUninit<Shape>)
+/// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<Shape>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive Shape[], usize) => &truncate.'a exclusive MaybeUninit<Shape>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive Shape[])
 /// @resolution.name source=Array target=Array
 /// @resolution.name source=Shape target=Shape
-/// @resolution.call parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<Shape>
-/// @generic.instantiation id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
-/// @generic.instance id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
+/// @resolution.call parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(Circle { radius: 1.0 }, Rectangle { width: 1.0, height: 1.0 }) as Shape) return=Shape[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<Shape>
+/// @generic.instantiation id=arrayFromOwnedSlice<Shape> template=arrayFromOwnedSlice arguments=(Shape)
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+/// @generic.instance id=Slice<Shape> template=Slice arguments=(Shape)
+/// @generic.instance id=arrayFromOwnedSlice<Shape> template=arrayFromOwnedSlice arguments=(Shape)
+/// @generic.instance id=fromOwnedSlice<Shape> template=fromOwnedSlice arguments=(Shape)
+/// @generic.instance id=intoUninit<Shape> template=intoUninit arguments=(Shape)
+/// @generic.instance id=size<Shape> template=size arguments=(Shape)
+/// @generic.instance id=sliceIntoUninit<Shape> template=sliceIntoUninit arguments=(Shape)
+/// @generic.instance id=sliceLength<Shape> template=sliceLength arguments=(Shape)
 
     Circle { radius: 1.0 },
     /// @resolution.name source=Circle target=Circle
@@ -544,12 +562,18 @@ const first = shapes[0];
 /// @type.symbol symbol=first source=first type=Circle | Rectangle
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=shapes target=shapes
-/// @resolution.place source=shapes placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=shapes placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=shapes root=shapes
 /// @resolution.access source=shapes[0] root=shapes keys=[0]
-/// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static Shape, \"exclusive\">)"
+/// @resolution.subscript source=shapes[0] type=Circle | Rectangle kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Shape, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
 /// @generic.instantiation id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive")
-/// @generic.instance id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#5[], index.A>, isize) => WithAccess<&index#1.'a T#5, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive Shape[], isize) => &index#1.'a exclusive Circle | Rectangle)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="assumeInitReference<Shape, \"exclusive\">" template=assumeInitReference arguments=(Shape, "exclusive") evaluated=(<assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(WithAccess<&assumeInitReference.'a MaybeUninit<assumeInitReference.T>, assumeInitReference.A>) => WithAccess<&assumeInitReference.'a assumeInitReference.T, assumeInitReference.A> => <assumeInitReference.T, const assumeInitReference.A: Access = "mutable", assumeInitReference.'a>(&assumeInitReference.'a exclusive MaybeUninit<Shape>) => &assumeInitReference.'a exclusive Circle | Rectangle)
+/// @generic.instance id="elementSlot<Shape, \"exclusive\">" template=elementSlot arguments=(Shape, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive Shape[], usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Shape>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Shape>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive Shape[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Shape>>)
+/// @generic.instance id="index#1<Shape, \"exclusive\">" template=index#1 arguments=(Shape, "exclusive") evaluated=(<const index.A: Access = "readonly", index#1.'a>(this: WithAccess<&index#1.'a T#6[], index.A>, isize) => WithAccess<&index#1.'a T#6, index.A> => <const index.A: Access = "readonly", index#1.'a>(this: &index#1.'a exclusive Shape[], isize) => &index#1.'a exclusive Circle | Rectangle, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive Circle | Rectangle, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive Shape[], (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<Shape>) => &index#1.'a exclusive Circle | Rectangle, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<Shape>, WithAccess<&index#1.'a T#6, index.A> => &index#1.'a exclusive Circle | Rectangle, (WithAccess<&index#1.'a MaybeUninit<T#6>, index.A>) => WithAccess<&index#1.'a T#6, index.A> => (&index#1.'a exclusive MaybeUninit<Shape>) => &index#1.'a exclusive Circle | Rectangle, WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => &index#1.'a exclusive MaybeUninit<Shape>, (WithAccess<&index#1.'a T#6[], index.A>, usize) => WithAccess<&index#1.'a MaybeUninit<T#6>, index.A> => (&index#1.'a exclusive Shape[], usize) => &index#1.'a exclusive MaybeUninit<Shape>, WithAccess<&index#1.'a T#6[], index.A> => &index#1.'a exclusive Shape[])
+/// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &sliceIndex.'a exclusive MaybeUninit<Shape>)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id=elementPosition<Shape> template=elementPosition arguments=(Shape)
 
 first satisfies Shape;
 /// @resolution.name source=first target=first
@@ -720,16 +744,16 @@ segment.start satisfies Point;
 /// @resolution.member source=segment.start receiver=Segment type=Point kind=field target_receiver=Segment key=start target=Segment.start target_type=Point
 /// @resolution.place source=segment placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=segment root=segment
-/// @resolution.place source=segment.start placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=segment.start placement="constant" lifetime="managed" access="readonly"
 /// @resolution.access source=segment.start root=segment keys=[start]
 /// @resolution.name source=Point target=Point
 
 marker.position satisfies Point;
 /// @resolution.name source=marker target=marker
 /// @resolution.member source=marker.position receiver=Marker type=Point kind=field target_receiver=Marker key=position target=Marker.position target_type=Point
-/// @resolution.place source=marker placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=marker placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=marker root=marker
-/// @resolution.place source=marker.position placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=marker.position placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=marker.position root=marker keys=[position]
 /// @resolution.name source=Point target=Point
 "#,

@@ -416,8 +416,8 @@ const clonedText = text.clone();
 /// @resolution.pattern source=clonedText kind=binding target=clonedText
 /// @resolution.name source=text target=text
 /// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a>(this: &Clone.clone.'a readonly string) => ^string kind=symbol target_receiver=string target=Clone.clone
-/// @resolution.call source=text.clone() parameters=() return=^string kind=symbol target=Clone.clone receiver=string adjustments=(borrow(&'static readonly string))
-/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=text.clone() parameters=() return=^string kind=symbol target=Clone.clone receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=text root=text
 /// @generic.instantiation id=Clone.clone<string> template=Clone.clone arguments=()
 "#,
@@ -571,7 +571,7 @@ witness(repeatable);
 /// @resolution.call source=witness(repeatable) parameters=(Function<(), void>) arguments=(provided(repeatable) as Function<(), void>) return=Function<(), void> kind=symbol target=witness instance="witness<Function<(), void>>"
 /// @generic.instantiation id="witness<Function<(), void>>" template=witness arguments=(Function<(), void>)
 /// @resolution.name source=repeatable target=repeatable
-/// @resolution.place source=repeatable placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=repeatable placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=repeatable root=repeatable
 
 witness(once);

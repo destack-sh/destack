@@ -266,7 +266,7 @@ const ok: AnyString = value;
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=AnyString target=AnyString
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 "#,
     );

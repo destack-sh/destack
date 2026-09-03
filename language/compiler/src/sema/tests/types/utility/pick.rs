@@ -62,17 +62,17 @@ declare const person: Pick<Person, "name" | "active">;
 person.name satisfies string;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver={ name: string; active: boolean } type=string kind=field target_receiver={ name: string; active: boolean } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person.name root=person keys=[name]
 
 person.active satisfies boolean;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.active receiver={ name: string; active: boolean } type=boolean kind=field target_receiver={ name: string; active: boolean } key=active target_type=boolean
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.active placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person.active placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person.active root=person keys=[active]
 "#,
     );
@@ -137,7 +137,7 @@ const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.age
 "#,
@@ -219,13 +219,13 @@ const aged: AgeOnly = { age: 42 };
 
 empty satisfies AgeOnly;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=empty placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=AgeOnly target=AgeOnly
 
 aged satisfies AgeOnly;
 /// @resolution.name source=aged target=aged
-/// @resolution.place source=aged placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=aged placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=aged root=aged
 /// @resolution.name source=AgeOnly target=AgeOnly
 "#,
@@ -357,7 +357,7 @@ const person: NameOnly = { name: "Ada" };
 
 person satisfies NameOnly;
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.name source=NameOnly target=NameOnly
 "#,
@@ -553,7 +553,7 @@ const person: NameOnly = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

@@ -100,7 +100,7 @@ const read = account.balance;
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=account target=account
 /// @resolution.member source=account.balance receiver=Account type=int32 kind=field target_receiver=Account key=balance target=Account.balance target_type=int32
-/// @resolution.place source=account placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=account placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=account root=account
 /// @resolution.access source=account.balance root=account keys=[balance]
 "#, r#""#);
@@ -149,7 +149,7 @@ const read = account.balance;
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=account target=account
 /// @resolution.member source=account.balance receiver=account.Account type=int32 kind=field target_receiver=account.Account key=balance target=account.Account.balance target_type=int32
-/// @resolution.place source=account placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=account placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=account root=account
 /// @resolution.access source=account.balance root=account keys=[balance]
 "#, r#"
@@ -236,7 +236,7 @@ const read = shape.area;
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=shape target=shape
 /// @resolution.member source=shape.area receiver=base.Shape type=int32 kind=field target_receiver=base.Shape key=area target=base.Shape.area target_type=int32
-/// @resolution.place source=shape placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=shape placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=shape root=shape
 /// @resolution.access source=shape.area root=shape keys=[area]
 "#, r#"
@@ -342,7 +342,7 @@ declare let account: Account;
 
 account.balance = 1;
 /// @resolution.name source=account target=account
-/// @resolution.place source=account placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=account placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=account root=account
 /// @resolution.pattern.assign source=account.balance kind=place
 /// @resolution.access source=account.balance root=account keys=[balance]
@@ -397,10 +397,10 @@ declare let account: Account;
 
 account.total = 1;
 /// @resolution.name source=account target=account
-/// @resolution.place source=account placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=account placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=account root=account
 /// @resolution.pattern.assign source=account.total kind=place
-/// @resolution.assignment source=account.total write="receiver=account.Account, target=account.Account.total(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=account.total write="receiver=account.Account, target=account.Account.total(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
 "#, r#"
 /// @diagnostic.error id=inaccessible-member message="member 'total' is private"
 /// @diagnostic.label line=5 column=9 span="total" line_source="account.total = 1;"
@@ -606,7 +606,7 @@ const read = gauge.level;
 /// @resolution.pattern source=read kind=binding target=read
 /// @resolution.name source=gauge target=gauge
 /// @resolution.member source=gauge.level receiver=gauge.Gauge type=int32 kind=call target="gauge.Gauge.level#1(parameters=(), arguments=(), return=int32)"
-/// @resolution.place source=gauge placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=gauge placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=gauge root=gauge
 
 function drain(gauge: &Gauge): void {
@@ -620,7 +620,7 @@ function drain(gauge: &Gauge): void {
     /// @resolution.place source=gauge placement=drain.'a lifetime=drain.'a access="mutable"
     /// @resolution.access source=gauge root=drain.gauge
     /// @resolution.pattern.assign source=gauge.level kind=place
-    /// @resolution.assignment source=gauge.level write="receiver=&drain.'a gauge.Gauge, target=gauge.Gauge.level#2(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+    /// @resolution.assignment source=gauge.level write="receiver=&drain.'a gauge.Gauge, target=gauge.Gauge.level#2(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
 
 }
 "#, r#"

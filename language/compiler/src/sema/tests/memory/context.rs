@@ -93,7 +93,7 @@ const user = load();
 
 user satisfies shared User;
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @resolution.name source=User target=User
 "#,
@@ -145,7 +145,7 @@ shared const user = load();
 
 user satisfies shared User;
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=user root=user
 /// @resolution.name source=User target=User
 "#,
@@ -369,7 +369,7 @@ state.user satisfies shared User;
 /// @resolution.member source=state.user receiver=State type=shared User kind=field target_receiver=State key=user target=State.user target_type=shared User
 /// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=state root=state
-/// @resolution.place source=state.user placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=state.user placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=state.user root=state keys=[user]
 /// @resolution.name source=User target=User
 "#,
@@ -543,7 +543,7 @@ const transform = (value: User): User => value;
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=value target=symbol4.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
 "#,
     );

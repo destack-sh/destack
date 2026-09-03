@@ -34,7 +34,7 @@ const text = token as string;
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=token target=token
-/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=token placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=token root=token
 "#, r#""#);
 }
@@ -122,7 +122,7 @@ const text = token as string;
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=token target=token
-/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=token placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=token root=token
 "#,
         r#"
@@ -173,7 +173,7 @@ const text = token as string;
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=token target=token
-/// @resolution.place source=token placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=token placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=token root=token
 "#, r#""#);
 }

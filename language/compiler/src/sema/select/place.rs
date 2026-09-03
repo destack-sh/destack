@@ -183,7 +183,7 @@ impl CheckState<'_> {
             }));
         }
 
-        // keep an aliasing handle's referent access
+        // keep an aliasing handle's referent access, its storage living while reachable
         if self.type_is_aliased(site.origin(), ty)? {
             let space = binding_space.unwrap_or(dir::Space::Local);
 
@@ -192,7 +192,7 @@ impl CheckState<'_> {
                 site.node.module_id,
                 ty,
                 space,
-                lifetime,
+                dir::Lifetime::Managed,
             )?));
         }
 
@@ -381,13 +381,22 @@ impl CheckState<'_> {
             .copied()
         {
             Some(place) => place,
-            None => self.root_place(
-                receiver_site.origin(),
-                receiver_site.node.module_id,
-                receiver_type,
-                dir::Space::Local,
-                dir::Lifetime::Frame,
-            )?,
+            None => {
+                let is_aliased = self.type_is_aliased(receiver_site.origin(), receiver_type)?;
+                let lifetime = if is_aliased {
+                    dir::Lifetime::Managed
+                } else {
+                    dir::Lifetime::Frame
+                };
+
+                self.root_place(
+                    receiver_site.origin(),
+                    receiver_site.node.module_id,
+                    receiver_type,
+                    dir::Space::Local,
+                    lifetime,
+                )?
+            }
         };
         let place = self.project_place(site.origin(), receiver_type, ty, receiver_place)?;
 
@@ -416,6 +425,13 @@ impl CheckState<'_> {
             if self.place_space(placement)? == Some(dir::Space::Shared) && !is_owned {
                 place.access = self.access_literal(dir::Access::Mutable)?;
             }
+        }
+
+        // place a managed layer's referent in managed storage, alive while reachable
+        if let Some(form) = chain.ownership_form()
+            && matches!(form.form, dir::Form::Managed { .. })
+        {
+            place.lifetime = self.lifetime_literal(dir::Lifetime::Managed)?;
         }
 
         // project borrow lifetime, access, and referent place across the indirection

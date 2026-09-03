@@ -70,8 +70,8 @@ const grown: int32[] = fixed;
 const copied: int32[] = [...fixed];
 /// @type.symbol symbol=copied source=copied type=int32[]
 /// @resolution.pattern source=copied kind=binding target=copied
-/// @resolution.call source=[...fixed] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
-/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @resolution.call source=[...fixed] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @resolution.name source=fixed target=fixed
 /// @resolution.place source=fixed placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=fixed root=fixed

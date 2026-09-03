@@ -40,17 +40,17 @@ const flags: Flags = { a: true, b: false };
 flags.a satisfies boolean;
 /// @resolution.name source=flags target=flags
 /// @resolution.member source=flags.a receiver={ a: boolean; b: boolean } type=boolean kind=field target_receiver={ a: boolean; b: boolean } key=a target_type=boolean
-/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags root=flags
-/// @resolution.place source=flags.a placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags.a placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags.a root=flags keys=[a]
 
 flags.b satisfies boolean;
 /// @resolution.name source=flags target=flags
 /// @resolution.member source=flags.b receiver={ a: boolean; b: boolean } type=boolean kind=field target_receiver={ a: boolean; b: boolean } key=b target_type=boolean
-/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags root=flags
-/// @resolution.place source=flags.b placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags.b placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags.b root=flags keys=[b]
 "#,
     );
@@ -95,17 +95,17 @@ const flags: Flags = { 1: "one", 2: "two" };
 
 flags[1] satisfies string;
 /// @resolution.name source=flags target=flags
-/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags root=flags
-/// @resolution.place source=flags[1] placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags[1] placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags[1] root=flags keys=[1]
 /// @resolution.subscript source=flags[1] type=string kind=member target="receiver={ 1: string; 2: string }, target=field(receiver={ 1: string; 2: string }, target=1, type=string), type=string"
 
 flags[2] satisfies string;
 /// @resolution.name source=flags target=flags
-/// @resolution.place source=flags placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags root=flags
-/// @resolution.place source=flags[2] placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=flags[2] placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=flags[2] root=flags keys=[2]
 /// @resolution.subscript source=flags[2] type=string kind=member target="receiver={ 1: string; 2: string }, target=field(receiver={ 1: string; 2: string }, target=2, type=string), type=string"
 "#,
@@ -310,7 +310,7 @@ const value = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -400,10 +400,10 @@ declare const bag: Bag;
 
 bag["missing"] satisfies int32 | undefined;
 /// @resolution.name source=bag target=bag
-/// @resolution.place source="bag[\"missing\"]" placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source="bag[\"missing\"]" placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
 /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ [P: string]: int32 }, target=index(string), type=int32 | undefined"
-/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=bag root=bag
 "#,
     );
@@ -450,8 +450,14 @@ declare const map: Map<string, int32>;
 /// @generic.instance id="MapEntry<string, int32>" template=MapEntry arguments=(string, int32)
 /// @generic.instance id="MapSlot<string, int32>" template=MapSlot arguments=(string, int32)
 /// @generic.instance id="MaybeUninit<MapSlot<string, int32>>" template=MaybeUninit arguments=(MapSlot<string, int32>)
+/// @generic.instance id="MaybeUninit<MaybeUninit<MapSlot<string, int32>>>" template=MaybeUninit arguments=(MaybeUninit<MapSlot<string, int32>>)
 /// @generic.instance id="new<MaybeUninit<MapSlot<string, int32>>>" template=new arguments=(MaybeUninit<MapSlot<string, int32>>)
+/// @generic.instance id="sliceAssumeInit<MaybeUninit<MapSlot<string, int32>>>" template=sliceAssumeInit arguments=(MaybeUninit<MapSlot<string, int32>>)
+/// @generic.instance id="sliceUninit<MaybeUninit<MapSlot<string, int32>>>" template=sliceUninit arguments=(MaybeUninit<MapSlot<string, int32>>)
+/// @generic.instance id=MaybeUninit<uint32> template=MaybeUninit arguments=(uint32)
 /// @generic.instance id=new<uint32> template=new arguments=(uint32)
+/// @generic.instance id=sliceAssumeInit<uint32> template=sliceAssumeInit arguments=(uint32)
+/// @generic.instance id=sliceUninit<uint32> template=sliceUninit arguments=(uint32)
 /// @resolution.name source=Map target=Map
 
 const bag: Bag = map;
@@ -459,7 +465,7 @@ const bag: Bag = map;
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=map target=map
-/// @resolution.place source=map placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=map placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=map root=map
 
 const value = bag["missing"];
@@ -468,7 +474,7 @@ const value = bag["missing"];
 /// @resolution.name source=bag target=bag
 /// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
 /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver={ [P: string]: int32 }, target=index(string), type=int32 | undefined"
-/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=bag root=bag
 
 value satisfies int32 | undefined;
@@ -514,7 +520,7 @@ const empty: Empty = {};
 
 empty satisfies Empty;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=empty placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=Empty target=Empty
 "#,

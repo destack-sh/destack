@@ -882,7 +882,7 @@ const map: Map<string, int32> = record;
 /// @resolution.pattern source=map kind=binding target=map
 /// @resolution.name source=Map target=Map
 /// @resolution.name source=record target=record
-/// @resolution.place source=record placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=record placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=record root=record
 "#,
         r#"
@@ -978,7 +978,7 @@ class Base {
 
         return value;
         /// @resolution.name source=value target=Base.parse.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=value root=Base.parse.value
 
     }

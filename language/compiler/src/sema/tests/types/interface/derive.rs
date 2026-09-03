@@ -986,7 +986,7 @@ same satisfies boolean;
 
 const s1: Session = new Session();
 const s2: Session = new Session();
-const csame: boolean = s1 == (s2 as &'static readonly Session);
+const csame: boolean = s1 == (s2 as &'managed readonly Session);
 const cstrict: boolean = s1 === s2;
 csame satisfies boolean;
 cstrict satisfies boolean;
@@ -1056,13 +1056,13 @@ const csame = s1 == s2;
 /// @type.symbol symbol=csame source=csame type=boolean
 /// @resolution.pattern source=csame kind=binding target=csame
 /// @resolution.name source=s1 target=s1
-/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(&'static readonly Session) arguments=(provided(s2) as &'static readonly Session) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(&'static readonly Session)) instance=PartialEqual<Session>.equal
-/// @resolution.place source=s1 placement="local" lifetime="static" access="exclusive"
+/// @resolution.operator source="s1 == s2" type=boolean operator="==" kind=call parameters=(Borrowed<Session, "managed" & "local", "readonly">) arguments=(provided(s2) as Borrowed<Session, "managed" & "local", "readonly">) return=boolean kind=symbol target=PartialEqual.equal receiver=Session adjustments=(borrow(Borrowed<Session, "managed" & "local", "readonly">)) instance=PartialEqual<Session>.equal
+/// @resolution.place source=s1 placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=s1 root=s1
 /// @generic.instantiation id="PartialEqual.equal<Session, Session>" template=PartialEqual.equal arguments=(Session)
 /// @generic.instance id="PartialEqual.equal<Session, Session>" template=PartialEqual.equal arguments=(Session)
 /// @resolution.name source=s2 target=s2
-/// @resolution.place source=s2 placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=s2 placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=s2 root=s2
 
 const cstrict = s1 === s2;
@@ -1070,10 +1070,10 @@ const cstrict = s1 === s2;
 /// @resolution.pattern source=cstrict kind=binding target=cstrict
 /// @resolution.name source=s1 target=s1
 /// @resolution.operator source="s1 === s2" type=boolean operator="===" kind=builtin operands=[s1 as Session, s2 as Session]
-/// @resolution.place source=s1 placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=s1 placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=s1 root=s1
 /// @resolution.name source=s2 target=s2
-/// @resolution.place source=s2 placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=s2 placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=s2 root=s2
 
 csame satisfies boolean;

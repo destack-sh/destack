@@ -340,9 +340,9 @@ declare const actual: Actual;
 actual.value satisfies string | int32;
 /// @resolution.name source=actual target=actual
 /// @resolution.member source=actual.value receiver={ value: string; value: int32 } type=string & int32 kind=field target_receiver={ value: string; value: int32 } key=value target_type=string & int32
-/// @resolution.place source=actual placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=actual placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=actual root=actual
-/// @resolution.place source=actual.value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=actual.value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=actual.value root=actual keys=[value]
 "#,
     );

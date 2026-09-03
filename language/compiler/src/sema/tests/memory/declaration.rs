@@ -124,13 +124,13 @@ declare const sharedBox: SharedBox<int32>;
 
 localBox satisfies local LocalBox<int32>;
 /// @resolution.name source=localBox target=localBox
-/// @resolution.place source=localBox placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localBox placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localBox root=localBox
 /// @resolution.name source=LocalBox target=LocalBox
 
 sharedBox satisfies shared SharedBox<int32>;
 /// @resolution.name source=sharedBox target=sharedBox
-/// @resolution.place source=sharedBox placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedBox placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedBox root=sharedBox
 /// @resolution.name source=SharedBox target=SharedBox
 "#,
@@ -305,13 +305,13 @@ declare const sharedReadable: SharedReadable;
 
 localUser satisfies local LocalUser;
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localUser root=localUser
 /// @resolution.name source=LocalUser target=LocalUser
 
 sharedUser satisfies shared SharedUser;
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
 /// @resolution.name source=SharedUser target=SharedUser
 
@@ -341,13 +341,13 @@ sharedStatus satisfies shared SharedStatus;
 
 localReadable satisfies local LocalReadable;
 /// @resolution.name source=localReadable target=localReadable
-/// @resolution.place source=localReadable placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localReadable placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localReadable root=localReadable
 /// @resolution.name source=LocalReadable target=LocalReadable
 
 sharedReadable satisfies shared SharedReadable;
 /// @resolution.name source=sharedReadable target=sharedReadable
-/// @resolution.place source=sharedReadable placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedReadable placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedReadable root=sharedReadable
 /// @resolution.name source=SharedReadable target=SharedReadable
 "#,
@@ -592,13 +592,13 @@ declare const sharedDerived: SharedDerived;
 
 localDerived satisfies local LocalDerived;
 /// @resolution.name source=localDerived target=localDerived
-/// @resolution.place source=localDerived placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localDerived placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localDerived root=localDerived
 /// @resolution.name source=LocalDerived target=LocalDerived
 
 sharedDerived satisfies shared SharedDerived;
 /// @resolution.name source=sharedDerived target=sharedDerived
-/// @resolution.place source=sharedDerived placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedDerived placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedDerived root=sharedDerived
 /// @resolution.name source=SharedDerived target=SharedDerived
 "#,
@@ -680,13 +680,13 @@ declare const sharedService: SharedServiceImpl;
 
 localService satisfies local LocalServiceImpl;
 /// @resolution.name source=localService target=localService
-/// @resolution.place source=localService placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localService placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localService root=localService
 /// @resolution.name source=LocalServiceImpl target=LocalServiceImpl
 
 sharedService satisfies shared SharedServiceImpl;
 /// @resolution.name source=sharedService target=sharedService
-/// @resolution.place source=sharedService placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedService placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedService root=sharedService
 /// @resolution.name source=SharedServiceImpl target=SharedServiceImpl
 "#,

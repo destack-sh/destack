@@ -44,7 +44,7 @@ const person: Person = source;
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=source root=source
 
 person.name satisfies string;
@@ -53,9 +53,9 @@ person.name satisfies string;
 /// @type.node source=person.name type=string
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person root=person
-/// @resolution.place source=person.name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=person.name root=person keys=[name]
 "#,
     );
@@ -233,7 +233,7 @@ const shown = meter.reading;
 /// @type.node source=meter.reading type=string
 /// @resolution.name source=meter target=meter
 /// @resolution.member source=meter.reading receiver={ get reading(): string; set reading(value: string | int32) } type=string kind=field target_receiver={ get reading(): string; set reading(value: string | int32) } key=reading target_type=string
-/// @resolution.place source=meter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=meter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=meter root=meter
 /// @resolution.access source=meter.reading root=meter keys=[reading]
 
@@ -242,7 +242,7 @@ meter.reading = 5;
 /// @type.node source=meter type={ get reading(): string; set reading(value: string | int32) }
 /// @type.node source=meter.reading type=string | int32
 /// @resolution.name source=meter target=meter
-/// @resolution.place source=meter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=meter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=meter root=meter
 /// @resolution.pattern.assign source=meter.reading kind=place
 /// @resolution.access source=meter.reading root=meter keys=[reading]
@@ -294,7 +294,7 @@ const widened: { readonly tag: string } = mutable;
 /// @type.symbol symbol=tag#3 source="readonly tag: string" type=string
 /// @type.node source=mutable type={ tag: string }
 /// @resolution.name source=mutable target=mutable
-/// @resolution.place source=mutable placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=mutable placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=mutable root=mutable
 
 const narrowed: { tag: string } = frozen;
@@ -303,7 +303,7 @@ const narrowed: { tag: string } = frozen;
 /// @type.symbol symbol=tag#4 source="tag: string" type=string
 /// @type.node source=frozen type={ readonly tag: string }
 /// @resolution.name source=frozen target=frozen
-/// @resolution.place source=frozen placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=frozen placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=frozen root=frozen
 "#,
         r#"

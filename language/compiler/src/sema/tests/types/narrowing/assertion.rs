@@ -197,7 +197,7 @@ function render(message: string | (() => string) | undefined): string {
         return message();
         /// @resolution.name source=message target=render.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=message root=render.message
         /// @resolution.narrowing source=message union=string | Function<(), string> | undefined arms=Function<(), string>
 
@@ -262,7 +262,7 @@ function render(message: Message | undefined): string {
         return message();
         /// @resolution.name source=message target=render.message
         /// @resolution.call source=message() parameters=() return=string kind=expression target=expression
-        /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=message root=render.message
         /// @resolution.narrowing source=message union=Message | undefined arms=Function<(), string>
 
@@ -616,9 +616,11 @@ function incrementCount(source: string): Result<int32, string> {
     /// @resolution.pattern source=count kind=binding target=incrementCount.count
     /// @resolution.name source=parseCount target=parseCount
     /// @resolution.call source=parseCount(source) parameters=(string) arguments=(provided(source) as string) return=Result<int32, string> kind=symbol target=parseCount
-    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>>
+    /// @resolution.residual source=parseCount(source)? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(string), arguments=(supplied as string), return=Result<int32, string>)"
+    /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
+    /// @generic.instantiation id="fromResidual<int32, string>" template=fromResidual arguments=(int32, string)
     /// @resolution.name source=source target=incrementCount.source
-    /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=source root=incrementCount.source
 
     return Result.ok(count + 1);
@@ -744,9 +746,9 @@ function prepare(values: [int32]): void {
 
     fill(&exclusive values);
     /// @resolution.name source=fill target=fill
-    /// @resolution.call source="fill(&exclusive values)" parameters=(&'frame exclusive Slice<int32>) arguments=(provided(&exclusive values) as &'frame exclusive Slice<int32>) return=void kind=symbol target=fill
+    /// @resolution.call source="fill(&exclusive values)" parameters=(Borrowed<Slice<int32>, "managed" & "local", "exclusive">) arguments=(provided(&exclusive values) as Borrowed<Slice<int32>, "managed" & "local", "exclusive">) return=void kind=symbol target=fill
     /// @resolution.name source=values target=prepare.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=prepare.values
     /// @flow.access source=values root=prepare.values uses=read+exclusive
 
@@ -797,19 +799,19 @@ function feed(output: Array<int32>, values: [int32]): void {
     output.push(1, ...[2, 3], 4);
     /// @resolution.name source=output target=feed.output
     /// @resolution.member source=output.push receiver=int32[] type=<push.'a>(this: &push.'a exclusive int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(&'frame exclusive int32[])) instance=Array<int32>.<extension#5>.push
-    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.call source="output.push(1, ...[2, 3], 4)" parameters=(int32[]) arguments=(rest(1, ...[2, 3], 4) pack=arrayFromOwnedSlice as int32) return=isize kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "exclusive">)) instance=Array<int32>.<extension#6>.push
+    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=output root=feed.output
-    /// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+    /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-    /// @resolution.call source=[2, 3] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[2, 3] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(2, 3) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 
     consume([...values]);
     /// @resolution.name source=consume target=consume
     /// @resolution.call source=consume([...values]) parameters=(Iterable<int32>) arguments=(provided([...values]) as Iterable<int32>) return=void kind=symbol target=consume
-    /// @resolution.call source=[...values] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
+    /// @resolution.call source=[...values] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @resolution.name source=values target=feed.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=feed.values
 
 }

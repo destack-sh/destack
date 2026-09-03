@@ -112,9 +112,23 @@ const ok: (string, ...boolean[]) = ("Ada", true, false) as (string, ...boolean[]
 === dir ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
 /// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="elementSlot<boolean, \"exclusive\">" template=elementSlot arguments=(boolean, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive boolean[], usize) => &elementSlot.'a exclusive MaybeUninit<boolean>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<boolean>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<boolean>>, usize) => &elementSlot.'a exclusive MaybeUninit<boolean>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<boolean>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<boolean>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<boolean>>, usize) => &elementSlot.'a exclusive MaybeUninit<boolean>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive boolean[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<boolean>>)
+/// @generic.instance id="initAsPointer<boolean, \"exclusive\">" template=initAsPointer arguments=(boolean, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<boolean>) => Raw<boolean>)
+/// @generic.instance id="sliceIndex<MaybeUninit<boolean>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<boolean>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<boolean>>, usize) => &sliceIndex.'a exclusive MaybeUninit<boolean>)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<boolean> template=Array arguments=(boolean)
+/// @generic.instance id=MaybeUninit<MaybeUninit<boolean>> template=MaybeUninit arguments=(MaybeUninit<boolean>)
 /// @generic.instance id=MaybeUninit<boolean> template=MaybeUninit arguments=(boolean)
+/// @generic.instance id=assumeInitDrop#1<boolean> template=assumeInitDrop#1 arguments=(boolean)
+/// @generic.instance id=assumeInitDrop<boolean> template=assumeInitDrop arguments=(boolean) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<boolean>) => Raw<boolean>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<boolean>)
+/// @generic.instance id=clear<boolean> template=clear arguments=(boolean)
+/// @generic.instance id=drop<boolean> template=drop arguments=(boolean)
+/// @generic.instance id=dropInPlace<boolean> template=dropInPlace arguments=(boolean)
 /// @generic.instance id=new<MaybeUninit<boolean>> template=new arguments=(MaybeUninit<boolean>)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<boolean>> template=sliceAssumeInit arguments=(MaybeUninit<boolean>)
+/// @generic.instance id=sliceUninit<MaybeUninit<boolean>> template=sliceUninit arguments=(MaybeUninit<boolean>)
+/// @generic.instance id=truncate<boolean> template=truncate arguments=(boolean) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<boolean>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive boolean[], usize) => &truncate.'a exclusive MaybeUninit<boolean>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive boolean[])
 /// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=(string, ...boolean[])
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
@@ -228,7 +242,7 @@ function parse(value: string): string {
 
     value
     /// @resolution.name source=value target=parse.value#2
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=parse.value#2
 
 }

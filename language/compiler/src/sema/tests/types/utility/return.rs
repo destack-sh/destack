@@ -34,7 +34,7 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=ok root=ok
 "#,
     );

@@ -774,8 +774,8 @@ struct Entry<'a> {
     message?: string | undefined;
 }
 
-function make(options?: Options): Entry<"static" & "constant"> {
-    const entry: Entry<"static" & "constant"> = Entry<"static" & "constant"> {
+function make(options?: Options): Entry<"managed" & "local"> {
+    const entry: Entry<"managed" & "local"> = Entry<"managed" & "local"> {
         message: options?.message,
     };
 
@@ -810,13 +810,13 @@ struct Entry<'a> {
 }
 
 function make(options?: Options): Entry {
-/// @type.symbol symbol=make type=(Options | undefined?) => Entry<"static" & "constant">
+/// @type.symbol symbol=make type=(Options | undefined?) => Entry<"managed" & "local">
 /// @type.symbol symbol=make.options source="options?: Options" type=Options | undefined
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=Entry target=Entry
 
     const entry = Entry { message: options?.message };
-    /// @type.symbol symbol=make.entry source=entry type=Entry<"static" & "constant">
+    /// @type.symbol symbol=make.entry source=entry type=Entry<"managed" & "local">
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options

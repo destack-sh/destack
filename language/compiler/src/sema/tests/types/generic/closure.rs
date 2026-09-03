@@ -294,7 +294,7 @@ const mapped = box.map((value) => value);
 /// @resolution.name source=box target=box
 /// @resolution.member source=box.map receiver=Box<int32> type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U>) => Box<U> kind=symbol target_receiver=Box<int32> target=Box.map
 /// @resolution.call source="box.map((value) => value)" parameters=(Function<(int32,), int32>) arguments=(provided((value) => value) as Function<(int32,), int32>) return=Box<int32> kind=symbol target=Box.map receiver=Box<int32> instance="Box<int32>.map<int32, \"local\">"
-/// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=box placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=box root=box
 /// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)
@@ -442,7 +442,7 @@ const value = box.map((item) => item);
 /// @resolution.name source=box target=box
 /// @resolution.member source=box.map receiver=Box<int32> type=<U, Box.map.P1: Place>(this: Managed<Box<int32>, Box.map.P1>, Function<(int32,), U | Box<U>>) => U kind=symbol target_receiver=Box<int32> target=Box.map
 /// @resolution.call source="box.map((item) => item)" parameters=(Function<(int32,), int32 | Box<int32>>) arguments=(provided((item) => item) as Function<(int32,), int32 | Box<int32>>) return=int32 kind=symbol target=Box.map receiver=Box<int32> instance="Box<int32>.map<int32, \"local\">"
-/// @resolution.place source=box placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=box placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=box root=box
 /// @generic.instantiation id="Box.map<int32, int32, \"local\">" template=Box.map arguments=(int32, int32, "local")
 /// @generic.instantiation id=Box.map<int32> template=Box.map arguments=(int32)

@@ -34,7 +34,7 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -139,7 +139,7 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=ok placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -223,7 +223,7 @@ const bad: Value = promise;
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=promise target=promise
-/// @resolution.place source=promise placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=promise placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=promise root=promise
 "#,
         r#"

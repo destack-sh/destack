@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use crate::sema::{CheckState, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
@@ -134,6 +135,11 @@ impl CheckState<'_> {
                     entries.push(entry);
                 }
             }
+
+            // add the entries of the member initializer nodes
+            let nodes = self.template_initializer_body(template, &definition)?;
+            entries.extend(self.entries_at(template.module_id, nodes)?);
+
             let source = self.committed_definition_source(template)?;
             entries.push(Entry::Definition(template, source, definition));
 
@@ -144,12 +150,26 @@ impl CheckState<'_> {
         if let Some(entry) = self.symbol_entry(template) {
             entries.push(entry);
         }
-        let Some(nodes) = self.template_body_nodes(template)? else {
+        let Some(nodes) = self.template_body(template)? else {
             return Ok(entries);
         };
-        let Some(committed) = self.committed(template.module_id) else {
-            return Ok(entries);
+        entries.extend(self.entries_at(template.module_id, nodes)?);
+
+        Ok(entries)
+    }
+
+    /// Return the committed entries standing at one module's nodes.
+    fn entries_at(
+        &self,
+        module: ModuleId,
+        nodes: Vec<dir::GlobalNodeIdAny>,
+    ) -> CompilerResult<Vec<Entry>> {
+        let Some(committed) = self.committed(module) else {
+            return Ok(Vec::new());
         };
+
+        // read every entry recorded at each node
+        let mut entries = Vec::new();
         for node in nodes {
             if let Some(ty) = committed.types.get_node_type_id(node) {
                 entries.push(Entry::Node(node, ty));

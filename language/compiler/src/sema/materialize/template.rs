@@ -88,8 +88,60 @@ impl CheckState<'_> {
             .get_symbol_type_id(symbol)
     }
 
+    /// Return every node inside the member initializers one type template declares.
+    pub(super) fn template_initializer_body(
+        &self,
+        template: dir::GlobalSymbolId,
+        definition: &dir::Definition,
+    ) -> CompilerResult<Vec<dir::GlobalNodeIdAny>> {
+        let Some(committed) = self.committed(template.module_id) else {
+            return Ok(Vec::new());
+        };
+        let tree = committed.tree;
+
+        // collect every node of each declared member initializer
+        let mut collector = BodyNodeCollector {
+            module: template.module_id,
+            nodes: Vec::new(),
+        };
+        for member in definition.members() {
+            // read the member declaration behind a field or an associated const
+            let symbol = match member {
+                dir::DefinitionMember::Field(field) => field.symbol,
+                dir::DefinitionMember::AssociatedConst(constant) => constant.symbol,
+                _ => continue,
+            };
+            let Some(declaration) = committed.bindings.get_symbol(symbol.local_id).declaration
+            else {
+                continue;
+            };
+            let Ok(declaration) = declaration.local_id.try_into_typed::<dir::Member>() else {
+                continue;
+            };
+
+            // keep the members the source writes an initializer for
+            let initializer = match tree.get(declaration) {
+                dir::Member::Field { default, .. }
+                | dir::Member::AssociatedConst { value: default, .. } => *default,
+                _ => None,
+            };
+            let Some(initializer) = initializer else {
+                continue;
+            };
+
+            dir::NodeVisitor::visit_expression(
+                &mut collector,
+                tree,
+                initializer,
+                tree.get(initializer),
+            );
+        }
+
+        Ok(collector.nodes)
+    }
+
     /// Return every node inside one callable template's body, when it has one.
-    pub(super) fn template_body_nodes(
+    pub(super) fn template_body(
         &mut self,
         template: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<Vec<dir::GlobalNodeIdAny>>> {

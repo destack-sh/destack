@@ -259,22 +259,22 @@ declare const sharedMessage: shared Message;
 localSink.write(localMessage) satisfies local Message;
 /// @resolution.name source=localSink target=localSink
 /// @resolution.member source=localSink.write receiver=local Sink type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=local Sink dispatch=dynamic constraint=Sink target=Sink.write
-/// @resolution.call source=localSink.write(localMessage) parameters=(Message) arguments=(provided(localMessage) as Message) return=Message kind=dynamic target=Sink.write receiver=local Sink constraint=Sink adjustments=(borrow(&'static readonly local Sink))
-/// @resolution.place source=localSink placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=localSink.write(localMessage) parameters=(Message) arguments=(provided(localMessage) as Message) return=Message kind=dynamic target=Sink.write receiver=local Sink constraint=Sink adjustments=(borrow(Borrowed<local Sink, "managed" & "local", "readonly">))
+/// @resolution.place source=localSink placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localSink root=localSink
 /// @resolution.name source=localMessage target=localMessage
-/// @resolution.place source=localMessage placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localMessage placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localMessage root=localMessage
 /// @resolution.name source=Message target=Message
 
 sharedSink.write(sharedMessage) satisfies shared Message;
 /// @resolution.name source=sharedSink target=sharedSink
 /// @resolution.member source=sharedSink.write receiver=shared Sink type=<Sink.write.'a>(this: &Sink.write.'a readonly Sink, Message) => Message kind=symbol target_receiver=shared Sink dispatch=dynamic constraint=Sink target=Sink.write
-/// @resolution.call source=sharedSink.write(sharedMessage) parameters=(shared Message) arguments=(provided(sharedMessage) as shared Message) return=shared Message kind=dynamic target=Sink.write receiver=shared Sink constraint=Sink adjustments=(borrow(&'static readonly shared shared Sink))
-/// @resolution.place source=sharedSink placement="shared" lifetime="static" access="mutable"
+/// @resolution.call source=sharedSink.write(sharedMessage) parameters=(shared Message) arguments=(provided(sharedMessage) as shared Message) return=shared Message kind=dynamic target=Sink.write receiver=shared Sink constraint=Sink adjustments=(borrow(Borrowed<shared Sink, "managed" & "shared", "readonly">))
+/// @resolution.place source=sharedSink placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedSink root=sharedSink
 /// @resolution.name source=sharedMessage target=sharedMessage
-/// @resolution.place source=sharedMessage placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedMessage placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedMessage root=sharedMessage
 /// @resolution.name source=Message target=Message
 "#,
@@ -338,15 +338,15 @@ declare const sharedBuffer: shared Buffer;
 localBuffer.clear();
 /// @resolution.name source=localBuffer target=localBuffer
 /// @resolution.member source=localBuffer.clear receiver=local Buffer type=<Buffer.clear.'a>(this: &Buffer.clear.'a exclusive Buffer) => void kind=symbol target_receiver=local Buffer target=Buffer.clear
-/// @resolution.call source=localBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=local Buffer adjustments=(borrow(&'static exclusive local Buffer))
-/// @resolution.place source=localBuffer placement="local" lifetime="static" access="exclusive"
+/// @resolution.call source=localBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=local Buffer adjustments=(borrow(Borrowed<local Buffer, "managed" & "local", "exclusive">))
+/// @resolution.place source=localBuffer placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localBuffer root=localBuffer
 
 sharedBuffer.clear();
 /// @resolution.name source=sharedBuffer target=sharedBuffer
 /// @resolution.member source=sharedBuffer.clear receiver=shared Buffer type=<Buffer.clear.'a>(this: &Buffer.clear.'a exclusive Buffer) => void kind=symbol target_receiver=shared Buffer target=Buffer.clear
 /// @resolution.call source=sharedBuffer.clear() parameters=() return=void kind=symbol target=Buffer.clear receiver=shared Buffer
-/// @resolution.place source=sharedBuffer placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedBuffer placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedBuffer root=sharedBuffer
 "#,
         r#"
@@ -622,9 +622,9 @@ class Counter {
         return this.count;
         /// @resolution.member source=this.count receiver=Managed<Counter, Counter.read.P0> type=int32 kind=field target_receiver=Managed<Counter, Counter.read.P0> key=count target=Counter.count target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=Managed<Counter, Counter.read.P0>
-        /// @resolution.place source=this placement=Counter.read.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=Counter.read.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.count placement=Counter.read.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this.count placement=Counter.read.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this.count root=this keys=[count]
 
     }
@@ -854,7 +854,7 @@ function read(counter: readonly Counter): int32 {
     return counter.current;
     /// @resolution.name source=counter target=read.counter
     /// @resolution.member source=counter.current receiver=Readonly<Counter> type=int32 kind=call target="Counter.current(parameters=(), arguments=(), return=int32)"
-    /// @resolution.place source=counter placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=counter placement="local" lifetime="managed" access="readonly"
     /// @resolution.access source=counter root=read.counter
 
 }

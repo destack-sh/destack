@@ -3,7 +3,7 @@ use crate::tests::{DirRows, TestSession};
 #[test]
 fn test_conditional_parameter_reduces_at_call_sites() {
     // deferred conditional members reject in the body: no induced generics,
-    // and tsc requires narrowing; call sites reduce at instantiation
+    //  and the body needs narrowing; call sites reduce at instantiation
     let session = TestSession::single(
         r#"
 interface TextSink {
@@ -124,7 +124,7 @@ write("message", text);
 /// @resolution.call source="write(\"message\", text)" parameters=(string, TextSink) arguments=(provided("message") as string, provided(text) as TextSink) return=void kind=symbol target=write instance=write<string>
 /// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=text root=text
 
 write(1, number);
@@ -132,7 +132,7 @@ write(1, number);
 /// @resolution.call source="write(1, number)" parameters=(int64, NumberSink) arguments=(provided(1) as int64, provided(number) as NumberSink) return=void kind=symbol target=write instance=write<int64>
 /// @generic.instantiation id=write<int64> template=write arguments=(int64)
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=number placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=number root=number
 "#,
         r#"
@@ -261,7 +261,7 @@ write("message", number);
 /// @type.node source="\"message\"" type="message"
 /// @type.node source=number type=NumberSink
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=number placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=number root=number
 "#,
         r#"

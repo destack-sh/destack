@@ -384,7 +384,7 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -712,7 +712,7 @@ const widened: Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=boxed placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=boxed root=boxed
 "#,
         r#"
@@ -794,7 +794,7 @@ const widened: Label<Shape> = labeled;
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=labeled target=labeled
-/// @resolution.place source=labeled placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=labeled placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=labeled root=labeled
 "#,
     );
@@ -1032,8 +1032,8 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
-    /// @generic.instantiation id=arrayFromSlice<T#1> template=arrayFromSlice arguments=(T#1) owner=Stack
+    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
+    /// @generic.instantiation id=arrayFromOwnedSlice<T#1> template=arrayFromOwnedSlice arguments=(T#1) owner=Stack
 
 }
 
@@ -1058,8 +1058,8 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
-        /// @generic.instantiation id=arrayFromSlice<T#2> template=arrayFromSlice arguments=(T#2) owner=refill
+        /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
+        /// @generic.instantiation id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
@@ -1079,7 +1079,7 @@ const widened: Stack<Shape> = circles;
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -1156,8 +1156,8 @@ class Stack<T> {
     items: T[] = [];
     /// @type.symbol symbol=Stack.items source="items: T[] = []" type=T#1[]
     /// @resolution.name source=T target=Stack.T
-    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#1>
-    /// @generic.instantiation id=arrayFromSlice<T#1> template=arrayFromSlice arguments=(T#1) owner=Stack
+    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
+    /// @generic.instantiation id=arrayFromOwnedSlice<T#1> template=arrayFromOwnedSlice arguments=(T#1) owner=Stack
 
 }
 
@@ -1182,8 +1182,8 @@ extension<T> of Stack<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
-        /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T#2>
-        /// @generic.instantiation id=arrayFromSlice<T#2> template=arrayFromSlice arguments=(T#2) owner=refill
+        /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
+        /// @generic.instantiation id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
@@ -1194,26 +1194,66 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="elementSlot<Circle, \"exclusive\">" template=elementSlot arguments=(Circle, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive Circle[], usize) => &elementSlot.'a exclusive MaybeUninit<Circle>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Circle>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Circle>>, usize) => &elementSlot.'a exclusive MaybeUninit<Circle>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Circle>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Circle>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Circle>>, usize) => &elementSlot.'a exclusive MaybeUninit<Circle>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive Circle[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Circle>>)
+/// @generic.instance id="initAsPointer<Circle, \"exclusive\">" template=initAsPointer arguments=(Circle, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<Circle>) => Raw<Circle>)
+/// @generic.instance id="sliceIndex<MaybeUninit<Circle>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<Circle>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<Circle>>, usize) => &sliceIndex.'a exclusive MaybeUninit<Circle>)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
 /// @generic.instance id=MaybeUninit<Circle> template=MaybeUninit arguments=(Circle)
+/// @generic.instance id=MaybeUninit<MaybeUninit<Circle>> template=MaybeUninit arguments=(MaybeUninit<Circle>)
+/// @generic.instance id=Slice<Circle> template=Slice arguments=(Circle)
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
-/// @generic.instance id=arrayFromSlice<Circle> template=arrayFromSlice arguments=(Circle)
+/// @generic.instance id=arrayFromOwnedSlice<Circle> template=arrayFromOwnedSlice arguments=(Circle)
+/// @generic.instance id=assumeInitDrop#1<Circle> template=assumeInitDrop#1 arguments=(Circle)
+/// @generic.instance id=assumeInitDrop<Circle> template=assumeInitDrop arguments=(Circle) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<Circle>) => Raw<Circle>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<Circle>)
+/// @generic.instance id=clear<Circle> template=clear arguments=(Circle)
+/// @generic.instance id=drop<Circle> template=drop arguments=(Circle)
+/// @generic.instance id=dropInPlace<Circle> template=dropInPlace arguments=(Circle)
+/// @generic.instance id=fromOwnedSlice<Circle> template=fromOwnedSlice arguments=(Circle)
+/// @generic.instance id=intoUninit<Circle> template=intoUninit arguments=(Circle)
 /// @generic.instance id=new<MaybeUninit<Circle>> template=new arguments=(MaybeUninit<Circle>)
+/// @generic.instance id=size<Circle> template=size arguments=(Circle)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<Circle>> template=sliceAssumeInit arguments=(MaybeUninit<Circle>)
+/// @generic.instance id=sliceIntoUninit<Circle> template=sliceIntoUninit arguments=(Circle)
+/// @generic.instance id=sliceLength<Circle> template=sliceLength arguments=(Circle)
+/// @generic.instance id=sliceUninit<MaybeUninit<Circle>> template=sliceUninit arguments=(MaybeUninit<Circle>)
+/// @generic.instance id=truncate<Circle> template=truncate arguments=(Circle) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<Circle>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive Circle[], usize) => &truncate.'a exclusive MaybeUninit<Circle>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive Circle[])
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Stack<Shape> = circles;
 /// @type.symbol symbol=view source=view type=Readonly<Stack<Shape>>
 /// @resolution.pattern source=view kind=binding target=view
+/// @generic.instance id="elementSlot<Shape, \"exclusive\">" template=elementSlot arguments=(Shape, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive Shape[], usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Shape>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<Shape>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &elementSlot.'a exclusive MaybeUninit<Shape>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive Shape[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<Shape>>)
+/// @generic.instance id="initAsPointer<Shape, \"exclusive\">" template=initAsPointer arguments=(Shape, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<Shape>) => Raw<Shape>)
+/// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<Shape>>, usize) => &sliceIndex.'a exclusive MaybeUninit<Shape>)
 /// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
+/// @generic.instance id=MaybeUninit<MaybeUninit<Shape>> template=MaybeUninit arguments=(MaybeUninit<Shape>)
 /// @generic.instance id=MaybeUninit<Shape> template=MaybeUninit arguments=(Shape)
+/// @generic.instance id=Slice<Shape> template=Slice arguments=(Shape)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
-/// @generic.instance id=arrayFromSlice<Shape> template=arrayFromSlice arguments=(Shape)
+/// @generic.instance id=arrayFromOwnedSlice<Shape> template=arrayFromOwnedSlice arguments=(Shape)
+/// @generic.instance id=assumeInitDrop#1<Shape> template=assumeInitDrop#1 arguments=(Shape)
+/// @generic.instance id=assumeInitDrop<Shape> template=assumeInitDrop arguments=(Shape) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<Shape>) => Raw<Shape>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<Shape>)
+/// @generic.instance id=clear<Shape> template=clear arguments=(Shape)
+/// @generic.instance id=drop<Shape> template=drop arguments=(Shape)
+/// @generic.instance id=dropInPlace<Shape> template=dropInPlace arguments=(Shape)
+/// @generic.instance id=fromOwnedSlice<Shape> template=fromOwnedSlice arguments=(Shape)
+/// @generic.instance id=intoUninit<Shape> template=intoUninit arguments=(Shape)
 /// @generic.instance id=new<MaybeUninit<Shape>> template=new arguments=(MaybeUninit<Shape>)
+/// @generic.instance id=size<Shape> template=size arguments=(Shape)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<Shape>> template=sliceAssumeInit arguments=(MaybeUninit<Shape>)
+/// @generic.instance id=sliceIntoUninit<Shape> template=sliceIntoUninit arguments=(Shape)
+/// @generic.instance id=sliceLength<Shape> template=sliceLength arguments=(Shape)
+/// @generic.instance id=sliceUninit<MaybeUninit<Shape>> template=sliceUninit arguments=(MaybeUninit<Shape>)
+/// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<Shape>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive Shape[], usize) => &truncate.'a exclusive MaybeUninit<Shape>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive Shape[])
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=circles root=circles
 "#,
     );
@@ -1281,8 +1321,8 @@ class Bag<T> {
     items: T[] = [];
     /// @type.symbol symbol=Bag.items source="items: T[] = []" type=T[]
     /// @resolution.name source=T target=Bag.T
-    /// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
-    /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=Bag
+    /// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
+    /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=Bag
 
     refill(this, value: T): void {
     /// @type.symbol symbol=Bag.refill type=(this: this, T) => void
@@ -1297,8 +1337,8 @@ class Bag<T> {
         /// @resolution.pattern.assign source=this.items kind=place
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=T[]), type=T[]" type=T[]
-        /// @resolution.call source=[value] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(value) as T) return=T[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<T>
-        /// @generic.instantiation id=arrayFromSlice<T> template=arrayFromSlice arguments=(T) owner=Bag.refill
+        /// @resolution.call source=[value] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(value) as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
+        /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=Bag.refill
         /// @resolution.name source=value target=Bag.refill.value
         /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Bag.refill.value
@@ -1318,7 +1358,7 @@ const view: readonly Bag<Shape> = circles;
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=circles placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -1531,7 +1571,7 @@ const widened: Managed<Handle<Shape>> = handle;
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handle placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handle root=handle
 "#,
         r#"

@@ -27,8 +27,8 @@ class User {}
 declare const localUser: local User;
 declare const sharedUser: shared User;
 
-const localView: &'static readonly User = &readonly localUser;
-const sharedView: &'static readonly shared User = &readonly sharedUser;
+const localView: &'managed readonly User = &readonly localUser;
+const sharedView: &'managed readonly shared User = &readonly sharedUser;
 
 localView satisfies local &readonly User;
 sharedView satisfies shared &readonly User;
@@ -49,32 +49,32 @@ declare const sharedUser: shared User;
 /// @resolution.name source=User target=User
 
 const localView = &readonly localUser;
-/// @type.symbol symbol=localView source=localView type=&'static readonly User
+/// @type.symbol symbol=localView source=localView type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.pattern source=localView kind=binding target=localView
-/// @type.node source="&readonly localUser" type=&'static readonly User
+/// @type.node source="&readonly localUser" type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=localUser placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=localUser root=localUser
 
 const sharedView = &readonly sharedUser;
-/// @type.symbol symbol=sharedView source=sharedView type=&'static readonly shared User
+/// @type.symbol symbol=sharedView source=sharedView type=Borrowed<User, "managed" & "shared", "readonly">
 /// @resolution.pattern source=sharedView kind=binding target=sharedView
-/// @type.node source="&readonly sharedUser" type=&'static readonly shared User
+/// @type.node source="&readonly sharedUser" type=Borrowed<User, "managed" & "shared", "readonly">
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
 
 localView satisfies local &readonly User;
-/// @type.node source="localView satisfies local &readonly User" type=&'static readonly User
+/// @type.node source="localView satisfies local &readonly User" type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.name source=localView target=localView
-/// @resolution.place source=localView placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=localView placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=localView root=localView
 /// @resolution.name source=User target=User
 
 sharedView satisfies shared &readonly User;
-/// @type.node source="sharedView satisfies shared &readonly User" type=&'static readonly shared User
+/// @type.node source="sharedView satisfies shared &readonly User" type=Borrowed<User, "managed" & "shared", "readonly">
 /// @resolution.name source=sharedView target=sharedView
-/// @resolution.place source=sharedView placement="shared" lifetime="static" access="readonly"
+/// @resolution.place source=sharedView placement="shared" lifetime="managed" access="readonly"
 /// @resolution.access source=sharedView root=sharedView
 /// @resolution.name source=User target=User
 "#,
@@ -103,7 +103,7 @@ class User {}
 
 declare const user: local User;
 
-const projected: &'static readonly User = &readonly user;
+const projected: &'managed readonly User = &readonly user;
 const coerced: &'static readonly User = user as local &readonly User;
 
 === dir ===
@@ -117,11 +117,11 @@ declare const user: local User;
 /// @resolution.name source=User target=User
 
 const projected = &readonly user;
-/// @type.symbol symbol=projected source=projected type=&'static readonly User
+/// @type.symbol symbol=projected source=projected type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.pattern source=projected kind=binding target=projected
-/// @type.node source="&readonly user" type=&'static readonly User
+/// @type.node source="&readonly user" type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 
 const coerced = user as local &readonly User;
@@ -129,7 +129,7 @@ const coerced = user as local &readonly User;
 /// @resolution.pattern source=coerced kind=binding target=coerced
 /// @type.node source="user as local &readonly User" type=&'static readonly User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 /// @resolution.name source=User target=User
 "#,
@@ -161,9 +161,9 @@ class User {}
 declare const sharedUser: shared User;
 declare const readonlyUser: readonly local User;
 
-const sharedExclusive: &'static exclusive shared User = &exclusive sharedUser;
-const readonlyMutable: &'static readonly User = &readonlyUser;
-const readonlyExclusive: &'static readonly User = &exclusive readonlyUser;
+const sharedExclusive: &'managed exclusive shared User = &exclusive sharedUser;
+const readonlyMutable: &'managed readonly User = &readonlyUser;
+const readonlyExclusive: &'managed readonly User = &exclusive readonlyUser;
 
 === dir ===
 class User {}
@@ -181,24 +181,24 @@ declare const readonlyUser: local readonly User;
 /// @resolution.name source=User target=User
 
 const sharedExclusive = &exclusive sharedUser;
-/// @type.symbol symbol=sharedExclusive source=sharedExclusive type=&'static exclusive shared User
+/// @type.symbol symbol=sharedExclusive source=sharedExclusive type=Borrowed<User, "managed" & "shared", "exclusive">
 /// @resolution.pattern source=sharedExclusive kind=binding target=sharedExclusive
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=sharedUser root=sharedUser
 
 const readonlyMutable = &readonlyUser;
-/// @type.symbol symbol=readonlyMutable source=readonlyMutable type=&'static readonly User
+/// @type.symbol symbol=readonlyMutable source=readonlyMutable type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.pattern source=readonlyMutable kind=binding target=readonlyMutable
 /// @resolution.name source=readonlyUser target=readonlyUser
-/// @resolution.place source=readonlyUser placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=readonlyUser placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=readonlyUser root=readonlyUser
 
 const readonlyExclusive = &exclusive readonlyUser;
-/// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=&'static readonly User
+/// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=Borrowed<User, "managed" & "local", "readonly">
 /// @resolution.pattern source=readonlyExclusive kind=binding target=readonlyExclusive
 /// @resolution.name source=readonlyUser target=readonlyUser
-/// @resolution.place source=readonlyUser placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=readonlyUser placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=readonlyUser root=readonlyUser
 "#,
         r#"
@@ -338,37 +338,37 @@ declare function modify(value: local &User): void;
 inspect(&user);
 /// @type.node source=inspect(&user) type=void
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(&user) parameters=(&'static readonly User) arguments=(provided(&user) as &'static readonly User) return=void kind=symbol target=inspect
-/// @type.node source=&user type=&'static User
+/// @resolution.call source=inspect(&user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(&user) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @type.node source=&user type=Borrowed<User, "managed" & "local", "mutable">
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 
 modify(&user);
 /// @type.node source=modify(&user) type=void
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(&user) parameters=(&'static User) arguments=(provided(&user) as &'static User) return=void kind=symbol target=modify
-/// @type.node source=&user type=&'static User
+/// @resolution.call source=modify(&user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(&user) as Borrowed<User, "managed" & "local", "mutable">) return=void kind=symbol target=modify
+/// @type.node source=&user type=Borrowed<User, "managed" & "local", "mutable">
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 
 inspect(&exclusive user);
 /// @type.node source="inspect(&exclusive user)" type=void
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source="inspect(&exclusive user)" parameters=(&'static readonly User) arguments=(provided(&exclusive user) as &'static readonly User) return=void kind=symbol target=inspect
-/// @type.node source="&exclusive user" type=&'static exclusive User
+/// @resolution.call source="inspect(&exclusive user)" parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(&exclusive user) as Borrowed<User, "managed" & "local", "readonly">) return=void kind=symbol target=inspect
+/// @type.node source="&exclusive user" type=Borrowed<User, "managed" & "local", "exclusive">
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 
 modify(&exclusive user);
 /// @type.node source="modify(&exclusive user)" type=void
 /// @resolution.name source=modify target=modify
-/// @resolution.call source="modify(&exclusive user)" parameters=(&'static User) arguments=(provided(&exclusive user) as &'static User) return=void kind=symbol target=modify
-/// @type.node source="&exclusive user" type=&'static exclusive User
+/// @resolution.call source="modify(&exclusive user)" parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(&exclusive user) as Borrowed<User, "managed" & "local", "mutable">) return=void kind=symbol target=modify
+/// @type.node source="&exclusive user" type=Borrowed<User, "managed" & "local", "exclusive">
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 "#,
     );

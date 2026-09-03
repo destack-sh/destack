@@ -544,11 +544,11 @@ const first: Element<typeof values> = values[0];
 /// @resolution.name source=Element target=Element
 /// @resolution.name source=values target=values
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=values root=values
-/// @resolution.place source=values[0] placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=values[0] placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static int32[], \"exclusive\">)"
+/// @resolution.subscript source=values[0] type=int32[] kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32[], \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
 /// @generic.instantiation id="index#1<int32[], \"exclusive\">" template=index#1 arguments=(int32[], "exclusive")
 "#,
         r#"

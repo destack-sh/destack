@@ -152,7 +152,7 @@ const version = config.version;
 /// @type.node source=config.version type=int64
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.version receiver={ version: int64 } type=int64 kind=field target_receiver={ version: int64 } key=version target_type=int64
-/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=config placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.version root=config keys=[version]
 "#,
@@ -194,9 +194,9 @@ const mode = config.nested.mode;
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.nested receiver={ readonly nested: { readonly mode: "dev" } } type={ readonly mode: "dev" } kind=field target_receiver={ readonly nested: { readonly mode: "dev" } } key=nested target_type={ readonly mode: "dev" }
 /// @resolution.member source=config.nested.mode receiver={ readonly mode: "dev" } type="dev" kind=field target_receiver={ readonly mode: "dev" } key=mode target_type="dev"
-/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=config placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=config root=config
-/// @resolution.place source=config.nested placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=config.nested placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=config.nested root=config keys=[nested]
 /// @resolution.access source=config.nested.mode root=config keys=[nested, mode]
 "#,
@@ -243,9 +243,9 @@ const mode = value.env.mode;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.env receiver={ readonly env: { readonly mode: "dev" } } type={ readonly mode: "dev" } kind=field target_receiver={ readonly env: { readonly mode: "dev" } } key=env target_type={ readonly mode: "dev" }
 /// @resolution.member source=value.env.mode receiver={ readonly mode: "dev" } type="dev" kind=field target_receiver={ readonly mode: "dev" } key=mode target_type="dev"
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
-/// @resolution.place source=value.env placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value.env placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value.env root=value keys=[env]
 /// @resolution.access source=value.env.mode root=value keys=[env, mode]
 "#,

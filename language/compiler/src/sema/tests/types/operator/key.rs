@@ -390,9 +390,9 @@ class User {
         /// @type.node source=this.name type=Managed<string, User.print.P0>
         /// @resolution.member source=this.name receiver=Managed<User, User.print.P0> type=Managed<string, User.print.P0> kind=field target_receiver=Managed<User, User.print.P0> key=name target=User.name target_type=Managed<string, User.print.P0>
         /// @resolution.receiver source=this kind=this declaration=User type=Managed<User, User.print.P0>
-        /// @resolution.place source=this placement=User.print.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=User.print.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=User.print.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this.name placement=User.print.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }

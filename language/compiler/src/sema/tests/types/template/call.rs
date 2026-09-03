@@ -43,7 +43,7 @@ const segment = parse("id:users");
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -92,7 +92,7 @@ const key = build("users");
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=key root=key
 "#,
     );
@@ -147,12 +147,12 @@ const text = identity(value);
 /// @generic.instantiation id=identity<string> template=identity arguments=(string)
 /// @generic.instance id=identity<string> template=identity arguments=(string)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 
 text satisfies string;
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=text root=text
 "#,
     );
@@ -200,7 +200,7 @@ parse(key);
 /// @resolution.call source=parse(key) parameters=(`id:${string}`) arguments=(provided(key) as `id:${string}`) return=string kind=symbol target=parse instance=parse<string>
 /// @generic.instantiation id=parse<string> template=parse arguments=(string)
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=key root=key
 "#,
         r#"
@@ -254,7 +254,7 @@ const segment = parse("id:");
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=segment
 "#,
     );

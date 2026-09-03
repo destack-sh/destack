@@ -195,7 +195,7 @@ class Holder {
         /// @resolution.access source=this.user root=this keys=[user]
         /// @resolution.assignment source=this.user write="receiver=Holder, target=field(receiver=Holder, target=Holder.user, type=User), type=User" type=User
         /// @resolution.name source=user target=Holder.constructor.user
-        /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=user root=Holder.constructor.user
 
     }
@@ -218,7 +218,7 @@ function run(holder: Holder): User {
 
     holder.user = make();
     /// @resolution.name source=holder target=run.holder
-    /// @resolution.place source=holder placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=holder placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=holder root=run.holder
     /// @resolution.pattern.assign source=holder.user kind=place
     /// @resolution.access source=holder.user root=run.holder keys=[user]
@@ -289,8 +289,8 @@ function run(): void {
     /// @type.symbol symbol=run.users source=users type=User[]
     /// @resolution.pattern source=users kind=binding target=run.users
     /// @resolution.name source=User target=User
-    /// @resolution.call source=[make()] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<User>
-    /// @generic.instantiation id=arrayFromSlice<User> template=arrayFromSlice arguments=(User)
+    /// @resolution.call source=[make()] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(make()) as User) return=User[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<User>
+    /// @generic.instantiation id=arrayFromOwnedSlice<User> template=arrayFromOwnedSlice arguments=(User)
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
     /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit

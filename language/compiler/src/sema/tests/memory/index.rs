@@ -36,8 +36,8 @@ function run<'a>(values: int32[], points: Point[], view: &'a readonly int32[]): 
     values[0] = 1;
     values[1] += 2;
     points[0].x = 3;
-    const borrowed: &'frame int32 = &values[0];
-    const exclusive: &'frame exclusive int32 = &exclusive values[1];
+    const borrowed: &'managed int32 = &values[0];
+    const exclusive: &'managed exclusive int32 = &exclusive values[1];
     const viewed: int32 = view[0];
     view[0] = 4;
     return read + viewed;
@@ -66,59 +66,59 @@ function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
     /// @type.symbol symbol=run.read source=read type=int32
     /// @resolution.pattern source=read kind=binding target=run.read
     /// @resolution.name source=values target=run.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=run.values
     /// @resolution.access source=values[0] root=run.values keys=[0]
-    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame int32, \"exclusive\">)"
+    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
     /// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
 
     values[0] = 1;
     /// @resolution.name source=values target=run.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=run.values
     /// @resolution.pattern.assign source=values[0] kind=place
-    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, write as int32), return=void)" type=int32
+    /// @resolution.assignment source=values[0] write="indexSet#1(parameters=(isize, int32), arguments=(provided(0) as isize, supplied as int32), return=void)" type=int32
     /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
 
     values[1] += 2;
     /// @resolution.name source=values target=run.values
     /// @resolution.operator source="values[1] += 2" type=int32 operator="+" kind=builtin operands=[values[1] as int32 families=(integer), 2 as int32 families=(integer)]
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=run.values
     /// @resolution.pattern.assign source=values[1] kind=place
-    /// @resolution.assignment source=values[1] read="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'frame int32, \"exclusive\">)" write="indexSet#1(parameters=(isize, int32), arguments=(provided(1) as isize, write as int32), return=void)" type=int32
+    /// @resolution.assignment source=values[1] read="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<Borrowed<int32, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)" write="indexSet#1(parameters=(isize, int32), arguments=(provided(1) as isize, supplied as int32), return=void)" type=int32
 
     points[0].x = 3;
     /// @resolution.name source=points target=run.points
-    /// @resolution.place source=points placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=points placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=points root=run.points
-    /// @resolution.place source=points[0] placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=points[0] placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=points[0] root=run.points keys=[0]
-    /// @resolution.subscript source=points[0] type=Point kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame Point, \"exclusive\">)"
+    /// @resolution.subscript source=points[0] type=Point kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<Point, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
     /// @resolution.pattern.assign source=points[0].x kind=place
     /// @resolution.access source=points[0].x root=run.points keys=[0, x]
     /// @resolution.assignment source=points[0].x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=int32), type=int32" type=int32
     /// @generic.instantiation id="index#1<Point, \"exclusive\">" template=index#1 arguments=(Point, "exclusive")
 
     const borrowed: &int32 = &values[0];
-    /// @type.symbol symbol=run.borrowed source=borrowed type=&'frame int32
+    /// @type.symbol symbol=run.borrowed source=borrowed type=Borrowed<int32, "managed" & "local", "mutable">
     /// @resolution.pattern source=borrowed kind=binding target=run.borrowed
     /// @resolution.name source=values target=run.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=run.values
-    /// @resolution.place source=values[0] placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values[0] placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values[0] root=run.values keys=[0]
-    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'frame int32, \"exclusive\">)"
+    /// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<Borrowed<int32, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
 
     const exclusive: &exclusive int32 = &exclusive values[1];
-    /// @type.symbol symbol=run.exclusive source=exclusive type=&'frame exclusive int32
+    /// @type.symbol symbol=run.exclusive source=exclusive type=Borrowed<int32, "managed" & "local", "exclusive">
     /// @resolution.pattern source=exclusive kind=binding target=run.exclusive
     /// @resolution.name source=values target=run.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values root=run.values
-    /// @resolution.place source=values[1] placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=values[1] placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=values[1] root=run.values keys=[1]
-    /// @resolution.subscript source=values[1] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'frame int32, \"exclusive\">)"
+    /// @resolution.subscript source=values[1] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<Borrowed<int32, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
 
     const viewed = view[0];
     /// @type.symbol symbol=run.viewed source=viewed type=int32
@@ -218,7 +218,7 @@ function copy(source: &readonly int32[], target: &exclusive int32[]): void {
         /// @resolution.place source=target placement=copy.'b lifetime=copy.'b access="exclusive"
         /// @resolution.access source=target root=copy.target
         /// @resolution.pattern.assign source=target[index] kind=place
-        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, int32), arguments=(provided(index) as isize, write as int32), return=void)" type=int32
+        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, int32), arguments=(provided(index) as isize, supplied as int32), return=void)" type=int32
         /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
         /// @resolution.name source=index target=copy.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
@@ -250,7 +250,7 @@ function copyManaged(target: int32[], source: int32[]): void {
     /// @resolution.access source=index root=copyManaged.index
     /// @resolution.name source=source target=copyManaged.source
     /// @resolution.member source=source.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
-    /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=source root=copyManaged.source
     /// @resolution.name source=index target=copyManaged.index
     /// @resolution.assignment source=index read=binding(copyManaged.index) write=binding(copyManaged.index) type=isize
@@ -259,18 +259,18 @@ function copyManaged(target: int32[], source: int32[]): void {
 
         target[index] = source[index];
         /// @resolution.name source=target target=copyManaged.target
-        /// @resolution.place source=target placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=target placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=target root=copyManaged.target
         /// @resolution.pattern.assign source=target[index] kind=place
-        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, int32), arguments=(provided(index) as isize, write as int32), return=void)" type=int32
+        /// @resolution.assignment source=target[index] write="indexSet#1(parameters=(isize, int32), arguments=(provided(index) as isize, supplied as int32), return=void)" type=int32
         /// @resolution.name source=index target=copyManaged.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=copyManaged.index
         /// @resolution.name source=source target=copyManaged.source
-        /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=source root=copyManaged.source
-        /// @resolution.place source=source[index] placement="local" lifetime="frame" access="exclusive"
-        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<&'frame int32, \"exclusive\">)"
+        /// @resolution.place source=source[index] placement="local" lifetime="managed" access="exclusive"
+        /// @resolution.subscript source=source[index] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(index) as isize), return=WithAccess<Borrowed<int32, \"managed\" & \"local\", \"mutable\">, \"exclusive\">)"
         /// @generic.instantiation id="index#1<int32, \"exclusive\">" template=index#1 arguments=(int32, "exclusive")
         /// @resolution.name source=index target=copyManaged.index
         /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"

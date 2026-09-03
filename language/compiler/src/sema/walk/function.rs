@@ -117,11 +117,11 @@ impl<'check, 'state> WalkState<'check, 'state> {
 
         // replace each tracked return region with the elected input
         if !tracked.is_empty() {
-            // pick the result region: the unique input, the union of several, or constant storage
+            // pick the result region: the unique input, the union of several, or managed storage
             let input_region = match input_lifetimes.as_slice() {
                 [] => {
-                    let extent = self.lifetime_literal(dir::Lifetime::Static)?;
-                    let spaces = self.check.place_literal(dir::Space::Constant)?;
+                    let extent = self.lifetime_literal(dir::Lifetime::Managed)?;
+                    let spaces = self.check.place_literal(dir::Space::Local)?;
 
                     self.check.intern_region(extent, spaces)?
                 }

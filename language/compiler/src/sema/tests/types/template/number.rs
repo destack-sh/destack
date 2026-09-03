@@ -300,7 +300,7 @@ const value = parse("-1");
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 "#,
     );

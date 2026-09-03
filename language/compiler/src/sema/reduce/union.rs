@@ -440,6 +440,8 @@ impl CheckState<'_> {
             (_, dir::Type::Never) => true,
             (target, dir::Type::Literal(literal)) => literal.widens_to(&target),
             (target, dir::Type::Range(range)) => range.widens_to(&target),
+            // an enum covers each of its own variants
+            (_, dir::Type::Variant(variant)) => self.is_same_type(source, variant.owner)?,
             _ => false,
         };
 

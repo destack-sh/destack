@@ -141,7 +141,7 @@ requireEqual(stringValue);
 /// @resolution.call source=requireEqual(stringValue) parameters=(string) arguments=(provided(stringValue) as string) return=void kind=symbol target=requireEqual instance=requireEqual<string>
 /// @generic.instantiation id=requireEqual<string> template=requireEqual arguments=(string)
 /// @resolution.name source=stringValue target=stringValue
-/// @resolution.place source=stringValue placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=stringValue placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=stringValue root=stringValue
 
 requireEqual(bigintValue);
@@ -149,7 +149,7 @@ requireEqual(bigintValue);
 /// @resolution.call source=requireEqual(bigintValue) parameters=(bigint) arguments=(provided(bigintValue) as bigint) return=void kind=symbol target=requireEqual instance=requireEqual<bigint>
 /// @generic.instantiation id=requireEqual<bigint> template=requireEqual arguments=(bigint)
 /// @resolution.name source=bigintValue target=bigintValue
-/// @resolution.place source=bigintValue placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bigintValue placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=bigintValue root=bigintValue
 
 requireEqual(true);

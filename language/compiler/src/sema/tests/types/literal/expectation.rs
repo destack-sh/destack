@@ -471,9 +471,9 @@ function sequence(depth: isize): string {
 
         output += index == 0 ? "a" : "b";
         /// @resolution.name source=output target=sequence.output
-        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
+        /// @resolution.operator source="output += index == 0 ? \"a\" : \"b\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided(index == 0 ? "a" : "b") as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
         /// @resolution.pattern.assign source=output kind=place
-        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
         /// @resolution.assignment source=output read=binding(sequence.output) write=binding(sequence.output) type=string
         /// @resolution.access source=output root=sequence.output
         /// @resolution.name source=index target=sequence.index
@@ -484,7 +484,7 @@ function sequence(depth: isize): string {
     }
     return output;
     /// @resolution.name source=output target=sequence.output
-    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=output root=sequence.output
 
 }
@@ -599,8 +599,8 @@ function settle(): void {
     const mixed = [1, 2.5];
     /// @type.symbol symbol=settle.mixed source=mixed type=float64[]
     /// @resolution.pattern source=mixed kind=binding target=settle.mixed
-    /// @resolution.call source=[1, 2.5] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<float64>
-    /// @generic.instantiation id=arrayFromSlice<float64> template=arrayFromSlice arguments=(float64)
+    /// @resolution.call source=[1, 2.5] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest(1, 2.5) as float64) return=float64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<float64>
+    /// @generic.instantiation id=arrayFromOwnedSlice<float64> template=arrayFromOwnedSlice arguments=(float64)
 
     let counter = 1;
     /// @type.symbol symbol=settle.counter source=counter type=int64

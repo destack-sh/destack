@@ -48,7 +48,7 @@ function paint(item: Drawable): void {
     /// @resolution.name source=item target=paint.item
     /// @resolution.member source=item.draw receiver=Drawable type=(this: Drawable) => void kind=symbol target_receiver=Drawable dispatch=dynamic constraint=Drawable target=Drawable.draw
     /// @resolution.call source=item.draw() parameters=() return=void kind=dynamic target=Drawable.draw receiver=Drawable constraint=Drawable
-    /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=item placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=item root=paint.item
 
 }
@@ -100,9 +100,9 @@ function paint(item: Drawable): void {
     /// @resolution.name source=item target=paint.item
     /// @resolution.member source=item.draw receiver={ draw(): void } type=() => void kind=field target_receiver={ draw(): void } key=draw target_type=() => void
     /// @resolution.call source=item.draw() parameters=() return=void kind=expression target=expression
-    /// @resolution.place source=item placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=item placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=item root=paint.item
-    /// @resolution.place source=item.draw placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=item.draw placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=item.draw root=paint.item keys=[draw]
 
 }

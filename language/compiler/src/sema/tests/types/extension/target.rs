@@ -452,7 +452,7 @@ const arity = increment.arity();
 /// @resolution.name source=increment target=increment
 /// @resolution.member source=increment.arity receiver=Function<(int32,), int32> type=(this: Function<(int32,), int32>) => int32 kind=symbol target_receiver=Function<(int32,), int32> target=arity#1
 /// @resolution.call source=increment.arity() parameters=() return=int32 kind=symbol target=arity#1 receiver=Function<(int32,), int32>
-/// @resolution.place source=increment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=increment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=increment root=increment
 "#,
         r#"
@@ -499,9 +499,9 @@ extension of { x: int32 } {
         /// @resolution.member source=this.x receiver=Managed<{ x: int32 }, double.P0> type=int32 kind=field target_receiver=Managed<{ x: int32 }, double.P0> key=x target_type=int32
         /// @resolution.operator source="this.x * 2" type=int32 operator="*" kind=builtin operands=[this.x as int32 families=(integer), 2 as int32 families=(integer)]
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<{ x: int32 }, double.P0>
-        /// @resolution.place source=this placement=double.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=double.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement=double.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this.x placement=double.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this.x root=this keys=[x]
 
     }
@@ -588,9 +588,9 @@ extension of Named & Aged {
         return this.name;
         /// @resolution.member source=this.name receiver=Managed<Named & Aged, describe.P0> type=Managed<string, describe.P0> kind=field target_receiver=Managed<Named & Aged, describe.P0> key=name target=Named.name target_type=Managed<string, describe.P0>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<Named & Aged, describe.P0>
-        /// @resolution.place source=this placement=describe.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=describe.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=describe.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this.name placement=describe.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }

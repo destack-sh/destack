@@ -34,10 +34,14 @@ impl CheckState<'_> {
                 target_region.space,
             )?;
 
-            // fail on a space conflict between two concrete spaces
+            // fail on a space conflict between two concrete spaces, constant storage fitting any
+            let source_space = self.place_space(source_region.space)?;
+            let is_constant_source =
+                relation != Relation::Equal && source_space == Some(dir::Space::Constant);
             if spaces == Verdict::Fails
-                && self.place_space(source_region.space)?.is_some()
+                && source_space.is_some()
                 && self.place_space(target_region.space)?.is_some()
+                && !is_constant_source
             {
                 return Ok(Some(Verdict::Fails));
             }
