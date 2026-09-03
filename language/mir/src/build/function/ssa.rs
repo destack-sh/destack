@@ -26,6 +26,13 @@ impl<'a> FunctionBuilder<'a> {
         self.current_block = Some(block);
     }
 
+    /// Return whether any edge enters one block.
+    pub fn is_entered(&self, block: LocalNodeId<Block>) -> bool {
+        self.predecessors
+            .get(&block)
+            .is_some_and(|predecessors| !predecessors.is_empty())
+    }
+
     /// Get the current block.
     ///
     /// # Panics

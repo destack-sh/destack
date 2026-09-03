@@ -99,12 +99,30 @@ impl InitializationTable {
             }
             Instruction::FieldGet {
                 aggregate, field, ..
-            }
-            | Instruction::FieldAddr {
-                aggregate, field, ..
             } => {
                 let projection = Projection::Field { index: *field };
                 self.collect_projection(*aggregate, projection, state, &mut unavailable);
+            }
+            // collect the aggregate an address names, since a later store initializes it
+            Instruction::FieldAddr { aggregate, .. } => {
+                self.collect_value(*aggregate, state, &mut unavailable);
+            }
+            // require the owned storage a load reads
+            Instruction::Load { pointer, .. } => {
+                self.collect_value(*pointer, state, &mut unavailable);
+                if let Some(path) = self.paths.pointee(*pointer)
+                    && let Some(path) = state.unavailable(path, &self.paths)
+                {
+                    unavailable.push(state.unavailability(path));
+                }
+            }
+            // require the reference a free releases, down to its own storage
+            Instruction::Free { value } => {
+                if let Some(path) = self.paths.value(*value)
+                    && let Some(path) = state.unavailable_shallow(path, &self.paths)
+                {
+                    unavailable.push(state.unavailability(path));
+                }
             }
             Instruction::ElementGet {
                 aggregate, index, ..
@@ -303,6 +321,16 @@ impl InitializationTable {
             } if self.paths.value(*destination).is_some() => {
                 self.uninitialize_value(*variant, anchor, state);
             }
+            // move the owned storage a load reads
+            Instruction::Load {
+                destination,
+                pointer,
+                ..
+            } if self.paths.value(*destination).is_some() => {
+                if let Some(path) = self.paths.pointee(*pointer) {
+                    state.move_path(path, anchor, &self.paths);
+                }
+            }
             _ => {}
         }
 
@@ -311,9 +339,23 @@ impl InitializationTable {
             self.uninitialize_value(value, anchor, state);
         }
 
+        // initialize the storage a callee writes through its arguments
+        if let Instruction::Call { call, .. } = instruction {
+            for argument in tree.get_values(call.arguments) {
+                if let Some(path) = self.paths.initialized_pointee(*argument) {
+                    state.initialize(path, &self.paths);
+                }
+            }
+        }
+
         // initialize storage defined by the instruction
         if let Instruction::LocalSet { local, .. } = instruction
             && let Some(path) = self.paths.local(*local)
+        {
+            state.initialize(path, &self.paths);
+        }
+        if let Instruction::Store { pointer, .. } = instruction
+            && let Some(path) = self.paths.pointee(*pointer)
         {
             state.initialize(path, &self.paths);
         }
@@ -494,6 +536,22 @@ impl InitializationState {
             .descendants(path)
             .skip(1)
             .find(|child| self.get(*child) != Initialization::Initialized)
+    }
+
+    /// Return an unavailable path among one path and the paths containing it.
+    pub fn unavailable_shallow(&self, path: MovePathId, paths: &MoveTable) -> Option<MovePathId> {
+        let mut current = Some(path);
+
+        // require the path and every containing path
+        while let Some(path) = current {
+            if self.get(path) != Initialization::Initialized {
+                return Some(path);
+            }
+
+            current = paths.get(path).parent;
+        }
+
+        None
     }
 
     /// Return an unavailable path outside one replaced child.

@@ -564,6 +564,7 @@ impl TypeHasher {
                     self.hasher.write_u8(2);
                     self.hasher.write_u32(slot.0);
                 }
+                LifetimeTerm::Managed => self.hasher.write_u8(3),
             }
         }
     }

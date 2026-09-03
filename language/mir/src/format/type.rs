@@ -691,6 +691,7 @@ pub(super) fn format_lifetime_terms<'a>(
         match source {
             LifetimeTerm::Static => write!(f, [token("'static")])?,
             LifetimeTerm::Frame => write!(f, [token("'frame")])?,
+            LifetimeTerm::Managed => write!(f, [token("'managed")])?,
             LifetimeTerm::Slot(index) => {
                 if let Some(name) = f.context().lifetime_name(*index).map(str::to_string) {
                     write!(f, [copied_text(&name)])?;

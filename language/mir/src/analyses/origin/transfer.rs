@@ -1,6 +1,6 @@
 use crate::{
-    AddressKind, Instruction, LocalNodeId, Path, Place, PlaceOrigin, Projection, ReferenceKind,
-    Type, TypeId, Value,
+    AddressKind, Instruction, Intrinsic, LocalNodeId, Path, Place, PlaceOrigin, Projection,
+    ReferenceKind, Type, TypeId, Value,
 };
 
 use super::context::OriginContext;
@@ -17,16 +17,29 @@ impl OriginState {
 
         self.transfer_instruction(cx, instruction);
 
-        // bind the loan this instruction issues over the borrowed place's origin
-        if let Some(destination) = instruction.destination()
-            && let Some(loan_id) = cx.loans.root(destination)
-        {
+        // bind loans onto the value this instruction defines
+        let Some(destination) = instruction.destination() else {
+            return;
+        };
+
+        // merge the origin of every borrowed place this instruction loans
+        let mut issued = Origin::none();
+        for loan_id in cx.loans.roots_of(destination) {
             let loan = cx.loans.get(loan_id);
             let place = loan
                 .place()
                 .unwrap_or_else(|| unreachable!("instruction loan has no concrete place"));
-            let origin = self.place(cx, place);
-            self.insert(loan.representation, origin.with_loan(loan_id));
+            issued = issued.merge(&self.place(cx, place).with_loan(loan_id));
+        }
+
+        if issued.is_empty() {
+            return;
+        }
+
+        // keep the regions a call signature mapped beside the reborrows
+        match instruction {
+            Instruction::Call { .. } => self.merge_origins_at(destination, &Path::root(), &issued),
+            _ => self.insert(destination, issued),
         }
     }
 
@@ -353,6 +366,16 @@ impl OriginState {
                 ..
             } => {
                 self.copy(cx, *argument, *destination);
+            }
+            // keep the origin of the reference a reinterpret reads
+            Instruction::Intrinsic {
+                destination: Some(destination),
+                intrinsic: Intrinsic::Transmute,
+                arguments,
+            } => {
+                if let [argument] = cx.tree.get_values(*arguments) {
+                    self.copy(cx, *argument, *destination);
+                }
             }
             Instruction::NewZeroed { destination, .. }
             | Instruction::NewUninit { destination, .. }

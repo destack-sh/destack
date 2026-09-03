@@ -122,12 +122,15 @@ impl LoanTable {
 
     /// Return the root loan carried by one value.
     pub fn root(&self, value: Value) -> Option<LoanId> {
-        let index = self
-            .roots
-            .binary_search_by_key(&value, |root| root.value)
-            .ok()?;
+        self.roots_of(value).next()
+    }
 
-        Some(self.roots[index].loan)
+    /// Iterate every root loan one value holds, one per reborrowed argument for a call result.
+    pub fn roots_of(&self, value: Value) -> impl Iterator<Item = LoanId> + '_ {
+        let start = self.roots.partition_point(|root| root.value < value);
+        let end = self.roots.partition_point(|root| root.value <= value);
+
+        self.roots[start..end].iter().map(|root| root.loan)
     }
 
     /// Return the active loan conflicting with a new loan.

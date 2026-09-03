@@ -326,6 +326,8 @@ impl StorageRoot {
                     instruction: right, ..
                 },
             ) => left != right,
+            (StorageRoot::Parameter { .. }, StorageRoot::Allocation { .. })
+            | (StorageRoot::Allocation { .. }, StorageRoot::Parameter { .. }) => true,
             (StorageRoot::Parameter { .. }, _) | (_, StorageRoot::Parameter { .. }) => false,
             _ => true,
         }
@@ -506,6 +508,8 @@ pub(super) struct MemoryRegionBuilder<'a> {
     tree: &'a mir::Tree,
     /// The MIR function.
     function: &'a mir::Function,
+    /// Layouts computed for the element types this walk indexes.
+    layouts: mir::LayoutTable,
     /// Type context for layout sensitive operations.
     target_layout: TargetLayout,
 }
@@ -523,6 +527,7 @@ impl<'a> MemoryRegionBuilder<'a> {
             definitions,
             tree,
             function,
+            layouts: mir::LayoutTable::new(),
             target_layout,
         }
     }
@@ -625,6 +630,7 @@ impl<'a> MemoryRegionBuilder<'a> {
 
                 let mut region = self.region(base);
 
+                // refine the place by the offset the element stride names
                 let scale = self.expect_element_size(base);
                 if let MemoryRegion::Place(place) = &mut region {
                     place.add_indexed_offset(index, scale);
@@ -717,7 +723,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     }
 
     /// Return the byte stride for one indexed value.
-    fn expect_element_size(&self, array: mir::Value) -> u64 {
+    fn expect_element_size(&mut self, array: mir::Value) -> u64 {
         let ty_id = self.value_type(array);
         let element_id = match self.tree.get(ty_id) {
             mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
@@ -727,14 +733,20 @@ impl<'a> MemoryRegionBuilder<'a> {
             _ => panic!("element.address requires an indexed value, got {ty_id:?}"),
         };
 
-        match self
+        // read the stride the element type names, else the one its layout computes
+        if let Some(size) = self
             .tree
             .get(element_id)
             .byte_size(self.tree, self.target_layout.pointer_bits())
+            .filter(|size| *size > 0)
         {
-            Some(size) if size > 0 => size,
-            _ => panic!("element.address requires a byte-sized element, got {element_id:?}"),
+            return size;
         }
+        let layout = mir::LayoutBuilder::new(self.tree, &mut self.layouts, self.target_layout)
+            .layout_type(element_id)
+            .unwrap_or_else(|error| panic!("element.address requires a laid-out element: {error}"));
+
+        u64::from(self.layouts.layout(layout).size)
     }
 
     /// Return the element type for an indexed pointee.

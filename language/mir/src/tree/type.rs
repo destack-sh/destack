@@ -1255,4 +1255,16 @@ impl Tree {
     pub fn undefined_case(&self, ty: TypeId) -> Option<NullishCase> {
         self.nullish_case(ty, Nullish::Undefined)
     }
+
+    /// Return the case one variant stores a payload representation in, when one does.
+    pub fn payload_case(&self, ty: TypeId, payload: TypeId) -> Option<u32> {
+        let Type::Variant { cases, .. } = self.get(ty) else {
+            return None;
+        };
+
+        cases
+            .iter()
+            .position(|case| self.types_equal(case.ty, payload))
+            .map(|index| index as u32)
+    }
 }

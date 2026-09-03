@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Analysis, Function, FunctionCache, Instruction, Local, LocalId, Mutation, NodeTable, Place,
-    PlaceTable, Projection, Tree, Type, TypeId, Value,
+    PlaceOrigin, PlaceTable, Projection, ReferenceKind, Tree, Type, TypeId, Value,
 };
 
 /// Dense structural paths whose initialization can change independently.
@@ -19,6 +19,10 @@ pub struct MoveTable {
     values: Vec<Option<MovePathId>>,
     /// Root paths keyed by function local.
     locals: NodeTable<Local, Option<MovePathId>>,
+    /// The owned pointee path each load or store address moves through.
+    pointees: FxIndexMap<Value, MovePathId>,
+    /// The call arguments whose pointee the callee initializes.
+    initialized_pointees: FxIndexSet<Value>,
 }
 
 impl MoveTable {
@@ -29,6 +33,8 @@ impl MoveTable {
             ids: FxIndexMap::default(),
             values: vec![None; function.value_types().len()],
             locals: NodeTable::from_nodes(function.locals(), || None),
+            pointees: FxIndexMap::default(),
+            initialized_pointees: FxIndexSet::default(),
         };
 
         // create roots for every move-only SSA value
@@ -96,7 +102,115 @@ impl MoveTable {
             index += 1;
         }
 
+        // track the owned pointee each move-only load or store addresses
+        for &block in function.blocks() {
+            for &instruction in &tree.get(block).instructions {
+                // track the storage a callee initializes through its uninitialized argument
+                if let Instruction::Call { call, .. } = tree.get(instruction) {
+                    for &argument in tree.get_values(call.arguments) {
+                        // keep the arguments addressing uninitialized storage
+                        if !addresses_uninitialized(argument, function, tree) {
+                            continue;
+                        }
+
+                        // record the pointee the callee initializes
+                        if let Some(path) = table.track_pointee(argument, function, tree, places) {
+                            table.pointees.insert(argument, path);
+                            table.initialized_pointees.insert(argument);
+                        }
+                    }
+
+                    continue;
+                }
+
+                // read the address and the moved type out of a load or a store
+                let (pointer, ty) = match tree.get(instruction) {
+                    Instruction::Load {
+                        destination,
+                        pointer,
+                        ..
+                    } => (*pointer, function.expect_value_type(*destination)),
+                    Instruction::Store { pointer, value } => {
+                        (*pointer, function.expect_value_type(*value))
+                    }
+                    _ => continue,
+                };
+                // keep the move-only addresses this walk has yet to reach
+                if tree.get(ty).copy(tree).is_yes() || table.pointees.contains_key(&pointer) {
+                    continue;
+                }
+
+                // record the pointee this address moves through
+                if let Some(path) = table.track_pointee(pointer, function, tree, places) {
+                    table.pointees.insert(pointer, path);
+                }
+            }
+        }
+
         table
+    }
+
+    /// Return the owned pointee path one load or store address moves through, when it is tracked.
+    pub fn pointee(&self, pointer: Value) -> Option<MovePathId> {
+        self.pointees.get(&pointer).copied()
+    }
+
+    /// Return the pointee path a callee initializes through one argument, when it addresses one.
+    pub fn initialized_pointee(&self, argument: Value) -> Option<MovePathId> {
+        self.initialized_pointees
+            .contains(&argument)
+            .then(|| self.pointee(argument))
+            .flatten()
+    }
+
+    /// Track the owned storage one address points at: a local projection or a unique pointee.
+    fn track_pointee(
+        &mut self,
+        pointer: Value,
+        function: &Function,
+        tree: &Tree,
+        places: &PlaceTable,
+    ) -> Option<MovePathId> {
+        // name the whole pointee of a bare unique reference through its dereference
+        let mut place = places.get(pointer).clone();
+        let is_bare = place.path.is_root() && place.origin == PlaceOrigin::Value(pointer);
+        let is_unique = tree
+            .get(function.expect_value_type(pointer))
+            .reference_kind()
+            == Some(ReferenceKind::Unique);
+        if is_bare && is_unique {
+            place.push(Projection::Deref);
+        }
+
+        // move through frame storage and unique pointees alone
+        let root = match place.origin {
+            PlaceOrigin::Local(local) => self.local(local)?,
+            PlaceOrigin::Value(value)
+                if place.path.projections.first() == Some(&Projection::Deref) =>
+            {
+                self.value(value)?
+            }
+            PlaceOrigin::Value(_) | PlaceOrigin::Global(_) => return None,
+        };
+
+        // expand the path one projection at a time down to the addressed storage
+        let mut current = root;
+        for (depth, projection) in place.path.projections.iter().enumerate() {
+            // expand the children of this step on first arrival
+            if self.children(current).is_empty() {
+                let ty = self.get(current).ty;
+                let prefix = self.get(current).place.clone();
+                self.expand(current, prefix, ty, tree);
+            }
+
+            // step to the child the projection names
+            let child = self.children(current).iter().copied().find(|child| {
+                self.get(*child).place.path.projections.get(depth) == Some(projection)
+            })?;
+            current = child;
+        }
+
+        Some(current)
     }
 
     /// Return the number of move paths.
@@ -253,6 +367,11 @@ impl MoveTable {
                 self.expand(parent, place, *base, tree);
                 return;
             }
+            Type::Reference {
+                kind: ReferenceKind::Unique,
+                pointee,
+                ..
+            } => vec![(Projection::Deref, *pointee)],
             _ => return,
         };
 
@@ -331,4 +450,13 @@ impl MovePathId {
     pub const fn index(self) -> usize {
         self.0 as usize
     }
+}
+
+/// Return whether one value addresses uninitialized storage.
+fn addresses_uninitialized(value: Value, function: &Function, tree: &Tree) -> bool {
+    let Type::Reference { pointee, .. } = tree.get(function.expect_value_type(value)) else {
+        return false;
+    };
+
+    matches!(tree.get(*pointee), Type::Uninit { .. })
 }

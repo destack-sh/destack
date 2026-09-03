@@ -33,13 +33,15 @@ pub enum Projection {
         /// The runtime length value.
         length: Value,
     },
+    /// The whole pointee behind a unique reference.
+    Deref,
 }
 
 impl Projection {
     /// Replace value references inside this projection.
     fn replace_value(&mut self, from: Value, to: Value) {
         match self {
-            Self::Field { .. } | Self::Element { .. } | Self::Variant { .. } => {}
+            Self::Field { .. } | Self::Element { .. } | Self::Variant { .. } | Self::Deref => {}
             Self::Index { index } => {
                 if *index == from {
                     *index = to;

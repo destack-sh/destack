@@ -2,7 +2,7 @@ use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
 use crate::{
-    Access, AddressKind, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
+    Access, AddressKind, Block, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
     Nullability, ReferenceKind, Storage, Type, Value,
 };
 
@@ -58,6 +58,17 @@ impl<'a> FunctionBuilder<'a> {
     /// Store to a local variable.
     pub fn local_set(&mut self, local: LocalNodeId<Local>, value: Value) {
         self.insert_instruction(Instruction::LocalSet { local, value });
+    }
+
+    /// Set a local at the end of one block, ahead of its terminator.
+    pub fn local_set_at(
+        &mut self,
+        block: LocalNodeId<Block>,
+        local: LocalNodeId<Local>,
+        value: Value,
+    ) {
+        let instruction = self.insert(Instruction::LocalSet { local, value });
+        self.tree.get_mut(block).instructions.push(instruction);
     }
 
     /// Get the address of a mutable global variable.

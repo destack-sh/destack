@@ -37,6 +37,8 @@ pub enum LifetimeTerm {
     Static,
     /// Storage owned by the current activation.
     Frame,
+    /// Managed storage, alive while reachable and held across parks by pins.
+    Managed,
     /// A lifetime slot in the current lifetime environment.
     Slot(LifetimeSlot),
 }
@@ -75,6 +77,11 @@ impl Lifetime {
     /// Create a lifetime rooted in the current activation.
     pub fn frame() -> Self {
         Self::new([LifetimeTerm::Frame])
+    }
+
+    /// Create the managed storage lifetime.
+    pub fn managed() -> Self {
+        Self::new([LifetimeTerm::Managed])
     }
 
     /// Create a lifetime bound to one slot.
@@ -126,7 +133,7 @@ impl Lifetime {
     pub fn slot_indices(&self) -> impl Iterator<Item = u32> + '_ {
         self.terms.iter().filter_map(|term| match term {
             LifetimeTerm::Slot(index) => Some(index.0),
-            LifetimeTerm::Static | LifetimeTerm::Frame => None,
+            LifetimeTerm::Static | LifetimeTerm::Frame | LifetimeTerm::Managed => None,
         })
     }
 
@@ -161,6 +168,7 @@ impl Lifetime {
         match (longer, shorter) {
             (LifetimeTerm::Static, _) => true,
             (LifetimeTerm::Frame, LifetimeTerm::Frame) => true,
+            (LifetimeTerm::Managed, LifetimeTerm::Managed | LifetimeTerm::Frame) => true,
             (LifetimeTerm::Slot(_), LifetimeTerm::Frame) => true,
             (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) if left == right => true,
             (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) => {

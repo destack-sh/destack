@@ -3,7 +3,7 @@ use crate::analyses::{
 };
 use crate::{
     AddressKind, Block, ControlTable, Function, Instruction, LocalNodeId, Path, Place, PlaceTable,
-    ReferenceKind, Tree, Value,
+    Point, ReferenceKind, Tree, Value,
 };
 
 use super::context::OriginContext;
@@ -143,10 +143,49 @@ impl OriginBuilder<'_> {
                 if let Some((representation, loan)) = self.issued_loan(instruction_id) {
                     self.loans.insert(representation, Path::root(), loan);
                 }
+                for (representation, loan) in self.call_reborrow_loans(instruction_id) {
+                    self.loans.insert(representation, Path::root(), loan);
+                }
             }
         }
 
         self.loans.sort();
+    }
+
+    /// Return the loans one call result issues.
+    ///
+    /// The result issues one reborrow per argument whose region it covers.
+    fn call_reborrow_loans(&self, instruction_id: LocalNodeId<Instruction>) -> Vec<(Value, Loan)> {
+        let instruction = self.tree.get(instruction_id);
+        let Instruction::Call { call, .. } = instruction else {
+            return Vec::new();
+        };
+        let Some(destination) = instruction.destination() else {
+            return Vec::new();
+        };
+
+        // reborrow through the resolved declaration's regions
+        let target = instruction
+            .call_direct_target()
+            .or_else(|| self.resolution.target(Point::Instruction(instruction_id)));
+        let arguments = self.tree.get_values(call.arguments);
+        let cx = self.context();
+
+        cx.call_reborrows(target, call.signature, arguments)
+            .into_iter()
+            .map(|(argument, access)| {
+                let loan = Loan::new(
+                    self.places.get(argument).clone(),
+                    Some(argument),
+                    access,
+                    destination,
+                    [],
+                    instruction_id.into_any(),
+                );
+
+                (destination, loan)
+            })
+            .collect()
     }
 
     /// Return the loan one instruction issues: a borrow address, or a reference cast off an owning handle.
@@ -262,11 +301,12 @@ impl OriginBuilder<'_> {
             // replay the block, reading each issued loan's origins at its issue
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
-                if let Some(destination) = instruction.destination()
-                    && let Some(loan) = cx.loans.root(destination)
-                    && let Some(parent) = cx.loans.get(loan).source()
-                {
-                    parents.push((loan, state.value(parent).loans().to_vec()));
+                if let Some(destination) = instruction.destination() {
+                    for loan in cx.loans.roots_of(destination) {
+                        if let Some(parent) = cx.loans.get(loan).source() {
+                            parents.push((loan, state.value(parent).loans().to_vec()));
+                        }
+                    }
                 }
                 state.advance(&cx, instruction_id);
             }

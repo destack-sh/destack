@@ -186,6 +186,7 @@ impl Tree {
             match term {
                 LifetimeTerm::Static => terms.push(LifetimeTerm::Static),
                 LifetimeTerm::Frame => terms.push(LifetimeTerm::Frame),
+                LifetimeTerm::Managed => terms.push(LifetimeTerm::Managed),
                 LifetimeTerm::Slot(slot) => {
                     if let Some(lifetime) = lifetime_args.get(slot.0 as usize) {
                         terms.extend(lifetime.terms.iter().copied());

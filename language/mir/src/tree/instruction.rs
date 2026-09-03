@@ -728,6 +728,17 @@ impl Node for Instruction {
 
 impl Instruction {
     /// Get the destination value defined by this instruction (if any).
+    /// Return the pointer one storing instruction writes through.
+    pub fn store_pointer(&self) -> Option<Value> {
+        match self {
+            Instruction::Store { pointer, .. }
+            | Instruction::AtomicStore { pointer, .. }
+            | Instruction::AtomicCompareExchange { pointer, .. }
+            | Instruction::AtomicRmw { pointer, .. } => Some(*pointer),
+            _ => None,
+        }
+    }
+
     pub fn destination(&self) -> Option<Value> {
         match self {
             Instruction::Error => None,

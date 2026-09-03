@@ -1093,6 +1093,9 @@ impl Parser {
         if name == "'frame" {
             return Ok(LifetimeTerm::Frame);
         }
+        if name == "'managed" {
+            return Ok(LifetimeTerm::Managed);
+        }
 
         let Some(slot) = self.lifetime_slot(name) else {
             return Err(ParseError::invalid_with_length(

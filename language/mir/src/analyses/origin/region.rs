@@ -13,6 +13,8 @@ pub(super) enum Region {
     Static,
     /// Explicit lifetime slot.
     Lifetime(LifetimeSlot),
+    /// Managed storage, alive while reachable.
+    Managed,
     /// Storage in the current function frame.
     Frame,
 }
@@ -32,6 +34,7 @@ impl Region {
         match self {
             Self::Static => Lifetime::static_storage(),
             Self::Lifetime(slot) => Lifetime::slot(slot.0),
+            Self::Managed => Lifetime::managed(),
             Self::Frame => Lifetime::frame(),
         }
     }
@@ -40,7 +43,7 @@ impl Region {
     fn is_local(&self) -> bool {
         match self {
             Self::Frame => true,
-            Self::Static | Self::Lifetime(_) => false,
+            Self::Static | Self::Lifetime(_) | Self::Managed => false,
         }
     }
 
@@ -83,14 +86,17 @@ impl Origin {
         Self::new(lifetime.terms.iter().map(|term| match term {
             LifetimeTerm::Static => Region::Static,
             LifetimeTerm::Frame => Region::Frame,
+            LifetimeTerm::Managed => Region::Managed,
             LifetimeTerm::Slot(slot) => Region::Lifetime(*slot),
         }))
     }
 
     /// Create origin for one reference path from its declared lifetime.
+    ///
+    /// A managed handle without a declared lifetime names managed storage.
     pub(super) fn from_path(borrowed: &BorrowedPath) -> Self {
         match borrowed.kind {
-            ReferenceKind::Managed if borrowed.lifetime.is_empty() => Self::one(Region::Frame),
+            ReferenceKind::Managed if borrowed.lifetime.is_empty() => Self::one(Region::Managed),
             _ => Self::from_lifetime(&borrowed.lifetime),
         }
     }
@@ -107,7 +113,7 @@ impl Origin {
         ty.reference_lifetime()
             .filter(|lifetime| !lifetime.is_empty())
             .map(Self::from_lifetime)
-            .unwrap_or_else(|| Self::one(Region::Frame))
+            .unwrap_or_else(|| Self::one(Region::Managed))
     }
 
     /// Create origin for one reference-like type.

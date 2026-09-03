@@ -2,8 +2,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Analysis, Block, ControlTable, Function, FunctionCache, GlobalId, Instruction, LocalId,
-    LocalNodeId, Mutation, Path, Projection, Tree, Value,
+    Analysis, Block, CastOperator, ControlTable, Function, FunctionCache, GlobalId, Instruction,
+    Intrinsic, LocalId, LocalNodeId, Mutation, Path, Projection, Tree, Value,
 };
 
 /// Canonical places for one MIR function.
@@ -120,7 +120,8 @@ impl PlaceTable {
                     let Some(destination) = instruction.destination() else {
                         continue;
                     };
-                    let resolution = Self::instruction(destination, instruction, &resolutions);
+                    let resolution =
+                        Self::instruction(destination, instruction, &resolutions, tree);
                     is_changed |= Self::set(&mut resolutions, destination, resolution);
                 }
             }
@@ -156,6 +157,7 @@ impl PlaceTable {
         destination: Value,
         instruction: &Instruction,
         resolutions: &[Resolution],
+        tree: &Tree,
     ) -> Resolution {
         match instruction {
             Instruction::LocalAddr { local, .. } => Resolution::Known(Place::local(*local)),
@@ -189,6 +191,20 @@ impl PlaceTable {
             Instruction::Pin {
                 value: argument, ..
             } => Self::copy(*argument, resolutions),
+            // keep the storage a reinterpreted address names
+            Instruction::Cast {
+                operator: CastOperator::Bitcast,
+                argument,
+                ..
+            } => Self::copy(*argument, resolutions),
+            Instruction::Intrinsic {
+                intrinsic: Intrinsic::Transmute,
+                arguments,
+                ..
+            } => match tree.get_values(*arguments) {
+                [argument] => Self::copy(*argument, resolutions),
+                _ => Resolution::Known(Place::value(destination)),
+            },
             _ => Resolution::Known(Place::value(destination)),
         }
     }

@@ -259,7 +259,7 @@ impl AliasTable {
 
                 Some((start, end))
             }
-            Projection::Variant { .. } => None,
+            Projection::Variant { .. } | Projection::Deref => None,
             Projection::Slice { start, length } => {
                 let start = self.projection_constant(*start)?;
                 let length = self.projection_constant(*length)?;

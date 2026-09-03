@@ -1,7 +1,8 @@
 use crate::analyses::{LoanTable, ResolutionTable};
 use crate::{
-    Block, BlockTarget, Edge, Function, Instruction, Lifetime, LifetimeParameter, LifetimeTerm,
-    LocalNodeId, Path, PlaceTable, Point, Successor, Terminator, Tree, Type, TypeId, Value,
+    Access, Block, BlockTarget, Edge, Function, Instruction, Lifetime, LifetimeParameter,
+    LifetimeTerm, LocalNodeId, Path, PlaceTable, Point, ReferenceKind, Successor, Terminator, Tree,
+    Type, TypeId, Value,
 };
 
 use super::region::{Origin, Region};
@@ -160,6 +161,92 @@ impl<'a> OriginContext<'a> {
         state.insert_bindings(destination, bindings);
     }
 
+    /// Return the borrowed arguments one call result reborrows, with the access each takes.
+    pub(super) fn call_reborrows(
+        &self,
+        target: Option<LocalNodeId<Function>>,
+        signature: TypeId,
+        arguments: &[Value],
+    ) -> Vec<(Value, Access)> {
+        let Type::FunctionSignature {
+            lifetimes: signature_lifetimes,
+            parameters: signature_parameters,
+            result: signature_result,
+        } = self.tree.get(signature)
+        else {
+            unreachable!("call has no function signature")
+        };
+
+        // use the resolved declaration as the direct call lifetime environment
+        let target = target.map(|target| self.tree.get(target));
+        let result = target
+            .map(|function| function.return_type)
+            .unwrap_or(*signature_result);
+        let lifetimes = target
+            .map(|function| function.lifetimes.as_slice())
+            .unwrap_or(signature_lifetimes);
+        let parameter_types = target
+            .map(|function| {
+                function
+                    .parameters
+                    .iter()
+                    .map(|parameter| parameter.ty)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_else(|| {
+                signature_parameters
+                    .iter()
+                    .map(|parameter| parameter.ty)
+                    .collect()
+            });
+
+        // collect the regions the result names
+        let mut result_lifetimes = self
+            .tree
+            .type_borrowed_paths(result)
+            .into_iter()
+            .map(|borrowed| borrowed.lifetime)
+            .collect::<Vec<_>>();
+        result_lifetimes.extend(self.tree.type_lifetime(result));
+        result_lifetimes.retain(|lifetime| !lifetime.is_empty());
+
+        // a result over no region reborrows nothing
+        if result_lifetimes.is_empty() {
+            return Vec::new();
+        }
+
+        // keep each borrowed argument whose region the result covers
+        let mut reborrows = Vec::new();
+        for (index, parameter) in parameter_types.iter().enumerate() {
+            // keep the borrowed parameters this call passes an argument for
+            let Some(argument) = arguments.get(index).copied() else {
+                continue;
+            };
+            let parameter_type = self.tree.get(*parameter);
+            if parameter_type.reference_kind() != Some(ReferenceKind::Borrowed) {
+                continue;
+            }
+            let Some(access) = parameter_type.reference_access() else {
+                continue;
+            };
+
+            // reborrow when the result covers the region the parameter binds
+            let is_reborrowed = self
+                .parameter_bindings(*parameter)
+                .iter()
+                .any(|(_, callee)| {
+                    result_lifetimes
+                        .iter()
+                        .any(|lifetime| callee.is_covered_by(lifetime, lifetimes))
+                });
+            if is_reborrowed {
+                reborrows.push((argument, access));
+            }
+        }
+
+        reborrows
+    }
+
     /// Return origin carried by one call result.
     pub fn call_result(
         &self,
@@ -240,10 +327,12 @@ impl<'a> OriginContext<'a> {
     ) -> Origin {
         let mut origin = Origin::none();
 
-        // map static regions directly
+        // map the storage extents directly
         for term in &lifetime.terms {
-            if matches!(term, LifetimeTerm::Static) {
-                origin = origin.merge(&Origin::one(Region::Static));
+            match term {
+                LifetimeTerm::Static => origin = origin.merge(&Origin::one(Region::Static)),
+                LifetimeTerm::Managed => origin = origin.merge(&Origin::one(Region::Managed)),
+                LifetimeTerm::Frame | LifetimeTerm::Slot(_) => {}
             }
         }
 
