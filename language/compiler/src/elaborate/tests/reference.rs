@@ -31,7 +31,7 @@ entry(v0: ref<Box, unique, mutable, local>):
 
 function drop.local<Box>(v0: ref<Box, borrowed, exclusive, local>): void {
 entry(v0: ref<Box, borrowed, exclusive, local>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return

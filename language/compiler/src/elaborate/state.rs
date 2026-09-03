@@ -5,6 +5,7 @@ use destack_mir as mir;
 use crate::{CompilerError, CompilerResult};
 
 use super::drop::{DestructorBuilder, DropInserter, DropPlan};
+use super::safepoint::SafepointInserter;
 
 /// State for one MIR elaboration.
 pub(crate) struct ElaborateState<'a> {
@@ -40,6 +41,7 @@ impl<'a> ElaborateState<'a> {
     pub(in crate::elaborate) fn elaborate(
         &mut self,
         retention: &mir::RetentionTable,
+        safepoints: &mir::SafepointTable,
     ) -> CompilerResult<()> {
         // plan destruction against the verified source functions
         let functions = self
@@ -50,10 +52,14 @@ impl<'a> ElaborateState<'a> {
             })
             .collect::<Vec<_>>();
         let plans = functions
-            .into_iter()
-            .map(|id| DropPlan::build(id, self.tree.get(id), &self.tree, retention))
+            .iter()
+            .map(|&id| DropPlan::build(id, self.tree.get(id), &self.tree, retention, &self.drops))
             .collect::<Vec<_>>();
         let frame_roots = plans.iter().flat_map(DropPlan::roots).collect::<Vec<_>>();
+        let deferred_roots = plans
+            .iter()
+            .flat_map(|plan| plan.deferred_types(&self.tree))
+            .collect::<Vec<_>>();
 
         // build storage destructors required by managed allocations
         let mut destructors = DestructorBuilder::new(
@@ -65,9 +71,13 @@ impl<'a> ElaborateState<'a> {
         );
         destructors.build_allocations();
         destructors.build_frames(frame_roots);
+        destructors.build_deferred(deferred_roots);
 
         // insert verified destruction into each source function
         DropInserter::new(&mut self.tree, &self.drops).insert(plans);
+
+        // pin over parking safepoints and poll at the others
+        SafepointInserter::new(&mut self.tree, &functions).insert(safepoints);
 
         // complete layouts for types introduced by elaboration
         let mut layouts = mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.target);

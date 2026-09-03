@@ -41,7 +41,7 @@ b1(v4: usize):
 b2:
     v6: usize = 1
     v7: usize = sub v4, v6
-    v8: ref<Box, unique, mutable, local> = element.address v1, v7
+    v8: ref<Box, unique, mutable, local> = element.project v1, v7
     v9: ref<Box, borrowed, exclusive, local> = cast.bit v8 -> ref<Box, borrowed, exclusive, local>
     call drop.local<Box>(v9): (ref<Box, borrowed, exclusive, local>) => void
     jump b1(v7)
@@ -53,7 +53,7 @@ b3:
 
 function drop.local<Box>(v0: ref<Box, borrowed, exclusive, local>): void {
 entry(v0: ref<Box, borrowed, exclusive, local>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return
@@ -103,7 +103,7 @@ b1(v4: usize):
 b2:
     v6: usize = 1
     v7: usize = sub v4, v6
-    v8: ref<slice<Box, unique, mutable, local>, unique, mutable, local> = element.address v1, v7
+    v8: ref<slice<Box, unique, mutable, local>, unique, mutable, local> = element.project v1, v7
     v9: ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local> = cast.bit v8 -> ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local>
     call drop.local<slice<Box, unique, mutable, local>>(v9): (ref<slice<Box, unique, mutable, local>, borrowed, exclusive, local>) => void
     jump b1(v7)
@@ -127,7 +127,7 @@ b1(v4: usize):
 b2:
     v6: usize = 1
     v7: usize = sub v4, v6
-    v8: ref<Box, unique, mutable, local> = element.address v1, v7
+    v8: ref<Box, unique, mutable, local> = element.project v1, v7
     v9: ref<Box, borrowed, exclusive, local> = cast.bit v8 -> ref<Box, borrowed, exclusive, local>
     call drop.local<Box>(v9): (ref<Box, borrowed, exclusive, local>) => void
     jump b1(v7)
@@ -139,7 +139,7 @@ b3:
 
 function drop.local<Box>(v0: ref<Box, borrowed, exclusive, local>): void {
 entry(v0: ref<Box, borrowed, exclusive, local>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return

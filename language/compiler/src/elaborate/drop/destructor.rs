@@ -47,6 +47,20 @@ impl<'a> DestructorBuilder<'a> {
         }
     }
 
+    /// Build local heap destructors for the cells planned drops hand to the collector.
+    pub(in crate::elaborate) fn build_deferred(
+        &mut self,
+        roots: impl IntoIterator<Item = mir::TypeId>,
+    ) {
+        let mut roots = roots.into_iter().collect::<Vec<_>>();
+        roots.sort_unstable();
+        roots.dedup();
+
+        for ty in roots {
+            self.build_destructor(ty, mir::Storage::LocalHeap);
+        }
+    }
+
     /// Build frame destructors required by planned drops.
     pub(in crate::elaborate) fn build_frames(
         &mut self,

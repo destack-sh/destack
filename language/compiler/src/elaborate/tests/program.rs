@@ -16,9 +16,10 @@ impl TestProgram {
             "elaboration input has ownership errors: {errors:?}"
         );
         let retention = state.take_retention();
+        let safepoints = state.take_safepoints();
         let mut state = ElaborateState::new(&self.lowered, &self.strings);
         state
-            .elaborate(&retention)
+            .elaborate(&retention, &safepoints)
             .expect("elaboration layouts should build");
         let elaborated = state.finish();
         self.lowered.tree = elaborated.tree;

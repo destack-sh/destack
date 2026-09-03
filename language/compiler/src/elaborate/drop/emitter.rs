@@ -138,6 +138,7 @@ impl<'a> DropEmitter<'a> {
             destination: pointer,
             local,
             result_type: pointer_type,
+            kind: mir::AddressKind::Projection,
         });
 
         // project an address through every structural child
@@ -158,6 +159,7 @@ impl<'a> DropEmitter<'a> {
                         aggregate: pointer,
                         field: *index,
                         result_type,
+                        kind: mir::AddressKind::Projection,
                     });
                 }
                 mir::Projection::Element { index } => {
@@ -172,6 +174,7 @@ impl<'a> DropEmitter<'a> {
                         base: pointer,
                         index: index_value,
                         result_type,
+                        kind: mir::AddressKind::Projection,
                     });
                 }
                 _ => unreachable!("move path contains a dynamic projection"),

@@ -41,9 +41,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 for (index, field) in fields.iter().enumerate().rev() {
                     let field_ty = self.builder.tree().get(*field).ty;
                     let field_pointer_type = self.intern_pointer(field_ty, storage);
-                    let field_pointer =
-                        self.builder
-                            .field_addr(pointer, index as u32, field_pointer_type);
+                    let field_pointer = self.builder.field_addr(
+                        pointer,
+                        index as u32,
+                        field_pointer_type,
+                        mir::AddressKind::Projection,
+                    );
 
                     self.drop_at(field_ty, field_pointer, storage);
                 }
@@ -53,9 +56,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 // drop elements in reverse declaration order
                 for (index, element) in elements.iter().enumerate().rev() {
                     let element_pointer_type = self.intern_pointer(*element, storage);
-                    let element_pointer =
-                        self.builder
-                            .field_addr(pointer, index as u32, element_pointer_type);
+                    let element_pointer = self.builder.field_addr(
+                        pointer,
+                        index as u32,
+                        element_pointer_type,
+                        mir::AddressKind::Projection,
+                    );
 
                     self.drop_at(*element, element_pointer, storage);
                 }
@@ -77,9 +83,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 // drop elements from the last index to the first
                 for index in (0..length).rev() {
                     let index = self.builder.usize_const(u128::from(index));
-                    let element_pointer =
-                        self.builder
-                            .element_addr(pointer, index, element_pointer_type);
+                    let element_pointer = self.builder.element_addr(
+                        pointer,
+                        index,
+                        element_pointer_type,
+                        mir::AddressKind::Projection,
+                    );
 
                     self.drop_at(element, element_pointer, storage);
                 }
@@ -137,7 +146,9 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         let next = self
             .builder
             .binary(mir::BinaryOperator::Subtract, current, one);
-        let pointer = self.builder.element_addr(value, next, element_pointer);
+        let pointer =
+            self.builder
+                .element_addr(value, next, element_pointer, mir::AddressKind::Projection);
         self.drop_at(element, pointer, storage);
 
         // advance toward the first element
@@ -204,9 +215,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             // drop matching payload
             self.builder.switch_to_block(case_block);
             let payload_pointer_type = self.intern_pointer(case.ty, storage);
-            let payload_pointer =
-                self.builder
-                    .variant_payload_addr(pointer, case_index as u32, payload_pointer_type);
+            let payload_pointer = self.builder.variant_payload_addr(
+                pointer,
+                case_index as u32,
+                payload_pointer_type,
+                mir::AddressKind::Projection,
+            );
             self.drop_at(case.ty, payload_pointer, storage);
             self.builder.jump(done);
 

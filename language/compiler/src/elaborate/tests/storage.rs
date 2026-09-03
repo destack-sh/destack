@@ -69,7 +69,7 @@ entry:
 function drop.local<Item>(v0: ref<Item, borrowed, exclusive, local>): void {
 entry(v0: ref<Item, borrowed, exclusive, local>):
     call dropItem(v0): (ref<Item, borrowed, exclusive, local>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return
@@ -115,7 +115,7 @@ entry:
 function drop.local<Item>(v0: ref<Item, borrowed, exclusive, local>): void {
 entry(v0: ref<Item, borrowed, exclusive, local>):
     call dropItem(v0): (ref<Item, borrowed, exclusive, local>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, local> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return

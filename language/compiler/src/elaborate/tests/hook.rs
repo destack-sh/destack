@@ -38,7 +38,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 function drop.frame<Box>(v0: ref<Box, borrowed, exclusive, frame>): void {
 entry(v0: ref<Box, borrowed, exclusive, frame>):
     call dropBox(v0): (ref<Box, borrowed, exclusive, frame>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return
@@ -91,7 +91,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 function drop.frame<Box>(v0: ref<Box, borrowed, exclusive, frame>): void {
 entry(v0: ref<Box, borrowed, exclusive, frame>):
     call dropBox(v0): (ref<Box, borrowed, exclusive, frame>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 0
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
     return

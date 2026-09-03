@@ -13,6 +13,17 @@ pub(in crate::elaborate) struct DropPlan {
     pub(super) block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
     pub(super) edge_drops: Vec<EdgeDrop>,
+    /// Planned drops handed to the collector inside each block.
+    pub(super) deferred_drops: FxIndexMap<mir::BlockId, Vec<DeferredDrop>>,
+}
+
+/// Destruction handed to the collector before one store overwrites storage through a reference.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct DeferredDrop {
+    /// Index of the overwriting store inside the block's instructions.
+    pub(super) store: usize,
+    /// The pointer the store writes through.
+    pub(super) pointer: mir::Value,
 }
 
 /// Ownership analyses used to build one drop plan.
@@ -31,11 +42,15 @@ struct DropAnalysis<'a> {
     initialization: Arc<mir::InitializationTable>,
     /// Verified ownership retention.
     retention: &'a mir::RetentionTable,
+    /// Canonical MIR drop table.
+    drops: &'a mir::DropTable,
 
     /// Planned drops inside each block.
     block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
     edge_drops: Vec<EdgeDrop>,
+    /// Planned drops handed to the collector inside each block.
+    deferred_drops: FxIndexMap<mir::BlockId, Vec<DeferredDrop>>,
 }
 
 /// Destruction planned at one instruction boundary.
@@ -57,14 +72,25 @@ pub(super) struct EdgeDrop {
 }
 
 impl DropPlan {
+    /// Return the types the plan hands to the collector, whose allocations need destructors.
+    pub(in crate::elaborate) fn deferred_types(&self, tree: &mir::Tree) -> Vec<mir::TypeId> {
+        let function = tree.get(self.function);
+        self.deferred_drops
+            .values()
+            .flatten()
+            .filter_map(|drop| function.pointee_type(drop.pointer, tree))
+            .collect()
+    }
+
     /// Build planned destruction for one function.
     pub(in crate::elaborate) fn build(
         function_id: mir::FunctionId,
         function: &mir::Function,
         tree: &mir::Tree,
         retention: &mir::RetentionTable,
+        drops: &mir::DropTable,
     ) -> Self {
-        DropAnalysis::build(function_id, function, tree, retention)
+        DropAnalysis::build(function_id, function, tree, retention, drops)
     }
 
     /// Return the stored types reached by this plan.
@@ -91,6 +117,7 @@ impl<'a> DropAnalysis<'a> {
         function: &'a mir::Function,
         tree: &'a mir::Tree,
         retention: &'a mir::RetentionTable,
+        drops: &'a mir::DropTable,
     ) -> DropPlan {
         // derive the ownership analyses shared by every planning step
         let mut analyses = mir::FunctionCache::new();
@@ -106,8 +133,10 @@ impl<'a> DropAnalysis<'a> {
             paths,
             initialization,
             retention,
+            drops,
             block_drops: FxIndexMap::default(),
             edge_drops: Vec::new(),
+            deferred_drops: FxIndexMap::default(),
         };
 
         // plan block-local and edge-specific destruction
@@ -120,6 +149,7 @@ impl<'a> DropAnalysis<'a> {
             paths: analysis.paths,
             block_drops: analysis.block_drops,
             edge_drops: analysis.edge_drops,
+            deferred_drops: analysis.deferred_drops,
         }
     }
 
@@ -260,6 +290,19 @@ impl<'a> DropAnalysis<'a> {
 
                 self.paths.place(&place)
             }
+            // store v0, v1: owned storage drops here, storage reached through a reference defers
+            mir::Instruction::Store { pointer, .. } => {
+                let path = self.paths.pointee(*pointer).or_else(|| {
+                    let place = self.places.get(*pointer).clone();
+
+                    self.paths.place(&place)
+                });
+                if path.is_none() {
+                    self.plan_deferred(block, index, *pointer);
+                }
+
+                path
+            }
             _ => None,
         };
         let Some(path) = path else {
@@ -267,6 +310,41 @@ impl<'a> DropAnalysis<'a> {
         };
 
         self.plan_drop(block, index, path, state);
+    }
+
+    /// Hand the value one store overwrites through a reference to the collector.
+    fn plan_deferred(
+        &mut self,
+        block: mir::LocalNodeId<mir::Block>,
+        index: usize,
+        pointer: mir::Value,
+    ) {
+        let Some(pointee) = self.function.pointee_type(pointer, self.tree) else {
+            return;
+        };
+
+        // a store into uninitialized storage starts its lifetime, leaving no old value
+        let pointee_type = self.tree.get(pointee);
+        if matches!(pointee_type, mir::Type::Uninit { .. }) {
+            return;
+        }
+
+        // defer the old value when the pointee owns storage
+        let is_owned = self
+            .drops
+            .requires_destructor(pointee, mir::Storage::Frame, self.tree)
+            || pointee_type.is_unique_storage();
+        if !is_owned {
+            return;
+        }
+
+        self.deferred_drops
+            .entry(block)
+            .or_default()
+            .push(DeferredDrop {
+                store: index,
+                pointer,
+            });
     }
 
     /// Plan destruction of every initialized subtree inside one path.

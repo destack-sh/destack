@@ -85,10 +85,10 @@ entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
 
 function drop.frame<Pair>(v0: ref<Pair, borrowed, exclusive, frame>): void {
 entry(v0: ref<Pair, borrowed, exclusive, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 1
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 1
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 0
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
     v4: ref<int32, unique, mutable, local> = load v3
     free v4
     return
@@ -234,6 +234,49 @@ entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View, borrowed, mutable, f
     v3: ref<ref<int32, borrowed, readonly, frame>, borrowed, exclusive, local> = field.address v1, 0
     store v3, v2
     free v0
+    return
+}
+"#,
+    );
+}
+
+/// A taken unique pointee drops with the frame while its freed allocation drops nothing.
+#[test]
+fn test_drop_a_taken_unique_pointee_after_its_free() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<Box, unique, mutable>): void {
+entry(v0: ref<Box, unique, mutable>):
+    v1: Box = load v0
+    free v0
+    return
+}
+"#,
+    );
+
+    program.assert_elaborated(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable, local>;
+}
+
+function test(v0: ref<Box, unique, mutable, local>): void {
+entry(v0: ref<Box, unique, mutable, local>):
+    v1: Box = load v0
+    drop v1
+    free v0
+    return
+}
+
+function drop.frame<Box>(v0: ref<Box, borrowed, exclusive, frame>): void {
+entry(v0: ref<Box, borrowed, exclusive, frame>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+    v2: ref<int32, unique, mutable, local> = load v1
+    free v2
     return
 }
 "#,

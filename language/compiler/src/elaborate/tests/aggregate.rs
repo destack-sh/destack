@@ -34,10 +34,10 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
 
 function drop.frame<Pair>(v0: ref<Pair, borrowed, exclusive, frame>): void {
 entry(v0: ref<Pair, borrowed, exclusive, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 1
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 1
     v2: ref<int32, unique, mutable, local> = load v1
     free v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 0
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
     v4: ref<int32, unique, mutable, local> = load v3
     free v4
     return
@@ -120,7 +120,7 @@ entry(v0: slice<int32, unique, mutable, local>):
 
 function drop.frame<Buffer>(v0: ref<Buffer, borrowed, exclusive, frame>): void {
 entry(v0: ref<Buffer, borrowed, exclusive, frame>):
-    v1: ref<slice<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.address v0, 0
+    v1: ref<slice<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
     v2: slice<int32, unique, mutable, local> = load v1
     free v2
     return

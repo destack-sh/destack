@@ -42,7 +42,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let mut state = ElaborateState::new(&lowered, self.strings());
 
-        state.elaborate(&verified.retention)?;
+        state.elaborate(&verified.retention, &verified.safepoints)?;
 
         Ok(ArtifactPayload::MirElaborated(Arc::new(state.finish())))
     }

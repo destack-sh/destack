@@ -2,7 +2,7 @@ use destack_core::FxIndexMap;
 
 use destack_mir as mir;
 
-use super::{BlockDrop, DropEmitter, DropPlan, EdgeDrop};
+use super::{BlockDrop, DeferredDrop, DropEmitter, DropPlan, EdgeDrop};
 
 /// Inserter for planned MIR drops.
 pub(in crate::elaborate) struct DropInserter<'a> {
@@ -10,6 +10,14 @@ pub(in crate::elaborate) struct DropInserter<'a> {
     tree: &'a mut mir::Tree,
     /// Canonical MIR drop table.
     drops: &'a mir::DropTable,
+}
+
+/// One planned destruction at an instruction boundary.
+enum BlockPlacement {
+    /// Destroy one initialized move path in the frame.
+    Drop(mir::MovePathId),
+    /// Hand the value behind one pointer to the collector.
+    Deferred(mir::Value),
 }
 
 /// Position of destruction within an existing block.
@@ -34,8 +42,9 @@ impl<'a> DropInserter<'a> {
                 paths,
                 block_drops,
                 edge_drops,
+                deferred_drops,
             } = plan;
-            self.insert_block_drops(function_id, &paths, block_drops);
+            self.insert_block_drops(function_id, &paths, block_drops, deferred_drops);
             self.insert_edge_drops(function_id, &paths, edge_drops);
         }
     }
@@ -46,23 +55,44 @@ impl<'a> DropInserter<'a> {
         function_id: mir::LocalNodeId<mir::Function>,
         paths: &mir::MoveTable,
         mut drops: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<BlockDrop>>,
+        mut deferred: FxIndexMap<mir::LocalNodeId<mir::Block>, Vec<DeferredDrop>>,
     ) {
         // retain physical block order while instructions are inserted
         let blocks = self.tree.get(function_id).blocks().to_vec();
 
         // emit block drops in physical function order
         for block_id in blocks {
-            let Some(mut drops) = drops.swap_remove(&block_id) else {
+            // gather the frame drops and the deferred drops planned inside this block
+            let mut placements = drops
+                .swap_remove(&block_id)
+                .unwrap_or_default()
+                .into_iter()
+                .map(|drop| (drop.index, BlockPlacement::Drop(drop.path)))
+                .chain(
+                    deferred
+                        .swap_remove(&block_id)
+                        .unwrap_or_default()
+                        .into_iter()
+                        .map(|drop| (drop.store, BlockPlacement::Deferred(drop.pointer))),
+                )
+                .collect::<Vec<_>>();
+
+            if placements.is_empty() {
                 continue;
-            };
+            }
+
             let mut inserted = 0;
-            drops.sort_by_key(|drop| drop.index);
+            placements.sort_by_key(|(index, _)| *index);
 
             // preserve planned order at each instruction boundary
-            for drop in drops {
-                let instructions =
-                    DropEmitter::new(self.tree, self.drops, function_id, block_id, paths)
-                        .emit(drop.path);
+            for (index, placement) in placements {
+                let instructions = match placement {
+                    BlockPlacement::Drop(path) => {
+                        DropEmitter::new(self.tree, self.drops, function_id, block_id, paths)
+                            .emit(path)
+                    }
+                    BlockPlacement::Deferred(pointer) => self.emit_deferred(function_id, pointer),
+                };
                 let count = instructions.len();
                 if count == 0 {
                     continue;
@@ -73,11 +103,55 @@ impl<'a> DropInserter<'a> {
                     .map(|instruction| self.tree.insert(instruction))
                     .collect::<Vec<_>>();
                 let block = self.tree.get_mut(block_id);
-                let index = drop.index + inserted;
+                let index = index + inserted;
                 block.instructions.splice(index..index, instructions);
                 inserted += count;
             }
         }
+    }
+
+    /// Hand the value one store overwrites to the collector, which frees the local heap at its safepoints alone.
+    fn emit_deferred(
+        &mut self,
+        function_id: mir::LocalNodeId<mir::Function>,
+        pointer: mir::Value,
+    ) -> Vec<mir::Instruction> {
+        // intern the managed cell holding what the store overwrites
+        let pointee = self
+            .tree
+            .get(function_id)
+            .pointee_type(pointer, self.tree)
+            .unwrap_or_else(|| unreachable!("deferred drop through a non-pointer value"));
+        let cell_type = self.tree.intern_type(mir::Type::Reference {
+            kind: mir::ReferenceKind::Managed,
+            lifetime: mir::Lifetime::empty(),
+            storage: mir::Storage::LocalHeap,
+            access: mir::Access::Mutable,
+            pointee,
+            nullability: mir::Nullability::None,
+        });
+
+        // reserve the loaded value and the cell receiving it
+        let function = self.tree.get_mut(function_id);
+        let overwritten = function.next_typed_value(pointee);
+        let cell = function.next_typed_value(cell_type);
+
+        vec![
+            mir::Instruction::Load {
+                destination: overwritten,
+                pointer,
+                result_type: pointee,
+            },
+            mir::Instruction::NewZeroed {
+                destination: cell,
+                storage_type: pointee,
+                result_type: mir::TypeId::from(cell_type),
+            },
+            mir::Instruction::Store {
+                pointer: cell,
+                value: overwritten,
+            },
+        ]
     }
 
     /// Insert destruction on individual control-flow edges.
@@ -138,19 +212,21 @@ impl<'a> DropInserter<'a> {
                     DropEmitter::new(self.tree, self.drops, function_id, block, paths).emit(path),
                 );
             }
+            if instructions.is_empty() {
+                continue;
+            }
+
             let instructions = instructions
                 .into_iter()
                 .map(|instruction| self.tree.insert(instruction))
                 .collect::<Vec<_>>();
+            let block = self.tree.get_mut(block);
             match position {
                 DropPosition::Entry => {
-                    self.tree
-                        .get_mut(block)
-                        .instructions
-                        .splice(0..0, instructions);
+                    block.instructions.splice(0..0, instructions);
                 }
                 DropPosition::Terminator => {
-                    self.tree.get_mut(block).instructions.extend(instructions);
+                    block.instructions.extend(instructions);
                 }
             }
         }
