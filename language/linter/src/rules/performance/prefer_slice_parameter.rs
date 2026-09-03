@@ -182,13 +182,13 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Preserve mutable access when replacing an array parameter.
+    /// Preserve exclusive access when replacing an array parameter.
     #[test]
-    fn test_replaces_mutable_array() {
+    fn test_replaces_exclusive_array() {
         let session = TestSession::dir(
             &PREFER_SLICE_PARAMETER,
             r#"
-function clear(values: &int32[]): void {
+function clear(values: &exclusive int32[]): void {
     values[0] = 0;
 }
 "#,
@@ -196,7 +196,7 @@ function clear(values: &int32[]): void {
 
         session.assert_suggestions(
             r#"
-function clear(values: &[int32]): void {
+function clear(values: &exclusive [int32]): void {
     values[0] = 0;
 }
 "#,
