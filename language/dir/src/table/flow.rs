@@ -23,8 +23,6 @@ impl BindingUse {
     pub const MUTATE: Self = Self(1 << 3);
     /// The use requires exclusive access.
     pub const EXCLUSIVE: Self = Self(1 << 4);
-    /// The use borrows the binding's place.
-    pub const REFERENCE: Self = Self(1 << 5);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {
@@ -182,22 +180,6 @@ impl<'a> FlowTable<'a> {
         }
 
         recorded.into_iter()
-    }
-
-    /// Return the recorded uses of one binding.
-    pub fn symbol_uses(&self, symbol: GlobalSymbolId) -> BindingUse {
-        let mut uses = BindingUse::default();
-        for occurrence in self
-            .segments
-            .iter()
-            .flat_map(|segment| &segment.binding_occurrences)
-        {
-            if occurrence.symbol == symbol {
-                uses |= occurrence.uses;
-            }
-        }
-
-        uses
     }
 
     /// Iterate the recorded foreign symbol uses.
