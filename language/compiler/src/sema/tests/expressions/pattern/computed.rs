@@ -83,7 +83,7 @@ let { [key]: value } = point;
 /// @resolution.pattern source={ [key]: value } kind=object fields={}
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=<error>
 /// @type.node source=point type={ x: int32 }
@@ -144,7 +144,7 @@ let { [key]: value } = bag;
 /// @resolution.pattern source={ [key]: value } kind=object fields={ subscript(member(receiver={ [key: string]: int32 }, target=index(string), type=int32 | undefined), int32 | undefined): value }
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=key placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=key root=key
 /// @type.symbol symbol=value source=value type=int32 | undefined
 /// @resolution.pattern source=value kind=binding target=value

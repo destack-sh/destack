@@ -1869,6 +1869,22 @@ pub enum CheckError {
         module: ModuleId,
     },
 
+    /// Repeated array element cannot be copied into every slot.
+    ///
+    /// ```ds
+    /// const values = [owned; 4];
+    /// ```
+    #[diagnostic(
+        id = "repeated-element-not-copyable",
+        message = "repeated array element does not implement Copy"
+    )]
+    RepeatedElementNotCopyable {
+        /// Report the repeated value.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
     /// Let-else fallback can complete normally.
     ///
     /// ```ds
@@ -2046,6 +2062,38 @@ pub enum CheckError {
     )]
     TryOutsideFunction {
         /// Report the try expression.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A using resource implements no disposal protocol.
+    ///
+    /// ```ds
+    /// using value = 1;
+    /// ```
+    #[diagnostic(
+        id = "using-resource-not-disposable",
+        message = "'using' resource does not implement Dispose"
+    )]
+    UsingResourceNotDisposable {
+        /// Report the using binding.
+        anchor: DiagnosticAnchor,
+        /// The module being checked.
+        module: ModuleId,
+    },
+
+    /// A template span value implements no display protocol.
+    ///
+    /// ```ds
+    /// const text = `${() => 1}`;
+    /// ```
+    #[diagnostic(
+        id = "template-span-not-displayable",
+        message = "template span does not implement Display"
+    )]
+    TemplateSpanNotDisplayable {
+        /// Report the interpolated value.
         anchor: DiagnosticAnchor,
         /// The module being checked.
         module: ModuleId,

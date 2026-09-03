@@ -37,7 +37,7 @@ const hasX = "x" in point;
 /// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: int64; y: int64 } predicate="membership({ x: int64; y: int64 }, x)" narrowed={ x: int64; y: int64 }
 /// @type.node source=point type={ x: int64; y: int64 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=point root=point
 
 hasX satisfies boolean;
@@ -87,7 +87,7 @@ const hasName = "name" in point;
 /// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: int64; y: int64 } predicate="membership({ x: int64; y: int64 }, name)" narrowed=never
 /// @type.node source=point type={ x: int64; y: int64 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=point root=point
 
 hasName satisfies boolean;
@@ -164,7 +164,7 @@ const found = "name" in bag;
 /// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate="membership(Bag, name)" narrowed=Bag & { readonly name: unknown }
 /// @type.node source=bag type=Bag
 /// @resolution.name source=bag target=bag
-/// @resolution.place source=bag placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=bag placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=bag root=bag
 
 found satisfies boolean;
@@ -226,7 +226,7 @@ declare const user: User;
 /// @resolution.guard source="\"name\" in user" kind=in key_type="name" receiver=User predicate="membership(User, name)" narrowed=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 "#,
     );
@@ -293,9 +293,9 @@ if ("name" in value) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=value
-    /// @resolution.place source=value.name placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value.name placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value.name root=value keys=[name]
 
 }
@@ -367,9 +367,9 @@ if ("name" in value) {
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver={ id: int32 } type=int32 kind=field target_receiver={ id: int32 } key=id target_type=int32
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=value
-    /// @resolution.place source=value.id placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value.id placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value.id root=value keys=[id]
 
 }
@@ -438,7 +438,7 @@ true in point;
 /// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: int64 } predicate="membership({ x: int64 }, true)"
 /// @type.node source=point type={ x: int64 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -478,7 +478,7 @@ declare const value: unknown;
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="membership(unknown, name)" narrowed={ readonly name: unknown }
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 "#,
         r#"

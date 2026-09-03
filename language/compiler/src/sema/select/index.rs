@@ -131,7 +131,7 @@ impl SubscriptSelection {
             dir::OperationResolution::Union { arms, .. } => {
                 let mut subscripts = Vec::with_capacity(arms.len());
                 for call in arms {
-                    let write_types = call.argument_types(dir::ArgumentSource::Write);
+                    let write_types = call.argument_types(dir::ArgumentSource::Supplied);
                     let [arm_type] = write_types.as_slice() else {
                         return Err(CompilerError::Internal {
                             message: "selected union IndexSet call has no unique value binding"
@@ -707,7 +707,7 @@ impl CheckState<'_> {
                     is_optional: false,
                     is_rest: false,
                 });
-                sources.push(dir::ArgumentSource::Write);
+                sources.push(dir::ArgumentSource::Supplied);
 
                 dir::DynamicFunction::IndexWrite(signature.source)
             }
@@ -1065,7 +1065,7 @@ impl CheckState<'_> {
         let origin = match source {
             dir::ArgumentSource::Provided(node) => self.origin_at(origin, node)?,
             dir::ArgumentSource::Static(_)
-            | dir::ArgumentSource::Write
+            | dir::ArgumentSource::Supplied
             | dir::ArgumentSource::Omitted
             | dir::ArgumentSource::Rest { .. } => origin,
         };
@@ -1252,7 +1252,7 @@ impl CheckState<'_> {
         let key = method.key(self.strings());
         let sources = [
             dir::ArgumentSource::Provided(index_node),
-            dir::ArgumentSource::Write,
+            dir::ArgumentSource::Supplied,
         ];
         let index = self.shallow_resolve(index)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
@@ -1273,7 +1273,7 @@ impl CheckState<'_> {
         // read the key and value types the selected calls accept
         let resolution = call.resolution;
         let key_types = resolution.argument_types(dir::ArgumentSource::Provided(index_node));
-        let value_types = resolution.argument_types(dir::ArgumentSource::Write);
+        let value_types = resolution.argument_types(dir::ArgumentSource::Supplied);
         if key_types.is_empty() {
             return Err(CompilerError::Internal {
                 message: "selected IndexSet call has no key parameter".to_string(),
@@ -1359,7 +1359,7 @@ impl CheckState<'_> {
         let key = method.key(self.strings());
         let sources = [
             dir::ArgumentSource::Static(key_type),
-            dir::ArgumentSource::Write,
+            dir::ArgumentSource::Supplied,
         ];
         let receiver_value = Value {
             ty: receiver,
@@ -1383,7 +1383,9 @@ impl CheckState<'_> {
         };
 
         // decide the signature's value against the accepted write type
-        let value_types = call.resolution.argument_types(dir::ArgumentSource::Write);
+        let value_types = call
+            .resolution
+            .argument_types(dir::ArgumentSource::Supplied);
         let input = match value_types.as_slice() {
             [] => {
                 return Err(CompilerError::Internal {

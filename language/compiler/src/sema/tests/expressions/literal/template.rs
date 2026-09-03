@@ -27,9 +27,16 @@ const greeting = `hello ${name}`;
 /// @type.symbol symbol=greeting source=greeting type=string
 /// @resolution.pattern source=greeting kind=binding target=greeting
 /// @type.node source="`hello ${name}`" type=string
+/// @resolution.template source="`hello ${name}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"managed" & "local", string>)] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+/// @generic.instantiation id=Display.display<string> template=Display.display arguments=()
+/// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
+/// @generic.instance id=Cow<string> template=Cow arguments=(string)
+/// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+/// @generic.instance id=Display.display<string> template=Display.display arguments=()
+/// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=name root=name
 "#,
     );
@@ -161,7 +168,6 @@ extension of Point implements Display {
     display(&readonly this): MaybeOwned<string> {
     /// @generic.template symbol=display parent=template#0 parameters=('a)
     /// @type.symbol symbol=display type=<display.'a>(this: &display.'a readonly Point) => MaybeOwned<display.'a, string>
-    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @type.symbol symbol=display.this source="&readonly this" type=&display.'a readonly this
     /// @resolution.name source=MaybeOwned target=MaybeOwned
     /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
@@ -185,6 +191,8 @@ function label(point: Point): string {
 
     return `point ${point}`;
     /// @type.node source="`point ${point}`" type=string
+    /// @resolution.template source="`point ${point}`" spans=[display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>)] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+    /// @generic.instance id=MaybeOwned<string> template=MaybeOwned arguments=(string)
     /// @type.node source=point type=Point
     /// @resolution.name source=point target=label.point
     /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
@@ -239,6 +247,8 @@ function label(point: Point): string {
 /// @resolution.name source=Point target=Point
 
     return `point ${point}`;
+    /// @resolution.template source="`point ${point}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>)] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied as &stringFromTemplate.'a readonly Slice<string>, supplied as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
+    /// @generic.instantiation id=Display.display<Point> template=Display.display arguments=()
     /// @resolution.name source=point target=label.point
     /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=point root=label.point
@@ -341,6 +351,34 @@ const asserted = `x${count}` as const;
 /// @resolution.name source=count target=count
 /// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
 /// @resolution.access source=count root=count
+"#,
+        r#"
+"#,
+    );
+}
+
+/// The module namespace carries the metadata its interface declares.
+#[test]
+fn test_read_import_meta_through_its_interface() {
+    let session = TestSession::single(
+        r#"
+const location: string = import.meta.url;
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+const location: string = import.meta.url;
+
+=== dir ===
+const location: string = import.meta.url;
+/// @type.symbol symbol=location source=location type=string
+/// @resolution.pattern source=location kind=binding target=location
+/// @resolution.member source=import.meta.url receiver=ImportMeta type=string kind=field target_receiver=ImportMeta dispatch=dynamic constraint=ImportMeta key=url target=ImportMeta.url target_type=string
+/// @resolution.place source=import.meta.url placement="local" lifetime="managed" access="exclusive"
 "#,
         r#"
 "#,

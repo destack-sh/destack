@@ -51,7 +51,7 @@ label satisfies string;
 /// @type.node source="label satisfies string" type=string
 /// @type.node source=label type=string
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=label placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=label root=label
 "#,
     );

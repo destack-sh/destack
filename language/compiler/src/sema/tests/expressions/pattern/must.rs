@@ -42,7 +42,7 @@ function read(text: string): int32 {
     /// @resolution.name source=parse target=parse
     /// @resolution.call source=parse(text) parameters=(string) arguments=(provided(text) as string) return=int32 | undefined kind=symbol target=parse
     /// @resolution.name source=text target=read.text
-    /// @resolution.place source=text placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=text root=read.text
 
     return value;

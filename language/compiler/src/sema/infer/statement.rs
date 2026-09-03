@@ -60,9 +60,18 @@ impl CheckState<'_> {
                 Ok(())
             }
             // using resource = value
-            dir::Expression::Using { declarators, .. } => {
+            dir::Expression::Using {
+                asynchrony,
+                declarators,
+                ..
+            } => {
                 for declarator in declarators {
                     self.check_declarator(module, *declarator, None, false, false)?;
+
+                    // select the disposal the binding runs at scope exit
+                    let pattern = self.module(module).view().get(*declarator).pattern;
+                    let anchor = declarator.into_global_any(module);
+                    self.record_disposal(anchor, pattern, *asynchrony)?;
                 }
 
                 let void = self.intern_type(dir::Type::Void)?;

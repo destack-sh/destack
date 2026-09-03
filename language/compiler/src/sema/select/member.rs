@@ -599,7 +599,7 @@ impl CheckState<'_> {
             use_: ValueUse::Argument,
             is_spread: false,
         }];
-        let sources = [dir::ArgumentSource::Write];
+        let sources = [dir::ArgumentSource::Supplied];
 
         self.select_member_call(origin, receiver, candidate, &arguments, &sources)
     }

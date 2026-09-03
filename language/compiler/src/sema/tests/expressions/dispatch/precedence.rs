@@ -94,7 +94,7 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
         /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=^Pack<T#3> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @resolution.name source=values target=from.values#2
-        /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=values root=from.values#2
 
     }
@@ -379,8 +379,8 @@ declare const message: local Message;
 channel.send(message);
 /// @resolution.name source=channel target=channel
 /// @resolution.member source=channel.send receiver=Channel type=<send.'a, send.'b>(this: &send.'a Channel, &send.'b readonly Message) => void kind=symbol target_receiver=Channel target=send
-/// @resolution.call source=channel.send(message) parameters=(&'static readonly constant Message) arguments=(provided(message) as &'static readonly constant Message) return=void kind=symbol target=send receiver=Channel adjustments=(borrow(&'static shared Channel))
-/// @resolution.place source=channel placement="shared" lifetime="static" access="mutable"
+/// @resolution.call source=channel.send(message) parameters=(&'static readonly constant Message) arguments=(provided(message) as &'static readonly constant Message) return=void kind=symbol target=send receiver=Channel adjustments=(borrow(Borrowed<Channel, "managed" & "shared", "mutable">))
+/// @resolution.place source=channel placement="shared" lifetime="managed" access="mutable"
 /// @resolution.access source=channel root=channel
 /// @resolution.name source=message target=message
 /// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
@@ -505,7 +505,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Iterable<T#3>
         /// @resolution.name source=values target=from.values#2
-        /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=values placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=values root=from.values#2
 
     }
@@ -783,7 +783,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
             /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression target=expression
-            /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
+            /// @resolution.place source=f placement="local" lifetime="managed" access="exclusive"
             /// @resolution.access source=f root=map.f
             /// @type.node source=value type=T#3
             /// @resolution.name source=value target=map.value#2

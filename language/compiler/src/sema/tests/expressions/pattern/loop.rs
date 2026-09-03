@@ -30,8 +30,22 @@ declare const items: { name: string; value: int32 }[];
 /// @type.symbol symbol=items source=items type={ name: string; value: int32 }[]
 /// @resolution.pattern source=items kind=binding target=items
 /// @generic.instance id="Array<{ name: string; value: int32 }>" template=Array arguments=({ name: string; value: int32 })
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="MaybeUninit<MaybeUninit<{ name: string; value: int32 }>>" template=MaybeUninit arguments=(MaybeUninit<{ name: string; value: int32 }>)
 /// @generic.instance id="MaybeUninit<{ name: string; value: int32 }>" template=MaybeUninit arguments=({ name: string; value: int32 })
+/// @generic.instance id="assumeInitDrop#1<{ name: string; value: int32 }>" template=assumeInitDrop#1 arguments=({ name: string; value: int32 })
+/// @generic.instance id="assumeInitDrop<{ name: string; value: int32 }>" template=assumeInitDrop arguments=({ name: string; value: int32 }) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<{ name: string; value: int32 }>) => Raw<{ name: string; value: int32 }>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="clear<{ name: string; value: int32 }>" template=clear arguments=({ name: string; value: int32 })
+/// @generic.instance id="drop<{ name: string; value: int32 }>" template=drop arguments=({ name: string; value: int32 })
+/// @generic.instance id="dropInPlace<{ name: string; value: int32 }>" template=dropInPlace arguments=({ name: string; value: int32 })
+/// @generic.instance id="elementSlot<{ name: string; value: int32 }, \"exclusive\">" template=elementSlot arguments=({ name: string; value: int32 }, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive { name: string; value: int32 }[], usize) => &elementSlot.'a exclusive MaybeUninit<{ name: string; value: int32 }>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<{ name: string; value: int32 }>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<{ name: string; value: int32 }>>, usize) => &elementSlot.'a exclusive MaybeUninit<{ name: string; value: int32 }>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<{ name: string; value: int32 }>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<{ name: string; value: int32 }>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<{ name: string; value: int32 }>>, usize) => &elementSlot.'a exclusive MaybeUninit<{ name: string; value: int32 }>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive { name: string; value: int32 }[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<{ name: string; value: int32 }>>)
+/// @generic.instance id="initAsPointer<{ name: string; value: int32 }, \"exclusive\">" template=initAsPointer arguments=({ name: string; value: int32 }, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<{ name: string; value: int32 }>) => Raw<{ name: string; value: int32 }>)
 /// @generic.instance id="new<MaybeUninit<{ name: string; value: int32 }>>" template=new arguments=(MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="sliceAssumeInit<MaybeUninit<{ name: string; value: int32 }>>" template=sliceAssumeInit arguments=(MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="sliceIndex<MaybeUninit<{ name: string; value: int32 }>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<{ name: string; value: int32 }>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<{ name: string; value: int32 }>>, usize) => &sliceIndex.'a exclusive MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="sliceUninit<MaybeUninit<{ name: string; value: int32 }>>" template=sliceUninit arguments=(MaybeUninit<{ name: string; value: int32 }>)
+/// @generic.instance id="truncate<{ name: string; value: int32 }>" template=truncate arguments=({ name: string; value: int32 }) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<{ name: string; value: int32 }>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive { name: string; value: int32 }[], usize) => &truncate.'a exclusive MaybeUninit<{ name: string; value: int32 }>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive { name: string; value: int32 }[])
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @type.symbol symbol=name#1 source="name: string" type=string
 /// @type.symbol symbol=value#1 source="value: int32" type=int32
 
@@ -57,14 +71,14 @@ for (const { name, value } of items) {
 /// @type.symbol symbol=value#2 source=value type=int32
 /// @type.node source=items type={ name: string; value: int32 }[]
 /// @resolution.name source=items target=items
-/// @resolution.place source=items placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=items placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=items root=items
 
     name satisfies string;
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=name#2
-    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=name root=name#2
 
     value satisfies int32;

@@ -32,7 +32,7 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=string
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=name root=name
 "#,
     );

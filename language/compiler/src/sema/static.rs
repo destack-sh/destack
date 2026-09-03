@@ -76,7 +76,7 @@ impl CheckState<'_> {
                 dir::ArgumentSource::Omitted => {
                     values.push(dir::Literal::Undefined.into());
                 }
-                dir::ArgumentSource::Write => {
+                dir::ArgumentSource::Supplied => {
                     return Err(CompilerError::Internal {
                         message: "decorator call contains an implicit write argument".to_string(),
                     });

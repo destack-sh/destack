@@ -442,6 +442,13 @@ impl CheckState<'_> {
 
                 Ok(())
             }
+            // type the module namespace as the metadata its interface declares
+            dir::Expression::ImportMeta => {
+                let meta = self.language_type(dir::LanguageItem::ImportMeta, &[])?;
+                self.commit_node_type(node.into_any(), meta)?;
+
+                Ok(())
+            }
             // type module-form statements as void
             dir::Expression::Export { .. } | dir::Expression::Import { .. } => {
                 let void = self.intern_type(dir::Type::Void)?;
@@ -483,10 +490,15 @@ impl CheckState<'_> {
 
         // infer each interpolated value in source order
         let mut spans = Vec::with_capacity(arguments.len());
+        let mut rendered = Vec::with_capacity(arguments.len());
         for argument in arguments {
             let span = self.infer_argument_type(site, argument)?;
+            rendered.push((argument, span));
             spans.push(self.template_span_type(span, string)?);
         }
+
+        // record the calls this template renders and joins through
+        self.select_template_calls(site, &rendered, string)?;
 
         // print an unrequested template as a plain string
         if !keeps_template {

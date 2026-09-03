@@ -9,9 +9,6 @@ use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Return runtime argument bindings for parameters.
-    ///
-    /// A rest binding accepts the element type from each packed source.
-    /// The packed collection type stays on the signature parameter.
     pub(in crate::sema) fn argument_bindings(
         &mut self,
         origin: Origin,
@@ -187,7 +184,7 @@ impl CheckState<'_> {
                     });
                 }
                 // defer a written value to the parameter selection pairs it with
-                dir::ArgumentSource::Write => {
+                dir::ArgumentSource::Supplied => {
                     values.push(CallableArgument {
                         source,
                         value: ArgumentValue::Deferred,

@@ -202,7 +202,7 @@ const isEmpty = value.isEmpty;
 /// @type.node source=value.isEmpty type=boolean
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean)"
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 
 isEmpty satisfies boolean;

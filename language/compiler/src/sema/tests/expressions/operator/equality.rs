@@ -154,7 +154,7 @@ function use(onValue?: (value: unknown) => void): void {
         /// @type.node source=onValue(1) type=void
         /// @resolution.name source=onValue target=use.onValue
         /// @resolution.call source=onValue(1) parameters=(unknown) arguments=(provided(1) as unknown) return=void kind=expression target=expression
-        /// @resolution.place source=onValue placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=onValue placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=onValue root=use.onValue
         /// @resolution.narrowing source=onValue union=Function<(unknown,), void> | undefined arms=Function<(unknown,), void>
         /// @type.node source=1 type=1
@@ -230,11 +230,11 @@ const same = left === right;
 /// @type.node source=left type=string
 /// @resolution.name source=left target=left
 /// @resolution.operator source="left === right" type=boolean operator="===" kind=builtin operands=[left as string families=(string), right as string families=(string)]
-/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=left placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=string
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=right placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=right root=right
 "#,
     );
@@ -277,11 +277,11 @@ const same = left === right;
 /// @type.node source=left type=bigint
 /// @resolution.name source=left target=left
 /// @resolution.operator source="left === right" type=boolean operator="===" kind=builtin operands=[left as bigint families=(bigint), right as bigint families=(bigint)]
-/// @resolution.place source=left placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=left placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=left root=left
 /// @type.node source=right type=bigint
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=right placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=right root=right
 "#,
     );
@@ -352,8 +352,8 @@ const maybesMatch: boolean = same<int32 | undefined, int32 | undefined>(
     secondMaybe as &'static readonly (int32 | undefined),
 );
 const usersDiffer: boolean = different<User>(
-    firstUser as &'static readonly User,
-    secondUser as &'static readonly User,
+    firstUser as &'managed readonly User,
+    secondUser as &'managed readonly User,
 );
 
 === dir ===
@@ -490,17 +490,17 @@ const usersDiffer = different(firstUser, secondUser);
 /// @type.symbol symbol=usersDiffer source=usersDiffer type=boolean
 /// @resolution.pattern source=usersDiffer kind=binding target=usersDiffer
 /// @type.node source="different(firstUser, secondUser)" type=boolean
-/// @type.node source=different type=(&'static readonly User, &'static readonly User) => boolean
+/// @type.node source=different type=(Borrowed<User, "managed" & "local", "readonly">, Borrowed<User, "managed" & "local", "readonly">) => boolean
 /// @resolution.name source=different target=different
-/// @resolution.call source="different(firstUser, secondUser)" parameters=(&'static readonly User, &'static readonly User) arguments=(provided(firstUser) as &'static readonly User, provided(secondUser) as &'static readonly User) return=boolean kind=symbol target=different instance=different<User>
+/// @resolution.call source="different(firstUser, secondUser)" parameters=(Borrowed<User, "managed" & "local", "readonly">, Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(firstUser) as Borrowed<User, "managed" & "local", "readonly">, provided(secondUser) as Borrowed<User, "managed" & "local", "readonly">) return=boolean kind=symbol target=different instance=different<User>
 /// @generic.instantiation id=different<User> template=different arguments=(User)
 /// @type.node source=firstUser type=User
 /// @resolution.name source=firstUser target=firstUser
-/// @resolution.place source=firstUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=firstUser placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=firstUser root=firstUser
 /// @type.node source=secondUser type=User
 /// @resolution.name source=secondUser target=secondUser
-/// @resolution.place source=secondUser placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=secondUser placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=secondUser root=secondUser
 "#,
         r#"

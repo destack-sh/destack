@@ -245,7 +245,7 @@ impl CheckState<'_> {
         let output =
             self.reduce_operation_type(site.origin(), dir::TypeOperation::TryOutput { value })?;
         if propagates {
-            self.propagate_try_residual(node.into_any(), value, site)?;
+            self.propagate_try_residual(node.into_any(), value, site, Some(value_site))?;
         }
         self.commit_node_type(node.into_any(), output)?;
 
@@ -258,19 +258,28 @@ impl CheckState<'_> {
         node: dir::GlobalNodeIdAny,
         value: dir::GlobalTypeId,
         site: FlowSite,
+        operand: Option<FlowSite>,
     ) -> CompilerResult<()> {
         // build the residual the operand propagates
         let origin = site.origin();
         let residual = self.intern_operation(dir::TypeOperation::TryResidual { value })?;
 
+        // select the branch a try implementor splits through, a nullish operand splitting itself
+        let branch = match operand {
+            Some(operand) => self.select_try_branch(origin, operand, value)?,
+            None => None,
+        };
+
         // collect the residual directly at a local try target
         if let Some(target) = self.collect_try_residual(residual) {
             self.commit_decision(
                 node,
-                dir::Decision::Residual(dir::ResidualDecision {
+                dir::Decision::Residual(Box::new(dir::ResidualDecision {
                     target: dir::ResidualTarget::Try(target),
                     residual,
-                }),
+                    branch,
+                    from_residual: None,
+                })),
             )?;
 
             return Ok(());
@@ -292,12 +301,18 @@ impl CheckState<'_> {
                 target,
                 cause,
             ))?;
+
+            // rebuild the return from the residual when the target implements the protocol
+            let from_residual = self.select_from_residual(origin, node, return_target, residual)?;
+
             self.commit_decision(
                 node,
-                dir::Decision::Residual(dir::ResidualDecision {
+                dir::Decision::Residual(Box::new(dir::ResidualDecision {
                     target: dir::ResidualTarget::Callable,
                     residual,
-                }),
+                    branch,
+                    from_residual,
+                })),
             )?;
         }
         // try propagation needs an enclosing function

@@ -270,7 +270,7 @@ function retain(value: bigint): bigint {
     return value & -1n;
     /// @resolution.name source=value target=retain.value
     /// @resolution.operator source="value & -1n" type=bigint operator="&" kind=builtin operands=[value as bigint families=(bigint), -1n as bigint families=(bigint)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=retain.value
     /// @resolution.operator source=-1n type=-1n operator="-" kind=builtin operands=[1n as 1n families=(bigint)]
 
@@ -304,8 +304,8 @@ function retain(value: bigint): bigint {
     return value.and(-1n);
     /// @resolution.name source=value target=retain.value
     /// @resolution.member source=value.and receiver=bigint type=<and.'a>(this: &and.'a readonly bigint, bigint) => bigint.Output kind=symbol target_receiver=bigint target=and
-    /// @resolution.call source=value.and(-1n) parameters=(bigint) arguments=(provided(-1n) as bigint) return=bigint.Output kind=symbol target=and receiver=bigint adjustments=(borrow(&'frame readonly bigint))
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.call source=value.and(-1n) parameters=(bigint) arguments=(provided(-1n) as bigint) return=bigint.Output kind=symbol target=and receiver=bigint adjustments=(borrow(Borrowed<bigint, "managed" & "local", "readonly">))
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=retain.value
     /// @resolution.operator source=-1n type=-1n operator="-" kind=builtin operands=[1n as 1n families=(bigint)]
 
@@ -340,10 +340,10 @@ function retain(value: bigint, other: bigint): bigint {
     return value & other;
     /// @resolution.name source=value target=retain.value
     /// @resolution.operator source="value & other" type=bigint operator="&" kind=builtin operands=[value as bigint families=(bigint), other as bigint families=(bigint)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=retain.value
     /// @resolution.name source=other target=retain.other
-    /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=other placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=other root=retain.other
 
 }

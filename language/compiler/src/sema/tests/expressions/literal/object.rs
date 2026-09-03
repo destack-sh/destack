@@ -62,7 +62,7 @@ const person = { name, age };
 /// @type.node source={ name, age } type={ name: string; age: int64 }
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=name root=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
@@ -176,15 +176,37 @@ const state: { reactions: int32[] } = { reactions: [] };
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: int32[] }
 /// @resolution.pattern source=state kind=binding target=state
+/// @generic.instance id="elementSlot<int32, \"exclusive\">" template=elementSlot arguments=(int32, "exclusive") evaluated=(<elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => <elementSlot.T, const elementSlot.A: Access = "readonly", elementSlot.'a>(&elementSlot.'a exclusive int32[], usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>, WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => &elementSlot.'a exclusive MaybeUninit<int32>, (WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A>, usize) => WithAccess<&elementSlot.'a MaybeUninit<elementSlot.T>, elementSlot.A> => (&elementSlot.'a exclusive Slice<MaybeUninit<int32>>, usize) => &elementSlot.'a exclusive MaybeUninit<int32>, WithAccess<&elementSlot.'a elementSlot.T[], elementSlot.A> => &elementSlot.'a exclusive int32[], WithAccess<&elementSlot.'a Slice<MaybeUninit<elementSlot.T>>, elementSlot.A> => &elementSlot.'a exclusive Slice<MaybeUninit<int32>>)
+/// @generic.instance id="initAsPointer<int32, \"exclusive\">" template=initAsPointer arguments=(int32, "exclusive") evaluated=(<initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(WithAccess<&initAsPointer.'a MaybeUninit<initAsPointer.T>, initAsPointer.A>) => Raw<initAsPointer.T> => <initAsPointer.T, const initAsPointer.A: Access = "mutable", initAsPointer.'a>(&initAsPointer.'a exclusive MaybeUninit<int32>) => Raw<int32>)
+/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"exclusive\">" template=sliceIndex arguments=(MaybeUninit<int32>, "exclusive") evaluated=(<sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(WithAccess<&sliceIndex.'a Slice<sliceIndex.T>, sliceIndex.A>, usize) => WithAccess<&sliceIndex.'a sliceIndex.T, sliceIndex.A> => <sliceIndex.T, const sliceIndex.A: Access = "readonly", sliceIndex.'a>(&sliceIndex.'a exclusive Slice<MaybeUninit<int32>>, usize) => &sliceIndex.'a exclusive MaybeUninit<int32>)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=MaybeUninit<MaybeUninit<int32>> template=MaybeUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=MaybeUninit<int32> template=MaybeUninit arguments=(int32)
+/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
+/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32) evaluated=((WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive">) => Raw<assumeInitDrop.T> => (&assumeInitDrop.'a exclusive MaybeUninit<int32>) => Raw<int32>, WithAccess<&assumeInitDrop.'a MaybeUninit<assumeInitDrop.T>, "exclusive"> => &assumeInitDrop.'a exclusive MaybeUninit<int32>)
+/// @generic.instance id=clear<int32> template=clear arguments=(int32)
+/// @generic.instance id=drop<int32> template=drop arguments=(int32)
+/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=new<MaybeUninit<int32>> template=new arguments=(MaybeUninit<int32>)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
+/// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
+/// @generic.instance id=truncate<int32> template=truncate arguments=(int32) evaluated=(WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => &truncate.'a exclusive MaybeUninit<int32>, (WithAccess<&truncate.'a T#6[], "exclusive">, usize) => WithAccess<&truncate.'a MaybeUninit<T#6>, "exclusive"> => (&truncate.'a exclusive int32[], usize) => &truncate.'a exclusive MaybeUninit<int32>, WithAccess<&truncate.'a T#6[], "exclusive"> => &truncate.'a exclusive int32[])
 /// @type.symbol symbol=reactions source="reactions: int32[]" type=int32[]
 /// @type.node source={ reactions: [] } type={ reactions: int32[] }
 /// @type.node source=[] type=int32[]
-/// @resolution.call source=[] parameters=(&arrayFromSlice.'a readonly Slice<arrayFromSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromSlice instance=arrayFromSlice<int32>
-/// @generic.instantiation id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
-/// @generic.instance id=arrayFromSlice<int32> template=arrayFromSlice arguments=(int32)
+/// @resolution.call source=[] parameters=(^Slice<arrayFromOwnedSlice.T>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
+/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+/// @generic.instance id=Slice<int32> template=Slice arguments=(int32)
+/// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
+/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
+/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
+/// @generic.instance id=size<int32> template=size arguments=(int32)
+/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
+/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 "#,
     );
 }
@@ -279,7 +301,7 @@ const mode = config.mode;
 /// @type.node source=config.mode type="dev"
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.mode receiver={ mode: "dev" } type="dev" kind=field target_receiver={ mode: "dev" } key=mode target_type="dev"
-/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=config placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.mode root=config keys=[mode]
 "#,
@@ -544,7 +566,7 @@ const point: Point = _ { ...base };
 /// @type.node source="_ { ...base }" type=Point
 /// @type.node source=base type={ x: int32; y: int32 }
 /// @resolution.name source=base target=base
-/// @resolution.place source=base placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=base placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=base root=base
 "#,
     );
@@ -611,7 +633,7 @@ class User {
         /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=name placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=name root=User.constructor.name
 
     }
@@ -1287,8 +1309,8 @@ function retain(source: boolean[]): { active: boolean } {
     return source.reduce<{ active: boolean }>(
     /// @resolution.name source=source target=retain.source
     /// @resolution.member source=source.reduce receiver=boolean[] type=<reduce.U#2, reduce#2.P1: Place>(this: Managed<boolean[], reduce#2.P1>, Function<(reduce.U#2, boolean, isize), reduce.U#2>, reduce.U#2) => reduce.U#2 kind=symbol target_receiver=boolean[] target=reduce#2
-    /// @resolution.call parameters=(Function<({ active: boolean }, boolean, isize), { active: boolean }>, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as Function<({ active: boolean }, boolean, isize), { active: boolean }>, provided({ active: false }) as { active: boolean }) return={ active: boolean } kind=symbol target=reduce#2 receiver=boolean[] instance="Array<boolean>.<extension#3>.reduce#2<{ active: boolean }, \"local\">"
-    /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.call parameters=(Function<({ active: boolean }, boolean, isize), { active: boolean }>, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as Function<({ active: boolean }, boolean, isize), { active: boolean }>, provided({ active: false }) as { active: boolean }) return={ active: boolean } kind=symbol target=reduce#2 receiver=boolean[] instance="Array<boolean>.<extension#4>.reduce#2<{ active: boolean }, \"local\">"
+    /// @resolution.place source=source placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=source root=retain.source
     /// @generic.instantiation id="reduce#2<boolean, { active: boolean }, \"local\">" template=reduce#2 arguments=(boolean, { active: boolean }, "local")
     /// @generic.instantiation id=reduce#2<boolean> template=reduce#2 arguments=(boolean)

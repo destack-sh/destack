@@ -88,7 +88,7 @@ const narrowMeta = segment.narrow;
 /// @type.node source=segment.narrow type=NarrowMeta
 /// @resolution.name source=segment target=segment
 /// @resolution.member source=segment.narrow receiver=Segment type=NarrowMeta kind=field target_receiver=Segment key=narrow target=Segment.narrow target_type=NarrowMeta
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=segment
 /// @resolution.access source=segment.narrow root=segment keys=[narrow]
 "#,
@@ -180,7 +180,7 @@ segment.wide;
 /// @type.node source=segment type=Segment
 /// @type.node source=segment.wide type=<error>
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=segment placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=segment root=segment
 /// @resolution.rejected source=segment.wide
 "#,

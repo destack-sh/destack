@@ -308,7 +308,17 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @resolution.name source=value target=passthrough.value
     /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=passthrough.value
-    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>>
+    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(string), arguments=(supplied as string), return=Result<int32, string>)"
+    /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
+    /// @generic.instantiation id="fromResidual<int32, string>" template=fromResidual arguments=(int32, string)
+    /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
+    /// @generic.instance id="branch<int32, string>" template=branch arguments=(int32, string)
+    /// @generic.instance id="break<string, int32>" template=break arguments=(string, int32)
+    /// @generic.instance id="continue<string, int32>" template=continue arguments=(string, int32)
+    /// @generic.instance id="err#1<int32, string>" template=err#1 arguments=(int32, string)
+    /// @generic.instance id="fromResidual<int32, string>" template=fromResidual arguments=(int32, string)
+    /// @generic.instance id=Break<string> template=Break arguments=(string)
+    /// @generic.instance id=Continue<int32> template=Continue arguments=(int32)
 
     return Result.ok(total);
     /// @type.node source=Result.ok type=(T#1) => Result<T#1, E#1>

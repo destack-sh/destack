@@ -121,7 +121,7 @@ const size = float.length;
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=float target=float
 /// @resolution.member source=float.length receiver="measure" type=isize kind=call target="length(parameters=(), arguments=(), return=isize)"
-/// @resolution.place source=float placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=float placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=float root=float
 "#,
     );

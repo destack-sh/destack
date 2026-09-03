@@ -378,7 +378,7 @@ impl CheckState<'_> {
         let Some(slot) = create
             .arguments
             .iter()
-            .find(|binding| matches!(binding.source, dir::ArgumentSource::Write))
+            .find(|binding| matches!(binding.source, dir::ArgumentSource::Supplied))
         else {
             return Err(CompilerError::Internal {
                 message: "a generator creation without its body closure slot".to_string(),
@@ -486,7 +486,7 @@ impl CheckState<'_> {
             .map(|parameter| dir::ArgumentBinding {
                 parameter_type: parameter.ty,
                 argument_type: parameter.ty,
-                source: dir::ArgumentSource::Write,
+                source: dir::ArgumentSource::Supplied,
             })
             .collect();
 

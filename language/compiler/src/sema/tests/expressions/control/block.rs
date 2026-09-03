@@ -54,6 +54,64 @@ const value = if (enabled) {
 }
 
 #[test]
+fn test_if_expression_widens_a_literal_branch_into_its_join() {
+    let session = TestSession::single(
+        r#"
+function pick(count: isize): isize {
+    let kept = if (count < 0) { 0 } else { count };
+
+    return kept;
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_coercion(),
+        r#"
+=== annotated ===
+function pick(count: isize): isize {
+    let kept: isize = if (count < 0) { 0 } else { count };
+
+    return kept;
+}
+
+=== dir ===
+function pick(count: isize): isize {
+/// @type.symbol symbol=pick type=(isize) => isize
+/// @type.symbol symbol=pick.count source="count: isize" type=isize
+
+    let kept = if (count < 0) { 0 } else { count };
+    /// @type.symbol symbol=pick.kept source=kept type=isize
+    /// @resolution.pattern source=kept kind=binding target=pick.kept
+    /// @type.node source="if (count < 0) { 0 } else { count }" type=isize
+    /// @type.node source="count < 0" type=boolean
+    /// @type.node source=count type=isize
+    /// @resolution.name source=count target=pick.count
+    /// @resolution.operator source="count < 0" type=boolean operator="<" kind=builtin operands=[count as isize families=(integer), 0 as isize families=(integer)]
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=pick.count
+    /// @type.node source=0 type=0
+    /// @coercion.node source=0 from=0 adjustments=[{ kind: materialize, target: isize }] origin=implicit
+    /// @type.node source=0 type=0
+    /// @coercion.node source=0 from=0 adjustments=[{ kind: materialize, target: isize }] origin=implicit
+    /// @type.node source=count type=isize
+    /// @resolution.name source=count target=pick.count
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=count root=pick.count
+
+    return kept;
+    /// @type.node source=kept type=isize
+    /// @resolution.name source=kept target=pick.kept
+    /// @resolution.place source=kept placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=kept root=pick.kept
+
+}
+"#,
+    );
+}
+
+#[test]
 fn test_function_body_uses_tail_expression_return() {
     let session = TestSession::single(
         r#"

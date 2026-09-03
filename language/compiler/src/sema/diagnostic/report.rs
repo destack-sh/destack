@@ -246,6 +246,28 @@ impl CheckState<'_> {
         self.report(module, diagnostic);
     }
 
+    /// Report a using resource without a disposal protocol.
+    /// Report one template span whose value implements no display protocol.
+    pub(in crate::sema) fn report_template_span_not_displayable(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::TemplateSpanNotDisplayable { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    pub(in crate::sema) fn report_using_resource_not_disposable(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::UsingResourceNotDisposable { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
     /// Report an await outside an async context.
     pub(in crate::sema) fn report_await_outside_async_context(
         &mut self,
@@ -757,6 +779,17 @@ impl CheckState<'_> {
     ) {
         let anchor = self.diagnostic_anchor(module, source);
         let diagnostic = CheckError::SuperOutsideClass { anchor, module };
+
+        self.report(module, diagnostic);
+    }
+
+    /// Report a repeated array element that cannot be copied.
+    pub(in crate::sema) fn report_repeated_element_not_copyable(
+        &mut self,
+        source: dir::GlobalNodeIdAny,
+    ) {
+        let (module, anchor) = self.source_anchor(source);
+        let diagnostic = CheckError::RepeatedElementNotCopyable { anchor, module };
 
         self.report(module, diagnostic);
     }

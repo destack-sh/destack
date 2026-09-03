@@ -37,7 +37,7 @@ const ok = value instanceof User;
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=unknown target=User target_type=User predicate="dynamic.type(Type<unknown>) is subtype(User)" narrowed=Narrow<unknown, User> projection=dynamic.payload(User)
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 /// @generic.instance id=Type<unknown> template=Type arguments=(unknown)
 /// @type.node source=User type=User
@@ -128,10 +128,10 @@ if (value instanceof User) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver=Narrow<User | Team, User> type=string kind=field target_receiver=Narrow<User | Team, User> key=name target=User.name target_type=string
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=value
     /// @resolution.narrowing source=value union=User | Team arms=User
-    /// @resolution.place source=value.name placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value.name placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value.name root=value keys=[name]
 
 }
@@ -224,10 +224,10 @@ if (value instanceof User) {
     /// @type.node source=value.title type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.title receiver=Team type=string kind=field target_receiver=Team key=title target=Team.title target_type=string
-    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=value
     /// @resolution.narrowing source=value union=User | Team arms=Team
-    /// @resolution.place source=value.title placement="local" lifetime="static" access="exclusive"
+    /// @resolution.place source=value.title placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value.title root=value keys=[title]
 
 }
@@ -285,7 +285,7 @@ const ok = value instanceof Named;
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.rejected source="value instanceof Named"
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 /// @type.node source=Named type=Named
 /// @resolution.name source=Named target=Named
@@ -334,7 +334,7 @@ const ok = value instanceof User;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=string target=User target_type=User predicate="string is subtype(User)" narrowed=Narrow<string, User>
-/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=value root=value
 /// @type.node source=User type=User
 /// @resolution.name source=User target=User
@@ -419,7 +419,7 @@ function adopt<T>(value: T): void {
         /// @resolution.name source=value target=adopt.value
         /// @resolution.member source=value.then receiver=Narrow<T#2, Deferred<*>> type=<Deferred.then.P0: Place>(this: Managed<T#2 & Deferred<*>, Deferred.then.P0>, Function<(*,), void>) => void kind=symbol target_receiver=Narrow<T#2, Deferred<*>> target=Deferred.then
         /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=Narrow<T#2, Deferred<*>> instance="Deferred<*>.then<\"local\">"
-        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=value root=adopt.value
         /// @generic.instantiation id="Deferred.then<*, \"local\">" template=Deferred.then arguments=(*, "local") owner=adopt
         /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt

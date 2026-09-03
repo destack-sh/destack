@@ -596,7 +596,7 @@ function wrap(text: string): string {
     /// @resolution.operator source="\"[\" + text + \"]\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("]") as string) return=^string kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly ^string))
     /// @resolution.operator source="\"[\" + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string kind=symbol target=add receiver="[" adjustments=(borrow(&'frame readonly "["))
     /// @resolution.name source=text target=wrap.text
-    /// @resolution.place source=text placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=text placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=text root=wrap.text
 
 }

@@ -114,7 +114,7 @@ state.count = 1;
 /// @type.node source=state type={ count: int32 }
 /// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=state root=state
 /// @resolution.pattern.assign source=state.count kind=place
 /// @resolution.access source=state.count root=state keys=[count]

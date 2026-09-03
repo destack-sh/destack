@@ -23,7 +23,7 @@ function* count(limit: int32): Generator<int32, void, void> {
 === dir ===
 function* count(limit: int32): Generator<int32, void, void> {
 /// @type.symbol symbol=count type=(int32) => *Generator<int32, void, void>
-/// @resolution.call parameters=(^Function<(GeneratorProducer<Generator.create.Y, Generator.create.R, Generator.create.N>,), Generator.create.R, "once">) arguments=(write as ^Function<(GeneratorProducer<Generator.create.Y, Generator.create.R, Generator.create.N>,), Generator.create.R, "once">) return=Generator<Generator.create.Y, Generator.create.R, Generator.create.N> kind=symbol target=Generator.create instance="Generator.create<int32, void, void>"
+/// @resolution.call parameters=(^Function<(GeneratorProducer<Generator.create.Y, Generator.create.R, Generator.create.N>,), Generator.create.R, "once">) arguments=(supplied as ^Function<(GeneratorProducer<Generator.create.Y, Generator.create.R, Generator.create.N>,), Generator.create.R, "once">) return=Generator<Generator.create.Y, Generator.create.R, Generator.create.N> kind=symbol target=Generator.create instance="Generator.create<int32, void, void>"
 /// @generic.instantiation id="Generator.create<int32, void, void>" template=Generator.create arguments=(int32, void, void)
 /// @generic.instance id="Cell<Fiber | undefined>" template=Cell arguments=(Fiber | undefined)
 /// @generic.instance id="Cell<GeneratorPhase<int32, void, void>>" template=Cell arguments=(GeneratorPhase<int32, void, void>)

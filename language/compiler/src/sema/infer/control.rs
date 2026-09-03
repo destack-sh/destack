@@ -5,30 +5,12 @@ use smallvec::SmallVec;
 use crate::sema::{
     Cause, CauseKind, CheckAttempt, CheckOutcome, CheckState, ConditionBranch, ControlTargetForm,
     Expectation, ExpectedType, FlowBranch, FlowSite, InferMode, Obligation, Origin, PatternArm,
-    PatternCoverage, PatternCoverageObligation, PlaceUse, ProtocolCall, Relation, RelationCheck,
-    Value, ValueCheck, ValueUse,
+    PatternCoverage, PatternCoverageObligation, PlaceUse, Relation, RelationCheck, Value,
+    ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Select the non-nullish operand inspected by one chain segment.
-    pub(in crate::sema) fn select_chain_operand(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-        is_optional: bool,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // read past the nullish arm the chain drops
-        let Some(split) = self.split_nullish_type(origin, ty)? else {
-            return Ok(ty);
-        };
-        if !is_optional {
-            self.report_possibly_nullish(origin, split.rejected.label().to_string())?;
-        }
-
-        Ok(split.value)
-    }
-
     /// Infer one optional chain from its accesses.
     pub(in crate::sema) fn infer_chain_expression(
         &mut self,
@@ -192,6 +174,8 @@ impl CheckState<'_> {
         self.narrow_condition(condition, ConditionBranch::True)?;
         let then_site = self.visit_site(then_expression.into_global_any(module))?;
         let then_type = self.infer_branch(then_site, context)?;
+        let mut branch_values = SmallVec::<[dir::GlobalNodeIdAny; 2]>::new();
+        branch_values.push(then_site.node);
         let mut branches = SmallVec::<[FlowBranch; 2]>::new();
         if self.expression_can_complete_normally(then_expression) {
             branches.push(self.collect_flow_branch(before));
@@ -203,6 +187,7 @@ impl CheckState<'_> {
             self.narrow_condition(condition, ConditionBranch::False)?;
             let else_site = self.visit_site(else_expression.into_global_any(module))?;
             let else_type = self.infer_branch(else_site, context)?;
+            branch_values.push(else_site.node);
             if self.expression_can_complete_normally(else_expression) {
                 branches.push(self.collect_flow_branch(before));
             }
@@ -219,7 +204,68 @@ impl CheckState<'_> {
 
         // merge normally completed branches
         self.merge_flow_branches_from(before, &branches);
+        self.widen_branch_values(branch_values, result, context)?;
         self.commit_node_type(node.into_any(), result)?;
+
+        Ok(())
+    }
+
+    /// Convert each branch value into the type its branches join to, the expectation the arms
+    /// store into where no context supplies a narrower one.
+    fn widen_branch_values(
+        &mut self,
+        branches: impl IntoIterator<Item = dir::GlobalNodeIdAny>,
+        result: dir::GlobalTypeId,
+        context: Option<Expectation>,
+    ) -> CompilerResult<()> {
+        // keep the branches converted against an inherited context
+        if context.is_some() {
+            return Ok(());
+        }
+
+        for branch in branches {
+            self.widen_branch_value(branch, result)?;
+        }
+
+        Ok(())
+    }
+
+    /// Convert one branch value node into the type its branches join to.
+    fn widen_branch_value(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        result: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // convert each value a branching node produces
+        if let Some(values) = self.branching_value_nodes(node) {
+            for value in values {
+                self.widen_branch_value(value, result)?;
+            }
+
+            return Ok(());
+        }
+
+        // leave every value already committed at a runtime type
+        let Some(source) = self.own_node_type(node) else {
+            return Ok(());
+        };
+        if source == result || !self.is_literal_shape(source)? {
+            return Ok(());
+        }
+
+        // convert the literal this node commits to
+        let site = self.visit_site(node)?;
+        let cause = self.intern_cause(Cause::root(site.origin(), CauseKind::Expression));
+        self.check_node(
+            site,
+            Expectation {
+                target: result,
+                relation: Relation::Storable,
+                cause,
+                use_: ValueUse::Store,
+                mode: InferMode::Regular,
+            },
+        )?;
 
         Ok(())
     }
@@ -444,8 +490,14 @@ impl CheckState<'_> {
         let result = if values.is_empty() {
             self.intern_type(dir::Type::Never)?
         } else {
-            self.normalized_union_type(values)?
+            let types = values
+                .iter()
+                .map(|(_, ty)| *ty)
+                .collect::<SmallVec<[_; 4]>>();
+
+            self.normalized_union_type(types)?
         };
+        self.widen_branch_values(values.iter().map(|(site, _)| site.node), result, context)?;
         self.commit_node_type(node.into_any(), result)?;
 
         // queue exhaustiveness checking at the first visit
@@ -647,7 +699,10 @@ impl CheckState<'_> {
         arms: &[dir::LocalNodeId<dir::MatchArm>],
         scrutinee: dir::GlobalTypeId,
         context: Option<Expectation>,
-    ) -> CompilerResult<(SmallVec<[dir::GlobalTypeId; 4]>, Vec<PatternArm>)> {
+    ) -> CompilerResult<(
+        SmallVec<[(FlowSite, dir::GlobalTypeId); 4]>,
+        Vec<PatternArm>,
+    )> {
         // fork the flow and collect the arm results
         let value_path = self.lexical_access_path(value);
         let before = self.fork_flow();
@@ -700,7 +755,8 @@ impl CheckState<'_> {
                 dir::MatchArm::Block { body, .. } => body.into_global_any(module),
             };
             let body_site = self.visit_site(body)?;
-            values.push(self.infer_branch(body_site, context)?);
+            let body_type = self.infer_branch(body_site, context)?;
+            values.push((body_site, body_type));
 
             // record coverage and unguarded exclusions
             coverage.push(PatternArm {
@@ -820,6 +876,24 @@ impl CheckState<'_> {
             pattern_site,
             Expectation::assignable(target, cause, ValueUse::Store),
         )?;
+
+        // select the disposal a using binding runs after every pass, beside the iteration calls
+        if let dir::ForEachBinding::Using { asynchrony, .. } = binding
+            && let Some(disposal) =
+                self.select_disposal(pattern.into_global_any(module), pattern, asynchrony)?
+        {
+            let Some(dir::Decision::Iteration(iteration)) = self.decision(site.node).cloned()
+            else {
+                return Err(CompilerError::Internal {
+                    message: "a for-of using binding without its iteration decision".to_owned(),
+                });
+            };
+            let iteration = dir::IterationDecision {
+                disposal: Some(disposal),
+                ..*iteration
+            };
+            self.commit_decision(site.node, dir::Decision::Iteration(Box::new(iteration)))?;
+        }
 
         // check the loop body with the iteration bindings assigned
         let label = self.control_label(site.node.into_typed(), label)?;
@@ -942,11 +1016,11 @@ impl CheckState<'_> {
         let (park, value) = match (asynchrony, iterable) {
             (dir::Asynchrony::Sync, _) => (None, element),
             (dir::Asynchrony::Async, dir::LanguageItem::AsyncIterable) => {
-                let park = self.select_iteration_await(anchored, next.return_type)?;
+                let park = self.select_await_park(anchored, next.return_type)?;
 
                 (park.map(|call| (call, dir::AwaitTarget::Result)), element)
             }
-            (dir::Asynchrony::Async, _) => match self.select_iteration_await(anchored, element)? {
+            (dir::Asynchrony::Async, _) => match self.select_await_park(anchored, element)? {
                 Some(call) => {
                     let awaited = call.return_type;
 
@@ -976,58 +1050,24 @@ impl CheckState<'_> {
                 iterator: iterator_call,
                 next: next_call,
                 awaits: park,
+                disposal: None,
             })),
         )?;
 
         Ok(value)
     }
 
-    /// Select the park awaiting one type an async iteration produces, when it is awaitable.
-    fn select_iteration_await(
+    /// Record the disposal protocol calls one using binding runs at scope exit.
+    pub(in crate::sema) fn record_disposal(
         &mut self,
-        origin: Origin,
-        awaited: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<ProtocolCall>> {
-        let parked = self.reduce_operation_type(
-            origin,
-            dir::TypeOperation::Awaited(dir::UnaryType { target: awaited }),
-        )?;
-        let value = Value {
-            ty: awaited,
-            node: None,
-            place: None,
-            is_fresh: false,
-        };
-        let key = dir::StaticKey::Name(self.strings().intern("park"));
-        let selected = self.select_language_protocol_call(
-            origin,
-            value,
-            awaited,
-            dir::MemberSpace::Static,
-            key,
-            dir::LanguageItem::Awaitable,
-            &[parked],
-            &[parked],
-            &[dir::ArgumentSource::Write],
-        )?;
-        let Some((_, park)) = selected else {
-            return Ok(None);
+        anchor: dir::GlobalNodeIdAny,
+        pattern: dir::LocalNodeId<dir::Pattern>,
+        asynchrony: dir::Asynchrony,
+    ) -> CompilerResult<()> {
+        let Some(disposal) = self.select_disposal(anchor, pattern, asynchrony)? else {
+            return Ok(());
         };
 
-        // bind the park's parameter to the value it receives
-        if let dir::OperationResolution::One(call) = &park.resolution
-            && let Some(binding) = call.arguments.first()
-        {
-            let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            self.push_relation(RelationCheck::new(
-                origin,
-                Relation::Subtype,
-                awaited,
-                binding.parameter_type,
-                cause,
-            ))?;
-        }
-
-        Ok(Some(park))
+        self.commit_decision(anchor, dir::Decision::Disposal(Box::new(disposal)))
     }
 }

@@ -73,7 +73,7 @@ class Cell<T> {
         executor;
         /// @type.node source=executor type=Function<(Consume<T#2>,), void>
         /// @resolution.name source=executor target=Cell.constructor.executor
-        /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=executor placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=executor root=Cell.constructor.executor
 
     }
@@ -113,14 +113,14 @@ function capture<T>(): void {
         /// @resolution.assignment source=seen write=binding(capture.seen) type=Consume<T#3> | undefined
         /// @type.node source=inner type=Consume<T#3>
         /// @resolution.name source=inner target=capture.symbol13.inner
-        /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=inner placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=inner root=capture.symbol13.inner
 
     });
     cell;
     /// @type.node source=cell type=local Cell<T#3>
     /// @resolution.name source=cell target=capture.cell
-    /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=cell placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
 
     seen;
@@ -194,7 +194,7 @@ class Cell<T> {
         executor;
         /// @type.node source=executor type=Function<(T,), void>
         /// @resolution.name source=executor target=Cell.constructor.executor
-        /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=executor placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=executor root=Cell.constructor.executor
 
     }
@@ -239,7 +239,7 @@ function capture(): void {
     cell;
     /// @type.node source=cell type=local Cell<int32>
     /// @resolution.name source=cell target=capture.cell
-    /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=cell placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
 
     seen;
@@ -338,7 +338,7 @@ const labels = map(counts, (count) => count > 0);
 /// @generic.instantiation id="map<int32, boolean>" template=map arguments=(int32, boolean)
 /// @type.node source=counts type=int32[]
 /// @resolution.name source=counts target=counts
-/// @resolution.place source=counts placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counts placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counts root=counts
 /// @type.symbol symbol=symbol8 source="(count) => count > 0" type=Function<(int32,), boolean, "readonly">
 /// @type.node source="(count) => count > 0" type=Function<(int32,), boolean, "readonly">
@@ -664,7 +664,7 @@ withValue("ready", (value) => {
     value;
     /// @type.node source=value type=string
     /// @resolution.name source=value target=symbol6.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=value placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=value root=symbol6.value
 
 });

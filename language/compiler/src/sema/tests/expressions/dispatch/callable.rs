@@ -34,7 +34,7 @@ const text = transform(1);
 /// @type.node source=transform(1) type=string
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) parameters=(int32) arguments=(provided(1) as int32) return=string kind=expression target=expression
-/// @resolution.place source=transform placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=transform placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
 "#,
@@ -136,7 +136,7 @@ owned();
 handle();
 /// @resolution.name source=handle target=handle
 /// @resolution.call source=handle() parameters=() return=void kind=expression target=expression
-/// @resolution.place source=handle placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=handle placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=handle root=handle
 
 borrowed();
@@ -222,7 +222,7 @@ const copy = copyKind();
 /// @type.node source=copyKind() type="copy"
 /// @resolution.name source=copyKind target=copyKind
 /// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target="call((): \"copy\" where T: Copy)" receiver=InvocationKind<int32> constraint=InvocationKind<int32>
-/// @resolution.place source=copyKind placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=copyKind placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=copyKind root=copyKind
 
 const affine = affineKind();
@@ -231,7 +231,7 @@ const affine = affineKind();
 /// @type.node source=affineKind() type="affine"
 /// @resolution.name source=affineKind target=affineKind
 /// @resolution.call source=affineKind() parameters=() return="affine" kind=dynamic target="call((): \"affine\")" receiver=InvocationKind<^Function<(), void, "once">> constraint=InvocationKind<^Function<(), void, "once">>
-/// @resolution.place source=affineKind placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=affineKind placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=affineKind root=affineKind
 "#,
         r#"
@@ -433,7 +433,7 @@ const sum = add(1, 2);
 /// @resolution.pattern source=sum kind=binding target=sum
 /// @resolution.name source=add target=add
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target="call((left: int32, right: int32): int32)" receiver=Adder constraint=Adder
-/// @resolution.place source=add placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=add placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=add root=add
 "#,
     );
@@ -1082,7 +1082,7 @@ const widened: () => int64 = makeInt;
 /// @type.symbol symbol=widened source=widened type=Function<(), int64>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=makeInt target=makeInt
-/// @resolution.place source=makeInt placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=makeInt placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=makeInt root=makeInt
 
 const erased: () => unknown = makeDog;

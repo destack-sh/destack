@@ -184,7 +184,7 @@ match (point) {
 /// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=point type={ x: int32; y: int32 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=point placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=point root=point
 
     Point { x, y } => x + y
@@ -271,9 +271,9 @@ class User {
         /// @type.node source=this.name type=Managed<string, User.displayName.P0>
         /// @resolution.member source=this.name receiver=Managed<User, User.displayName.P0> type=Managed<string, User.displayName.P0> kind=field target_receiver=Managed<User, User.displayName.P0> key=name target=User.name target_type=Managed<string, User.displayName.P0>
         /// @resolution.receiver source=this kind=this declaration=User type=Managed<User, User.displayName.P0>
-        /// @resolution.place source=this placement=User.displayName.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=User.displayName.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=User.displayName.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this.name placement=User.displayName.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }
@@ -289,7 +289,7 @@ match (user) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=user placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=user root=user
 
     User { displayName } => displayName

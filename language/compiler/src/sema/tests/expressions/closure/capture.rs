@@ -441,7 +441,7 @@ function connect(): void {
         /// @resolution.access source=socket root=connect.socket
         /// @type.node source=message type=string
         /// @resolution.name source=message target=connect.symbol8.message
-        /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=message placement="local" lifetime="managed" access="exclusive"
         /// @resolution.access source=message root=connect.symbol8.message
 
     };
@@ -571,7 +571,7 @@ function make(): () => Promise<string> {
     /// @resolution.pattern source=load kind=binding target=make.load
     /// @type.symbol symbol=make.symbol6 source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
     /// @type.node source="async () => await client.read()" type=Function<(), Promise<string>, "readonly">
-    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), Promise.create.T, "once">) arguments=(write as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<string>
+    /// @resolution.call source="async () => await client.read()" parameters=(^Function<(), Promise.create.T, "once">) arguments=(supplied as ^Function<(), Promise.create.T, "once">) return=Promise<Promise.create.T> kind=symbol target=Promise.create instance=Promise.create<string>
     /// @generic.instantiation id=Promise.create<string> template=Promise.create arguments=(string)
     /// @generic.instance id="Function<(), string, \"once\">" template=Function arguments=((), string, "once")
     /// @generic.instance id=Promise.create<string> template=Promise.create arguments=(string)
@@ -591,7 +591,7 @@ function make(): () => Promise<string> {
     /// @resolution.name source=client target=make.client
     /// @resolution.member source=client.read receiver=Client type=<Client.read.P0: Place>(this: Managed<Client, Client.read.P0>) => Promise<string> kind=symbol target_receiver=Client target=Client.read
     /// @resolution.call source=client.read() parameters=() return=Promise<string> kind=symbol target=Client.read receiver=Client instance="Client.read<\"local\">"
-    /// @resolution.place source=client placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=client placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=client root=make.client
     /// @generic.instantiation id="Client.read<\"local\">" template=Client.read arguments=("local")
     /// @generic.instance id="Client.read<\"local\">" template=Client.read arguments=("local")
@@ -661,9 +661,9 @@ class Counter {
         /// @resolution.name source=this target=Counter.make.this
         /// @resolution.member source=this.value receiver=Managed<Counter, Counter.make.P0> type=int32 kind=field target_receiver=Managed<Counter, Counter.make.P0> key=value target=Counter.value target_type=int32
         /// @resolution.receiver source=this kind=this declaration=Counter type=Managed<Counter, Counter.make.P0>
-        /// @resolution.place source=this placement=Counter.make.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement=Counter.make.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement=Counter.make.P0 lifetime="frame" access="mutable"
+        /// @resolution.place source=this.value placement=Counter.make.P0 lifetime="managed" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }

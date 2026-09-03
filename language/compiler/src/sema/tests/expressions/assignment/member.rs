@@ -29,7 +29,7 @@ state.count = 1;
 /// @type.node source="state.count = 1" type=<error>
 /// @type.node source=state type={ readonly count: int32 }
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=state placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=state root=state
 /// @resolution.rejected source=state.count
 "#,
@@ -93,16 +93,16 @@ declare let counter: Counter;
 
 counter.current = 2;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.pattern.assign source=counter.current kind=place
-/// @resolution.assignment source=counter.current write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=counter.current write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
 
 counter.current++;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
-/// @resolution.assignment source=counter.current read="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=counter.current read="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
 /// @resolution.operator source=counter.current++ type=int32 operator="++" kind=builtin operands=[counter.current as int32 families=(integer)]
 "#,
     );
@@ -162,15 +162,15 @@ declare let counter: Counter;
 counter["current"] = 2;
 /// @resolution.name source=counter target=counter
 /// @resolution.pattern.assign source="counter[\"current\"]" kind=place
-/// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32)" type=int32
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32)" type=int32
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
 
 counter["current"]++;
 /// @resolution.name source=counter target=counter
-/// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(write as int32), return=void), type=int32)" type=int32
+/// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32)" type=int32
 /// @resolution.operator source="counter[\"current\"]++" type=int32 operator="++" kind=builtin operands=[counter["current"] as int32 families=(integer)]
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
 "#,
     );
@@ -223,7 +223,7 @@ const current = counter.current;
 /// @resolution.pattern source=current kind=binding target=current
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.current receiver=Counter type=int32 kind=call target="dynamic(Counter as Counter, Counter.current)(parameters=(), arguments=(), return=int32)"
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
 "#,
     );
@@ -274,10 +274,10 @@ declare let sink: Sink;
 
 sink.value = 1;
 /// @resolution.name source=sink target=sink
-/// @resolution.place source=sink placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=sink placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=sink root=sink
 /// @resolution.pattern.assign source=sink.value kind=place
-/// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(write as int32), return=void), type=int32" type=int32
+/// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(supplied as int32), return=void), type=int32" type=int32
 "#,
     );
 }
@@ -326,7 +326,7 @@ declare let counter: Counter;
 
 counter.current = 1;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=counter placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.rejected source=counter.current
 "#,
@@ -384,7 +384,7 @@ const value = sink.value;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=sink target=sink
-/// @resolution.place source=sink placement="local" lifetime="static" access="exclusive"
+/// @resolution.place source=sink placement="local" lifetime="managed" access="exclusive"
 /// @resolution.access source=sink root=sink
 /// @resolution.rejected source=sink.value
 "#,
@@ -510,9 +510,9 @@ function double(depth: isize): string {
 
         output += output;
         /// @resolution.name source=output target=double.output
-        /// @resolution.operator source="output += output" type=^string operator="+" kind=call parameters=(string) arguments=(provided(output) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(&'frame readonly string))
+        /// @resolution.operator source="output += output" type=^string operator="+" kind=call parameters=(string) arguments=(provided(output) as string) return=^string kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
         /// @resolution.pattern.assign source=output kind=place
-        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
         /// @resolution.assignment source=output read=binding(double.output) write=binding(double.output) type=string
         /// @resolution.access source=output root=double.output
         /// @resolution.name source=output target=double.output
@@ -523,7 +523,7 @@ function double(depth: isize): string {
 
     return output;
     /// @resolution.name source=output target=double.output
-    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.place source=output placement="local" lifetime="managed" access="exclusive"
     /// @resolution.access source=output root=double.output
 
 }

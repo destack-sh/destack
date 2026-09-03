@@ -594,7 +594,7 @@ impl CheckState<'_> {
         element: dir::GlobalTypeId,
     ) -> CompilerResult<dir::InstanceKey> {
         // read the element parameter of the array pack constructor
-        let symbol = self.language_symbol(dir::LanguageItem::ArrayFromSlice)?;
+        let symbol = self.language_symbol(dir::LanguageItem::ArrayFromOwnedSlice)?;
         let Some(template) = self.symbol_template(symbol)? else {
             return Err(CompilerError::Internal {
                 message: "the array pack constructor declares no template".to_string(),

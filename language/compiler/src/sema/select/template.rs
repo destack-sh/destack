@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::sema::{CheckState, FlowSite, PlaceUse};
+use crate::sema::{CheckState, FlowSite, Origin, PlaceUse};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -58,5 +58,116 @@ impl CheckState<'_> {
         self.commit_node_type(node, result)?;
 
         Ok(())
+    }
+
+    /// Select the calls one interpolated template renders and joins through.
+    pub(in crate::sema) fn select_template_calls(
+        &mut self,
+        site: FlowSite,
+        rendered: &[(dir::LocalNodeId<dir::Argument>, dir::GlobalTypeId)],
+        string: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        // record the calls once, at the visit that closes the template
+        let node = site.node;
+        if !self.is_checking() || self.decision(node).is_some() {
+            return Ok(());
+        }
+
+        // render each interpolation through its own display
+        let origin = site.origin();
+        let module = node.module_id;
+        let key = dir::StaticKey::Name(self.strings().intern("display"));
+        let mut spans = Vec::with_capacity(rendered.len());
+        for (argument, span) in rendered {
+            // select the Display call over the interpolated value
+            let Some(value) = self.argument_expression(module, *argument) else {
+                return Err(CompilerError::Internal {
+                    message: "a template span without its argument expression".to_owned(),
+                });
+            };
+            let value_site = self.visit_site(value)?;
+            let receiver = self.expression_value(value_site, *span)?;
+            let selected = self.select_language_protocol_call(
+                origin,
+                receiver,
+                *span,
+                dir::MemberSpace::Instance,
+                key,
+                dir::LanguageItem::Display,
+                &[],
+                &[],
+                &[],
+            )?;
+
+            // report a span outside the display protocol
+            let Some((_, call)) = selected else {
+                self.report_template_span_not_displayable(value);
+
+                continue;
+            };
+            let dir::OperationResolution::One(call) = call.resolution else {
+                return Err(CompilerError::Internal {
+                    message: "a display protocol selected on a union receiver".to_owned(),
+                });
+            };
+
+            spans.push(call);
+        }
+
+        // join the chunks with the rendered spans
+        // leave the template undecided while its join is unloaded, lower rejecting it there
+        let Some(build) = self.select_template_join(origin, string)? else {
+            return Ok(());
+        };
+
+        self.commit_decision(
+            node,
+            dir::Decision::Template(Box::new(dir::TemplateDecision { spans, build })),
+        )
+    }
+
+    /// Select the constructor joining one template's chunks with its rendered spans.
+    pub(in crate::sema) fn select_template_join(
+        &mut self,
+        origin: Origin,
+        string: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::Call>> {
+        // read the declared join and its parameters
+        let symbol = self.language_symbol(dir::LanguageItem::StringFromTemplate)?;
+        let Some(callable) = self.adopt_symbol_type_maybe(symbol)? else {
+            return Ok(None);
+        };
+        let Some((signature_type, signature)) = self.callable_signature_type(origin, callable)?
+        else {
+            return Ok(None);
+        };
+        let parameters = self
+            .signature_parameters(signature_type.module_id, signature.parameters)?
+            .to_vec();
+
+        // bind the chunks and spans the construct supplies
+        let arguments = parameters
+            .iter()
+            .map(|parameter| dir::ArgumentBinding {
+                parameter_type: parameter.ty,
+                argument_type: parameter.ty,
+                source: dir::ArgumentSource::Supplied,
+            })
+            .collect();
+        let key = dir::InstanceKey::new(symbol, Vec::new());
+
+        Ok(Some(dir::Call {
+            target: dir::CallableTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: None,
+                    generic_scope: None,
+                    key,
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            callable_type: callable,
+            arguments,
+            return_type: string,
+        }))
     }
 }
