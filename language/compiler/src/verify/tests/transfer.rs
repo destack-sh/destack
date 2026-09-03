@@ -1,4 +1,4 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
 fn test_reject_select_of_move_only_values() {
@@ -112,8 +112,45 @@ for more information about an error, run `destack explain move-out-of-reference`
     );
 }
 
+/// A store over a move-only value through a mutable borrow is rejected, since the store frees the old value.
 #[test]
-fn test_reject_move_only_store_over_initialized_reference() {
+fn test_reject_a_move_only_store_through_a_mutable_borrow() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>):
+    v2: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
+    store v2, v1
+    return
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[overwrite-without-exclusive]: cannot overwrite this storage without exclusive access
+  ──▶ <test.dsm>:9:5
+   │
+ 7 │ entry(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>):
+ 8 │     v2: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
+ 9 │     store v2, v1
+   │     ^^^^^^^^^^^^
+10 │     return
+11 │ }
+   │
+
+for more information about an error, run `destack explain overwrite-without-exclusive`
+"#,
+    );
+}
+
+/// A store over a move-only value through an exclusive borrow is allowed; elaboration drops the old value.
+#[test]
+fn test_allow_a_move_only_store_through_an_exclusive_borrow() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
@@ -129,22 +166,7 @@ entry(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>):
 "#,
     );
 
-    program.assert_verify_errors(
-        r#"
-error[overwrite-of-move-only-place]: cannot overwrite move-only storage without taking its value
-  ──▶ <test.dsm>:9:5
-   │
- 7 │ entry(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>):
- 8 │     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
- 9 │     store v2, v1
-   │     ^^^^^^^^^^^^
-10 │     return
-11 │ }
-   │
-
-for more information about an error, run `destack explain overwrite-of-move-only-place`
-"#,
-    );
+    program.assert_verified();
 }
 
 #[test]
@@ -219,4 +241,215 @@ error[move-out-of-drop]: cannot move out of a value that implements Drop
 for more information about an error, run `destack explain move-out-of-drop`
 "#,
     );
+}
+
+/// A load through a unique reference takes its pointee, leaving the allocation to free.
+#[test]
+fn test_allow_taking_a_unique_pointee_before_its_free() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<Box, unique, mutable>): Box {
+entry(v0: ref<Box, unique, mutable>):
+    v1: Box = load v0
+    free v0
+    return v1
+}
+"#,
+    );
+
+    program.assert_verified();
+}
+
+/// A second load of a taken unique pointee is a use after move.
+#[test]
+fn test_reject_a_second_load_of_a_taken_unique_pointee() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<Box, unique, mutable>): Box {
+entry(v0: ref<Box, unique, mutable>):
+    v1: Box = load v0
+    v2: Box = load v0
+    free v0
+    return v2
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[use-after-move]: use of moved value
+  ──▶ <test.dsm>:9:5
+   │
+ 6 │ function test(v0: ref<Box, unique, mutable>): Box {
+ 7 │ entry(v0: ref<Box, unique, mutable>):
+ 8 │     v1: Box = load v0
+   │     ----------------- value moved here
+ 9 │     v2: Box = load v0
+   │     ^^^^^^^^^^^^^^^^^
+10 │     free v0
+11 │     return v2
+   │
+
+error[use-after-move]: use of moved value
+  ──▶ <test.dsm>:9:5
+   │
+ 6 │ function test(v0: ref<Box, unique, mutable>): Box {
+ 7 │ entry(v0: ref<Box, unique, mutable>):
+ 8 │     v1: Box = load v0
+   │     ----------------- value moved here
+ 9 │     v2: Box = load v0
+   │     ^^^^^^^^^^^^^^^^^
+10 │     free v0
+11 │     return v2
+   │
+
+for more information about an error, run `destack explain use-after-move`
+"#,
+    );
+}
+
+/// A free of a freed reference is a use after move.
+#[test]
+fn test_reject_a_free_of_a_freed_reference() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<Box, unique, mutable>): Box {
+entry(v0: ref<Box, unique, mutable>):
+    v1: Box = load v0
+    free v0
+    free v0
+    return v1
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[use-after-move]: use of moved value
+  ──▶ <test.dsm>:10:5
+   │
+ 7 │ entry(v0: ref<Box, unique, mutable>):
+ 8 │     v1: Box = load v0
+ 9 │     free v0
+   │     ------- value moved here
+10 │     free v0
+   │     ^^^^^^^
+11 │     return v1
+12 │ }
+   │
+
+for more information about an error, run `destack explain use-after-move`
+"#,
+    );
+}
+
+/// A move-only load through a managed reference stays a move out of a reference.
+#[test]
+fn test_reject_a_move_out_through_a_managed_reference() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: ref<int32, unique, mutable>;
+}
+
+function test(v0: ref<Box, managed, mutable>): Box {
+entry(v0: ref<Box, managed, mutable>):
+    v1: Box = load v0
+    return v1
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[move-out-of-reference]: cannot move out through a reference
+  ──▶ <test.dsm>:8:5
+   │
+ 6 │ function test(v0: ref<Box, managed, mutable>): Box {
+ 7 │ entry(v0: ref<Box, managed, mutable>):
+ 8 │     v1: Box = load v0
+   │     ^^^^^^^^^^^^^^^^^
+ 9 │     return v1
+10 │ }
+   │
+
+for more information about an error, run `destack explain move-out-of-reference`
+"#,
+    );
+}
+
+/// A destructuring move invalidates the borrow of its value.
+#[test]
+fn test_reject_a_destructuring_move_while_the_value_is_borrowed() {
+    let session = TestSession::single(
+        r#"
+struct Token implements Drop {
+    id: int32;
+
+    drop(&exclusive this): void {}
+}
+
+struct S {
+    x: Token;
+}
+
+function use(s: &readonly S): void {}
+
+export function main(): void {
+    const a = S { x: Token { id: 1 } };
+    const pb = &readonly a;
+    const S { x } = a;
+    use(pb);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
+/// @diagnostic.label line=17 column=21 span="a" line_source="const S { x } = a;"
+/// @diagnostic.related line=16 column=16 span="&readonly a" line_source="const pb = &readonly a;" message="borrow starts here"
+"#);
+}
+
+/// A move invalidates the borrow of its value.
+#[test]
+fn test_reject_a_move_while_the_value_is_borrowed() {
+    let session = TestSession::single(
+        r#"
+struct Token implements Drop {
+    id: int32;
+
+    drop(&exclusive this): void {}
+}
+
+function take(token: Token): void {}
+
+function useRef(token: &readonly Token): void {}
+
+export function boxImm(): void {
+    const v = Token { id: 3 };
+    const w = &readonly v;
+    take(v);
+    useRef(w);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
+/// @diagnostic.label line=15 column=10 span="v" line_source="take(v);"
+/// @diagnostic.related line=14 column=15 span="&readonly v" line_source="const w = &readonly v;" message="borrow starts here"
+"#);
 }

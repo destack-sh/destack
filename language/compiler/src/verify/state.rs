@@ -4,7 +4,7 @@ use std::sync::Arc;
 use destack_artifact::{DiagnosticBuilder, MirLowered};
 use destack_mir::{
     AccessTable, AnalysisCache, AnalysisOptions, DropTable, EffectTable, Function, FunctionCache,
-    LocalNodeIdAny, ResolutionTable, RetentionTable, TargetLayout, Tree,
+    LocalNodeIdAny, ResolutionTable, RetentionTable, SafepointTable, TargetLayout, Tree,
 };
 
 use crate::DiagnosticAnchor;
@@ -28,6 +28,8 @@ pub(crate) struct VerifyState<'a> {
 
     /// Verified ownership retention.
     retention: RetentionTable,
+    /// The safepoints of every verified function.
+    safepoints: SafepointTable,
     /// Accumulated errors.
     errors: Vec<DiagnosticBuilder<VerifyError>>,
 }
@@ -52,6 +54,7 @@ impl<'a> VerifyState<'a> {
             effects,
             resolution,
             retention: RetentionTable::default(),
+            safepoints: SafepointTable::default(),
             errors: Vec::new(),
         }
     }
@@ -76,11 +79,13 @@ impl<'a> VerifyState<'a> {
             InitializationChecker::new(function, tree, self).check();
 
             // check borrows and retain ownership roots
-            let retention = BorrowChecker::new(function, tree, self, &mut analyses).check();
-            self.retention.extend(retention);
+            let verdict = BorrowChecker::new(function, tree, self, &mut analyses).check();
+            self.retention.extend(verdict.retention);
+            self.safepoints.extend(verdict.safepoints);
         }
 
         self.retention.sort();
+        self.safepoints.sort();
 
         // check drop hooks for forbidden effects
         DropChecker::new(self).check();
@@ -103,6 +108,11 @@ impl<'a> VerifyState<'a> {
     /// Take verified ownership retention.
     pub(crate) fn take_retention(&mut self) -> RetentionTable {
         mem::take(&mut self.retention)
+    }
+
+    /// Take the safepoints of every verified function.
+    pub(crate) fn take_safepoints(&mut self) -> SafepointTable {
+        mem::take(&mut self.safepoints)
     }
 
     /// Take accumulated errors.

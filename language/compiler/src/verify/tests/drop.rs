@@ -8,6 +8,7 @@ type Box {
     value: int32;
 }
 
+@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function effectful(): void
 
 function dropBox(v0: ref<Box, borrowed, exclusive>): void {
@@ -21,25 +22,25 @@ entry(v0: ref<Box, borrowed, exclusive>):
 
     program.assert_verify_errors(
         r#"
-error[drop-effect]: this drop may allocate, park, and panic
-  ──▶ <test.dsm>:8:1
+error[drop-effect]: this drop may park
+  ──▶ <test.dsm>:9:1
    │
- 6 │ external function effectful(): void
- 7 │
- 8 │ function dropBox(v0: ref<Box, borrowed, exclusive>): void {
+ 7 │ external function effectful(): void
+ 8 │
+ 9 │ function dropBox(v0: ref<Box, borrowed, exclusive>): void {
    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 9 │ entry(v0: ref<Box, borrowed, exclusive>):
+10 │ entry(v0: ref<Box, borrowed, exclusive>):
    │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-10 │     call effectful(): () => void
+11 │     call effectful(): () => void
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-11 │     return
+12 │     return
    │     ^^^^^^
-12 │ }
+13 │ }
    │ ^
-13 │
+14 │
    │
 
- = help: move the effectful work to an explicit dispose
+ = help: move the parking work to an explicit dispose
 for more information about an error, run `destack explain drop-effect`
 "#,
     );

@@ -6,7 +6,7 @@ use crate::DiagnosticAnchor;
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
 #[diagnostic(severity = Error, phase = Verify)]
 pub enum VerifyError {
-    // Move checking
+    // move checking
     /// A conditional selection attempts to duplicate move-only operands.
     ///
     /// ```mir
@@ -176,25 +176,25 @@ pub enum VerifyError {
         anchor: DiagnosticAnchor,
     },
 
-    /// A safe store cannot discard a move-only value already in memory.
+    /// A store that frees the old value or changes a variant's case lacks exclusive access.
     ///
     /// ```mir
     /// type Box {
     ///     value: ref<int32, unique, mutable>;
     /// }
     ///
-    /// function test(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>): void {
-    /// entry(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>):
-    ///     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    /// function test(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>): void {
+    /// entry(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>):
+    ///     v2: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
     ///     store v2, v1
     ///     return
     /// }
     /// ```
     #[diagnostic(
-        id = "overwrite-of-move-only-place",
-        message = "cannot overwrite move-only storage without taking its value"
+        id = "overwrite-without-exclusive",
+        message = "cannot overwrite this storage without exclusive access"
     )]
-    OverwriteOfMoveOnlyPlace {
+    OverwriteWithoutExclusive {
         /// The invalid store.
         anchor: DiagnosticAnchor,
     },
@@ -223,7 +223,7 @@ pub enum VerifyError {
         field: String,
     },
 
-    // Borrow checking
+    // borrow checking
     /// A new borrow conflicts with an active borrow.
     ///
     /// ```mir
@@ -402,35 +402,6 @@ pub enum VerifyError {
         anchor: DiagnosticAnchor,
     },
 
-    /// A borrow of managed storage remains live while its fiber may park.
-    ///
-    /// ```mir
-    /// type Box {
-    ///     value: int32;
-    /// }
-    ///
-    /// @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-    /// external function park(): void
-    ///
-    /// function test(v0: ref<Box, managed, mutable>): int32 {
-    /// entry(v0: ref<Box, managed, mutable>):
-    ///     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-    ///     call park(): () => void
-    ///     v2: int32 = load v1
-    ///     return v2
-    /// }
-    /// ```
-    #[diagnostic(
-        id = "managed-borrow-across-park",
-        message = "borrow of managed storage cannot remain live while this call parks"
-    )]
-    ManagedBorrowAcrossPark {
-        /// The parking call.
-        anchor: DiagnosticAnchor,
-        /// The active borrow.
-        borrowed_at: DiagnosticAnchor,
-    },
-
     /// A drop hook carries effects a drop may not perform.
     ///
     /// ```mir
@@ -448,13 +419,11 @@ pub enum VerifyError {
     /// ```
     #[diagnostic(
         id = "drop-effect",
-        message = "this drop may {effects}",
-        help = "move the effectful work to an explicit dispose"
+        message = "this drop may park",
+        help = "move the parking work to an explicit dispose"
     )]
     DropEffect {
         /// The drop function.
         anchor: DiagnosticAnchor,
-        /// The forbidden effects.
-        effects: String,
     },
 }

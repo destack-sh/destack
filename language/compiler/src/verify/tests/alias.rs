@@ -1,4 +1,4 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
 fn test_reject_exclusive_overlap() {
@@ -377,6 +377,321 @@ replace:
 done:
     v6: ref<int32, borrowed, readonly> = local.get l0
     v7: int32 = load v6
+    return
+}
+"#,
+    );
+
+    program.assert_verified();
+}
+
+/// A readonly borrow kept live through one branch rejects an exclusive borrow after the join.
+#[test]
+fn test_reject_an_exclusive_borrow_while_a_conditional_readonly_borrow_lives() {
+    let session = TestSession::single(
+        r#"
+struct Cell {
+    value: int32;
+}
+
+function cond(): boolean {
+    return false;
+}
+
+function borrowExclusive(cell: &exclusive Cell): void {}
+
+function useRef(cell: &readonly Cell): void {}
+
+export function preFreezeCond(): void {
+    let u = Cell { value: 0 };
+    let v = Cell { value: 3 };
+    let w = &readonly u;
+    if (cond()) {
+        w = &readonly v;
+    }
+    borrowExclusive(&exclusive v);
+    useRef(w);
+}
+
+export function preFreezeElse(): void {
+    let u = Cell { value: 0 };
+    let v = Cell { value: 3 };
+    let w = &readonly u;
+    if (cond()) {
+        w = &readonly v;
+    } else {
+        borrowExclusive(&exclusive v);
+    }
+    useRef(w);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=21 column=21 span="&exclusive v" line_source="borrowExclusive(&exclusive v);"
+/// @diagnostic.related line=19 column=13 span="&readonly v" line_source="w = &readonly v;" message="borrow starts here"
+"#);
+}
+
+/// A borrow returned from one branch leaves the other branch free to write.
+#[test]
+fn test_allow_a_write_after_a_borrow_returned_only_from_another_branch() {
+    let session = TestSession::single(
+        r#"
+struct Slot {
+    flag: boolean;
+    value: ^string;
+}
+
+export function getOrInsert(slot: &exclusive Slot, fallback: ^string): &readonly string {
+    const current = &readonly slot.value;
+    if (slot.flag) {
+        return current;
+    }
+    slot.value = fallback;
+    return &readonly slot.value;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
+/// Borrows carried across loops conflict with the accesses each iteration makes.
+#[test]
+fn test_track_borrows_across_loops() {
+    let session = TestSession::single(
+        r#"
+struct Cell {
+    value: int32;
+}
+
+function cond(): boolean {
+    return false;
+}
+
+function borrow(cell: &readonly Cell): void {}
+
+function borrowExclusive(cell: &exclusive Cell): void {}
+
+export function loopOverarchingAliasMut(): void {
+    let v = Cell { value: 3 };
+    const x = &exclusive v;
+    x.value += 1;
+    loop {
+        borrow(&readonly v);
+    }
+}
+
+export function blockOverarchingAliasMut(): void {
+    let v = Cell { value: 3 };
+    const x = &exclusive v;
+    for (let i = 0; i < 3; i++) {
+        borrow(&readonly v);
+    }
+    x.value = 5;
+}
+
+export function whileAliasedMut(): void {
+    let v = Cell { value: 3 };
+    let w = Cell { value: 4 };
+    let x = &readonly w;
+    while (cond()) {
+        borrowExclusive(&exclusive v);
+        x = &readonly v;
+    }
+}
+
+export function whileAliasedMutCond(): void {
+    let v = Cell { value: 3 };
+    let w = Cell { value: 4 };
+    let x = &readonly w;
+    while (cond()) {
+        borrowExclusive(&exclusive v);
+        if (cond()) {
+            x = &readonly v;
+        }
+    }
+    borrow(x);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=27 column=16 span="&readonly v" line_source="borrow(&readonly v);"
+/// @diagnostic.related line=25 column=15 span="&exclusive v" line_source="const x = &exclusive v;" message="borrow starts here"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=47 column=25 span="&exclusive v" line_source="borrowExclusive(&exclusive v);"
+/// @diagnostic.related line=49 column=17 span="&readonly v" line_source="x = &readonly v;" message="borrow starts here"
+"#);
+}
+
+/// Reassigning the reference binding kills the loan it held.
+#[test]
+fn test_kill_a_loan_when_its_reference_binding_is_reassigned() {
+    let session = TestSession::single(
+        r#"
+struct Thing {
+    value: int32;
+
+    next(&exclusive this): &exclusive Thing {
+        return this;
+    }
+}
+
+export function main(thing: &exclusive Thing): void {
+    let temp = thing;
+    loop {
+        const v = temp.next();
+        temp = v;
+    }
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
+/// A loan ends at the last use of its reference.
+#[test]
+fn test_end_a_loan_at_the_last_use_of_its_reference() {
+    let session = TestSession::single(
+        r#"
+struct Data {
+    a: int32;
+    b: int32;
+}
+
+function capitalize(value: &exclusive int32): void {}
+
+export function nllFail(): void {
+    let data = Data { a: 1, b: 2 };
+    const c = &exclusive data.a;
+    capitalize(c);
+    data.a = 5;
+    data.a = 6;
+    data.a = 7;
+    capitalize(c);
+}
+
+export function nllOk(): void {
+    let data = Data { a: 1, b: 2 };
+    const c = &exclusive data.a;
+    capitalize(c);
+    data.a = 5;
+    data.a = 6;
+    data.a = 7;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
+/// @diagnostic.label line=13 column=5 span="data.a = 5" line_source="data.a = 5;"
+/// @diagnostic.related line=11 column=15 span="&exclusive data.a" line_source="const c = &exclusive data.a;" message="borrow starts here"
+"#);
+}
+
+/// A borrow returned from one arm leaves the other arm free to write, and a write before the return conflicts.
+#[test]
+fn test_allow_a_write_in_the_arm_that_does_not_return_the_borrow() {
+    let session = TestSession::single(
+        r#"
+struct Map {
+    flag: boolean;
+    value: string;
+
+    get(&readonly this): &readonly string {
+        return &readonly this.value;
+    }
+
+    set(&exclusive this, value: string): void {
+        this.value = value;
+    }
+}
+
+export function ok(map: &exclusive Map): &readonly string {
+    loop {
+        const found = map.get();
+        if (map.flag) {
+            return found;
+        }
+        map.set("next");
+    }
+}
+
+export function err(map: &exclusive Map): &readonly string {
+    loop {
+        const found = map.get();
+        map.set("next");
+        return found;
+    }
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=28 column=9 span="map.set(\"next\")" line_source="map.set(\"next\");"
+/// @diagnostic.related line=27 column=23 span="map.get()" line_source="const found = map.get();" message="borrow starts here"
+"#);
+}
+
+/// A call result reborrowing its argument keeps that borrow live, so a later exclusive reborrow conflicts.
+#[test]
+fn test_reject_an_exclusive_reborrow_while_a_call_result_reborrow_lives() {
+    let session = TestSession::single(
+        r#"
+struct Map {
+    flag: boolean;
+    value: string;
+
+    get(&readonly this): &readonly string {
+        return &readonly this.value;
+    }
+
+    set(&exclusive this, value: string): void {
+        this.value = value;
+    }
+}
+
+export function refresh(map: &exclusive Map): &readonly string {
+    const found = map.get();
+    map.set("next");
+    return found;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=17 column=5 span="map.set(\"next\")" line_source="map.set(\"next\");"
+/// @diagnostic.related line=16 column=19 span="map.get()" line_source="const found = map.get();" message="borrow starts here"
+"#);
+}
+
+/// Distinct struct elements are disjoint at the stride their layout names.
+#[test]
+fn test_allow_exclusive_disjoint_struct_elements() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    left: int32;
+    right: int32;
+}
+
+function test(v0: slice<Pair, borrowed, mutable>): void {
+entry(v0: slice<Pair, borrowed, mutable>):
+    v1: usize = 0
+    v2: usize = 1
+    v3: ref<Pair, borrowed, exclusive> = element.address v0, v1
+    v4: ref<Pair, borrowed, exclusive> = element.address v0, v2
+    v5: ref<int32, borrowed, exclusive> = field.address v3, 0
+    v6: ref<int32, borrowed, exclusive> = field.address v4, 0
+    v7: int32 = load v5
+    v8: int32 = load v6
     return
 }
 "#,

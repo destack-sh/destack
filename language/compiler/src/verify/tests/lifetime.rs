@@ -1,4 +1,4 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
 fn test_reject_frame_return() {
@@ -482,4 +482,106 @@ entry:
     );
 
     program.assert_verified();
+}
+
+/// A parameter's storage dies with the frame, so its borrow cannot be static.
+#[test]
+fn test_reject_returning_a_borrow_of_a_parameter_as_static() {
+    let session = TestSession::single(
+        r#"
+export function cplusplusMode(x: int32): &'static readonly int32 {
+    return &readonly x;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
+/// @diagnostic.label line=3 column=5 span="return &readonly x" line_source="return &readonly x;"
+"#,
+    );
+}
+
+/// A temporary's borrow cannot leave the frame.
+#[test]
+fn test_reject_returning_a_borrow_of_a_temporary() {
+    let session = TestSession::single(
+        r#"
+struct Foo {
+    value: int32;
+}
+
+function id(foo: Foo): Foo {
+    return foo;
+}
+
+export function fromTemporary(): &readonly int32 {
+    const foo = &readonly id(Foo { value: 3 });
+    return &readonly foo.value;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
+/// @diagnostic.label line=12 column=5 span="return &readonly foo.value" line_source="return &readonly foo.value;"
+"#);
+}
+
+/// A borrow into managed storage lives in the managed extent, so a function returns it without inputs.
+#[test]
+fn test_allow_returning_a_borrow_into_managed_storage() {
+    let session = TestSession::single(
+        r#"
+struct Player {
+    score: int32;
+}
+
+class World {
+    player: Player;
+
+    constructor() {
+        this.player = Player { score: 1 };
+    }
+}
+
+function spawn(): &Player {
+    let world = new World();
+    return &world.player;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
+/// A borrow into managed storage does not live in static storage.
+#[test]
+fn test_reject_a_borrow_into_managed_storage_as_static() {
+    let session = TestSession::single(
+        r#"
+struct Player {
+    score: int32;
+}
+
+class World {
+    player: Player;
+
+    constructor() {
+        this.player = Player { score: 1 };
+    }
+}
+
+function keep(world: World): &'static readonly Player {
+    return &readonly world.player;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
+/// @diagnostic.label line=15 column=5 span="return &readonly world.player" line_source="return &readonly world.player;"
+"#);
 }

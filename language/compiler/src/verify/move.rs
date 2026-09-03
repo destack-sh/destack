@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use destack_mir::{
-    Function, FunctionCache, Initialization, InitializationState, InitializationTable, Instruction,
-    LocalNodeId, LocalNodeIdAny, Terminator, Tree, Type, Unavailability, Value,
+    Access, Function, FunctionCache, Initialization, InitializationState, InitializationTable,
+    Instruction, LocalNodeId, LocalNodeIdAny, MoveTable, Terminator, Tree, Type, Unavailability,
+    Value,
 };
 
 use crate::verify::{VerifyError, VerifyState};
@@ -17,6 +18,8 @@ pub(in crate::verify) struct MoveChecker<'a, 'b> {
     verification: &'a mut VerifyState<'b>,
     /// Move-path initialization.
     initialization: Arc<InitializationTable>,
+    /// Move paths, owned pointees included.
+    paths: Arc<MoveTable>,
 }
 
 impl<'a, 'b> MoveChecker<'a, 'b> {
@@ -28,12 +31,14 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
         analyses: &mut FunctionCache,
     ) -> Self {
         let initialization = analyses.initialization(function, tree);
+        let paths = analyses.moves(function, tree);
 
         Self {
             function,
             tree,
             verification,
             initialization,
+            paths,
         }
     }
 
@@ -111,7 +116,11 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
                 destination,
                 pointer,
                 ..
-            } if !self.is_pointer(*pointer) && self.is_move_only(*destination) => {
+            } if !self.is_pointer(*pointer)
+                && !self.points_to_uninitialized(*pointer)
+                && self.is_move_only(*destination)
+                && self.paths.pointee(*pointer).is_none() =>
+            {
                 self.verification
                     .emit_error(VerifyError::MoveOutOfReference {
                         anchor: self.verification.anchor(anchor),
@@ -119,11 +128,12 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
             }
             Instruction::Store { pointer, value }
                 if !self.is_pointer(*pointer)
-                    && self.is_move_only(*value)
-                    && !self.points_to_uninitialized(*pointer) =>
+                    && (self.is_move_only(*value) || self.is_variant(*value))
+                    && !self.points_to_uninitialized(*pointer)
+                    && !self.is_exclusive(*pointer) =>
             {
                 self.verification
-                    .emit_error(VerifyError::OverwriteOfMoveOnlyPlace {
+                    .emit_error(VerifyError::OverwriteWithoutExclusive {
                         anchor: self.verification.anchor(anchor),
                     });
             }
@@ -209,6 +219,20 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
         let ty = self.function.expect_value_type(value);
 
         self.tree.get(ty).is_pointer()
+    }
+
+    /// Return whether one value stores a variant, whose case a store may change.
+    fn is_variant(&self, value: Value) -> bool {
+        let ty = self.function.expect_value_type(value);
+
+        matches!(self.tree.get(ty), Type::Variant { .. })
+    }
+
+    /// Return whether one reference grants exclusive access.
+    fn is_exclusive(&self, value: Value) -> bool {
+        let ty = self.function.expect_value_type(value);
+
+        self.tree.get(ty).reference_access() == Some(Access::Exclusive)
     }
 
     /// Return whether one reference addresses uninitialized storage.

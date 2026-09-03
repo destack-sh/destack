@@ -1,8 +1,8 @@
 use crate::tests::TestProgram;
 
-/// A borrow of managed storage held across a parking call reports a diagnostic.
+/// A borrow of local managed storage held across a parking call verifies and is pinned by elaboration.
 #[test]
-fn test_reject_managed_borrow_across_park() {
+fn test_allow_managed_borrow_across_park() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -23,27 +23,12 @@ entry(v0: ref<Box, managed, mutable>):
 "#,
     );
 
-    program.assert_verify_errors(r#"
-error[managed-borrow-across-park]: borrow of managed storage cannot remain live while this call parks
-  ──▶ <test.dsm>:13:5
-   │
-10 │ function test(v0: ref<Box, managed, mutable>): int32 {
-11 │ entry(v0: ref<Box, managed, mutable>):
-12 │     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-   │     -------------------------------------------------------- borrow starts here
-13 │     call park(): () => void
-   │     ^^^^^^^^^^^^^^^^^^^^^^^
-14 │     v2: int32 = load v1
-15 │     return v2
-   │
-
-for more information about an error, run `destack explain managed-borrow-across-park`
-"#);
+    program.assert_verified();
 }
 
-/// A borrow of managed storage passed to a parking call reports a diagnostic.
+/// A borrow of local managed storage passed to a parking call verifies.
 #[test]
-fn test_reject_managed_borrow_passed_to_park() {
+fn test_allow_managed_borrow_passed_to_park() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -63,27 +48,12 @@ entry(v0: ref<Box, managed, mutable>):
 "#,
     );
 
-    program.assert_verify_errors(r#"
-error[managed-borrow-across-park]: borrow of managed storage cannot remain live while this call parks
-  ──▶ <test.dsm>:13:5
-   │
-10 │ function test(v0: ref<Box, managed, mutable>): void {
-11 │ entry(v0: ref<Box, managed, mutable>):
-12 │     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-   │     -------------------------------------------------------- borrow starts here
-13 │     call park(v1): (ref<int32, borrowed, readonly>) => void
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-14 │     return
-15 │ }
-   │
-
-for more information about an error, run `destack explain managed-borrow-across-park`
-"#);
+    program.assert_verified();
 }
 
-/// A borrow held across a call that parks transitively reports a diagnostic.
+/// A borrow held across a call that parks transitively verifies.
 #[test]
-fn test_reject_managed_borrow_across_transitive_park() {
+fn test_allow_managed_borrow_across_transitive_park() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -110,27 +80,12 @@ entry(v0: ref<Box, managed, mutable>):
 "#,
     );
 
-    program.assert_verify_errors(r#"
-error[managed-borrow-across-park]: borrow of managed storage cannot remain live while this call parks
-  ──▶ <test.dsm>:19:5
-   │
-16 │ function test(v0: ref<Box, managed, mutable>): int32 {
-17 │ entry(v0: ref<Box, managed, mutable>):
-18 │     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-   │     -------------------------------------------------------- borrow starts here
-19 │     call helper(): () => void
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^
-20 │     v2: int32 = load v1
-21 │     return v2
-   │
-
-for more information about an error, run `destack explain managed-borrow-across-park`
-"#);
+    program.assert_verified();
 }
 
-/// A borrow held across a parking invoke reports a diagnostic.
+/// A borrow of local managed storage held across a parking invoke verifies and is pinned by elaboration.
 #[test]
-fn test_reject_managed_borrow_across_parking_invoke() {
+fn test_allow_managed_borrow_across_parking_invoke() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -156,22 +111,7 @@ cleanup:
 "#,
     );
 
-    program.assert_verify_errors(r#"
-error[managed-borrow-across-park]: borrow of managed storage cannot remain live while this call parks
-  ──▶ <test.dsm>:13:5
-   │
-10 │ function test(v0: ref<Box, managed, mutable>): int32 {
-11 │ entry(v0: ref<Box, managed, mutable>):
-12 │     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-   │     -------------------------------------------------------- borrow starts here
-13 │     invoke park(): () => int32 => resume | cleanup
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-14 │
-15 │ resume(v2: int32):
-   │
-
-for more information about an error, run `destack explain managed-borrow-across-park`
-"#);
+    program.assert_verified();
 }
 
 /// A borrow of unique storage survives a parking call.

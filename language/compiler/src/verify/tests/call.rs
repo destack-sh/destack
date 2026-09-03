@@ -1,7 +1,7 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
-fn test_propagate_call_result_aggregate_path_provenance() {
+fn test_propagate_call_result_aggregate_path_origin() {
     let mut program = TestProgram::mir(
         r#"
 type Pair<'A, 'B> {
@@ -26,7 +26,7 @@ b1(v0: Pair<'a, 'b>):
 }
 
 #[test]
-fn test_reject_call_result_aggregate_wrong_path_provenance() {
+fn test_reject_call_result_aggregate_wrong_path_origin() {
     let mut program = TestProgram::mir(
         r#"
 type Pair<'A, 'B> {
@@ -326,4 +326,93 @@ error[borrow-outlives-origin]: borrow does not live long enough
 for more information about an error, run `destack explain borrow-outlives-origin`
 "#,
     );
+}
+
+/// A readonly argument borrow ends before the receiver's exclusive borrow begins.
+#[test]
+fn test_allow_a_readonly_argument_borrow_ending_before_the_receiver_borrow() {
+    let session = TestSession::single(
+        r#"
+struct Counter {
+    count: int32;
+
+    add(&exclusive this, amount: int32): void {
+        this.count += amount;
+    }
+
+    get(&readonly this): int32 {
+        return this.count;
+    }
+}
+
+export function drive(): int32 {
+    let counter = Counter { count: 1 };
+    counter.add(counter.get());
+    return counter.get();
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
+/// An exclusive argument cannot alias the receiver the call borrows exclusively.
+#[test]
+fn test_reject_an_exclusive_argument_beside_its_autoref_receiver() {
+    let session = TestSession::single(
+        r#"
+struct Foo {
+    value: int32;
+
+    method(&exclusive this, other: &exclusive Foo): void {}
+}
+
+export function multiMut(): void {
+    let foo = Foo { value: 0 };
+    foo.method(&exclusive foo);
+}
+
+export function accessDuringReservation(): void {
+    let i = 0;
+    const p = &exclusive i;
+    const j = i;
+    *p += 1;
+    const k = i;
+    *p += 1;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=10 column=5 span="foo.method(&exclusive foo)" line_source="foo.method(&exclusive foo);"
+/// @diagnostic.related line=10 column=16 span="&exclusive foo" line_source="foo.method(&exclusive foo);" message="borrow starts here"
+/// @diagnostic.error id=exclusive-argument-alias message="exclusive call arguments may refer to the same storage"
+/// @diagnostic.label line=10 column=5 span="foo.method(&exclusive foo)" line_source="foo.method(&exclusive foo);"
+/// @diagnostic.error id=use-of-exclusively-borrowed-place message="cannot use exclusively borrowed place"
+/// @diagnostic.label line=16 column=15 span="i" line_source="const j = i;"
+/// @diagnostic.related line=15 column=15 span="&exclusive i" line_source="const p = &exclusive i;" message="borrow starts here"
+"#);
+}
+
+/// A fresh allocation's exclusive receiver cannot alias a borrowed argument the caller passed in.
+#[test]
+fn test_allow_an_exclusive_receiver_of_a_fresh_allocation_beside_a_borrowed_argument() {
+    let session = TestSession::single(
+        r#"
+class Span {
+    name: string;
+
+    constructor(name: &readonly string) {
+        this.name = name.slice();
+    }
+}
+
+function start(name: &readonly string): Span {
+    return new Span(name);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
 }

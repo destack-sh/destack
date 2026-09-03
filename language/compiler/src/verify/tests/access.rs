@@ -1,4 +1,4 @@
-use crate::tests::TestProgram;
+use crate::tests::{TestProgram, TestSession};
 
 #[test]
 fn test_reject_local_set_while_borrowed() {
@@ -357,4 +357,70 @@ error[write-through-readonly-reference]: invalid MIR: cannot write through reado
 for more information about an error, run `destack explain write-through-readonly-reference`
 "#,
     );
+}
+
+/// Nested fields of an owned value take assignments.
+#[test]
+fn test_allow_assignments_to_nested_fields() {
+    let session = TestSession::single(
+        r#"
+struct B {
+    a: int32;
+}
+
+struct A {
+    a: int32;
+    w: B;
+}
+
+export function main(): void {
+    let p = A { a: 1, w: B { a: 1 } };
+    p.a = 2;
+    p.w.a = 2;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+}
+
+/// A write inside a loop conflicts with a borrow the loop uses later.
+#[test]
+fn test_reject_a_write_before_a_later_use_of_the_borrow_inside_a_loop() {
+    let session = TestSession::single(
+        r#"
+struct Record {
+    field: int32;
+}
+
+function length(value: &readonly int32): int32 {
+    return 0;
+}
+
+export function nllFail(): void {
+    let record = Record { field: 1 };
+    const value = &exclusive record.field;
+    loop {
+        record.field += 1;
+        length(value);
+        return;
+    }
+}
+
+export function nllOk(): void {
+    let record = Record { field: 1 };
+    const value = &exclusive record.field;
+    loop {
+        record.field += 1;
+        return;
+    }
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics("main.ds", r#"
+/// @diagnostic.error id=use-of-exclusively-borrowed-place message="cannot use exclusively borrowed place"
+/// @diagnostic.label line=14 column=9 span="record.field += 1" line_source="record.field += 1;"
+/// @diagnostic.related line=12 column=19 span="&exclusive record.field" line_source="const value = &exclusive record.field;" message="borrow starts here"
+"#);
 }
