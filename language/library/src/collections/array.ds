@@ -1,21 +1,32 @@
 import { As, Borrow, From } from "destack:convert";
-import { Result, todo } from "destack:error";
-import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
+import { panic, Result, todo } from "destack:error";
+import {
+    Extend,
+    FromIterator,
+    Iterable,
+    Iterator,
+    IteratorResult,
+    IteratorReturn,
+    IteratorYield,
+} from "destack:iter";
 import {
     Access,
     AllocationError,
+    assumeInitReference,
     Borrowed,
     Clone,
     Copy,
     Default,
+    Drop,
     MaybeUninit,
+    replace,
     WithAccess,
 } from "destack:memory";
 import { Compare, Display, Index, IndexSet, Ordering, PartialEqual } from "destack:ops";
 import { RangeBounds } from "destack:range";
 
 import { Sequence } from "./sequence.ds";
-import { Slice } from "./slice.ds";
+import { Slice, sliceIndex } from "./slice.ds";
 
 /// Readonly view of a dynamic array.
 @languageItem("collections.ReadonlyArray")
@@ -47,6 +58,13 @@ export extension<T> of Array<T> implements Clone where T: Clone {
     /// Clone this array and its elements.
     clone(&readonly this): ^this {
         todo("Array.clone")
+    }
+}
+
+export extension<T> of Array<T> implements Drop {
+    /// Drop the initialized elements.
+    drop(&exclusive this): void {
+        this.clear();
     }
 }
 
@@ -246,29 +264,39 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
     /// The borrowed sequence produced by a rest pattern.
     type Rest = ^Array<Borrowed<T, 'a, A>>;
 
+    /// The iterator over borrowed elements.
+    type Iterator = ArrayIterator<T, 'a, A>;
+
     /// Borrow the elements from `start..end` for a rest pattern.
     rest(start: isize, end?: isize): ^Array<Borrowed<T, 'a, A>> {
         todo("Array.rest")
     }
 
     /// Return an iterator over borrowed values.
-    iterator(): Iterator<Borrowed<T, 'a, A>> {
-        todo("Array.iterator")
+    iterator(): ArrayIterator<T, 'a, A> {
+        ArrayIterator { array: this }
     }
 
     /// Borrow the element at `index`, counting from the end when negative.
     at(index: isize): Borrowed<T, 'a, A> | undefined {
-        todo("Array.at")
+        let count = this.length;
+        let position = if (index < 0) { index + count } else { index };
+
+        if (position < 0 || position >= count) {
+            undefined
+        } else {
+            this.index(position)
+        }
     }
 
     /// Borrow the first element.
     first(): Borrowed<T, 'a, A> | undefined {
-        todo("Array.first")
+        this.at(0)
     }
 
     /// Borrow the last element.
     last(): Borrowed<T, 'a, A> | undefined {
-        todo("Array.last")
+        this.at(-1)
     }
 
     /// Map borrowed elements into a new array.
@@ -381,12 +409,28 @@ export extension<T> of Array<T>
 
     /// Create an empty array.
     static new(): ^Array<T> {
-        todo("Array.new")
+        new Array<T>()
     }
 
     /// Create an array with room for at least `capacity` elements.
     static withCapacity(capacity: usize): ^Array<T> {
-        todo("Array.withCapacity")
+        let array: ^Array<T> = new Array<T>();
+
+        array.reserve(capacity);
+
+        array
+    }
+
+    /// Create an array over the owned `values`.
+    static fromOwnedSlice(values: ^[T]): ^Array<T> {
+        let count = values.size;
+        let array: ^Array<T> = new Array<T>();
+
+        array.storage = Slice.intoUninit(values);
+        array.count = count;
+        array.allocated = count.truncate<usize>();
+
+        array
     }
 
     /// Try to create an array with room for at least `capacity` elements.
@@ -415,8 +459,8 @@ export extension<T> of Array<T>
     }
 
     /// Create an array copied from `values`.
-    static fromSlice(values: &readonly [T]): ^Array<T> {
-        arrayFromSlice<T>(values)
+    static fromSlice(values: &readonly [T]): ^Array<T> where T: Clone {
+        todo("Array.fromSlice")
     }
 
     /// Create the default array.
@@ -460,17 +504,21 @@ export extension<T> of Array<T>
         this: WithAccess<&Array<T>, A>,
         index: isize,
     ): WithAccess<&T, A> {
-        todo("Array.index")
+        let position = elementPosition(this, index);
+
+        assumeInitReference<T, A>(elementSlot<T, A>(this, position))
     }
 
-    /// Replace the element at `index`.
-    indexSet(&this, index: isize, value: T): void {
-        todo("Array.indexSet");
+    /// Replace the element at `index`, counting from the end when negative.
+    indexSet(&exclusive this, index: isize, value: T): void {
+        replace(this.index(index), value);
     }
 
     /// Append `values` and return the new length.
     push(&exclusive this, ...values: T[]): isize {
-        todo("Array.push")
+        this.append(values);
+
+        this.count
     }
 
     /// Append all `values`.
@@ -479,13 +527,31 @@ export extension<T> of Array<T>
     }
 
     /// Move all elements from `other` to the end of this array.
-    append(&exclusive this, other: ^Array<T>): void {
-        todo("Array.append");
+    append(&exclusive this, other: &exclusive Array<T>): void {
+        let count = other.count;
+
+        this.reserve(count.truncate<usize>());
+
+        for (let index: isize = 0; index < count; index += 1) {
+            let value = elementSlot(other, index.truncate<usize>()).assumeInitRead();
+            let position = (this.count + index).truncate<usize>();
+
+            elementSlot(this, position).write(value);
+        }
+
+        this.count += count;
+        other.count = 0;
     }
 
     /// Remove and return the last element.
     pop(&exclusive this): T | undefined {
-        todo("Array.pop")
+        if (this.count == 0) {
+            return undefined;
+        }
+
+        this.count -= 1;
+
+        elementSlot(this, this.count.truncate<usize>()).assumeInitRead()
     }
 
     /// Remove and return the last element when `predicate` accepts it.
@@ -520,12 +586,23 @@ export extension<T> of Array<T>
 
     /// Remove all elements.
     clear(&exclusive this): void {
-        todo("Array.clear");
+        this.truncate(0);
     }
 
     /// Remove all elements after `length`.
     truncate(&exclusive this, length: isize): void {
-        todo("Array.truncate");
+        let kept = if (length < 0) { 0 } else { length };
+        let count = this.count;
+
+        if (kept >= count) {
+            return;
+        }
+
+        this.count = kept;
+
+        for (let index = kept; index < count; index += 1) {
+            elementSlot(this, index.truncate<usize>()).assumeInitDrop();
+        }
     }
 
     /// Resize this array, cloning `value` when it grows.
@@ -573,7 +650,24 @@ export extension<T> of Array<T>
 
     /// Reserve room for at least `additional` more elements.
     reserve(&exclusive this, additional: usize): void {
-        todo("Array.reserve");
+        let required = this.count.truncate<usize>() + additional;
+
+        if (required <= this.allocated) {
+            return;
+        }
+
+        let doubled = this.allocated * 2;
+        let capacity = if (doubled > required) { doubled } else { required };
+        let grown: ^[MaybeUninit<T>] = Slice.uninit(capacity);
+
+        for (let index: isize = 0; index < this.count; index += 1) {
+            let value = elementSlot(this, index.truncate<usize>()).assumeInitRead();
+
+            sliceIndex<MaybeUninit<T>, "exclusive">(grown, index.truncate<usize>()).write(value);
+        }
+
+        this.storage = grown;
+        this.allocated = capacity;
     }
 
     /// Try to reserve room for at least `additional` more elements.
@@ -770,8 +864,56 @@ export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 }
 
-/// Create an array copied from a borrowed slice of `values`.
-@languageItem("collections.array.fromSlice")
-export function arrayFromSlice<T>(values: &readonly [T]): ^Array<T> {
-    todo("arrayFromSlice")
+/// Iterator over the borrowed elements of an array.
+export struct ArrayIterator<T, 'a, const A: Access> {
+    /// The iterated array.
+    private array: Borrowed<Array<T>, 'a, A>;
+
+    /// The index of the next element.
+    private position: isize = 0;
+}
+
+export extension<T, 'a, const A: Access> of ArrayIterator<T, 'a, A>
+    implements Iterator<Borrowed<T, 'a, A>>
+{
+    /// Advance to the next borrowed element.
+    next(&exclusive this): IteratorResult<Borrowed<T, 'a, A>> {
+        let array = this.array;
+
+        if (this.position >= array.length) {
+            return IteratorResult(IteratorReturn { value: undefined });
+        }
+
+        let value = array.index(this.position);
+
+        this.position += 1;
+
+        IteratorResult(IteratorYield { value })
+    }
+}
+
+/// Create an array over the owned `values` of a literal or rest pack.
+@languageItem("collections.array.fromOwnedSlice")
+export function arrayFromOwnedSlice<T>(values: ^[T]): ^Array<T> {
+    Array.fromOwnedSlice(values)
+}
+
+/// Return the storage position of `index`, counting from the end when negative.
+function elementPosition<T>(array: &readonly Array<T>, index: isize): usize {
+    let count = array.count;
+    let position = if (index < 0) { index + count } else { index };
+
+    if (position < 0 || position >= count) {
+        panic("array index out of bounds")
+    }
+
+    position.truncate<usize>()
+}
+
+/// Borrow the element storage at `position`.
+function elementSlot<T, const A: Access = "readonly">(
+    array: WithAccess<&Array<T>, A>,
+    position: usize,
+): WithAccess<&MaybeUninit<T>, A> {
+    sliceIndex<MaybeUninit<T>, A>(array.storage, position)
 }

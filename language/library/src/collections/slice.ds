@@ -9,6 +9,7 @@ import {
     Default,
     MaybeUninit,
     Raw,
+    replace,
     WithAccess,
 } from "destack:memory";
 import { Compare, Index, IndexSet, Ordering } from "destack:ops";
@@ -24,12 +25,23 @@ export newtype Slice<T> = [T];
 export extension<T> of Slice<T> implements Default {
     /// Create an empty slice.
     static new(): ^[T] {
-        todo("Slice.new")
+        sliceAssumeInit<T>(sliceUninit<T>(0))
     }
 
     /// Allocate `length` uninitialized elements.
     static uninit(length: usize): ^[MaybeUninit<T>] {
         sliceUninit<T>(length)
+    }
+
+    /// Complete owned storage whose elements are all initialized.
+    @unsafe
+    static assumeInit(storage: ^[MaybeUninit<T>]): ^[T] {
+        sliceAssumeInit<T>(storage)
+    }
+
+    /// Forget the initialization of owned elements.
+    static intoUninit(values: ^[T]): ^[MaybeUninit<T>] {
+        sliceIntoUninit<T>(values)
     }
 
     /// Create a slice from `values`.
@@ -248,12 +260,16 @@ export extension<T> of Slice<T> implements Index<isize>, IndexSet<isize, T> {
         this: WithAccess<&[T], A>,
         index: isize,
     ): WithAccess<&T, A> {
-        todo("Slice.index")
+        if (index < 0 || index >= this.size) {
+            panic("slice index out of bounds")
+        }
+
+        sliceIndex<T, A>(this, index.truncate<usize>())
     }
 
     /// Replace the element at `index`.
-    indexSet(&this, index: isize, value: T): void {
-        todo("Slice.indexSet");
+    indexSet(&exclusive this, index: isize, value: T): void {
+        replace(this.index(index), value);
     }
 }
 
@@ -322,6 +338,23 @@ export declare function sliceFromRaw<T>(data: *T, length: usize): Raw<[T]>;
 /// Allocate one owned slice of `length` uninitialized elements.
 @intrinsic("collections.slice.uninit")
 export declare function sliceUninit<T>(length: usize): ^[MaybeUninit<T>];
+
+/// Complete one owned slice whose elements are all initialized.
+@unsafe
+@intrinsic("collections.slice.assumeInit")
+export declare function sliceAssumeInit<T>(storage: ^[MaybeUninit<T>]): ^[T];
+
+/// Forget the initialization of one owned slice's elements.
+@intrinsic("collections.slice.intoUninit")
+export declare function sliceIntoUninit<T>(values: ^[T]): ^[MaybeUninit<T>];
+
+/// Borrow one element without bounds checks.
+@unsafe
+@intrinsic("collections.slice.index")
+export declare function sliceIndex<T, const A: Access = "readonly">(
+    slice: WithAccess<&[T], A>,
+    index: usize,
+): WithAccess<&T, A>;
 
 /// Return the element count of one slice view.
 @intrinsic("collections.slice.length")
