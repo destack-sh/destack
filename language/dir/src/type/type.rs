@@ -832,7 +832,9 @@ pub enum Lifetime {
     Static,
     /// The enclosing frame's lifetime ('frame).
     Frame,
-    /// The region bound at one position of an instance's argument row ('bound0).
+    /// The extent of managed storage, alive while reachable ('managed).
+    Managed,
+    /// The region bound at one position of an instance's arguments ('bound0).
     Bound(u32),
 }
 
@@ -842,6 +844,7 @@ impl Lifetime {
         match self {
             Self::Static => Cow::Borrowed("static"),
             Self::Frame => Cow::Borrowed("frame"),
+            Self::Managed => Cow::Borrowed("managed"),
             Self::Bound(position) => Cow::Owned(format!("bound{position}")),
         }
     }
@@ -851,6 +854,7 @@ impl Lifetime {
         match text {
             "static" => Some(Self::Static),
             "frame" => Some(Self::Frame),
+            "managed" => Some(Self::Managed),
             other => other.strip_prefix("bound")?.parse().ok().map(Self::Bound),
         }
     }
