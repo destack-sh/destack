@@ -1,3 +1,4 @@
+import { Access } from "./access.ds";
 import { Borrowed } from "./borrow.ds";
 import { Copy } from "./capability.ds";
 
@@ -23,20 +24,12 @@ export declare function offset<T>(pointer: *T, count: int): *T;
 @intrinsic("memory.ptr.offsetFrom")
 export declare function offsetFrom<T>(pointer: *T, origin: *T): int;
 
-/// Borrow the pointed-to value.
+/// Borrow the pointed-to value at the access asked for.
 @unsafe
 @intrinsic("memory.ptr.asReference")
-export declare function asReference<T>(pointer: *T): Borrowed<T, 'static>;
-
-/// Borrow the pointed-to value with readonly access.
-@unsafe
-@intrinsic("memory.ptr.asReadonlyReference")
-export declare function asReadonlyReference<T>(pointer: *T): Borrowed<T, 'static, "readonly">;
-
-/// Borrow the pointed-to value with exclusive access.
-@unsafe
-@intrinsic("memory.ptr.asExclusive")
-export declare function asExclusive<T>(pointer: *T): Borrowed<T, 'static, "exclusive">;
+export declare function asReference<T, const A: Access = "mutable">(
+    pointer: *T,
+): Borrowed<T, 'static, A>;
 
 /// Read a value from `source`.
 @unsafe

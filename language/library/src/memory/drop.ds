@@ -1,4 +1,6 @@
+import { Access } from "./access.ds";
 import { Default } from "./capability.ds";
+import { WithAccess } from "./type.ds";
 
 /// Ownership finalization capability.
 @languageItem("memory.Drop")
@@ -34,12 +36,12 @@ export extension<T> of ManuallyDrop<T> {
 
     /// Borrow the wrapped value with readonly access.
     asReadonlyReference(&readonly this): &readonly T {
-        return manuallyDropReadonlyReference<T>(this);
+        return manuallyDropReference<T, "readonly">(this);
     }
 
     /// Borrow the wrapped value with exclusive access.
     asExclusive(&exclusive this): &exclusive T {
-        return manuallyDropExclusive<T>(this);
+        return manuallyDropReference<T, "exclusive">(this);
     }
 
     /// Drop the wrapped value.
@@ -60,19 +62,11 @@ export declare function intoManuallyDropInner<T>(wrapped: ManuallyDrop<T>): T;
 @intrinsic("memory.manuallyDrop.take")
 export declare function takeManuallyDrop<T>(wrapped: &exclusive ManuallyDrop<T>): T;
 
-/// Borrow one wrapped value.
+/// Borrow one wrapped value at the access of its borrow.
 @intrinsic("memory.manuallyDrop.asReference")
-export declare function manuallyDropReference<T>(wrapped: &ManuallyDrop<T>): &T;
-
-/// Borrow one wrapped value with readonly access.
-@intrinsic("memory.manuallyDrop.asReadonlyReference")
-export declare function manuallyDropReadonlyReference<T>(
-    wrapped: &readonly ManuallyDrop<T>,
-): &readonly T;
-
-/// Borrow one wrapped value with exclusive access.
-@intrinsic("memory.manuallyDrop.asExclusive")
-export declare function manuallyDropExclusive<T>(wrapped: &exclusive ManuallyDrop<T>): &exclusive T;
+export declare function manuallyDropReference<T, const A: Access = "mutable">(
+    wrapped: WithAccess<&ManuallyDrop<T>, A>,
+): WithAccess<&T, A>;
 
 export extension<T> of ManuallyDrop<T> implements Default where T: Default {
     /// Wrap the default value.

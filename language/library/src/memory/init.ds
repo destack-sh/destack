@@ -1,5 +1,7 @@
+import { Access } from "./access.ds";
 import { Default, Zeroable } from "./capability.ds";
-import { drop } from "./drop.ds";
+import { dropInPlace } from "./raw.ds";
+import { WithAccess } from "./type.ds";
 
 /// Storage for `T` whose lifetime may not have started.
 @languageItem("memory.MaybeUninit")
@@ -21,41 +23,31 @@ export declare function initZeroed<T: Zeroable>(): MaybeUninit<T>;
 @intrinsic("memory.init.write")
 export declare function initWrite<T>(storage: &exclusive MaybeUninit<T>, value: T): &exclusive T;
 
-/// Return a raw pointer to one storage.
+/// Return a raw pointer to one storage borrowed at any access.
 @intrinsic("memory.init.asPointer")
-export declare function initAsPointer<T>(storage: &MaybeUninit<T>): *T;
+export declare function initAsPointer<T, const A: Access = "mutable">(
+    storage: WithAccess<&MaybeUninit<T>, A>,
+): *T;
 
-/// Return an exclusive raw pointer to one storage.
-@intrinsic("memory.init.asExclusivePointer")
-export declare function initAsExclusivePointer<T>(storage: &exclusive MaybeUninit<T>): *T;
-
-/// Borrow one initialized storage.
+/// Borrow one initialized storage at the access of its borrow.
 @intrinsic("memory.init.assumeInitReference")
-export declare function assumeInitReference<T>(storage: &MaybeUninit<T>): &T;
-
-/// Borrow one initialized storage with readonly access.
-@intrinsic("memory.init.assumeInitReadonlyReference")
-export declare function assumeInitReadonlyReference<T>(
-    storage: &readonly MaybeUninit<T>,
-): &readonly T;
-
-/// Borrow one initialized storage with exclusive access.
-@intrinsic("memory.init.assumeInitExclusiveReference")
-export declare function assumeInitExclusiveReference<T>(
-    storage: &exclusive MaybeUninit<T>,
-): &exclusive T;
+export declare function assumeInitReference<T, const A: Access = "mutable">(
+    storage: WithAccess<&MaybeUninit<T>, A>,
+): WithAccess<&T, A>;
 
 /// Move one initialized storage out as `T`.
 @intrinsic("memory.init.assumeInit")
 export declare function assumeInit<T>(storage: MaybeUninit<T>): T;
 
 /// Copy one initialized storage out without ending it.
+@unsafe
 @intrinsic("memory.init.assumeInitRead")
 export declare function assumeInitRead<T>(storage: &MaybeUninit<T>): T;
 
 /// Drop one initialized storage in place.
+@unsafe
 export function assumeInitDrop<T>(storage: &exclusive MaybeUninit<T>): void {
-    drop(assumeInitRead<T>(storage));
+    dropInPlace<T>(initAsPointer<T, "exclusive">(storage));
 }
 
 export extension<T> of MaybeUninit<T> implements Default {
@@ -91,7 +83,7 @@ export extension<T> of MaybeUninit<T> implements Default {
 
     /// Return an exclusive raw pointer to the storage.
     asExclusivePointer(&exclusive this): *T {
-        return initAsExclusivePointer<T>(this);
+        return initAsPointer<T, "exclusive">(this);
     }
 
     /// Borrow initialized storage.
@@ -103,13 +95,13 @@ export extension<T> of MaybeUninit<T> implements Default {
     /// Borrow initialized storage with readonly access.
     @unsafe
     assumeInitReadonlyReference(&readonly this): &readonly T {
-        return assumeInitReadonlyReference<T>(this);
+        return assumeInitReference<T, "readonly">(this);
     }
 
     /// Borrow initialized storage with exclusive access.
     @unsafe
     assumeInitExclusiveReference(&exclusive this): &exclusive T {
-        return assumeInitExclusiveReference<T>(this);
+        return assumeInitReference<T, "exclusive">(this);
     }
 
     /// Move initialized storage out as `T`.
