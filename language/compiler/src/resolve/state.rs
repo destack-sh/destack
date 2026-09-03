@@ -34,7 +34,7 @@ pub(in crate::resolve) struct ResolveState<'a> {
     pub(in crate::resolve) errors: Vec<DiagnosticBuilder<ResolveError>>,
     /// The warnings produced while resolving.
     pub(in crate::resolve) warnings: Vec<DiagnosticBuilder<ResolveWarning>>,
-    /// The work stats accumulated while resolving.
+    /// The work counts accumulated while resolving.
     pub(in crate::resolve) stats: ResolveStats,
     /// Import expressions collected from active roots.
     pub(in crate::resolve) import_expressions: Vec<dir::LocalNodeId<dir::Expression>>,
@@ -233,7 +233,7 @@ impl<'a> ResolveState<'a> {
                 continue;
             };
 
-            // implementations are program facts, members of exported extensions import lexically
+            // resolve the extension target and every interface it implements
             let target = self.extension_target(environment, extension.target_type);
             let interfaces = extension
                 .implements_types

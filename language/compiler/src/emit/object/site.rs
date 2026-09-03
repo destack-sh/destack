@@ -159,7 +159,18 @@ impl SiteEmitter {
                 )?);
             }
             mir::Instruction::ProfileIncrement { counter } => {
+                // read the name the profile table records for this counter
+                let name = match optimized
+                    .profile
+                    .function(point.function)
+                    .and_then(|table| table.counter_site(*counter))
+                {
+                    Some(mir::CounterSite::Named(name)) => Some(*name),
+                    _ => None,
+                };
+
                 self.counters.push(CounterSite {
+                    name,
                     point,
                     counter: *counter,
                 });
@@ -168,7 +179,19 @@ impl SiteEmitter {
                 let value_type = function
                     .value_type(*value)
                     .ok_or_else(|| ObjectEmitter::internal(module, "missing sample value type"))?;
+
+                // read the name the profile table records for this sampler
+                let name = match optimized
+                    .profile
+                    .function(point.function)
+                    .and_then(|table| table.sample_site(*sampler))
+                {
+                    Some(mir::SampleSite::Named(name)) => Some(*name),
+                    _ => None,
+                };
+
                 self.samples.push(SampleSite {
+                    name,
                     point,
                     sampler: *sampler,
                     value_type,

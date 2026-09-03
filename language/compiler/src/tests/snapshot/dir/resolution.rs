@@ -49,10 +49,16 @@ impl SnapshotTable for dir::DecisionTable<'_> {
                     add_transfer_decision_row(builder, node_id, *target);
                 }
                 dir::Decision::Residual(resolution) => {
-                    add_residual_decision_row(builder, node_id, *resolution);
+                    add_residual_decision_row(builder, node_id, resolution);
                 }
                 dir::Decision::Iteration(resolution) => {
                     add_iteration_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Template(resolution) => {
+                    add_template_decision_row(builder, node_id, resolution);
+                }
+                dir::Decision::Disposal(resolution) => {
+                    add_disposal_decision_row(builder, node_id, resolution);
                 }
                 dir::Decision::Coverage(resolution) => {
                     add_coverage_decision_row(builder, node_id, resolution);
@@ -399,7 +405,7 @@ fn add_transfer_decision_row(
 fn add_residual_decision_row(
     builder: &mut DirSnapshotBuilder<'_>,
     node_id: dir::GlobalNodeIdAny,
-    resolution: dir::ResidualDecision,
+    resolution: &dir::ResidualDecision,
 ) {
     let target = match resolution.target {
         dir::ResidualTarget::Try(target) => builder
@@ -411,6 +417,33 @@ fn add_residual_decision_row(
         .optional_field("source", builder.node_source(node_id))
         .field("target", target)
         .type_field("residual", builder.global_type_label(resolution.residual));
+    let row = match &resolution.branch {
+        Some(branch) => row.field("branch", call_label(builder, branch)),
+        None => row,
+    };
+    let row = match &resolution.from_residual {
+        Some(from_residual) => row.field("from_residual", call_label(builder, from_residual)),
+        None => row,
+    };
+    builder.push(row);
+}
+
+/// Add one interpolated template resolution row.
+fn add_template_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::TemplateDecision,
+) {
+    let spans = resolution
+        .spans
+        .iter()
+        .map(|span| call_label(builder, span))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "template")
+        .optional_field("source", builder.node_source(node_id))
+        .field("spans", format!("[{spans}]"))
+        .field("build", call_label(builder, &resolution.build));
     builder.push(row);
 }
 
@@ -678,6 +711,32 @@ fn add_iteration_decision_row(
                     dir::AwaitTarget::Element => "element",
                 },
             ),
+        None => row,
+    };
+    let row = match &resolution.disposal {
+        Some(disposal) => {
+            let row = row.field("dispose", call_label(builder, &disposal.dispose));
+            match &disposal.awaits {
+                Some(awaited) => row.field("dispose_await", call_label(builder, awaited)),
+                None => row,
+            }
+        }
+        None => row,
+    };
+    builder.push(row);
+}
+
+/// Add one disposal protocol row.
+fn add_disposal_decision_row(
+    builder: &mut DirSnapshotBuilder<'_>,
+    node_id: dir::GlobalNodeIdAny,
+    resolution: &dir::DisposalDecision,
+) {
+    let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "disposal")
+        .optional_field("source", builder.node_source(node_id))
+        .field("dispose", call_label(builder, &resolution.dispose));
+    let row = match &resolution.awaits {
+        Some(awaited) => row.field("await", call_label(builder, awaited)),
         None => row,
     };
     builder.push(row);
@@ -2560,7 +2619,7 @@ fn argument_binding_label(
         dir::ArgumentSource::Static(ty) => {
             format!("static({})", builder.global_type_label(*ty))
         }
-        dir::ArgumentSource::Write => "write".to_string(),
+        dir::ArgumentSource::Supplied => "supplied".to_string(),
         dir::ArgumentSource::Omitted => "omitted".to_string(),
         dir::ArgumentSource::Rest { elements, pack } => {
             let sources = elements

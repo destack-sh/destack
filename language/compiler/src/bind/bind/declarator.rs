@@ -6,7 +6,9 @@ use super::super::state::{BindState, BindingModifiers};
 use crate::Compiler;
 
 impl Compiler {
-    /// Bind one declarator with Rust-like rebinding order.
+    /// Bind one declarator.
+    ///
+    /// A later declarator rebinds the name an earlier one bound.
     pub(in crate::bind) fn bind_declarator(
         &self,
         state: &mut BindState<'_>,

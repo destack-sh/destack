@@ -412,7 +412,7 @@ impl TestSession {
         let key = self.mir_lowered_key(path);
         let _ = self.require_artifact_result(key);
 
-        assert_snapshot(self.diagnostic_snapshot(key), expected);
+        assert_snapshot(self.diagnostic_snapshot_for(&[key]), expected);
     }
 
     /// Assert the diagnostics of one module's verified MIR.
