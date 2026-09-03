@@ -504,12 +504,12 @@ define_language_items! {
             /// Readonly dynamic array alias.
             ReadonlyArray => (Type, "collections/array", "ReadonlyArray"),
 
-            /// Slice-taking array constructor.
-            ArrayFromSlice => (
+            /// Owned-slice-taking array constructor.
+            ArrayFromOwnedSlice => (
                 Function,
                 "collections/array",
-                "arrayFromSlice",
-                "collections.array.fromSlice"
+                "arrayFromOwnedSlice",
+                "collections.array.fromOwnedSlice"
             ),
         }
 
