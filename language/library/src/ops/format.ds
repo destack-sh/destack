@@ -1,4 +1,3 @@
-import { todo } from "destack:error";
 import { MaybeOwned } from "destack:memory";
 
 /// Interface for user-facing string representation.
@@ -13,18 +12,4 @@ export newtype interface Display {
 export newtype interface Debug {
     /// Return a developer-facing string representation.
     debug(&readonly this): MaybeOwned<string>;
-}
-
-/// Interface for infallible conversion to owned text.
-@languageItem("ops.ToString")
-export newtype interface ToString {
-    /// Return the owned string representation.
-    toString(&readonly this): ^string;
-}
-
-export extension<T: Display> of T implements ToString {
-    /// Return the owned user-facing string representation.
-    toString(&readonly this): ^string {
-        todo("ToString.toString")
-    }
 }

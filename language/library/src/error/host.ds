@@ -505,7 +505,11 @@ export newtype HostError = {
 export extension of HostError implements Error {
     /// Format this error for users.
     display(): MaybeOwned<string> {
-        MaybeOwned.borrowed(this.message ?? "host error")
+        if (this.message == undefined) {
+            MaybeOwned.borrowed("host error")
+        } else {
+            MaybeOwned.borrowed(this.message)
+        }
     }
 }
 

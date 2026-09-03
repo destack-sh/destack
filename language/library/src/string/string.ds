@@ -3,7 +3,7 @@ import { As, Borrow, From } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { CollatorOptions, IntlError, Locales } from "destack:intl";
 import { Iterator } from "destack:iter";
-import { Default } from "destack:memory";
+import { Default, MaybeOwned } from "destack:memory";
 import { Add, Equal, Hash, Hasher, Ordering } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
 
@@ -350,4 +350,15 @@ export extension of String implements As<StringSlice>, Borrow<StringSlice> {
     borrow(&readonly this): &readonly StringSlice {
         this.as()
     }
+}
+
+/// Join one template's literal chunks with the text its interpolations produced.
+///
+/// The chunks always outnumber the spans by one, so each span sits between two chunks.
+@languageItem("string.fromTemplate")
+export function stringFromTemplate(
+    chunks: &readonly [string],
+    spans: &readonly [MaybeOwned<string>],
+): ^string {
+    todo("stringFromTemplate")
 }
