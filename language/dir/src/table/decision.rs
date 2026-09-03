@@ -30,6 +30,8 @@ pub enum Decision {
     Residual(ResidualDecision),
     /// Resolved iteration protocol calls.
     Iteration(Box<IterationDecision>),
+    /// Resolved disposal protocol calls.
+    Disposal(Box<DisposalDecision>),
     /// Resolved pattern coverage proof.
     Coverage(CoverageDecision),
     /// Resolved operator application.
@@ -62,8 +64,10 @@ pub enum Decision {
 ///
 /// Examples:
 /// ```ds
-/// for (const item of items) {}       // Iterable.iterator, then Iterator.next each pass
-/// for await (const item of items) {} // AsyncIterator.next results parked before dispatch
+/// for (const item of items) {}
+/// for await (const item of items) {}
+/// for (using const item of items) {}
+/// for await (using item of items) {}
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
 pub struct IterationDecision {
@@ -73,6 +77,8 @@ pub struct IterationDecision {
     pub next: Call,
     /// The await an async iteration runs on every pass.
     pub awaits: Option<IterationAwait>,
+    /// The disposal a using binding runs after every pass.
+    pub disposal: Option<DisposalDecision>,
 }
 
 /// The await one async iteration runs on every pass.
@@ -82,6 +88,21 @@ pub struct IterationAwait {
     pub call: Call,
     /// What the await produces for the loop.
     pub target: AwaitTarget,
+}
+
+/// Disposal protocol calls selected for one `using` binding.
+///
+/// Examples:
+/// ```ds
+/// using file = open(path);          // Dispose.dispose at scope exit
+/// await using conn = connect(url);  // AsyncDispose.asyncDispose, its completion parked
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+pub struct DisposalDecision {
+    /// The call disposing the resource at scope exit.
+    pub dispose: Call,
+    /// The Awaitable.park call awaiting an asynchronous disposal.
+    pub awaits: Option<Call>,
 }
 
 /// What one implicit await produces for its loop.
@@ -188,6 +209,7 @@ impl Decision {
             | Self::Transfer(_)
             | Self::Residual(_)
             | Self::Iteration(_)
+            | Self::Disposal(_)
             | Self::Coverage(_)
             | Self::Operator(_)
             | Self::Call(_)
@@ -350,6 +372,14 @@ impl<'a> DecisionTable<'a> {
     pub fn iteration_decision(&self, node_id: GlobalNodeIdAny) -> Option<&IterationDecision> {
         match self.decision(node_id) {
             Some(Decision::Iteration(decision)) => Some(decision),
+            _ => None,
+        }
+    }
+
+    /// Get the disposal protocol calls selected at one using binding.
+    pub fn disposal_decision(&self, node_id: GlobalNodeIdAny) -> Option<&DisposalDecision> {
+        match self.decision(node_id) {
+            Some(Decision::Disposal(decision)) => Some(decision),
             _ => None,
         }
     }
