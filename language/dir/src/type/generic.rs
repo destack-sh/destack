@@ -522,7 +522,7 @@ impl ArgumentBinding {
         match &self.source {
             ArgumentSource::Provided(source) => *source == argument,
             ArgumentSource::Rest { elements, .. } => elements.contains(&argument),
-            ArgumentSource::Static(_) | ArgumentSource::Write | ArgumentSource::Omitted => false,
+            ArgumentSource::Static(_) | ArgumentSource::Supplied | ArgumentSource::Omitted => false,
         }
     }
 }
@@ -536,8 +536,8 @@ pub enum ArgumentSource {
     Provided(GlobalNodeIdAny),
     /// One static argument was inserted by checking.
     Static(GlobalTypeId),
-    /// The enclosing place write supplies this argument.
-    Write,
+    /// The enclosing construct supplies this argument, a place write or a propagated residual.
+    Supplied,
     /// No source argument was supplied.
     Omitted,
     /// Remaining source arguments were supplied to a rest parameter.

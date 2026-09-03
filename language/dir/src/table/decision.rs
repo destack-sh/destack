@@ -27,11 +27,13 @@ pub enum Decision {
     /// Resolved control transfer target.
     Transfer(GlobalNodeId<Expression>),
     /// Resolved try residual transfer.
-    Residual(ResidualDecision),
+    Residual(Box<ResidualDecision>),
     /// Resolved iteration protocol calls.
     Iteration(Box<IterationDecision>),
     /// Resolved disposal protocol calls.
     Disposal(Box<DisposalDecision>),
+    /// Resolved template protocol calls.
+    Template(Box<TemplateDecision>),
     /// Resolved pattern coverage proof.
     Coverage(CoverageDecision),
     /// Resolved operator application.
@@ -90,6 +92,20 @@ pub struct IterationAwait {
     pub target: AwaitTarget,
 }
 
+/// Protocol calls selected for one interpolated template.
+///
+/// Examples:
+/// ```ds
+/// `n=${count}`   // Display.display per span, then the template join
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
+pub struct TemplateDecision {
+    /// The call rendering each interpolation in source order.
+    pub spans: Vec<Call>,
+    /// The call joining the literal chunks with the rendered spans.
+    pub build: Call,
+}
+
 /// Disposal protocol calls selected for one `using` binding.
 ///
 /// Examples:
@@ -114,13 +130,23 @@ pub enum AwaitTarget {
     Element,
 }
 
-/// One decided try residual transfer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+/// Try protocol calls selected for one propagating operator.
+///
+/// Examples:
+/// ```ds
+/// readFile(path)?          // Try.branch, then FromResidual.fromResidual at the target
+/// maybeValue?              // a nullish operand branches on its own absent case
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct ResidualDecision {
     /// The transfer target.
     pub target: ResidualTarget,
     /// The transferred residual type.
     pub residual: GlobalTypeId,
+    /// The branch call splitting a Try implementor, absent for a nullish operand.
+    pub branch: Option<Call>,
+    /// The call rebuilding the target from the residual, absent when the residual transfers as is.
+    pub from_residual: Option<Call>,
 }
 
 /// One residual transfer target.
@@ -133,7 +159,10 @@ pub enum ResidualTarget {
 }
 
 impl InstanceKeyVisit for ResidualDecision {
-    fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
+    fn visit_instance_keys(&self, visit: &mut dyn FnMut(&InstanceKey)) {
+        self.branch.visit_instance_keys(visit);
+        self.from_residual.visit_instance_keys(visit);
+    }
 }
 
 impl TypeFold for ResidualDecision {
@@ -141,7 +170,9 @@ impl TypeFold for ResidualDecision {
         &mut self,
         map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
     ) -> Result<(), E> {
-        self.residual.map_types(map)
+        self.residual.map_types(map)?;
+        self.branch.map_types(map)?;
+        self.from_residual.map_types(map)
     }
 }
 
@@ -210,6 +241,7 @@ impl Decision {
             | Self::Residual(_)
             | Self::Iteration(_)
             | Self::Disposal(_)
+            | Self::Template(_)
             | Self::Coverage(_)
             | Self::Operator(_)
             | Self::Call(_)
@@ -372,6 +404,14 @@ impl<'a> DecisionTable<'a> {
     pub fn iteration_decision(&self, node_id: GlobalNodeIdAny) -> Option<&IterationDecision> {
         match self.decision(node_id) {
             Some(Decision::Iteration(decision)) => Some(decision),
+            _ => None,
+        }
+    }
+
+    /// Get the template protocol calls selected at one interpolated template.
+    pub fn template_decision(&self, node_id: GlobalNodeIdAny) -> Option<&TemplateDecision> {
+        match self.decision(node_id) {
+            Some(Decision::Template(decision)) => Some(decision),
             _ => None,
         }
     }

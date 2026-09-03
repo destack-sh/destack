@@ -2385,11 +2385,8 @@ define_language_items! {
             /// Debug formatting protocol.
             Debug => (NewtypeInterface, "ops/format", "Debug"),
 
-            /// Display formatting protocol.
+            /// User-facing display formatting protocol.
             Display => (NewtypeInterface, "ops/format", "Display"),
-
-            /// String conversion protocol.
-            ToString => (NewtypeInterface, "ops/format", "ToString"),
         }
 
         /// `destack:ops/hash`.
@@ -2948,6 +2945,17 @@ define_language_items! {
         builder {
             /// Mutable string builder.
             StringBuilder => (Class, "string/builder", "StringBuilder"),
+        }
+
+        /// `destack:string/string`.
+        string {
+            /// Template joining constructor.
+            StringFromTemplate => (
+                Function,
+                "string/string",
+                "stringFromTemplate",
+                "string.fromTemplate"
+            ),
         }
 
         /// `destack:string/cstring`.
