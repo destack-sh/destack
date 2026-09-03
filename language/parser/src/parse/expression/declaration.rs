@@ -107,6 +107,14 @@ impl Parser {
                 && !probe.peek_token().is_on_new_line();
         }
 
+        // await heads an asynchronous using
+        if keyword == Keyword::Await {
+            probe.bump();
+
+            return probe.peek_keyword() == Some(Keyword::Using)
+                && !probe.peek_token().is_on_new_line();
+        }
+
         // classify declaration nouns from their required continuation
         match keyword {
             Keyword::Let | Keyword::Using => true,
@@ -189,6 +197,7 @@ impl Parser {
                 }
             }
             Keyword::Using => self.parse_using(start, header, Asynchrony::Sync)?,
+            Keyword::Await => self.parse_using(start, header, Asynchrony::Async)?,
             Keyword::Function | Keyword::Async => {
                 let declaration = self.parse_function(start, header, position)?;
                 self.insert_declaration_expression(start, declaration)
