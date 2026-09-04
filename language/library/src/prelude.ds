@@ -5,6 +5,7 @@ global {
     // destack:types
     export {
         Awaited,
+        Boolean,
         Capitalize,
         ConstructorParameters,
         Exclude,

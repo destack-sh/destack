@@ -1,3 +1,4 @@
+export { Boolean } from "./boolean.ds";
 export {
     ConstructorParameters,
     Function,
