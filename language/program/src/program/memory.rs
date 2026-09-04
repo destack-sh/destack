@@ -142,22 +142,6 @@ impl Memory<'_> {
         }
     }
 
-    /// Pin one managed heap allocation against movement.
-    pub fn pin(&mut self, edge: HeapEdge) -> HeapResult<HeapEdge> {
-        match edge {
-            HeapEdge::Local(reference) => self.local_heap.pin(reference).map(HeapEdge::Local),
-            HeapEdge::Shared(reference) => Ok(HeapEdge::Shared(reference)),
-        }
-    }
-
-    /// Release one managed heap pin.
-    pub fn unpin(&mut self, edge: HeapEdge) -> HeapResult<()> {
-        match edge {
-            HeapEdge::Local(reference) => self.local_heap.unpin(reference),
-            HeapEdge::Shared(_) => Ok(()),
-        }
-    }
-
     /// Record one completed managed-reference write.
     pub fn barrier(
         &mut self,
@@ -187,12 +171,10 @@ impl Memory<'_> {
         if !matches!(payload, Payload::Bytes(_))
             && let Some(small) = plan.small_allocation()
         {
-            let reference = if plan.is_noscan() {
-                self.local_heap.reserve_small_noscan(small)
-            } else if plan.has_shared_reference() {
+            let reference = if plan.has_shared_reference() {
                 self.local_heap.reserve_small_shared_edge(small)
             } else {
-                self.local_heap.reserve_small_scan(small)
+                self.local_heap.reserve_small(small)
             };
             if let Some(reference) = reference {
                 if payload == Payload::Zeroed {
