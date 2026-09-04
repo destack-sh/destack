@@ -4,11 +4,11 @@ use destack_fir::write;
 
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 use super::r#static::format_static;
-use super::value::format_type_id;
+use super::value::{format_function_id, format_type_id};
 
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
-    Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
+    FunctionId, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
     SignatureParameter, StaticId, Storage, Type, TypeDeclaration, TypeDeclarationSpans,
     TypeHeritage, TypeId, Writer, write_comments_before,
 };
@@ -28,7 +28,30 @@ impl<'a> Format<'a, Formatter<'a>> for FormatTypeId {
     }
 }
 
+/// Formatter adapter for one function reference.
+struct FormatFunctionId(FunctionId);
+
+impl<'a> Format<'a, Formatter<'a>> for FormatFunctionId {
+    fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+        format_function_id(self.0, f)
+    }
+}
+
 impl Formatter<'_> {
+    /// Format one function reference, its name with its instance arguments.
+    pub fn format_function(&self, function: FunctionId) -> FormatResult<String> {
+        let allocator = Allocator::default();
+        let formatter = Formatter::new(self.tree, self.target_layout, self.strings, self.options);
+
+        // build the FIR document from the reference
+        let document = destack_fir::format!(&allocator, formatter, [FormatFunctionId(function)])?;
+
+        // print the complete function reference
+        let printed = document.print()?;
+
+        Ok(printed.as_str().to_string())
+    }
+
     /// Format one type reference.
     pub fn format_type(&self, ty: TypeId) -> FormatResult<String> {
         let allocator = Allocator::default();

@@ -38,7 +38,15 @@ impl Item {
 
 impl<'a> Format<'a, Formatter<'a>> for Tree {
     fn format(&self, writer: &mut Writer<'a, '_>) -> FormatResult<()> {
-        let items = items(self);
+        // drop the items a selective format leaves out
+        let mut items = items(self);
+        if let Some(selection) = writer.context().selection() {
+            items.retain(|(_, item)| match item {
+                Item::Type(id) => selection.declarations.contains(id),
+                Item::Global(_) => false,
+                Item::Function(id) => selection.functions.contains(id),
+            });
+        }
 
         // preserve authored order and place generated nodes after authored nodes
         for (index, (_, item)) in items.iter().enumerate() {

@@ -1,14 +1,14 @@
 use std::fmt;
 
-use destack_core::{FxIndexMap, StringPool};
+use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
 use destack_source::{File, FileType};
 
 use super::FormatOptions;
 
 use crate::{
-    Block, Function, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
-    TargetLayout, Tree, TreeImpl, Type, Value,
+    Block, Function, FunctionId, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
+    TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, Value, mentioned_types,
 };
 
 /// One MIR formatting pass.
@@ -31,6 +31,8 @@ pub struct Formatter<'a> {
     local_indices: FxIndexMap<LocalNodeId<Local>, usize>,
     /// Lifetime parameters currently in scope.
     lifetimes: Vec<LifetimeParameter>,
+    /// The items a selective format keeps.
+    selection: Option<Selection>,
 }
 
 /// The FIR writer for one MIR formatting pass.
@@ -43,6 +45,14 @@ impl fmt::Debug for Formatter<'_> {
             .field("options", &self.options)
             .finish()
     }
+}
+
+/// The top-level items one selective format keeps.
+pub(crate) struct Selection {
+    /// The type declarations kept.
+    pub(crate) declarations: FxIndexSet<LocalNodeId<TypeDeclaration>>,
+    /// The functions kept.
+    pub(crate) functions: FxIndexSet<FunctionId>,
 }
 
 impl<'a> Formatter<'a> {
@@ -63,7 +73,29 @@ impl<'a> Formatter<'a> {
             block_indices: FxIndexMap::default(),
             local_indices: FxIndexMap::default(),
             lifetimes: Vec::new(),
+            selection: None,
         }
+    }
+
+    /// Format some functions with the type declarations they mention, in tree order.
+    pub fn format_functions(mut self, functions: &[FunctionId]) -> FormatResult<String> {
+        // keep the requested functions and the declarations they mention
+        let types = mentioned_types(self.tree, functions);
+        let declarations = types
+            .iter()
+            .filter_map(|ty| self.tree.type_declaration(*ty))
+            .collect();
+        self.selection = Some(Selection {
+            declarations,
+            functions: functions.iter().copied().collect(),
+        });
+
+        self.format()
+    }
+
+    /// Return the selected items, absent when the whole tree formats.
+    pub(crate) fn selection(&self) -> Option<&Selection> {
+        self.selection.as_ref()
     }
 
     /// Format the MIR tree.
