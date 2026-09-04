@@ -1,5 +1,5 @@
 import { From } from "destack:convert";
-import { ControlFlow, Try } from "destack:ops";
+import { ControlFlow, FromResidual, Try } from "destack:ops";
 
 import { Awaitable } from "./awaitable.ds";
 import { Fiber } from "./fiber.ds";
@@ -64,7 +64,7 @@ export extension<T> of Poll<T> implements From<T> {
     }
 }
 
-export extension<T> of Poll<T> implements Try {
+export extension<T> of Poll<T> implements Try, FromResidual<Pending> {
     /// The available value.
     type Output = T;
 

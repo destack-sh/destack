@@ -16,3 +16,10 @@ export newtype interface TryFrom<T> {
     /// Convert `value`, or return an error.
     static tryFrom(value: T): Result<this, this.Error>;
 }
+
+export extension<T> of T implements From<T> {
+    /// Return `value` itself.
+    static from(value: T): T {
+        value
+    }
+}

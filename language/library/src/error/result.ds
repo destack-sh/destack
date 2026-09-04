@@ -1,5 +1,6 @@
+import { From } from "destack:convert";
 import { Default } from "destack:memory";
-import { ControlFlow, Equal, Try } from "destack:ops";
+import { ControlFlow, Equal, FromResidual, PartialEqual, Try } from "destack:ops";
 
 import { panic } from "./panic.ds";
 
@@ -165,6 +166,13 @@ export extension<T, E> of Result<T, E> {
     }
 }
 
+export extension<T, E, R> of Result<T, E> implements FromResidual<R> where E: From<R> {
+    /// Rebuild a failure from a propagated residual.
+    static fromResidual(residual: R): Result<T, E> {
+        Result.err(E.from(residual))
+    }
+}
+
 export extension<T, E> of Result<T, E> implements Try {
     /// The success value.
     type Output = T;
@@ -177,11 +185,6 @@ export extension<T, E> of Result<T, E> implements Try {
         Result.ok(output)
     }
 
-    /// Create a result from a propagated residual.
-    static fromResidual(residual: E): Result<T, E> {
-        Result.err(residual)
-    }
-
     /// Branch into success or failure control flow.
     branch(this): ControlFlow<E, T> {
         match (this) {
@@ -191,7 +194,9 @@ export extension<T, E> of Result<T, E> implements Try {
     }
 }
 
-export extension<T: Equal<T>, E: Equal<E>> of Result<T, E> implements Equal<Result<T, E>> {
+export extension<T: Equal<T>, E: Equal<E>> of Result<T, E>
+    implements PartialEqual<Result<T, E>>, Equal<Result<T, E>>
+{
     /// Compare two results.
     equal(&readonly this, other: &readonly Result<T, E>): boolean {
         match (this) {
