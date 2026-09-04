@@ -113,13 +113,25 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Accept construction that changes the Result error type.
+    /// Accept construction that converts the Result error type through From.
     #[test]
-    fn test_accepts_residual_widening() {
+    fn test_accepts_residual_conversion() {
         let session = TestSession::dir(
             &NEEDLESS_QUESTION_MARK,
             r#"
-function widen(result: Result<int32, string>): Result<int32, string | int32> {
+import { From } from "destack:convert";
+
+struct Failure {
+    message: string;
+}
+
+extension of Failure implements From<string> {
+    static from(message: string): Failure {
+        Failure { message: message }
+    }
+}
+
+function convert(result: Result<int32, string>): Result<int32, Failure> {
     return Result.ok(result?);
 }
 "#,
