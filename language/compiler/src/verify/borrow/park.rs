@@ -1,33 +1,38 @@
-use destack_mir::{Function, LoanId, LocalNodeId, PlaceOrigin, Point, ReferenceKind, Storage};
+use destack_mir::{
+    Function, LoanId, LocalNodeId, PlaceOrigin, Point, ReferenceKind, SafepointKind, Value,
+};
+
+use destack_core::FxIndexSet;
 
 use super::checker::BorrowChecker;
 
 impl BorrowChecker<'_, '_> {
-    /// Pin the local managed storage borrowed across one parking call.
-    pub(super) fn pin_park(&mut self, callsite: Point, direct: Option<LocalNodeId<Function>>) {
+    /// Hold the handles of the managed storage borrowed across one parking call.
+    pub(super) fn hold_park(&mut self, callsite: Point, direct: Option<LocalNodeId<Function>>) {
+        // act only on calls that may park
         let target = self.resolved_target(callsite, direct);
         if !self.call_may_park(callsite, target) {
             return;
         }
 
-        // pin every managed loan live at the call through its borrowed reference
-        let values = self
-            .active_loans
-            .iter()
-            .copied()
-            .filter(|loan| self.may_move(*loan))
-            .map(|loan| self.origin.loans().get(loan).representation)
-            .collect::<Vec<_>>();
-
-        // record the call as a safepoint once it pins something
-        if !values.is_empty() {
-            self.safepoints.insert(callsite, values);
+        // record the call as a safepoint once it holds something
+        let handles = self.live_handles();
+        if !handles.is_empty() {
+            self.safepoints
+                .insert(callsite, SafepointKind::Park, handles);
         }
     }
 
-    /// Return whether one active loan borrows local managed storage.
-    pub(super) fn holds_local_managed_loan(&self) -> bool {
-        self.active_loans.iter().any(|loan| self.may_move(*loan))
+    /// Return the handles the live managed loans were taken through, the owners that outlive them.
+    pub(super) fn live_handles(&self) -> Vec<Value> {
+        let mut handles = FxIndexSet::default();
+        for loan in self.active_loans.iter().copied() {
+            if let Some(handle) = self.managed_handle(loan) {
+                handles.insert(handle);
+            }
+        }
+
+        handles.into_iter().collect()
     }
 
     /// Return whether one call may park the current fiber.
@@ -43,23 +48,22 @@ impl BorrowChecker<'_, '_> {
             .is_some_and(|effect| effect.behavior.park.may_park())
     }
 
-    /// Return whether the collector may move the storage one loan borrows.
-    fn may_move(&self, loan: LoanId) -> bool {
+    /// Return the managed handle one loan borrows through, absent for other storage.
+    fn managed_handle(&self, loan: LoanId) -> Option<Value> {
+        // resolve the value the loan borrows from
         let loan = self.origin.loans().get(loan);
-        let Some(place) = loan.place() else {
-            return false;
-        };
+        let place = loan.place()?;
         let PlaceOrigin::Value(value) = place.origin else {
-            return false;
+            return None;
         };
         let ty = self.function.expect_value_type(value);
         let definition = self.tree.get(ty);
 
-        // treat a managed reference without declared storage as local
-        definition.reference_kind() == Some(ReferenceKind::Managed)
-            && matches!(
-                definition.reference_storage(),
-                None | Some(Storage::LocalHeap)
-            )
+        // a borrow through a managed handle into heap storage
+        (definition.reference_kind() == Some(ReferenceKind::Managed)
+            && definition
+                .reference_storage()
+                .is_none_or(|storage| storage.heap_space().is_some()))
+        .then_some(value)
     }
 }

@@ -4,7 +4,8 @@ use destack_mir::{
     Access, AliasTable, Block, EscapeTable, Function, FunctionCache, Lifetime, LiveSet,
     LivenessTable, LoanId, LocalNodeId, LocalNodeIdAny, LoopTable, MemoryTable, MovePathId,
     MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Point,
-    Projection, RetentionTable, SafepointTable, Terminator, Tree, Type, TypeId, Value,
+    Projection, RetentionTable, SafepointKind, SafepointTable, Terminator, Tree, Type, TypeId,
+    Value,
 };
 
 use destack_artifact::DiagnosticAnchor;
@@ -56,8 +57,8 @@ pub(in crate::verify) struct BorrowVerdict {
     pub(in crate::verify) retention: RetentionTable,
     /// The safepoints of every verified function.
     ///
-    /// A parking call carries its pins.
-    /// A loop header or tail call outside every managed borrow polls.
+    /// A parking call holds its live handles past the call.
+    /// A loop header or tail call polls and holds its live handles past the poll.
     pub(in crate::verify) safepoints: SafepointTable,
 }
 
@@ -145,19 +146,22 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         let entries = self.retention_entries(&live);
         self.retention.insert_block(block_id, entries);
 
-        // poll the runtime at a loop header outside every managed borrow
+        // activate loans live at block entry
         self.activate_loans(&live);
+
+        // poll the runtime at a loop header
         let is_header = self
             .loops
             .loops()
             .iter()
             .any(|entry| entry.header == block_id);
-        if is_header && !self.holds_local_managed_loan() {
+        if is_header {
             let point = match block.instructions.first() {
                 Some(&instruction) => Point::Instruction(instruction),
                 None => Point::Terminator(block_id),
             };
-            self.safepoints.insert(point, Vec::new());
+            let handles = self.live_handles();
+            self.safepoints.insert(point, SafepointKind::Poll, handles);
         }
 
         // check and transfer each instruction in execution order
@@ -190,10 +194,11 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         // activate loans live before the terminator
         self.activate_loans(&live);
 
-        // poll the runtime before a tail call outside every managed borrow
-        if matches!(terminator, Terminator::TailCall { .. }) && !self.holds_local_managed_loan() {
+        // poll the runtime before a tail call
+        if matches!(terminator, Terminator::TailCall { .. }) {
+            let handles = self.live_handles();
             self.safepoints
-                .insert(Point::Terminator(block_id), Vec::new());
+                .insert(Point::Terminator(block_id), SafepointKind::Poll, handles);
         }
 
         self.check_terminator(block_id, block.terminator, terminator);

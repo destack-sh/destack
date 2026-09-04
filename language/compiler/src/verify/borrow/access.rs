@@ -19,10 +19,10 @@ impl BorrowChecker<'_, '_> {
     ) {
         let anchor = instruction_id.into_any();
 
-        // pin managed borrows live across a parking call
+        // hold the handles of managed borrows live across a parking call
         if instruction.call_dispatch().is_some() {
             let callsite = Point::Instruction(instruction_id);
-            self.pin_park(callsite, instruction.call_direct_target());
+            self.hold_park(callsite, instruction.call_direct_target());
         }
 
         // enforce every memory effect against active loans
@@ -175,10 +175,10 @@ impl BorrowChecker<'_, '_> {
         // enforce terminator memory effects against active loans
         self.check_terminator_memory(block_id, terminator, anchor);
 
-        // pin managed borrows live across a parking call
+        // hold the handles of managed borrows live across a parking call
         if terminator.call_dispatch().is_some() {
             let callsite = Point::Terminator(block_id);
-            self.pin_park(callsite, terminator.call_direct_target());
+            self.hold_park(callsite, terminator.call_direct_target());
         }
 
         // check tail-call result retention against the function return lifetime
