@@ -345,7 +345,7 @@ impl ModuleQueryContext<'_> {
                 dir::ArgumentSource::Provided(argument) => std::slice::from_ref(argument),
                 dir::ArgumentSource::Rest { elements, .. } => elements.as_slice(),
                 dir::ArgumentSource::Static(_)
-                | dir::ArgumentSource::Write
+                | dir::ArgumentSource::Supplied
                 | dir::ArgumentSource::Omitted => continue,
             };
 

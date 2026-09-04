@@ -141,7 +141,7 @@ type Integer = bigint;
 ```
 
 ```query goto_type_definition main.ds#reference:string
-@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:15:1-18:2 selection=destack://string/string:15:14-15:20 symbol=destack://string/string#String@22
+@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:15:1-18:2 selection=destack://string/string:15:14-15:20 symbol=destack://string/string#String@24
 ```
 
 ```query goto_type_definition main.ds#reference:bigint

@@ -356,7 +356,6 @@ function read(point: Point): void {
 ```query completion main.ds#cursor trigger=.
 @completion.item label=x kind=field replace=main.ds#cursor suffix=": int32"
 @completion.item label=y kind=field replace=main.ds#cursor suffix=": int32"
-@completion.item label=toString kind=method replace=main.ds#cursor suffix="(): ^string" description="as ToString" insert="toString()"
 @completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a Point, A>" description="as Borrow<Point, A>" insert="borrow()"
 @completion.item label=into kind=method replace=main.ds#cursor suffix="(): U" description="as Into<U>" insert="into()"
 @completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"
@@ -395,7 +394,6 @@ class User {
 ```query completion main.ds#cursor trigger=.
 @completion.item label=name kind=field replace=main.ds#cursor suffix=": string"
 @completion.item label=age kind=field replace=main.ds#cursor suffix=": uint64"
-@completion.item label=toString kind=method replace=main.ds#cursor suffix="(): ^string" description="as ToString" insert="toString()"
 @completion.item label=borrow kind=method replace=main.ds#cursor suffix="(): WithAccess<&'a User, A>" description="as Borrow<User, A>" insert="borrow()"
 @completion.item label=into kind=method replace=main.ds#cursor suffix="(): U" description="as Into<U>" insert="into()"
 @completion.item label=tryInto kind=method replace=main.ds#cursor suffix="(): Result<U, U.Error>" description="as TryInto<U>" insert="tryInto()"

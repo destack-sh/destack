@@ -68,7 +68,7 @@ impl ModuleQueryContext<'_> {
                     }
                     slot += 1;
                 }
-                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Write => {}
+                dir::ArgumentSource::Static(_) | dir::ArgumentSource::Supplied => {}
             }
         }
 

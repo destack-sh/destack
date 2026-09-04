@@ -307,7 +307,8 @@ impl Formatter<'_, '_, '_> {
         self.program
             .read_type(type_id, |type_value, module| match type_value {
                 dir::Type::Literal(dir::Literal::String(value))
-                    if dir::Lifetime::from_text(*value) == Some(dir::Lifetime::Static) =>
+                    if dir::Lifetime::parse(module.strings().get(*value))
+                        == Some(dir::Lifetime::Static) =>
                 {
                     Ok(Some("'static ".to_string()))
                 }
