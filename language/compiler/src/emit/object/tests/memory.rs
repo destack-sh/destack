@@ -197,18 +197,17 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
-/// Pin one managed allocation and report one changed reference range.
+/// Report one changed reference range and keep a held handle silent in the emitted code.
 #[test]
-fn test_emit_pin_and_barrier() {
+fn test_emit_a_barrier_and_a_silent_hold() {
     let program = TestProgram::mir(
         r#"
 export function update(v0: ref<int32, managed, mutable>): void {
 entry(v0: ref<int32, managed, mutable>):
-    v1: ref<int32, managed, mutable> = pin v0
-    v2: usize = 0
-    v3: usize = 8
-    barrier.write v0, v2, v3
-    unpin v1
+    v1: usize = 0
+    v2: usize = 8
+    barrier.write v0, v1, v2
+    hold (v0)
     return
 }
 "#,
@@ -217,12 +216,9 @@ entry(v0: ref<int32, managed, mutable>):
     program.assert_bytecode(
         r#"
 function update {
-    move r1, r0
-    pin r1: ref<managed, local>
-    constant.uint64 r2, 0
-    constant.uint64 r3, 8
-    barrier r0, r2, r3: ref<managed, local>
-    unpin r1: ref<managed, local>
+    constant.uint64 r1, 0
+    constant.uint64 r2, 8
+    barrier r0, r1, r2: ref<managed, local>
     return
 }
 "#,
@@ -231,25 +227,15 @@ function update {
     program.assert_native(
         r#"
 function u0:0(i64, i64) native {
-    sig0 = (i64, i32, i64) -> i64 native
-    sig1 = (i64, i32, i64, i64, i64) native
-    sig2 = (i64, i32, i64) native
+    sig0 = (i64, i32, i64, i64, i64) native
 
 block0(v0: i64, v1: i64):
-    v2 = iconst.i32 0
-    v3 = load.i64 notrap aligned v0+8
-    v4 = load.i64 notrap aligned v3+32
-    v5 = call_indirect sig0, v4(v0, v2, v1)  ; v2 = 0
-    v6 = iconst.i64 0
-    v7 = iconst.i64 8
-    v8 = iconst.i32 0
-    v9 = load.i64 notrap aligned v0+8
-    v10 = load.i64 notrap aligned v9+48
-    call_indirect sig1, v10(v0, v8, v1, v6, v7)  ; v8 = 0, v6 = 0, v7 = 8
-    v11 = iconst.i32 0
-    v12 = load.i64 notrap aligned v0+8
-    v13 = load.i64 notrap aligned v12+40
-    call_indirect sig2, v13(v0, v11, v5)  ; v11 = 0
+    v2 = iconst.i64 0
+    v3 = iconst.i64 8
+    v4 = iconst.i32 0
+    v5 = load.i64 notrap aligned v0+8
+    v6 = load.i64 notrap aligned v5+32
+    call_indirect sig0, v6(v0, v4, v1, v2, v3)  ; v4 = 0, v2 = 0, v3 = 8
     return
 }
 

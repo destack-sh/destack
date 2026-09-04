@@ -285,10 +285,8 @@ impl<'a> FunctionEmitter<'a> {
                 Some(*length),
             ),
             mir::Instruction::Free { value } => self.emit_free(*value),
-            mir::Instruction::Pin {
-                destination, value, ..
-            } => self.emit_pin(*destination, *value),
-            mir::Instruction::Unpin { value } => self.emit_unpin(*value),
+            // hold keeps its values live in the frame state alone
+            mir::Instruction::Hold { .. } => Ok(()),
             mir::Instruction::BarrierWrite {
                 object,
                 offset,

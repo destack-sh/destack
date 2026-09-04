@@ -351,26 +351,8 @@ impl<'a> FunctionEmitter<'a> {
                 let reference = self.reference(*value, builder)?;
                 self.emit_runtime(native::abi::Operation::Free, &[reference], builder)?;
             }
-            mir::Instruction::Pin {
-                destination,
-                value,
-                result_type,
-            } => {
-                let space = self.heap_space(*result_type)?;
-                let space = builder.ins().iconst(cir::types::I32, space as i64);
-                let reference = self.reference(*value, builder)?;
-                let call =
-                    self.emit_runtime(native::abi::Operation::Pin, &[space, reference], builder)?;
-                let reference = builder.inst_results(call)[0];
-                self.replace_reference(*destination, *value, reference, builder)?;
-            }
-            mir::Instruction::Unpin { value } => {
-                let ty = self.value_type(*value)?;
-                let space = self.heap_space(ty)?;
-                let space = builder.ins().iconst(cir::types::I32, space as i64);
-                let reference = self.reference(*value, builder)?;
-                self.emit_runtime(native::abi::Operation::Unpin, &[space, reference], builder)?;
-            }
+            // hold keeps its values live in the frame state alone
+            mir::Instruction::Hold { .. } => {}
             mir::Instruction::BarrierWrite {
                 object,
                 offset,

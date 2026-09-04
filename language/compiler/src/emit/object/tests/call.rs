@@ -140,13 +140,13 @@ block4(v4: i64, v5: i64):
     v6 = stack_addr.i64 ss1
     store notrap aligned v4, v6
     v7 = load.i64 notrap aligned v1+8
-    v8 = load.i64 notrap aligned v7+96
+    v8 = load.i64 notrap aligned v7+80
     v9 = call_indirect sig1, v8(v1)
     brif v9, block5, block2
 
 block5:
     v10 = load.i64 notrap aligned v1+8
-    v11 = load.i64 notrap aligned v10+104
+    v11 = load.i64 notrap aligned v10+88
     call_indirect sig2, v11(v1, v4)
     trap user4
 
@@ -157,7 +157,7 @@ block2:
     v12 = stack_addr.i64 ss1
     v13 = load.i64 notrap aligned v12
     v14 = load.i64 notrap aligned v1+8
-    v15 = load.i64 notrap aligned v14+104
+    v15 = load.i64 notrap aligned v14+88
     call_indirect sig3, v15(v1, v13)
     trap user4
 }
@@ -354,7 +354,7 @@ block2:
     v17 = symbol_value.i64 gv1
     v18 = load.i32 notrap aligned v17
     v19 = load.i64 notrap aligned v0+8
-    v20 = load.i64 notrap aligned v19+72
+    v20 = load.i64 notrap aligned v19+56
     call_indirect sig0, v20(v0, v18, v7), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0]
     trap user4
 
@@ -469,7 +469,7 @@ block2:
     v18 = symbol_value.i64 gv1
     v19 = load.i32 notrap aligned v18
     v20 = load.i64 notrap aligned v0+8
-    v21 = load.i64 notrap aligned v20+72
+    v21 = load.i64 notrap aligned v20+56
     call_indirect sig0, v21(v0, v19, v8), stack_map=[i8 @ ss0+0, i8 @ ss1+0, i8 @ ss2+0]
     trap user4
 
@@ -547,7 +547,7 @@ block0(v0: i64, v1: i32):
     v12 = iconst.i64 1
     v13 = iconst.i64 1
     v14 = load.i64 notrap aligned v0+8
-    v15 = load.i64 notrap aligned v14+136
+    v15 = load.i64 notrap aligned v14+120
     call_indirect sig0, v15(v0, v11, v4, v12, v8, v13), stack_map=[i8 @ ss0+0, i8 @ ss1+0]  ; v12 = 1, v13 = 1
     v16 = load.i32 notrap aligned v8
     return v16

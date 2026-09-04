@@ -420,43 +420,6 @@ impl<'a> FunctionEmitter<'a> {
         }
     }
 
-    /// Replace the backing reference in one reference-like value.
-    pub(super) fn replace_reference(
-        &mut self,
-        destination: mir::Value,
-        source: mir::Value,
-        reference: cir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        let offset = self.reference_offset(source)?;
-        let ty = self.value_type(source)?;
-        let value = match self.value(source)? {
-            Value::Direct(_) if offset == 0 => Value::Direct(reference),
-            Value::Direct(_) => {
-                return Err(self.invalid("direct representation has a nonzero reference offset"));
-            }
-            Value::ScalarPair(mut fields) => {
-                let index = usize::from(offset != 0);
-                fields[index] = reference;
-
-                Value::ScalarPair(fields)
-            }
-            Value::Address(source) => {
-                let value_type = self.types.value(ty)?;
-                let address = self.allocate(value_type, builder);
-                self.copy(address, source, value_type, builder);
-                let flags = cir::MemFlagsData::trusted();
-                builder
-                    .ins()
-                    .store(flags, reference, address, offset as i32);
-
-                Value::Address(address)
-            }
-        };
-
-        self.set(destination, value)
-    }
-
     /// Return the backing reference byte offset in one reference-like value.
     fn reference_offset(&self, value: mir::Value) -> Result<u32, EmitError> {
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);

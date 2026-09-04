@@ -58,7 +58,7 @@ block1:
     v7 = symbol_value.i64 gv0
     v8 = load.i32 notrap aligned v7
     v9 = load.i64 notrap aligned v0+8
-    v10 = load.i64 notrap aligned v9+56
+    v10 = load.i64 notrap aligned v9+40
     call_indirect sig0, v10(v0, v8, v5), stack_map=[i8 @ ss0+0, i8 @ ss1+0]
     trap user4
 

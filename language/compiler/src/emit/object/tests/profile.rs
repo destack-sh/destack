@@ -36,13 +36,13 @@ block0(v0: i64, v1: i32):
     v2 = symbol_value.i64 gv0
     v3 = load.i32 notrap aligned v2
     v4 = load.i64 notrap aligned v0+8
-    v5 = load.i64 notrap aligned v4+120
+    v5 = load.i64 notrap aligned v4+104
     call_indirect sig0, v5(v0, v3)
     v6 = symbol_value.i64 gv1
     v7 = load.i32 notrap aligned v6
     v8 = uextend.i64 v1
     v9 = load.i64 notrap aligned v0+8
-    v10 = load.i64 notrap aligned v9+128
+    v10 = load.i64 notrap aligned v9+112
     call_indirect sig1, v10(v0, v7, v8)
     return v1
 }

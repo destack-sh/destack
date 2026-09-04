@@ -101,30 +101,6 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[])
     }
 
-    /// Stabilize one managed representation and preserve its value.
-    pub(super) fn emit_pin(
-        &mut self,
-        destination: mir::Value,
-        value: mir::Value,
-    ) -> Result<(), EmitError> {
-        let ty = self.register_type(destination)?;
-        let source = self.register(value)?;
-        let destination = self.register(destination)?;
-        self.emit_move(source, destination, ty)?;
-
-        let reference = self.representation_reference(value)?;
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::PIN);
-        instruction.register(self.representation_register(destination, value)?);
-        instruction.reference(reference.kind(), reference.storage());
-
-        self.encode(instruction, &[])
-    }
-
-    /// Release one managed representation pin.
-    pub(super) fn emit_unpin(&mut self, value: mir::Value) -> Result<(), EmitError> {
-        self.emit_ownership(bytecode::Opcode::UNPIN, value)
-    }
-
     /// Record one managed reference write for the collector.
     pub(super) fn emit_barrier(
         &mut self,
@@ -461,20 +437,6 @@ impl<'a> FunctionEmitter<'a> {
         let destination = self.register(destination)?;
 
         self.encode(instruction, &[destination])
-    }
-
-    /// Emit one ownership operation over a reference-like representation.
-    fn emit_ownership(
-        &mut self,
-        opcode: bytecode::Opcode,
-        value: mir::Value,
-    ) -> Result<(), EmitError> {
-        let reference = self.representation_reference(value)?;
-        let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.representation_register(self.register(value)?, value)?);
-        instruction.reference(reference.kind(), reference.storage());
-
-        self.encode(instruction, &[])
     }
 
     /// Return the reference carried by one reference-like MIR value.

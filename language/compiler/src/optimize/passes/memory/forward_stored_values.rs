@@ -468,9 +468,7 @@ fn process_block(
                 available.clear();
             }
 
-            mir::Instruction::Pin { .. }
-            | mir::Instruction::Unpin { .. }
-            | mir::Instruction::Free { .. } => {
+            mir::Instruction::Free { .. } => {
                 // clear across storage release boundaries
                 available.clear();
             }

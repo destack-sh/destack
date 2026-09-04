@@ -67,7 +67,7 @@ block0(v0: i64, v1: i64, v2: i32):
     v16 = iconst.i64 0
     v17 = iconst.i64 24
     v18 = load.i64 notrap aligned v0+8
-    v19 = load.i64 notrap aligned v18+48
+    v19 = load.i64 notrap aligned v18+32
     call_indirect sig1, v19(v0, v15, v10, v16, v17)  ; v15 = 0, v16 = 0, v17 = 24
     v20 = load.i64 notrap aligned v0+96
     store notrap aligned v10, v0+96
@@ -275,7 +275,7 @@ block0(v0: i64, v1: i64, v2: i64, v3: i32):
     v16 = iconst.i64 0
     v17 = iconst.i64 24
     v18 = load.i64 notrap aligned v0+8
-    v19 = load.i64 notrap aligned v18+48
+    v19 = load.i64 notrap aligned v18+32
     call_indirect sig1, v19(v0, v15, v10, v16, v17)  ; v15 = 0, v16 = 0, v17 = 24
     return v10
 }

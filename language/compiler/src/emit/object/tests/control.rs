@@ -727,7 +727,7 @@ block1:
     v5 = symbol_value.i64 gv0
     v6 = load.i32 notrap aligned v5
     v7 = load.i64 notrap aligned v0+8
-    v8 = load.i64 notrap aligned v7+112
+    v8 = load.i64 notrap aligned v7+96
     v9 = call_indirect sig0, v8(v0, v1, v6)
     v10 = iconst.i32 0
     v11 = icmp ne v9, v10  ; v10 = 0
