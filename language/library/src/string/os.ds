@@ -3,7 +3,7 @@ import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
 import { AllocationError, Clone, Default, MaybeOwned, MaybeUninit } from "destack:memory";
-import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
+import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "destack:ops";
 
 /// Borrowed platform-native string in its opaque encoded representation.
 @languageItem("string.OsStringSlice")
@@ -354,7 +354,7 @@ export extension<S: Borrow<OsStringSlice>> of S {
 }
 
 export extension<S: Borrow<OsStringSlice>, Q: Borrow<OsStringSlice>> of S
-    implements Equal<Q>, Compare<Q>
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this native string has the same encoded bytes as `other`.
     equal(&readonly this, other: &readonly Q): boolean {

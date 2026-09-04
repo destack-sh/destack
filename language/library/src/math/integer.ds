@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
-import { Concrete } from "destack:memory";
+import { Clone, Concrete } from "destack:memory";
+import { Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 import { sizeOf } from "destack:reflect";
 
 import { One, Zero } from "./identity.ds";
@@ -17,7 +18,22 @@ export newtype interface Integer extends Concrete, IntegerDomain, Zero, One {}
 export type Unsigned<T: Integer> = intrinsic;
 
 /// Methods shared by every builtin integer type.
-export extension<T: Integer> of T {
+export extension<T: Integer> of T implements Clone, PartialEqual<T>, Equal<T>, Hash {
+    /// Return a copy of this value.
+    clone(&readonly this): ^this {
+        *this
+    }
+
+    /// Return whether this value equals `other`.
+    equal(&readonly this, other: &readonly T): boolean {
+        *this === *other
+    }
+
+    /// Add this value to `state`.
+    hash(state: &Hasher): void {
+        state.writeUsize(this.truncate<usize>());
+    }
+
     /// Return the least representable value.
     static minimum(): T {
         todo("Integer.minimum")

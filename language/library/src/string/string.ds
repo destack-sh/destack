@@ -4,7 +4,7 @@ import { Result, todo } from "destack:error";
 import { CollatorOptions, IntlError, Locales } from "destack:intl";
 import { Iterator } from "destack:iter";
 import { Default, MaybeOwned } from "destack:memory";
-import { Add, Equal, Hash, Hasher, Ordering } from "destack:ops";
+import { Add, Equal, Hash, Hasher, Ordering, PartialEqual } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
 
 import { StringBuilder } from "./builder.ds";
@@ -68,7 +68,15 @@ export extension of String implements Default {
     }
 }
 
-export extension of string implements Add<string>, Equal<string>, Equal<StringSlice>, Hash {
+export extension of string
+    implements
+        Add<string>,
+        PartialEqual<string>,
+        Equal<string>,
+        PartialEqual<StringSlice>,
+        Equal<StringSlice>,
+        Hash
+{
     /// The concatenated string type.
     type Output = ^string;
 

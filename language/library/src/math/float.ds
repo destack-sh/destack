@@ -1,5 +1,6 @@
 import { todo } from "destack:error";
-import { Concrete } from "destack:memory";
+import { Clone, Concrete } from "destack:memory";
+import { PartialEqual } from "destack:ops";
 
 import { One, Zero } from "./identity.ds";
 import { Integer } from "./integer.ds";
@@ -13,7 +14,17 @@ export newtype interface FloatDomain {}
 export newtype interface Float extends Concrete, FloatDomain, Zero, One {}
 
 /// Methods shared by every builtin float format.
-export extension<T: Float> of T {
+export extension<T: Float> of T implements Clone, PartialEqual<T> {
+    /// Return a copy of this value.
+    clone(&readonly this): ^this {
+        *this
+    }
+
+    /// Return whether this value equals `other`, every NaN unequal to itself.
+    equal(&readonly this, other: &readonly T): boolean {
+        *this === *other
+    }
+
     /// Return the midpoint without avoidable overflow or underflow.
     ///
     /// Returns NaN when either value is NaN or the values are opposite infinities.

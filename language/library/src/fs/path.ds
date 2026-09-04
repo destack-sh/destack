@@ -2,7 +2,7 @@ import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator, IteratorResult } from "destack:iter";
 import { AllocationError, Clone, Default, MaybeOwned } from "destack:memory";
-import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
+import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "destack:ops";
 import { OsString, OsStringBuilder, OsStringDecodeError, OsStringSlice } from "destack:string";
 
 /// Borrowed platform path.
@@ -472,7 +472,9 @@ export extension<P: Borrow<PathSlice>> of P {
     }
 }
 
-export extension<P: Borrow<PathSlice>, Q: Borrow<PathSlice>> of P implements Equal<Q>, Compare<Q> {
+export extension<P: Borrow<PathSlice>, Q: Borrow<PathSlice>> of P
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
+{
     /// Return whether this path has the same native representation as `other`.
     equal(&readonly this, other: &readonly Q): boolean {
         todo("Path.equal")

@@ -3,7 +3,7 @@ import { As, Borrow, ToOwned } from "destack:convert";
 import { Error, Result, todo } from "destack:error";
 import { Iterator } from "destack:iter";
 import { Clone, Default, MaybeOwned } from "destack:memory";
-import { Compare, Equal, Hash, Hasher, Ordering } from "destack:ops";
+import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "destack:ops";
 
 import { Utf8DecodeError } from "./utf8.ds";
 
@@ -257,7 +257,7 @@ export extension<S: Borrow<CStringSlice>> of S {
 }
 
 export extension<S: Borrow<CStringSlice>, Q: Borrow<CStringSlice>> of S
-    implements Equal<Q>, Compare<Q>
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
 {
     /// Return whether this C string equals `other` byte for byte.
     equal(&readonly this, other: &readonly Q): boolean {

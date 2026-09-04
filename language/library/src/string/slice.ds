@@ -1,12 +1,20 @@
 import { Borrow, ToOwned } from "destack:convert";
 import { todo } from "destack:error";
-import { Equal, Hash, Hasher } from "destack:ops";
+import { Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 
 /// Borrowed sequence of ECMAScript UTF-16 code units.
 @languageItem("string.StringSlice")
 export newtype StringSlice = [uint16];
 
-export extension of StringSlice implements ToOwned, Equal<StringSlice>, Equal<string>, Hash {
+export extension of StringSlice
+    implements
+        ToOwned,
+        PartialEqual<StringSlice>,
+        Equal<StringSlice>,
+        PartialEqual<string>,
+        Equal<string>,
+        Hash
+{
     /// The owned value type.
     type Owned = ^string;
 
