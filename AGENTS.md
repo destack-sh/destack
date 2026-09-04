@@ -337,51 +337,37 @@ const user = service.signup(...); // user from API or wherever
 
 ```
 Heap // per owner
-├── HeapOptions { gc: GcOptions, size_class: SizeClassTable, ... }
+├── HeapOptions { gc: GcOptions, size_classes: SizeClassTable, ... }
 ├── HeapLimits
 ├── GcPacer
-├── GcRequest
+├── is_gc_requested: bool
 └── HeapStorage
-    ├── Arc<Allocator>
-    ├── PageSpanCache
-    ├── AddressSpace
-    ├── YoungSpace
-    │   ├── YoungCursor
-    │   ├── YoungRange[]
-    │   ├── YoungSpan[]
-    │   └── page_spans[]
-    ├── SmallSpace
+    ├── SmallStorage
     │   ├── SizeClassTable
     │   ├── SmallSpan[]
-    │   └── partial_spans
-    ├── LargeSpace
+    │   ├── partial_spans
+    │   └── cursors: cache index -> span
+    ├── LargeStorage
     │   ├── LargeBlock[]
     │   └── free_large_block_ids
-    ├── page_map: logical page -> HeapPageMapEntry
+    ├── page_table: logical page -> PageOwner
     ├── AllocationUsage
-    ├── young AllocationUsage
     ├── GcState
-    └── LocalGcState
-
-/// One pending local GC request.
-pub(super) enum GcRequest {
-    /// Run one young mark-and-sweep cycle.
-    Minor,
-    /// Run one full mark-and-sweep cycle.
-    Full,
-}
+    └── CollectorState
 
 /// One heap small space.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct SmallSpace {
+pub(crate) struct SmallStorage {
     /// The configured size-class table.
     pub(crate) size_classes: SizeClassTable,
     /// The configured span width.
     pub(crate) span_size_bytes: usize,
     /// The live heap spans.
-    pub(crate) spans: CowTable<SmallSpan>,
-    /// The reusable non-full spans per exact small-span class.
+    pub(crate) spans: Vec<SmallSpan>,
+    /// The reusable non-full spans per exact small-span class, excluding the class cursor.
     pub(crate) partial_spans: BTreeMap<SmallSpanClass, Vec<usize>>,
+    /// The span each small allocation class reserves from, by class cache index.
+    pub(crate) cursors: Vec<Option<usize>>,
 }
 
 // ... and so on ...
