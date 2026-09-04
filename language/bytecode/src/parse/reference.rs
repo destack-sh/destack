@@ -16,8 +16,6 @@ impl Parser<'_> {
         let opcode = match name {
             "free" => Opcode::FREE,
             "drop" => Opcode::DROP,
-            "pin" => Opcode::PIN,
-            "unpin" => Opcode::UNPIN,
             "barrier" => Opcode::BARRIER,
             _ => return Err(ParseError::new("unknown reference operation", token.span)),
         };

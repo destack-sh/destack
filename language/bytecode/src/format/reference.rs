@@ -13,7 +13,6 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::FREE => self.format_free(),
             Opcode::DROP => self.format_drop(),
             Opcode::DROP_INDIRECT => self.format_indirect_drop(),
-            Opcode::PIN | Opcode::UNPIN => self.format_reference_lifetime(opcode),
             Opcode::BARRIER => self.format_barrier(),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid reference opcode",
@@ -27,19 +26,6 @@ impl InstructionFormatter<'_, '_, '_> {
 
         self.write_opcode("free")?;
         self.write_register(owner)
-    }
-
-    /// Format one managed pin transition.
-    fn format_reference_lifetime(&mut self, opcode: Opcode) -> FormatResult<()> {
-        // decode the affected reference
-        let value = self.register_id()?;
-        let reference = self.reference()?;
-        let name = self.opcode_name(opcode)?;
-
-        // write the lifetime operation
-        self.write_opcode(name)?;
-        self.write_register(value)?;
-        self.write_representation(ValueType::reference(reference.kind(), reference.storage()))
     }
 
     /// Format one explicit value destruction.

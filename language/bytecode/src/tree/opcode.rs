@@ -355,16 +355,6 @@ opcodes! {
         signature: "(owner: ref<unique>) => void",
         operands: [Register],
     }
-    PIN = 0x0088 {
-        text: "pin",
-        signature: "(value: ref<managed>) => void",
-        operands: [Register, Reference],
-    }
-    UNPIN = 0x0089 {
-        text: "unpin",
-        signature: "(value: ref<managed>) => void",
-        operands: [Register, Reference],
-    }
 
     // collector protocol
     BARRIER = 0x0090 {

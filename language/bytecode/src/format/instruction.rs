@@ -173,9 +173,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             // allocation and destruction
             Opcode::FREE | Opcode::DROP | Opcode::DROP_INDIRECT => self.format_reference(opcode),
 
-            // address stability
-            Opcode::PIN | Opcode::UNPIN => self.format_reference(opcode),
-
             // collector protocol
             Opcode::BARRIER => self.format_reference(opcode),
 
