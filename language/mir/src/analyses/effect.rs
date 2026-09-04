@@ -254,7 +254,7 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::unknown(),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
-            mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => mir::FunctionEffect {
+            mir::Instruction::Hold { .. } => mir::FunctionEffect {
                 memory: mir::MemoryEffect::none(),
                 behavior: mir::FunctionBehavior::none().with_preserved_execution(),
             },

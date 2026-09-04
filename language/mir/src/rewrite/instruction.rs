@@ -74,8 +74,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => false,
 
-        // pinning has side effects
-        mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => false,
+        // holding handles live is a collector effect
+        mir::Instruction::Hold { .. } => false,
 
         // calls may have side effects
         mir::Instruction::Call { .. }
@@ -226,8 +226,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => true,
 
-        // pinning has side effects
-        mir::Instruction::Pin { .. } | mir::Instruction::Unpin { .. } => true,
+        // holding handles live is a collector effect
+        mir::Instruction::Hold { .. } => true,
 
         // calls may have side effects
         mir::Instruction::Call { .. }
@@ -295,8 +295,7 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
             | mir::Instruction::Free { .. }
-            | mir::Instruction::Pin { .. }
-            | mir::Instruction::Unpin { .. }
+            | mir::Instruction::Hold { .. }
     )
 }
 
@@ -591,18 +590,6 @@ pub fn instruction_substitute_uses(
             object: substitute(object),
             offset: substitute(offset),
             byte_len: substitute(byte_len),
-        },
-        mir::Instruction::Pin {
-            destination,
-            value,
-            result_type,
-        } => mir::Instruction::Pin {
-            destination: *destination,
-            value: substitute(value),
-            result_type: *result_type,
-        },
-        mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
-            value: substitute(value),
         },
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: substitute(value),
@@ -918,6 +905,7 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Aggregate { .. }
+        | mir::Instruction::Hold { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::ContextCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
@@ -1376,17 +1364,8 @@ pub fn instruction_map(
             pointer: remap(*pointer),
             value: remap(*value),
         },
-        mir::Instruction::Pin {
-            destination,
-            value,
-            result_type,
-        } => mir::Instruction::Pin {
-            destination: remap(*destination),
-            value: remap(*value),
-            result_type: *result_type,
-        },
-        mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
-            value: remap(*value),
+        mir::Instruction::Hold { values } => mir::Instruction::Hold {
+            values: remap_arguments(*values),
         },
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),
@@ -2385,17 +2364,8 @@ pub fn instruction_map_with_locals(
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::Pin {
-            destination,
-            value,
-            result_type,
-        } => mir::Instruction::Pin {
-            destination: remap(*destination),
-            value: remap(*value),
-            result_type: *result_type,
-        },
-        mir::Instruction::Unpin { value } => mir::Instruction::Unpin {
-            value: remap(*value),
+        mir::Instruction::Hold { values } => mir::Instruction::Hold {
+            values: remap_arguments(*values),
         },
         mir::Instruction::Free { value } => mir::Instruction::Free {
             value: remap(*value),

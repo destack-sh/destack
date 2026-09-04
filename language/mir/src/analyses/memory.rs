@@ -1184,8 +1184,7 @@ impl<'a> MemoryAccessCollector<'a> {
             | mir::Instruction::ContextBind { .. }
             | mir::Instruction::Free { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::Pin { .. }
-            | mir::Instruction::Unpin { .. }
+            | mir::Instruction::Hold { .. }
             | mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }

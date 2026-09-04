@@ -141,15 +141,14 @@ entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
     );
 }
 
-/// Formats cleanup and pinning operations canonically.
+/// Formats cleanup and hold operations canonically.
 #[test]
-fn test_format_cleanup_and_pin_family() {
+fn test_format_cleanup_and_hold_family() {
     assert_format(
         r#"
-function cleanup(v0: ref<int32, managed, mutable, local>): void {
-entry(v0: ref<int32, managed, mutable, local>):
-    v1: ref<int32, managed, mutable, local> = pin v0
-    unpin v1
+function cleanup(v0: ref<int32, managed, mutable, local>, v1: ref<int32, managed, mutable, local>): void {
+entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, managed, mutable, local>):
+    hold (v0, v1)
     drop v0
     return
 }

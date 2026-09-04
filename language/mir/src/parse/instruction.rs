@@ -90,7 +90,7 @@ impl Parser {
                     | "store"
                     | "drop"
                     | "free"
-                    | "unpin"
+                    | "hold"
                     | "barrier.write"
                     | "atomic.store"
                     | "atomic.fence"
@@ -190,10 +190,15 @@ impl Parser {
                 let value = self.parse_value_segment(&mut segment_spans)?;
                 Instruction::Free { value }
             }
-            "unpin" => {
-                let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Unpin { value }
+
+            // reachability
+            "hold" => {
+                let values = self.parse_call_argument_segments(&mut segment_spans)?;
+                let values = self.tree.add_values(&values);
+                Instruction::Hold { values }
             }
+
+            // collector protocol
             "barrier.write" => {
                 let object = self.parse_value_segment(&mut segment_spans)?;
                 self.eat_token(TokenType::Comma)?;
@@ -799,16 +804,6 @@ impl Parser {
                             result_type: destination_type,
                         }
                     }
-                    // address stability
-                    "pin" => {
-                        let value = self.parse_value_segment(&mut segment_spans)?;
-                        Instruction::Pin {
-                            destination,
-                            value,
-                            result_type: destination_type,
-                        }
-                    }
-
                     // atomic memory operations
                     "atomic.load" => {
                         let pointer = self.parse_value()?;

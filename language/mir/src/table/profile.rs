@@ -246,7 +246,7 @@ impl<T> Histogram<T> {
 pub struct Allocation {
     /// Observed payload sizes; its total is the number of allocations seen.
     pub size: Histogram<i64>,
-    /// How many of those allocations were promoted past the young generation.
+    /// How many of those allocations survived a collection.
     pub survived: Count,
 }
 

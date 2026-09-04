@@ -598,22 +598,14 @@ pub enum Instruction {
         value: Value,
     },
 
-    // address stability
-    /// Stabilize one heap value against movement (`pin`).
+    // reachability
+    /// Keep managed handles live through this point (`hold`).
     ///
-    /// While pinned, derived borrowed addresses remain valid across safepoints.
-    Pin {
-        /// The SSA value to define with the pinned reference.
-        destination: Value,
-        /// The heap value to pin.
-        value: Value,
-        /// The result type of the pinned reference.
-        result_type: TypeId,
-    },
-    /// Release one heap pin (`unpin`).
-    Unpin {
-        /// The heap value to unpin.
-        value: Value,
+    /// Placed after a safepoint, it keeps the handles in the frame state there, so the storage
+    /// their borrows point into stays reachable while the collector runs.
+    Hold {
+        /// The managed handles stored in the tree's value buffer.
+        values: ValueSlice,
     },
 
     // collector protocol
@@ -796,8 +788,7 @@ impl Instruction {
             | Instruction::NewSliceZeroed { destination, .. }
             | Instruction::NewSliceUninit { destination, .. } => Some(*destination),
             Instruction::Free { .. } => None,
-            Instruction::Pin { destination, .. } => Some(*destination),
-            Instruction::Unpin { .. } => None,
+            Instruction::Hold { .. } => None,
             Instruction::BarrierWrite { .. } => None,
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
@@ -908,8 +899,7 @@ impl Instruction {
             Instruction::NewSliceZeroed { length, .. }
             | Instruction::NewSliceUninit { length, .. } => smallvec![*length],
             Instruction::Free { value } => smallvec![*value],
-            Instruction::Pin { value, .. } => smallvec![*value],
-            Instruction::Unpin { value } => smallvec![*value],
+            Instruction::Hold { .. } => smallvec![],
             Instruction::BarrierWrite {
                 object,
                 offset,
@@ -1021,7 +1011,7 @@ impl Instruction {
     /// Return the argument slice of the instructions that externalize their value lists.
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
-            Instruction::Aggregate { values, .. } => Some(*values),
+            Instruction::Aggregate { values, .. } | Instruction::Hold { values } => Some(*values),
             Instruction::Call { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
             _ => None,

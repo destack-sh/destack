@@ -37,7 +37,7 @@ pub enum LifetimeTerm {
     Static,
     /// Storage owned by the current activation.
     Frame,
-    /// Managed storage, alive while reachable and held across parks by pins.
+    /// Managed storage, alive while reachable, its handles held live across parks.
     Managed,
     /// A lifetime slot in the current lifetime environment.
     Slot(LifetimeSlot),

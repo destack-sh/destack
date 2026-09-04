@@ -188,9 +188,6 @@ impl PlaceTable {
                 },
                 resolutions,
             ),
-            Instruction::Pin {
-                value: argument, ..
-            } => Self::copy(*argument, resolutions),
             // keep the storage a reinterpreted address names
             Instruction::Cast {
                 operator: CastOperator::Bitcast,

@@ -136,7 +136,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::DynamicRead { result_type, .. }
         | Instruction::DynamicFind { result_type, .. }
         | Instruction::NewComplete { result_type, .. }
-        | Instruction::Pin { result_type, .. }
         | Instruction::AtomicLoad { result_type, .. } => {
             walk_type_id(visitor, tree, result_type);
         }
@@ -216,7 +215,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::VectorConvert { .. }
         | Instruction::Drop { .. }
         | Instruction::Free { .. }
-        | Instruction::Unpin { .. }
+        | Instruction::Hold { .. }
         | Instruction::BarrierWrite { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::AtomicCompareExchange { .. }

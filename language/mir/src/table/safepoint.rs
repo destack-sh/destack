@@ -3,7 +3,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{Point, Value};
 
-/// The safepoints of verified MIR: the points where the collector may run, each with the references pinned there.
+/// The safepoints of verified MIR.
+///
+/// Each safepoint is one point where the collector may run, with the handles held live there.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct SafepointTable {
     /// The safepoints sorted by point.
@@ -13,16 +15,27 @@ pub struct SafepointTable {
 /// One point where the collector may run.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Safepoint {
-    /// The point: a parking call, or a loop header or tail call that elaboration polls at.
+    /// The instruction point of the safepoint.
     pub point: Point,
-    /// The references into managed storage live across a parking call, pinned over it.
-    pub pins: Vec<Value>,
+    /// How the collector gets to run at the point.
+    pub kind: SafepointKind,
+    /// The managed handles whose borrows are live at the point, held live past it.
+    pub live: Vec<Value>,
+}
+
+/// How the collector gets to run at one safepoint.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum SafepointKind {
+    /// A call that may park the fiber.
+    Park,
+    /// A point elaboration polls the runtime at.
+    Poll,
 }
 
 impl SafepointTable {
     /// Insert one safepoint.
-    pub fn insert(&mut self, point: Point, pins: Vec<Value>) {
-        self.points.push(Safepoint { point, pins });
+    pub fn insert(&mut self, point: Point, kind: SafepointKind, live: Vec<Value>) {
+        self.points.push(Safepoint { point, kind, live });
     }
 
     /// Append another safepoint table.

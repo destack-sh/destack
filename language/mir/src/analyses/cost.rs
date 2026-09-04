@@ -365,9 +365,9 @@ impl CostTable {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::ContextBind { .. }
-            | mir::Instruction::Pin { .. }
-            | mir::Instruction::Unpin { .. } => cost.allocate += 1,
+            | mir::Instruction::ContextBind { .. } => cost.allocate += 1,
+            // holding handles live costs nothing at runtime
+            mir::Instruction::Hold { .. } => {}
             mir::Instruction::Free { .. } => {
                 cost.release += 1;
             }

@@ -1082,17 +1082,11 @@ impl FormatNode for Instruction {
 
             Instruction::Free { value } => write!(f, [token("free"), space(), value]),
 
-            Instruction::Pin {
-                destination, value, ..
-            } => {
-                format_typed_destination(*destination, f)?;
-                write!(
-                    f,
-                    [space(), token("="), space(), token("pin"), space(), value]
-                )
+            Instruction::Hold { values } => {
+                write!(f, [token("hold"), space()])?;
+                let values = f.context().tree.get_values(*values);
+                format_value_list(values, f)
             }
-
-            Instruction::Unpin { value } => write!(f, [token("unpin"), space(), value]),
 
             Instruction::BarrierWrite {
                 object,

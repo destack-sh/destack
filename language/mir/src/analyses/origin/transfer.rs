@@ -341,11 +341,6 @@ impl OriginState {
                 argument,
                 ..
             }
-            | Instruction::Pin {
-                destination,
-                value: argument,
-                ..
-            }
             | Instruction::FunctionEnvironment {
                 destination,
                 function: argument,
