@@ -13,12 +13,8 @@ macro_rules! runtime_operations {
             Drop = 0x0002 => drop: Drop -> Void,
             /// Release one unique heap value.
             Free = 0x0003 => free: Free -> Void,
-            /// Pin one heap value.
-            Pin = 0x0004 => pin: Pin -> Pointer,
-            /// Release one pinned heap value.
-            Unpin = 0x0005 => unpin: Unpin -> Void,
             /// Record one managed reference write.
-            WriteBarrier = 0x0006 => write_barrier: WriteBarrier -> Void,
+            WriteBarrier = 0x0004 => write_barrier: WriteBarrier -> Void,
 
             /// Poll pending runtime work.
             Poll = 0x0010 => poll: Poll -> Never,
@@ -110,14 +106,6 @@ pub type Drop = unsafe extern "C-unwind" fn(
 
 /// Release one unique heap value through the runtime.
 pub type Free = unsafe extern "C-unwind" fn(activation: *mut Activation, owner: usize);
-
-/// Pin one heap value against movement through the runtime.
-pub type Pin =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, space: Space, value: usize) -> usize;
-
-/// Release one pinned heap value through the runtime.
-pub type Unpin =
-    unsafe extern "C-unwind" fn(activation: *mut Activation, space: Space, value: usize);
 
 /// Record one managed reference write through the runtime.
 pub type WriteBarrier = unsafe extern "C-unwind" fn(
