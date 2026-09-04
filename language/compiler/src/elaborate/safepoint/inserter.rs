@@ -1,9 +1,9 @@
 use destack_core::FxIndexMap;
 use destack_mir as mir;
 
-/// Inserter for the pins and polls verified MIR needs at its safepoints.
+/// Inserter for the holds and polls verified MIR needs at its safepoints.
 pub(in crate::elaborate) struct SafepointInserter<'a> {
-    /// The MIR tree receiving explicit pins and polls.
+    /// The MIR tree receiving explicit holds and polls.
     tree: &'a mut mir::Tree,
     /// The functions whose points the safepoints name.
     functions: &'a [mir::LocalNodeId<mir::Function>],
@@ -18,65 +18,58 @@ impl<'a> SafepointInserter<'a> {
         Self { tree, functions }
     }
 
-    /// Pin over every parking safepoint and poll the runtime at every other one.
+    /// Poll at every polling safepoint, and hold the live handles past every safepoint.
     pub(in crate::elaborate) fn insert(&mut self, safepoints: &mir::SafepointTable) {
         for safepoint in safepoints.iter() {
-            match (safepoint.point, safepoint.pins.as_slice()) {
-                // poll before a safepoint that holds nothing live
-                (mir::Point::Instruction(instruction), []) => {
+            let live = safepoint.live.as_slice();
+            match (safepoint.kind, safepoint.point) {
+                // poll before the point, holding the handles past the poll
+                (mir::SafepointKind::Poll, mir::Point::Instruction(instruction)) => {
                     let (_, block, index) = self.locate(instruction);
                     let poll = self.tree.insert(mir::Instruction::Poll);
                     self.tree.get_mut(block).instructions.insert(index, poll);
+                    if !live.is_empty() {
+                        self.hold_at(block, index + 1, live);
+                    }
                 }
-                (mir::Point::Terminator(block), []) => {
+                // poll at the block tail, holding the handles past the poll
+                (mir::SafepointKind::Poll, mir::Point::Terminator(block)) => {
                     let poll = self.tree.insert(mir::Instruction::Poll);
-                    self.tree.get_mut(block).instructions.push(poll);
+                    let instructions = &mut self.tree.get_mut(block).instructions;
+                    instructions.push(poll);
+                    let index = instructions.len();
+                    if !live.is_empty() {
+                        self.hold_at(block, index, live);
+                    }
                 }
-                // pin across a safepoint that parks with live references
-                (mir::Point::Instruction(instruction), pins) => {
-                    let (function, block, _) = self.locate(instruction);
-                    self.pin_instruction(function, block, instruction, pins);
+                // hold the handles past the park
+                (mir::SafepointKind::Park, mir::Point::Instruction(instruction)) => {
+                    let (_, block, index) = self.locate(instruction);
+                    self.hold_at(block, index + 1, live);
                 }
-                (mir::Point::Terminator(block), pins) => {
+                // hold on every edge out of the parking terminator
+                (mir::SafepointKind::Park, mir::Point::Terminator(block)) => {
                     let function = self.function_of(block);
-                    self.pin_terminator(function, block, pins);
+                    self.hold_after_terminator(function, block, live);
                 }
             }
         }
     }
 
-    /// Bracket one parking instruction with pins and unpins.
-    fn pin_instruction(
-        &mut self,
-        function: mir::LocalNodeId<mir::Function>,
-        block: mir::LocalNodeId<mir::Block>,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-        values: &[mir::Value],
-    ) {
-        let (pins, pinned) = self.pin_values(function, values);
-        let unpins = self.unpin_values(&pinned);
-
-        // wrap the instruction in place, unpinning right after it
-        let instructions = &mut self.tree.get_mut(block).instructions;
-        let index = instructions
-            .iter()
-            .position(|candidate| *candidate == instruction)
-            .unwrap_or_else(|| unreachable!("pinned instruction is absent from its block"));
-        instructions.splice(index + 1..index + 1, unpins);
-        instructions.splice(index..index, pins);
+    /// Hold the handles at one instruction index of a block.
+    fn hold_at(&mut self, block: mir::LocalNodeId<mir::Block>, index: usize, live: &[mir::Value]) {
+        let hold = self.hold(live);
+        self.tree.get_mut(block).instructions.insert(index, hold);
     }
 
-    /// Pin before one parking terminator and unpin on every edge out of it.
-    fn pin_terminator(
+    /// Hold the handles on every edge out of one parking terminator.
+    fn hold_after_terminator(
         &mut self,
         function_id: mir::LocalNodeId<mir::Function>,
         block_id: mir::LocalNodeId<mir::Block>,
-        values: &[mir::Value],
+        live: &[mir::Value],
     ) {
-        let (pins, pinned) = self.pin_values(function_id, values);
-        self.tree.get_mut(block_id).instructions.extend(pins);
-
-        // stop before a tail call, which replaces the frame holding the pins
+        // stop before a tail call, which replaces the frame holding the handles
         let terminator_id = self.tree.get(block_id).terminator;
         if matches!(
             self.tree.get(terminator_id),
@@ -95,7 +88,7 @@ impl<'a> SafepointInserter<'a> {
             }
         }
 
-        // unpin at each successor's entry, splitting successors reached from elsewhere
+        // hold at each successor's entry, splitting successors reached from elsewhere
         let edges = self
             .tree
             .get(terminator_id)
@@ -119,41 +112,17 @@ impl<'a> SafepointInserter<'a> {
             self.tree.set(function_id, function);
         }
 
-        // unpin at the entry of each placement block
+        // hold at the entry of each placement block
         for block in placements {
-            let unpins = self.unpin_values(&pinned);
-            self.tree.get_mut(block).instructions.splice(0..0, unpins);
+            self.hold_at(block, 0, live);
         }
     }
 
-    /// Insert one pin instruction per reference, answering the instructions and the pinned values.
-    fn pin_values(
-        &mut self,
-        function: mir::LocalNodeId<mir::Function>,
-        values: &[mir::Value],
-    ) -> (Vec<mir::LocalNodeId<mir::Instruction>>, Vec<mir::Value>) {
-        let mut pins = Vec::with_capacity(values.len());
-        let mut pinned = Vec::with_capacity(values.len());
-        for &value in values {
-            let result_type = self.tree.get(function).expect_value_type(value);
-            let destination = self.tree.get_mut(function).next_typed_value(result_type);
-            pins.push(self.tree.insert(mir::Instruction::Pin {
-                destination,
-                value,
-                result_type: mir::TypeId::from(result_type),
-            }));
-            pinned.push(destination);
-        }
+    /// Insert one hold instruction over the handles.
+    fn hold(&mut self, live: &[mir::Value]) -> mir::LocalNodeId<mir::Instruction> {
+        let values = self.tree.add_values(live);
 
-        (pins, pinned)
-    }
-
-    /// Insert one unpin instruction per pinned reference.
-    fn unpin_values(&mut self, pinned: &[mir::Value]) -> Vec<mir::LocalNodeId<mir::Instruction>> {
-        pinned
-            .iter()
-            .map(|&value| self.tree.insert(mir::Instruction::Unpin { value }))
-            .collect()
+        self.tree.insert(mir::Instruction::Hold { values })
     }
 
     /// Find the function, block, and index holding one instruction.

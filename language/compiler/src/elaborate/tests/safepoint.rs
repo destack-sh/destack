@@ -41,9 +41,11 @@ b3:
     );
 }
 
-/// A loop header inside a local managed borrow does not poll, since a collection could move the referent.
+/// A loop header inside a managed borrow polls and holds the borrow's handle past the poll.
+///
+/// The collector may run at the poll.
 #[test]
-fn test_skip_the_poll_at_a_loop_header_inside_a_local_managed_borrow() {
+fn test_poll_and_hold_the_handle_at_a_loop_header_inside_a_managed_borrow() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -82,6 +84,8 @@ entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
     jump b1
 
 b1:
+    poll
+    hold (v0)
     branch v1 => b2 | b3
 
 b2:
@@ -95,7 +99,9 @@ b3:
     );
 }
 
-/// A tail call is the back edge of a recursive loop, so it polls the runtime before replacing the frame.
+/// A tail call is the back edge of a recursive loop.
+///
+/// It polls the runtime before replacing the frame.
 #[test]
 fn test_poll_before_a_tail_call() {
     let mut program = TestProgram::mir(
@@ -118,9 +124,11 @@ entry(v0: int32):
     );
 }
 
-/// A borrow of local managed storage live across a parking call is pinned over the call, since the local heap moves only at safepoints.
+/// The handle a managed borrow live across a parking call was taken through is held past the call.
+///
+/// The frame state at the park then roots its storage.
 #[test]
-fn test_pin_a_local_managed_borrow_over_a_parking_call() {
+fn test_hold_the_handle_of_a_managed_borrow_over_a_parking_call() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -154,9 +162,8 @@ external function park(): void
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
-    v3: ref<int32, borrowed, readonly, local> = pin v1
     call park(): () => void
-    unpin v3
+    hold (v0)
     v2: int32 = load v1
     return v2
 }
@@ -164,9 +171,9 @@ entry(v0: ref<Box, managed, mutable, local>):
     );
 }
 
-/// A borrow of local managed storage live across a parking invoke is pinned before it and unpinned on each edge out.
+/// The handle of a managed borrow live across a parking invoke is held on each edge out of it.
 #[test]
-fn test_pin_a_local_managed_borrow_over_a_parking_invoke() {
+fn test_hold_the_handle_of_a_managed_borrow_on_each_edge_out_of_a_parking_invoke() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -205,25 +212,24 @@ external function park(): int32
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
     v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
-    v4: ref<int32, borrowed, readonly, local> = pin v1
     invoke park(): () => int32 => b1 | b2
 
 b1(v2: int32):
-    unpin v4
+    hold (v0)
     v3: int32 = load v1
     return v3
 
 b2:
-    unpin v4
+    hold (v0)
     unwind.resume
 }
 "#,
     );
 }
 
-/// A borrow of local managed storage that dies before the parking call is left unpinned.
+/// A managed borrow that dies before the parking call holds nothing.
 #[test]
-fn test_leave_a_dead_local_managed_borrow_unpinned_at_a_park() {
+fn test_hold_nothing_for_a_managed_borrow_dead_before_a_park() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -260,6 +266,40 @@ entry(v0: ref<Box, managed, mutable, local>):
     v2: int32 = load v1
     call park(): () => void
     return v2
+}
+"#,
+    );
+}
+
+/// A borrowed parameter live across a parking call holds nothing.
+///
+/// Its owner lives in the caller's frame.
+#[test]
+fn test_hold_nothing_for_a_borrowed_parameter_across_a_park() {
+    let mut program = TestProgram::mir(
+        r#"
+@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
+external function park(): void
+
+function test(v0: ref<int32, borrowed, readonly>): int32 {
+entry(v0: ref<int32, borrowed, readonly>):
+    call park(): () => void
+    v1: int32 = load v0
+    return v1
+}
+"#,
+    );
+
+    program.assert_elaborated(
+        r#"
+@binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
+external function park(): void
+
+function test(v0: ref<int32, borrowed, readonly, local>): int32 {
+entry(v0: ref<int32, borrowed, readonly, local>):
+    call park(): () => void
+    v1: int32 = load v0
+    return v1
 }
 "#,
     );
