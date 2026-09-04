@@ -66,6 +66,8 @@ pub(crate) struct VmMachine {
     local_static: StaticSpace,
     /// Runtime shared static byte space.
     shared_static: StaticSpace,
+    /// The request word the machine polls at safepoints.
+    handshake: program::Handshake,
     /// Worker-local heap.
     heap: Heap,
     /// Runtime shared heap.
@@ -220,6 +222,7 @@ impl VmMachine {
             shared,
             shared_cache,
             shared_mark_worker,
+            handshake: program::Handshake::new(),
         }
     }
 
@@ -238,6 +241,7 @@ impl VmMachine {
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
                 constants: &self.constant_space,
+                handshake: &self.handshake,
             },
         };
         let outcome = self

@@ -85,8 +85,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         allocate_repeated: Self::allocate_repeated,
         drop: Self::drop,
         free: Self::free,
-        pin: Self::pin,
-        unpin: Self::unpin,
         write_barrier: Self::write_barrier,
         poll: Self::poll,
         stop: Self::stop,
@@ -455,37 +453,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         };
 
         if let Err(error) = call.activation.memory.free(edge) {
-            call.fail(error);
-        }
-    }
-
-    /// Pin one managed heap object.
-    unsafe extern "C-unwind" fn pin(
-        activation: *mut abi::Activation,
-        space: abi::Space,
-        value: usize,
-    ) -> usize {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let edge = Self::edge(space, value);
-
-        match call.activation.memory.pin(edge) {
-            Ok(reference) => reference.bits(),
-            Err(error) => call.fail(error),
-        }
-    }
-
-    /// Release one managed heap pin.
-    unsafe extern "C-unwind" fn unpin(
-        activation: *mut abi::Activation,
-        space: abi::Space,
-        value: usize,
-    ) {
-        // SAFETY: generated code passes the active activation supplied to abi::Entry
-        let call = unsafe { Self::from_activation(activation) };
-        let edge = Self::edge(space, value);
-
-        if let Err(error) = call.activation.memory.unpin(edge) {
             call.fail(error);
         }
     }
@@ -948,16 +915,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     /// Return the unique release operation.
     pub const fn free_entry() -> abi::Free {
         Self::free
-    }
-
-    /// Return the heap pin operation.
-    pub const fn pin_entry() -> abi::Pin {
-        Self::pin
-    }
-
-    /// Return the heap unpin operation.
-    pub const fn unpin_entry() -> abi::Unpin {
-        Self::unpin
     }
 
     /// Return the managed write-barrier operation.

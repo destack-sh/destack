@@ -537,18 +537,16 @@ impl WorldState {
         collector: heap::GcCollector,
     ) -> RuntimeResult<()> {
         let observation = match (collector, worker_id) {
-            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, Some(worker_id)) => {
-                Observation::LocalGcStarted {
-                    runtime_id,
-                    worker_id,
-                    collector,
-                }
-            }
+            (heap::GcCollector::Local, Some(worker_id)) => Observation::LocalGcStarted {
+                runtime_id,
+                worker_id,
+                collector,
+            },
             (heap::GcCollector::Shared, _) => Observation::SharedGcStarted {
                 runtime_id,
                 collector,
             },
-            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, None) => {
+            (heap::GcCollector::Local, None) => {
                 return Err(RuntimeError::Internal {
                     message: "local gc start missing worker".to_string(),
                 }
@@ -569,24 +567,20 @@ impl WorldState {
         step: heap::GcStep,
     ) -> RuntimeResult<Observation> {
         match (step.collector, worker_id) {
-            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, Some(worker_id)) => {
-                Ok(Observation::LocalGcStepped {
-                    runtime_id,
-                    worker_id,
-                    step,
-                })
-            }
+            (heap::GcCollector::Local, Some(worker_id)) => Ok(Observation::LocalGcStepped {
+                runtime_id,
+                worker_id,
+                step,
+            }),
             (heap::GcCollector::Shared, worker_id) => Ok(Observation::SharedGcStepped {
                 runtime_id,
                 worker_id,
                 step,
             }),
-            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, None) => {
-                Err(RuntimeError::Internal {
-                    message: "local gc step missing worker".to_string(),
-                }
-                .boxed())
+            (heap::GcCollector::Local, None) => Err(RuntimeError::Internal {
+                message: "local gc step missing worker".to_string(),
             }
+            .boxed()),
         }
     }
 
@@ -597,24 +591,20 @@ impl WorldState {
         cycle: heap::GcCycle,
     ) -> RuntimeResult<Observation> {
         match (cycle.collector, worker_id) {
-            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, Some(worker_id)) => {
-                Ok(Observation::LocalGcCompleted {
-                    runtime_id,
-                    worker_id,
-                    cycle,
-                })
-            }
+            (heap::GcCollector::Local, Some(worker_id)) => Ok(Observation::LocalGcCompleted {
+                runtime_id,
+                worker_id,
+                cycle,
+            }),
             (heap::GcCollector::Shared, worker_id) => Ok(Observation::SharedGcCompleted {
                 runtime_id,
                 worker_id,
                 cycle,
             }),
-            (heap::GcCollector::LocalMinor | heap::GcCollector::LocalMajor, None) => {
-                Err(RuntimeError::Internal {
-                    message: "local gc cycle missing worker".to_string(),
-                }
-                .boxed())
+            (heap::GcCollector::Local, None) => Err(RuntimeError::Internal {
+                message: "local gc cycle missing worker".to_string(),
             }
+            .boxed()),
         }
     }
 

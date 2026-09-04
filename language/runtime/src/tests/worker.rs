@@ -361,7 +361,7 @@ impl TestWorker {
 
     /// Request one full worker-local collection.
     pub(crate) fn request_full_gc(&mut self) {
-        self.worker.heap.request_full_gc();
+        self.worker.heap.request_gc();
     }
 
     /// Advance one idle worker GC operation.
