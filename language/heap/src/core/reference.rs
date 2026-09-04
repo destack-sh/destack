@@ -115,9 +115,6 @@ pub(crate) trait ReferenceClass: Sized {
 
     /// Return whether one byte range may overlap this reference class.
     fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool;
-
-    /// Select this reference class from exact side bitmaps.
-    fn bitmap<'a>(local: &'a Bitmap, shared: &'a Bitmap) -> &'a Bitmap;
 }
 
 /// Worker-local reference fields.
@@ -142,10 +139,6 @@ impl ReferenceClass for HeapReference {
 
     fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool {
         overlaps_reference_range::<Self>(trace_map, range)
-    }
-
-    fn bitmap<'a>(local: &'a Bitmap, _shared: &'a Bitmap) -> &'a Bitmap {
-        local
     }
 }
 
@@ -172,68 +165,6 @@ impl ReferenceClass for SharedHeapReference {
     fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool {
         overlaps_reference_range::<Self>(trace_map, range)
     }
-
-    fn bitmap<'a>(_local: &'a Bitmap, shared: &'a Bitmap) -> &'a Bitmap {
-        shared
-    }
-}
-
-/// Visit exact references encoded in one allocation bitmap range.
-pub(crate) fn visit_allocation_references<R: ReferenceClass>(
-    local_reference_bits: &Bitmap,
-    shared_reference_bits: &Bitmap,
-    allocation_byte_offset: usize,
-    byte_len: usize,
-    input: ReferenceInput<'_>,
-    range: ReferenceRange,
-    visit: &mut dyn FnMut(R) -> HeapResult<()>,
-) -> HeapResult<()> {
-    let reference_bits = R::bitmap(local_reference_bits, shared_reference_bits);
-    let bit_start = allocation_byte_offset / REFERENCE_BYTES;
-    let word_count = byte_len.div_ceil(REFERENCE_BYTES);
-
-    for word_index in 0..word_count {
-        if !reference_bits.contains(bit_start + word_index) {
-            continue;
-        }
-
-        let offset = word_index * REFERENCE_BYTES;
-        if !range.overlaps(offset, R::BYTE_LEN) {
-            continue;
-        }
-
-        let bits = match input {
-            ReferenceInput::Mapped { base_address } => {
-                // SAFETY: exact side bits name pointer-width fields in this mapped allocation
-                unsafe { read_reference_bits(base_address + offset) }
-            }
-            ReferenceInput::Bytes { start, bytes } => {
-                reference_bits_from_bytes(bytes, start, offset)?
-            }
-        };
-        visit(R::from_bits(bits))?;
-    }
-
-    Ok(())
-}
-
-/// Return whether one allocation bitmap range contains one reference class.
-pub(crate) fn allocation_has_reference<R: ReferenceClass>(
-    local_reference_bits: &Bitmap,
-    shared_reference_bits: &Bitmap,
-    allocation_byte_offset: usize,
-    byte_len: usize,
-    range: ReferenceRange,
-) -> bool {
-    let reference_bits = R::bitmap(local_reference_bits, shared_reference_bits);
-    let bit_start = allocation_byte_offset / REFERENCE_BYTES;
-    let word_count = byte_len.div_ceil(REFERENCE_BYTES);
-
-    (0..word_count).any(|word_index| {
-        let offset = word_index * REFERENCE_BYTES;
-
-        reference_bits.contains(bit_start + word_index) && range.overlaps(offset, R::BYTE_LEN)
-    })
 }
 
 /// Heap reference edge encoded in object or frame bytes.
@@ -411,11 +342,6 @@ fn direct_trace_map(
     }
 }
 
-/// Return whether one write range may overlap any local reference bytes.
-pub(crate) fn overlaps_heap_range(trace_map: &TraceMap, start: usize, len: usize) -> bool {
-    overlaps_reference_range::<HeapReference>(trace_map, ReferenceRange::bytes(start, len))
-}
-
 /// Return whether one byte range may overlap any reference field of one class.
 fn overlaps_reference_range<R: ReferenceClass>(
     trace_map: &TraceMap,
@@ -430,26 +356,6 @@ fn overlaps_reference_range<R: ReferenceClass>(
     });
 
     overlaps
-}
-
-/// Return the exact trace map encoded for one block byte range.
-pub(crate) fn allocation_trace_map(
-    local_reference_bits: &Bitmap,
-    shared_reference_bits: &Bitmap,
-    byte_offset: usize,
-    byte_len: usize,
-) -> TraceMap {
-    // locate this block in the side bitmaps
-    let bit_start = byte_offset / REFERENCE_BYTES;
-    let word_count = byte_len.div_ceil(REFERENCE_BYTES);
-
-    direct_trace_map(
-        |bit_index| local_reference_bits.contains(bit_index),
-        |bit_index| shared_reference_bits.contains(bit_index),
-        bit_start,
-        word_count,
-        byte_len,
-    )
 }
 
 /// Report whether one byte range overlaps one fixed-width field range.
@@ -474,25 +380,6 @@ pub(crate) fn clear_slot_reference_bits(
     // map the slot payload to bitmap word indexes
     let bit_len = size_class.div_ceil(REFERENCE_BYTES);
     let bit_start = slot_index * bit_len;
-
-    clear_reference_bits(
-        local_reference_bits,
-        shared_reference_bits,
-        bit_start,
-        bit_len,
-    );
-}
-
-/// Clear the exact reference bits for one block byte range.
-pub(crate) fn clear_allocation_reference_bits(
-    local_reference_bits: &mut Bitmap,
-    shared_reference_bits: &mut Bitmap,
-    byte_offset: usize,
-    byte_len: usize,
-) {
-    // map the block payload to bitmap word indexes
-    let bit_start = byte_offset / REFERENCE_BYTES;
-    let bit_len = byte_len.div_ceil(REFERENCE_BYTES);
 
     clear_reference_bits(
         local_reference_bits,
@@ -531,31 +418,6 @@ pub(crate) fn write_slot_reference_bits(
     // derive the slot bitmap range
     let bit_len = size_class.div_ceil(REFERENCE_BYTES);
     let bit_start = slot_index * bit_len;
-
-    write_direct_reference_bits(
-        trace_map,
-        local_reference_bits,
-        shared_reference_bits,
-        bit_start,
-    );
-}
-
-/// Encode one exact trace map at one block byte offset.
-pub(crate) fn write_allocation_reference_bits(
-    trace_map: &TraceMap,
-    local_reference_bits: &mut Bitmap,
-    shared_reference_bits: &mut Bitmap,
-    byte_offset: usize,
-) {
-    debug_assert!(!trace_map.has_variant_reference());
-
-    // noscan layouts have no side bits
-    if !trace_map.has_heap_reference() {
-        return;
-    }
-
-    // derive the block bitmap start
-    let bit_start = byte_offset / REFERENCE_BYTES;
 
     write_direct_reference_bits(
         trace_map,
@@ -1133,35 +995,6 @@ mod tests {
     use destack_mir::{DiscriminantField, VariantEncoding, VariantTrace};
 
     use super::*;
-
-    /// Preserve every repeated reference through allocation bitmap encoding.
-    #[test]
-    fn test_roundtrip_repeated_allocation_trace_map() {
-        let element = TraceMap::Fixed {
-            local_offsets: vec![0].into_boxed_slice(),
-            shared_offsets: vec![].into_boxed_slice(),
-            frame_offsets: vec![].into_boxed_slice(),
-        };
-        let repeated = TraceMap::Repeated {
-            count: 2,
-            stride: 8,
-            element: Box::new(element),
-        };
-        let mut local = Bitmap::with_capacity(16);
-        let mut shared = Bitmap::with_capacity(16);
-
-        write_allocation_reference_bits(&repeated, &mut local, &mut shared, 8);
-        let decoded = allocation_trace_map(&local, &shared, 8, 16);
-
-        assert_eq!(
-            decoded,
-            TraceMap::Fixed {
-                local_offsets: vec![0, 8].into_boxed_slice(),
-                shared_offsets: vec![].into_boxed_slice(),
-                frame_offsets: vec![].into_boxed_slice(),
-            }
-        );
-    }
 
     /// Select variant references through a direct discriminant field.
     #[test]

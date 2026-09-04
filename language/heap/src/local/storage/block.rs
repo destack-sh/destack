@@ -3,7 +3,6 @@ use destack_mir::TraceMap;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::CardSet;
 use crate::{DropPlan, HeapError, HeapRepresentationError, HeapResult};
 
 /// One live heap large block.
@@ -21,10 +20,6 @@ pub(crate) struct LargeBlock {
     pub(crate) drop: Option<DropPlan>,
     /// The mark epoch when this block was last marked.
     pub(crate) mark_epoch: u64,
-    /// The dirty cards remembered for young tracing.
-    pub(crate) dirty_cards: CardSet,
-    /// Whether this block is already queued for dirty-card scanning.
-    pub(crate) is_dirty_queued: bool,
 }
 
 /// One heap large-block identifier.

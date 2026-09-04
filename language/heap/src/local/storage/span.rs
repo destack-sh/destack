@@ -2,7 +2,6 @@ use destack_memory::MemoryRange;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use super::CardSet;
 use crate::{Bitmap, SmallSpanClass};
 
 /// One live heap span.
@@ -30,10 +29,6 @@ pub(crate) struct SmallSpan {
     pub(crate) mark_epoch: u64,
     /// The memory pages for this span.
     pub(crate) pages: MemoryRange,
-    /// The dirty cards remembered for young tracing.
-    pub(crate) dirty_cards: CardSet,
-    /// Whether this span is already queued for dirty-card scanning.
-    pub(crate) is_dirty_queued: bool,
 }
 
 impl SmallSpan {
@@ -45,6 +40,16 @@ impl SmallSpan {
 
         self.marked.clear_all();
         self.mark_epoch = mark_epoch;
+    }
+
+    /// Return whether one slot is free to reserve.
+    pub(crate) fn has_free_slot(&self) -> bool {
+        self.free_cursor < self.slot_count
+    }
+
+    /// Return the base byte offset of one slot inside heap storage.
+    pub(crate) fn slot_offset(&self, slot_index: usize) -> usize {
+        self.first_offset + slot_index * self.class.size_class()
     }
 }
 

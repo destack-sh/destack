@@ -4,8 +4,8 @@ use destack_memory::MemoryMap;
 use serde::{Deserialize, Serialize};
 
 use super::Heap;
-use crate::local::storage::{GcState, HeapStorage, HeapStorageImage};
-use crate::{HeapError, HeapLimits, HeapOptions, TraceView};
+use crate::local::storage::{HeapStorage, HeapStorageImage};
+use crate::{GcState, HeapError, HeapLimits, HeapOptions, TraceView};
 
 /// One frozen local heap metadata image.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -46,7 +46,7 @@ impl HeapImage {
 
     /// Return the captured collector state.
     pub fn gc_state(&self) -> &GcState {
-        self.storage().gc_state()
+        &self.storage().gc_state
     }
 
     /// Return the retained local heap page count.
@@ -56,7 +56,7 @@ impl HeapImage {
 
     /// Return the allocated local heap bytes.
     pub fn allocated_bytes(&self) -> u64 {
-        self.storage().allocated_bytes()
+        self.storage().allocated_bytes
     }
 }
 
@@ -74,7 +74,7 @@ impl Heap {
         Ok(Self {
             options: self.options.clone(),
             gc_pacer: self.gc_pacer,
-            gc_request: self.gc_request,
+            is_gc_requested: self.is_gc_requested,
             storage,
             limits: self.limits,
         })
@@ -94,7 +94,7 @@ impl Heap {
         let mut heap = Self {
             options: image.options().clone(),
             gc_pacer: Default::default(),
-            gc_request: None,
+            is_gc_requested: false,
             storage,
             limits,
         };

@@ -55,15 +55,4 @@ impl<'a> Payload<'a> {
             Self::Uninit => {}
         }
     }
-
-    /// Initialize one already-zeroed materialized mapped byte range from this payload.
-    #[inline(always)]
-    pub(crate) fn initialize_zeroed_mapped(&self, mapping: &MemoryMap, offset: usize) {
-        if let Self::Bytes(bytes) = self {
-            // SAFETY: block paths materialize the destination before publishing it
-            unsafe {
-                mapping.write_mapped_bytes(offset, bytes);
-            }
-        }
-    }
 }

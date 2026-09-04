@@ -29,19 +29,10 @@ impl HeapStorage {
         }
 
         match extent.place {
-            HeapPlace::YoungRange { first_offset } => self
-                .young_range_by_offset(first_offset)
-                .map(|range| range.range.drop)
-                .ok_or_else(|| HeapError::internal("missing young range")),
-            HeapPlace::YoungSlot(slot) => self
-                .young
-                .span(slot.span_index())
-                .map(|span| span.class().drop_plan())
-                .ok_or_else(|| HeapError::internal("missing young span")),
-            HeapPlace::MatureSlot(slot) => self
+            HeapPlace::Slot(slot) => self
                 .span(slot.span_index())
                 .map(|span| span.class.drop_plan())
-                .ok_or_else(|| HeapError::internal("missing mature span")),
+                .ok_or_else(|| HeapError::internal("missing span")),
             HeapPlace::LargeBlock(block_id) => self
                 .large_block(block_id)
                 .map(|block| block.drop)
@@ -55,15 +46,6 @@ impl HeapStorage {
         let offset = extent.base.offset() + byte_offset;
 
         self.memory.zero(offset, byte_len).map_err(HeapError::from)
-    }
-
-    /// Return whether one heap reference currently refers to young space.
-    #[cfg(test)]
-    pub(crate) fn is_young(&self, reference: HeapReference) -> bool {
-        matches!(
-            self.resolve_extent(reference).map(|extent| extent.place),
-            Some(HeapPlace::YoungRange { .. }) | Some(HeapPlace::YoungSlot(_))
-        )
     }
 
     /// Return the live place for one heap reference.
@@ -188,48 +170,10 @@ impl HeapStorage {
         trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
         // local collector metadata
-        self.record_local_write(extent, byte_offset, byte_len, trace_view)?;
+        self.write_mark_barrier(extent, byte_offset, byte_len, trace_view)?;
 
         // shared collector metadata
         self.record_shared_edge_write(reference, extent, byte_offset, byte_len, trace_view)
-    }
-
-    /// Record local collector metadata for one live heap extent.
-    fn record_local_write(
-        &mut self,
-        extent: HeapExtent,
-        byte_offset: usize,
-        byte_len: usize,
-        trace_view: TraceView<'_>,
-    ) -> HeapResult<()> {
-        self.write_major_barrier(extent, byte_offset, byte_len, trace_view)?;
-
-        // only mature extents need remembered-write bookkeeping
-        match extent.place {
-            HeapPlace::YoungRange { .. } | HeapPlace::YoungSlot(_) => Ok(()),
-            HeapPlace::MatureSlot(slot) => {
-                // skip writes that cannot touch local references
-                let range = ReferenceRange::bytes(byte_offset, byte_len);
-                let is_overlapping = self.overlaps_reference::<HeapReference>(
-                    HeapPlace::MatureSlot(slot),
-                    trace_view,
-                    range,
-                )?;
-                if !is_overlapping {
-                    return Ok(());
-                }
-
-                self.remember_span_slot_write(
-                    slot.span_index(),
-                    slot.slot_index(),
-                    byte_offset,
-                    byte_len,
-                )
-            }
-            HeapPlace::LargeBlock(block_id) => {
-                self.mark_large_block_dirty(block_id, byte_offset, byte_len)
-            }
-        }
     }
 
     /// Record local-to-shared edge metadata for one live heap extent.

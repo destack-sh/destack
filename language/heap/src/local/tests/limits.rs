@@ -2,10 +2,7 @@ use std::sync::Arc;
 
 use destack_mir::TraceMap;
 
-use crate::{
-    AccountingRegion, DEFAULT_YOUNG_SIZE_BYTES, HeapError, HeapLimits, HeapOptions, Payload,
-    test_layout,
-};
+use crate::{AccountingRegion, HeapError, HeapLimits, HeapOptions, Payload, test_layout};
 
 use super::{TestHeapPlan, test_heap, test_heap_with_limits, trace_view};
 
@@ -24,37 +21,10 @@ fn heap_retained_bytes_after_allocate(options: HeapOptions, bytes: &[u8]) -> u64
     heap.usage().retained_bytes
 }
 
-/// Track retained bytes for default young space block.
+/// Track retained bytes for span slots.
 #[test]
-fn test_track_default_young_retained_bytes() {
-    // fill the default nursery with small zeroed objects
-    let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
-    let heap = &mut test_heap(HeapOptions::local());
-
-    for _ in 0..SMALL_ALLOCATION_COUNT {
-        heap.test_allocate(layout.block(), Payload::Zeroed);
-    }
-
-    let usage = heap.usage();
-
-    // retained bytes should be the whole reserved nursery
-    assert_eq!(usage.allocation_count, SMALL_ALLOCATION_COUNT);
-    assert_eq!(
-        usage.allocated_bytes,
-        (SMALL_ALLOCATION_COUNT * SMALL_ALLOCATION_BYTES) as u64
-    );
-    assert_eq!(usage.retained_bytes, DEFAULT_YOUNG_SIZE_BYTES as u64);
-}
-
-/// Track retained bytes for local small-span block.
-#[test]
-fn test_track_small_span_retained_bytes() {
-    // disable young space so all objects use mature small spans
-    let options = HeapOptions {
-        heap_young_size_bytes: 0,
-        max_heap_young_allocation_size_bytes: 0,
-        ..HeapOptions::local()
-    };
+fn test_track_span_retained_bytes() {
+    let options = HeapOptions::local();
     let layout = test_layout(SMALL_ALLOCATION_BYTES, TraceMap::empty());
     let class_index = options
         .size_classes
@@ -89,11 +59,7 @@ fn test_track_small_span_retained_bytes() {
 #[test]
 fn test_reject_heap_allocation_when_limit_exceeded() {
     // compute the projected retained-byte charge for one block
-    let options = HeapOptions {
-        heap_young_size_bytes: 0,
-        max_heap_young_allocation_size_bytes: 0,
-        ..HeapOptions::local()
-    };
+    let options = HeapOptions::local();
     let expected_used_bytes = heap_retained_bytes_after_allocate(options.clone(), &[1]);
     let layout = test_layout(1, TraceMap::empty());
     let shape = layout.block();

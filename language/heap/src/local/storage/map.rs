@@ -53,13 +53,10 @@ impl HeapStorage {
         let owner = self.page_owner(page_index)?;
 
         match owner {
-            PageOwner::Young { logical_page_index } => {
-                self.resolve_young_extent(logical_page_index, page_offset)
-            }
-            PageOwner::MatureSpan {
+            PageOwner::Span {
                 span_index,
                 logical_page_index,
-            } => self.resolve_small_extent(reference, span_index, logical_page_index, page_offset),
+            } => self.resolve_slot_extent(reference, span_index, logical_page_index, page_offset),
             PageOwner::LargeBlock {
                 block_id,
                 logical_page_index,
@@ -67,70 +64,8 @@ impl HeapStorage {
         }
     }
 
-    /// Return the resolved young space extent for one live heap reference.
-    fn resolve_young_extent(
-        &self,
-        logical_page_index: usize,
-        page_offset: usize,
-    ) -> Option<HeapExtent> {
-        let logical_byte_offset =
-            self.young.pages.offset + logical_page_index * self.young.page_size_bytes + page_offset;
-
-        if let Some(span_index) = self
-            .young
-            .page_spans
-            .get(logical_page_index)
-            .copied()
-            .flatten()
-        {
-            return self.resolve_young_span_extent(span_index, logical_byte_offset);
-        }
-
-        let range = self.young.range_at_offset(logical_byte_offset)?;
-        let block_offset = range.range.first_offset;
-
-        let byte_offset = logical_byte_offset - block_offset;
-
-        Some(HeapExtent {
-            place: HeapPlace::YoungRange {
-                first_offset: block_offset,
-            },
-            base: HeapReference::new(block_offset),
-            byte_offset,
-            byte_len: range.range.byte_len,
-        })
-    }
-
-    /// Return the resolved fixed-size young extent for one live heap reference.
-    fn resolve_young_span_extent(
-        &self,
-        span_index: usize,
-        logical_byte_offset: usize,
-    ) -> Option<HeapExtent> {
-        let span = self.young.span(span_index)?;
-        let span_offset = logical_byte_offset.checked_sub(span.first_offset)?;
-        let slot_index = span_offset / span.class.size_class();
-        let slot_offset = span_offset % span.class.size_class();
-        let bits = self.young.span_bits(span_index)?;
-        if slot_index >= self.young.span_reserved_slot_count(span_index)?
-            || bits.freed.contains(slot_index)
-        {
-            return None;
-        }
-
-        let base_offset = span.slot_offset(slot_index);
-        let slot = Slot::new(span_index, slot_index).ok()?;
-
-        Some(HeapExtent {
-            place: HeapPlace::YoungSlot(slot),
-            base: HeapReference::new(base_offset),
-            byte_offset: slot_offset,
-            byte_len: span.byte_len(),
-        })
-    }
-
-    /// Return the resolved small-span extent for one live heap reference.
-    fn resolve_small_extent(
+    /// Return the resolved span slot extent for one live heap reference.
+    fn resolve_slot_extent(
         &self,
         reference: HeapReference,
         span_index: usize,
@@ -150,14 +85,13 @@ impl HeapStorage {
             return None;
         }
 
-        let slot_base_offset = slot_index * span.class.size_class();
-        let base_offset = span.first_offset + slot_base_offset;
+        let base_offset = span.slot_offset(slot_index);
         let slot = Slot::new(span_index, slot_index).ok()?;
 
         debug_assert_eq!(reference.offset(), base_offset + slot_offset);
 
         Some(HeapExtent {
-            place: HeapPlace::MatureSlot(slot),
+            place: HeapPlace::Slot(slot),
             base: HeapReference::new(base_offset),
             byte_offset: slot_offset,
             byte_len,

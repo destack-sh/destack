@@ -1,7 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use crate::local::gc::PinSet;
-use crate::local::storage::LargeBlockId;
 use crate::{
     DropCursor, DropReference, GcDrop, HeapError, HeapReference, HeapResult, TraceQueue,
     TraceReference,
@@ -10,54 +8,23 @@ use crate::{
 /// The budget charged for one metadata-only GC step.
 pub(crate) const GC_METADATA_STEP_BYTES: usize = 1;
 
-/// The number of metadata bits skipped by one bitmap word scan.
-pub(crate) const GC_METADATA_WORD_BITS: usize = u64::BITS as usize;
-
 /// Active local collector state.
 #[derive(Debug, Default)]
 pub(crate) struct CollectorState {
-    /// The scoped heap pins that keep stable addresses and block branch boundaries.
-    pub(crate) pins: PinSet,
-    /// Mature extents queued for dirty-card scanning.
-    pub(crate) dirty_extents: Vec<DirtyExtent>,
-
-    /// The current minor collection phase.
-    pub(crate) minor_phase: Phase,
-    /// The minor reclamation phase interrupted by marking.
-    pub(crate) minor_resume_phase: Phase,
-    /// The next young range start bit to visit after marking.
-    pub(crate) young_reclaim_range_cursor: usize,
-    /// The next young span index to visit after marking.
-    pub(crate) young_reclaim_span_cursor: usize,
-    /// The next slot inside the current young span to visit after marking.
-    pub(crate) young_reclaim_slot_cursor: usize,
-    /// The next dirty mature extent queued for young marking.
-    pub(crate) young_dirty_extent_cursor: usize,
-    /// The next dirty card inside the current mature extent.
-    pub(crate) young_dirty_card_cursor: usize,
-    /// Whether a write dirtied an already queued extent during the active minor cycle.
-    pub(crate) dirty_rescan_needed: bool,
-    /// The number of blocks freed by the active young cycle.
-    pub(crate) young_freed_allocations: usize,
-    /// The number of bytes freed by the active young cycle.
-    pub(crate) young_freed_bytes: u64,
-
-    /// The reusable minor collector trace queue.
-    pub(crate) minor_queue: TraceQueue<HeapReference>,
+    /// The current collection phase.
+    pub(crate) phase: Phase,
+    /// The persistent mark queue of an active cycle.
+    pub(crate) mark_queue: TraceQueue<MarkWork>,
     /// The reusable scratch buffer for scanned local references.
     pub(crate) local_reference_scratch: Vec<HeapReference>,
-    /// The current major collection phase.
-    pub(crate) major_phase: Phase,
-    /// The persistent trace queue for an active major cycle.
-    pub(crate) major_queue: TraceQueue<MarkWork>,
     /// The active local mark epoch.
     pub(crate) mark_epoch: u64,
-    /// The active major post-mark cursor.
-    pub(crate) major_reclaim: MajorReclaimCursor,
-    /// The number of blocks freed by the active local major cycle.
-    pub(crate) major_freed_allocations: usize,
-    /// The number of bytes freed by the active local major cycle.
-    pub(crate) major_freed_bytes: u64,
+    /// The active reclamation cursor.
+    pub(crate) reclaim: ReclaimCursor,
+    /// The number of blocks freed by the active cycle.
+    pub(crate) freed_allocations: usize,
+    /// The number of bytes freed by the active cycle.
+    pub(crate) freed_bytes: u64,
     /// Incremental Drop progress for one unreachable allocation.
     pending_drop: Option<DropCursor>,
 
@@ -73,15 +40,6 @@ pub(crate) struct CollectorState {
     pub(crate) shared_edge_queue: TraceQueue<EdgeWork>,
     /// Queue membership for pending shared-edge rescans.
     shared_edge_pending: HashSet<HeapReference>,
-}
-
-/// One mature extent queued for dirty-card scanning.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum DirtyExtent {
-    /// One mature small span.
-    Span(usize),
-    /// One mature large block.
-    Large(LargeBlockId),
 }
 
 impl CollectorState {
@@ -144,7 +102,7 @@ impl CollectorState {
 
     /// Return whether a local collection is currently running.
     pub(crate) fn is_collecting(&self) -> bool {
-        self.minor_phase != Phase::Idle || self.major_phase != Phase::Idle
+        self.phase != Phase::Idle
     }
 
     /// Clear every tracked shared-edge root.
@@ -263,28 +221,22 @@ pub(crate) enum Phase {
     Sweep,
 }
 
-/// Active local major post-mark heap cursor.
+/// The active reclamation heap cursor.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct MajorReclaimCursor {
-    /// The next young range start bit to visit.
-    pub(crate) young_range_cursor: usize,
-    /// The next young span index to visit.
-    pub(crate) young_span_cursor: usize,
-    /// The next young span slot index to visit.
-    pub(crate) young_slot_cursor: usize,
-    /// The next mature small span index to visit.
-    pub(crate) small_span_cursor: usize,
-    /// The next mature small span slot index to visit.
-    pub(crate) small_slot_cursor: usize,
-    /// The mature small span table length captured when reclamation started.
-    pub(crate) small_span_limit: usize,
-    /// The next mature large block index to visit.
+pub(crate) struct ReclaimCursor {
+    /// The next span index to visit.
+    pub(crate) span_cursor: usize,
+    /// The next span slot index to visit.
+    pub(crate) slot_cursor: usize,
+    /// The span table length captured when reclamation started.
+    pub(crate) span_limit: usize,
+    /// The next large block index to visit.
     pub(crate) large_cursor: usize,
-    /// The mature large block table length captured when reclamation started.
+    /// The large block table length captured when reclamation started.
     pub(crate) large_limit: usize,
 }
 
-/// One queued unit of local major mark work.
+/// One queued unit of mark work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum MarkWork {
     /// One heap block to scan.
@@ -332,31 +284,4 @@ impl TraceReference for EdgeWork {
             }
         }
     }
-}
-
-/// Charge bitmap metadata work and return the cursor reached.
-pub(crate) fn charge_bitmap_skip(
-    start: usize,
-    end: usize,
-    budget_bytes: usize,
-    swept_bytes: &mut usize,
-) -> usize {
-    if start >= end {
-        return end;
-    }
-
-    // charge one work unit per skipped bitmap word
-    let skipped_bits = end - start;
-    let skipped_words = skipped_bits.div_ceil(GC_METADATA_WORD_BITS);
-    let remaining_budget = budget_bytes - *swept_bytes;
-    if skipped_words <= remaining_budget {
-        *swept_bytes += skipped_words;
-
-        return end;
-    }
-
-    // stop at the bit reachable within the remaining budget
-    *swept_bytes = budget_bytes;
-
-    start + remaining_budget * GC_METADATA_WORD_BITS
 }

@@ -7,15 +7,8 @@ use crate::{HeapError, HeapReference, HeapResult, Slot};
 /// One heap allocation place.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) enum HeapPlace {
-    /// One young space block at a base offset.
-    YoungRange {
-        /// The block base byte offset inside young space.
-        first_offset: usize,
-    },
-    /// One fixed-size young block stored in one span slot.
-    YoungSlot(Slot),
-    /// One mature small-space block stored in one span slot.
-    MatureSlot(Slot),
+    /// One small block stored in one span slot.
+    Slot(Slot),
     /// One block stored in heap large space.
     LargeBlock(LargeBlockId),
 }
@@ -23,13 +16,8 @@ pub(crate) enum HeapPlace {
 /// The allocation metadata owning one local heap page.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub(crate) enum PageOwner {
-    /// One young space page and its logical page index.
-    Young {
-        /// The logical page index inside young space.
-        logical_page_index: usize,
-    },
-    /// One small-span page and its logical page index.
-    MatureSpan {
+    /// One span page and its logical page index.
+    Span {
         /// The owning span index.
         span_index: usize,
         /// The logical page index inside the span.

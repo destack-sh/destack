@@ -130,18 +130,6 @@ impl Bitmap {
         self.words[word_index] &= mask;
     }
 
-    /// Clear one bit that the caller already knows is inside this bitmap.
-    #[inline(always)]
-    pub(crate) fn clear_in_bounds(&mut self, offset: usize) {
-        debug_assert!(offset < self.capacity);
-
-        let word_index = offset / BITMAP_WORD_BITS;
-        let bit_offset = offset % BITMAP_WORD_BITS;
-        let mask = !(1_u64 << bit_offset);
-
-        self.words[word_index] &= mask;
-    }
-
     /// Clear all bits.
     pub fn clear_all(&mut self) {
         self.words.fill(0);

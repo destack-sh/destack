@@ -5,10 +5,9 @@ use destack_mir::TraceId;
 
 use crate::{
     AllocationClass, AllocationPlan, AllocationShape, DEFAULT_HEAP_PAGE_SIZE_BYTES,
-    DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES, DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
-    DEFAULT_SMALL_SIZE_BYTES, DEFAULT_YOUNG_SIZE_BYTES, DropPlan, GcOptions,
-    HeapConfigurationError, HeapError, SizeClassTable, validate_page_size_bytes,
-    validate_size_class_alignment, validate_small_span_size_bytes,
+    DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES, DEFAULT_SMALL_SIZE_BYTES, DropPlan, GcOptions,
+    HeapError, SizeClassTable, validate_page_size_bytes, validate_size_class_alignment,
+    validate_small_span_size_bytes,
 };
 
 /// The configuration for one heap instance.
@@ -18,10 +17,6 @@ pub struct HeapOptions {
     pub gc: GcOptions,
     /// The configured small-allocation class table.
     pub size_classes: SizeClassTable,
-    /// The byte size for heap young space.
-    pub heap_young_size_bytes: usize,
-    /// The maximum payload size routed to heap young space.
-    pub max_heap_young_allocation_size_bytes: usize,
     /// The byte size for heap small-block spans.
     pub heap_small_size_bytes: usize,
     /// The byte size for memory pages.
@@ -83,50 +78,18 @@ impl HeapOptions {
         Self {
             gc: GcOptions::default(),
             size_classes: SizeClassTable::default(),
-            heap_young_size_bytes: DEFAULT_YOUNG_SIZE_BYTES,
-            max_heap_young_allocation_size_bytes: DEFAULT_MAX_HEAP_YOUNG_ALLOCATION_SIZE_BYTES,
             heap_small_size_bytes: DEFAULT_SMALL_SIZE_BYTES,
             page_size_bytes: DEFAULT_HEAP_PAGE_SIZE_BYTES,
             small_allocation_alignment_bytes: DEFAULT_SMALL_ALLOCATION_ALIGNMENT_BYTES,
         }
     }
 
-    /// Validate the local heap allocation shape.
-    fn validate_allocation_shape(&self) -> Result<(), HeapError> {
+    /// Validate these options for one heap.
+    pub fn validate_local(&self) -> Result<(), HeapError> {
         self.gc.validate()?;
         validate_page_size_bytes(self.page_size_bytes)?;
         validate_size_class_alignment(&self.size_classes, self.small_allocation_alignment_bytes)?;
         validate_small_span_size_bytes(self.heap_small_size_bytes, &self.size_classes)?;
-
-        Ok(())
-    }
-
-    /// Validate these options for one heap.
-    pub fn validate_local(&self) -> Result<(), HeapError> {
-        self.validate_allocation_shape()?;
-
-        // reject contradictory young space policy
-        if self.heap_young_size_bytes != 0
-            && self.max_heap_young_allocation_size_bytes > self.heap_young_size_bytes
-        {
-            return Err(HeapError::configuration(
-                HeapConfigurationError::YoungThresholdExceedsCapacity {
-                    threshold: self.max_heap_young_allocation_size_bytes,
-                    capacity: self.heap_young_size_bytes,
-                },
-            ));
-        }
-
-        // keep young side metadata compact and directly indexed
-        let max_young_size_bytes = u32::MAX as usize;
-        if self.heap_young_size_bytes > max_young_size_bytes {
-            return Err(HeapError::configuration(
-                HeapConfigurationError::YoungCapacityTooLarge {
-                    capacity: self.heap_young_size_bytes,
-                    max: max_young_size_bytes,
-                },
-            ));
-        }
 
         Ok(())
     }
@@ -202,31 +165,6 @@ mod tests {
             error,
             HeapError::configuration(HeapConfigurationError::InvalidGcTriggerPercent {
                 percent: 101,
-            })
-        );
-    }
-
-    /// Reject contradictory heap young space admission policy.
-    #[test]
-    fn test_heap_rejects_young_threshold_above_capacity() {
-        let options = HeapOptions {
-            heap_young_size_bytes: 1024,
-            max_heap_young_allocation_size_bytes: 2048,
-            ..HeapOptions::local()
-        };
-
-        let memory = Arc::new(
-            MemoryMap::reserve(1024 * 1024 * 1024, options.page_size_bytes)
-                .expect("test World memory should reserve"),
-        );
-        let error = Heap::new(memory, HeapLimits::default(), options)
-            .expect_err("invalid heap options should fail loudly");
-
-        assert_eq!(
-            error,
-            HeapError::configuration(HeapConfigurationError::YoungThresholdExceedsCapacity {
-                threshold: 2048,
-                capacity: 1024
             })
         );
     }

@@ -71,7 +71,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .reserve_small_noscan(small_site)
+                        .reserve_small(small_site)
                         .expect("local noscan allocation should stay hot");
                     black_box(reference);
                 },
@@ -92,7 +92,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
                 },
                 |heap| {
                     let reference = heap
-                        .reserve_small_scan(local_small_site)
+                        .reserve_small(local_small_site)
                         .expect("local scan allocation should stay hot");
                     black_box(reference);
                 },

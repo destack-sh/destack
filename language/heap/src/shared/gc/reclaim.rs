@@ -72,11 +72,7 @@ impl HeapStorage {
         match self.gc.phase() {
             GcPhase::Drop => {}
             GcPhase::Idle => return Ok(GcAdvance::Idle),
-            GcPhase::Mark
-            | GcPhase::PublishRoots
-            | GcPhase::ScanEdges
-            | GcPhase::Sweep
-            | GcPhase::Promote => {
+            GcPhase::Mark | GcPhase::PublishRoots | GcPhase::ScanEdges | GcPhase::Sweep => {
                 return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotDropping));
             }
         }
@@ -166,11 +162,7 @@ impl HeapStorage {
         match self.gc.phase() {
             GcPhase::Sweep => {}
             GcPhase::Idle => return Ok(GcAdvance::Idle),
-            GcPhase::Mark
-            | GcPhase::PublishRoots
-            | GcPhase::ScanEdges
-            | GcPhase::Drop
-            | GcPhase::Promote => {
+            GcPhase::Mark | GcPhase::PublishRoots | GcPhase::ScanEdges | GcPhase::Drop => {
                 return Err(HeapError::gc_state(HeapGcStateError::SharedGcNotSweeping));
             }
         }

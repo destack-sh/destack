@@ -71,13 +71,6 @@ impl AllocationUsage {
         self.allocated_bytes += byte_len as u64;
     }
 
-    /// Charge multiple blocks into this usage.
-    #[inline(always)]
-    pub(crate) fn allocate_many(&mut self, allocation_count: usize, allocated_bytes: u64) {
-        self.allocation_count += allocation_count;
-        self.allocated_bytes += allocated_bytes;
-    }
-
     /// Check whether this usage can release one block.
     pub(crate) fn check_free(&self, freed_bytes: u64) {
         debug_assert!(self.allocation_count > 0);

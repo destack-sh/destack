@@ -97,10 +97,6 @@ pub enum HeapConfigurationError {
     InvalidGcMinimumWorkBytes { bytes: usize },
     /// The configured heap page width is unsupported.
     InvalidPageSizeBytes { bytes: usize },
-    /// The configured heap young-block threshold exceeds young-space capacity.
-    YoungThresholdExceedsCapacity { threshold: usize, capacity: usize },
-    /// The configured heap young-space capacity exceeds young metadata capacity.
-    YoungCapacityTooLarge { capacity: usize, max: usize },
     /// The configured small-block alignment is unsupported.
     InvalidSmallAllocationAlignmentBytes { bytes: usize },
     /// One size class violated the configured small-block alignment.
@@ -243,8 +239,6 @@ pub enum HeapRepresentationError {
 pub enum HeapCaptureBlocker {
     /// Active collector work blocks capture.
     GcActive,
-    /// Active pins block capture.
-    PinsActive,
 }
 
 /// GC state failure reason.
@@ -260,11 +254,6 @@ pub enum HeapGcStateError {
     SharedGcNotDropping,
     /// One shared GC sweep operation was requested while shared sweep was inactive.
     SharedGcNotSweeping,
-    /// One heap reference was unpinned without one active scoped pin.
-    PinMissing {
-        /// The unpinned heap reference.
-        reference: HeapReference,
-    },
 }
 
 /// Heap operation kind.
@@ -445,21 +434,6 @@ impl Display for HeapConfigurationError {
             Self::InvalidPageSizeBytes { bytes } => {
                 write!(formatter, "invalid heap page width: {bytes}")
             }
-            Self::YoungThresholdExceedsCapacity {
-                threshold,
-                capacity,
-            } => {
-                write!(
-                    formatter,
-                    "young block threshold {threshold} exceeds capacity {capacity}"
-                )
-            }
-            Self::YoungCapacityTooLarge { capacity, max } => {
-                write!(
-                    formatter,
-                    "young-space capacity {capacity} exceeds max {max}"
-                )
-            }
             Self::InvalidSmallAllocationAlignmentBytes { bytes } => {
                 write!(formatter, "invalid small-block alignment: {bytes}")
             }
@@ -594,7 +568,6 @@ impl Display for HeapCaptureBlocker {
     fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
         let reason = match self {
             Self::GcActive => "gc active",
-            Self::PinsActive => "pins active",
         };
 
         write!(formatter, "{reason}")
@@ -609,7 +582,6 @@ impl Display for HeapGcStateError {
             Self::SharedGcNotMarking => write!(formatter, "shared gc not marking"),
             Self::SharedGcNotDropping => write!(formatter, "shared gc not dropping"),
             Self::SharedGcNotSweeping => write!(formatter, "shared gc not sweeping"),
-            Self::PinMissing { reference } => write!(formatter, "pin missing for {reference:?}"),
         }
     }
 }

@@ -97,11 +97,7 @@ impl HeapStorage {
                         .into());
                     }
                 },
-                GcPhase::Idle
-                | GcPhase::PublishRoots
-                | GcPhase::ScanEdges
-                | GcPhase::Mark
-                | GcPhase::Promote => {
+                GcPhase::Idle | GcPhase::PublishRoots | GcPhase::ScanEdges | GcPhase::Mark => {
                     return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive).into());
                 }
             }

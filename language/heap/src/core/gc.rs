@@ -83,17 +83,6 @@ pub struct GcPacer {
     pub assist_debt_bytes: u64,
 }
 
-/// GC pressure requested by one pacer snapshot.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum GcPressure {
-    /// No collection work is currently requested.
-    Idle,
-    /// A regular collection cycle is requested.
-    Cycle,
-    /// A full collection cycle should start.
-    Full,
-}
-
 impl GcPacer {
     /// Derive pacing targets from the last completed live heap size.
     pub fn set_live_bytes(&mut self, options: GcOptions, live_bytes: u64) {
@@ -147,21 +136,14 @@ impl GcPacer {
         self.set_live_bytes(options, stats.allocated_bytes);
     }
 
-    /// Return the collection pressure for the current heap size.
-    pub fn pressure(&self, heap_bytes: u64) -> GcPressure {
-        if self.goal_bytes == 0 && heap_bytes > 0 {
-            return GcPressure::Cycle;
+    /// Return whether the current heap size asks for a collection cycle.
+    pub fn is_pressured(&self, heap_bytes: u64) -> bool {
+        // a heap without a goal collects as soon as it holds anything
+        if self.goal_bytes == 0 {
+            return heap_bytes > 0;
         }
 
-        if heap_bytes >= self.goal_bytes && self.goal_bytes > 0 {
-            return GcPressure::Full;
-        }
-
-        if heap_bytes >= self.trigger_bytes && self.goal_bytes > 0 {
-            return GcPressure::Cycle;
-        }
-
-        GcPressure::Idle
+        heap_bytes >= self.trigger_bytes
     }
 
     /// Charge one block against the current collector runway.
@@ -269,10 +251,8 @@ fn smooth_work_estimate(previous_bytes: u64, observed_bytes: u64) -> u64 {
 /// Collector advanced by one GC result.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum GcCollector {
-    /// Worker-local young-generation collector.
-    LocalMinor,
-    /// Worker-local full-heap collector.
-    LocalMajor,
+    /// Worker-local heap collector.
+    Local,
     /// Runtime-wide shared-heap collector.
     Shared,
 }
@@ -294,8 +274,6 @@ pub enum GcPhase {
     Drop,
     /// Unreachable allocations are being reclaimed.
     Sweep,
-    /// Young survivors are being moved out of the nursery.
-    Promote,
 }
 
 impl GcPhase {
@@ -308,7 +286,6 @@ impl GcPhase {
             Self::Mark => 3,
             Self::Drop => 4,
             Self::Sweep => 5,
-            Self::Promote => 6,
         }
     }
 
@@ -321,7 +298,6 @@ impl GcPhase {
             3 => Self::Mark,
             4 => Self::Drop,
             5 => Self::Sweep,
-            6 => Self::Promote,
             _ => unreachable!("invalid gc phase byte: {bits}"),
         }
     }

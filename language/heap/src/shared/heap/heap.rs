@@ -11,9 +11,9 @@ use crate::shared::gc::{Pacer, SharedMarkWorker};
 use crate::shared::storage::{AllocationCache, HeapStorage, HeapStorageImage};
 use crate::{
     AccountingRegion, Allocation, AllocationPlan, DropPlan, DropReference, GcAdvance, GcCollector,
-    GcDrop, GcPacer, GcPhase, GcPressure, GcState, GcStats, HeapAllocationError, HeapError,
-    HeapGcStateError, HeapResult, Payload, SharedHeapOptions, SharedHeapReference,
-    SmallAllocationClass, TraceView, apply_byte_delta,
+    GcDrop, GcPacer, GcPhase, GcState, GcStats, HeapAllocationError, HeapError, HeapGcStateError,
+    HeapResult, Payload, SharedHeapOptions, SharedHeapReference, SmallAllocationClass, TraceView,
+    apply_byte_delta,
 };
 
 /// One live shared heap.
@@ -516,11 +516,7 @@ impl SharedHeap {
                 }
             }
             GcPhase::Sweep => self.storage.step_sweep(budget_bytes)?,
-            GcPhase::Idle
-            | GcPhase::PublishRoots
-            | GcPhase::ScanEdges
-            | GcPhase::Mark
-            | GcPhase::Promote => {
+            GcPhase::Idle | GcPhase::PublishRoots | GcPhase::ScanEdges | GcPhase::Mark => {
                 return Err(HeapError::gc_state(HeapGcStateError::SharedGcActive));
             }
         };
@@ -632,12 +628,9 @@ impl SharedHeap {
 
     /// Refresh the pending shared cycle request from current heap pressure.
     fn refresh_gc_request(&self) {
-        // shared cycles are full-heap cycles
-        match self.gc_pacer().pressure(self.heap_allocated_bytes()) {
-            GcPressure::Idle => {}
-            GcPressure::Cycle | GcPressure::Full => {
-                self.collection_requested.store(true, Ordering::Release);
-            }
+        // request a cycle under pacer pressure
+        if self.gc_pacer().is_pressured(self.heap_allocated_bytes()) {
+            self.collection_requested.store(true, Ordering::Release);
         }
     }
 

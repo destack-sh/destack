@@ -7,7 +7,7 @@ use destack_mir::{DiscriminantField, TraceMap, VariantEncoding, VariantTrace};
 
 use super::{TestHeapPlan, read_mapped_bytes, test_heap, test_storage, trace_view};
 
-/// Preserve allocation-specific trace maps in variable-size young ranges.
+/// Keep allocation-specific trace maps on dedicated large blocks.
 #[test]
 fn test_allocate_heap_preserves_dynamic_trace_map() {
     let trace_map = TraceMap::Repeated {
@@ -34,15 +34,8 @@ fn test_allocate_heap_preserves_dynamic_trace_map() {
         .trace_map(reference, trace_view())
         .expect("dynamic trace metadata should resolve");
 
-    assert!(matches!(place, HeapPlace::YoungRange { .. }));
-    assert_eq!(
-        decoded,
-        TraceMap::Fixed {
-            local_offsets: vec![0, 8].into_boxed_slice(),
-            shared_offsets: vec![].into_boxed_slice(),
-            frame_offsets: vec![].into_boxed_slice(),
-        }
-    );
+    assert!(matches!(place, HeapPlace::LargeBlock(_)));
+    assert_eq!(decoded, trace_map);
 }
 
 /// Reject one zero-size heap block.
@@ -90,7 +83,6 @@ fn test_free_heap_reclaims_live_allocation() {
 fn test_allocate_heap_clears_reused_small_slot_tail() {
     // force small mature block reuse
     let options = HeapOptions {
-        heap_young_size_bytes: 0,
         heap_small_size_bytes: 16,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
@@ -117,52 +109,11 @@ fn test_allocate_heap_clears_reused_small_slot_tail() {
     assert_eq!(bytes, &[0xCC, 0, 0, 0, 0, 0, 0, 0]);
 }
 
-/// Keep young span metadata at exact payload lengths.
-#[test]
-fn test_allocate_heap_tracks_exact_young_span_payload_lengths() {
-    // configure both payloads into the same 16-byte young span class
-    let options = HeapOptions {
-        size_classes: SizeClassTable::new([8, 16]).expect("size classes should validate"),
-        ..HeapOptions::local()
-    };
-    let first_layout = test_layout(9, TraceMap::empty());
-    let second_layout = test_layout(10, TraceMap::empty());
-    let mut heap = test_storage(&options);
-
-    let first = heap.test_allocate(first_layout.block(), Payload::Bytes(&[0xAA; 9]));
-    let second = heap.test_allocate(second_layout.block(), Payload::Bytes(&[0xBB; 10]));
-
-    // resolve each block through its own live metadata
-    let first_place = heap.place(first).expect("first block should be live");
-    let second_place = heap.place(second).expect("second block should be live");
-    let first_byte_len = heap
-        .resolve_byte_len(first_place)
-        .expect("first block byte length should resolve");
-    let second_byte_len = heap
-        .resolve_byte_len(second_place)
-        .expect("second block byte length should resolve");
-    let first_address = heap.base_address() + first.offset();
-    let second_address = heap.base_address() + second.offset();
-
-    // span metadata should keep each exact payload length
-    assert_eq!(first_byte_len, 9);
-    assert_eq!(second_byte_len, 10);
-
-    // payload bytes should not overlap across adjacent slots
-    let first_bytes = read_mapped_bytes(first_address, 9);
-    let second_bytes = read_mapped_bytes(second_address, 10);
-
-    assert_eq!(first_bytes, &[0xAA; 9]);
-    assert_eq!(second_bytes, &[0xBB; 10]);
-}
-
 /// Keep variant trace maps on block records.
 #[test]
 fn test_allocate_heap_routes_variant_trace_map_to_large() {
-    // variant trace maps require block records, not young span metadata
+    // variant trace maps require dedicated block records
     let options = HeapOptions {
-        heap_young_size_bytes: 64,
-        max_heap_young_allocation_size_bytes: 64,
         heap_small_size_bytes: 64,
         size_classes: SizeClassTable::new([16]).expect("size classes should validate"),
         ..HeapOptions::local()
@@ -187,20 +138,18 @@ fn test_allocate_heap_routes_variant_trace_map_to_large() {
 
     let reference = heap.test_allocate(layout.block(), Payload::Zeroed);
 
-    // variant payloads should bypass young space
+    // variant payloads should take the large path
     assert!(matches!(
         heap.place(reference),
         Some(HeapPlace::LargeBlock(_))
     ));
 }
 
-/// Keep over-aligned blocks on aligned mature slots.
+/// Keep over-aligned blocks on aligned slots.
 #[test]
 fn test_allocate_heap_honors_layout_alignment() {
     // use a size class that can satisfy 16-byte alignment
     let options = HeapOptions {
-        heap_young_size_bytes: 64,
-        max_heap_young_allocation_size_bytes: 64,
         heap_small_size_bytes: 64,
         size_classes: SizeClassTable::new([8, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
@@ -220,9 +169,8 @@ fn test_allocate_heap_honors_layout_alignment() {
 /// Reject one write that crosses block bounds from an interior reference.
 #[test]
 fn test_write_heap_rejects_interior_reference_crossing_bounds() {
-    // allocate one small mature payload and form an interior reference near the end
+    // allocate one small payload and form an interior reference near the end
     let options = HeapOptions {
-        heap_young_size_bytes: 0,
         heap_small_size_bytes: 8,
         size_classes: SizeClassTable::new([8]).expect("size classes should validate"),
         ..HeapOptions::local()
@@ -252,7 +200,6 @@ fn test_write_heap_rejects_interior_reference_crossing_bounds() {
 fn test_free_heap_reclaims_large_block() {
     // force blocks larger than the local small span classes
     let options = HeapOptions {
-        heap_young_size_bytes: 0,
         heap_small_size_bytes: 32,
         size_classes: SizeClassTable::new([16, 24, 32]).expect("size classes should validate"),
         ..HeapOptions::local()
