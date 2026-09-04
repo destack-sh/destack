@@ -1,7 +1,7 @@
 use destack_heap as heap;
 use destack_heap::{
     DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES,
-    DEFAULT_GC_TRIGGER_PERCENT, DEFAULT_YOUNG_SIZE_BYTES,
+    DEFAULT_GC_TRIGGER_PERCENT,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -37,7 +37,6 @@ impl HeapOptions {
     /// Resolve worker-local heap construction options.
     pub fn local_heap_options(&self) -> Result<heap::HeapOptions, heap::HeapError> {
         let options = heap::HeapOptions {
-            heap_young_size_bytes: self.local.young_size_bytes,
             gc: self.local_gc_options(),
             ..heap::HeapOptions::local()
         };
@@ -83,27 +82,15 @@ impl HeapOptions {
 }
 
 /// Runtime local-heap policy.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalHeapOptions {
-    /// The byte width for worker-local young space.
-    pub young_size_bytes: usize,
     /// Minimum heap bytes before normal growth pacing applies.
     pub min_bytes: Option<u64>,
     /// Hard limit for total retained local heap bytes.
     pub max_bytes: Option<u64>,
-}
-
-impl Default for LocalHeapOptions {
-    fn default() -> Self {
-        Self {
-            young_size_bytes: DEFAULT_YOUNG_SIZE_BYTES,
-            min_bytes: None,
-            max_bytes: None,
-        }
-    }
 }
 
 impl LocalHeapOptions {
@@ -115,12 +102,9 @@ impl LocalHeapOptions {
         }
     }
 
-    /// Resolve the minimum heap byte budget from nursery width.
+    /// Resolve the minimum heap byte budget.
     fn minimum_heap_bytes(&self) -> u64 {
-        let young_min_size_bytes = 4 * self.young_size_bytes as u64;
-
-        self.min_bytes
-            .unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES.max(young_min_size_bytes))
+        self.min_bytes.unwrap_or(DEFAULT_GC_MINIMUM_HEAP_BYTES)
     }
 }
 
