@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonString } from "../../../protocol/serde.js";
 
 /** Language library items that the toolchain references. */
-export type LanguageItem = "assert" | "abortSignal" | "abortController" | "awaitable" | "fiber" | "fiberCreate" | "fiberResume" | "asyncGenerator" | "generator" | "generatorResult" | "generatorCreate" | "generatorYield" | "asyncGeneratorCreate" | "asyncGeneratorYield" | "asyncIterable" | "asyncIterator" | "asyncMutex" | "notify" | "asyncOnce" | "asyncOnceCell" | "promise" | "promiseCreate" | "promiseFulfill" | "promiseResolvers" | "asyncReader" | "asyncRwLock" | "asyncSeeker" | "asyncSemaphore" | "task" | "taskCreate" | "taskAttach" | "taskComplete" | "queueMicrotask" | "taskScope" | "asyncWriter" | "byteBuffer" | "bytes" | "byteOrder" | "byteReader" | "sendErrorKind" | "receiveErrorKind" | "sendError" | "receiveError" | "channelSender" | "channelReceiver" | "asyncChannelSender" | "asyncChannelReceiver" | "watchReceiver" | "watchSender" | "array" | "fixedArray" | "readonlyArray" | "arrayFromSlice" | "concurrentMap" | "concurrentQueue" | "concurrentSet" | "deque" | "binaryHeap" | "linkedList" | "map" | "set" | "slice" | "sequence" | "slabKey" | "slab" | "smallArray" | "sortedMap" | "sortedSet" | "console" | "context" | "currentContext" | "replaceContext" | "bindContext" | "getContextValue" | "contextVar" | "as" | "borrow" | "toOwned" | "from" | "tryFrom" | "into" | "tryInto" | "debugBindingId" | "debugInlineFrameId" | "debugScopeId" | "debugExecutionPoint" | "debugPoint" | "debugStop" | "debugStopReason" | "debugStepMode" | "debugStepOptions" | "debugScope" | "debugScopePage" | "debugBinding" | "debugBindingKind" | "debugBindingPage" | "debugValue" | "debugValueBytes" | "debugValueOptimizedOut" | "debugValueSlot" | "debugValueUnavailable" | "debugger" | "capture" | "derive" | "allow" | "deny" | "expect" | "forbid" | "warn" | "intrinsic" | "languageItem" | "reprDecorator" | "noAliasingMutableBorrows" | "noDynamicDispatch" | "noHeap" | "noImplicitReceivers" | "noManaged" | "noReflection" | "noRuntime" | "noUnsafe" | "noUnwind" | "deprecated" | "experimental" | "cold" | "hot" | "inline" | "likely" | "mustUse" | "noinline" | "pure" | "tailcall" | "unlikely" | "unroll" | "safe" | "unsafe" | "error" | "hostErrorCode" | "hostError" | "hostErrorContext" | "hostPathPayload" | "hostSystemSource" | "ioErrorKind" | "ioError" | "pathError" | "abort" | "assertUnwindSafe" | "catchUnwind" | "panic" | "panicValue" | "refUnwindSafe" | "resumeUnwind" | "setPanicHook" | "takePanicHook" | "unwindSafe" | "todo" | "unreachable" | "report" | "err" | "ok" | "result" | "sourceLocation" | "stackFrame" | "stackFrameId" | "stackTrace" | "attributeBinding" | "directoryBinding" | "directoryEntryKind" | "directoryHandle" | "fileAccessMask" | "fileAllocateFlags" | "fileAdvice" | "fileBinding" | "fileHandle" | "fileLockMode" | "fileOpenFlags" | "fileOpenOptions" | "fileOffset" | "fileMode" | "filePrincipal" | "filePrincipalSid" | "fileReadFlags" | "fileResolveFlags" | "fileSeekOrigin" | "fileSize" | "fileStatusFlags" | "fileStatusMask" | "fileSyncFlags" | "fileTime" | "fileVolumeFlags" | "fileVolumeMask" | "fileWatchEvent" | "fileWatchMask" | "fileWriteFlags" | "linkFlags" | "mountBinding" | "namespaceBinding" | "nodeDevice" | "fsPathBuffer" | "renameFlags" | "statusBinding" | "symlinkKind" | "volumeBinding" | "fsWatchBinding" | "fsWatchHandle" | "xattrFlags" | "xattrBinding" | "xattrTarget" | "fsBinding" | "path" | "pathBuilder" | "pathSlice" | "pathComponent" | "windowsPathPrefix" | "extend" | "fromIterator" | "iterable" | "iterator" | "iteratorResult" | "iteratorReturn" | "iteratorYield" | "jsonSerializer" | "jsonDeserializer" | "jsonErrorKind" | "jsonError" | "jSON" | "json" | "bigInt" | "complex" | "floatDomain" | "float" | "one" | "zero" | "integerDomain" | "integer" | "unsigned" | "vector2" | "vector3" | "vector4" | "math" | "matrix2" | "matrix3" | "matrix4" | "infinity" | "naN" | "number" | "numberNaN" | "numberNegativeInfinity" | "numberPositiveInfinity" | "numeric" | "numericDomain" | "quaternion" | "vector" | "wrapping" | "access" | "arc" | "arcInner" | "arcWeak" | "arena" | "bump" | "mappedMemoryFlags" | "mappedMemorySyncFlags" | "mappedMemoryVisibility" | "memoryAdvice" | "memoryAdviseBinding" | "memoryBinding" | "memoryLayoutBinding" | "memoryLockBinding" | "memoryMapBinding" | "memoryProtection" | "memoryVirtualBinding" | "virtualMemoryReserveFlags" | "borrowed" | "box" | "unique" | "clone" | "concrete" | "copy" | "default" | "dynamicSafe" | "overwriteStable" | "suspendSafe" | "sharedSafe" | "unpin" | "zeroable" | "cell" | "refCell" | "unsafeCell" | "cow" | "asyncDispose" | "dispose" | "drop" | "forget" | "manuallyDrop" | "dynamic" | "allocationError" | "maybeUninit" | "lifetime" | "region" | "managed" | "owned" | "phantom" | "pin" | "place" | "placed" | "space" | "raw" | "rc" | "rcInner" | "rcWeak" | "accessOf" | "ownership" | "placeOf" | "withAccess" | "moduleDerive" | "module" | "moduleHost" | "importMeta" | "importMetaEnv" | "importMetaTarget" | "moduleOutput" | "modulePlatform" | "moduleRuntime" | "moduleStability" | "moduleTargetFamily" | "addressLookupFlags" | "dnsRecord" | "dnsRecordType" | "ipAddress" | "multicastInterface" | "multicastOption" | "multicastOptionValue" | "netConnectivityBinding" | "netInterfaceBinding" | "netOptionsBinding" | "netRawBinding" | "netResolveBinding" | "netRouteBinding" | "netSocketBinding" | "netUdpBinding" | "networkCellularGeneration" | "networkConnectivityKind" | "networkInterfaceFlags" | "networkPacketBackend" | "networkPacketBackendFeatures" | "networkPacketFanoutMode" | "networkPacketTimestampClock" | "networkRouteKind" | "networkWatchHandle" | "packetHandle" | "reverseAddressLookupFlags" | "socketAcceptFlags" | "socketAddress" | "socketFlags" | "socketFamily" | "socketHandle" | "socketMessageFlags" | "socketOption" | "socketOptionValue" | "socketPacketTimestampMode" | "socketProtocol" | "socketShutdown" | "socketType" | "unixAddress" | "connection" | "datagramSocket" | "listener" | "netBinding" | "and" | "not" | "or" | "xor" | "compare" | "ordering" | "partialCompare" | "dereference" | "divide" | "equal" | "partialEqual" | "strictEqual" | "debug" | "display" | "toString" | "hash" | "hasher" | "subtract" | "multiply" | "negate" | "add" | "plus" | "power" | "remainder" | "shiftLeft" | "shiftRight" | "shiftRightUnsigned" | "index" | "indexSet" | "break" | "continue" | "fromResidual" | "try" | "controlFlow" | "profileCounter" | "profileSampler" | "profileUnit" | "randomEntropyBinding" | "randomBinding" | "random" | "randomSeed" | "bound" | "rangeBounds" | "range" | "rangeFrom" | "rangeFull" | "rangeInclusive" | "rangeTo" | "rangeToInclusive" | "step" | "alignOf" | "sizeOf" | "strideOf" | "type" | "regExp" | "regExpIndices" | "regExpMatch" | "regExpSpan" | "runtimeAction" | "action" | "binding" | "bindingProvider" | "hostAction" | "hostBackendStatus" | "hostTag" | "platformFamilyTag" | "platformTag" | "runtimeControlEvent" | "runtimeControlEventKind" | "runtimeEdge" | "runtimeEdgeId" | "runtimeEdgeKind" | "runtimeEdgeSelector" | "runtimeEntity" | "runtimeEntityId" | "runtimeEntityKind" | "runtimeEntitySelector" | "runtimeLabel" | "runtimeLabelSelector" | "runtimeFrame" | "runtimeFrameId" | "runtimeFrameKind" | "runtimeFrameSlot" | "runtimeFrameSlotId" | "runtimeFrameStateId" | "runtimeFrameValue" | "runtimeHeapEdge" | "runtimeHeapObject" | "runtimeHeapObjectId" | "runtimeHeapSummary" | "runtimeEngineView" | "runtimeEngineViewKind" | "runtimeEventLoop" | "runtimeBranch" | "runtimeBranchId" | "runtimeCheckpoint" | "runtimeCheckpointId" | "runtimeImage" | "runtimeImageId" | "runtimeMoment" | "runtimeRevision" | "runtimeRevisionId" | "runtimeTraceSequence" | "runtimeObservationEventKind" | "runtimeObservationHandle" | "runtimeObservationRecord" | "policyActionSelector" | "policyConditionSelector" | "policyExecutionSelector" | "policyIdentitySelector" | "policyDecision" | "policyQuery" | "policyRule" | "policyRuleCursor" | "policySubjectSelector" | "policyTargetSelector" | "runtimeRandomHandle" | "runtimeRandomSeed" | "runtimeResource" | "runtimeResourceId" | "runtimeResourceKind" | "runtimeResourceState" | "runtimeTransferredHandle" | "runtimeSnapshot" | "runtimeSnapshotFormat" | "runtimeSnapshotId" | "runtimeTrace" | "runtimeTraceCursorHandle" | "runtimeTraceEventKind" | "runtimeTraceRecord" | "runtimeEngine" | "runtimeExecution" | "runtime" | "runtimeHandle" | "runtimeId" | "runtimeTickResult" | "runtimeWorker" | "runtimeWorkerExecutor" | "runtimeWorkerHandle" | "runtimeWorkerId" | "world" | "worldHandle" | "worldViewHandle" | "deserialize" | "deserializer" | "serialize" | "serializer" | "stream" | "stringBuilder" | "cStringSlice" | "cString" | "cStringError" | "cStringIntoStringError" | "interiorNulError" | "missingNulError" | "osStringSlice" | "osString" | "osStringBuilder" | "osStringDecodeError" | "osStringIntoStringError" | "stringSlice" | "string" | "utf8DecodeError" | "atomicScope" | "atomic" | "atomicSafe" | "atomicWaitResult" | "memoryOrdering" | "memoryRegionSet" | "memoryScope" | "barrier" | "condvar" | "mutex" | "once" | "onceCell" | "reader" | "rwLock" | "seekFrom" | "seeker" | "semaphore" | "writer" | "telemetryBinding" | "fieldValue" | "fields" | "logger" | "telemetryCounter" | "gauge" | "histogram" | "meter" | "metricSink" | "upDownCounter" | "instrumentKind" | "logEntry" | "telemetryLevel" | "metricEntry" | "spanContext" | "spanId" | "spanKind" | "spanOptions" | "spanStatus" | "traceEntry" | "telemetryTraceEventKind" | "traceId" | "span" | "traceSink" | "tracer" | "testArtifactId" | "testArtifactKind" | "testArtifact" | "test" | "parameterizedTest" | "tableTest" | "registeredCase" | "testOutput" | "testContext" | "testCaseContext" | "testSuiteContext" | "testExpect" | "expectation" | "panicExpectation" | "fixtureContext" | "testBeforeAll" | "testAfterAll" | "testAroundAll" | "testBeforeEach" | "testAfterEach" | "testAroundEach" | "testCaseId" | "testSuiteId" | "testRunId" | "testIssueKind" | "testIssue" | "testCaseKind" | "testIsolation" | "testOptions" | "pollingExpectation" | "testReplayId" | "testReplayKind" | "testReplayInput" | "testReplay" | "testOutcome" | "testRun" | "snapshotMode" | "snapshotOptions" | "snapshot" | "snapshotChange" | "testSuite" | "parameterizedSuite" | "tableSuite" | "registeredSuite" | "timeClock" | "timeClockBinding" | "timeBindingDuration" | "timeBinding" | "timeTimestamp" | "timeTimerHandle" | "timeTimerBinding" | "timeTimerMode" | "duration" | "instant" | "plainDate" | "plainDateTime" | "plainMonthDay" | "plainTime" | "plainYearMonth" | "zonedDateTime" | "topologyEdgeBinding" | "topologyEntityBinding" | "topologyBinding" | "topologyEdgeDecorator" | "topologyEntityDecorator" | "topologyDirection" | "topologyEdge" | "topologyEdgeId" | "topologyEdgeKind" | "topologyEdgeKindRecord" | "topologyEdgeRecord" | "topologyEdgeSelector" | "topologyEntity" | "topologyEntityId" | "topologyEntityKind" | "topologyEntityKindRecord" | "topologyEntityRecord" | "topologyEntitySelector" | "topologyLabelSelector" | "topologyLabelSet" | "topologyEdgeRef" | "topologyEntityRef" | "topologyRecord" | "topology" | "treeBuilder" | "constructorParameters" | "function" | "functionPointer" | "instanceType" | "omitThisParameter" | "parameters" | "returnType" | "thisParameterType" | "awaited" | "exclude" | "extract" | "nonNullable" | "noInfer" | "omit" | "partial" | "pick" | "propertyKey" | "readonly" | "record" | "required" | "thisType" | "capitalize" | "lowercase" | "uncapitalize" | "uppercase" | "worker" | "workerPool" | "workerExit" | "workerError";
+export type LanguageItem = "assert" | "abortSignal" | "abortController" | "awaitable" | "fiber" | "fiberCreate" | "fiberResume" | "asyncGenerator" | "generator" | "generatorResult" | "generatorNext" | "generatorReturn" | "generatorCreate" | "generatorYield" | "asyncGeneratorCreate" | "asyncGeneratorYield" | "asyncIterable" | "asyncIterator" | "asyncMutex" | "notify" | "asyncOnce" | "asyncOnceCell" | "promise" | "promiseCreate" | "promiseFulfill" | "promiseResolvers" | "asyncReader" | "asyncRwLock" | "asyncSeeker" | "asyncSemaphore" | "task" | "taskCreate" | "taskAttach" | "taskComplete" | "queueMicrotask" | "taskScope" | "asyncWriter" | "byteBuffer" | "bytes" | "byteOrder" | "byteReader" | "sendErrorKind" | "receiveErrorKind" | "sendError" | "receiveError" | "channelSender" | "channelReceiver" | "asyncChannelSender" | "asyncChannelReceiver" | "watchReceiver" | "watchSender" | "array" | "fixedArray" | "readonlyArray" | "arrayFromOwnedSlice" | "concurrentMap" | "concurrentQueue" | "concurrentSet" | "deque" | "binaryHeap" | "linkedList" | "map" | "set" | "slice" | "sequence" | "slabKey" | "slab" | "smallArray" | "sortedMap" | "sortedSet" | "console" | "context" | "currentContext" | "replaceContext" | "bindContext" | "getContextValue" | "contextVar" | "as" | "borrow" | "toOwned" | "from" | "tryFrom" | "into" | "tryInto" | "debugBindingId" | "debugInlineFrameId" | "debugScopeId" | "debugExecutionPoint" | "debugPoint" | "debugStop" | "debugStopReason" | "debugStepMode" | "debugStepOptions" | "debugScope" | "debugScopePage" | "debugBinding" | "debugBindingKind" | "debugBindingPage" | "debugValue" | "debugValueBytes" | "debugValueOptimizedOut" | "debugValueSlot" | "debugValueUnavailable" | "debugger" | "capture" | "derive" | "allow" | "deny" | "expect" | "forbid" | "warn" | "intrinsic" | "languageItem" | "reprDecorator" | "noAliasingMutableBorrows" | "noDynamicDispatch" | "noHeap" | "noImplicitReceivers" | "noManaged" | "noReflection" | "noRuntime" | "noUnsafe" | "noUnwind" | "deprecated" | "experimental" | "cold" | "hot" | "inline" | "likely" | "mustUse" | "noinline" | "pure" | "tailcall" | "unlikely" | "unroll" | "safe" | "unsafe" | "error" | "rangeError" | "typeError" | "hostErrorCode" | "hostError" | "hostErrorContext" | "hostPathPayload" | "hostSystemSource" | "ioErrorKind" | "ioError" | "pathError" | "abort" | "assertUnwindSafe" | "catchUnwind" | "panic" | "panicValue" | "refUnwindSafe" | "resumeUnwind" | "setPanicHook" | "takePanicHook" | "unwindSafe" | "todo" | "unreachable" | "report" | "err" | "ok" | "result" | "sourceLocation" | "stackFrame" | "stackFrameId" | "stackTrace" | "attributeBinding" | "directoryBinding" | "directoryEntryKind" | "directoryHandle" | "fileAccessMask" | "fileAllocateFlags" | "fileAdvice" | "fileBinding" | "fileHandle" | "fileLockMode" | "fileOpenFlags" | "fileOpenOptions" | "fileOffset" | "fileMode" | "filePrincipal" | "filePrincipalSid" | "fileReadFlags" | "fileResolveFlags" | "fileSeekOrigin" | "fileSize" | "fileStatusFlags" | "fileStatusMask" | "fileSyncFlags" | "fileTime" | "fileVolumeFlags" | "fileVolumeMask" | "fileWatchEvent" | "fileWatchMask" | "fileWriteFlags" | "linkFlags" | "mountBinding" | "namespaceBinding" | "nodeDevice" | "fsPathBuffer" | "renameFlags" | "statusBinding" | "symlinkKind" | "volumeBinding" | "fsWatchBinding" | "fsWatchHandle" | "xattrFlags" | "xattrBinding" | "xattrTarget" | "fsBinding" | "path" | "pathBuilder" | "pathSlice" | "pathComponent" | "windowsPathPrefix" | "extend" | "fromIterator" | "iterable" | "iterator" | "iteratorResult" | "iteratorReturn" | "iteratorYield" | "intlCollator" | "intlDateTimeFormat" | "intlDisplayNames" | "intlDurationFormat" | "intlError" | "intlToLocaleString" | "intlListFormat" | "intlLocale" | "intlNumberFormat" | "intlPluralRules" | "intlRelativeTimeFormat" | "intlSegments" | "intlSegmentIterator" | "intlSegmenter" | "jsonSerializer" | "jsonDeserializer" | "jsonErrorKind" | "jsonError" | "jSON" | "json" | "bigInt" | "complex" | "floatDomain" | "float" | "one" | "zero" | "integerDomain" | "integer" | "unsigned" | "vector2" | "vector3" | "vector4" | "math" | "matrix2" | "matrix3" | "matrix4" | "infinity" | "naN" | "number" | "numberNaN" | "numberNegativeInfinity" | "numberPositiveInfinity" | "numeric" | "numericDomain" | "quaternion" | "vector" | "wrapping" | "access" | "arc" | "arcInner" | "arcWeak" | "arena" | "bump" | "mappedMemoryFlags" | "mappedMemorySyncFlags" | "mappedMemoryVisibility" | "memoryAdvice" | "memoryAdviseBinding" | "memoryBinding" | "memoryLayoutBinding" | "memoryLockBinding" | "memoryMapBinding" | "memoryProtection" | "memoryVirtualBinding" | "virtualMemoryReserveFlags" | "borrowed" | "box" | "unique" | "clone" | "concrete" | "copy" | "default" | "dynamicSafe" | "overwriteStable" | "suspendSafe" | "sharedSafe" | "unpin" | "zeroable" | "cell" | "refCell" | "unsafeCell" | "cow" | "asyncDispose" | "dispose" | "drop" | "forget" | "manuallyDrop" | "dynamic" | "allocationError" | "maybeUninit" | "lifetime" | "region" | "managed" | "owned" | "phantom" | "pin" | "place" | "space" | "raw" | "rc" | "rcInner" | "rcWeak" | "accessOf" | "ownership" | "placeOf" | "withAccess" | "moduleDerive" | "module" | "moduleHost" | "importMeta" | "importMetaEnv" | "importMetaTarget" | "moduleOutput" | "modulePlatform" | "moduleRuntime" | "moduleStability" | "moduleTargetFamily" | "addressLookupFlags" | "dnsRecord" | "dnsRecordType" | "ipAddress" | "multicastInterface" | "multicastOption" | "multicastOptionValue" | "netConnectivityBinding" | "netInterfaceBinding" | "netOptionsBinding" | "netRawBinding" | "netResolveBinding" | "netRouteBinding" | "netSocketBinding" | "netUdpBinding" | "networkCellularGeneration" | "networkConnectivityKind" | "networkInterfaceFlags" | "networkPacketBackend" | "networkPacketBackendFeatures" | "networkPacketFanoutMode" | "networkPacketTimestampClock" | "networkRouteKind" | "networkWatchHandle" | "packetHandle" | "reverseAddressLookupFlags" | "socketAcceptFlags" | "socketAddress" | "socketFlags" | "socketFamily" | "socketHandle" | "socketMessageFlags" | "socketOption" | "socketOptionValue" | "socketPacketTimestampMode" | "socketProtocol" | "socketShutdown" | "socketType" | "unixAddress" | "connection" | "datagramSocket" | "listener" | "netBinding" | "and" | "not" | "or" | "xor" | "compare" | "ordering" | "partialCompare" | "dereference" | "divide" | "equal" | "partialEqual" | "strictEqual" | "debug" | "display" | "hash" | "hasher" | "subtract" | "multiply" | "negate" | "add" | "plus" | "power" | "remainder" | "shiftLeft" | "shiftRight" | "shiftRightUnsigned" | "index" | "indexSet" | "break" | "continue" | "fromResidual" | "try" | "controlFlow" | "profileCounter" | "profileSampler" | "profileCounterIncrement" | "profileSamplerSample" | "profileUnit" | "randomEntropyBinding" | "randomBinding" | "random" | "randomSeed" | "bound" | "rangeBounds" | "range" | "rangeFrom" | "rangeFull" | "rangeInclusive" | "rangeTo" | "rangeToInclusive" | "step" | "alignOf" | "sizeOf" | "strideOf" | "type" | "regExp" | "regExpIndices" | "regExpMatch" | "regExpSpan" | "runtimeAction" | "action" | "binding" | "bindingProvider" | "hostAction" | "hostBackendStatus" | "hostTag" | "platformFamilyTag" | "platformTag" | "runtimeControlEvent" | "runtimeControlEventKind" | "runtimeEdge" | "runtimeEdgeId" | "runtimeEdgeKind" | "runtimeEdgeSelector" | "runtimeEntity" | "runtimeEntityId" | "runtimeEntityKind" | "runtimeEntitySelector" | "runtimeLabel" | "runtimeLabelSelector" | "runtimeFrame" | "runtimeFrameId" | "runtimeFrameKind" | "runtimeFrameSlot" | "runtimeFrameSlotId" | "runtimeFrameStateId" | "runtimeFrameValue" | "runtimeHeapEdge" | "runtimeHeapObject" | "runtimeHeapObjectId" | "runtimeHeapSummary" | "runtimeEngineView" | "runtimeEngineViewKind" | "runtimeEventLoop" | "runtimeBranch" | "runtimeBranchId" | "runtimeCheckpoint" | "runtimeCheckpointId" | "runtimeImage" | "runtimeImageId" | "runtimeMoment" | "runtimeRevision" | "runtimeRevisionId" | "runtimeTraceSequence" | "runtimeObservationEventKind" | "runtimeObservationHandle" | "runtimeObservationRecord" | "policyActionSelector" | "policyConditionSelector" | "policyExecutionSelector" | "policyIdentitySelector" | "policyDecision" | "policyQuery" | "policyRule" | "policyRuleCursor" | "policySubjectSelector" | "policyTargetSelector" | "runtimeRandomHandle" | "runtimeRandomSeed" | "runtimeResource" | "runtimeResourceId" | "runtimeResourceKind" | "runtimeResourceState" | "runtimeTransferredHandle" | "runtimeSnapshot" | "runtimeSnapshotFormat" | "runtimeSnapshotId" | "runtimeTrace" | "runtimeTraceCursorHandle" | "runtimeTraceEventKind" | "runtimeTraceRecord" | "runtimeEngine" | "runtimeExecution" | "runtime" | "runtimeHandle" | "runtimeId" | "runtimeTickResult" | "runtimeWorker" | "runtimeWorkerExecutor" | "runtimeWorkerHandle" | "runtimeWorkerId" | "world" | "worldHandle" | "worldViewHandle" | "deserialize" | "deserializer" | "serialize" | "serializer" | "stream" | "stringBuilder" | "stringFromTemplate" | "cStringSlice" | "cString" | "cStringError" | "cStringIntoStringError" | "interiorNulError" | "missingNulError" | "osStringSlice" | "osString" | "osStringBuilder" | "osStringDecodeError" | "osStringIntoStringError" | "stringSlice" | "string" | "utf8DecodeError" | "atomicScope" | "atomic" | "atomicSafe" | "atomicWaitResult" | "memoryOrdering" | "memoryRegionSet" | "memoryScope" | "barrier" | "condvar" | "mutex" | "once" | "onceCell" | "reader" | "rwLock" | "seekFrom" | "seeker" | "semaphore" | "writer" | "telemetryBinding" | "fieldValue" | "fields" | "logger" | "telemetryCounter" | "gauge" | "histogram" | "meter" | "metricSink" | "upDownCounter" | "instrumentKind" | "logEntry" | "telemetryLevel" | "metricEntry" | "spanContext" | "spanId" | "spanKind" | "spanOptions" | "spanStatus" | "traceEntry" | "telemetryTraceEventKind" | "traceId" | "span" | "traceSink" | "tracer" | "testArtifactId" | "testArtifactKind" | "testArtifact" | "test" | "parameterizedTest" | "tableTest" | "registeredCase" | "testOutput" | "testContext" | "testCaseContext" | "testSuiteContext" | "testExpect" | "expectation" | "panicExpectation" | "fixtureContext" | "testBeforeAll" | "testAfterAll" | "testAroundAll" | "testBeforeEach" | "testAfterEach" | "testAroundEach" | "testCaseId" | "testSuiteId" | "testRunId" | "testIssueKind" | "testIssue" | "testCaseKind" | "testIsolation" | "testOptions" | "pollingExpectation" | "testReplayId" | "testReplayKind" | "testReplayInput" | "testReplay" | "testOutcome" | "testRun" | "snapshotMode" | "snapshotOptions" | "snapshot" | "snapshotChange" | "testSuite" | "parameterizedSuite" | "tableSuite" | "registeredSuite" | "timeClock" | "timeClockBinding" | "timeBindingDuration" | "timeBinding" | "timeTimestamp" | "timeTimerHandle" | "timeTimerBinding" | "timeTimerMode" | "duration" | "timeError" | "instant" | "plainDate" | "plainDateTime" | "plainMonthDay" | "plainTime" | "plainYearMonth" | "zonedDateTime" | "topologyEdgeBinding" | "topologyEntityBinding" | "topologyBinding" | "topologyEdgeDecorator" | "topologyEntityDecorator" | "topologyDirection" | "topologyEdge" | "topologyEdgeId" | "topologyEdgeKind" | "topologyEdgeKindRecord" | "topologyEdgeRecord" | "topologyEdgeSelector" | "topologyEntity" | "topologyEntityId" | "topologyEntityKind" | "topologyEntityKindRecord" | "topologyEntityRecord" | "topologyEntitySelector" | "topologyLabelSelector" | "topologyLabelSet" | "topologyEdgeRef" | "topologyEntityRef" | "topologyRecord" | "topology" | "treeBuilder" | "constructorParameters" | "function" | "functionPointer" | "instanceType" | "omitThisParameter" | "parameters" | "returnType" | "thisParameterType" | "awaited" | "exclude" | "extract" | "nonNullable" | "noInfer" | "omit" | "partial" | "pick" | "propertyKey" | "readonly" | "record" | "required" | "thisType" | "capitalize" | "lowercase" | "uncapitalize" | "uppercase" | "worker" | "workerPool" | "workerExit" | "workerError";
 
 export const LanguageItem = {
     /** Encode this value. */
@@ -60,2036 +60,2096 @@ export function encodeLanguageItem(writer: BinaryWriter, value: LanguageItem): v
         case "generatorResult":
             writer.writeUnsigned(9);
             return;
-        case "generatorCreate":
+        case "generatorNext":
             writer.writeUnsigned(10);
             return;
-        case "generatorYield":
+        case "generatorReturn":
             writer.writeUnsigned(11);
             return;
-        case "asyncGeneratorCreate":
+        case "generatorCreate":
             writer.writeUnsigned(12);
             return;
-        case "asyncGeneratorYield":
+        case "generatorYield":
             writer.writeUnsigned(13);
             return;
-        case "asyncIterable":
+        case "asyncGeneratorCreate":
             writer.writeUnsigned(14);
             return;
-        case "asyncIterator":
+        case "asyncGeneratorYield":
             writer.writeUnsigned(15);
             return;
-        case "asyncMutex":
+        case "asyncIterable":
             writer.writeUnsigned(16);
             return;
-        case "notify":
+        case "asyncIterator":
             writer.writeUnsigned(17);
             return;
-        case "asyncOnce":
+        case "asyncMutex":
             writer.writeUnsigned(18);
             return;
-        case "asyncOnceCell":
+        case "notify":
             writer.writeUnsigned(19);
             return;
-        case "promise":
+        case "asyncOnce":
             writer.writeUnsigned(20);
             return;
-        case "promiseCreate":
+        case "asyncOnceCell":
             writer.writeUnsigned(21);
             return;
-        case "promiseFulfill":
+        case "promise":
             writer.writeUnsigned(22);
             return;
-        case "promiseResolvers":
+        case "promiseCreate":
             writer.writeUnsigned(23);
             return;
-        case "asyncReader":
+        case "promiseFulfill":
             writer.writeUnsigned(24);
             return;
-        case "asyncRwLock":
+        case "promiseResolvers":
             writer.writeUnsigned(25);
             return;
-        case "asyncSeeker":
+        case "asyncReader":
             writer.writeUnsigned(26);
             return;
-        case "asyncSemaphore":
+        case "asyncRwLock":
             writer.writeUnsigned(27);
             return;
-        case "task":
+        case "asyncSeeker":
             writer.writeUnsigned(28);
             return;
-        case "taskCreate":
+        case "asyncSemaphore":
             writer.writeUnsigned(29);
             return;
-        case "taskAttach":
+        case "task":
             writer.writeUnsigned(30);
             return;
-        case "taskComplete":
+        case "taskCreate":
             writer.writeUnsigned(31);
             return;
-        case "queueMicrotask":
+        case "taskAttach":
             writer.writeUnsigned(32);
             return;
-        case "taskScope":
+        case "taskComplete":
             writer.writeUnsigned(33);
             return;
-        case "asyncWriter":
+        case "queueMicrotask":
             writer.writeUnsigned(34);
             return;
-        case "byteBuffer":
+        case "taskScope":
             writer.writeUnsigned(35);
             return;
-        case "bytes":
+        case "asyncWriter":
             writer.writeUnsigned(36);
             return;
-        case "byteOrder":
+        case "byteBuffer":
             writer.writeUnsigned(37);
             return;
-        case "byteReader":
+        case "bytes":
             writer.writeUnsigned(38);
             return;
-        case "sendErrorKind":
+        case "byteOrder":
             writer.writeUnsigned(39);
             return;
-        case "receiveErrorKind":
+        case "byteReader":
             writer.writeUnsigned(40);
             return;
-        case "sendError":
+        case "sendErrorKind":
             writer.writeUnsigned(41);
             return;
-        case "receiveError":
+        case "receiveErrorKind":
             writer.writeUnsigned(42);
             return;
-        case "channelSender":
+        case "sendError":
             writer.writeUnsigned(43);
             return;
-        case "channelReceiver":
+        case "receiveError":
             writer.writeUnsigned(44);
             return;
-        case "asyncChannelSender":
+        case "channelSender":
             writer.writeUnsigned(45);
             return;
-        case "asyncChannelReceiver":
+        case "channelReceiver":
             writer.writeUnsigned(46);
             return;
-        case "watchReceiver":
+        case "asyncChannelSender":
             writer.writeUnsigned(47);
             return;
-        case "watchSender":
+        case "asyncChannelReceiver":
             writer.writeUnsigned(48);
             return;
-        case "array":
+        case "watchReceiver":
             writer.writeUnsigned(49);
             return;
-        case "fixedArray":
+        case "watchSender":
             writer.writeUnsigned(50);
             return;
-        case "readonlyArray":
+        case "array":
             writer.writeUnsigned(51);
             return;
-        case "arrayFromSlice":
+        case "fixedArray":
             writer.writeUnsigned(52);
             return;
-        case "concurrentMap":
+        case "readonlyArray":
             writer.writeUnsigned(53);
             return;
-        case "concurrentQueue":
+        case "arrayFromOwnedSlice":
             writer.writeUnsigned(54);
             return;
-        case "concurrentSet":
+        case "concurrentMap":
             writer.writeUnsigned(55);
             return;
-        case "deque":
+        case "concurrentQueue":
             writer.writeUnsigned(56);
             return;
-        case "binaryHeap":
+        case "concurrentSet":
             writer.writeUnsigned(57);
             return;
-        case "linkedList":
+        case "deque":
             writer.writeUnsigned(58);
             return;
-        case "map":
+        case "binaryHeap":
             writer.writeUnsigned(59);
             return;
-        case "set":
+        case "linkedList":
             writer.writeUnsigned(60);
             return;
-        case "slice":
+        case "map":
             writer.writeUnsigned(61);
             return;
-        case "sequence":
+        case "set":
             writer.writeUnsigned(62);
             return;
-        case "slabKey":
+        case "slice":
             writer.writeUnsigned(63);
             return;
-        case "slab":
+        case "sequence":
             writer.writeUnsigned(64);
             return;
-        case "smallArray":
+        case "slabKey":
             writer.writeUnsigned(65);
             return;
-        case "sortedMap":
+        case "slab":
             writer.writeUnsigned(66);
             return;
-        case "sortedSet":
+        case "smallArray":
             writer.writeUnsigned(67);
             return;
-        case "console":
+        case "sortedMap":
             writer.writeUnsigned(68);
             return;
-        case "context":
+        case "sortedSet":
             writer.writeUnsigned(69);
             return;
-        case "currentContext":
+        case "console":
             writer.writeUnsigned(70);
             return;
-        case "replaceContext":
+        case "context":
             writer.writeUnsigned(71);
             return;
-        case "bindContext":
+        case "currentContext":
             writer.writeUnsigned(72);
             return;
-        case "getContextValue":
+        case "replaceContext":
             writer.writeUnsigned(73);
             return;
-        case "contextVar":
+        case "bindContext":
             writer.writeUnsigned(74);
             return;
-        case "as":
+        case "getContextValue":
             writer.writeUnsigned(75);
             return;
-        case "borrow":
+        case "contextVar":
             writer.writeUnsigned(76);
             return;
-        case "toOwned":
+        case "as":
             writer.writeUnsigned(77);
             return;
-        case "from":
+        case "borrow":
             writer.writeUnsigned(78);
             return;
-        case "tryFrom":
+        case "toOwned":
             writer.writeUnsigned(79);
             return;
-        case "into":
+        case "from":
             writer.writeUnsigned(80);
             return;
-        case "tryInto":
+        case "tryFrom":
             writer.writeUnsigned(81);
             return;
-        case "debugBindingId":
+        case "into":
             writer.writeUnsigned(82);
             return;
-        case "debugInlineFrameId":
+        case "tryInto":
             writer.writeUnsigned(83);
             return;
-        case "debugScopeId":
+        case "debugBindingId":
             writer.writeUnsigned(84);
             return;
-        case "debugExecutionPoint":
+        case "debugInlineFrameId":
             writer.writeUnsigned(85);
             return;
-        case "debugPoint":
+        case "debugScopeId":
             writer.writeUnsigned(86);
             return;
-        case "debugStop":
+        case "debugExecutionPoint":
             writer.writeUnsigned(87);
             return;
-        case "debugStopReason":
+        case "debugPoint":
             writer.writeUnsigned(88);
             return;
-        case "debugStepMode":
+        case "debugStop":
             writer.writeUnsigned(89);
             return;
-        case "debugStepOptions":
+        case "debugStopReason":
             writer.writeUnsigned(90);
             return;
-        case "debugScope":
+        case "debugStepMode":
             writer.writeUnsigned(91);
             return;
-        case "debugScopePage":
+        case "debugStepOptions":
             writer.writeUnsigned(92);
             return;
-        case "debugBinding":
+        case "debugScope":
             writer.writeUnsigned(93);
             return;
-        case "debugBindingKind":
+        case "debugScopePage":
             writer.writeUnsigned(94);
             return;
-        case "debugBindingPage":
+        case "debugBinding":
             writer.writeUnsigned(95);
             return;
-        case "debugValue":
+        case "debugBindingKind":
             writer.writeUnsigned(96);
             return;
-        case "debugValueBytes":
+        case "debugBindingPage":
             writer.writeUnsigned(97);
             return;
-        case "debugValueOptimizedOut":
+        case "debugValue":
             writer.writeUnsigned(98);
             return;
-        case "debugValueSlot":
+        case "debugValueBytes":
             writer.writeUnsigned(99);
             return;
-        case "debugValueUnavailable":
+        case "debugValueOptimizedOut":
             writer.writeUnsigned(100);
             return;
-        case "debugger":
+        case "debugValueSlot":
             writer.writeUnsigned(101);
             return;
-        case "capture":
+        case "debugValueUnavailable":
             writer.writeUnsigned(102);
             return;
-        case "derive":
+        case "debugger":
             writer.writeUnsigned(103);
             return;
-        case "allow":
+        case "capture":
             writer.writeUnsigned(104);
             return;
-        case "deny":
+        case "derive":
             writer.writeUnsigned(105);
             return;
-        case "expect":
+        case "allow":
             writer.writeUnsigned(106);
             return;
-        case "forbid":
+        case "deny":
             writer.writeUnsigned(107);
             return;
-        case "warn":
+        case "expect":
             writer.writeUnsigned(108);
             return;
-        case "intrinsic":
+        case "forbid":
             writer.writeUnsigned(109);
             return;
-        case "languageItem":
+        case "warn":
             writer.writeUnsigned(110);
             return;
-        case "reprDecorator":
+        case "intrinsic":
             writer.writeUnsigned(111);
             return;
-        case "noAliasingMutableBorrows":
+        case "languageItem":
             writer.writeUnsigned(112);
             return;
-        case "noDynamicDispatch":
+        case "reprDecorator":
             writer.writeUnsigned(113);
             return;
-        case "noHeap":
+        case "noAliasingMutableBorrows":
             writer.writeUnsigned(114);
             return;
-        case "noImplicitReceivers":
+        case "noDynamicDispatch":
             writer.writeUnsigned(115);
             return;
-        case "noManaged":
+        case "noHeap":
             writer.writeUnsigned(116);
             return;
-        case "noReflection":
+        case "noImplicitReceivers":
             writer.writeUnsigned(117);
             return;
-        case "noRuntime":
+        case "noManaged":
             writer.writeUnsigned(118);
             return;
-        case "noUnsafe":
+        case "noReflection":
             writer.writeUnsigned(119);
             return;
-        case "noUnwind":
+        case "noRuntime":
             writer.writeUnsigned(120);
             return;
-        case "deprecated":
+        case "noUnsafe":
             writer.writeUnsigned(121);
             return;
-        case "experimental":
+        case "noUnwind":
             writer.writeUnsigned(122);
             return;
-        case "cold":
+        case "deprecated":
             writer.writeUnsigned(123);
             return;
-        case "hot":
+        case "experimental":
             writer.writeUnsigned(124);
             return;
-        case "inline":
+        case "cold":
             writer.writeUnsigned(125);
             return;
-        case "likely":
+        case "hot":
             writer.writeUnsigned(126);
             return;
-        case "mustUse":
+        case "inline":
             writer.writeUnsigned(127);
             return;
-        case "noinline":
+        case "likely":
             writer.writeUnsigned(128);
             return;
-        case "pure":
+        case "mustUse":
             writer.writeUnsigned(129);
             return;
-        case "tailcall":
+        case "noinline":
             writer.writeUnsigned(130);
             return;
-        case "unlikely":
+        case "pure":
             writer.writeUnsigned(131);
             return;
-        case "unroll":
+        case "tailcall":
             writer.writeUnsigned(132);
             return;
-        case "safe":
+        case "unlikely":
             writer.writeUnsigned(133);
             return;
-        case "unsafe":
+        case "unroll":
             writer.writeUnsigned(134);
             return;
-        case "error":
+        case "safe":
             writer.writeUnsigned(135);
             return;
-        case "hostErrorCode":
+        case "unsafe":
             writer.writeUnsigned(136);
             return;
-        case "hostError":
+        case "error":
             writer.writeUnsigned(137);
             return;
-        case "hostErrorContext":
+        case "rangeError":
             writer.writeUnsigned(138);
             return;
-        case "hostPathPayload":
+        case "typeError":
             writer.writeUnsigned(139);
             return;
-        case "hostSystemSource":
+        case "hostErrorCode":
             writer.writeUnsigned(140);
             return;
-        case "ioErrorKind":
+        case "hostError":
             writer.writeUnsigned(141);
             return;
-        case "ioError":
+        case "hostErrorContext":
             writer.writeUnsigned(142);
             return;
-        case "pathError":
+        case "hostPathPayload":
             writer.writeUnsigned(143);
             return;
-        case "abort":
+        case "hostSystemSource":
             writer.writeUnsigned(144);
             return;
-        case "assertUnwindSafe":
+        case "ioErrorKind":
             writer.writeUnsigned(145);
             return;
-        case "catchUnwind":
+        case "ioError":
             writer.writeUnsigned(146);
             return;
-        case "panic":
+        case "pathError":
             writer.writeUnsigned(147);
             return;
-        case "panicValue":
+        case "abort":
             writer.writeUnsigned(148);
             return;
-        case "refUnwindSafe":
+        case "assertUnwindSafe":
             writer.writeUnsigned(149);
             return;
-        case "resumeUnwind":
+        case "catchUnwind":
             writer.writeUnsigned(150);
             return;
-        case "setPanicHook":
+        case "panic":
             writer.writeUnsigned(151);
             return;
-        case "takePanicHook":
+        case "panicValue":
             writer.writeUnsigned(152);
             return;
-        case "unwindSafe":
+        case "refUnwindSafe":
             writer.writeUnsigned(153);
             return;
-        case "todo":
+        case "resumeUnwind":
             writer.writeUnsigned(154);
             return;
-        case "unreachable":
+        case "setPanicHook":
             writer.writeUnsigned(155);
             return;
-        case "report":
+        case "takePanicHook":
             writer.writeUnsigned(156);
             return;
-        case "err":
+        case "unwindSafe":
             writer.writeUnsigned(157);
             return;
-        case "ok":
+        case "todo":
             writer.writeUnsigned(158);
             return;
-        case "result":
+        case "unreachable":
             writer.writeUnsigned(159);
             return;
-        case "sourceLocation":
+        case "report":
             writer.writeUnsigned(160);
             return;
-        case "stackFrame":
+        case "err":
             writer.writeUnsigned(161);
             return;
-        case "stackFrameId":
+        case "ok":
             writer.writeUnsigned(162);
             return;
-        case "stackTrace":
+        case "result":
             writer.writeUnsigned(163);
             return;
-        case "attributeBinding":
+        case "sourceLocation":
             writer.writeUnsigned(164);
             return;
-        case "directoryBinding":
+        case "stackFrame":
             writer.writeUnsigned(165);
             return;
-        case "directoryEntryKind":
+        case "stackFrameId":
             writer.writeUnsigned(166);
             return;
-        case "directoryHandle":
+        case "stackTrace":
             writer.writeUnsigned(167);
             return;
-        case "fileAccessMask":
+        case "attributeBinding":
             writer.writeUnsigned(168);
             return;
-        case "fileAllocateFlags":
+        case "directoryBinding":
             writer.writeUnsigned(169);
             return;
-        case "fileAdvice":
+        case "directoryEntryKind":
             writer.writeUnsigned(170);
             return;
-        case "fileBinding":
+        case "directoryHandle":
             writer.writeUnsigned(171);
             return;
-        case "fileHandle":
+        case "fileAccessMask":
             writer.writeUnsigned(172);
             return;
-        case "fileLockMode":
+        case "fileAllocateFlags":
             writer.writeUnsigned(173);
             return;
-        case "fileOpenFlags":
+        case "fileAdvice":
             writer.writeUnsigned(174);
             return;
-        case "fileOpenOptions":
+        case "fileBinding":
             writer.writeUnsigned(175);
             return;
-        case "fileOffset":
+        case "fileHandle":
             writer.writeUnsigned(176);
             return;
-        case "fileMode":
+        case "fileLockMode":
             writer.writeUnsigned(177);
             return;
-        case "filePrincipal":
+        case "fileOpenFlags":
             writer.writeUnsigned(178);
             return;
-        case "filePrincipalSid":
+        case "fileOpenOptions":
             writer.writeUnsigned(179);
             return;
-        case "fileReadFlags":
+        case "fileOffset":
             writer.writeUnsigned(180);
             return;
-        case "fileResolveFlags":
+        case "fileMode":
             writer.writeUnsigned(181);
             return;
-        case "fileSeekOrigin":
+        case "filePrincipal":
             writer.writeUnsigned(182);
             return;
-        case "fileSize":
+        case "filePrincipalSid":
             writer.writeUnsigned(183);
             return;
-        case "fileStatusFlags":
+        case "fileReadFlags":
             writer.writeUnsigned(184);
             return;
-        case "fileStatusMask":
+        case "fileResolveFlags":
             writer.writeUnsigned(185);
             return;
-        case "fileSyncFlags":
+        case "fileSeekOrigin":
             writer.writeUnsigned(186);
             return;
-        case "fileTime":
+        case "fileSize":
             writer.writeUnsigned(187);
             return;
-        case "fileVolumeFlags":
+        case "fileStatusFlags":
             writer.writeUnsigned(188);
             return;
-        case "fileVolumeMask":
+        case "fileStatusMask":
             writer.writeUnsigned(189);
             return;
-        case "fileWatchEvent":
+        case "fileSyncFlags":
             writer.writeUnsigned(190);
             return;
-        case "fileWatchMask":
+        case "fileTime":
             writer.writeUnsigned(191);
             return;
-        case "fileWriteFlags":
+        case "fileVolumeFlags":
             writer.writeUnsigned(192);
             return;
-        case "linkFlags":
+        case "fileVolumeMask":
             writer.writeUnsigned(193);
             return;
-        case "mountBinding":
+        case "fileWatchEvent":
             writer.writeUnsigned(194);
             return;
-        case "namespaceBinding":
+        case "fileWatchMask":
             writer.writeUnsigned(195);
             return;
-        case "nodeDevice":
+        case "fileWriteFlags":
             writer.writeUnsigned(196);
             return;
-        case "fsPathBuffer":
+        case "linkFlags":
             writer.writeUnsigned(197);
             return;
-        case "renameFlags":
+        case "mountBinding":
             writer.writeUnsigned(198);
             return;
-        case "statusBinding":
+        case "namespaceBinding":
             writer.writeUnsigned(199);
             return;
-        case "symlinkKind":
+        case "nodeDevice":
             writer.writeUnsigned(200);
             return;
-        case "volumeBinding":
+        case "fsPathBuffer":
             writer.writeUnsigned(201);
             return;
-        case "fsWatchBinding":
+        case "renameFlags":
             writer.writeUnsigned(202);
             return;
-        case "fsWatchHandle":
+        case "statusBinding":
             writer.writeUnsigned(203);
             return;
-        case "xattrFlags":
+        case "symlinkKind":
             writer.writeUnsigned(204);
             return;
-        case "xattrBinding":
+        case "volumeBinding":
             writer.writeUnsigned(205);
             return;
-        case "xattrTarget":
+        case "fsWatchBinding":
             writer.writeUnsigned(206);
             return;
-        case "fsBinding":
+        case "fsWatchHandle":
             writer.writeUnsigned(207);
             return;
-        case "path":
+        case "xattrFlags":
             writer.writeUnsigned(208);
             return;
-        case "pathBuilder":
+        case "xattrBinding":
             writer.writeUnsigned(209);
             return;
-        case "pathSlice":
+        case "xattrTarget":
             writer.writeUnsigned(210);
             return;
-        case "pathComponent":
+        case "fsBinding":
             writer.writeUnsigned(211);
             return;
-        case "windowsPathPrefix":
+        case "path":
             writer.writeUnsigned(212);
             return;
-        case "extend":
+        case "pathBuilder":
             writer.writeUnsigned(213);
             return;
-        case "fromIterator":
+        case "pathSlice":
             writer.writeUnsigned(214);
             return;
-        case "iterable":
+        case "pathComponent":
             writer.writeUnsigned(215);
             return;
-        case "iterator":
+        case "windowsPathPrefix":
             writer.writeUnsigned(216);
             return;
-        case "iteratorResult":
+        case "extend":
             writer.writeUnsigned(217);
             return;
-        case "iteratorReturn":
+        case "fromIterator":
             writer.writeUnsigned(218);
             return;
-        case "iteratorYield":
+        case "iterable":
             writer.writeUnsigned(219);
             return;
-        case "jsonSerializer":
+        case "iterator":
             writer.writeUnsigned(220);
             return;
-        case "jsonDeserializer":
+        case "iteratorResult":
             writer.writeUnsigned(221);
             return;
-        case "jsonErrorKind":
+        case "iteratorReturn":
             writer.writeUnsigned(222);
             return;
-        case "jsonError":
+        case "iteratorYield":
             writer.writeUnsigned(223);
             return;
-        case "jSON":
+        case "intlCollator":
             writer.writeUnsigned(224);
             return;
-        case "json":
+        case "intlDateTimeFormat":
             writer.writeUnsigned(225);
             return;
-        case "bigInt":
+        case "intlDisplayNames":
             writer.writeUnsigned(226);
             return;
-        case "complex":
+        case "intlDurationFormat":
             writer.writeUnsigned(227);
             return;
-        case "floatDomain":
+        case "intlError":
             writer.writeUnsigned(228);
             return;
-        case "float":
+        case "intlToLocaleString":
             writer.writeUnsigned(229);
             return;
-        case "one":
+        case "intlListFormat":
             writer.writeUnsigned(230);
             return;
-        case "zero":
+        case "intlLocale":
             writer.writeUnsigned(231);
             return;
-        case "integerDomain":
+        case "intlNumberFormat":
             writer.writeUnsigned(232);
             return;
-        case "integer":
+        case "intlPluralRules":
             writer.writeUnsigned(233);
             return;
-        case "unsigned":
+        case "intlRelativeTimeFormat":
             writer.writeUnsigned(234);
             return;
-        case "vector2":
+        case "intlSegments":
             writer.writeUnsigned(235);
             return;
-        case "vector3":
+        case "intlSegmentIterator":
             writer.writeUnsigned(236);
             return;
-        case "vector4":
+        case "intlSegmenter":
             writer.writeUnsigned(237);
             return;
-        case "math":
+        case "jsonSerializer":
             writer.writeUnsigned(238);
             return;
-        case "matrix2":
+        case "jsonDeserializer":
             writer.writeUnsigned(239);
             return;
-        case "matrix3":
+        case "jsonErrorKind":
             writer.writeUnsigned(240);
             return;
-        case "matrix4":
+        case "jsonError":
             writer.writeUnsigned(241);
             return;
-        case "infinity":
+        case "jSON":
             writer.writeUnsigned(242);
             return;
-        case "naN":
+        case "json":
             writer.writeUnsigned(243);
             return;
-        case "number":
+        case "bigInt":
             writer.writeUnsigned(244);
             return;
-        case "numberNaN":
+        case "complex":
             writer.writeUnsigned(245);
             return;
-        case "numberNegativeInfinity":
+        case "floatDomain":
             writer.writeUnsigned(246);
             return;
-        case "numberPositiveInfinity":
+        case "float":
             writer.writeUnsigned(247);
             return;
-        case "numeric":
+        case "one":
             writer.writeUnsigned(248);
             return;
-        case "numericDomain":
+        case "zero":
             writer.writeUnsigned(249);
             return;
-        case "quaternion":
+        case "integerDomain":
             writer.writeUnsigned(250);
             return;
-        case "vector":
+        case "integer":
             writer.writeUnsigned(251);
             return;
-        case "wrapping":
+        case "unsigned":
             writer.writeUnsigned(252);
             return;
-        case "access":
+        case "vector2":
             writer.writeUnsigned(253);
             return;
-        case "arc":
+        case "vector3":
             writer.writeUnsigned(254);
             return;
-        case "arcInner":
+        case "vector4":
             writer.writeUnsigned(255);
             return;
-        case "arcWeak":
+        case "math":
             writer.writeUnsigned(256);
             return;
-        case "arena":
+        case "matrix2":
             writer.writeUnsigned(257);
             return;
-        case "bump":
+        case "matrix3":
             writer.writeUnsigned(258);
             return;
-        case "mappedMemoryFlags":
+        case "matrix4":
             writer.writeUnsigned(259);
             return;
-        case "mappedMemorySyncFlags":
+        case "infinity":
             writer.writeUnsigned(260);
             return;
-        case "mappedMemoryVisibility":
+        case "naN":
             writer.writeUnsigned(261);
             return;
-        case "memoryAdvice":
+        case "number":
             writer.writeUnsigned(262);
             return;
-        case "memoryAdviseBinding":
+        case "numberNaN":
             writer.writeUnsigned(263);
             return;
-        case "memoryBinding":
+        case "numberNegativeInfinity":
             writer.writeUnsigned(264);
             return;
-        case "memoryLayoutBinding":
+        case "numberPositiveInfinity":
             writer.writeUnsigned(265);
             return;
-        case "memoryLockBinding":
+        case "numeric":
             writer.writeUnsigned(266);
             return;
-        case "memoryMapBinding":
+        case "numericDomain":
             writer.writeUnsigned(267);
             return;
-        case "memoryProtection":
+        case "quaternion":
             writer.writeUnsigned(268);
             return;
-        case "memoryVirtualBinding":
+        case "vector":
             writer.writeUnsigned(269);
             return;
-        case "virtualMemoryReserveFlags":
+        case "wrapping":
             writer.writeUnsigned(270);
             return;
-        case "borrowed":
+        case "access":
             writer.writeUnsigned(271);
             return;
-        case "box":
+        case "arc":
             writer.writeUnsigned(272);
             return;
-        case "unique":
+        case "arcInner":
             writer.writeUnsigned(273);
             return;
-        case "clone":
+        case "arcWeak":
             writer.writeUnsigned(274);
             return;
-        case "concrete":
+        case "arena":
             writer.writeUnsigned(275);
             return;
-        case "copy":
+        case "bump":
             writer.writeUnsigned(276);
             return;
-        case "default":
+        case "mappedMemoryFlags":
             writer.writeUnsigned(277);
             return;
-        case "dynamicSafe":
+        case "mappedMemorySyncFlags":
             writer.writeUnsigned(278);
             return;
-        case "overwriteStable":
+        case "mappedMemoryVisibility":
             writer.writeUnsigned(279);
             return;
-        case "suspendSafe":
+        case "memoryAdvice":
             writer.writeUnsigned(280);
             return;
-        case "sharedSafe":
+        case "memoryAdviseBinding":
             writer.writeUnsigned(281);
             return;
-        case "unpin":
+        case "memoryBinding":
             writer.writeUnsigned(282);
             return;
-        case "zeroable":
+        case "memoryLayoutBinding":
             writer.writeUnsigned(283);
             return;
-        case "cell":
+        case "memoryLockBinding":
             writer.writeUnsigned(284);
             return;
-        case "refCell":
+        case "memoryMapBinding":
             writer.writeUnsigned(285);
             return;
-        case "unsafeCell":
+        case "memoryProtection":
             writer.writeUnsigned(286);
             return;
-        case "cow":
+        case "memoryVirtualBinding":
             writer.writeUnsigned(287);
             return;
-        case "asyncDispose":
+        case "virtualMemoryReserveFlags":
             writer.writeUnsigned(288);
             return;
-        case "dispose":
+        case "borrowed":
             writer.writeUnsigned(289);
             return;
-        case "drop":
+        case "box":
             writer.writeUnsigned(290);
             return;
-        case "forget":
+        case "unique":
             writer.writeUnsigned(291);
             return;
-        case "manuallyDrop":
+        case "clone":
             writer.writeUnsigned(292);
             return;
-        case "dynamic":
+        case "concrete":
             writer.writeUnsigned(293);
             return;
-        case "allocationError":
+        case "copy":
             writer.writeUnsigned(294);
             return;
-        case "maybeUninit":
+        case "default":
             writer.writeUnsigned(295);
             return;
-        case "lifetime":
+        case "dynamicSafe":
             writer.writeUnsigned(296);
             return;
-        case "region":
+        case "overwriteStable":
             writer.writeUnsigned(297);
             return;
-        case "managed":
+        case "suspendSafe":
             writer.writeUnsigned(298);
             return;
-        case "owned":
+        case "sharedSafe":
             writer.writeUnsigned(299);
             return;
-        case "phantom":
+        case "unpin":
             writer.writeUnsigned(300);
             return;
-        case "pin":
+        case "zeroable":
             writer.writeUnsigned(301);
             return;
-        case "place":
+        case "cell":
             writer.writeUnsigned(302);
             return;
-        case "placed":
+        case "refCell":
             writer.writeUnsigned(303);
             return;
-        case "space":
+        case "unsafeCell":
             writer.writeUnsigned(304);
             return;
-        case "raw":
+        case "cow":
             writer.writeUnsigned(305);
             return;
-        case "rc":
+        case "asyncDispose":
             writer.writeUnsigned(306);
             return;
-        case "rcInner":
+        case "dispose":
             writer.writeUnsigned(307);
             return;
-        case "rcWeak":
+        case "drop":
             writer.writeUnsigned(308);
             return;
-        case "accessOf":
+        case "forget":
             writer.writeUnsigned(309);
             return;
-        case "ownership":
+        case "manuallyDrop":
             writer.writeUnsigned(310);
             return;
-        case "placeOf":
+        case "dynamic":
             writer.writeUnsigned(311);
             return;
-        case "withAccess":
+        case "allocationError":
             writer.writeUnsigned(312);
             return;
-        case "moduleDerive":
+        case "maybeUninit":
             writer.writeUnsigned(313);
             return;
-        case "module":
+        case "lifetime":
             writer.writeUnsigned(314);
             return;
-        case "moduleHost":
+        case "region":
             writer.writeUnsigned(315);
             return;
-        case "importMeta":
+        case "managed":
             writer.writeUnsigned(316);
             return;
-        case "importMetaEnv":
+        case "owned":
             writer.writeUnsigned(317);
             return;
-        case "importMetaTarget":
+        case "phantom":
             writer.writeUnsigned(318);
             return;
-        case "moduleOutput":
+        case "pin":
             writer.writeUnsigned(319);
             return;
-        case "modulePlatform":
+        case "place":
             writer.writeUnsigned(320);
             return;
-        case "moduleRuntime":
+        case "space":
             writer.writeUnsigned(321);
             return;
-        case "moduleStability":
+        case "raw":
             writer.writeUnsigned(322);
             return;
-        case "moduleTargetFamily":
+        case "rc":
             writer.writeUnsigned(323);
             return;
-        case "addressLookupFlags":
+        case "rcInner":
             writer.writeUnsigned(324);
             return;
-        case "dnsRecord":
+        case "rcWeak":
             writer.writeUnsigned(325);
             return;
-        case "dnsRecordType":
+        case "accessOf":
             writer.writeUnsigned(326);
             return;
-        case "ipAddress":
+        case "ownership":
             writer.writeUnsigned(327);
             return;
-        case "multicastInterface":
+        case "placeOf":
             writer.writeUnsigned(328);
             return;
-        case "multicastOption":
+        case "withAccess":
             writer.writeUnsigned(329);
             return;
-        case "multicastOptionValue":
+        case "moduleDerive":
             writer.writeUnsigned(330);
             return;
-        case "netConnectivityBinding":
+        case "module":
             writer.writeUnsigned(331);
             return;
-        case "netInterfaceBinding":
+        case "moduleHost":
             writer.writeUnsigned(332);
             return;
-        case "netOptionsBinding":
+        case "importMeta":
             writer.writeUnsigned(333);
             return;
-        case "netRawBinding":
+        case "importMetaEnv":
             writer.writeUnsigned(334);
             return;
-        case "netResolveBinding":
+        case "importMetaTarget":
             writer.writeUnsigned(335);
             return;
-        case "netRouteBinding":
+        case "moduleOutput":
             writer.writeUnsigned(336);
             return;
-        case "netSocketBinding":
+        case "modulePlatform":
             writer.writeUnsigned(337);
             return;
-        case "netUdpBinding":
+        case "moduleRuntime":
             writer.writeUnsigned(338);
             return;
-        case "networkCellularGeneration":
+        case "moduleStability":
             writer.writeUnsigned(339);
             return;
-        case "networkConnectivityKind":
+        case "moduleTargetFamily":
             writer.writeUnsigned(340);
             return;
-        case "networkInterfaceFlags":
+        case "addressLookupFlags":
             writer.writeUnsigned(341);
             return;
-        case "networkPacketBackend":
+        case "dnsRecord":
             writer.writeUnsigned(342);
             return;
-        case "networkPacketBackendFeatures":
+        case "dnsRecordType":
             writer.writeUnsigned(343);
             return;
-        case "networkPacketFanoutMode":
+        case "ipAddress":
             writer.writeUnsigned(344);
             return;
-        case "networkPacketTimestampClock":
+        case "multicastInterface":
             writer.writeUnsigned(345);
             return;
-        case "networkRouteKind":
+        case "multicastOption":
             writer.writeUnsigned(346);
             return;
-        case "networkWatchHandle":
+        case "multicastOptionValue":
             writer.writeUnsigned(347);
             return;
-        case "packetHandle":
+        case "netConnectivityBinding":
             writer.writeUnsigned(348);
             return;
-        case "reverseAddressLookupFlags":
+        case "netInterfaceBinding":
             writer.writeUnsigned(349);
             return;
-        case "socketAcceptFlags":
+        case "netOptionsBinding":
             writer.writeUnsigned(350);
             return;
-        case "socketAddress":
+        case "netRawBinding":
             writer.writeUnsigned(351);
             return;
-        case "socketFlags":
+        case "netResolveBinding":
             writer.writeUnsigned(352);
             return;
-        case "socketFamily":
+        case "netRouteBinding":
             writer.writeUnsigned(353);
             return;
-        case "socketHandle":
+        case "netSocketBinding":
             writer.writeUnsigned(354);
             return;
-        case "socketMessageFlags":
+        case "netUdpBinding":
             writer.writeUnsigned(355);
             return;
-        case "socketOption":
+        case "networkCellularGeneration":
             writer.writeUnsigned(356);
             return;
-        case "socketOptionValue":
+        case "networkConnectivityKind":
             writer.writeUnsigned(357);
             return;
-        case "socketPacketTimestampMode":
+        case "networkInterfaceFlags":
             writer.writeUnsigned(358);
             return;
-        case "socketProtocol":
+        case "networkPacketBackend":
             writer.writeUnsigned(359);
             return;
-        case "socketShutdown":
+        case "networkPacketBackendFeatures":
             writer.writeUnsigned(360);
             return;
-        case "socketType":
+        case "networkPacketFanoutMode":
             writer.writeUnsigned(361);
             return;
-        case "unixAddress":
+        case "networkPacketTimestampClock":
             writer.writeUnsigned(362);
             return;
-        case "connection":
+        case "networkRouteKind":
             writer.writeUnsigned(363);
             return;
-        case "datagramSocket":
+        case "networkWatchHandle":
             writer.writeUnsigned(364);
             return;
-        case "listener":
+        case "packetHandle":
             writer.writeUnsigned(365);
             return;
-        case "netBinding":
+        case "reverseAddressLookupFlags":
             writer.writeUnsigned(366);
             return;
-        case "and":
+        case "socketAcceptFlags":
             writer.writeUnsigned(367);
             return;
-        case "not":
+        case "socketAddress":
             writer.writeUnsigned(368);
             return;
-        case "or":
+        case "socketFlags":
             writer.writeUnsigned(369);
             return;
-        case "xor":
+        case "socketFamily":
             writer.writeUnsigned(370);
             return;
-        case "compare":
+        case "socketHandle":
             writer.writeUnsigned(371);
             return;
-        case "ordering":
+        case "socketMessageFlags":
             writer.writeUnsigned(372);
             return;
-        case "partialCompare":
+        case "socketOption":
             writer.writeUnsigned(373);
             return;
-        case "dereference":
+        case "socketOptionValue":
             writer.writeUnsigned(374);
             return;
-        case "divide":
+        case "socketPacketTimestampMode":
             writer.writeUnsigned(375);
             return;
-        case "equal":
+        case "socketProtocol":
             writer.writeUnsigned(376);
             return;
-        case "partialEqual":
+        case "socketShutdown":
             writer.writeUnsigned(377);
             return;
-        case "strictEqual":
+        case "socketType":
             writer.writeUnsigned(378);
             return;
-        case "debug":
+        case "unixAddress":
             writer.writeUnsigned(379);
             return;
-        case "display":
+        case "connection":
             writer.writeUnsigned(380);
             return;
-        case "toString":
+        case "datagramSocket":
             writer.writeUnsigned(381);
             return;
-        case "hash":
+        case "listener":
             writer.writeUnsigned(382);
             return;
-        case "hasher":
+        case "netBinding":
             writer.writeUnsigned(383);
             return;
-        case "subtract":
+        case "and":
             writer.writeUnsigned(384);
             return;
-        case "multiply":
+        case "not":
             writer.writeUnsigned(385);
             return;
-        case "negate":
+        case "or":
             writer.writeUnsigned(386);
             return;
-        case "add":
+        case "xor":
             writer.writeUnsigned(387);
             return;
-        case "plus":
+        case "compare":
             writer.writeUnsigned(388);
             return;
-        case "power":
+        case "ordering":
             writer.writeUnsigned(389);
             return;
-        case "remainder":
+        case "partialCompare":
             writer.writeUnsigned(390);
             return;
-        case "shiftLeft":
+        case "dereference":
             writer.writeUnsigned(391);
             return;
-        case "shiftRight":
+        case "divide":
             writer.writeUnsigned(392);
             return;
-        case "shiftRightUnsigned":
+        case "equal":
             writer.writeUnsigned(393);
             return;
-        case "index":
+        case "partialEqual":
             writer.writeUnsigned(394);
             return;
-        case "indexSet":
+        case "strictEqual":
             writer.writeUnsigned(395);
             return;
-        case "break":
+        case "debug":
             writer.writeUnsigned(396);
             return;
-        case "continue":
+        case "display":
             writer.writeUnsigned(397);
             return;
-        case "fromResidual":
+        case "hash":
             writer.writeUnsigned(398);
             return;
-        case "try":
+        case "hasher":
             writer.writeUnsigned(399);
             return;
-        case "controlFlow":
+        case "subtract":
             writer.writeUnsigned(400);
             return;
-        case "profileCounter":
+        case "multiply":
             writer.writeUnsigned(401);
             return;
-        case "profileSampler":
+        case "negate":
             writer.writeUnsigned(402);
             return;
-        case "profileUnit":
+        case "add":
             writer.writeUnsigned(403);
             return;
-        case "randomEntropyBinding":
+        case "plus":
             writer.writeUnsigned(404);
             return;
-        case "randomBinding":
+        case "power":
             writer.writeUnsigned(405);
             return;
-        case "random":
+        case "remainder":
             writer.writeUnsigned(406);
             return;
-        case "randomSeed":
+        case "shiftLeft":
             writer.writeUnsigned(407);
             return;
-        case "bound":
+        case "shiftRight":
             writer.writeUnsigned(408);
             return;
-        case "rangeBounds":
+        case "shiftRightUnsigned":
             writer.writeUnsigned(409);
             return;
-        case "range":
+        case "index":
             writer.writeUnsigned(410);
             return;
-        case "rangeFrom":
+        case "indexSet":
             writer.writeUnsigned(411);
             return;
-        case "rangeFull":
+        case "break":
             writer.writeUnsigned(412);
             return;
-        case "rangeInclusive":
+        case "continue":
             writer.writeUnsigned(413);
             return;
-        case "rangeTo":
+        case "fromResidual":
             writer.writeUnsigned(414);
             return;
-        case "rangeToInclusive":
+        case "try":
             writer.writeUnsigned(415);
             return;
-        case "step":
+        case "controlFlow":
             writer.writeUnsigned(416);
             return;
-        case "alignOf":
+        case "profileCounter":
             writer.writeUnsigned(417);
             return;
-        case "sizeOf":
+        case "profileSampler":
             writer.writeUnsigned(418);
             return;
-        case "strideOf":
+        case "profileCounterIncrement":
             writer.writeUnsigned(419);
             return;
-        case "type":
+        case "profileSamplerSample":
             writer.writeUnsigned(420);
             return;
-        case "regExp":
+        case "profileUnit":
             writer.writeUnsigned(421);
             return;
-        case "regExpIndices":
+        case "randomEntropyBinding":
             writer.writeUnsigned(422);
             return;
-        case "regExpMatch":
+        case "randomBinding":
             writer.writeUnsigned(423);
             return;
-        case "regExpSpan":
+        case "random":
             writer.writeUnsigned(424);
             return;
-        case "runtimeAction":
+        case "randomSeed":
             writer.writeUnsigned(425);
             return;
-        case "action":
+        case "bound":
             writer.writeUnsigned(426);
             return;
-        case "binding":
+        case "rangeBounds":
             writer.writeUnsigned(427);
             return;
-        case "bindingProvider":
+        case "range":
             writer.writeUnsigned(428);
             return;
-        case "hostAction":
+        case "rangeFrom":
             writer.writeUnsigned(429);
             return;
-        case "hostBackendStatus":
+        case "rangeFull":
             writer.writeUnsigned(430);
             return;
-        case "hostTag":
+        case "rangeInclusive":
             writer.writeUnsigned(431);
             return;
-        case "platformFamilyTag":
+        case "rangeTo":
             writer.writeUnsigned(432);
             return;
-        case "platformTag":
+        case "rangeToInclusive":
             writer.writeUnsigned(433);
             return;
-        case "runtimeControlEvent":
+        case "step":
             writer.writeUnsigned(434);
             return;
-        case "runtimeControlEventKind":
+        case "alignOf":
             writer.writeUnsigned(435);
             return;
-        case "runtimeEdge":
+        case "sizeOf":
             writer.writeUnsigned(436);
             return;
-        case "runtimeEdgeId":
+        case "strideOf":
             writer.writeUnsigned(437);
             return;
-        case "runtimeEdgeKind":
+        case "type":
             writer.writeUnsigned(438);
             return;
-        case "runtimeEdgeSelector":
+        case "regExp":
             writer.writeUnsigned(439);
             return;
-        case "runtimeEntity":
+        case "regExpIndices":
             writer.writeUnsigned(440);
             return;
-        case "runtimeEntityId":
+        case "regExpMatch":
             writer.writeUnsigned(441);
             return;
-        case "runtimeEntityKind":
+        case "regExpSpan":
             writer.writeUnsigned(442);
             return;
-        case "runtimeEntitySelector":
+        case "runtimeAction":
             writer.writeUnsigned(443);
             return;
-        case "runtimeLabel":
+        case "action":
             writer.writeUnsigned(444);
             return;
-        case "runtimeLabelSelector":
+        case "binding":
             writer.writeUnsigned(445);
             return;
-        case "runtimeFrame":
+        case "bindingProvider":
             writer.writeUnsigned(446);
             return;
-        case "runtimeFrameId":
+        case "hostAction":
             writer.writeUnsigned(447);
             return;
-        case "runtimeFrameKind":
+        case "hostBackendStatus":
             writer.writeUnsigned(448);
             return;
-        case "runtimeFrameSlot":
+        case "hostTag":
             writer.writeUnsigned(449);
             return;
-        case "runtimeFrameSlotId":
+        case "platformFamilyTag":
             writer.writeUnsigned(450);
             return;
-        case "runtimeFrameStateId":
+        case "platformTag":
             writer.writeUnsigned(451);
             return;
-        case "runtimeFrameValue":
+        case "runtimeControlEvent":
             writer.writeUnsigned(452);
             return;
-        case "runtimeHeapEdge":
+        case "runtimeControlEventKind":
             writer.writeUnsigned(453);
             return;
-        case "runtimeHeapObject":
+        case "runtimeEdge":
             writer.writeUnsigned(454);
             return;
-        case "runtimeHeapObjectId":
+        case "runtimeEdgeId":
             writer.writeUnsigned(455);
             return;
-        case "runtimeHeapSummary":
+        case "runtimeEdgeKind":
             writer.writeUnsigned(456);
             return;
-        case "runtimeEngineView":
+        case "runtimeEdgeSelector":
             writer.writeUnsigned(457);
             return;
-        case "runtimeEngineViewKind":
+        case "runtimeEntity":
             writer.writeUnsigned(458);
             return;
-        case "runtimeEventLoop":
+        case "runtimeEntityId":
             writer.writeUnsigned(459);
             return;
-        case "runtimeBranch":
+        case "runtimeEntityKind":
             writer.writeUnsigned(460);
             return;
-        case "runtimeBranchId":
+        case "runtimeEntitySelector":
             writer.writeUnsigned(461);
             return;
-        case "runtimeCheckpoint":
+        case "runtimeLabel":
             writer.writeUnsigned(462);
             return;
-        case "runtimeCheckpointId":
+        case "runtimeLabelSelector":
             writer.writeUnsigned(463);
             return;
-        case "runtimeImage":
+        case "runtimeFrame":
             writer.writeUnsigned(464);
             return;
-        case "runtimeImageId":
+        case "runtimeFrameId":
             writer.writeUnsigned(465);
             return;
-        case "runtimeMoment":
+        case "runtimeFrameKind":
             writer.writeUnsigned(466);
             return;
-        case "runtimeRevision":
+        case "runtimeFrameSlot":
             writer.writeUnsigned(467);
             return;
-        case "runtimeRevisionId":
+        case "runtimeFrameSlotId":
             writer.writeUnsigned(468);
             return;
-        case "runtimeTraceSequence":
+        case "runtimeFrameStateId":
             writer.writeUnsigned(469);
             return;
-        case "runtimeObservationEventKind":
+        case "runtimeFrameValue":
             writer.writeUnsigned(470);
             return;
-        case "runtimeObservationHandle":
+        case "runtimeHeapEdge":
             writer.writeUnsigned(471);
             return;
-        case "runtimeObservationRecord":
+        case "runtimeHeapObject":
             writer.writeUnsigned(472);
             return;
-        case "policyActionSelector":
+        case "runtimeHeapObjectId":
             writer.writeUnsigned(473);
             return;
-        case "policyConditionSelector":
+        case "runtimeHeapSummary":
             writer.writeUnsigned(474);
             return;
-        case "policyExecutionSelector":
+        case "runtimeEngineView":
             writer.writeUnsigned(475);
             return;
-        case "policyIdentitySelector":
+        case "runtimeEngineViewKind":
             writer.writeUnsigned(476);
             return;
-        case "policyDecision":
+        case "runtimeEventLoop":
             writer.writeUnsigned(477);
             return;
-        case "policyQuery":
+        case "runtimeBranch":
             writer.writeUnsigned(478);
             return;
-        case "policyRule":
+        case "runtimeBranchId":
             writer.writeUnsigned(479);
             return;
-        case "policyRuleCursor":
+        case "runtimeCheckpoint":
             writer.writeUnsigned(480);
             return;
-        case "policySubjectSelector":
+        case "runtimeCheckpointId":
             writer.writeUnsigned(481);
             return;
-        case "policyTargetSelector":
+        case "runtimeImage":
             writer.writeUnsigned(482);
             return;
-        case "runtimeRandomHandle":
+        case "runtimeImageId":
             writer.writeUnsigned(483);
             return;
-        case "runtimeRandomSeed":
+        case "runtimeMoment":
             writer.writeUnsigned(484);
             return;
-        case "runtimeResource":
+        case "runtimeRevision":
             writer.writeUnsigned(485);
             return;
-        case "runtimeResourceId":
+        case "runtimeRevisionId":
             writer.writeUnsigned(486);
             return;
-        case "runtimeResourceKind":
+        case "runtimeTraceSequence":
             writer.writeUnsigned(487);
             return;
-        case "runtimeResourceState":
+        case "runtimeObservationEventKind":
             writer.writeUnsigned(488);
             return;
-        case "runtimeTransferredHandle":
+        case "runtimeObservationHandle":
             writer.writeUnsigned(489);
             return;
-        case "runtimeSnapshot":
+        case "runtimeObservationRecord":
             writer.writeUnsigned(490);
             return;
-        case "runtimeSnapshotFormat":
+        case "policyActionSelector":
             writer.writeUnsigned(491);
             return;
-        case "runtimeSnapshotId":
+        case "policyConditionSelector":
             writer.writeUnsigned(492);
             return;
-        case "runtimeTrace":
+        case "policyExecutionSelector":
             writer.writeUnsigned(493);
             return;
-        case "runtimeTraceCursorHandle":
+        case "policyIdentitySelector":
             writer.writeUnsigned(494);
             return;
-        case "runtimeTraceEventKind":
+        case "policyDecision":
             writer.writeUnsigned(495);
             return;
-        case "runtimeTraceRecord":
+        case "policyQuery":
             writer.writeUnsigned(496);
             return;
-        case "runtimeEngine":
+        case "policyRule":
             writer.writeUnsigned(497);
             return;
-        case "runtimeExecution":
+        case "policyRuleCursor":
             writer.writeUnsigned(498);
             return;
-        case "runtime":
+        case "policySubjectSelector":
             writer.writeUnsigned(499);
             return;
-        case "runtimeHandle":
+        case "policyTargetSelector":
             writer.writeUnsigned(500);
             return;
-        case "runtimeId":
+        case "runtimeRandomHandle":
             writer.writeUnsigned(501);
             return;
-        case "runtimeTickResult":
+        case "runtimeRandomSeed":
             writer.writeUnsigned(502);
             return;
-        case "runtimeWorker":
+        case "runtimeResource":
             writer.writeUnsigned(503);
             return;
-        case "runtimeWorkerExecutor":
+        case "runtimeResourceId":
             writer.writeUnsigned(504);
             return;
-        case "runtimeWorkerHandle":
+        case "runtimeResourceKind":
             writer.writeUnsigned(505);
             return;
-        case "runtimeWorkerId":
+        case "runtimeResourceState":
             writer.writeUnsigned(506);
             return;
-        case "world":
+        case "runtimeTransferredHandle":
             writer.writeUnsigned(507);
             return;
-        case "worldHandle":
+        case "runtimeSnapshot":
             writer.writeUnsigned(508);
             return;
-        case "worldViewHandle":
+        case "runtimeSnapshotFormat":
             writer.writeUnsigned(509);
             return;
-        case "deserialize":
+        case "runtimeSnapshotId":
             writer.writeUnsigned(510);
             return;
-        case "deserializer":
+        case "runtimeTrace":
             writer.writeUnsigned(511);
             return;
-        case "serialize":
+        case "runtimeTraceCursorHandle":
             writer.writeUnsigned(512);
             return;
-        case "serializer":
+        case "runtimeTraceEventKind":
             writer.writeUnsigned(513);
             return;
-        case "stream":
+        case "runtimeTraceRecord":
             writer.writeUnsigned(514);
             return;
-        case "stringBuilder":
+        case "runtimeEngine":
             writer.writeUnsigned(515);
             return;
-        case "cStringSlice":
+        case "runtimeExecution":
             writer.writeUnsigned(516);
             return;
-        case "cString":
+        case "runtime":
             writer.writeUnsigned(517);
             return;
-        case "cStringError":
+        case "runtimeHandle":
             writer.writeUnsigned(518);
             return;
-        case "cStringIntoStringError":
+        case "runtimeId":
             writer.writeUnsigned(519);
             return;
-        case "interiorNulError":
+        case "runtimeTickResult":
             writer.writeUnsigned(520);
             return;
-        case "missingNulError":
+        case "runtimeWorker":
             writer.writeUnsigned(521);
             return;
-        case "osStringSlice":
+        case "runtimeWorkerExecutor":
             writer.writeUnsigned(522);
             return;
-        case "osString":
+        case "runtimeWorkerHandle":
             writer.writeUnsigned(523);
             return;
-        case "osStringBuilder":
+        case "runtimeWorkerId":
             writer.writeUnsigned(524);
             return;
-        case "osStringDecodeError":
+        case "world":
             writer.writeUnsigned(525);
             return;
-        case "osStringIntoStringError":
+        case "worldHandle":
             writer.writeUnsigned(526);
             return;
-        case "stringSlice":
+        case "worldViewHandle":
             writer.writeUnsigned(527);
             return;
-        case "string":
+        case "deserialize":
             writer.writeUnsigned(528);
             return;
-        case "utf8DecodeError":
+        case "deserializer":
             writer.writeUnsigned(529);
             return;
-        case "atomicScope":
+        case "serialize":
             writer.writeUnsigned(530);
             return;
-        case "atomic":
+        case "serializer":
             writer.writeUnsigned(531);
             return;
-        case "atomicSafe":
+        case "stream":
             writer.writeUnsigned(532);
             return;
-        case "atomicWaitResult":
+        case "stringBuilder":
             writer.writeUnsigned(533);
             return;
-        case "memoryOrdering":
+        case "stringFromTemplate":
             writer.writeUnsigned(534);
             return;
-        case "memoryRegionSet":
+        case "cStringSlice":
             writer.writeUnsigned(535);
             return;
-        case "memoryScope":
+        case "cString":
             writer.writeUnsigned(536);
             return;
-        case "barrier":
+        case "cStringError":
             writer.writeUnsigned(537);
             return;
-        case "condvar":
+        case "cStringIntoStringError":
             writer.writeUnsigned(538);
             return;
-        case "mutex":
+        case "interiorNulError":
             writer.writeUnsigned(539);
             return;
-        case "once":
+        case "missingNulError":
             writer.writeUnsigned(540);
             return;
-        case "onceCell":
+        case "osStringSlice":
             writer.writeUnsigned(541);
             return;
-        case "reader":
+        case "osString":
             writer.writeUnsigned(542);
             return;
-        case "rwLock":
+        case "osStringBuilder":
             writer.writeUnsigned(543);
             return;
-        case "seekFrom":
+        case "osStringDecodeError":
             writer.writeUnsigned(544);
             return;
-        case "seeker":
+        case "osStringIntoStringError":
             writer.writeUnsigned(545);
             return;
-        case "semaphore":
+        case "stringSlice":
             writer.writeUnsigned(546);
             return;
-        case "writer":
+        case "string":
             writer.writeUnsigned(547);
             return;
-        case "telemetryBinding":
+        case "utf8DecodeError":
             writer.writeUnsigned(548);
             return;
-        case "fieldValue":
+        case "atomicScope":
             writer.writeUnsigned(549);
             return;
-        case "fields":
+        case "atomic":
             writer.writeUnsigned(550);
             return;
-        case "logger":
+        case "atomicSafe":
             writer.writeUnsigned(551);
             return;
-        case "telemetryCounter":
+        case "atomicWaitResult":
             writer.writeUnsigned(552);
             return;
-        case "gauge":
+        case "memoryOrdering":
             writer.writeUnsigned(553);
             return;
-        case "histogram":
+        case "memoryRegionSet":
             writer.writeUnsigned(554);
             return;
-        case "meter":
+        case "memoryScope":
             writer.writeUnsigned(555);
             return;
-        case "metricSink":
+        case "barrier":
             writer.writeUnsigned(556);
             return;
-        case "upDownCounter":
+        case "condvar":
             writer.writeUnsigned(557);
             return;
-        case "instrumentKind":
+        case "mutex":
             writer.writeUnsigned(558);
             return;
-        case "logEntry":
+        case "once":
             writer.writeUnsigned(559);
             return;
-        case "telemetryLevel":
+        case "onceCell":
             writer.writeUnsigned(560);
             return;
-        case "metricEntry":
+        case "reader":
             writer.writeUnsigned(561);
             return;
-        case "spanContext":
+        case "rwLock":
             writer.writeUnsigned(562);
             return;
-        case "spanId":
+        case "seekFrom":
             writer.writeUnsigned(563);
             return;
-        case "spanKind":
+        case "seeker":
             writer.writeUnsigned(564);
             return;
-        case "spanOptions":
+        case "semaphore":
             writer.writeUnsigned(565);
             return;
-        case "spanStatus":
+        case "writer":
             writer.writeUnsigned(566);
             return;
-        case "traceEntry":
+        case "telemetryBinding":
             writer.writeUnsigned(567);
             return;
-        case "telemetryTraceEventKind":
+        case "fieldValue":
             writer.writeUnsigned(568);
             return;
-        case "traceId":
+        case "fields":
             writer.writeUnsigned(569);
             return;
-        case "span":
+        case "logger":
             writer.writeUnsigned(570);
             return;
-        case "traceSink":
+        case "telemetryCounter":
             writer.writeUnsigned(571);
             return;
-        case "tracer":
+        case "gauge":
             writer.writeUnsigned(572);
             return;
-        case "testArtifactId":
+        case "histogram":
             writer.writeUnsigned(573);
             return;
-        case "testArtifactKind":
+        case "meter":
             writer.writeUnsigned(574);
             return;
-        case "testArtifact":
+        case "metricSink":
             writer.writeUnsigned(575);
             return;
-        case "test":
+        case "upDownCounter":
             writer.writeUnsigned(576);
             return;
-        case "parameterizedTest":
+        case "instrumentKind":
             writer.writeUnsigned(577);
             return;
-        case "tableTest":
+        case "logEntry":
             writer.writeUnsigned(578);
             return;
-        case "registeredCase":
+        case "telemetryLevel":
             writer.writeUnsigned(579);
             return;
-        case "testOutput":
+        case "metricEntry":
             writer.writeUnsigned(580);
             return;
-        case "testContext":
+        case "spanContext":
             writer.writeUnsigned(581);
             return;
-        case "testCaseContext":
+        case "spanId":
             writer.writeUnsigned(582);
             return;
-        case "testSuiteContext":
+        case "spanKind":
             writer.writeUnsigned(583);
             return;
-        case "testExpect":
+        case "spanOptions":
             writer.writeUnsigned(584);
             return;
-        case "expectation":
+        case "spanStatus":
             writer.writeUnsigned(585);
             return;
-        case "panicExpectation":
+        case "traceEntry":
             writer.writeUnsigned(586);
             return;
-        case "fixtureContext":
+        case "telemetryTraceEventKind":
             writer.writeUnsigned(587);
             return;
-        case "testBeforeAll":
+        case "traceId":
             writer.writeUnsigned(588);
             return;
-        case "testAfterAll":
+        case "span":
             writer.writeUnsigned(589);
             return;
-        case "testAroundAll":
+        case "traceSink":
             writer.writeUnsigned(590);
             return;
-        case "testBeforeEach":
+        case "tracer":
             writer.writeUnsigned(591);
             return;
-        case "testAfterEach":
+        case "testArtifactId":
             writer.writeUnsigned(592);
             return;
-        case "testAroundEach":
+        case "testArtifactKind":
             writer.writeUnsigned(593);
             return;
-        case "testCaseId":
+        case "testArtifact":
             writer.writeUnsigned(594);
             return;
-        case "testSuiteId":
+        case "test":
             writer.writeUnsigned(595);
             return;
-        case "testRunId":
+        case "parameterizedTest":
             writer.writeUnsigned(596);
             return;
-        case "testIssueKind":
+        case "tableTest":
             writer.writeUnsigned(597);
             return;
-        case "testIssue":
+        case "registeredCase":
             writer.writeUnsigned(598);
             return;
-        case "testCaseKind":
+        case "testOutput":
             writer.writeUnsigned(599);
             return;
-        case "testIsolation":
+        case "testContext":
             writer.writeUnsigned(600);
             return;
-        case "testOptions":
+        case "testCaseContext":
             writer.writeUnsigned(601);
             return;
-        case "pollingExpectation":
+        case "testSuiteContext":
             writer.writeUnsigned(602);
             return;
-        case "testReplayId":
+        case "testExpect":
             writer.writeUnsigned(603);
             return;
-        case "testReplayKind":
+        case "expectation":
             writer.writeUnsigned(604);
             return;
-        case "testReplayInput":
+        case "panicExpectation":
             writer.writeUnsigned(605);
             return;
-        case "testReplay":
+        case "fixtureContext":
             writer.writeUnsigned(606);
             return;
-        case "testOutcome":
+        case "testBeforeAll":
             writer.writeUnsigned(607);
             return;
-        case "testRun":
+        case "testAfterAll":
             writer.writeUnsigned(608);
             return;
-        case "snapshotMode":
+        case "testAroundAll":
             writer.writeUnsigned(609);
             return;
-        case "snapshotOptions":
+        case "testBeforeEach":
             writer.writeUnsigned(610);
             return;
-        case "snapshot":
+        case "testAfterEach":
             writer.writeUnsigned(611);
             return;
-        case "snapshotChange":
+        case "testAroundEach":
             writer.writeUnsigned(612);
             return;
-        case "testSuite":
+        case "testCaseId":
             writer.writeUnsigned(613);
             return;
-        case "parameterizedSuite":
+        case "testSuiteId":
             writer.writeUnsigned(614);
             return;
-        case "tableSuite":
+        case "testRunId":
             writer.writeUnsigned(615);
             return;
-        case "registeredSuite":
+        case "testIssueKind":
             writer.writeUnsigned(616);
             return;
-        case "timeClock":
+        case "testIssue":
             writer.writeUnsigned(617);
             return;
-        case "timeClockBinding":
+        case "testCaseKind":
             writer.writeUnsigned(618);
             return;
-        case "timeBindingDuration":
+        case "testIsolation":
             writer.writeUnsigned(619);
             return;
-        case "timeBinding":
+        case "testOptions":
             writer.writeUnsigned(620);
             return;
-        case "timeTimestamp":
+        case "pollingExpectation":
             writer.writeUnsigned(621);
             return;
-        case "timeTimerHandle":
+        case "testReplayId":
             writer.writeUnsigned(622);
             return;
-        case "timeTimerBinding":
+        case "testReplayKind":
             writer.writeUnsigned(623);
             return;
-        case "timeTimerMode":
+        case "testReplayInput":
             writer.writeUnsigned(624);
             return;
-        case "duration":
+        case "testReplay":
             writer.writeUnsigned(625);
             return;
-        case "instant":
+        case "testOutcome":
             writer.writeUnsigned(626);
             return;
-        case "plainDate":
+        case "testRun":
             writer.writeUnsigned(627);
             return;
-        case "plainDateTime":
+        case "snapshotMode":
             writer.writeUnsigned(628);
             return;
-        case "plainMonthDay":
+        case "snapshotOptions":
             writer.writeUnsigned(629);
             return;
-        case "plainTime":
+        case "snapshot":
             writer.writeUnsigned(630);
             return;
-        case "plainYearMonth":
+        case "snapshotChange":
             writer.writeUnsigned(631);
             return;
-        case "zonedDateTime":
+        case "testSuite":
             writer.writeUnsigned(632);
             return;
-        case "topologyEdgeBinding":
+        case "parameterizedSuite":
             writer.writeUnsigned(633);
             return;
-        case "topologyEntityBinding":
+        case "tableSuite":
             writer.writeUnsigned(634);
             return;
-        case "topologyBinding":
+        case "registeredSuite":
             writer.writeUnsigned(635);
             return;
-        case "topologyEdgeDecorator":
+        case "timeClock":
             writer.writeUnsigned(636);
             return;
-        case "topologyEntityDecorator":
+        case "timeClockBinding":
             writer.writeUnsigned(637);
             return;
-        case "topologyDirection":
+        case "timeBindingDuration":
             writer.writeUnsigned(638);
             return;
-        case "topologyEdge":
+        case "timeBinding":
             writer.writeUnsigned(639);
             return;
-        case "topologyEdgeId":
+        case "timeTimestamp":
             writer.writeUnsigned(640);
             return;
-        case "topologyEdgeKind":
+        case "timeTimerHandle":
             writer.writeUnsigned(641);
             return;
-        case "topologyEdgeKindRecord":
+        case "timeTimerBinding":
             writer.writeUnsigned(642);
             return;
-        case "topologyEdgeRecord":
+        case "timeTimerMode":
             writer.writeUnsigned(643);
             return;
-        case "topologyEdgeSelector":
+        case "duration":
             writer.writeUnsigned(644);
             return;
-        case "topologyEntity":
+        case "timeError":
             writer.writeUnsigned(645);
             return;
-        case "topologyEntityId":
+        case "instant":
             writer.writeUnsigned(646);
             return;
-        case "topologyEntityKind":
+        case "plainDate":
             writer.writeUnsigned(647);
             return;
-        case "topologyEntityKindRecord":
+        case "plainDateTime":
             writer.writeUnsigned(648);
             return;
-        case "topologyEntityRecord":
+        case "plainMonthDay":
             writer.writeUnsigned(649);
             return;
-        case "topologyEntitySelector":
+        case "plainTime":
             writer.writeUnsigned(650);
             return;
-        case "topologyLabelSelector":
+        case "plainYearMonth":
             writer.writeUnsigned(651);
             return;
-        case "topologyLabelSet":
+        case "zonedDateTime":
             writer.writeUnsigned(652);
             return;
-        case "topologyEdgeRef":
+        case "topologyEdgeBinding":
             writer.writeUnsigned(653);
             return;
-        case "topologyEntityRef":
+        case "topologyEntityBinding":
             writer.writeUnsigned(654);
             return;
-        case "topologyRecord":
+        case "topologyBinding":
             writer.writeUnsigned(655);
             return;
-        case "topology":
+        case "topologyEdgeDecorator":
             writer.writeUnsigned(656);
             return;
-        case "treeBuilder":
+        case "topologyEntityDecorator":
             writer.writeUnsigned(657);
             return;
-        case "constructorParameters":
+        case "topologyDirection":
             writer.writeUnsigned(658);
             return;
-        case "function":
+        case "topologyEdge":
             writer.writeUnsigned(659);
             return;
-        case "functionPointer":
+        case "topologyEdgeId":
             writer.writeUnsigned(660);
             return;
-        case "instanceType":
+        case "topologyEdgeKind":
             writer.writeUnsigned(661);
             return;
-        case "omitThisParameter":
+        case "topologyEdgeKindRecord":
             writer.writeUnsigned(662);
             return;
-        case "parameters":
+        case "topologyEdgeRecord":
             writer.writeUnsigned(663);
             return;
-        case "returnType":
+        case "topologyEdgeSelector":
             writer.writeUnsigned(664);
             return;
-        case "thisParameterType":
+        case "topologyEntity":
             writer.writeUnsigned(665);
             return;
-        case "awaited":
+        case "topologyEntityId":
             writer.writeUnsigned(666);
             return;
-        case "exclude":
+        case "topologyEntityKind":
             writer.writeUnsigned(667);
             return;
-        case "extract":
+        case "topologyEntityKindRecord":
             writer.writeUnsigned(668);
             return;
-        case "nonNullable":
+        case "topologyEntityRecord":
             writer.writeUnsigned(669);
             return;
-        case "noInfer":
+        case "topologyEntitySelector":
             writer.writeUnsigned(670);
             return;
-        case "omit":
+        case "topologyLabelSelector":
             writer.writeUnsigned(671);
             return;
-        case "partial":
+        case "topologyLabelSet":
             writer.writeUnsigned(672);
             return;
-        case "pick":
+        case "topologyEdgeRef":
             writer.writeUnsigned(673);
             return;
-        case "propertyKey":
+        case "topologyEntityRef":
             writer.writeUnsigned(674);
             return;
-        case "readonly":
+        case "topologyRecord":
             writer.writeUnsigned(675);
             return;
-        case "record":
+        case "topology":
             writer.writeUnsigned(676);
             return;
-        case "required":
+        case "treeBuilder":
             writer.writeUnsigned(677);
             return;
-        case "thisType":
+        case "constructorParameters":
             writer.writeUnsigned(678);
             return;
-        case "capitalize":
+        case "function":
             writer.writeUnsigned(679);
             return;
-        case "lowercase":
+        case "functionPointer":
             writer.writeUnsigned(680);
             return;
-        case "uncapitalize":
+        case "instanceType":
             writer.writeUnsigned(681);
             return;
-        case "uppercase":
+        case "omitThisParameter":
             writer.writeUnsigned(682);
             return;
-        case "worker":
+        case "parameters":
             writer.writeUnsigned(683);
             return;
-        case "workerPool":
+        case "returnType":
             writer.writeUnsigned(684);
             return;
-        case "workerExit":
+        case "thisParameterType":
             writer.writeUnsigned(685);
             return;
-        case "workerError":
+        case "awaited":
             writer.writeUnsigned(686);
+            return;
+        case "exclude":
+            writer.writeUnsigned(687);
+            return;
+        case "extract":
+            writer.writeUnsigned(688);
+            return;
+        case "nonNullable":
+            writer.writeUnsigned(689);
+            return;
+        case "noInfer":
+            writer.writeUnsigned(690);
+            return;
+        case "omit":
+            writer.writeUnsigned(691);
+            return;
+        case "partial":
+            writer.writeUnsigned(692);
+            return;
+        case "pick":
+            writer.writeUnsigned(693);
+            return;
+        case "propertyKey":
+            writer.writeUnsigned(694);
+            return;
+        case "readonly":
+            writer.writeUnsigned(695);
+            return;
+        case "record":
+            writer.writeUnsigned(696);
+            return;
+        case "required":
+            writer.writeUnsigned(697);
+            return;
+        case "thisType":
+            writer.writeUnsigned(698);
+            return;
+        case "capitalize":
+            writer.writeUnsigned(699);
+            return;
+        case "lowercase":
+            writer.writeUnsigned(700);
+            return;
+        case "uncapitalize":
+            writer.writeUnsigned(701);
+            return;
+        case "uppercase":
+            writer.writeUnsigned(702);
+            return;
+        case "worker":
+            writer.writeUnsigned(703);
+            return;
+        case "workerPool":
+            writer.writeUnsigned(704);
+            return;
+        case "workerExit":
+            writer.writeUnsigned(705);
+            return;
+        case "workerError":
+            writer.writeUnsigned(706);
             return;
     }
 
@@ -2122,1358 +2182,1398 @@ export function decodeLanguageItem(reader: BinaryReader): LanguageItem {
         case 9:
             return "generatorResult";
         case 10:
-            return "generatorCreate";
+            return "generatorNext";
         case 11:
-            return "generatorYield";
+            return "generatorReturn";
         case 12:
-            return "asyncGeneratorCreate";
+            return "generatorCreate";
         case 13:
-            return "asyncGeneratorYield";
+            return "generatorYield";
         case 14:
-            return "asyncIterable";
+            return "asyncGeneratorCreate";
         case 15:
-            return "asyncIterator";
+            return "asyncGeneratorYield";
         case 16:
-            return "asyncMutex";
+            return "asyncIterable";
         case 17:
-            return "notify";
+            return "asyncIterator";
         case 18:
-            return "asyncOnce";
+            return "asyncMutex";
         case 19:
-            return "asyncOnceCell";
+            return "notify";
         case 20:
-            return "promise";
+            return "asyncOnce";
         case 21:
-            return "promiseCreate";
+            return "asyncOnceCell";
         case 22:
-            return "promiseFulfill";
+            return "promise";
         case 23:
-            return "promiseResolvers";
+            return "promiseCreate";
         case 24:
-            return "asyncReader";
+            return "promiseFulfill";
         case 25:
-            return "asyncRwLock";
+            return "promiseResolvers";
         case 26:
-            return "asyncSeeker";
+            return "asyncReader";
         case 27:
-            return "asyncSemaphore";
+            return "asyncRwLock";
         case 28:
-            return "task";
+            return "asyncSeeker";
         case 29:
-            return "taskCreate";
+            return "asyncSemaphore";
         case 30:
-            return "taskAttach";
+            return "task";
         case 31:
-            return "taskComplete";
+            return "taskCreate";
         case 32:
-            return "queueMicrotask";
+            return "taskAttach";
         case 33:
-            return "taskScope";
+            return "taskComplete";
         case 34:
-            return "asyncWriter";
+            return "queueMicrotask";
         case 35:
-            return "byteBuffer";
+            return "taskScope";
         case 36:
-            return "bytes";
+            return "asyncWriter";
         case 37:
-            return "byteOrder";
+            return "byteBuffer";
         case 38:
-            return "byteReader";
+            return "bytes";
         case 39:
-            return "sendErrorKind";
+            return "byteOrder";
         case 40:
-            return "receiveErrorKind";
+            return "byteReader";
         case 41:
-            return "sendError";
+            return "sendErrorKind";
         case 42:
-            return "receiveError";
+            return "receiveErrorKind";
         case 43:
-            return "channelSender";
+            return "sendError";
         case 44:
-            return "channelReceiver";
+            return "receiveError";
         case 45:
-            return "asyncChannelSender";
+            return "channelSender";
         case 46:
-            return "asyncChannelReceiver";
+            return "channelReceiver";
         case 47:
-            return "watchReceiver";
+            return "asyncChannelSender";
         case 48:
-            return "watchSender";
+            return "asyncChannelReceiver";
         case 49:
-            return "array";
+            return "watchReceiver";
         case 50:
-            return "fixedArray";
+            return "watchSender";
         case 51:
-            return "readonlyArray";
+            return "array";
         case 52:
-            return "arrayFromSlice";
+            return "fixedArray";
         case 53:
-            return "concurrentMap";
+            return "readonlyArray";
         case 54:
-            return "concurrentQueue";
+            return "arrayFromOwnedSlice";
         case 55:
-            return "concurrentSet";
+            return "concurrentMap";
         case 56:
-            return "deque";
+            return "concurrentQueue";
         case 57:
-            return "binaryHeap";
+            return "concurrentSet";
         case 58:
-            return "linkedList";
+            return "deque";
         case 59:
-            return "map";
+            return "binaryHeap";
         case 60:
-            return "set";
+            return "linkedList";
         case 61:
-            return "slice";
+            return "map";
         case 62:
-            return "sequence";
+            return "set";
         case 63:
-            return "slabKey";
+            return "slice";
         case 64:
-            return "slab";
+            return "sequence";
         case 65:
-            return "smallArray";
+            return "slabKey";
         case 66:
-            return "sortedMap";
+            return "slab";
         case 67:
-            return "sortedSet";
+            return "smallArray";
         case 68:
-            return "console";
+            return "sortedMap";
         case 69:
-            return "context";
+            return "sortedSet";
         case 70:
-            return "currentContext";
+            return "console";
         case 71:
-            return "replaceContext";
+            return "context";
         case 72:
-            return "bindContext";
+            return "currentContext";
         case 73:
-            return "getContextValue";
+            return "replaceContext";
         case 74:
-            return "contextVar";
+            return "bindContext";
         case 75:
-            return "as";
+            return "getContextValue";
         case 76:
-            return "borrow";
+            return "contextVar";
         case 77:
-            return "toOwned";
+            return "as";
         case 78:
-            return "from";
+            return "borrow";
         case 79:
-            return "tryFrom";
+            return "toOwned";
         case 80:
-            return "into";
+            return "from";
         case 81:
-            return "tryInto";
+            return "tryFrom";
         case 82:
-            return "debugBindingId";
+            return "into";
         case 83:
-            return "debugInlineFrameId";
+            return "tryInto";
         case 84:
-            return "debugScopeId";
+            return "debugBindingId";
         case 85:
-            return "debugExecutionPoint";
+            return "debugInlineFrameId";
         case 86:
-            return "debugPoint";
+            return "debugScopeId";
         case 87:
-            return "debugStop";
+            return "debugExecutionPoint";
         case 88:
-            return "debugStopReason";
+            return "debugPoint";
         case 89:
-            return "debugStepMode";
+            return "debugStop";
         case 90:
-            return "debugStepOptions";
+            return "debugStopReason";
         case 91:
-            return "debugScope";
+            return "debugStepMode";
         case 92:
-            return "debugScopePage";
+            return "debugStepOptions";
         case 93:
-            return "debugBinding";
+            return "debugScope";
         case 94:
-            return "debugBindingKind";
+            return "debugScopePage";
         case 95:
-            return "debugBindingPage";
+            return "debugBinding";
         case 96:
-            return "debugValue";
+            return "debugBindingKind";
         case 97:
-            return "debugValueBytes";
+            return "debugBindingPage";
         case 98:
-            return "debugValueOptimizedOut";
+            return "debugValue";
         case 99:
-            return "debugValueSlot";
+            return "debugValueBytes";
         case 100:
-            return "debugValueUnavailable";
+            return "debugValueOptimizedOut";
         case 101:
-            return "debugger";
+            return "debugValueSlot";
         case 102:
-            return "capture";
+            return "debugValueUnavailable";
         case 103:
-            return "derive";
+            return "debugger";
         case 104:
-            return "allow";
+            return "capture";
         case 105:
-            return "deny";
+            return "derive";
         case 106:
-            return "expect";
+            return "allow";
         case 107:
-            return "forbid";
+            return "deny";
         case 108:
-            return "warn";
+            return "expect";
         case 109:
-            return "intrinsic";
+            return "forbid";
         case 110:
-            return "languageItem";
+            return "warn";
         case 111:
-            return "reprDecorator";
+            return "intrinsic";
         case 112:
-            return "noAliasingMutableBorrows";
+            return "languageItem";
         case 113:
-            return "noDynamicDispatch";
+            return "reprDecorator";
         case 114:
-            return "noHeap";
+            return "noAliasingMutableBorrows";
         case 115:
-            return "noImplicitReceivers";
+            return "noDynamicDispatch";
         case 116:
-            return "noManaged";
+            return "noHeap";
         case 117:
-            return "noReflection";
+            return "noImplicitReceivers";
         case 118:
-            return "noRuntime";
+            return "noManaged";
         case 119:
-            return "noUnsafe";
+            return "noReflection";
         case 120:
-            return "noUnwind";
+            return "noRuntime";
         case 121:
-            return "deprecated";
+            return "noUnsafe";
         case 122:
-            return "experimental";
+            return "noUnwind";
         case 123:
-            return "cold";
+            return "deprecated";
         case 124:
-            return "hot";
+            return "experimental";
         case 125:
-            return "inline";
+            return "cold";
         case 126:
-            return "likely";
+            return "hot";
         case 127:
-            return "mustUse";
+            return "inline";
         case 128:
-            return "noinline";
+            return "likely";
         case 129:
-            return "pure";
+            return "mustUse";
         case 130:
-            return "tailcall";
+            return "noinline";
         case 131:
-            return "unlikely";
+            return "pure";
         case 132:
-            return "unroll";
+            return "tailcall";
         case 133:
-            return "safe";
+            return "unlikely";
         case 134:
-            return "unsafe";
+            return "unroll";
         case 135:
-            return "error";
+            return "safe";
         case 136:
-            return "hostErrorCode";
+            return "unsafe";
         case 137:
-            return "hostError";
+            return "error";
         case 138:
-            return "hostErrorContext";
+            return "rangeError";
         case 139:
-            return "hostPathPayload";
+            return "typeError";
         case 140:
-            return "hostSystemSource";
+            return "hostErrorCode";
         case 141:
-            return "ioErrorKind";
+            return "hostError";
         case 142:
-            return "ioError";
+            return "hostErrorContext";
         case 143:
-            return "pathError";
+            return "hostPathPayload";
         case 144:
-            return "abort";
+            return "hostSystemSource";
         case 145:
-            return "assertUnwindSafe";
+            return "ioErrorKind";
         case 146:
-            return "catchUnwind";
+            return "ioError";
         case 147:
-            return "panic";
+            return "pathError";
         case 148:
-            return "panicValue";
+            return "abort";
         case 149:
-            return "refUnwindSafe";
+            return "assertUnwindSafe";
         case 150:
-            return "resumeUnwind";
+            return "catchUnwind";
         case 151:
-            return "setPanicHook";
+            return "panic";
         case 152:
-            return "takePanicHook";
+            return "panicValue";
         case 153:
-            return "unwindSafe";
+            return "refUnwindSafe";
         case 154:
-            return "todo";
+            return "resumeUnwind";
         case 155:
-            return "unreachable";
+            return "setPanicHook";
         case 156:
-            return "report";
+            return "takePanicHook";
         case 157:
-            return "err";
+            return "unwindSafe";
         case 158:
-            return "ok";
+            return "todo";
         case 159:
-            return "result";
+            return "unreachable";
         case 160:
-            return "sourceLocation";
+            return "report";
         case 161:
-            return "stackFrame";
+            return "err";
         case 162:
-            return "stackFrameId";
+            return "ok";
         case 163:
-            return "stackTrace";
+            return "result";
         case 164:
-            return "attributeBinding";
+            return "sourceLocation";
         case 165:
-            return "directoryBinding";
+            return "stackFrame";
         case 166:
-            return "directoryEntryKind";
+            return "stackFrameId";
         case 167:
-            return "directoryHandle";
+            return "stackTrace";
         case 168:
-            return "fileAccessMask";
+            return "attributeBinding";
         case 169:
-            return "fileAllocateFlags";
+            return "directoryBinding";
         case 170:
-            return "fileAdvice";
+            return "directoryEntryKind";
         case 171:
-            return "fileBinding";
+            return "directoryHandle";
         case 172:
-            return "fileHandle";
+            return "fileAccessMask";
         case 173:
-            return "fileLockMode";
+            return "fileAllocateFlags";
         case 174:
-            return "fileOpenFlags";
+            return "fileAdvice";
         case 175:
-            return "fileOpenOptions";
+            return "fileBinding";
         case 176:
-            return "fileOffset";
+            return "fileHandle";
         case 177:
-            return "fileMode";
+            return "fileLockMode";
         case 178:
-            return "filePrincipal";
+            return "fileOpenFlags";
         case 179:
-            return "filePrincipalSid";
+            return "fileOpenOptions";
         case 180:
-            return "fileReadFlags";
+            return "fileOffset";
         case 181:
-            return "fileResolveFlags";
+            return "fileMode";
         case 182:
-            return "fileSeekOrigin";
+            return "filePrincipal";
         case 183:
-            return "fileSize";
+            return "filePrincipalSid";
         case 184:
-            return "fileStatusFlags";
+            return "fileReadFlags";
         case 185:
-            return "fileStatusMask";
+            return "fileResolveFlags";
         case 186:
-            return "fileSyncFlags";
+            return "fileSeekOrigin";
         case 187:
-            return "fileTime";
+            return "fileSize";
         case 188:
-            return "fileVolumeFlags";
+            return "fileStatusFlags";
         case 189:
-            return "fileVolumeMask";
+            return "fileStatusMask";
         case 190:
-            return "fileWatchEvent";
+            return "fileSyncFlags";
         case 191:
-            return "fileWatchMask";
+            return "fileTime";
         case 192:
-            return "fileWriteFlags";
+            return "fileVolumeFlags";
         case 193:
-            return "linkFlags";
+            return "fileVolumeMask";
         case 194:
-            return "mountBinding";
+            return "fileWatchEvent";
         case 195:
-            return "namespaceBinding";
+            return "fileWatchMask";
         case 196:
-            return "nodeDevice";
+            return "fileWriteFlags";
         case 197:
-            return "fsPathBuffer";
+            return "linkFlags";
         case 198:
-            return "renameFlags";
+            return "mountBinding";
         case 199:
-            return "statusBinding";
+            return "namespaceBinding";
         case 200:
-            return "symlinkKind";
+            return "nodeDevice";
         case 201:
-            return "volumeBinding";
+            return "fsPathBuffer";
         case 202:
-            return "fsWatchBinding";
+            return "renameFlags";
         case 203:
-            return "fsWatchHandle";
+            return "statusBinding";
         case 204:
-            return "xattrFlags";
+            return "symlinkKind";
         case 205:
-            return "xattrBinding";
+            return "volumeBinding";
         case 206:
-            return "xattrTarget";
+            return "fsWatchBinding";
         case 207:
-            return "fsBinding";
+            return "fsWatchHandle";
         case 208:
-            return "path";
+            return "xattrFlags";
         case 209:
-            return "pathBuilder";
+            return "xattrBinding";
         case 210:
-            return "pathSlice";
+            return "xattrTarget";
         case 211:
-            return "pathComponent";
+            return "fsBinding";
         case 212:
-            return "windowsPathPrefix";
+            return "path";
         case 213:
-            return "extend";
+            return "pathBuilder";
         case 214:
-            return "fromIterator";
+            return "pathSlice";
         case 215:
-            return "iterable";
+            return "pathComponent";
         case 216:
-            return "iterator";
+            return "windowsPathPrefix";
         case 217:
-            return "iteratorResult";
+            return "extend";
         case 218:
-            return "iteratorReturn";
+            return "fromIterator";
         case 219:
-            return "iteratorYield";
+            return "iterable";
         case 220:
-            return "jsonSerializer";
+            return "iterator";
         case 221:
-            return "jsonDeserializer";
+            return "iteratorResult";
         case 222:
-            return "jsonErrorKind";
+            return "iteratorReturn";
         case 223:
-            return "jsonError";
+            return "iteratorYield";
         case 224:
-            return "jSON";
+            return "intlCollator";
         case 225:
-            return "json";
+            return "intlDateTimeFormat";
         case 226:
-            return "bigInt";
+            return "intlDisplayNames";
         case 227:
-            return "complex";
+            return "intlDurationFormat";
         case 228:
-            return "floatDomain";
+            return "intlError";
         case 229:
-            return "float";
+            return "intlToLocaleString";
         case 230:
-            return "one";
+            return "intlListFormat";
         case 231:
-            return "zero";
+            return "intlLocale";
         case 232:
-            return "integerDomain";
+            return "intlNumberFormat";
         case 233:
-            return "integer";
+            return "intlPluralRules";
         case 234:
-            return "unsigned";
+            return "intlRelativeTimeFormat";
         case 235:
-            return "vector2";
+            return "intlSegments";
         case 236:
-            return "vector3";
+            return "intlSegmentIterator";
         case 237:
-            return "vector4";
+            return "intlSegmenter";
         case 238:
-            return "math";
+            return "jsonSerializer";
         case 239:
-            return "matrix2";
+            return "jsonDeserializer";
         case 240:
-            return "matrix3";
+            return "jsonErrorKind";
         case 241:
-            return "matrix4";
+            return "jsonError";
         case 242:
-            return "infinity";
+            return "jSON";
         case 243:
-            return "naN";
+            return "json";
         case 244:
-            return "number";
+            return "bigInt";
         case 245:
-            return "numberNaN";
+            return "complex";
         case 246:
-            return "numberNegativeInfinity";
+            return "floatDomain";
         case 247:
-            return "numberPositiveInfinity";
+            return "float";
         case 248:
-            return "numeric";
+            return "one";
         case 249:
-            return "numericDomain";
+            return "zero";
         case 250:
-            return "quaternion";
+            return "integerDomain";
         case 251:
-            return "vector";
+            return "integer";
         case 252:
-            return "wrapping";
+            return "unsigned";
         case 253:
-            return "access";
+            return "vector2";
         case 254:
-            return "arc";
+            return "vector3";
         case 255:
-            return "arcInner";
+            return "vector4";
         case 256:
-            return "arcWeak";
+            return "math";
         case 257:
-            return "arena";
+            return "matrix2";
         case 258:
-            return "bump";
+            return "matrix3";
         case 259:
-            return "mappedMemoryFlags";
+            return "matrix4";
         case 260:
-            return "mappedMemorySyncFlags";
+            return "infinity";
         case 261:
-            return "mappedMemoryVisibility";
+            return "naN";
         case 262:
-            return "memoryAdvice";
+            return "number";
         case 263:
-            return "memoryAdviseBinding";
+            return "numberNaN";
         case 264:
-            return "memoryBinding";
+            return "numberNegativeInfinity";
         case 265:
-            return "memoryLayoutBinding";
+            return "numberPositiveInfinity";
         case 266:
-            return "memoryLockBinding";
+            return "numeric";
         case 267:
-            return "memoryMapBinding";
+            return "numericDomain";
         case 268:
-            return "memoryProtection";
+            return "quaternion";
         case 269:
-            return "memoryVirtualBinding";
+            return "vector";
         case 270:
-            return "virtualMemoryReserveFlags";
+            return "wrapping";
         case 271:
-            return "borrowed";
+            return "access";
         case 272:
-            return "box";
+            return "arc";
         case 273:
-            return "unique";
+            return "arcInner";
         case 274:
-            return "clone";
+            return "arcWeak";
         case 275:
-            return "concrete";
+            return "arena";
         case 276:
-            return "copy";
+            return "bump";
         case 277:
-            return "default";
+            return "mappedMemoryFlags";
         case 278:
-            return "dynamicSafe";
+            return "mappedMemorySyncFlags";
         case 279:
-            return "overwriteStable";
+            return "mappedMemoryVisibility";
         case 280:
-            return "suspendSafe";
+            return "memoryAdvice";
         case 281:
-            return "sharedSafe";
+            return "memoryAdviseBinding";
         case 282:
-            return "unpin";
+            return "memoryBinding";
         case 283:
-            return "zeroable";
+            return "memoryLayoutBinding";
         case 284:
-            return "cell";
+            return "memoryLockBinding";
         case 285:
-            return "refCell";
+            return "memoryMapBinding";
         case 286:
-            return "unsafeCell";
+            return "memoryProtection";
         case 287:
-            return "cow";
+            return "memoryVirtualBinding";
         case 288:
-            return "asyncDispose";
+            return "virtualMemoryReserveFlags";
         case 289:
-            return "dispose";
+            return "borrowed";
         case 290:
-            return "drop";
+            return "box";
         case 291:
-            return "forget";
+            return "unique";
         case 292:
-            return "manuallyDrop";
+            return "clone";
         case 293:
-            return "dynamic";
+            return "concrete";
         case 294:
-            return "allocationError";
+            return "copy";
         case 295:
-            return "maybeUninit";
+            return "default";
         case 296:
-            return "lifetime";
+            return "dynamicSafe";
         case 297:
-            return "region";
+            return "overwriteStable";
         case 298:
-            return "managed";
+            return "suspendSafe";
         case 299:
-            return "owned";
+            return "sharedSafe";
         case 300:
-            return "phantom";
+            return "unpin";
         case 301:
-            return "pin";
+            return "zeroable";
         case 302:
-            return "place";
+            return "cell";
         case 303:
-            return "placed";
+            return "refCell";
         case 304:
-            return "space";
+            return "unsafeCell";
         case 305:
-            return "raw";
+            return "cow";
         case 306:
-            return "rc";
+            return "asyncDispose";
         case 307:
-            return "rcInner";
+            return "dispose";
         case 308:
-            return "rcWeak";
+            return "drop";
         case 309:
-            return "accessOf";
+            return "forget";
         case 310:
-            return "ownership";
+            return "manuallyDrop";
         case 311:
-            return "placeOf";
+            return "dynamic";
         case 312:
-            return "withAccess";
+            return "allocationError";
         case 313:
-            return "moduleDerive";
+            return "maybeUninit";
         case 314:
-            return "module";
+            return "lifetime";
         case 315:
-            return "moduleHost";
+            return "region";
         case 316:
-            return "importMeta";
+            return "managed";
         case 317:
-            return "importMetaEnv";
+            return "owned";
         case 318:
-            return "importMetaTarget";
+            return "phantom";
         case 319:
-            return "moduleOutput";
+            return "pin";
         case 320:
-            return "modulePlatform";
+            return "place";
         case 321:
-            return "moduleRuntime";
+            return "space";
         case 322:
-            return "moduleStability";
+            return "raw";
         case 323:
-            return "moduleTargetFamily";
+            return "rc";
         case 324:
-            return "addressLookupFlags";
+            return "rcInner";
         case 325:
-            return "dnsRecord";
+            return "rcWeak";
         case 326:
-            return "dnsRecordType";
+            return "accessOf";
         case 327:
-            return "ipAddress";
+            return "ownership";
         case 328:
-            return "multicastInterface";
+            return "placeOf";
         case 329:
-            return "multicastOption";
+            return "withAccess";
         case 330:
-            return "multicastOptionValue";
+            return "moduleDerive";
         case 331:
-            return "netConnectivityBinding";
+            return "module";
         case 332:
-            return "netInterfaceBinding";
+            return "moduleHost";
         case 333:
-            return "netOptionsBinding";
+            return "importMeta";
         case 334:
-            return "netRawBinding";
+            return "importMetaEnv";
         case 335:
-            return "netResolveBinding";
+            return "importMetaTarget";
         case 336:
-            return "netRouteBinding";
+            return "moduleOutput";
         case 337:
-            return "netSocketBinding";
+            return "modulePlatform";
         case 338:
-            return "netUdpBinding";
+            return "moduleRuntime";
         case 339:
-            return "networkCellularGeneration";
+            return "moduleStability";
         case 340:
-            return "networkConnectivityKind";
+            return "moduleTargetFamily";
         case 341:
-            return "networkInterfaceFlags";
+            return "addressLookupFlags";
         case 342:
-            return "networkPacketBackend";
+            return "dnsRecord";
         case 343:
-            return "networkPacketBackendFeatures";
+            return "dnsRecordType";
         case 344:
-            return "networkPacketFanoutMode";
+            return "ipAddress";
         case 345:
-            return "networkPacketTimestampClock";
+            return "multicastInterface";
         case 346:
-            return "networkRouteKind";
+            return "multicastOption";
         case 347:
-            return "networkWatchHandle";
+            return "multicastOptionValue";
         case 348:
-            return "packetHandle";
+            return "netConnectivityBinding";
         case 349:
-            return "reverseAddressLookupFlags";
+            return "netInterfaceBinding";
         case 350:
-            return "socketAcceptFlags";
+            return "netOptionsBinding";
         case 351:
-            return "socketAddress";
+            return "netRawBinding";
         case 352:
-            return "socketFlags";
+            return "netResolveBinding";
         case 353:
-            return "socketFamily";
+            return "netRouteBinding";
         case 354:
-            return "socketHandle";
+            return "netSocketBinding";
         case 355:
-            return "socketMessageFlags";
+            return "netUdpBinding";
         case 356:
-            return "socketOption";
+            return "networkCellularGeneration";
         case 357:
-            return "socketOptionValue";
+            return "networkConnectivityKind";
         case 358:
-            return "socketPacketTimestampMode";
+            return "networkInterfaceFlags";
         case 359:
-            return "socketProtocol";
+            return "networkPacketBackend";
         case 360:
-            return "socketShutdown";
+            return "networkPacketBackendFeatures";
         case 361:
-            return "socketType";
+            return "networkPacketFanoutMode";
         case 362:
-            return "unixAddress";
+            return "networkPacketTimestampClock";
         case 363:
-            return "connection";
+            return "networkRouteKind";
         case 364:
-            return "datagramSocket";
+            return "networkWatchHandle";
         case 365:
-            return "listener";
+            return "packetHandle";
         case 366:
-            return "netBinding";
+            return "reverseAddressLookupFlags";
         case 367:
-            return "and";
+            return "socketAcceptFlags";
         case 368:
-            return "not";
+            return "socketAddress";
         case 369:
-            return "or";
+            return "socketFlags";
         case 370:
-            return "xor";
+            return "socketFamily";
         case 371:
-            return "compare";
+            return "socketHandle";
         case 372:
-            return "ordering";
+            return "socketMessageFlags";
         case 373:
-            return "partialCompare";
+            return "socketOption";
         case 374:
-            return "dereference";
+            return "socketOptionValue";
         case 375:
-            return "divide";
+            return "socketPacketTimestampMode";
         case 376:
-            return "equal";
+            return "socketProtocol";
         case 377:
-            return "partialEqual";
+            return "socketShutdown";
         case 378:
-            return "strictEqual";
+            return "socketType";
         case 379:
-            return "debug";
+            return "unixAddress";
         case 380:
-            return "display";
+            return "connection";
         case 381:
-            return "toString";
+            return "datagramSocket";
         case 382:
-            return "hash";
+            return "listener";
         case 383:
-            return "hasher";
+            return "netBinding";
         case 384:
-            return "subtract";
+            return "and";
         case 385:
-            return "multiply";
+            return "not";
         case 386:
-            return "negate";
+            return "or";
         case 387:
-            return "add";
+            return "xor";
         case 388:
-            return "plus";
+            return "compare";
         case 389:
-            return "power";
+            return "ordering";
         case 390:
-            return "remainder";
+            return "partialCompare";
         case 391:
-            return "shiftLeft";
+            return "dereference";
         case 392:
-            return "shiftRight";
+            return "divide";
         case 393:
-            return "shiftRightUnsigned";
+            return "equal";
         case 394:
-            return "index";
+            return "partialEqual";
         case 395:
-            return "indexSet";
+            return "strictEqual";
         case 396:
-            return "break";
+            return "debug";
         case 397:
-            return "continue";
+            return "display";
         case 398:
-            return "fromResidual";
+            return "hash";
         case 399:
-            return "try";
+            return "hasher";
         case 400:
-            return "controlFlow";
+            return "subtract";
         case 401:
-            return "profileCounter";
+            return "multiply";
         case 402:
-            return "profileSampler";
+            return "negate";
         case 403:
-            return "profileUnit";
+            return "add";
         case 404:
-            return "randomEntropyBinding";
+            return "plus";
         case 405:
-            return "randomBinding";
+            return "power";
         case 406:
-            return "random";
+            return "remainder";
         case 407:
-            return "randomSeed";
+            return "shiftLeft";
         case 408:
-            return "bound";
+            return "shiftRight";
         case 409:
-            return "rangeBounds";
+            return "shiftRightUnsigned";
         case 410:
-            return "range";
+            return "index";
         case 411:
-            return "rangeFrom";
+            return "indexSet";
         case 412:
-            return "rangeFull";
+            return "break";
         case 413:
-            return "rangeInclusive";
+            return "continue";
         case 414:
-            return "rangeTo";
+            return "fromResidual";
         case 415:
-            return "rangeToInclusive";
+            return "try";
         case 416:
-            return "step";
+            return "controlFlow";
         case 417:
-            return "alignOf";
+            return "profileCounter";
         case 418:
-            return "sizeOf";
+            return "profileSampler";
         case 419:
-            return "strideOf";
+            return "profileCounterIncrement";
         case 420:
-            return "type";
+            return "profileSamplerSample";
         case 421:
-            return "regExp";
+            return "profileUnit";
         case 422:
-            return "regExpIndices";
+            return "randomEntropyBinding";
         case 423:
-            return "regExpMatch";
+            return "randomBinding";
         case 424:
-            return "regExpSpan";
+            return "random";
         case 425:
-            return "runtimeAction";
+            return "randomSeed";
         case 426:
-            return "action";
+            return "bound";
         case 427:
-            return "binding";
+            return "rangeBounds";
         case 428:
-            return "bindingProvider";
+            return "range";
         case 429:
-            return "hostAction";
+            return "rangeFrom";
         case 430:
-            return "hostBackendStatus";
+            return "rangeFull";
         case 431:
-            return "hostTag";
+            return "rangeInclusive";
         case 432:
-            return "platformFamilyTag";
+            return "rangeTo";
         case 433:
-            return "platformTag";
+            return "rangeToInclusive";
         case 434:
-            return "runtimeControlEvent";
+            return "step";
         case 435:
-            return "runtimeControlEventKind";
+            return "alignOf";
         case 436:
-            return "runtimeEdge";
+            return "sizeOf";
         case 437:
-            return "runtimeEdgeId";
+            return "strideOf";
         case 438:
-            return "runtimeEdgeKind";
+            return "type";
         case 439:
-            return "runtimeEdgeSelector";
+            return "regExp";
         case 440:
-            return "runtimeEntity";
+            return "regExpIndices";
         case 441:
-            return "runtimeEntityId";
+            return "regExpMatch";
         case 442:
-            return "runtimeEntityKind";
+            return "regExpSpan";
         case 443:
-            return "runtimeEntitySelector";
+            return "runtimeAction";
         case 444:
-            return "runtimeLabel";
+            return "action";
         case 445:
-            return "runtimeLabelSelector";
+            return "binding";
         case 446:
-            return "runtimeFrame";
+            return "bindingProvider";
         case 447:
-            return "runtimeFrameId";
+            return "hostAction";
         case 448:
-            return "runtimeFrameKind";
+            return "hostBackendStatus";
         case 449:
-            return "runtimeFrameSlot";
+            return "hostTag";
         case 450:
-            return "runtimeFrameSlotId";
+            return "platformFamilyTag";
         case 451:
-            return "runtimeFrameStateId";
+            return "platformTag";
         case 452:
-            return "runtimeFrameValue";
+            return "runtimeControlEvent";
         case 453:
-            return "runtimeHeapEdge";
+            return "runtimeControlEventKind";
         case 454:
-            return "runtimeHeapObject";
+            return "runtimeEdge";
         case 455:
-            return "runtimeHeapObjectId";
+            return "runtimeEdgeId";
         case 456:
-            return "runtimeHeapSummary";
+            return "runtimeEdgeKind";
         case 457:
-            return "runtimeEngineView";
+            return "runtimeEdgeSelector";
         case 458:
-            return "runtimeEngineViewKind";
+            return "runtimeEntity";
         case 459:
-            return "runtimeEventLoop";
+            return "runtimeEntityId";
         case 460:
-            return "runtimeBranch";
+            return "runtimeEntityKind";
         case 461:
-            return "runtimeBranchId";
+            return "runtimeEntitySelector";
         case 462:
-            return "runtimeCheckpoint";
+            return "runtimeLabel";
         case 463:
-            return "runtimeCheckpointId";
+            return "runtimeLabelSelector";
         case 464:
-            return "runtimeImage";
+            return "runtimeFrame";
         case 465:
-            return "runtimeImageId";
+            return "runtimeFrameId";
         case 466:
-            return "runtimeMoment";
+            return "runtimeFrameKind";
         case 467:
-            return "runtimeRevision";
+            return "runtimeFrameSlot";
         case 468:
-            return "runtimeRevisionId";
+            return "runtimeFrameSlotId";
         case 469:
-            return "runtimeTraceSequence";
+            return "runtimeFrameStateId";
         case 470:
-            return "runtimeObservationEventKind";
+            return "runtimeFrameValue";
         case 471:
-            return "runtimeObservationHandle";
+            return "runtimeHeapEdge";
         case 472:
-            return "runtimeObservationRecord";
+            return "runtimeHeapObject";
         case 473:
-            return "policyActionSelector";
+            return "runtimeHeapObjectId";
         case 474:
-            return "policyConditionSelector";
+            return "runtimeHeapSummary";
         case 475:
-            return "policyExecutionSelector";
+            return "runtimeEngineView";
         case 476:
-            return "policyIdentitySelector";
+            return "runtimeEngineViewKind";
         case 477:
-            return "policyDecision";
+            return "runtimeEventLoop";
         case 478:
-            return "policyQuery";
+            return "runtimeBranch";
         case 479:
-            return "policyRule";
+            return "runtimeBranchId";
         case 480:
-            return "policyRuleCursor";
+            return "runtimeCheckpoint";
         case 481:
-            return "policySubjectSelector";
+            return "runtimeCheckpointId";
         case 482:
-            return "policyTargetSelector";
+            return "runtimeImage";
         case 483:
-            return "runtimeRandomHandle";
+            return "runtimeImageId";
         case 484:
-            return "runtimeRandomSeed";
+            return "runtimeMoment";
         case 485:
-            return "runtimeResource";
+            return "runtimeRevision";
         case 486:
-            return "runtimeResourceId";
+            return "runtimeRevisionId";
         case 487:
-            return "runtimeResourceKind";
+            return "runtimeTraceSequence";
         case 488:
-            return "runtimeResourceState";
+            return "runtimeObservationEventKind";
         case 489:
-            return "runtimeTransferredHandle";
+            return "runtimeObservationHandle";
         case 490:
-            return "runtimeSnapshot";
+            return "runtimeObservationRecord";
         case 491:
-            return "runtimeSnapshotFormat";
+            return "policyActionSelector";
         case 492:
-            return "runtimeSnapshotId";
+            return "policyConditionSelector";
         case 493:
-            return "runtimeTrace";
+            return "policyExecutionSelector";
         case 494:
-            return "runtimeTraceCursorHandle";
+            return "policyIdentitySelector";
         case 495:
-            return "runtimeTraceEventKind";
+            return "policyDecision";
         case 496:
-            return "runtimeTraceRecord";
+            return "policyQuery";
         case 497:
-            return "runtimeEngine";
+            return "policyRule";
         case 498:
-            return "runtimeExecution";
+            return "policyRuleCursor";
         case 499:
-            return "runtime";
+            return "policySubjectSelector";
         case 500:
-            return "runtimeHandle";
+            return "policyTargetSelector";
         case 501:
-            return "runtimeId";
+            return "runtimeRandomHandle";
         case 502:
-            return "runtimeTickResult";
+            return "runtimeRandomSeed";
         case 503:
-            return "runtimeWorker";
+            return "runtimeResource";
         case 504:
-            return "runtimeWorkerExecutor";
+            return "runtimeResourceId";
         case 505:
-            return "runtimeWorkerHandle";
+            return "runtimeResourceKind";
         case 506:
-            return "runtimeWorkerId";
+            return "runtimeResourceState";
         case 507:
-            return "world";
+            return "runtimeTransferredHandle";
         case 508:
-            return "worldHandle";
+            return "runtimeSnapshot";
         case 509:
-            return "worldViewHandle";
+            return "runtimeSnapshotFormat";
         case 510:
-            return "deserialize";
+            return "runtimeSnapshotId";
         case 511:
-            return "deserializer";
+            return "runtimeTrace";
         case 512:
-            return "serialize";
+            return "runtimeTraceCursorHandle";
         case 513:
-            return "serializer";
+            return "runtimeTraceEventKind";
         case 514:
-            return "stream";
+            return "runtimeTraceRecord";
         case 515:
-            return "stringBuilder";
+            return "runtimeEngine";
         case 516:
-            return "cStringSlice";
+            return "runtimeExecution";
         case 517:
-            return "cString";
+            return "runtime";
         case 518:
-            return "cStringError";
+            return "runtimeHandle";
         case 519:
-            return "cStringIntoStringError";
+            return "runtimeId";
         case 520:
-            return "interiorNulError";
+            return "runtimeTickResult";
         case 521:
-            return "missingNulError";
+            return "runtimeWorker";
         case 522:
-            return "osStringSlice";
+            return "runtimeWorkerExecutor";
         case 523:
-            return "osString";
+            return "runtimeWorkerHandle";
         case 524:
-            return "osStringBuilder";
+            return "runtimeWorkerId";
         case 525:
-            return "osStringDecodeError";
+            return "world";
         case 526:
-            return "osStringIntoStringError";
+            return "worldHandle";
         case 527:
-            return "stringSlice";
+            return "worldViewHandle";
         case 528:
-            return "string";
+            return "deserialize";
         case 529:
-            return "utf8DecodeError";
+            return "deserializer";
         case 530:
-            return "atomicScope";
+            return "serialize";
         case 531:
-            return "atomic";
+            return "serializer";
         case 532:
-            return "atomicSafe";
+            return "stream";
         case 533:
-            return "atomicWaitResult";
+            return "stringBuilder";
         case 534:
-            return "memoryOrdering";
+            return "stringFromTemplate";
         case 535:
-            return "memoryRegionSet";
+            return "cStringSlice";
         case 536:
-            return "memoryScope";
+            return "cString";
         case 537:
-            return "barrier";
+            return "cStringError";
         case 538:
-            return "condvar";
+            return "cStringIntoStringError";
         case 539:
-            return "mutex";
+            return "interiorNulError";
         case 540:
-            return "once";
+            return "missingNulError";
         case 541:
-            return "onceCell";
+            return "osStringSlice";
         case 542:
-            return "reader";
+            return "osString";
         case 543:
-            return "rwLock";
+            return "osStringBuilder";
         case 544:
-            return "seekFrom";
+            return "osStringDecodeError";
         case 545:
-            return "seeker";
+            return "osStringIntoStringError";
         case 546:
-            return "semaphore";
+            return "stringSlice";
         case 547:
-            return "writer";
+            return "string";
         case 548:
-            return "telemetryBinding";
+            return "utf8DecodeError";
         case 549:
-            return "fieldValue";
+            return "atomicScope";
         case 550:
-            return "fields";
+            return "atomic";
         case 551:
-            return "logger";
+            return "atomicSafe";
         case 552:
-            return "telemetryCounter";
+            return "atomicWaitResult";
         case 553:
-            return "gauge";
+            return "memoryOrdering";
         case 554:
-            return "histogram";
+            return "memoryRegionSet";
         case 555:
-            return "meter";
+            return "memoryScope";
         case 556:
-            return "metricSink";
+            return "barrier";
         case 557:
-            return "upDownCounter";
+            return "condvar";
         case 558:
-            return "instrumentKind";
+            return "mutex";
         case 559:
-            return "logEntry";
+            return "once";
         case 560:
-            return "telemetryLevel";
+            return "onceCell";
         case 561:
-            return "metricEntry";
+            return "reader";
         case 562:
-            return "spanContext";
+            return "rwLock";
         case 563:
-            return "spanId";
+            return "seekFrom";
         case 564:
-            return "spanKind";
+            return "seeker";
         case 565:
-            return "spanOptions";
+            return "semaphore";
         case 566:
-            return "spanStatus";
+            return "writer";
         case 567:
-            return "traceEntry";
+            return "telemetryBinding";
         case 568:
-            return "telemetryTraceEventKind";
+            return "fieldValue";
         case 569:
-            return "traceId";
+            return "fields";
         case 570:
-            return "span";
+            return "logger";
         case 571:
-            return "traceSink";
+            return "telemetryCounter";
         case 572:
-            return "tracer";
+            return "gauge";
         case 573:
-            return "testArtifactId";
+            return "histogram";
         case 574:
-            return "testArtifactKind";
+            return "meter";
         case 575:
-            return "testArtifact";
+            return "metricSink";
         case 576:
-            return "test";
+            return "upDownCounter";
         case 577:
-            return "parameterizedTest";
+            return "instrumentKind";
         case 578:
-            return "tableTest";
+            return "logEntry";
         case 579:
-            return "registeredCase";
+            return "telemetryLevel";
         case 580:
-            return "testOutput";
+            return "metricEntry";
         case 581:
-            return "testContext";
+            return "spanContext";
         case 582:
-            return "testCaseContext";
+            return "spanId";
         case 583:
-            return "testSuiteContext";
+            return "spanKind";
         case 584:
-            return "testExpect";
+            return "spanOptions";
         case 585:
-            return "expectation";
+            return "spanStatus";
         case 586:
-            return "panicExpectation";
+            return "traceEntry";
         case 587:
-            return "fixtureContext";
+            return "telemetryTraceEventKind";
         case 588:
-            return "testBeforeAll";
+            return "traceId";
         case 589:
-            return "testAfterAll";
+            return "span";
         case 590:
-            return "testAroundAll";
+            return "traceSink";
         case 591:
-            return "testBeforeEach";
+            return "tracer";
         case 592:
-            return "testAfterEach";
+            return "testArtifactId";
         case 593:
-            return "testAroundEach";
+            return "testArtifactKind";
         case 594:
-            return "testCaseId";
+            return "testArtifact";
         case 595:
-            return "testSuiteId";
+            return "test";
         case 596:
-            return "testRunId";
+            return "parameterizedTest";
         case 597:
-            return "testIssueKind";
+            return "tableTest";
         case 598:
-            return "testIssue";
+            return "registeredCase";
         case 599:
-            return "testCaseKind";
+            return "testOutput";
         case 600:
-            return "testIsolation";
+            return "testContext";
         case 601:
-            return "testOptions";
+            return "testCaseContext";
         case 602:
-            return "pollingExpectation";
+            return "testSuiteContext";
         case 603:
-            return "testReplayId";
+            return "testExpect";
         case 604:
-            return "testReplayKind";
+            return "expectation";
         case 605:
-            return "testReplayInput";
+            return "panicExpectation";
         case 606:
-            return "testReplay";
+            return "fixtureContext";
         case 607:
-            return "testOutcome";
+            return "testBeforeAll";
         case 608:
-            return "testRun";
+            return "testAfterAll";
         case 609:
-            return "snapshotMode";
+            return "testAroundAll";
         case 610:
-            return "snapshotOptions";
+            return "testBeforeEach";
         case 611:
-            return "snapshot";
+            return "testAfterEach";
         case 612:
-            return "snapshotChange";
+            return "testAroundEach";
         case 613:
-            return "testSuite";
+            return "testCaseId";
         case 614:
-            return "parameterizedSuite";
+            return "testSuiteId";
         case 615:
-            return "tableSuite";
+            return "testRunId";
         case 616:
-            return "registeredSuite";
+            return "testIssueKind";
         case 617:
-            return "timeClock";
+            return "testIssue";
         case 618:
-            return "timeClockBinding";
+            return "testCaseKind";
         case 619:
-            return "timeBindingDuration";
+            return "testIsolation";
         case 620:
-            return "timeBinding";
+            return "testOptions";
         case 621:
-            return "timeTimestamp";
+            return "pollingExpectation";
         case 622:
-            return "timeTimerHandle";
+            return "testReplayId";
         case 623:
-            return "timeTimerBinding";
+            return "testReplayKind";
         case 624:
-            return "timeTimerMode";
+            return "testReplayInput";
         case 625:
-            return "duration";
+            return "testReplay";
         case 626:
-            return "instant";
+            return "testOutcome";
         case 627:
-            return "plainDate";
+            return "testRun";
         case 628:
-            return "plainDateTime";
+            return "snapshotMode";
         case 629:
-            return "plainMonthDay";
+            return "snapshotOptions";
         case 630:
-            return "plainTime";
+            return "snapshot";
         case 631:
-            return "plainYearMonth";
+            return "snapshotChange";
         case 632:
-            return "zonedDateTime";
+            return "testSuite";
         case 633:
-            return "topologyEdgeBinding";
+            return "parameterizedSuite";
         case 634:
-            return "topologyEntityBinding";
+            return "tableSuite";
         case 635:
-            return "topologyBinding";
+            return "registeredSuite";
         case 636:
-            return "topologyEdgeDecorator";
+            return "timeClock";
         case 637:
-            return "topologyEntityDecorator";
+            return "timeClockBinding";
         case 638:
-            return "topologyDirection";
+            return "timeBindingDuration";
         case 639:
-            return "topologyEdge";
+            return "timeBinding";
         case 640:
-            return "topologyEdgeId";
+            return "timeTimestamp";
         case 641:
-            return "topologyEdgeKind";
+            return "timeTimerHandle";
         case 642:
-            return "topologyEdgeKindRecord";
+            return "timeTimerBinding";
         case 643:
-            return "topologyEdgeRecord";
+            return "timeTimerMode";
         case 644:
-            return "topologyEdgeSelector";
+            return "duration";
         case 645:
-            return "topologyEntity";
+            return "timeError";
         case 646:
-            return "topologyEntityId";
+            return "instant";
         case 647:
-            return "topologyEntityKind";
+            return "plainDate";
         case 648:
-            return "topologyEntityKindRecord";
+            return "plainDateTime";
         case 649:
-            return "topologyEntityRecord";
+            return "plainMonthDay";
         case 650:
-            return "topologyEntitySelector";
+            return "plainTime";
         case 651:
-            return "topologyLabelSelector";
+            return "plainYearMonth";
         case 652:
-            return "topologyLabelSet";
+            return "zonedDateTime";
         case 653:
-            return "topologyEdgeRef";
+            return "topologyEdgeBinding";
         case 654:
-            return "topologyEntityRef";
+            return "topologyEntityBinding";
         case 655:
-            return "topologyRecord";
+            return "topologyBinding";
         case 656:
-            return "topology";
+            return "topologyEdgeDecorator";
         case 657:
-            return "treeBuilder";
+            return "topologyEntityDecorator";
         case 658:
-            return "constructorParameters";
+            return "topologyDirection";
         case 659:
-            return "function";
+            return "topologyEdge";
         case 660:
-            return "functionPointer";
+            return "topologyEdgeId";
         case 661:
-            return "instanceType";
+            return "topologyEdgeKind";
         case 662:
-            return "omitThisParameter";
+            return "topologyEdgeKindRecord";
         case 663:
-            return "parameters";
+            return "topologyEdgeRecord";
         case 664:
-            return "returnType";
+            return "topologyEdgeSelector";
         case 665:
-            return "thisParameterType";
+            return "topologyEntity";
         case 666:
-            return "awaited";
+            return "topologyEntityId";
         case 667:
-            return "exclude";
+            return "topologyEntityKind";
         case 668:
-            return "extract";
+            return "topologyEntityKindRecord";
         case 669:
-            return "nonNullable";
+            return "topologyEntityRecord";
         case 670:
-            return "noInfer";
+            return "topologyEntitySelector";
         case 671:
-            return "omit";
+            return "topologyLabelSelector";
         case 672:
-            return "partial";
+            return "topologyLabelSet";
         case 673:
-            return "pick";
+            return "topologyEdgeRef";
         case 674:
-            return "propertyKey";
+            return "topologyEntityRef";
         case 675:
-            return "readonly";
+            return "topologyRecord";
         case 676:
-            return "record";
+            return "topology";
         case 677:
-            return "required";
+            return "treeBuilder";
         case 678:
-            return "thisType";
+            return "constructorParameters";
         case 679:
-            return "capitalize";
+            return "function";
         case 680:
-            return "lowercase";
+            return "functionPointer";
         case 681:
-            return "uncapitalize";
+            return "instanceType";
         case 682:
-            return "uppercase";
+            return "omitThisParameter";
         case 683:
-            return "worker";
+            return "parameters";
         case 684:
-            return "workerPool";
+            return "returnType";
         case 685:
-            return "workerExit";
+            return "thisParameterType";
         case 686:
+            return "awaited";
+        case 687:
+            return "exclude";
+        case 688:
+            return "extract";
+        case 689:
+            return "nonNullable";
+        case 690:
+            return "noInfer";
+        case 691:
+            return "omit";
+        case 692:
+            return "partial";
+        case 693:
+            return "pick";
+        case 694:
+            return "propertyKey";
+        case 695:
+            return "readonly";
+        case 696:
+            return "record";
+        case 697:
+            return "required";
+        case 698:
+            return "thisType";
+        case 699:
+            return "capitalize";
+        case 700:
+            return "lowercase";
+        case 701:
+            return "uncapitalize";
+        case 702:
+            return "uppercase";
+        case 703:
+            return "worker";
+        case 704:
+            return "workerPool";
+        case 705:
+            return "workerExit";
+        case 706:
             return "workerError";
     }
 
@@ -3510,6 +3610,10 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "generator";
         case "generatorResult":
             return "generatorResult";
+        case "generatorNext":
+            return "generatorNext";
+        case "generatorReturn":
+            return "generatorReturn";
         case "generatorCreate":
             return "generatorCreate";
         case "generatorYield":
@@ -3594,8 +3698,8 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "fixedArray";
         case "readonlyArray":
             return "readonlyArray";
-        case "arrayFromSlice":
-            return "arrayFromSlice";
+        case "arrayFromOwnedSlice":
+            return "arrayFromOwnedSlice";
         case "concurrentMap":
             return "concurrentMap";
         case "concurrentQueue":
@@ -3762,6 +3866,10 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "unsafe";
         case "error":
             return "error";
+        case "rangeError":
+            return "rangeError";
+        case "typeError":
+            return "typeError";
         case "hostErrorCode":
             return "hostErrorCode";
         case "hostError":
@@ -3930,6 +4038,34 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "iteratorReturn";
         case "iteratorYield":
             return "iteratorYield";
+        case "intlCollator":
+            return "intlCollator";
+        case "intlDateTimeFormat":
+            return "intlDateTimeFormat";
+        case "intlDisplayNames":
+            return "intlDisplayNames";
+        case "intlDurationFormat":
+            return "intlDurationFormat";
+        case "intlError":
+            return "intlError";
+        case "intlToLocaleString":
+            return "intlToLocaleString";
+        case "intlListFormat":
+            return "intlListFormat";
+        case "intlLocale":
+            return "intlLocale";
+        case "intlNumberFormat":
+            return "intlNumberFormat";
+        case "intlPluralRules":
+            return "intlPluralRules";
+        case "intlRelativeTimeFormat":
+            return "intlRelativeTimeFormat";
+        case "intlSegments":
+            return "intlSegments";
+        case "intlSegmentIterator":
+            return "intlSegmentIterator";
+        case "intlSegmenter":
+            return "intlSegmenter";
         case "jsonSerializer":
             return "jsonSerializer";
         case "jsonDeserializer":
@@ -4096,8 +4232,6 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "pin";
         case "place":
             return "place";
-        case "placed":
-            return "placed";
         case "space":
             return "space";
         case "raw":
@@ -4252,8 +4386,6 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "debug";
         case "display":
             return "display";
-        case "toString":
-            return "toString";
         case "hash":
             return "hash";
         case "hasher":
@@ -4296,6 +4428,10 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "profileCounter";
         case "profileSampler":
             return "profileSampler";
+        case "profileCounterIncrement":
+            return "profileCounterIncrement";
+        case "profileSamplerSample":
+            return "profileSamplerSample";
         case "profileUnit":
             return "profileUnit";
         case "randomEntropyBinding":
@@ -4522,6 +4658,8 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "stream";
         case "stringBuilder":
             return "stringBuilder";
+        case "stringFromTemplate":
+            return "stringFromTemplate";
         case "cStringSlice":
             return "cStringSlice";
         case "cString":
@@ -4742,6 +4880,8 @@ export function fromJsonLanguageItem(value: Json): LanguageItem {
             return "timeTimerMode";
         case "duration":
             return "duration";
+        case "timeError":
+            return "timeError";
         case "instant":
             return "instant";
         case "plainDate":

@@ -454,7 +454,6 @@ export type Expression =
           readonly kind: "forEach";
           readonly label?: StringId;
           readonly asynchrony: Asynchrony;
-          readonly operator: ForEachOperator;
           readonly binding: ForEachBinding;
           readonly iterator: LocalNodeId;
           readonly body: LocalNodeId;
@@ -797,8 +796,8 @@ export const Expression = {
     },
 
     /** A ForEach is a for loop over an iterator with a binding. */
-    forEach(label: StringId | undefined, asynchrony: Asynchrony, operator: ForEachOperator, binding: ForEachBinding, iterator: LocalNodeId, body: LocalNodeId): Expression {
-        return { kind: "forEach", label, asynchrony, operator, binding, iterator, body };
+    forEach(label: StringId | undefined, asynchrony: Asynchrony, binding: ForEachBinding, iterator: LocalNodeId, body: LocalNodeId): Expression {
+        return { kind: "forEach", label, asynchrony, binding, iterator, body };
     },
 
     /** A For is a for loop with the traditional three-part (initialization, condition, increment). */
@@ -1163,7 +1162,6 @@ export function encodeExpression(writer: BinaryWriter, value: Expression): void 
                 encodeStringId(writer, value0);
             });
             encodeAsynchrony(writer, value.asynchrony);
-            encodeForEachOperator(writer, value.operator);
             encodeForEachBinding(writer, value.binding);
             encodeLocalNodeId(writer, value.iterator);
             encodeLocalNodeId(writer, value.body);
@@ -1609,7 +1607,6 @@ export function decodeExpression(reader: BinaryReader): Expression {
         case 9: {
             const label = reader.readOption(() => decodeStringId(reader));
             const asynchrony = decodeAsynchrony(reader);
-            const operator = decodeForEachOperator(reader);
             const binding = decodeForEachBinding(reader);
             const iterator = decodeLocalNodeId(reader);
             const body = decodeLocalNodeId(reader);
@@ -1618,7 +1615,6 @@ export function decodeExpression(reader: BinaryReader): Expression {
                 kind: "forEach",
                 ...(label === undefined ? {} : { label }),
                 asynchrony,
-                operator,
                 binding,
                 iterator,
                 body,
@@ -2147,7 +2143,6 @@ export function toJsonExpression(value: Expression): Json {
                 kind: "forEach",
                 ...(value.label === undefined ? {} : { label: toJsonStringId(value.label) }),
                 asynchrony: toJsonAsynchrony(value.asynchrony),
-                operator: toJsonForEachOperator(value.operator),
                 binding: toJsonForEachBinding(value.binding),
                 iterator: toJsonLocalNodeId(value.iterator),
                 body: toJsonLocalNodeId(value.body),
@@ -2517,7 +2512,6 @@ export function fromJsonExpression(value: Json): Expression {
                 kind,
                 label: jsonOptional(object, "label", (value) => fromJsonStringId(value)),
                 asynchrony: fromJsonAsynchrony(jsonField(object, "asynchrony")),
-                operator: fromJsonForEachOperator(jsonField(object, "operator")),
                 binding: fromJsonForEachBinding(jsonField(object, "binding")),
                 iterator: fromJsonLocalNodeId(jsonField(object, "iterator")),
                 body: fromJsonLocalNodeId(jsonField(object, "body")),
@@ -2949,78 +2943,6 @@ export function fromJsonForEachBinding(value: Json): ForEachBinding {
     }
 
     throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
-/** The kind of a for each expression. */
-export type ForEachOperator = "of" | "in";
-
-export const ForEachOperator = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: ForEachOperator): void {
-        encodeForEachOperator(writer, value);
-    },
-
-    /** Decode one ForEachOperator. */
-    decode(reader: BinaryReader): ForEachOperator {
-        return decodeForEachOperator(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: ForEachOperator): Json {
-        return toJsonForEachOperator(value);
-    },
-
-    /** Return one ForEachOperator from one JSON value. */
-    fromJson(value: Json): ForEachOperator {
-        return fromJsonForEachOperator(value);
-    },
-};
-
-/** Encode one ForEachOperator. */
-export function encodeForEachOperator(writer: BinaryWriter, value: ForEachOperator): void {
-    switch (value) {
-        case "of":
-            writer.writeUnsigned(0);
-            return;
-        case "in":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one ForEachOperator. */
-export function decodeForEachOperator(reader: BinaryReader): ForEachOperator {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "of";
-        case 1:
-            return "in";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one ForEachOperator. */
-export function toJsonForEachOperator(value: ForEachOperator): Json {
-    return value;
-}
-
-/** Return one ForEachOperator from one JSON value. */
-export function fromJsonForEachOperator(value: Json): ForEachOperator {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "of":
-            return "of";
-        case "in":
-            return "in";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** The style of if expression. */

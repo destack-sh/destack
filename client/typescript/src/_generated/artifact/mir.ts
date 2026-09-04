@@ -12,6 +12,7 @@ import type { LanguageTable } from "../mir/table/language.js";
 import type { LayoutTable } from "../mir/table/layout.js";
 import type { ProfileTable } from "../mir/table/profile.js";
 import type { RetentionTable } from "../mir/table/retention.js";
+import type { SafepointTable } from "../mir/table/safepoint.js";
 import type { TargetLayout } from "../mir/table/target.js";
 import type { LocalNodeId } from "../mir/tree/node.js";
 import type { Symbol } from "../mir/tree/symbol.js";
@@ -27,6 +28,7 @@ import { decodeLanguageTable, encodeLanguageTable, fromJsonLanguageTable, toJson
 import { decodeLayoutTable, encodeLayoutTable, fromJsonLayoutTable, toJsonLayoutTable } from "../mir/table/layout.js";
 import { decodeProfileTable, encodeProfileTable, fromJsonProfileTable, toJsonProfileTable } from "../mir/table/profile.js";
 import { decodeRetentionTable, encodeRetentionTable, fromJsonRetentionTable, toJsonRetentionTable } from "../mir/table/retention.js";
+import { decodeSafepointTable, encodeSafepointTable, fromJsonSafepointTable, toJsonSafepointTable } from "../mir/table/safepoint.js";
 import { decodeTargetLayout, encodeTargetLayout, fromJsonTargetLayout, toJsonTargetLayout } from "../mir/table/target.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "../mir/tree/node.js";
 import { decodeSymbol, encodeSymbol, fromJsonSymbol, toJsonSymbol } from "../mir/tree/symbol.js";
@@ -396,6 +398,8 @@ export function fromJsonMirOptimized(value: Json): MirOptimized {
 export type MirVerified = {
     /** Ownership retention required by drop elaboration. */
     readonly retention: RetentionTable;
+    /** The safepoints elaboration pins and polls at. */
+    readonly safepoints: SafepointTable;
 };
 
 export const MirVerified = {
@@ -423,14 +427,17 @@ export const MirVerified = {
 /** Encode one MirVerified. */
 export function encodeMirVerified(writer: BinaryWriter, value: MirVerified): void {
     encodeRetentionTable(writer, value.retention);
+    encodeSafepointTable(writer, value.safepoints);
 }
 
 /** Decode one MirVerified. */
 export function decodeMirVerified(reader: BinaryReader): MirVerified {
     const retention = decodeRetentionTable(reader);
+    const safepoints = decodeSafepointTable(reader);
 
     return {
         retention,
+        safepoints,
     };
 }
 
@@ -438,6 +445,7 @@ export function decodeMirVerified(reader: BinaryReader): MirVerified {
 export function toJsonMirVerified(value: MirVerified): Json {
     return {
         retention: toJsonRetentionTable(value.retention),
+        safepoints: toJsonSafepointTable(value.safepoints),
     };
 }
 
@@ -447,6 +455,7 @@ export function fromJsonMirVerified(value: Json): MirVerified {
 
     return {
         retention: fromJsonRetentionTable(jsonField(object, "retention")),
+        safepoints: fromJsonSafepointTable(jsonField(object, "safepoints")),
     };
 }
 

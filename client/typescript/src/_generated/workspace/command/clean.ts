@@ -44,12 +44,6 @@ export type CleanInput = {
     readonly trace?: TraceView;
     /** Optional directory override. */
     readonly dir?: string;
-    /** Remove build output directories. */
-    readonly dist: boolean;
-    /** Remove cache directories. */
-    readonly cache: boolean;
-    /** Remove all build outputs and caches. */
-    readonly all: boolean;
     /** Clean all packages in the workspace. */
     readonly allPackages: boolean;
 };
@@ -115,9 +109,6 @@ export function encodeCleanInput(writer: BinaryWriter, value: CleanInput): void 
     writer.writeOption(value.dir, (value13) => {
         writer.writeString(value13);
     });
-    writer.writeBool(value.dist);
-    writer.writeBool(value.cache);
-    writer.writeBool(value.all);
     writer.writeBool(value.allPackages);
 }
 
@@ -137,9 +128,6 @@ export function decodeCleanInput(reader: BinaryReader): CleanInput {
     const dryRun = reader.readBool();
     const trace = reader.readOption(() => decodeTraceView(reader));
     const dir = reader.readOption(() => reader.readString());
-    const dist = reader.readBool();
-    const cache = reader.readBool();
-    const all = reader.readBool();
     const allPackages = reader.readBool();
 
     return {
@@ -157,9 +145,6 @@ export function decodeCleanInput(reader: BinaryReader): CleanInput {
         dryRun,
         ...(trace === undefined ? {} : { trace }),
         ...(dir === undefined ? {} : { dir }),
-        dist,
-        cache,
-        all,
         allPackages,
     };
 }
@@ -181,9 +166,6 @@ export function toJsonCleanInput(value: CleanInput): Json {
         dryRun: value.dryRun,
         ...(value.trace === undefined ? {} : { trace: toJsonTraceView(value.trace) }),
         ...(value.dir === undefined ? {} : { dir: value.dir }),
-        dist: value.dist,
-        cache: value.cache,
-        all: value.all,
         allPackages: value.allPackages,
     };
 }
@@ -207,9 +189,6 @@ export function fromJsonCleanInput(value: Json): CleanInput {
         dryRun: jsonBool(jsonField(object, "dryRun")),
         trace: jsonOptional(object, "trace", (value) => fromJsonTraceView(value)),
         dir: jsonOptional(object, "dir", (value) => jsonString(value)),
-        dist: jsonBool(jsonField(object, "dist")),
-        cache: jsonBool(jsonField(object, "cache")),
-        all: jsonBool(jsonField(object, "all")),
         allPackages: jsonBool(jsonField(object, "allPackages")),
     };
 }

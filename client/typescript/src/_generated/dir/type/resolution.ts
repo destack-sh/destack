@@ -3287,6 +3287,74 @@ export function fromJsonNameResolution(value: Json): NameResolution {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
+/** The union members one flow narrowing leaves live at a read. */
+export type Narrowing = {
+    /** The declared union the read narrows. */
+    readonly union: GlobalTypeId;
+    /** The canonical members the flow keeps, in the union's order. */
+    readonly arms: ReadonlyArray<GlobalTypeId>;
+};
+
+export const Narrowing = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Narrowing): void {
+        encodeNarrowing(writer, value);
+    },
+
+    /** Decode one Narrowing. */
+    decode(reader: BinaryReader): Narrowing {
+        return decodeNarrowing(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Narrowing): Json {
+        return toJsonNarrowing(value);
+    },
+
+    /** Return one Narrowing from one JSON value. */
+    fromJson(value: Json): Narrowing {
+        return fromJsonNarrowing(value);
+    },
+};
+
+/** Encode one Narrowing. */
+export function encodeNarrowing(writer: BinaryWriter, value: Narrowing): void {
+    encodeGlobalTypeId(writer, value.union);
+    writer.writeUnsigned(value.arms.length);
+    for (const item1 of value.arms) {
+        encodeGlobalTypeId(writer, item1);
+    }
+}
+
+/** Decode one Narrowing. */
+export function decodeNarrowing(reader: BinaryReader): Narrowing {
+    const union = decodeGlobalTypeId(reader);
+    const arms = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalTypeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalTypeId(reader)); } return items1; })();
+
+    return {
+        union,
+        arms,
+    };
+}
+
+/** Return one JSON value for one Narrowing. */
+export function toJsonNarrowing(value: Narrowing): Json {
+    return {
+        union: toJsonGlobalTypeId(value.union),
+        arms: value.arms.map((item0) => toJsonGlobalTypeId(item0)),
+    };
+}
+
+/** Return one Narrowing from one JSON value. */
+export function fromJsonNarrowing(value: Json): Narrowing {
+    const object = jsonObject(value);
+
+    return {
+        union: fromJsonGlobalTypeId(jsonField(object, "union")),
+        arms: jsonArray(jsonField(object, "arms")).map((item0) => fromJsonGlobalTypeId(item0)),
+    };
+}
+
 /** One operation or the operations selected for every runtime union arm. */
 export type OperationResolution =
     /** One statically selected operation. */

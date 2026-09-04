@@ -154,7 +154,7 @@ export type ConditionalType = {
     readonly right: GlobalTypeId;
     /** The type selected when the condition holds. */
     readonly thenType: GlobalTypeId;
-    /** The type selected when the condition does not hold. */
+    /** The type selected when the condition fails. */
     readonly elseType: GlobalTypeId;
     /** Whether the conditional distributes over union-valued left operands. */
     readonly isDistributive: boolean;
@@ -728,8 +728,8 @@ export function fromJsonFunctionSignatureId(value: Json): FunctionSignatureId {
 export type FunctionType = {
     /** The function signature. */
     readonly signature: GlobalTypeId;
-    /** The permitted number of invocations. */
-    readonly multiplicity: Multiplicity;
+    /** The mode a call takes the callable in, a receiver mode literal or an open access term. */
+    readonly receiver: GlobalTypeId;
     /** The place of the captured environment. */
     readonly place: GlobalTypeId;
 };
@@ -759,19 +759,19 @@ export const FunctionType = {
 /** Encode one FunctionType. */
 export function encodeFunctionType(writer: BinaryWriter, value: FunctionType): void {
     encodeGlobalTypeId(writer, value.signature);
-    encodeMultiplicity(writer, value.multiplicity);
+    encodeGlobalTypeId(writer, value.receiver);
     encodeGlobalTypeId(writer, value.place);
 }
 
 /** Decode one FunctionType. */
 export function decodeFunctionType(reader: BinaryReader): FunctionType {
     const signature = decodeGlobalTypeId(reader);
-    const multiplicity = decodeMultiplicity(reader);
+    const receiver = decodeGlobalTypeId(reader);
     const place = decodeGlobalTypeId(reader);
 
     return {
         signature,
-        multiplicity,
+        receiver,
         place,
     };
 }
@@ -780,7 +780,7 @@ export function decodeFunctionType(reader: BinaryReader): FunctionType {
 export function toJsonFunctionType(value: FunctionType): Json {
     return {
         signature: toJsonGlobalTypeId(value.signature),
-        multiplicity: toJsonMultiplicity(value.multiplicity),
+        receiver: toJsonGlobalTypeId(value.receiver),
         place: toJsonGlobalTypeId(value.place),
     };
 }
@@ -791,7 +791,7 @@ export function fromJsonFunctionType(value: Json): FunctionType {
 
     return {
         signature: fromJsonGlobalTypeId(jsonField(object, "signature")),
-        multiplicity: fromJsonMultiplicity(jsonField(object, "multiplicity")),
+        receiver: fromJsonGlobalTypeId(jsonField(object, "receiver")),
         place: fromJsonGlobalTypeId(jsonField(object, "place")),
     };
 }
@@ -924,51 +924,6 @@ export function fromJsonGlobalTypeId(value: Json): GlobalTypeId {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
         localId: fromJsonLocalTypeId(jsonField(object, "localId")),
     };
-}
-
-/** One canonical hole number, assigned in first-visit order. */
-export type HoleIndex = number;
-
-export const HoleIndex = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: HoleIndex): void {
-        encodeHoleIndex(writer, value);
-    },
-
-    /** Decode one HoleIndex. */
-    decode(reader: BinaryReader): HoleIndex {
-        return decodeHoleIndex(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: HoleIndex): Json {
-        return toJsonHoleIndex(value);
-    },
-
-    /** Return one HoleIndex from one JSON value. */
-    fromJson(value: Json): HoleIndex {
-        return fromJsonHoleIndex(value);
-    },
-};
-
-/** Encode one HoleIndex. */
-export function encodeHoleIndex(writer: BinaryWriter, value: HoleIndex): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one HoleIndex. */
-export function decodeHoleIndex(reader: BinaryReader): HoleIndex {
-    return reader.readNumber();
-}
-
-/** Return one JSON value for one HoleIndex. */
-export function toJsonHoleIndex(value: HoleIndex): Json {
-    return value;
-}
-
-/** Return one HoleIndex from one JSON value. */
-export function fromJsonHoleIndex(value: Json): HoleIndex {
-    return jsonInteger(value);
 }
 
 /** Indexed access type. */
@@ -1489,78 +1444,6 @@ export function fromJsonMemberTypeId(value: Json): MemberTypeId {
     return jsonInteger(value);
 }
 
-/** Permitted invocation count for a callable value. */
-export type Multiplicity = "repeatable" | "once";
-
-export const Multiplicity = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: Multiplicity): void {
-        encodeMultiplicity(writer, value);
-    },
-
-    /** Decode one Multiplicity. */
-    decode(reader: BinaryReader): Multiplicity {
-        return decodeMultiplicity(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: Multiplicity): Json {
-        return toJsonMultiplicity(value);
-    },
-
-    /** Return one Multiplicity from one JSON value. */
-    fromJson(value: Json): Multiplicity {
-        return fromJsonMultiplicity(value);
-    },
-};
-
-/** Encode one Multiplicity. */
-export function encodeMultiplicity(writer: BinaryWriter, value: Multiplicity): void {
-    switch (value) {
-        case "repeatable":
-            writer.writeUnsigned(0);
-            return;
-        case "once":
-            writer.writeUnsigned(1);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one Multiplicity. */
-export function decodeMultiplicity(reader: BinaryReader): Multiplicity {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "repeatable";
-        case 1:
-            return "once";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one Multiplicity. */
-export function toJsonMultiplicity(value: Multiplicity): Json {
-    return value;
-}
-
-/** Return one Multiplicity from one JSON value. */
-export function fromJsonMultiplicity(value: Json): Multiplicity {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "repeatable":
-            return "repeatable";
-        case "once":
-            return "once";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
-}
-
 /** A runtime guard narrowing applied to one source type. */
 export type NarrowType = {
     /** The source type being narrowed. */
@@ -2057,51 +1940,6 @@ export function fromJsonRegionType(value: Json): RegionType {
         extent: fromJsonGlobalTypeId(jsonField(object, "extent")),
         space: fromJsonGlobalTypeId(jsonField(object, "space")),
     };
-}
-
-/** One canonical rigid-parameter number, assigned in first-visit order. */
-export type RigidIndex = number;
-
-export const RigidIndex = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: RigidIndex): void {
-        encodeRigidIndex(writer, value);
-    },
-
-    /** Decode one RigidIndex. */
-    decode(reader: BinaryReader): RigidIndex {
-        return decodeRigidIndex(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: RigidIndex): Json {
-        return toJsonRigidIndex(value);
-    },
-
-    /** Return one RigidIndex from one JSON value. */
-    fromJson(value: Json): RigidIndex {
-        return fromJsonRigidIndex(value);
-    },
-};
-
-/** Encode one RigidIndex. */
-export function encodeRigidIndex(writer: BinaryWriter, value: RigidIndex): void {
-    writer.writeUnsigned(value);
-}
-
-/** Decode one RigidIndex. */
-export function decodeRigidIndex(reader: BinaryReader): RigidIndex {
-    return reader.readNumber();
-}
-
-/** Return one JSON value for one RigidIndex. */
-export function toJsonRigidIndex(value: RigidIndex): Json {
-    return value;
-}
-
-/** Return one RigidIndex from one JSON value. */
-export function fromJsonRigidIndex(value: Json): RigidIndex {
-    return jsonInteger(value);
 }
 
 /** Runtime-length homogeneous view type. */
@@ -2971,16 +2809,6 @@ export type Type =
           readonly kind: "variable";
           readonly variable: TypeVariableId;
       }
-    /** One canonical goal hole, numbered in first-visit order. */
-    | {
-          readonly kind: "hole";
-          readonly hole: HoleIndex;
-      }
-    /** One canonical rigid parameter, numbered in first-visit order. */
-    | {
-          readonly kind: "rigid";
-          readonly rigid: RigidIndex;
-      }
     /** Placeholder type for an already-reported error. */
     | {
           readonly kind: "error";
@@ -3144,16 +2972,6 @@ export const Type = {
     /** One open inference variable. */
     variable(variable: TypeVariableId): Type {
         return { kind: "variable", variable };
-    },
-
-    /** One canonical goal hole, numbered in first-visit order. */
-    hole(hole: HoleIndex): Type {
-        return { kind: "hole", hole };
-    },
-
-    /** One canonical rigid parameter, numbered in first-visit order. */
-    rigid(rigid: RigidIndex): Type {
-        return { kind: "rigid", rigid };
     },
 
     /** Placeholder type for an already-reported error. */
@@ -3349,136 +3167,128 @@ export function encodeType(writer: BinaryWriter, value: Type): void {
             writer.writeUnsigned(0);
             encodeTypeVariableId(writer, value.variable);
             return;
-        case "hole":
-            writer.writeUnsigned(1);
-            encodeHoleIndex(writer, value.hole);
-            return;
-        case "rigid":
-            writer.writeUnsigned(2);
-            encodeRigidIndex(writer, value.rigid);
-            return;
         case "error":
-            writer.writeUnsigned(3);
+            writer.writeUnsigned(1);
             return;
         case "never":
-            writer.writeUnsigned(4);
+            writer.writeUnsigned(2);
             return;
         case "unknown":
-            writer.writeUnsigned(5);
+            writer.writeUnsigned(3);
             return;
         case "void":
-            writer.writeUnsigned(6);
+            writer.writeUnsigned(4);
             return;
         case "null":
-            writer.writeUnsigned(7);
+            writer.writeUnsigned(5);
             return;
         case "undefined":
-            writer.writeUnsigned(8);
+            writer.writeUnsigned(6);
             return;
         case "object":
-            writer.writeUnsigned(9);
+            writer.writeUnsigned(7);
             encodeObjectType(writer, value.object);
             return;
         case "primitive":
-            writer.writeUnsigned(10);
+            writer.writeUnsigned(8);
             encodePrimitiveType(writer, value.primitive);
             return;
         case "literal":
-            writer.writeUnsigned(11);
+            writer.writeUnsigned(9);
             encodeLiteral(writer, value.literal);
             return;
         case "key":
-            writer.writeUnsigned(12);
+            writer.writeUnsigned(10);
             encodeStaticKey(writer, value.key);
             return;
         case "static":
-            writer.writeUnsigned(13);
+            writer.writeUnsigned(11);
             encodeGlobalStaticId(writer, value.static);
             return;
         case "intrinsic":
-            writer.writeUnsigned(14);
+            writer.writeUnsigned(12);
             return;
         case "erased":
-            writer.writeUnsigned(15);
+            writer.writeUnsigned(13);
             encodeGlobalGenericParameterId(writer, value.erased);
             return;
         case "parameter":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(14);
             encodeGlobalGenericParameterId(writer, value.parameter);
             return;
         case "reference":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(15);
             encodeTypeReference(writer, value.reference);
             return;
         case "application":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(16);
             encodeGenericApplication(writer, value.application);
             return;
         case "this":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(17);
             return;
         case "member":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(18);
             encodeMemberTypeId(writer, value.member);
             return;
         case "refined":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(19);
             encodeRefinedTypeId(writer, value.refined);
             return;
         case "variant":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(20);
             encodeVariantType(writer, value.variant);
             return;
         case "region":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(21);
             encodeRegionType(writer, value.region);
             return;
         case "form":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(22);
             encodeFormType(writer, value.form);
             return;
         case "dynamic":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(23);
             encodeDynamicType(writer, value.dynamic);
             return;
         case "operation":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(24);
             encodeTypeOperationId(writer, value.operation);
             return;
         case "fixedArray":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(25);
             encodeFixedArrayType(writer, value.fixed_array);
             return;
         case "range":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(26);
             encodeRangeType(writer, value.range);
             return;
         case "slice":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(27);
             encodeSliceType(writer, value.slice);
             return;
         case "tuple":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(28);
             encodeTupleType(writer, value.tuple);
             return;
         case "functionSignature":
-            writer.writeUnsigned(31);
+            writer.writeUnsigned(29);
             encodeFunctionSignatureId(writer, value.function_signature);
             return;
         case "function":
-            writer.writeUnsigned(32);
+            writer.writeUnsigned(30);
             encodeFunctionType(writer, value.function);
             return;
         case "functionPointer":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(31);
             encodeFunctionPointerType(writer, value.function_pointer);
             return;
         case "union":
-            writer.writeUnsigned(34);
+            writer.writeUnsigned(32);
             encodeUnionType(writer, value.union);
             return;
         case "intersection":
-            writer.writeUnsigned(35);
+            writer.writeUnsigned(33);
             encodeIntersectionType(writer, value.intersection);
             return;
     }
@@ -3497,160 +3307,150 @@ export function decodeType(reader: BinaryReader): Type {
             return { kind: "variable", variable };
         }
         case 1: {
-            const hole = decodeHoleIndex(reader);
-
-            return { kind: "hole", hole };
-        }
-        case 2: {
-            const rigid = decodeRigidIndex(reader);
-
-            return { kind: "rigid", rigid };
-        }
-        case 3: {
             return { kind: "error" };
         }
-        case 4: {
+        case 2: {
             return { kind: "never" };
         }
-        case 5: {
+        case 3: {
             return { kind: "unknown" };
         }
-        case 6: {
+        case 4: {
             return { kind: "void" };
         }
-        case 7: {
+        case 5: {
             return { kind: "null" };
         }
-        case 8: {
+        case 6: {
             return { kind: "undefined" };
         }
-        case 9: {
+        case 7: {
             const object_ = decodeObjectType(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 10: {
+        case 8: {
             const primitive = decodePrimitiveType(reader);
 
             return { kind: "primitive", primitive };
         }
-        case 11: {
+        case 9: {
             const literal = decodeLiteral(reader);
 
             return { kind: "literal", literal };
         }
-        case 12: {
+        case 10: {
             const key = decodeStaticKey(reader);
 
             return { kind: "key", key };
         }
-        case 13: {
+        case 11: {
             const static_ = decodeGlobalStaticId(reader);
 
             return { kind: "static", static: static_ };
         }
-        case 14: {
+        case 12: {
             return { kind: "intrinsic" };
         }
-        case 15: {
+        case 13: {
             const erased = decodeGlobalGenericParameterId(reader);
 
             return { kind: "erased", erased };
         }
-        case 16: {
+        case 14: {
             const parameter = decodeGlobalGenericParameterId(reader);
 
             return { kind: "parameter", parameter };
         }
-        case 17: {
+        case 15: {
             const reference = decodeTypeReference(reader);
 
             return { kind: "reference", reference };
         }
-        case 18: {
+        case 16: {
             const application = decodeGenericApplication(reader);
 
             return { kind: "application", application };
         }
-        case 19: {
+        case 17: {
             return { kind: "this" };
         }
-        case 20: {
+        case 18: {
             const member = decodeMemberTypeId(reader);
 
             return { kind: "member", member };
         }
-        case 21: {
+        case 19: {
             const refined = decodeRefinedTypeId(reader);
 
             return { kind: "refined", refined };
         }
-        case 22: {
+        case 20: {
             const variant = decodeVariantType(reader);
 
             return { kind: "variant", variant };
         }
-        case 23: {
+        case 21: {
             const region = decodeRegionType(reader);
 
             return { kind: "region", region };
         }
-        case 24: {
+        case 22: {
             const form = decodeFormType(reader);
 
             return { kind: "form", form };
         }
-        case 25: {
+        case 23: {
             const dynamic = decodeDynamicType(reader);
 
             return { kind: "dynamic", dynamic };
         }
-        case 26: {
+        case 24: {
             const operation = decodeTypeOperationId(reader);
 
             return { kind: "operation", operation };
         }
-        case 27: {
+        case 25: {
             const fixed_array = decodeFixedArrayType(reader);
 
             return { kind: "fixedArray", fixed_array };
         }
-        case 28: {
+        case 26: {
             const range = decodeRangeType(reader);
 
             return { kind: "range", range };
         }
-        case 29: {
+        case 27: {
             const slice = decodeSliceType(reader);
 
             return { kind: "slice", slice };
         }
-        case 30: {
+        case 28: {
             const tuple = decodeTupleType(reader);
 
             return { kind: "tuple", tuple };
         }
-        case 31: {
+        case 29: {
             const function_signature = decodeFunctionSignatureId(reader);
 
             return { kind: "functionSignature", function_signature };
         }
-        case 32: {
+        case 30: {
             const function_ = decodeFunctionType(reader);
 
             return { kind: "function", function: function_ };
         }
-        case 33: {
+        case 31: {
             const function_pointer = decodeFunctionPointerType(reader);
 
             return { kind: "functionPointer", function_pointer };
         }
-        case 34: {
+        case 32: {
             const union = decodeUnionType(reader);
 
             return { kind: "union", union };
         }
-        case 35: {
+        case 33: {
             const intersection = decodeIntersectionType(reader);
 
             return { kind: "intersection", intersection };
@@ -3667,16 +3467,6 @@ export function toJsonType(value: Type): Json {
             return {
                 kind: "variable",
                 variable: toJsonTypeVariableId(value.variable),
-            };
-        case "hole":
-            return {
-                kind: "hole",
-                hole: toJsonHoleIndex(value.hole),
-            };
-        case "rigid":
-            return {
-                kind: "rigid",
-                rigid: toJsonRigidIndex(value.rigid),
             };
         case "error":
             return {
@@ -3850,16 +3640,6 @@ export function fromJsonType(value: Json): Type {
             return {
                 kind,
                 variable: fromJsonTypeVariableId(jsonField(object, "variable")),
-            };
-        case "hole":
-            return {
-                kind,
-                hole: fromJsonHoleIndex(jsonField(object, "hole")),
-            };
-        case "rigid":
-            return {
-                kind,
-                rigid: fromJsonRigidIndex(jsonField(object, "rigid")),
             };
         case "error":
             return {

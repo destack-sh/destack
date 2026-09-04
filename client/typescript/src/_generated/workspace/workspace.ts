@@ -43,7 +43,7 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 20714507323335967760641430161469535374n,
+    fingerprint: 110733720148697540250468363272127227854n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
@@ -126,36 +126,6 @@ const buildMethod: Method<workspaceServiceCommand.BuildRequest, workspaceCommand
     output: buildMethodOutput,
 };
 
-const cacheMethodRequest: Encoder<workspaceServiceCommand.CacheRequest> = {
-    encode(writer, value: workspaceServiceCommand.CacheRequest): void {
-        workspaceServiceCommand.encodeCacheRequest(writer, value);
-    },
-};
-
-const cacheMethodResponse: Decoder<workspaceCommandOutput.CacheOutput> = {
-    decode(reader): workspaceCommandOutput.CacheOutput {
-        return workspaceCommandOutput.decodeCacheOutput(reader);
-    },
-};
-
-const cacheMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
-    decode(reader): workspaceCommandCommon.ProgressEvent {
-        return workspaceCommandCommon.decodeProgressEvent(reader);
-    },
-};
-
-/** Descriptor for the cache RPC method. */
-const cacheMethod: Method<workspaceServiceCommand.CacheRequest, workspaceCommandOutput.CacheOutput, never, workspaceCommandCommon.ProgressEvent> = {
-    service: 5221210015570525267n,
-    method: 6134664842353451966n,
-    fingerprint: 306535774106942626499037284648652278400n,
-    kind: "serverStreaming",
-    idempotency: "noSideEffects",
-    request: cacheMethodRequest,
-    response: cacheMethodResponse,
-    output: cacheMethodOutput,
-};
-
 const checkMethodRequest: Encoder<workspaceServiceCommand.CheckRequest> = {
     encode(writer, value: workspaceServiceCommand.CheckRequest): void {
         workspaceServiceCommand.encodeCheckRequest(writer, value);
@@ -208,7 +178,7 @@ const cleanMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 const cleanMethod: Method<workspaceServiceCommand.CleanRequest, workspaceCommandOutput.CleanOutput, never, workspaceCommandCommon.ProgressEvent> = {
     service: 5221210015570525267n,
     method: 14468233596833065246n,
-    fingerprint: 55028299139968473623225296759532590923n,
+    fingerprint: 218057126349143510622927808090356843795n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: cleanMethodRequest,
@@ -757,7 +727,7 @@ const runQueryMethodResponse: Decoder<workspaceQuery.RunQueryResponse> = {
 const runQueryMethod: Method<workspaceServiceQuery.RunQueryRequest, workspaceQuery.RunQueryResponse, never, never> = {
     service: 5221210015570525267n,
     method: 3642248314147070001n,
-    fingerprint: 17437748124631607899738415185670813893n,
+    fingerprint: 103597081150896725429736711792167451728n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: runQueryMethodRequest,
@@ -978,7 +948,6 @@ export class WorkspaceClient {
         connection.bind(blobMethod);
         connection.bind(branchRevisionMethod);
         connection.bind(buildMethod);
-        connection.bind(cacheMethod);
         connection.bind(checkMethod);
         connection.bind(cleanMethod);
         connection.bind(createBranchMethod);
@@ -1030,11 +999,6 @@ export class WorkspaceClient {
     /** Call the build workspace method. */
     build(request: RequestValue<workspaceServiceCommand.BuildRequest>): Call<workspaceCommandOutput.BuildOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(buildMethod, request);
-    }
-
-    /** Call the cache workspace method. */
-    cache(request: RequestValue<workspaceServiceCommand.CacheRequest>): Call<workspaceCommandOutput.CacheOutput, never, workspaceCommandCommon.ProgressEvent> {
-        return this.#connection.start(cacheMethod, request);
     }
 
     /** Call the check workspace method. */

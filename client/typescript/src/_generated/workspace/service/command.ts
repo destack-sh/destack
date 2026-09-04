@@ -2,7 +2,6 @@
 
 import { BinaryReader, BinaryWriter, Json, jsonField, jsonObject, jsonString } from "../../../protocol/serde.js";
 import type { BuildInput } from "../command/build.js";
-import type { CacheInput } from "../command/cache.js";
 import type { CheckInput } from "../command/check.js";
 import type { CleanInput } from "../command/clean.js";
 import type { DocInput } from "../command/doc.js";
@@ -16,7 +15,6 @@ import type { TargetsInput } from "../command/targets.js";
 import type { TaskInput } from "../command/task.js";
 import type { TestInput } from "../command/test.js";
 import { decodeBuildInput, encodeBuildInput, fromJsonBuildInput, toJsonBuildInput } from "../command/build.js";
-import { decodeCacheInput, encodeCacheInput, fromJsonCacheInput, toJsonCacheInput } from "../command/cache.js";
 import { decodeCheckInput, encodeCheckInput, fromJsonCheckInput, toJsonCheckInput } from "../command/check.js";
 import { decodeCleanInput, encodeCleanInput, fromJsonCleanInput, toJsonCleanInput } from "../command/clean.js";
 import { decodeDocInput, encodeDocInput, fromJsonDocInput, toJsonDocInput } from "../command/doc.js";
@@ -92,71 +90,6 @@ export function fromJsonBuildRequest(value: Json): BuildRequest {
     return {
         root: jsonString(jsonField(object, "root")),
         input: fromJsonBuildInput(jsonField(object, "input")),
-    };
-}
-
-/** Request for cache locations. */
-export type CacheRequest = {
-    /** Workspace root to inspect. */
-    readonly root: string;
-    /** Cache input. */
-    readonly input: CacheInput;
-};
-
-export const CacheRequest = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CacheRequest): void {
-        encodeCacheRequest(writer, value);
-    },
-
-    /** Decode one CacheRequest. */
-    decode(reader: BinaryReader): CacheRequest {
-        return decodeCacheRequest(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CacheRequest): Json {
-        return toJsonCacheRequest(value);
-    },
-
-    /** Return one CacheRequest from one JSON value. */
-    fromJson(value: Json): CacheRequest {
-        return fromJsonCacheRequest(value);
-    },
-};
-
-/** Encode one CacheRequest. */
-export function encodeCacheRequest(writer: BinaryWriter, value: CacheRequest): void {
-    writer.writeString(value.root);
-    encodeCacheInput(writer, value.input);
-}
-
-/** Decode one CacheRequest. */
-export function decodeCacheRequest(reader: BinaryReader): CacheRequest {
-    const root = reader.readString();
-    const input = decodeCacheInput(reader);
-
-    return {
-        root,
-        input,
-    };
-}
-
-/** Return one JSON value for one CacheRequest. */
-export function toJsonCacheRequest(value: CacheRequest): Json {
-    return {
-        root: value.root,
-        input: toJsonCacheInput(value.input),
-    };
-}
-
-/** Return one CacheRequest from one JSON value. */
-export function fromJsonCacheRequest(value: Json): CacheRequest {
-    const object = jsonObject(value);
-
-    return {
-        root: jsonString(jsonField(object, "root")),
-        input: fromJsonCacheInput(jsonField(object, "input")),
     };
 }
 

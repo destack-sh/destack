@@ -5,7 +5,6 @@ import type { TraceSnapshot } from "../../repository/provider/trace.js";
 import type { Revision } from "../../repository/revision.js";
 import type { Diagnostic } from "../../source/diagnostic/diagnostic.js";
 import type { BuildPayload } from "./build.js";
-import type { CachePayload } from "./cache.js";
 import type { CleanPayload } from "./clean.js";
 import type { CommandMessagePayload } from "./common.js";
 import type { CommandOutputChunk } from "./common.js";
@@ -25,7 +24,6 @@ import { decodeTraceSnapshot, encodeTraceSnapshot, fromJsonTraceSnapshot, toJson
 import { decodeRevision, encodeRevision, fromJsonRevision, toJsonRevision } from "../../repository/revision.js";
 import { decodeDiagnostic, encodeDiagnostic, fromJsonDiagnostic, toJsonDiagnostic } from "../../source/diagnostic/diagnostic.js";
 import { decodeBuildPayload, encodeBuildPayload, fromJsonBuildPayload, toJsonBuildPayload } from "./build.js";
-import { decodeCachePayload, encodeCachePayload, fromJsonCachePayload, toJsonCachePayload } from "./cache.js";
 import { decodeCleanPayload, encodeCleanPayload, fromJsonCleanPayload, toJsonCleanPayload } from "./clean.js";
 import { decodeCommandMessagePayload, encodeCommandMessagePayload, fromJsonCommandMessagePayload, toJsonCommandMessagePayload } from "./common.js";
 import { decodeCommandOutputChunk, encodeCommandOutputChunk, fromJsonCommandOutputChunk, toJsonCommandOutputChunk } from "./common.js";
@@ -195,165 +193,6 @@ export function fromJsonBuildOutput(value: Json): BuildOutput {
         outputs: jsonArray(jsonField(object, "outputs")).map((item0) => fromJsonCommandOutputFile(item0)),
         trace: jsonOptional(object, "trace", (value) => fromJsonTraceSnapshot(value)),
         data: fromJsonBuildPayload(jsonField(object, "data")),
-        moduleCount: jsonInteger(jsonField(object, "moduleCount")),
-        profileCount: jsonInteger(jsonField(object, "profileCount")),
-        targetCount: jsonInteger(jsonField(object, "targetCount")),
-    };
-}
-
-/** Output produced by one workspace command. */
-export type CacheOutput = {
-    /** Revision used for this operation. */
-    readonly revision: Revision;
-    /** Whether the operation succeeded. */
-    readonly success: boolean;
-    /** Exit code for the operation. */
-    readonly exitCode: number;
-    /** Diagnostics produced by the operation. */
-    readonly diagnostics: ReadonlyArray<Diagnostic>;
-    /** File images referenced by diagnostics and command data. */
-    readonly files: ReadonlyArray<FileImage>;
-    /** Messages produced by operation execution. */
-    readonly messages: ReadonlyArray<Message>;
-    /** Stream output collected during execution. */
-    readonly output: ReadonlyArray<CommandOutputChunk>;
-    /** Generated output files. */
-    readonly outputs: ReadonlyArray<CommandOutputFile>;
-    /** Timing trace when requested by the command. */
-    readonly trace?: TraceSnapshot;
-    /** Operation payload. */
-    readonly data: CachePayload;
-    /** Count of modules involved. */
-    readonly moduleCount: number;
-    /** Count of profiles involved. */
-    readonly profileCount: number;
-    /** Count of targets involved. */
-    readonly targetCount: number;
-};
-
-export const CacheOutput = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CacheOutput): void {
-        encodeCacheOutput(writer, value);
-    },
-
-    /** Decode one CacheOutput. */
-    decode(reader: BinaryReader): CacheOutput {
-        return decodeCacheOutput(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CacheOutput): Json {
-        return toJsonCacheOutput(value);
-    },
-
-    /** Return one CacheOutput from one JSON value. */
-    fromJson(value: Json): CacheOutput {
-        return fromJsonCacheOutput(value);
-    },
-};
-
-/** Encode one CacheOutput. */
-export function encodeCacheOutput(writer: BinaryWriter, value: CacheOutput): void {
-    encodeRevision(writer, value.revision);
-    writer.writeBool(value.success);
-    writer.writeSigned(value.exitCode);
-    writer.writeUnsigned(value.diagnostics.length);
-    for (const item3 of value.diagnostics) {
-        encodeDiagnostic(writer, item3);
-    }
-    writer.writeUnsigned(value.files.length);
-    for (const item4 of value.files) {
-        encodeFileImage(writer, item4);
-    }
-    writer.writeUnsigned(value.messages.length);
-    for (const item5 of value.messages) {
-        encodeMessage(writer, item5);
-    }
-    writer.writeUnsigned(value.output.length);
-    for (const item6 of value.output) {
-        encodeCommandOutputChunk(writer, item6);
-    }
-    writer.writeUnsigned(value.outputs.length);
-    for (const item7 of value.outputs) {
-        encodeCommandOutputFile(writer, item7);
-    }
-    writer.writeOption(value.trace, (value8) => {
-        encodeTraceSnapshot(writer, value8);
-    });
-    encodeCachePayload(writer, value.data);
-    writer.writeUnsigned(value.moduleCount);
-    writer.writeUnsigned(value.profileCount);
-    writer.writeUnsigned(value.targetCount);
-}
-
-/** Decode one CacheOutput. */
-export function decodeCacheOutput(reader: BinaryReader): CacheOutput {
-    const revision = decodeRevision(reader);
-    const success = reader.readBool();
-    const exitCode = reader.readSignedNumber();
-    const diagnostics = (() => { const length3 = reader.readNumber(); const items3: Array<Diagnostic> = []; for (let index = 0; index < length3; index += 1) { items3.push(decodeDiagnostic(reader)); } return items3; })();
-    const files = (() => { const length4 = reader.readNumber(); const items4: Array<FileImage> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeFileImage(reader)); } return items4; })();
-    const messages = (() => { const length5 = reader.readNumber(); const items5: Array<Message> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeMessage(reader)); } return items5; })();
-    const output = (() => { const length6 = reader.readNumber(); const items6: Array<CommandOutputChunk> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeCommandOutputChunk(reader)); } return items6; })();
-    const outputs = (() => { const length7 = reader.readNumber(); const items7: Array<CommandOutputFile> = []; for (let index = 0; index < length7; index += 1) { items7.push(decodeCommandOutputFile(reader)); } return items7; })();
-    const trace = reader.readOption(() => decodeTraceSnapshot(reader));
-    const data = decodeCachePayload(reader);
-    const moduleCount = reader.readNumber();
-    const profileCount = reader.readNumber();
-    const targetCount = reader.readNumber();
-
-    return {
-        revision,
-        success,
-        exitCode,
-        diagnostics,
-        files,
-        messages,
-        output,
-        outputs,
-        ...(trace === undefined ? {} : { trace }),
-        data,
-        moduleCount,
-        profileCount,
-        targetCount,
-    };
-}
-
-/** Return one JSON value for one CacheOutput. */
-export function toJsonCacheOutput(value: CacheOutput): Json {
-    return {
-        revision: toJsonRevision(value.revision),
-        success: value.success,
-        exitCode: value.exitCode,
-        diagnostics: value.diagnostics.map((item0) => toJsonDiagnostic(item0)),
-        files: value.files.map((item0) => toJsonFileImage(item0)),
-        messages: value.messages.map((item0) => toJsonMessage(item0)),
-        output: value.output.map((item0) => toJsonCommandOutputChunk(item0)),
-        outputs: value.outputs.map((item0) => toJsonCommandOutputFile(item0)),
-        ...(value.trace === undefined ? {} : { trace: toJsonTraceSnapshot(value.trace) }),
-        data: toJsonCachePayload(value.data),
-        moduleCount: value.moduleCount,
-        profileCount: value.profileCount,
-        targetCount: value.targetCount,
-    };
-}
-
-/** Return one CacheOutput from one JSON value. */
-export function fromJsonCacheOutput(value: Json): CacheOutput {
-    const object = jsonObject(value);
-
-    return {
-        revision: fromJsonRevision(jsonField(object, "revision")),
-        success: jsonBool(jsonField(object, "success")),
-        exitCode: jsonInteger(jsonField(object, "exitCode")),
-        diagnostics: jsonArray(jsonField(object, "diagnostics")).map((item0) => fromJsonDiagnostic(item0)),
-        files: jsonArray(jsonField(object, "files")).map((item0) => fromJsonFileImage(item0)),
-        messages: jsonArray(jsonField(object, "messages")).map((item0) => fromJsonMessage(item0)),
-        output: jsonArray(jsonField(object, "output")).map((item0) => fromJsonCommandOutputChunk(item0)),
-        outputs: jsonArray(jsonField(object, "outputs")).map((item0) => fromJsonCommandOutputFile(item0)),
-        trace: jsonOptional(object, "trace", (value) => fromJsonTraceSnapshot(value)),
-        data: fromJsonCachePayload(jsonField(object, "data")),
         moduleCount: jsonInteger(jsonField(object, "moduleCount")),
         profileCount: jsonInteger(jsonField(object, "profileCount")),
         targetCount: jsonInteger(jsonField(object, "targetCount")),

@@ -257,127 +257,6 @@ export function fromJsonCallDispatch(value: Json): CallDispatch {
     throw new SerdeError(`unknown enum variant: ${kind}`);
 }
 
-/** Stable identifier for one callsite inside a function body. */
-export type CallSite =
-    /** Callsite stored as an instruction. */
-    | {
-          readonly kind: "instruction";
-          readonly instruction: LocalNodeId;
-      }
-    /** Callsite stored as a block terminator. */
-    | {
-          readonly kind: "terminator";
-          readonly terminator: LocalNodeId;
-      }
-;
-
-export const CallSite = {
-    /** Callsite stored as an instruction. */
-    instruction(instruction: LocalNodeId): CallSite {
-        return { kind: "instruction", instruction };
-    },
-
-    /** Callsite stored as a block terminator. */
-    terminator(terminator: LocalNodeId): CallSite {
-        return { kind: "terminator", terminator };
-    },
-
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: CallSite): void {
-        encodeCallSite(writer, value);
-    },
-
-    /** Decode one CallSite. */
-    decode(reader: BinaryReader): CallSite {
-        return decodeCallSite(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: CallSite): Json {
-        return toJsonCallSite(value);
-    },
-
-    /** Return one CallSite from one JSON value. */
-    fromJson(value: Json): CallSite {
-        return fromJsonCallSite(value);
-    },
-};
-
-/** Encode one CallSite. */
-export function encodeCallSite(writer: BinaryWriter, value: CallSite): void {
-    switch (value.kind) {
-        case "instruction":
-            writer.writeUnsigned(0);
-            encodeLocalNodeId(writer, value.instruction);
-            return;
-        case "terminator":
-            writer.writeUnsigned(1);
-            encodeLocalNodeId(writer, value.terminator);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one CallSite. */
-export function decodeCallSite(reader: BinaryReader): CallSite {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0: {
-            const instruction = decodeLocalNodeId(reader);
-
-            return { kind: "instruction", instruction };
-        }
-        case 1: {
-            const terminator = decodeLocalNodeId(reader);
-
-            return { kind: "terminator", terminator };
-        }
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one CallSite. */
-export function toJsonCallSite(value: CallSite): Json {
-    switch (value.kind) {
-        case "instruction":
-            return {
-                kind: "instruction",
-                instruction: toJsonLocalNodeId(value.instruction),
-            };
-        case "terminator":
-            return {
-                kind: "terminator",
-                terminator: toJsonLocalNodeId(value.terminator),
-            };
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Return one CallSite from one JSON value. */
-export function fromJsonCallSite(value: Json): CallSite {
-    const object = jsonObject(value);
-    const kind = jsonString(jsonField(object, "kind"));
-
-    switch (kind) {
-        case "instruction":
-            return {
-                kind,
-                instruction: fromJsonLocalNodeId(jsonField(object, "instruction")),
-            };
-        case "terminator":
-            return {
-                kind,
-                terminator: fromJsonLocalNodeId(jsonField(object, "terminator")),
-            };
-    }
-
-    throw new SerdeError(`unknown enum variant: ${kind}`);
-}
-
 /** Callable target for one call. */
 export type Callee =
     /** Direct function target. */
@@ -595,6 +474,127 @@ export function fromJsonCallee(value: Json): Callee {
                 receiver: fromJsonValue(jsonField(object, "receiver")),
                 constraint: fromJsonLocalNodeId(jsonField(object, "constraint")),
                 slot: fromJsonDispatchSlot(jsonField(object, "slot")),
+            };
+    }
+
+    throw new SerdeError(`unknown enum variant: ${kind}`);
+}
+
+/** One program point inside a function body: an instruction or a block terminator. */
+export type Point =
+    /** Callsite stored as an instruction. */
+    | {
+          readonly kind: "instruction";
+          readonly instruction: LocalNodeId;
+      }
+    /** Callsite stored as a block terminator. */
+    | {
+          readonly kind: "terminator";
+          readonly terminator: LocalNodeId;
+      }
+;
+
+export const Point = {
+    /** Callsite stored as an instruction. */
+    instruction(instruction: LocalNodeId): Point {
+        return { kind: "instruction", instruction };
+    },
+
+    /** Callsite stored as a block terminator. */
+    terminator(terminator: LocalNodeId): Point {
+        return { kind: "terminator", terminator };
+    },
+
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: Point): void {
+        encodePoint(writer, value);
+    },
+
+    /** Decode one Point. */
+    decode(reader: BinaryReader): Point {
+        return decodePoint(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: Point): Json {
+        return toJsonPoint(value);
+    },
+
+    /** Return one Point from one JSON value. */
+    fromJson(value: Json): Point {
+        return fromJsonPoint(value);
+    },
+};
+
+/** Encode one Point. */
+export function encodePoint(writer: BinaryWriter, value: Point): void {
+    switch (value.kind) {
+        case "instruction":
+            writer.writeUnsigned(0);
+            encodeLocalNodeId(writer, value.instruction);
+            return;
+        case "terminator":
+            writer.writeUnsigned(1);
+            encodeLocalNodeId(writer, value.terminator);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one Point. */
+export function decodePoint(reader: BinaryReader): Point {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0: {
+            const instruction = decodeLocalNodeId(reader);
+
+            return { kind: "instruction", instruction };
+        }
+        case 1: {
+            const terminator = decodeLocalNodeId(reader);
+
+            return { kind: "terminator", terminator };
+        }
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one Point. */
+export function toJsonPoint(value: Point): Json {
+    switch (value.kind) {
+        case "instruction":
+            return {
+                kind: "instruction",
+                instruction: toJsonLocalNodeId(value.instruction),
+            };
+        case "terminator":
+            return {
+                kind: "terminator",
+                terminator: toJsonLocalNodeId(value.terminator),
+            };
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Return one Point from one JSON value. */
+export function fromJsonPoint(value: Json): Point {
+    const object = jsonObject(value);
+    const kind = jsonString(jsonField(object, "kind"));
+
+    switch (kind) {
+        case "instruction":
+            return {
+                kind,
+                instruction: fromJsonLocalNodeId(jsonField(object, "instruction")),
+            };
+        case "terminator":
+            return {
+                kind,
+                terminator: fromJsonLocalNodeId(jsonField(object, "terminator")),
             };
     }
 

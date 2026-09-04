@@ -118,8 +118,6 @@ export type EnvironmentDeclared = {
     readonly extensionsByRoot: ReadonlyMap<TypeRoot, ReadonlyArray<GlobalSymbolId>>;
     /** Blanket extension declarations over open parameter targets. */
     readonly blanketExtensions: ReadonlyArray<GlobalSymbolId>;
-    /** Implementing declarations keyed by their implemented interface, with their target roots. */
-    readonly implementationsByInterface: ReadonlyMap<GlobalSymbolId, ReadonlyArray<readonly [GlobalSymbolId, TypeRoot | undefined]>>;
 };
 
 export const EnvironmentDeclared = {
@@ -165,36 +163,16 @@ export function encodeEnvironmentDeclared(writer: BinaryWriter, value: Environme
     for (const item1 of value.blanketExtensions) {
         encodeGlobalSymbolId(writer, item1);
     }
-    const entries2 = Array.from(value.implementationsByInterface.entries()).map(([key2, item2]) => {
-        const keyBytes = nestedBytes((writer) => {
-            encodeGlobalSymbolId(writer, key2);
-        });
-        return { key2, item2, keyBytes };
-    });
-    entries2.sort((left, right) => compareBytes(left.keyBytes, right.keyBytes));
-    writer.writeUnsigned(entries2.length);
-    for (const entry2 of entries2) {
-        encodeGlobalSymbolId(writer, entry2.key2);
-        writer.writeUnsigned(entry2.item2.length);
-        for (const item3 of entry2.item2) {
-            encodeGlobalSymbolId(writer, item3[0]);
-            writer.writeOption(item3[1], (value5) => {
-                encodeTypeRoot(writer, value5);
-            });
-        }
-    }
 }
 
 /** Decode one EnvironmentDeclared. */
 export function decodeEnvironmentDeclared(reader: BinaryReader): EnvironmentDeclared {
     const extensionsByRoot = (() => { const length0 = reader.readNumber(); const items0 = new Map<TypeRoot, ReadonlyArray<GlobalSymbolId>>(); for (let index = 0; index < length0; index += 1) { items0.set(decodeTypeRoot(reader), (() => { const length2 = reader.readNumber(); const items2: Array<GlobalSymbolId> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeGlobalSymbolId(reader)); } return items2; })()); } return items0; })();
     const blanketExtensions = (() => { const length1 = reader.readNumber(); const items1: Array<GlobalSymbolId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeGlobalSymbolId(reader)); } return items1; })();
-    const implementationsByInterface = (() => { const length2 = reader.readNumber(); const items2 = new Map<GlobalSymbolId, ReadonlyArray<readonly [GlobalSymbolId, TypeRoot | undefined]>>(); for (let index = 0; index < length2; index += 1) { items2.set(decodeGlobalSymbolId(reader), (() => { const length4 = reader.readNumber(); const items4: Array<readonly [GlobalSymbolId, TypeRoot | undefined]> = []; for (let index = 0; index < length4; index += 1) { items4.push([decodeGlobalSymbolId(reader), reader.readOption(() => decodeTypeRoot(reader))] as const); } return items4; })()); } return items2; })();
 
     return {
         extensionsByRoot,
         blanketExtensions,
-        implementationsByInterface,
     };
 }
 
@@ -203,7 +181,6 @@ export function toJsonEnvironmentDeclared(value: EnvironmentDeclared): Json {
     return {
         extensionsByRoot: Array.from(value.extensionsByRoot.entries()).map(([key0, item0]) => [toJsonTypeRoot(key0), item0.map((item1) => toJsonGlobalSymbolId(item1))] as const),
         blanketExtensions: value.blanketExtensions.map((item0) => toJsonGlobalSymbolId(item0)),
-        implementationsByInterface: Array.from(value.implementationsByInterface.entries()).map(([key0, item0]) => [toJsonGlobalSymbolId(key0), item0.map((item1) => [toJsonGlobalSymbolId(item1[0]), item1[1] === undefined ? null : toJsonTypeRoot(item1[1])])] as const),
     };
 }
 
@@ -214,7 +191,6 @@ export function fromJsonEnvironmentDeclared(value: Json): EnvironmentDeclared {
     return {
         extensionsByRoot: new Map(jsonArray(jsonField(object, "extensionsByRoot")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonTypeRoot(key0), jsonArray(item0).map((item1) => fromJsonGlobalSymbolId(item1))] as const; })),
         blanketExtensions: jsonArray(jsonField(object, "blanketExtensions")).map((item0) => fromJsonGlobalSymbolId(item0)),
-        implementationsByInterface: new Map(jsonArray(jsonField(object, "implementationsByInterface")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonGlobalSymbolId(key0), jsonArray(item0).map((item1) => (() => { const items = jsonArray(item1); if (items.length !== 2) { throw new SerdeError(`expected JSON tuple length 2: ${items.length}`); } return [fromJsonGlobalSymbolId(items[0]), items[1] === null ? undefined : fromJsonTypeRoot(items[1])] as const; })())] as const; })),
     };
 }
 

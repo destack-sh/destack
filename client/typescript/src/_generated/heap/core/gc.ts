@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonBigint, jsonBool, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 
 /** Collector advanced by one GC result. */
-export type GcCollector = "localMinor" | "localMajor" | "shared";
+export type GcCollector = "localMajor" | "shared";
 
 export const GcCollector = {
     /** Encode this value. */
@@ -30,14 +30,11 @@ export const GcCollector = {
 /** Encode one GcCollector. */
 export function encodeGcCollector(writer: BinaryWriter, value: GcCollector): void {
     switch (value) {
-        case "localMinor":
+        case "localMajor":
             writer.writeUnsigned(0);
             return;
-        case "localMajor":
-            writer.writeUnsigned(1);
-            return;
         case "shared":
-            writer.writeUnsigned(2);
+            writer.writeUnsigned(1);
             return;
     }
 
@@ -50,10 +47,8 @@ export function decodeGcCollector(reader: BinaryReader): GcCollector {
 
     switch (variant) {
         case 0:
-            return "localMinor";
-        case 1:
             return "localMajor";
-        case 2:
+        case 1:
             return "shared";
     }
 
@@ -70,8 +65,6 @@ export function fromJsonGcCollector(value: Json): GcCollector {
     const variant = jsonString(value);
 
     switch (variant) {
-        case "localMinor":
-            return "localMinor";
         case "localMajor":
             return "localMajor";
         case "shared":
@@ -175,7 +168,7 @@ export function fromJsonGcCycle(value: Json): GcCycle {
 }
 
 /** Phase advanced by one GC result. */
-export type GcPhase = "idle" | "publishRoots" | "scanEdges" | "mark" | "drop" | "sweep" | "promote";
+export type GcPhase = "idle" | "publishRoots" | "scanEdges" | "mark" | "drop" | "sweep";
 
 export const GcPhase = {
     /** Encode this value. */
@@ -220,9 +213,6 @@ export function encodeGcPhase(writer: BinaryWriter, value: GcPhase): void {
         case "sweep":
             writer.writeUnsigned(5);
             return;
-        case "promote":
-            writer.writeUnsigned(6);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -245,8 +235,6 @@ export function decodeGcPhase(reader: BinaryReader): GcPhase {
             return "drop";
         case 5:
             return "sweep";
-        case 6:
-            return "promote";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -274,8 +262,6 @@ export function fromJsonGcPhase(value: Json): GcPhase {
             return "drop";
         case "sweep":
             return "sweep";
-        case "promote":
-            return "promote";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

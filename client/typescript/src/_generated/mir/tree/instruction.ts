@@ -38,6 +38,78 @@ import { decodeValue, encodeValue, fromJsonValue, toJsonValue } from "./value.js
 import { decodeValueSlice, encodeValueSlice, fromJsonValueSlice, toJsonValueSlice } from "./value.js";
 import { decodeVectorReduceOperator, encodeVectorReduceOperator, fromJsonVectorReduceOperator, toJsonVectorReduceOperator } from "./vector.js";
 
+/** What one address instruction means for the borrow check. */
+export type AddressKind = "borrow" | "projection";
+
+export const AddressKind = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: AddressKind): void {
+        encodeAddressKind(writer, value);
+    },
+
+    /** Decode one AddressKind. */
+    decode(reader: BinaryReader): AddressKind {
+        return decodeAddressKind(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: AddressKind): Json {
+        return toJsonAddressKind(value);
+    },
+
+    /** Return one AddressKind from one JSON value. */
+    fromJson(value: Json): AddressKind {
+        return fromJsonAddressKind(value);
+    },
+};
+
+/** Encode one AddressKind. */
+export function encodeAddressKind(writer: BinaryWriter, value: AddressKind): void {
+    switch (value) {
+        case "borrow":
+            writer.writeUnsigned(0);
+            return;
+        case "projection":
+            writer.writeUnsigned(1);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
+}
+
+/** Decode one AddressKind. */
+export function decodeAddressKind(reader: BinaryReader): AddressKind {
+    const variant = reader.readNumber();
+
+    switch (variant) {
+        case 0:
+            return "borrow";
+        case 1:
+            return "projection";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
+}
+
+/** Return one JSON value for one AddressKind. */
+export function toJsonAddressKind(value: AddressKind): Json {
+    return value;
+}
+
+/** Return one AddressKind from one JSON value. */
+export function fromJsonAddressKind(value: Json): AddressKind {
+    const variant = jsonString(value);
+
+    switch (variant) {
+        case "borrow":
+            return "borrow";
+        case "projection":
+            return "projection";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
+}
+
 /** Kind of type cast. */
 export type CastOperator = "bitcast" | "truncate" | "saturate" | "zeroExtend" | "signExtend" | "floatToSignedInt" | "floatToUnsignedInt" | "floatToSignedIntSaturating" | "floatToUnsignedIntSaturating" | "signedIntToFloat" | "unsignedIntToFloat" | "floatTruncate" | "floatExtend" | "floatConvert" | "pointerToInt" | "intToPointer";
 
@@ -285,6 +357,8 @@ export type Instruction =
           readonly local: LocalNodeId;
           /** The result reference type. */
           readonly resultType: LocalNodeId;
+          /** Whether the address borrows the local or projects a place through it. */
+          readonly kindValue: AddressKind;
       }
     /** Store to a local variable (stack slot). */
     | {
@@ -303,6 +377,8 @@ export type Instruction =
           readonly global: LocalNodeId;
           /** The result reference type. */
           readonly resultType: LocalNodeId;
+          /** What the address means for the borrow check. */
+          readonly kindValue: AddressKind;
       }
     /** Get a function pointer for a function (function.address). */
     | {
@@ -441,6 +517,8 @@ export type Instruction =
           readonly field: number;
           /** The result type of the address. */
           readonly resultType: LocalNodeId;
+          /** Whether the address borrows the field or projects a place through it. */
+          readonly kindValue: AddressKind;
       }
     /** Extract one statically selected fixed-array element. */
     | {
@@ -475,6 +553,8 @@ export type Instruction =
           readonly index: Value;
           /** The result type of the address. */
           readonly resultType: LocalNodeId;
+          /** Whether the address borrows the element or projects a place through it. */
+          readonly kindValue: AddressKind;
       }
     /** Construct a variant value from one case payload. */
     | {
@@ -525,6 +605,8 @@ export type Instruction =
           readonly case: number;
           /** The result type of the address. */
           readonly resultType: LocalNodeId;
+          /** Whether the address borrows the payload or projects a place through it. */
+          readonly kindValue: AddressKind;
       }
     /** Form a non-owning slice view over a contiguous source region. */
     | {
@@ -760,21 +842,11 @@ export type Instruction =
           /** The unique heap representation whose backing allocation is released. */
           readonly value: Value;
       }
-    /** Stabilize one heap value against movement (`pin`). */
+    /** Keep managed handles live through this point (`hold`). */
     | {
-          readonly kind: "pin";
-          /** The SSA value to define with the pinned reference. */
-          readonly destination: Value;
-          /** The heap value to pin. */
-          readonly value: Value;
-          /** The result type of the pinned reference. */
-          readonly resultType: LocalNodeId;
-      }
-    /** Release one heap pin (`unpin`). */
-    | {
-          readonly kind: "unpin";
-          /** The heap value to unpin. */
-          readonly value: Value;
+          readonly kind: "hold";
+          /** The managed handles stored in the tree's value buffer. */
+          readonly values: ValueSlice;
       }
     /** Record a managed reference write for the collector. */
     | {
@@ -921,8 +993,8 @@ export const Instruction = {
     },
 
     /** Get a reference to a local variable. */
-    localAddr(destination: Value, local: LocalNodeId, resultType: LocalNodeId): Instruction {
-        return { kind: "localAddr", destination, local, resultType };
+    localAddr(destination: Value, local: LocalNodeId, resultType: LocalNodeId, kind: AddressKind): Instruction {
+        return { kind: "localAddr", destination, local, resultType, kindValue: kind };
     },
 
     /** Store to a local variable (stack slot). */
@@ -931,8 +1003,8 @@ export const Instruction = {
     },
 
     /** Get a reference to a mutable global variable. */
-    globalAddr(destination: Value, global: LocalNodeId, resultType: LocalNodeId): Instruction {
-        return { kind: "globalAddr", destination, global, resultType };
+    globalAddr(destination: Value, global: LocalNodeId, resultType: LocalNodeId, kind: AddressKind): Instruction {
+        return { kind: "globalAddr", destination, global, resultType, kindValue: kind };
     },
 
     /** Get a function pointer for a function (function.address). */
@@ -1001,8 +1073,8 @@ export const Instruction = {
     },
 
     /** Get the address of one structural field in an addressable aggregate. */
-    fieldAddr(destination: Value, aggregate: Value, field: number, resultType: LocalNodeId): Instruction {
-        return { kind: "fieldAddr", destination, aggregate, field, resultType };
+    fieldAddr(destination: Value, aggregate: Value, field: number, resultType: LocalNodeId, kind: AddressKind): Instruction {
+        return { kind: "fieldAddr", destination, aggregate, field, resultType, kindValue: kind };
     },
 
     /** Extract one statically selected fixed-array element. */
@@ -1016,8 +1088,8 @@ export const Instruction = {
     },
 
     /** Get the address of an element from an addressable indexed value (element.address). */
-    elementAddr(destination: Value, base: Value, index: Value, resultType: LocalNodeId): Instruction {
-        return { kind: "elementAddr", destination, base, index, resultType };
+    elementAddr(destination: Value, base: Value, index: Value, resultType: LocalNodeId, kind: AddressKind): Instruction {
+        return { kind: "elementAddr", destination, base, index, resultType, kindValue: kind };
     },
 
     /** Construct a variant value from one case payload. */
@@ -1041,8 +1113,8 @@ export const Instruction = {
     },
 
     /** Get the address of one statically selected variant payload. */
-    variantPayloadAddr(destination: Value, variant: Value, case_: number, resultType: LocalNodeId): Instruction {
-        return { kind: "variantPayloadAddr", destination, variant, case: case_, resultType };
+    variantPayloadAddr(destination: Value, variant: Value, case_: number, resultType: LocalNodeId, kind: AddressKind): Instruction {
+        return { kind: "variantPayloadAddr", destination, variant, case: case_, resultType, kindValue: kind };
     },
 
     /** Form a non-owning slice view over a contiguous source region. */
@@ -1160,14 +1232,9 @@ export const Instruction = {
         return { kind: "free", value };
     },
 
-    /** Stabilize one heap value against movement (`pin`). */
-    pin(destination: Value, value: Value, resultType: LocalNodeId): Instruction {
-        return { kind: "pin", destination, value, resultType };
-    },
-
-    /** Release one heap pin (`unpin`). */
-    unpin(value: Value): Instruction {
-        return { kind: "unpin", value };
+    /** Keep managed handles live through this point (`hold`). */
+    hold(values: ValueSlice): Instruction {
+        return { kind: "hold", values };
     },
 
     /** Record a managed reference write for the collector. */
@@ -1299,6 +1366,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.local);
             encodeLocalNodeId(writer, value.resultType);
+            encodeAddressKind(writer, value.kindValue);
             return;
         case "localSet":
             writer.writeUnsigned(8);
@@ -1310,6 +1378,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.destination);
             encodeLocalNodeId(writer, value.global);
             encodeLocalNodeId(writer, value.resultType);
+            encodeAddressKind(writer, value.kindValue);
             return;
         case "functionAddr":
             writer.writeUnsigned(10);
@@ -1393,6 +1462,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.aggregate);
             writer.writeUnsigned(value.field);
             encodeLocalNodeId(writer, value.resultType);
+            encodeAddressKind(writer, value.kindValue);
             return;
         case "elementGet":
             writer.writeUnsigned(24);
@@ -1413,6 +1483,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.base);
             encodeValue(writer, value.index);
             encodeLocalNodeId(writer, value.resultType);
+            encodeAddressKind(writer, value.kindValue);
             return;
         case "variantNew":
             writer.writeUnsigned(27);
@@ -1445,6 +1516,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeValue(writer, value.variant);
             writer.writeUnsigned(value.case);
             encodeLocalNodeId(writer, value.resultType);
+            encodeAddressKind(writer, value.kindValue);
             return;
         case "sliceView":
             writer.writeUnsigned(32);
@@ -1588,37 +1660,31 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             writer.writeUnsigned(54);
             encodeValue(writer, value.value);
             return;
-        case "pin":
+        case "hold":
             writer.writeUnsigned(55);
-            encodeValue(writer, value.destination);
-            encodeValue(writer, value.value);
-            encodeLocalNodeId(writer, value.resultType);
-            return;
-        case "unpin":
-            writer.writeUnsigned(56);
-            encodeValue(writer, value.value);
+            encodeValueSlice(writer, value.values);
             return;
         case "barrierWrite":
-            writer.writeUnsigned(57);
+            writer.writeUnsigned(56);
             encodeValue(writer, value.object);
             encodeValue(writer, value.offset);
             encodeValue(writer, value.byteLen);
             return;
         case "atomicLoad":
-            writer.writeUnsigned(58);
+            writer.writeUnsigned(57);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.pointer);
             encodeLocalNodeId(writer, value.resultType);
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicStore":
-            writer.writeUnsigned(59);
+            writer.writeUnsigned(58);
             encodeValue(writer, value.pointer);
             encodeValue(writer, value.value);
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicCompareExchange":
-            writer.writeUnsigned(60);
+            writer.writeUnsigned(59);
             encodeValue(writer, value.destination);
             encodeValue(writer, value.pointer);
             encodeValue(writer, value.expected);
@@ -1627,7 +1693,7 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeCompareExchangeAccess(writer, value.access);
             return;
         case "atomicRmw":
-            writer.writeUnsigned(61);
+            writer.writeUnsigned(60);
             encodeValue(writer, value.destination);
             encodeAtomicRmwOperator(writer, value.operator);
             encodeValue(writer, value.pointer);
@@ -1635,30 +1701,30 @@ export function encodeInstruction(writer: BinaryWriter, value: Instruction): voi
             encodeAtomicAccess(writer, value.access);
             return;
         case "atomicFence":
-            writer.writeUnsigned(62);
+            writer.writeUnsigned(61);
             encodeFenceAccess(writer, value.access);
             return;
         case "assume":
-            writer.writeUnsigned(63);
+            writer.writeUnsigned(62);
             encodeValue(writer, value.condition);
             return;
         case "profileIncrement":
-            writer.writeUnsigned(64);
+            writer.writeUnsigned(63);
             encodeCounterId(writer, value.counter);
             return;
         case "profileSample":
-            writer.writeUnsigned(65);
+            writer.writeUnsigned(64);
             encodeSamplerId(writer, value.sampler);
             encodeValue(writer, value.value);
             return;
         case "poll":
-            writer.writeUnsigned(66);
+            writer.writeUnsigned(65);
             return;
         case "breakpoint":
-            writer.writeUnsigned(67);
+            writer.writeUnsigned(66);
             return;
         case "intrinsic":
-            writer.writeUnsigned(68);
+            writer.writeUnsigned(67);
             writer.writeOption(value.destination, (value0) => {
                 encodeValue(writer, value0);
             });
@@ -1756,12 +1822,14 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             const destination = decodeValue(reader);
             const local = decodeLocalNodeId(reader);
             const resultType = decodeLocalNodeId(reader);
+            const kindValue = decodeAddressKind(reader);
 
             return {
                 kind: "localAddr",
                 destination,
                 local,
                 resultType,
+                kindValue,
             };
         }
         case 8: {
@@ -1778,12 +1846,14 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             const destination = decodeValue(reader);
             const global = decodeLocalNodeId(reader);
             const resultType = decodeLocalNodeId(reader);
+            const kindValue = decodeAddressKind(reader);
 
             return {
                 kind: "globalAddr",
                 destination,
                 global,
                 resultType,
+                kindValue,
             };
         }
         case 10: {
@@ -1943,6 +2013,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             const aggregate = decodeValue(reader);
             const field = reader.readNumber();
             const resultType = decodeLocalNodeId(reader);
+            const kindValue = decodeAddressKind(reader);
 
             return {
                 kind: "fieldAddr",
@@ -1950,6 +2021,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 aggregate,
                 field,
                 resultType,
+                kindValue,
             };
         }
         case 24: {
@@ -1983,6 +2055,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             const base = decodeValue(reader);
             const index = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
+            const kindValue = decodeAddressKind(reader);
 
             return {
                 kind: "elementAddr",
@@ -1990,6 +2063,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 base,
                 index,
                 resultType,
+                kindValue,
             };
         }
         case 27: {
@@ -2043,6 +2117,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             const variant = decodeValue(reader);
             const case_ = reader.readNumber();
             const resultType = decodeLocalNodeId(reader);
+            const kindValue = decodeAddressKind(reader);
 
             return {
                 kind: "variantPayloadAddr",
@@ -2050,6 +2125,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 variant,
                 case: case_,
                 resultType,
+                kindValue,
             };
         }
         case 32: {
@@ -2333,26 +2409,14 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
             };
         }
         case 55: {
-            const destination = decodeValue(reader);
-            const value = decodeValue(reader);
-            const resultType = decodeLocalNodeId(reader);
+            const values = decodeValueSlice(reader);
 
             return {
-                kind: "pin",
-                destination,
-                value,
-                resultType,
+                kind: "hold",
+                values,
             };
         }
         case 56: {
-            const value = decodeValue(reader);
-
-            return {
-                kind: "unpin",
-                value,
-            };
-        }
-        case 57: {
             const object_ = decodeValue(reader);
             const offset = decodeValue(reader);
             const byteLen = decodeValue(reader);
@@ -2364,7 +2428,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 byteLen,
             };
         }
-        case 58: {
+        case 57: {
             const destination = decodeValue(reader);
             const pointer = decodeValue(reader);
             const resultType = decodeLocalNodeId(reader);
@@ -2378,7 +2442,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 59: {
+        case 58: {
             const pointer = decodeValue(reader);
             const value = decodeValue(reader);
             const access = decodeAtomicAccess(reader);
@@ -2390,7 +2454,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 60: {
+        case 59: {
             const destination = decodeValue(reader);
             const pointer = decodeValue(reader);
             const expected = decodeValue(reader);
@@ -2408,7 +2472,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 61: {
+        case 60: {
             const destination = decodeValue(reader);
             const operator = decodeAtomicRmwOperator(reader);
             const pointer = decodeValue(reader);
@@ -2424,7 +2488,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 62: {
+        case 61: {
             const access = decodeFenceAccess(reader);
 
             return {
@@ -2432,7 +2496,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 access,
             };
         }
-        case 63: {
+        case 62: {
             const condition = decodeValue(reader);
 
             return {
@@ -2440,7 +2504,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 condition,
             };
         }
-        case 64: {
+        case 63: {
             const counter = decodeCounterId(reader);
 
             return {
@@ -2448,7 +2512,7 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 counter,
             };
         }
-        case 65: {
+        case 64: {
             const sampler = decodeSamplerId(reader);
             const value = decodeValue(reader);
 
@@ -2458,13 +2522,13 @@ export function decodeInstruction(reader: BinaryReader): Instruction {
                 value,
             };
         }
-        case 66: {
+        case 65: {
             return { kind: "poll" };
         }
-        case 67: {
+        case 66: {
             return { kind: "breakpoint" };
         }
-        case 68: {
+        case 67: {
             const destination = reader.readOption(() => decodeValue(reader));
             const intrinsic = decodeIntrinsic(reader);
             const arguments_ = decodeValueSlice(reader);
@@ -2537,6 +2601,7 @@ export function toJsonInstruction(value: Instruction): Json {
                 destination: toJsonValue(value.destination),
                 local: toJsonLocalNodeId(value.local),
                 resultType: toJsonLocalNodeId(value.resultType),
+                kindValue: toJsonAddressKind(value.kindValue),
             };
         case "localSet":
             return {
@@ -2550,6 +2615,7 @@ export function toJsonInstruction(value: Instruction): Json {
                 destination: toJsonValue(value.destination),
                 global: toJsonLocalNodeId(value.global),
                 resultType: toJsonLocalNodeId(value.resultType),
+                kindValue: toJsonAddressKind(value.kindValue),
             };
         case "functionAddr":
             return {
@@ -2647,6 +2713,7 @@ export function toJsonInstruction(value: Instruction): Json {
                 aggregate: toJsonValue(value.aggregate),
                 field: value.field,
                 resultType: toJsonLocalNodeId(value.resultType),
+                kindValue: toJsonAddressKind(value.kindValue),
             };
         case "elementGet":
             return {
@@ -2670,6 +2737,7 @@ export function toJsonInstruction(value: Instruction): Json {
                 base: toJsonValue(value.base),
                 index: toJsonValue(value.index),
                 resultType: toJsonLocalNodeId(value.resultType),
+                kindValue: toJsonAddressKind(value.kindValue),
             };
         case "variantNew":
             return {
@@ -2705,6 +2773,7 @@ export function toJsonInstruction(value: Instruction): Json {
                 variant: toJsonValue(value.variant),
                 case: value.case,
                 resultType: toJsonLocalNodeId(value.resultType),
+                kindValue: toJsonAddressKind(value.kindValue),
             };
         case "sliceView":
             return {
@@ -2869,17 +2938,10 @@ export function toJsonInstruction(value: Instruction): Json {
                 kind: "free",
                 value: toJsonValue(value.value),
             };
-        case "pin":
+        case "hold":
             return {
-                kind: "pin",
-                destination: toJsonValue(value.destination),
-                value: toJsonValue(value.value),
-                resultType: toJsonLocalNodeId(value.resultType),
-            };
-        case "unpin":
-            return {
-                kind: "unpin",
-                value: toJsonValue(value.value),
+                kind: "hold",
+                values: toJsonValueSlice(value.values),
             };
         case "barrierWrite":
             return {
@@ -3022,6 +3084,7 @@ export function fromJsonInstruction(value: Json): Instruction {
                 destination: fromJsonValue(jsonField(object, "destination")),
                 local: fromJsonLocalNodeId(jsonField(object, "local")),
                 resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
+                kindValue: fromJsonAddressKind(jsonField(object, "kindValue")),
             };
         case "localSet":
             return {
@@ -3035,6 +3098,7 @@ export function fromJsonInstruction(value: Json): Instruction {
                 destination: fromJsonValue(jsonField(object, "destination")),
                 global: fromJsonLocalNodeId(jsonField(object, "global")),
                 resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
+                kindValue: fromJsonAddressKind(jsonField(object, "kindValue")),
             };
         case "functionAddr":
             return {
@@ -3132,6 +3196,7 @@ export function fromJsonInstruction(value: Json): Instruction {
                 aggregate: fromJsonValue(jsonField(object, "aggregate")),
                 field: jsonInteger(jsonField(object, "field")),
                 resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
+                kindValue: fromJsonAddressKind(jsonField(object, "kindValue")),
             };
         case "elementGet":
             return {
@@ -3155,6 +3220,7 @@ export function fromJsonInstruction(value: Json): Instruction {
                 base: fromJsonValue(jsonField(object, "base")),
                 index: fromJsonValue(jsonField(object, "index")),
                 resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
+                kindValue: fromJsonAddressKind(jsonField(object, "kindValue")),
             };
         case "variantNew":
             return {
@@ -3190,6 +3256,7 @@ export function fromJsonInstruction(value: Json): Instruction {
                 variant: fromJsonValue(jsonField(object, "variant")),
                 case: jsonInteger(jsonField(object, "case")),
                 resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
+                kindValue: fromJsonAddressKind(jsonField(object, "kindValue")),
             };
         case "sliceView":
             return {
@@ -3354,17 +3421,10 @@ export function fromJsonInstruction(value: Json): Instruction {
                 kind,
                 value: fromJsonValue(jsonField(object, "value")),
             };
-        case "pin":
+        case "hold":
             return {
                 kind,
-                destination: fromJsonValue(jsonField(object, "destination")),
-                value: fromJsonValue(jsonField(object, "value")),
-                resultType: fromJsonLocalNodeId(jsonField(object, "resultType")),
-            };
-        case "unpin":
-            return {
-                kind,
-                value: fromJsonValue(jsonField(object, "value")),
+                values: fromJsonValueSlice(jsonField(object, "values")),
             };
         case "barrierWrite":
             return {

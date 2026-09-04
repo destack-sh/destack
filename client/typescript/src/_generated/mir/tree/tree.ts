@@ -13,7 +13,7 @@ import type { LifetimeParameter } from "./lifetime.js";
 import type { Local } from "./local.js";
 import type { NodeIndexEntry } from "./node.js";
 import type { LocalNodeId } from "./node.js";
-import type { OriginTable } from "./origin.js";
+import type { ProvenanceTable } from "./provenance.js";
 import type { Static } from "./static.js";
 import type { StaticId } from "./static.js";
 import type { Terminator } from "./terminator.js";
@@ -39,7 +39,7 @@ import { decodeLifetimeParameter, encodeLifetimeParameter, fromJsonLifetimeParam
 import { decodeLocal, encodeLocal, fromJsonLocal, toJsonLocal } from "./local.js";
 import { decodeNodeIndexEntry, encodeNodeIndexEntry, fromJsonNodeIndexEntry, toJsonNodeIndexEntry } from "./node.js";
 import { decodeLocalNodeId, encodeLocalNodeId, fromJsonLocalNodeId, toJsonLocalNodeId } from "./node.js";
-import { decodeOriginTable, encodeOriginTable, fromJsonOriginTable, toJsonOriginTable } from "./origin.js";
+import { decodeProvenanceTable, encodeProvenanceTable, fromJsonProvenanceTable, toJsonProvenanceTable } from "./provenance.js";
 import { decodeStatic, encodeStatic, fromJsonStatic, toJsonStatic } from "./static.js";
 import { decodeStaticId, encodeStaticId, fromJsonStaticId, toJsonStaticId } from "./static.js";
 import { decodeTerminator, encodeTerminator, fromJsonTerminator, toJsonTerminator } from "./terminator.js";
@@ -67,7 +67,7 @@ export type Tree = {
     /** DIR source id keyed by MIR node id. */
     readonly sourceIdByNodeId: ReadonlyArray<number | undefined>;
     /** How each pass-created node came to be. */
-    readonly originByNodeId: OriginTable;
+    readonly provenanceByNodeId: ProvenanceTable;
     /** Source ranges and anchors for parsed MIR node ownership. */
     readonly sourceIndex: SourceIndexArchive;
     /** The parsed MIR source text. */
@@ -172,7 +172,7 @@ export function encodeTree(writer: BinaryWriter, value: Tree): void {
             writer.writeUnsigned(value5);
         });
     }
-    encodeOriginTable(writer, value.originByNodeId);
+    encodeProvenanceTable(writer, value.provenanceByNodeId);
     encodeSourceIndexArchive(writer, value.sourceIndex);
     writer.writeOption(value.sourceText, (value7) => {
         writer.writeString(value7);
@@ -406,7 +406,7 @@ export function decodeTree(reader: BinaryReader): Tree {
     const nodeIndexByNodeId = (() => { const length2 = reader.readNumber(); const items2: Array<NodeIndexEntry> = []; for (let index = 0; index < length2; index += 1) { items2.push(decodeNodeIndexEntry(reader)); } return items2; })();
     const attributesByNodeId = (() => { const length3 = reader.readNumber(); const items3 = new Map<number, ReadonlyArray<Attribute>>(); for (let index = 0; index < length3; index += 1) { items3.set(reader.readNumber(), (() => { const length5 = reader.readNumber(); const items5: Array<Attribute> = []; for (let index = 0; index < length5; index += 1) { items5.push(decodeAttribute(reader)); } return items5; })()); } return items3; })();
     const sourceIdByNodeId = (() => { const length4 = reader.readNumber(); const items4: Array<number | undefined> = []; for (let index = 0; index < length4; index += 1) { items4.push(reader.readOption(() => reader.readNumber())); } return items4; })();
-    const originByNodeId = decodeOriginTable(reader);
+    const provenanceByNodeId = decodeProvenanceTable(reader);
     const sourceIndex = decodeSourceIndexArchive(reader);
     const sourceText = reader.readOption(() => reader.readString());
     const tokens = (() => { const length8 = reader.readNumber(); const items8: Array<Token> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeToken(reader)); } return items8; })();
@@ -444,7 +444,7 @@ export function decodeTree(reader: BinaryReader): Tree {
         nodeIndexByNodeId,
         attributesByNodeId,
         sourceIdByNodeId,
-        originByNodeId,
+        provenanceByNodeId,
         sourceIndex,
         ...(sourceText === undefined ? {} : { sourceText }),
         tokens,
@@ -486,7 +486,7 @@ export function toJsonTree(value: Tree): Json {
         nodeIndexByNodeId: value.nodeIndexByNodeId.map((item0) => toJsonNodeIndexEntry(item0)),
         attributesByNodeId: Array.from(value.attributesByNodeId.entries()).map(([key0, item0]) => [key0, item0.map((item1) => toJsonAttribute(item1))] as const),
         sourceIdByNodeId: value.sourceIdByNodeId.map((item0) => item0 === undefined ? null : item0),
-        originByNodeId: toJsonOriginTable(value.originByNodeId),
+        provenanceByNodeId: toJsonProvenanceTable(value.provenanceByNodeId),
         sourceIndex: toJsonSourceIndexArchive(value.sourceIndex),
         ...(value.sourceText === undefined ? {} : { sourceText: value.sourceText }),
         tokens: value.tokens.map((item0) => toJsonToken(item0)),
@@ -530,7 +530,7 @@ export function fromJsonTree(value: Json): Tree {
         nodeIndexByNodeId: jsonArray(jsonField(object, "nodeIndexByNodeId")).map((item0) => fromJsonNodeIndexEntry(item0)),
         attributesByNodeId: new Map(jsonArray(jsonField(object, "attributesByNodeId")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [jsonInteger(key0), jsonArray(item0).map((item1) => fromJsonAttribute(item1))] as const; })),
         sourceIdByNodeId: jsonArray(jsonField(object, "sourceIdByNodeId")).map((item0) => item0 === null ? undefined : jsonInteger(item0)),
-        originByNodeId: fromJsonOriginTable(jsonField(object, "originByNodeId")),
+        provenanceByNodeId: fromJsonProvenanceTable(jsonField(object, "provenanceByNodeId")),
         sourceIndex: fromJsonSourceIndexArchive(jsonField(object, "sourceIndex")),
         sourceText: jsonOptional(object, "sourceText", (value) => jsonString(value)),
         tokens: jsonArray(jsonField(object, "tokens")).map((item0) => fromJsonToken(item0)),

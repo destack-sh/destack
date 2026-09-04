@@ -11,6 +11,7 @@ import type { LocalNodeIdAny } from "../tree/node.js";
 import type { VarianceModifier } from "../tree/property.js";
 import type { InstanceKey } from "./key.js";
 import type { GlobalTypeId } from "./type.js";
+import type { TypeListId } from "./type.js";
 import type { ModuleId } from "../../source/file/model/module.js";
 import { decodeStringId, encodeStringId, fromJsonStringId, toJsonStringId } from "../../core/string.js";
 import { decodeLocalScopeId, encodeLocalScopeId, fromJsonLocalScopeId, toJsonLocalScopeId } from "../symbol/scope.js";
@@ -22,6 +23,7 @@ import { decodeLocalNodeIdAny, encodeLocalNodeIdAny, fromJsonLocalNodeIdAny, toJ
 import { decodeVarianceModifier, encodeVarianceModifier, fromJsonVarianceModifier, toJsonVarianceModifier } from "../tree/property.js";
 import { decodeInstanceKey, encodeInstanceKey, fromJsonInstanceKey, toJsonInstanceKey } from "./key.js";
 import { decodeGlobalTypeId, encodeGlobalTypeId, fromJsonGlobalTypeId, toJsonGlobalTypeId } from "./type.js";
+import { decodeTypeListId, encodeTypeListId, fromJsonTypeListId, toJsonTypeListId } from "./type.js";
 import { decodeModuleId, encodeModuleId, fromJsonModuleId, toJsonModuleId } from "../../source/file/model/module.js";
 
 /** One selected parameter bound to its runtime argument source. */
@@ -108,9 +110,9 @@ export type ArgumentSource =
           readonly kind: "static";
           readonly static: GlobalTypeId;
       }
-    /** The enclosing place write supplies this argument. */
+    /** The enclosing construct supplies this argument, a place write or a propagated residual. */
     | {
-          readonly kind: "write";
+          readonly kind: "supplied";
       }
     /** No source argument was supplied. */
     | {
@@ -137,9 +139,9 @@ export const ArgumentSource = {
         return { kind: "static", static: static_ };
     },
 
-    /** The enclosing place write supplies this argument. */
-    write(): ArgumentSource {
-        return { kind: "write" };
+    /** The enclosing construct supplies this argument, a place write or a propagated residual. */
+    supplied(): ArgumentSource {
+        return { kind: "supplied" };
     },
 
     /** No source argument was supplied. */
@@ -184,7 +186,7 @@ export function encodeArgumentSource(writer: BinaryWriter, value: ArgumentSource
             writer.writeUnsigned(1);
             encodeGlobalTypeId(writer, value.static);
             return;
-        case "write":
+        case "supplied":
             writer.writeUnsigned(2);
             return;
         case "omitted":
@@ -221,7 +223,7 @@ export function decodeArgumentSource(reader: BinaryReader): ArgumentSource {
             return { kind: "static", static: static_ };
         }
         case 2: {
-            return { kind: "write" };
+            return { kind: "supplied" };
         }
         case 3: {
             return { kind: "omitted" };
@@ -254,9 +256,9 @@ export function toJsonArgumentSource(value: ArgumentSource): Json {
                 kind: "static",
                 static: toJsonGlobalTypeId(value.static),
             };
-        case "write":
+        case "supplied":
             return {
-                kind: "write",
+                kind: "supplied",
             };
         case "omitted":
             return {
@@ -289,7 +291,7 @@ export function fromJsonArgumentSource(value: Json): ArgumentSource {
                 kind,
                 static: fromJsonGlobalTypeId(jsonField(object, "static")),
             };
-        case "write":
+        case "supplied":
             return {
                 kind,
             };
@@ -1194,6 +1196,8 @@ export type Instance = {
     readonly origin: InstanceOrigin;
     /** The auto interfaces this closed nominal satisfies, empty on callables. */
     readonly conformances: AutoInterfaceSet;
+    /** The region parameters the argument list abstracts, as bound literals in occurrence order. */
+    readonly regions: TypeListId;
 };
 
 export const Instance = {
@@ -1224,6 +1228,7 @@ export function encodeInstance(writer: BinaryWriter, value: Instance): void {
     encodeGlobalNodeIdAny(writer, value.source);
     encodeInstanceOrigin(writer, value.origin);
     encodeAutoInterfaceSet(writer, value.conformances);
+    encodeTypeListId(writer, value.regions);
 }
 
 /** Decode one Instance. */
@@ -1232,12 +1237,14 @@ export function decodeInstance(reader: BinaryReader): Instance {
     const source = decodeGlobalNodeIdAny(reader);
     const origin = decodeInstanceOrigin(reader);
     const conformances = decodeAutoInterfaceSet(reader);
+    const regions = decodeTypeListId(reader);
 
     return {
         key,
         source,
         origin,
         conformances,
+        regions,
     };
 }
 
@@ -1248,6 +1255,7 @@ export function toJsonInstance(value: Instance): Json {
         source: toJsonGlobalNodeIdAny(value.source),
         origin: toJsonInstanceOrigin(value.origin),
         conformances: toJsonAutoInterfaceSet(value.conformances),
+        regions: toJsonTypeListId(value.regions),
     };
 }
 
@@ -1260,6 +1268,7 @@ export function fromJsonInstance(value: Json): Instance {
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         origin: fromJsonInstanceOrigin(jsonField(object, "origin")),
         conformances: fromJsonAutoInterfaceSet(jsonField(object, "conformances")),
+        regions: fromJsonTypeListId(jsonField(object, "regions")),
     };
 }
 

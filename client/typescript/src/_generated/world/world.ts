@@ -169,7 +169,7 @@ const listObservationsMethodResponse: Decoder<runtimeServiceWorld.ObservationPag
 const listObservationsMethod: Method<runtimeServiceWorld.ListObservationsRequest, runtimeServiceWorld.ObservationPage, never, never> = {
     service: 10634146378307930274n,
     method: 1437261528243189898n,
-    fingerprint: 57837344939912482357750910484199613394n,
+    fingerprint: 65718682829645580991208688603915781461n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listObservationsMethodRequest,
@@ -192,7 +192,7 @@ const listRuntimesMethodResponse: Decoder<ReadonlyArray<runtimeServiceWorld.Runt
 const listRuntimesMethod: Method<runtimeServiceWorld.ListRuntimesRequest, ReadonlyArray<runtimeServiceWorld.Runtime>, never, never> = {
     service: 10634146378307930274n,
     method: 13494924740849884462n,
-    fingerprint: 316750158777233413471282762688356437352n,
+    fingerprint: 45321481429562301031830588537398316973n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listRuntimesMethodRequest,
@@ -307,7 +307,7 @@ const readRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 const readRuntimeMethod: Method<runtimeServiceWorld.ReadRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
     service: 10634146378307930274n,
     method: 17741785525402478019n,
-    fingerprint: 138644457161980853087517330883890908427n,
+    fingerprint: 24922639987985381247612971306165206471n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: readRuntimeMethodRequest,
@@ -353,7 +353,7 @@ const reloadRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 const reloadRuntimeMethod: Method<runtimeServiceWorld.ReloadRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
     service: 10634146378307930274n,
     method: 15811933204709298131n,
-    fingerprint: 292641083566599995001540325514569334149n,
+    fingerprint: 285643143227981126098204435173488981573n,
     kind: "unary",
     idempotency: "unknown",
     request: reloadRuntimeMethodRequest,
@@ -537,7 +537,7 @@ const spawnRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 const spawnRuntimeMethod: Method<runtimeServiceWorld.SpawnRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
     service: 10634146378307930274n,
     method: 18276151310101957786n,
-    fingerprint: 64064363718473084587768411867456410510n,
+    fingerprint: 137515482418325670644189671660328325807n,
     kind: "unary",
     idempotency: "unknown",
     request: spawnRuntimeMethodRequest,
@@ -566,7 +566,7 @@ const watchObservationsMethodOutput: Decoder<runtimeWorldObservationEntry.Observ
 const watchObservationsMethod: Method<runtimeServiceWorld.WatchObservationsRequest, null, never, runtimeWorldObservationEntry.ObservationEntry> = {
     service: 10634146378307930274n,
     method: 13237122242148560062n,
-    fingerprint: 235847324697748917516121796630506751975n,
+    fingerprint: 186674210188787741846574719768957773016n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: watchObservationsMethodRequest,

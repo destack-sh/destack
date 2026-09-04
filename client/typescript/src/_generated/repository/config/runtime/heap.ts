@@ -85,8 +85,6 @@ export function fromJsonHeapOptions(value: Json): HeapOptions {
 
 /** Runtime local-heap policy. */
 export type LocalHeapOptions = {
-    /** The byte width for worker-local young space. */
-    readonly youngSizeBytes: number;
     /** Minimum heap bytes before normal growth pacing applies. */
     readonly minBytes?: bigint;
     /** Hard limit for total retained local heap bytes. */
@@ -117,23 +115,20 @@ export const LocalHeapOptions = {
 
 /** Encode one LocalHeapOptions. */
 export function encodeLocalHeapOptions(writer: BinaryWriter, value: LocalHeapOptions): void {
-    writer.writeUnsigned(value.youngSizeBytes);
-    writer.writeOption(value.minBytes, (value1) => {
-        writer.writeUnsigned(value1);
+    writer.writeOption(value.minBytes, (value0) => {
+        writer.writeUnsigned(value0);
     });
-    writer.writeOption(value.maxBytes, (value2) => {
-        writer.writeUnsigned(value2);
+    writer.writeOption(value.maxBytes, (value1) => {
+        writer.writeUnsigned(value1);
     });
 }
 
 /** Decode one LocalHeapOptions. */
 export function decodeLocalHeapOptions(reader: BinaryReader): LocalHeapOptions {
-    const youngSizeBytes = reader.readNumber();
     const minBytes = reader.readOption(() => reader.readUnsigned());
     const maxBytes = reader.readOption(() => reader.readUnsigned());
 
     return {
-        youngSizeBytes,
         ...(minBytes === undefined ? {} : { minBytes }),
         ...(maxBytes === undefined ? {} : { maxBytes }),
     };
@@ -142,7 +137,6 @@ export function decodeLocalHeapOptions(reader: BinaryReader): LocalHeapOptions {
 /** Return one JSON value for one LocalHeapOptions. */
 export function toJsonLocalHeapOptions(value: LocalHeapOptions): Json {
     return {
-        youngSizeBytes: value.youngSizeBytes,
         ...(value.minBytes === undefined ? {} : { minBytes: value.minBytes.toString() }),
         ...(value.maxBytes === undefined ? {} : { maxBytes: value.maxBytes.toString() }),
     };
@@ -153,7 +147,6 @@ export function fromJsonLocalHeapOptions(value: Json): LocalHeapOptions {
     const object = jsonObject(value);
 
     return {
-        youngSizeBytes: jsonInteger(jsonField(object, "youngSizeBytes")),
         minBytes: jsonOptional(object, "minBytes", (value) => jsonBigint(value)),
         maxBytes: jsonOptional(object, "maxBytes", (value) => jsonBigint(value)),
     };

@@ -190,6 +190,10 @@ export type LifetimeTerm =
     | {
           readonly kind: "frame";
       }
+    /** Managed storage, alive while reachable, its handles held live across parks. */
+    | {
+          readonly kind: "managed";
+      }
     /** A lifetime slot in the current lifetime environment. */
     | {
           readonly kind: "slot";
@@ -206,6 +210,11 @@ export const LifetimeTerm = {
     /** Storage owned by the current activation. */
     frame(): LifetimeTerm {
         return { kind: "frame" };
+    },
+
+    /** Managed storage, alive while reachable, its handles held live across parks. */
+    managed(): LifetimeTerm {
+        return { kind: "managed" };
     },
 
     /** A lifetime slot in the current lifetime environment. */
@@ -243,8 +252,11 @@ export function encodeLifetimeTerm(writer: BinaryWriter, value: LifetimeTerm): v
         case "frame":
             writer.writeUnsigned(1);
             return;
-        case "slot":
+        case "managed":
             writer.writeUnsigned(2);
+            return;
+        case "slot":
+            writer.writeUnsigned(3);
             encodeLifetimeSlot(writer, value.slot);
             return;
     }
@@ -264,6 +276,9 @@ export function decodeLifetimeTerm(reader: BinaryReader): LifetimeTerm {
             return { kind: "frame" };
         }
         case 2: {
+            return { kind: "managed" };
+        }
+        case 3: {
             const slot = decodeLifetimeSlot(reader);
 
             return { kind: "slot", slot };
@@ -283,6 +298,10 @@ export function toJsonLifetimeTerm(value: LifetimeTerm): Json {
         case "frame":
             return {
                 kind: "frame",
+            };
+        case "managed":
+            return {
+                kind: "managed",
             };
         case "slot":
             return {
@@ -305,6 +324,10 @@ export function fromJsonLifetimeTerm(value: Json): LifetimeTerm {
                 kind,
             };
         case "frame":
+            return {
+                kind,
+            };
+        case "managed":
             return {
                 kind,
             };

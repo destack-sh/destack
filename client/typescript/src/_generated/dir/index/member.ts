@@ -3,11 +3,11 @@
 import { BinaryReader, BinaryWriter, Json, jsonArray, jsonField, jsonInteger, jsonObject } from "../../../protocol/serde.js";
 import type { Postings } from "./postings.js";
 import type { GlobalSymbolId } from "../symbol/symbol.js";
-import type { MemberImplementation } from "../table/definition.js";
+import type { ImplementationEdge } from "../table/definition.js";
 import type { GlobalNodeIdAny } from "../tree/node.js";
 import { decodePostings, encodePostings, fromJsonPostings, toJsonPostings } from "./postings.js";
 import { decodeGlobalSymbolId, encodeGlobalSymbolId, fromJsonGlobalSymbolId, toJsonGlobalSymbolId } from "../symbol/symbol.js";
-import { decodeMemberImplementation, encodeMemberImplementation, fromJsonMemberImplementation, toJsonMemberImplementation } from "../table/definition.js";
+import { decodeImplementationEdge, encodeImplementationEdge, fromJsonImplementationEdge, toJsonImplementationEdge } from "../table/definition.js";
 import { decodeGlobalNodeIdAny, encodeGlobalNodeIdAny, fromJsonGlobalNodeIdAny, toJsonGlobalNodeIdAny } from "../tree/node.js";
 
 /** One symbol-backed member declaration. */
@@ -86,8 +86,8 @@ export function fromJsonMemberEntry(value: Json): MemberEntry {
 export type MemberIndex = {
     /** Symbol-backed members ordered by source node. */
     readonly entries: ReadonlyArray<MemberEntry>;
-    /** Exact member implementations ordered by declaration symbol. */
-    readonly implementations: ReadonlyArray<MemberImplementation>;
+    /** Exact member implementation edges ordered by declaration symbol. */
+    readonly implementations: ReadonlyArray<ImplementationEdge>;
     /** Entry ordinals in member-symbol order. */
     readonly bySymbol: ReadonlyArray<number>;
     /** Implementation ordinals in implementation-symbol order. */
@@ -124,7 +124,7 @@ export function encodeMemberIndex(writer: BinaryWriter, value: MemberIndex): voi
     }
     writer.writeUnsigned(value.implementations.length);
     for (const item1 of value.implementations) {
-        encodeMemberImplementation(writer, item1);
+        encodeImplementationEdge(writer, item1);
     }
     writer.writeUnsigned(value.bySymbol.length);
     for (const item2 of value.bySymbol) {
@@ -139,7 +139,7 @@ export function encodeMemberIndex(writer: BinaryWriter, value: MemberIndex): voi
 /** Decode one MemberIndex. */
 export function decodeMemberIndex(reader: BinaryReader): MemberIndex {
     const entries = (() => { const length0 = reader.readNumber(); const items0: Array<MemberEntry> = []; for (let index = 0; index < length0; index += 1) { items0.push(decodeMemberEntry(reader)); } return items0; })();
-    const implementations = (() => { const length1 = reader.readNumber(); const items1: Array<MemberImplementation> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeMemberImplementation(reader)); } return items1; })();
+    const implementations = (() => { const length1 = reader.readNumber(); const items1: Array<ImplementationEdge> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeImplementationEdge(reader)); } return items1; })();
     const bySymbol = (() => { const length2 = reader.readNumber(); const items2: Array<number> = []; for (let index = 0; index < length2; index += 1) { items2.push(reader.readNumber()); } return items2; })();
     const byImplementation = (() => { const length3 = reader.readNumber(); const items3: Array<number> = []; for (let index = 0; index < length3; index += 1) { items3.push(reader.readNumber()); } return items3; })();
 
@@ -155,7 +155,7 @@ export function decodeMemberIndex(reader: BinaryReader): MemberIndex {
 export function toJsonMemberIndex(value: MemberIndex): Json {
     return {
         entries: value.entries.map((item0) => toJsonMemberEntry(item0)),
-        implementations: value.implementations.map((item0) => toJsonMemberImplementation(item0)),
+        implementations: value.implementations.map((item0) => toJsonImplementationEdge(item0)),
         bySymbol: value.bySymbol.map((item0) => item0),
         byImplementation: value.byImplementation.map((item0) => item0),
     };
@@ -167,7 +167,7 @@ export function fromJsonMemberIndex(value: Json): MemberIndex {
 
     return {
         entries: jsonArray(jsonField(object, "entries")).map((item0) => fromJsonMemberEntry(item0)),
-        implementations: jsonArray(jsonField(object, "implementations")).map((item0) => fromJsonMemberImplementation(item0)),
+        implementations: jsonArray(jsonField(object, "implementations")).map((item0) => fromJsonImplementationEdge(item0)),
         bySymbol: jsonArray(jsonField(object, "bySymbol")).map((item0) => jsonInteger(item0)),
         byImplementation: jsonArray(jsonField(object, "byImplementation")).map((item0) => jsonInteger(item0)),
     };

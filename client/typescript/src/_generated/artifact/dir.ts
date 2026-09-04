@@ -840,6 +840,10 @@ export function fromJsonDirImported(value: Json): DirImported {
 export type DirMaterialized = {
     /** Tree changes. */
     readonly patch: Patch;
+    /** The symbols the synthesized bodies declare. */
+    readonly bindings: BindingSegment;
+    /** The lexical names the synthesized bodies resolve. */
+    readonly resolutions: ResolutionSegment;
     /** New types. */
     readonly types: TypeSegment;
     /** Closed generic instances and their materialized types. */
@@ -879,29 +883,35 @@ export const DirMaterialized = {
 /** Encode one DirMaterialized. */
 export function encodeDirMaterialized(writer: BinaryWriter, value: DirMaterialized): void {
     encodePatch(writer, value.patch);
+    encodeBindingSegment(writer, value.bindings);
+    encodeResolutionSegment(writer, value.resolutions);
     encodeTypeSegment(writer, value.types);
     encodeGenericSegment(writer, value.generics);
     encodeDefinitionSegment(writer, value.definitions);
     encodeDecisionSegment(writer, value.decisions);
     encodeCoercionSegment(writer, value.coercions);
     writer.writeUnsigned(value.roots.length);
-    for (const item6 of value.roots) {
-        encodeLocalNodeId(writer, item6);
+    for (const item8 of value.roots) {
+        encodeLocalNodeId(writer, item8);
     }
 }
 
 /** Decode one DirMaterialized. */
 export function decodeDirMaterialized(reader: BinaryReader): DirMaterialized {
     const patch = decodePatch(reader);
+    const bindings = decodeBindingSegment(reader);
+    const resolutions = decodeResolutionSegment(reader);
     const types = decodeTypeSegment(reader);
     const generics = decodeGenericSegment(reader);
     const definitions = decodeDefinitionSegment(reader);
     const decisions = decodeDecisionSegment(reader);
     const coercions = decodeCoercionSegment(reader);
-    const roots = (() => { const length6 = reader.readNumber(); const items6: Array<LocalNodeId> = []; for (let index = 0; index < length6; index += 1) { items6.push(decodeLocalNodeId(reader)); } return items6; })();
+    const roots = (() => { const length8 = reader.readNumber(); const items8: Array<LocalNodeId> = []; for (let index = 0; index < length8; index += 1) { items8.push(decodeLocalNodeId(reader)); } return items8; })();
 
     return {
         patch,
+        bindings,
+        resolutions,
         types,
         generics,
         definitions,
@@ -915,6 +925,8 @@ export function decodeDirMaterialized(reader: BinaryReader): DirMaterialized {
 export function toJsonDirMaterialized(value: DirMaterialized): Json {
     return {
         patch: toJsonPatch(value.patch),
+        bindings: toJsonBindingSegment(value.bindings),
+        resolutions: toJsonResolutionSegment(value.resolutions),
         types: toJsonTypeSegment(value.types),
         generics: toJsonGenericSegment(value.generics),
         definitions: toJsonDefinitionSegment(value.definitions),
@@ -930,6 +942,8 @@ export function fromJsonDirMaterialized(value: Json): DirMaterialized {
 
     return {
         patch: fromJsonPatch(jsonField(object, "patch")),
+        bindings: fromJsonBindingSegment(jsonField(object, "bindings")),
+        resolutions: fromJsonResolutionSegment(jsonField(object, "resolutions")),
         types: fromJsonTypeSegment(jsonField(object, "types")),
         generics: fromJsonGenericSegment(jsonField(object, "generics")),
         definitions: fromJsonDefinitionSegment(jsonField(object, "definitions")),

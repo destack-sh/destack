@@ -48,6 +48,8 @@ export type AssociatedConstDefinition = {
     readonly source: GlobalNodeIdAny;
     /** The associated const key. */
     readonly key: StaticKey;
+    /** How the associated const receives its implementation. */
+    readonly implementation: MemberImplementation;
 };
 
 export const AssociatedConstDefinition = {
@@ -77,6 +79,7 @@ export function encodeAssociatedConstDefinition(writer: BinaryWriter, value: Ass
     encodeGlobalSymbolId(writer, value.symbol);
     encodeGlobalNodeIdAny(writer, value.source);
     encodeStaticKey(writer, value.key);
+    encodeMemberImplementation(writer, value.implementation);
 }
 
 /** Decode one AssociatedConstDefinition. */
@@ -84,11 +87,13 @@ export function decodeAssociatedConstDefinition(reader: BinaryReader): Associate
     const symbol_ = decodeGlobalSymbolId(reader);
     const source = decodeGlobalNodeIdAny(reader);
     const key = decodeStaticKey(reader);
+    const implementation = decodeMemberImplementation(reader);
 
     return {
         symbol: symbol_,
         source,
         key,
+        implementation,
     };
 }
 
@@ -98,6 +103,7 @@ export function toJsonAssociatedConstDefinition(value: AssociatedConstDefinition
         symbol: toJsonGlobalSymbolId(value.symbol),
         source: toJsonGlobalNodeIdAny(value.source),
         key: toJsonStaticKey(value.key),
+        implementation: toJsonMemberImplementation(value.implementation),
     };
 }
 
@@ -109,6 +115,7 @@ export function fromJsonAssociatedConstDefinition(value: Json): AssociatedConstD
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         key: fromJsonStaticKey(jsonField(object, "key")),
+        implementation: fromJsonMemberImplementation(jsonField(object, "implementation")),
     };
 }
 
@@ -124,6 +131,8 @@ export type AssociatedTypeDefinition = {
     readonly constraint?: GlobalTypeId;
     /** The concrete associated type value. */
     readonly value?: GlobalTypeId;
+    /** How the associated type receives its implementation. */
+    readonly implementation: MemberImplementation;
 };
 
 export const AssociatedTypeDefinition = {
@@ -159,6 +168,7 @@ export function encodeAssociatedTypeDefinition(writer: BinaryWriter, value: Asso
     writer.writeOption(value.value, (value4) => {
         encodeGlobalTypeId(writer, value4);
     });
+    encodeMemberImplementation(writer, value.implementation);
 }
 
 /** Decode one AssociatedTypeDefinition. */
@@ -168,6 +178,7 @@ export function decodeAssociatedTypeDefinition(reader: BinaryReader): Associated
     const key = decodeStaticKey(reader);
     const constraint = reader.readOption(() => decodeGlobalTypeId(reader));
     const value = reader.readOption(() => decodeGlobalTypeId(reader));
+    const implementation = decodeMemberImplementation(reader);
 
     return {
         symbol: symbol_,
@@ -175,6 +186,7 @@ export function decodeAssociatedTypeDefinition(reader: BinaryReader): Associated
         key,
         ...(constraint === undefined ? {} : { constraint }),
         ...(value === undefined ? {} : { value }),
+        implementation,
     };
 }
 
@@ -186,6 +198,7 @@ export function toJsonAssociatedTypeDefinition(value: AssociatedTypeDefinition):
         key: toJsonStaticKey(value.key),
         ...(value.constraint === undefined ? {} : { constraint: toJsonGlobalTypeId(value.constraint) }),
         ...(value.value === undefined ? {} : { value: toJsonGlobalTypeId(value.value) }),
+        implementation: toJsonMemberImplementation(value.implementation),
     };
 }
 
@@ -199,6 +212,7 @@ export function fromJsonAssociatedTypeDefinition(value: Json): AssociatedTypeDef
         key: fromJsonStaticKey(jsonField(object, "key")),
         constraint: jsonOptional(object, "constraint", (value) => fromJsonGlobalTypeId(value)),
         value: jsonOptional(object, "value", (value) => fromJsonGlobalTypeId(value)),
+        implementation: fromJsonMemberImplementation(jsonField(object, "implementation")),
     };
 }
 
@@ -1978,6 +1992,8 @@ export type FieldDefinition = {
     readonly source: GlobalNodeIdAny;
     /** The field key. */
     readonly key: StaticKey;
+    /** The type the field stores, undefined included for optional fields. */
+    readonly ty: GlobalTypeId;
     /** The field initializer expression, when one is declared. */
     readonly initializer?: GlobalNodeIdAny;
     /** Whether the field is optional on its declaration. */
@@ -2021,15 +2037,16 @@ export function encodeFieldDefinition(writer: BinaryWriter, value: FieldDefiniti
     encodeGlobalSymbolId(writer, value.symbol);
     encodeGlobalNodeIdAny(writer, value.source);
     encodeStaticKey(writer, value.key);
-    writer.writeOption(value.initializer, (value5) => {
-        encodeGlobalNodeIdAny(writer, value5);
+    encodeGlobalTypeId(writer, value.ty);
+    writer.writeOption(value.initializer, (value6) => {
+        encodeGlobalNodeIdAny(writer, value6);
     });
     writer.writeBool(value.isOptional);
     writer.writeBool(value.isReadonly);
     writer.writeBool(value.isAbstract);
     writer.writeBool(value.isOverride);
-    writer.writeOption(value.overrides, (value10) => {
-        encodeGlobalSymbolId(writer, value10);
+    writer.writeOption(value.overrides, (value11) => {
+        encodeGlobalSymbolId(writer, value11);
     });
 }
 
@@ -2040,6 +2057,7 @@ export function decodeFieldDefinition(reader: BinaryReader): FieldDefinition {
     const symbol_ = decodeGlobalSymbolId(reader);
     const source = decodeGlobalNodeIdAny(reader);
     const key = decodeStaticKey(reader);
+    const ty = decodeGlobalTypeId(reader);
     const initializer = reader.readOption(() => decodeGlobalNodeIdAny(reader));
     const isOptional = reader.readBool();
     const isReadonly = reader.readBool();
@@ -2053,6 +2071,7 @@ export function decodeFieldDefinition(reader: BinaryReader): FieldDefinition {
         symbol: symbol_,
         source,
         key,
+        ty,
         ...(initializer === undefined ? {} : { initializer }),
         isOptional,
         isReadonly,
@@ -2070,6 +2089,7 @@ export function toJsonFieldDefinition(value: FieldDefinition): Json {
         symbol: toJsonGlobalSymbolId(value.symbol),
         source: toJsonGlobalNodeIdAny(value.source),
         key: toJsonStaticKey(value.key),
+        ty: toJsonGlobalTypeId(value.ty),
         ...(value.initializer === undefined ? {} : { initializer: toJsonGlobalNodeIdAny(value.initializer) }),
         isOptional: value.isOptional,
         isReadonly: value.isReadonly,
@@ -2089,12 +2109,78 @@ export function fromJsonFieldDefinition(value: Json): FieldDefinition {
         symbol: fromJsonGlobalSymbolId(jsonField(object, "symbol")),
         source: fromJsonGlobalNodeIdAny(jsonField(object, "source")),
         key: fromJsonStaticKey(jsonField(object, "key")),
+        ty: fromJsonGlobalTypeId(jsonField(object, "ty")),
         initializer: jsonOptional(object, "initializer", (value) => fromJsonGlobalNodeIdAny(value)),
         isOptional: jsonBool(jsonField(object, "isOptional")),
         isReadonly: jsonBool(jsonField(object, "isReadonly")),
         isAbstract: jsonBool(jsonField(object, "isAbstract")),
         isOverride: jsonBool(jsonField(object, "isOverride")),
         overrides: jsonOptional(object, "overrides", (value) => fromJsonGlobalSymbolId(value)),
+    };
+}
+
+/** One exact member implementation edge. */
+export type ImplementationEdge = {
+    /** The declared member requirement. */
+    readonly declaration: GlobalSymbolId;
+    /** The member satisfying the declaration. */
+    readonly implementation: GlobalSymbolId;
+};
+
+export const ImplementationEdge = {
+    /** Encode this value. */
+    encode(writer: BinaryWriter, value: ImplementationEdge): void {
+        encodeImplementationEdge(writer, value);
+    },
+
+    /** Decode one ImplementationEdge. */
+    decode(reader: BinaryReader): ImplementationEdge {
+        return decodeImplementationEdge(reader);
+    },
+
+    /** Return this value as JSON. */
+    toJson(value: ImplementationEdge): Json {
+        return toJsonImplementationEdge(value);
+    },
+
+    /** Return one ImplementationEdge from one JSON value. */
+    fromJson(value: Json): ImplementationEdge {
+        return fromJsonImplementationEdge(value);
+    },
+};
+
+/** Encode one ImplementationEdge. */
+export function encodeImplementationEdge(writer: BinaryWriter, value: ImplementationEdge): void {
+    encodeGlobalSymbolId(writer, value.declaration);
+    encodeGlobalSymbolId(writer, value.implementation);
+}
+
+/** Decode one ImplementationEdge. */
+export function decodeImplementationEdge(reader: BinaryReader): ImplementationEdge {
+    const declaration = decodeGlobalSymbolId(reader);
+    const implementation = decodeGlobalSymbolId(reader);
+
+    return {
+        declaration,
+        implementation,
+    };
+}
+
+/** Return one JSON value for one ImplementationEdge. */
+export function toJsonImplementationEdge(value: ImplementationEdge): Json {
+    return {
+        declaration: toJsonGlobalSymbolId(value.declaration),
+        implementation: toJsonGlobalSymbolId(value.implementation),
+    };
+}
+
+/** Return one ImplementationEdge from one JSON value. */
+export function fromJsonImplementationEdge(value: Json): ImplementationEdge {
+    const object = jsonObject(value);
+
+    return {
+        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
+        implementation: fromJsonGlobalSymbolId(jsonField(object, "implementation")),
     };
 }
 
@@ -2352,13 +2438,8 @@ export function fromJsonMemberConformance(value: Json): MemberConformance {
     };
 }
 
-/** One exact member implementation edge. */
-export type MemberImplementation = {
-    /** The declared member requirement. */
-    readonly declaration: GlobalSymbolId;
-    /** The member satisfying the declaration. */
-    readonly implementation: GlobalSymbolId;
-};
+/** How one member receives its implementation. */
+export type MemberImplementation = "required" | "own" | "default";
 
 export const MemberImplementation = {
     /** Encode this value. */
@@ -2384,37 +2465,56 @@ export const MemberImplementation = {
 
 /** Encode one MemberImplementation. */
 export function encodeMemberImplementation(writer: BinaryWriter, value: MemberImplementation): void {
-    encodeGlobalSymbolId(writer, value.declaration);
-    encodeGlobalSymbolId(writer, value.implementation);
+    switch (value) {
+        case "required":
+            writer.writeUnsigned(0);
+            return;
+        case "own":
+            writer.writeUnsigned(1);
+            return;
+        case "default":
+            writer.writeUnsigned(2);
+            return;
+    }
+
+    throw new SerdeError("unknown enum variant");
 }
 
 /** Decode one MemberImplementation. */
 export function decodeMemberImplementation(reader: BinaryReader): MemberImplementation {
-    const declaration = decodeGlobalSymbolId(reader);
-    const implementation = decodeGlobalSymbolId(reader);
+    const variant = reader.readNumber();
 
-    return {
-        declaration,
-        implementation,
-    };
+    switch (variant) {
+        case 0:
+            return "required";
+        case 1:
+            return "own";
+        case 2:
+            return "default";
+    }
+
+    throw new SerdeError(`unknown enum variant index: ${variant}`);
 }
 
 /** Return one JSON value for one MemberImplementation. */
 export function toJsonMemberImplementation(value: MemberImplementation): Json {
-    return {
-        declaration: toJsonGlobalSymbolId(value.declaration),
-        implementation: toJsonGlobalSymbolId(value.implementation),
-    };
+    return value;
 }
 
 /** Return one MemberImplementation from one JSON value. */
 export function fromJsonMemberImplementation(value: Json): MemberImplementation {
-    const object = jsonObject(value);
+    const variant = jsonString(value);
 
-    return {
-        declaration: fromJsonGlobalSymbolId(jsonField(object, "declaration")),
-        implementation: fromJsonGlobalSymbolId(jsonField(object, "implementation")),
-    };
+    switch (variant) {
+        case "required":
+            return "required";
+        case "own":
+            return "own";
+        case "default":
+            return "default";
+    }
+
+    throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** One method member. */
@@ -2438,7 +2538,7 @@ export type MethodDefinition = {
     /** The overridden base member, selected while checking. */
     readonly overrides?: GlobalSymbolId;
     /** How the method receives its implementation. */
-    readonly implementation: MethodImplementation;
+    readonly implementation: MemberImplementation;
 };
 
 export const MethodDefinition = {
@@ -2478,7 +2578,7 @@ export function encodeMethodDefinition(writer: BinaryWriter, value: MethodDefini
     writer.writeOption(value.overrides, (value8) => {
         encodeGlobalSymbolId(writer, value8);
     });
-    encodeMethodImplementation(writer, value.implementation);
+    encodeMemberImplementation(writer, value.implementation);
 }
 
 /** Decode one MethodDefinition. */
@@ -2492,7 +2592,7 @@ export function decodeMethodDefinition(reader: BinaryReader): MethodDefinition {
     const abstraction = decodeMethodAbstraction(reader);
     const isOverride = reader.readBool();
     const overrides = reader.readOption(() => decodeGlobalSymbolId(reader));
-    const implementation = decodeMethodImplementation(reader);
+    const implementation = decodeMemberImplementation(reader);
 
     return {
         space,
@@ -2520,7 +2620,7 @@ export function toJsonMethodDefinition(value: MethodDefinition): Json {
         abstraction: toJsonMethodAbstraction(value.abstraction),
         isOverride: value.isOverride,
         ...(value.overrides === undefined ? {} : { overrides: toJsonGlobalSymbolId(value.overrides) }),
-        implementation: toJsonMethodImplementation(value.implementation),
+        implementation: toJsonMemberImplementation(value.implementation),
     };
 }
 
@@ -2538,87 +2638,8 @@ export function fromJsonMethodDefinition(value: Json): MethodDefinition {
         abstraction: fromJsonMethodAbstraction(jsonField(object, "abstraction")),
         isOverride: jsonBool(jsonField(object, "isOverride")),
         overrides: jsonOptional(object, "overrides", (value) => fromJsonGlobalSymbolId(value)),
-        implementation: fromJsonMethodImplementation(jsonField(object, "implementation")),
+        implementation: fromJsonMemberImplementation(jsonField(object, "implementation")),
     };
-}
-
-/** How one method receives its implementation. */
-export type MethodImplementation = "required" | "body" | "default";
-
-export const MethodImplementation = {
-    /** Encode this value. */
-    encode(writer: BinaryWriter, value: MethodImplementation): void {
-        encodeMethodImplementation(writer, value);
-    },
-
-    /** Decode one MethodImplementation. */
-    decode(reader: BinaryReader): MethodImplementation {
-        return decodeMethodImplementation(reader);
-    },
-
-    /** Return this value as JSON. */
-    toJson(value: MethodImplementation): Json {
-        return toJsonMethodImplementation(value);
-    },
-
-    /** Return one MethodImplementation from one JSON value. */
-    fromJson(value: Json): MethodImplementation {
-        return fromJsonMethodImplementation(value);
-    },
-};
-
-/** Encode one MethodImplementation. */
-export function encodeMethodImplementation(writer: BinaryWriter, value: MethodImplementation): void {
-    switch (value) {
-        case "required":
-            writer.writeUnsigned(0);
-            return;
-        case "body":
-            writer.writeUnsigned(1);
-            return;
-        case "default":
-            writer.writeUnsigned(2);
-            return;
-    }
-
-    throw new SerdeError("unknown enum variant");
-}
-
-/** Decode one MethodImplementation. */
-export function decodeMethodImplementation(reader: BinaryReader): MethodImplementation {
-    const variant = reader.readNumber();
-
-    switch (variant) {
-        case 0:
-            return "required";
-        case 1:
-            return "body";
-        case 2:
-            return "default";
-    }
-
-    throw new SerdeError(`unknown enum variant index: ${variant}`);
-}
-
-/** Return one JSON value for one MethodImplementation. */
-export function toJsonMethodImplementation(value: MethodImplementation): Json {
-    return value;
-}
-
-/** Return one MethodImplementation from one JSON value. */
-export function fromJsonMethodImplementation(value: Json): MethodImplementation {
-    const variant = jsonString(value);
-
-    switch (variant) {
-        case "required":
-            return "required";
-        case "body":
-            return "body";
-        case "default":
-            return "default";
-    }
-
-    throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
 /** One constructable newtype backing alternative. */

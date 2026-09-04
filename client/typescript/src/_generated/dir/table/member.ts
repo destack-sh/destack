@@ -506,8 +506,8 @@ export function fromJsonMemberRole(value: Json): MemberRole {
 export type MemberSegment = {
     /** The module id of the member segment. */
     readonly moduleId: ModuleId;
-    /** Lookup subjects selected at source sites. */
-    readonly subjects: ReadonlyMap<MemberSite, MemberSubject>;
+    /** Lookup subjects selected at source sites, each with the member key a keyed lookup names. */
+    readonly subjects: ReadonlyMap<MemberSite, readonly [MemberSubject, StaticKey | undefined]>;
     /** Member bindings flattened once per declared owner and space. */
     readonly bindings: ReadonlyMap<readonly [GlobalSymbolId, MemberSpace], ReadonlyArray<MemberBinding>>;
     /** The membership each settled subject selects. */
@@ -549,7 +549,10 @@ export function encodeMemberSegment(writer: BinaryWriter, value: MemberSegment):
     writer.writeUnsigned(entries1.length);
     for (const entry1 of entries1) {
         encodeMemberSite(writer, entry1.key1);
-        encodeMemberSubject(writer, entry1.item1);
+        encodeMemberSubject(writer, entry1.item1[0]);
+        writer.writeOption(entry1.item1[1], (value3) => {
+            encodeStaticKey(writer, value3);
+        });
     }
     const entries2 = Array.from(value.bindings.entries()).map(([key2, item2]) => {
         const keyBytes = nestedBytes((writer) => {
@@ -585,7 +588,7 @@ export function encodeMemberSegment(writer: BinaryWriter, value: MemberSegment):
 /** Decode one MemberSegment. */
 export function decodeMemberSegment(reader: BinaryReader): MemberSegment {
     const moduleId = decodeModuleId(reader);
-    const subjects = (() => { const length1 = reader.readNumber(); const items1 = new Map<MemberSite, MemberSubject>(); for (let index = 0; index < length1; index += 1) { items1.set(decodeMemberSite(reader), decodeMemberSubject(reader)); } return items1; })();
+    const subjects = (() => { const length1 = reader.readNumber(); const items1 = new Map<MemberSite, readonly [MemberSubject, StaticKey | undefined]>(); for (let index = 0; index < length1; index += 1) { items1.set(decodeMemberSite(reader), [decodeMemberSubject(reader), reader.readOption(() => decodeStaticKey(reader))] as const); } return items1; })();
     const bindings = (() => { const length2 = reader.readNumber(); const items2 = new Map<readonly [GlobalSymbolId, MemberSpace], ReadonlyArray<MemberBinding>>(); for (let index = 0; index < length2; index += 1) { items2.set([decodeGlobalSymbolId(reader), decodeMemberSpace(reader)] as const, (() => { const length4 = reader.readNumber(); const items4: Array<MemberBinding> = []; for (let index = 0; index < length4; index += 1) { items4.push(decodeMemberBinding(reader)); } return items4; })()); } return items2; })();
     const memberships = (() => { const length3 = reader.readNumber(); const items3 = new Map<MemberSubject, Membership>(); for (let index = 0; index < length3; index += 1) { items3.set(decodeMemberSubject(reader), decodeMembership(reader)); } return items3; })();
 
@@ -601,7 +604,7 @@ export function decodeMemberSegment(reader: BinaryReader): MemberSegment {
 export function toJsonMemberSegment(value: MemberSegment): Json {
     return {
         moduleId: toJsonModuleId(value.moduleId),
-        subjects: Array.from(value.subjects.entries()).map(([key0, item0]) => [toJsonMemberSite(key0), toJsonMemberSubject(item0)] as const),
+        subjects: Array.from(value.subjects.entries()).map(([key0, item0]) => [toJsonMemberSite(key0), [toJsonMemberSubject(item0[0]), item0[1] === undefined ? null : toJsonStaticKey(item0[1])]] as const),
         bindings: Array.from(value.bindings.entries()).map(([key0, item0]) => [[toJsonGlobalSymbolId(key0[0]), toJsonMemberSpace(key0[1])], item0.map((item1) => toJsonMemberBinding(item1))] as const),
         memberships: Array.from(value.memberships.entries()).map(([key0, item0]) => [toJsonMemberSubject(key0), toJsonMembership(item0)] as const),
     };
@@ -613,7 +616,7 @@ export function fromJsonMemberSegment(value: Json): MemberSegment {
 
     return {
         moduleId: fromJsonModuleId(jsonField(object, "moduleId")),
-        subjects: new Map(jsonArray(jsonField(object, "subjects")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonMemberSite(key0), fromJsonMemberSubject(item0)] as const; })),
+        subjects: new Map(jsonArray(jsonField(object, "subjects")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonMemberSite(key0), (() => { const items = jsonArray(item0); if (items.length !== 2) { throw new SerdeError(`expected JSON tuple length 2: ${items.length}`); } return [fromJsonMemberSubject(items[0]), items[1] === null ? undefined : fromJsonStaticKey(items[1])] as const; })()] as const; })),
         bindings: new Map(jsonArray(jsonField(object, "bindings")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [(() => { const items = jsonArray(key0); if (items.length !== 2) { throw new SerdeError(`expected JSON tuple length 2: ${items.length}`); } return [fromJsonGlobalSymbolId(items[0]), fromJsonMemberSpace(items[1])] as const; })(), jsonArray(item0).map((item1) => fromJsonMemberBinding(item1))] as const; })),
         memberships: new Map(jsonArray(jsonField(object, "memberships")).map((entry) => { const items = jsonArray(entry); if (items.length !== 2) { throw new SerdeError(`expected JSON map entry length 2: ${items.length}`); } const key0 = items[0]; const item0 = items[1]; return [fromJsonMemberSubject(key0), fromJsonMembership(item0)] as const; })),
     };

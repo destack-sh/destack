@@ -464,14 +464,6 @@ export type Statement =
           readonly increment?: LocalNodeId;
           readonly body: LocalNodeId;
       }
-    /** For in statement. */
-    | {
-          readonly kind: "forIn";
-          readonly keyword?: BindingKeyword;
-          readonly pattern: LocalNodeId;
-          readonly iterator: LocalNodeId;
-          readonly body: LocalNodeId;
-      }
     /** For of statement. */
     | {
           readonly kind: "forOf";
@@ -594,11 +586,6 @@ export const Statement = {
     /** For statement. */
     "for"(initialization: ForInitialization | undefined, condition: LocalNodeId | undefined, increment: LocalNodeId | undefined, body: LocalNodeId): Statement {
         return { kind: "for", initialization, condition, increment, body };
-    },
-
-    /** For in statement. */
-    forIn(keyword: BindingKeyword | undefined, pattern: LocalNodeId, iterator: LocalNodeId, body: LocalNodeId): Statement {
-        return { kind: "forIn", keyword, pattern, iterator, body };
     },
 
     /** For of statement. */
@@ -781,17 +768,8 @@ export function encodeStatement(writer: BinaryWriter, value: Statement): void {
             });
             encodeLocalNodeId(writer, value.body);
             return;
-        case "forIn":
-            writer.writeUnsigned(15);
-            writer.writeOption(value.keyword, (value0) => {
-                encodeBindingKeyword(writer, value0);
-            });
-            encodeLocalNodeId(writer, value.pattern);
-            encodeLocalNodeId(writer, value.iterator);
-            encodeLocalNodeId(writer, value.body);
-            return;
         case "forOf":
-            writer.writeUnsigned(16);
+            writer.writeUnsigned(15);
             encodeAsynchrony(writer, value.asynchrony);
             writer.writeOption(value.keyword, (value1) => {
                 encodeBindingKeyword(writer, value1);
@@ -801,7 +779,7 @@ export function encodeStatement(writer: BinaryWriter, value: Statement): void {
             encodeLocalNodeId(writer, value.body);
             return;
         case "switch":
-            writer.writeUnsigned(17);
+            writer.writeUnsigned(16);
             encodeLocalNodeId(writer, value.value);
             writer.writeUnsigned(value.cases.length);
             for (const item1 of value.cases) {
@@ -809,7 +787,7 @@ export function encodeStatement(writer: BinaryWriter, value: Statement): void {
             }
             return;
         case "try":
-            writer.writeUnsigned(18);
+            writer.writeUnsigned(17);
             encodeLocalNodeId(writer, value.tryBlock);
             writer.writeOption(value.catchClause, (value1) => {
                 encodeLocalNodeId(writer, value1);
@@ -819,29 +797,29 @@ export function encodeStatement(writer: BinaryWriter, value: Statement): void {
             });
             return;
         case "throw":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(18);
             encodeLocalNodeId(writer, value.value);
             return;
         case "continue":
-            writer.writeUnsigned(20);
+            writer.writeUnsigned(19);
             writer.writeOption(value.label, (value0) => {
                 encodeStringId(writer, value0);
             });
             return;
         case "break":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(20);
             writer.writeOption(value.label, (value0) => {
                 encodeStringId(writer, value0);
             });
             return;
         case "return":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(21);
             writer.writeOption(value.value, (value0) => {
                 encodeLocalNodeId(writer, value0);
             });
             return;
         case "debugger":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             return;
     }
 
@@ -1016,20 +994,6 @@ export function decodeStatement(reader: BinaryReader): Statement {
             };
         }
         case 15: {
-            const keyword = reader.readOption(() => decodeBindingKeyword(reader));
-            const pattern = decodeLocalNodeId(reader);
-            const iterator = decodeLocalNodeId(reader);
-            const body = decodeLocalNodeId(reader);
-
-            return {
-                kind: "forIn",
-                ...(keyword === undefined ? {} : { keyword }),
-                pattern,
-                iterator,
-                body,
-            };
-        }
-        case 16: {
             const asynchrony = decodeAsynchrony(reader);
             const keyword = reader.readOption(() => decodeBindingKeyword(reader));
             const pattern = decodeLocalNodeId(reader);
@@ -1045,7 +1009,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 body,
             };
         }
-        case 17: {
+        case 16: {
             const value = decodeLocalNodeId(reader);
             const cases = (() => { const length1 = reader.readNumber(); const items1: Array<LocalNodeId> = []; for (let index = 0; index < length1; index += 1) { items1.push(decodeLocalNodeId(reader)); } return items1; })();
 
@@ -1055,7 +1019,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 cases,
             };
         }
-        case 18: {
+        case 17: {
             const tryBlock = decodeLocalNodeId(reader);
             const catchClause = reader.readOption(() => decodeLocalNodeId(reader));
             const finallyBlock = reader.readOption(() => decodeLocalNodeId(reader));
@@ -1067,7 +1031,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 ...(finallyBlock === undefined ? {} : { finallyBlock }),
             };
         }
-        case 19: {
+        case 18: {
             const value = decodeLocalNodeId(reader);
 
             return {
@@ -1075,7 +1039,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 value,
             };
         }
-        case 20: {
+        case 19: {
             const label = reader.readOption(() => decodeStringId(reader));
 
             return {
@@ -1083,7 +1047,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 ...(label === undefined ? {} : { label }),
             };
         }
-        case 21: {
+        case 20: {
             const label = reader.readOption(() => decodeStringId(reader));
 
             return {
@@ -1091,7 +1055,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 ...(label === undefined ? {} : { label }),
             };
         }
-        case 22: {
+        case 21: {
             const value = reader.readOption(() => decodeLocalNodeId(reader));
 
             return {
@@ -1099,7 +1063,7 @@ export function decodeStatement(reader: BinaryReader): Statement {
                 ...(value === undefined ? {} : { value }),
             };
         }
-        case 23: {
+        case 22: {
             return { kind: "debugger" };
         }
     }
@@ -1204,14 +1168,6 @@ export function toJsonStatement(value: Statement): Json {
                 ...(value.initialization === undefined ? {} : { initialization: toJsonForInitialization(value.initialization) }),
                 ...(value.condition === undefined ? {} : { condition: toJsonLocalNodeId(value.condition) }),
                 ...(value.increment === undefined ? {} : { increment: toJsonLocalNodeId(value.increment) }),
-                body: toJsonLocalNodeId(value.body),
-            };
-        case "forIn":
-            return {
-                kind: "forIn",
-                ...(value.keyword === undefined ? {} : { keyword: toJsonBindingKeyword(value.keyword) }),
-                pattern: toJsonLocalNodeId(value.pattern),
-                iterator: toJsonLocalNodeId(value.iterator),
                 body: toJsonLocalNodeId(value.body),
             };
         case "forOf":
@@ -1365,14 +1321,6 @@ export function fromJsonStatement(value: Json): Statement {
                 initialization: jsonOptional(object, "initialization", (value) => fromJsonForInitialization(value)),
                 condition: jsonOptional(object, "condition", (value) => fromJsonLocalNodeId(value)),
                 increment: jsonOptional(object, "increment", (value) => fromJsonLocalNodeId(value)),
-                body: fromJsonLocalNodeId(jsonField(object, "body")),
-            };
-        case "forIn":
-            return {
-                kind,
-                keyword: jsonOptional(object, "keyword", (value) => fromJsonBindingKeyword(value)),
-                pattern: fromJsonLocalNodeId(jsonField(object, "pattern")),
-                iterator: fromJsonLocalNodeId(jsonField(object, "iterator")),
                 body: fromJsonLocalNodeId(jsonField(object, "body")),
             };
         case "forOf":
