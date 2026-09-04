@@ -54,12 +54,6 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
         // execute one operation through engine-neutral program storage
         match instruction.opcode() {
-            Opcode::PIN => {
-                let edge = self.activation.memory.pin(edge).map_err(Error::heap)?;
-
-                self.write(register.0, Word::from_bits(edge.bits() as u64));
-            }
-            Opcode::UNPIN => self.activation.memory.unpin(edge).map_err(Error::heap)?,
             Opcode::BARRIER => {
                 let start = operands.register()?;
                 let byte_len = operands.register()?;

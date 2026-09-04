@@ -49,6 +49,8 @@ pub(crate) struct Runtime {
     local_static: program::StaticSpace,
     /// Runtime-shared static bytes.
     shared_static: program::StaticSpace,
+    /// The request word the machine polls at safepoints.
+    handshake: program::Handshake,
 }
 
 /// Program runtime used by direct execution benchmarks.
@@ -141,6 +143,7 @@ impl Runtime {
             constant_space,
             local_static,
             shared_static,
+            handshake: program::Handshake::new(),
         }
     }
 
@@ -159,6 +162,7 @@ impl Runtime {
                 local_statics: &mut self.local_static,
                 shared_statics: &mut self.shared_static,
                 constants: &self.constant_space,
+                handshake: &self.handshake,
             },
         };
         let parameter = self

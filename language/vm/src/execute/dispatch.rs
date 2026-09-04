@@ -187,9 +187,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         }
                     }
                     Opcode::FREE => self.execute_free(instruction)?,
-                    Opcode::PIN | Opcode::UNPIN | Opcode::BARRIER => {
-                        self.execute_reference(instruction)?
-                    }
+                    Opcode::BARRIER => self.execute_reference(instruction)?,
                     Opcode::DROP | Opcode::DROP_INDIRECT => {
                         self.cursor.set_position(position);
                         self.execute_drop(operation_pc, instruction)?;

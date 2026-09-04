@@ -48,18 +48,16 @@ function f0 {
     assert_eq!(value, vec![Word::int32(61)]);
 }
 
-/// Execute pinning, barriers, and explicit unique release through heap ownership.
+/// Execute barriers and explicit unique release through heap ownership.
 #[test]
-fn test_execute_reference_lifetime() {
+fn test_execute_reference_operations() {
     let managed = TestProgram::value_allocation(0, 0, Space::Local, 0);
     let unique = TestProgram::value_allocation(0, 4, Space::Local, 0);
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
     new.zeroed r2, a0
-    pin r2: ref<managed, local>
     barrier r2, r0, r1: ref<managed, local>
-    unpin r2: ref<managed, local>
     new.zeroed r3, a1
     free r3
     constant.boolean r4, true
