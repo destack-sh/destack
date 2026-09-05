@@ -98,13 +98,32 @@ impl<I: PoolId> ValueInterner<I> {
         interner
     }
 
+    /// Index every value in the committed pool under its structural hash.
+    pub fn seed<T: Copy + Eq + Hash>(&mut self, committed: &ValuePool<T>) {
+        for (id, value) in committed.iter::<I>() {
+            let hash = FxBuildHasher.hash_one(*value);
+            self.index.entry(hash).or_default().push(id);
+        }
+    }
+
     /// Intern one value into the pool.
     pub fn intern<T: Copy + Eq + Hash>(&mut self, pool: &mut ValuePool<T>, value: T) -> I {
+        self.intern_with(pool, value, |_| None)
+    }
+
+    /// Intern one value into the pool, resolving committed ids through the given lookup.
+    pub fn intern_with<T: Copy + Eq + Hash>(
+        &mut self,
+        pool: &mut ValuePool<T>,
+        value: T,
+        committed: impl Fn(I) -> Option<T>,
+    ) -> I {
         // probe the index for an existing structural hit
         let hash = FxBuildHasher.hash_one(value);
         if let Some(slots) = self.index.get(&hash) {
             for slot in slots {
-                if pool.get(*slot) == Some(&value) {
+                let found = pool.get(*slot).copied().or_else(|| committed(*slot));
+                if found == Some(value) {
                     return *slot;
                 }
             }
