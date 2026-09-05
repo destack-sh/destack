@@ -1536,6 +1536,12 @@ define_language_items! {
 
         /// `destack:math/identity`.
         identity {
+            /// Construction from a float literal.
+            FromFloatLiteral => (NewtypeInterface, "math/identity", "FromFloatLiteral"),
+
+            /// Construction from an integer literal.
+            FromIntegerLiteral => (NewtypeInterface, "math/identity", "FromIntegerLiteral"),
+
             /// Multiplicative identity protocol.
             One => (NewtypeInterface, "math/identity", "One"),
 
@@ -1862,7 +1868,7 @@ define_language_items! {
         /// `destack:memory/dynamic`.
         dynamic {
             /// Erased runtime value.
-            Dynamic => (Newtype, "memory/dynamic", "Dynamic"),
+            Dynamic => (Type, "memory/dynamic", "Dynamic"),
         }
 
         /// `destack:memory/error`.
@@ -1939,16 +1945,16 @@ define_language_items! {
         /// `destack:memory/type`.
         type {
             /// Project the access mode of a memory form.
-            AccessOf => (Newtype, "memory/type", "AccessOf"),
+            AccessOf => (Type, "memory/type", "AccessOf"),
 
             /// Ownership kind for qualified storage.
             Ownership => (Type, "memory/type", "Ownership"),
 
             /// Project the space of a placed type.
-            PlaceOf => (Newtype, "memory/type", "PlaceOf"),
+            PlaceOf => (Type, "memory/type", "PlaceOf"),
 
             /// Reborrow with an access mode.
-            WithAccess => (Newtype, "memory/type", "WithAccess"),
+            WithAccess => (Type, "memory/type", "WithAccess"),
         }
     }
 
@@ -3615,10 +3621,10 @@ define_language_items! {
             ConstructorParameters => (Type, "types/function", "ConstructorParameters"),
 
             /// Callable value type.
-            Function => (Newtype, "types/function", "Function"),
+            Function => (Type, "types/function", "Function"),
 
             /// Thin callable value type.
-            FunctionPointer => (Newtype, "types/function", "FunctionPointer"),
+            FunctionPointer => (Type, "types/function", "FunctionPointer"),
 
             /// Tuple value type.
 
