@@ -1,9 +1,9 @@
 import { todo } from "destack:error";
-import { Clone, Concrete } from "destack:memory";
+import { Clone, Concrete, Copy } from "destack:memory";
 import { Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 import { sizeOf } from "destack:reflect";
 
-import { One, Zero } from "./identity.ds";
+import { FromIntegerLiteral, One, Zero } from "./identity.ds";
 
 /// Marker for integer literals, intervals, and builtin integer types.
 @languageItem("math.IntegerDomain")
@@ -11,7 +11,7 @@ export newtype interface IntegerDomain {}
 
 /// Marker for the builtin integer types of any width.
 @languageItem("math.Integer")
-export newtype interface Integer extends Concrete, IntegerDomain, Zero, One {}
+export newtype interface Integer extends Concrete, Copy, IntegerDomain, Zero, One, FromIntegerLiteral {}
 
 /// The unsigned builtin integer type with the same width as `T`.
 @languageItem("math.Unsigned")

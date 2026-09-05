@@ -1,8 +1,8 @@
 import { todo } from "destack:error";
-import { Clone, Concrete } from "destack:memory";
+import { Clone, Concrete, Copy } from "destack:memory";
 import { PartialEqual } from "destack:ops";
 
-import { One, Zero } from "./identity.ds";
+import { FromFloatLiteral, FromIntegerLiteral, One, Zero } from "./identity.ds";
 import { Integer } from "./integer.ds";
 
 /// Marker for float literals and builtin float types.
@@ -11,7 +11,7 @@ export newtype interface FloatDomain {}
 
 /// Marker for the builtin float formats of any width.
 @languageItem("math.Float")
-export newtype interface Float extends Concrete, FloatDomain, Zero, One {}
+export newtype interface Float extends Concrete, Copy, FloatDomain, Zero, One, FromIntegerLiteral, FromFloatLiteral {}
 
 /// Methods shared by every builtin float format.
 export extension<T: Float> of T implements Clone, PartialEqual<T> {
