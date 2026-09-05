@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     AutoInterfaceSet, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
-    InstanceKeyVisit, LanguageItem, LocalNodeIdAny, LocalScopeId, StringId, TypeFold, TypeListId,
+    InstanceKeyVisit, LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, StringId, TypeFold,
     VarianceModifier, WhereRelation,
 };
 
@@ -119,10 +119,14 @@ impl From<GlobalGenericParameterId> for LocalGenericParameterId {
 /// Source that introduced one generic parameter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub enum GenericParameterOrigin {
-    /// The parameter was written in source, like the `T` in `<T: Clone>`.
+    /// Written in the source.
     Explicit,
-    /// The parameter was induced from an elided type component, like `L0` or `S0`.
+    /// Induced by an elided memory position of the face.
     Induced,
+    /// The receiver an interface template declares implicitly, bounded by the interface itself.
+    Receiver,
+    /// Minted for one open form the face writes over its parameters, equal to that form.
+    Dependent,
 }
 
 /// Representation used to solve one generic parameter.
@@ -316,6 +320,8 @@ pub struct GenericParameterBinding {
     pub is_const: bool,
     /// The auto interfaces the declared bounds assume for this parameter.
     pub conformances: AutoInterfaceSet,
+    /// The form a dependent parameter names.
+    pub dependent: Option<GlobalTypeId>,
 }
 
 impl TypeFold for GenericParameterBinding {
@@ -326,6 +332,7 @@ impl TypeFold for GenericParameterBinding {
         self.ty = map(self.ty)?;
         self.constraint.map_types(map)?;
         self.default.map_types(map)?;
+        self.dependent.map_types(map)?;
 
         Ok(())
     }
@@ -381,8 +388,6 @@ pub struct Instance {
     pub origin: InstanceOrigin,
     /// The auto interfaces this closed nominal satisfies, empty on callables.
     pub conformances: AutoInterfaceSet,
-    /// The region parameters the argument list abstracts, as bound literals in occurrence order.
-    pub regions: TypeListId,
 }
 
 impl TypeFold for Instance {
@@ -402,6 +407,52 @@ pub enum InstanceOrigin {
     Instantiation,
     /// A type application a materialized type mentions, carrying its own arguments.
     Application,
+    /// An instance another instance's face or body reaches under its substitution.
+    Reached,
+}
+
+/// One closed type's implementation of one interface, in the interface's member order.
+///
+/// Example:
+/// ```ds
+/// first<Array<int32>>(values)  // witness (Array<int32>, Iterable<int32>):
+///                              //   functions: (Array.iterator<int32>), types: (int32)
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct Witness {
+    /// The function instance implementing each member function.
+    pub functions: Vec<WitnessFunction>,
+    /// The type implementing each associated type.
+    pub types: Vec<WitnessType>,
+    /// The const member implementing each associated const.
+    pub constants: Vec<WitnessConst>,
+}
+
+/// One member function implemented by one function instance.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct WitnessFunction {
+    /// The interface member.
+    pub member: GlobalSymbolId,
+    /// The implementing instance, its own parameters open on a generic member.
+    pub function: InstanceKey,
+}
+
+/// One associated type implemented by one type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct WitnessType {
+    /// The associated type member.
+    pub member: StaticKey,
+    /// The implementing type.
+    pub ty: GlobalTypeId,
+}
+
+/// One associated const implemented by one const member.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct WitnessConst {
+    /// The associated const member.
+    pub member: StaticKey,
+    /// The implementing const member.
+    pub value: GlobalSymbolId,
 }
 
 /// One instantiation a checked body performs, open while it mentions parameters.

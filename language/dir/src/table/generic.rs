@@ -8,9 +8,9 @@ use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
     Arena, AutoInterfaceSet, Cardinality, GenericParameterBinding, GenericParameterKey,
-    GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey,
-    InstanceOrigin, Instantiation, LocalGenericParameterId, LocalGenericTemplateId,
-    LocalInstanceId, LocalScopeId, SegmentView, TypeFold, VarianceModifier,
+    GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin,
+    Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
+    SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -242,21 +242,6 @@ impl<'a> GenericTable<'a> {
             .filter(move |instantiation| instantiation.owner == owner)
     }
 
-    /// Return the materialized type of one template type under one instance.
-    pub fn instance_type(
-        &self,
-        instance: LocalInstanceId,
-        source: GlobalTypeId,
-    ) -> Option<GlobalTypeId> {
-        for segment in self.segments.iter() {
-            if let Some(resolved) = segment.instance_type(instance, source) {
-                return Some(resolved);
-            }
-        }
-
-        None
-    }
-
     /// Return the materialized symbol type one instance resolves.
     pub fn instance_symbol(
         &self,
@@ -286,13 +271,34 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_application_regions())
     }
 
-    /// Iterate the requirement selections recorded across every segment.
-    pub fn iter_dispatch_selections(
-        &self,
-    ) -> impl Iterator<Item = (&InstanceKey, &InstanceKey)> + '_ {
+    /// Return the witness one closed type answers one interface application with.
+    pub fn witness(&self, ty: GlobalTypeId, interface: GlobalTypeId) -> Option<&Witness> {
         self.segments
             .iter()
-            .flat_map(|segment| segment.iter_dispatch_selections())
+            .find_map(|segment| segment.witness(ty, interface))
+    }
+
+    /// Return the filled bounds recorded for one parameter.
+    pub fn parameter_bounds(&self, parameter: LocalGenericParameterId) -> Option<TypeListId> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.parameter_bounds(parameter))
+    }
+
+    /// Return the instance recorded behind one application type.
+    pub fn application_instance(&self, ty: GlobalTypeId) -> Option<LocalInstanceId> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.application_instance(ty))
+    }
+
+    /// Iterate the witnesses recorded across every segment.
+    pub fn iter_witnesses(
+        &self,
+    ) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId, &Witness)> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.iter_witnesses())
     }
 
     /// Get the number of instances in the table.
@@ -334,14 +340,14 @@ pub struct GenericSegment {
     pub(crate) instances: Arena<Instance>,
     /// Instantiations the checked bodies perform, open while they mention parameters.
     pub(crate) instantiations: Vec<Instantiation>,
-    /// Materialized types keyed by instance and template type.
-    pub(crate) instance_types: IndexMap<(LocalInstanceId, GlobalTypeId), (GlobalTypeId, bool)>,
     /// The interned instance behind each closed application type.
     pub(crate) application_instances: IndexMap<GlobalTypeId, LocalInstanceId>,
     /// The region terms each closed application substitutes for its instance's bound regions.
     pub(crate) application_regions: IndexMap<GlobalTypeId, Vec<GlobalTypeId>>,
-    /// The implementing selection behind each closed interface requirement.
-    pub(crate) dispatch_selections: IndexMap<InstanceKey, InstanceKey>,
+    /// The witness each closed type answers each interface application with.
+    pub(crate) witnesses: IndexMap<(GlobalTypeId, GlobalTypeId), Witness>,
+    /// The bounds each parameter assumes with elided arguments filled.
+    pub(crate) parameter_bounds: IndexMap<LocalGenericParameterId, TypeListId>,
     /// Materialized symbol types keyed by instance and symbol.
     pub(crate) instance_symbols: IndexMap<(LocalInstanceId, GlobalSymbolId), GlobalTypeId>,
 }
@@ -360,10 +366,10 @@ impl GenericSegment {
             cardinalities: Vec::new(),
             first_instance_id: 0,
             instances: Arena::new(),
-            instance_types: IndexMap::default(),
             application_instances: IndexMap::default(),
             application_regions: IndexMap::default(),
-            dispatch_selections: IndexMap::default(),
+            witnesses: IndexMap::default(),
+            parameter_bounds: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
@@ -382,10 +388,10 @@ impl GenericSegment {
             cardinalities: Vec::new(),
             first_instance_id: base.instance_count(),
             instances: Arena::new(),
-            instance_types: IndexMap::default(),
             application_instances: IndexMap::default(),
             application_regions: IndexMap::default(),
-            dispatch_selections: IndexMap::default(),
+            witnesses: IndexMap::default(),
+            parameter_bounds: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
@@ -587,8 +593,12 @@ impl GenericSegment {
             && self.variances.is_empty()
             && self.cardinalities.is_empty()
             && self.instances.is_empty()
-            && self.instance_types.is_empty()
+            && self.witnesses.is_empty()
             && self.instantiations.is_empty()
+            && self.application_instances.is_empty()
+            && self.application_regions.is_empty()
+            && self.parameter_bounds.is_empty()
+            && self.instance_symbols.is_empty()
     }
 
     /// Allocate one generic instance and return its local id.
@@ -630,40 +640,6 @@ impl GenericSegment {
         })
     }
 
-    /// Record the materialized type of one template type under one instance.
-    pub fn bind_instance_type(
-        &mut self,
-        instance: LocalInstanceId,
-        source: GlobalTypeId,
-        resolved: GlobalTypeId,
-        is_evaluated: bool,
-    ) {
-        self.instance_types
-            .insert((instance, source), (resolved, is_evaluated));
-    }
-
-    /// Return the materialized type of one template type under one instance.
-    pub fn instance_type(
-        &self,
-        instance: LocalInstanceId,
-        source: GlobalTypeId,
-    ) -> Option<GlobalTypeId> {
-        self.instance_types
-            .get(&(instance, source))
-            .map(|(resolved, _)| *resolved)
-    }
-
-    /// Iterate the materialized types recorded by this segment.
-    pub fn iter_instance_types(
-        &self,
-    ) -> impl Iterator<Item = (LocalInstanceId, GlobalTypeId, GlobalTypeId, bool)> + '_ {
-        self.instance_types
-            .iter()
-            .map(|((instance, source), (resolved, is_evaluated))| {
-                (*instance, *source, *resolved, *is_evaluated)
-            })
-    }
-
     /// Record the materialized symbol type one instance resolves.
     pub fn bind_instance_symbol(
         &mut self,
@@ -702,16 +678,38 @@ impl GenericSegment {
             .map(|(ty, regions)| (*ty, regions.as_slice()))
     }
 
-    /// Record the implementing selection behind one interface requirement.
-    pub fn bind_dispatch_selection(&mut self, requirement: InstanceKey, implementer: InstanceKey) {
-        self.dispatch_selections.insert(requirement, implementer);
+    /// Record the witness one closed type answers one interface application with.
+    pub fn bind_witness(&mut self, ty: GlobalTypeId, interface: GlobalTypeId, witness: Witness) {
+        self.witnesses.insert((ty, interface), witness);
     }
 
-    /// Iterate the requirement selections recorded by this segment.
-    pub fn iter_dispatch_selections(
+    /// Return the witness recorded for one closed type and interface application.
+    pub fn witness(&self, ty: GlobalTypeId, interface: GlobalTypeId) -> Option<&Witness> {
+        self.witnesses.get(&(ty, interface))
+    }
+
+    /// Record the filled bounds one parameter assumes.
+    pub fn set_parameter_bounds(&mut self, parameter: LocalGenericParameterId, bounds: TypeListId) {
+        self.parameter_bounds.insert(parameter, bounds);
+    }
+
+    /// Return the filled bounds recorded for one parameter.
+    pub fn parameter_bounds(&self, parameter: LocalGenericParameterId) -> Option<TypeListId> {
+        self.parameter_bounds.get(&parameter).copied()
+    }
+
+    /// Iterate the witnesses recorded by this segment.
+    pub fn iter_witnesses(
         &self,
-    ) -> impl Iterator<Item = (&InstanceKey, &InstanceKey)> + '_ {
-        self.dispatch_selections.iter()
+    ) -> impl Iterator<Item = (GlobalTypeId, GlobalTypeId, &Witness)> + '_ {
+        self.witnesses
+            .iter()
+            .map(|((ty, interface), witness)| (*ty, *interface, witness))
+    }
+
+    /// Return the instance recorded behind one application type.
+    pub fn application_instance(&self, ty: GlobalTypeId) -> Option<LocalInstanceId> {
+        self.application_instances.get(&ty).copied()
     }
 
     /// Iterate the application types recorded by this segment.
@@ -805,9 +803,8 @@ impl TypeFold for GenericSegment {
         for instance in self.instances.iter_mut() {
             instance.map_types(map)?;
         }
-        // instance type keys reference sealed template types and stay as written
-        for resolved in self.instance_types.values_mut() {
-            resolved.0 = map(resolved.0)?;
+        for witness in self.witnesses.values_mut() {
+            witness.map_types(map)?;
         }
         for instantiation in &mut self.instantiations {
             instantiation.map_types(map)?;

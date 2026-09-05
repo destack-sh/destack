@@ -119,6 +119,14 @@ impl<'a> View<'a> {
     }
 
     /// Get the visible concrete source extent by local node id.
+    pub fn get_source_extent<T>(&self, node_id: LocalNodeId<T>) -> Option<Span>
+    where
+        T: Node,
+    {
+        self.get_source_extent_by_id(node_id.id)
+    }
+
+    /// Return the concrete source extent owned by one visible node when known.
     pub fn get_source_extent_by_id(&self, node_id: u32) -> Option<Span> {
         let node_id = self.node_id_any(node_id);
         let (tree, node_id) = self.visible_node(node_id)?;

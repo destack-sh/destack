@@ -45,9 +45,19 @@ impl NodeParentIndex {
     where
         T: Node,
     {
-        let base = tree.first_global_id();
+        let mut index = Self::with_base(tree.first_global_id());
+        index.index_roots(tree, roots);
+
+        index
+    }
+
+    /// Index the structure reachable from further roots, keeping the structure indexed so far.
+    pub fn index_roots<T>(&mut self, tree: &Tree, roots: &[LocalNodeId<T>])
+    where
+        T: Node,
+    {
+        let index = self;
         let node_count = tree.node_index_by_node_id.len();
-        let mut index = Self::with_base(base);
         index
             .parent_id_by_node_id
             .resize(node_count, Self::UNINDEXED);
@@ -87,8 +97,11 @@ impl NodeParentIndex {
                 pending.push(decorator_id.id);
             }
         }
+    }
 
-        index
+    /// Return the first global node id the index covers.
+    pub fn base(&self) -> u32 {
+        self.base
     }
 
     /// Get the parent for a node.

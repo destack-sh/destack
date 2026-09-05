@@ -140,6 +140,7 @@ macro_rules! instance_key_visit_leaves {
         $(
             impl InstanceKeyVisit for $ty {
                 fn visit_instance_keys(&self, _visit: &mut dyn FnMut(&InstanceKey)) {}
+
             }
         )*
     };

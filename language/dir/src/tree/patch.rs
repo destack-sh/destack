@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{LocalNodeIdAny, Tree};
+use crate::{LocalNodeIdAny, Tree, View};
 
 /// A durable overlay over one base DIR tree.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -29,6 +29,18 @@ impl Patch {
             name: name.into(),
             module_id: base.module_id,
             tree: Tree::from_base(base, 0),
+            replacement_by_node: IndexMap::default(),
+            deleted_nodes: IndexSet::default(),
+            parent_by_node: IndexMap::default(),
+        }
+    }
+
+    /// Create an empty patch whose node ids follow every node one view shows.
+    pub fn following(view: &View<'_>, name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            module_id: view.tree().module_id,
+            tree: Tree::following(view.tree().module_id, view.next_global_id()),
             replacement_by_node: IndexMap::default(),
             deleted_nodes: IndexSet::default(),
             parent_by_node: IndexMap::default(),

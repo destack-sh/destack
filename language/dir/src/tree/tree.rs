@@ -187,6 +187,16 @@ impl Tree {
         tree
     }
 
+    /// Create an empty tree whose global ids follow one first id.
+    pub fn following(module_id: ModuleId, first_global_id: u32) -> Self {
+        let mut tree = Self::with_capacity(module_id, 0);
+        tree.first_global_id = first_global_id;
+        tree.next_global_id = first_global_id;
+        tree.parents = NodeParentIndex::with_base(first_global_id);
+
+        tree
+    }
+
     /// Return the first global node id stored in this tree.
     #[inline]
     pub fn first_global_id(&self) -> u32 {
@@ -690,7 +700,14 @@ impl Tree {
     where
         T: Node,
     {
-        self.parents = NodeParentIndex::from_roots(self, roots);
+        // extend the index over further roots, rebuilding one over another base
+        if self.parents.base() == self.first_global_id() {
+            let mut parents = std::mem::take(&mut self.parents);
+            parents.index_roots(self, roots);
+            self.parents = parents;
+        } else {
+            self.parents = NodeParentIndex::from_roots(self, roots);
+        }
     }
 
     /// Get the parent node id for a node id.

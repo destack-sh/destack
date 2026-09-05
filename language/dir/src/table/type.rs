@@ -1119,6 +1119,11 @@ impl TypeTail {
             tail.parameters.seed(&base.parameters);
             tail.index_signatures.seed(&base.index_signatures);
             tail.strings.seed(&base.strings);
+            tail.operations.seed(&base.operations);
+            tail.signatures.seed(&base.signatures);
+            tail.members.seed(&base.members);
+            tail.refinements.seed(&base.refinements);
+            tail.borrows.seed(&base.borrows);
         }
 
         tail
@@ -1127,6 +1132,16 @@ impl TypeTail {
     /// Finish this tail into its pure entry segment.
     pub fn finish(self) -> TypeSegment {
         self.segment
+    }
+
+    /// Record one symbol's type in this tail.
+    pub fn set_symbol_type(&mut self, symbol_id: GlobalSymbolId, ty: GlobalTypeId) {
+        self.segment.set_symbol_type(symbol_id, ty);
+    }
+
+    /// Record one node's type in this tail.
+    pub fn set_node_type(&mut self, node_id: GlobalNodeIdAny, ty: GlobalTypeId) {
+        self.segment.set_node_type(node_id, ty);
     }
 
     /// Wrap one segment with empty intern bookkeeping.
@@ -1198,29 +1213,51 @@ impl TypeTail {
     /// Intern one type operation payload.
     pub fn intern_operation(&mut self, operation: TypeOperation) -> TypeOperationId {
         self.operations
-            .intern(&mut self.segment.operations, operation)
+            .intern_with(&mut self.segment.operations, operation, |id| {
+                self.committed
+                    .iter()
+                    .find_map(|base| base.operations.get(id).copied())
+            })
     }
 
     /// Intern one function signature payload.
     pub fn intern_signature(&mut self, signature: FunctionSignatureType) -> FunctionSignatureId {
         self.signatures
-            .intern(&mut self.segment.signatures, signature)
+            .intern_with(&mut self.segment.signatures, signature, |id| {
+                self.committed
+                    .iter()
+                    .find_map(|base| base.signatures.get(id).copied())
+            })
     }
 
     /// Intern one member projection payload.
     pub fn intern_member(&mut self, member: MemberType) -> MemberTypeId {
-        self.members.intern(&mut self.segment.members, member)
+        self.members
+            .intern_with(&mut self.segment.members, member, |id| {
+                self.committed
+                    .iter()
+                    .find_map(|base| base.members.get(id).copied())
+            })
     }
 
     /// Intern one refined application payload.
     pub fn intern_refined(&mut self, refined: RefinedType) -> RefinedTypeId {
         self.refinements
-            .intern(&mut self.segment.refinements, refined)
+            .intern_with(&mut self.segment.refinements, refined, |id| {
+                self.committed
+                    .iter()
+                    .find_map(|base| base.refinements.get(id).copied())
+            })
     }
 
     /// Intern one borrow form payload.
     pub fn intern_borrow(&mut self, borrow: BorrowForm) -> BorrowFormId {
-        self.borrows.intern(&mut self.segment.borrows, borrow)
+        self.borrows
+            .intern_with(&mut self.segment.borrows, borrow, |id| {
+                self.committed
+                    .iter()
+                    .find_map(|base| base.borrows.get(id).copied())
+            })
     }
 
     /// Intern one type id list.
