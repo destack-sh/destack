@@ -10,7 +10,7 @@ fn test_pause_at_poll() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 1);
     let program = TestProgram::words()
         .allocations([allocation])
-        .reference(1, 0, ReferenceKind::Managed, Storage::LocalHeap)
+        .reference(1, 0, ReferenceKind::Managed, Storage::Heap(Space::Local))
         .frame(0, 2, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
     let mut machine = TestMachine::parse(
         r#"
@@ -108,8 +108,18 @@ function f0 {
 #[test]
 fn test_stop_at_watchpoint() {
     let point = TestProgram::point(0, 1);
-    let store = TestProgram::memory_site(0, 1, MemoryAccess::Write, Some(Storage::LocalStatic));
-    let load = TestProgram::memory_site(0, 2, MemoryAccess::Read, Some(Storage::LocalStatic));
+    let store = TestProgram::memory_site(
+        0,
+        1,
+        MemoryAccess::Write,
+        Some(Storage::Static(Space::Local)),
+    );
+    let load = TestProgram::memory_site(
+        0,
+        2,
+        MemoryAccess::Read,
+        Some(Storage::Static(Space::Local)),
+    );
     let watch = TestProgram::watchpoint(0, 1, 11, MemoryAccess::Write);
     let watchpoint_id = watch.watchpoint_id;
     let watches = WatchSet::new(vec![watch]);
@@ -196,7 +206,7 @@ fn test_visit_stopped_roots() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 1);
     let program = TestProgram::words()
         .allocations([allocation])
-        .reference(1, 0, ReferenceKind::Managed, Storage::LocalHeap)
+        .reference(1, 0, ReferenceKind::Managed, Storage::Heap(Space::Local))
         .frame(0, 2, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
     let mut machine = TestMachine::parse(
         r#"

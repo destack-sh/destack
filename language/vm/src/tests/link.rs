@@ -5,7 +5,7 @@ use bytecode::{CodeBuilder, Parser, RelocationTag};
 use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional, StringPool};
 use destack_heap::DropId;
-use destack_mir::{Storage, TraceTable};
+use destack_mir::{Space, Storage, TraceTable};
 use destack_program as program;
 use destack_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
@@ -171,9 +171,9 @@ impl TestProgram {
             {
                 match storage {
                     Storage::Frame => entry.frame = Optional::some(*function),
-                    Storage::LocalHeap => entry.local = Optional::some(*function),
-                    Storage::SharedHeap => entry.shared = Optional::some(*function),
-                    Storage::Constant | Storage::LocalStatic | Storage::SharedStatic => {
+                    Storage::Heap(Space::Local) => entry.local = Optional::some(*function),
+                    Storage::Heap(Space::Shared) => entry.shared = Optional::some(*function),
+                    Storage::Heap(Space::Constant | Space::Parameter(_)) | Storage::Static(_) => {
                         panic!("test globals cannot carry destructors")
                     }
                 }

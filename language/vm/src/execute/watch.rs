@@ -1,7 +1,7 @@
 use destack_bytecode::{
     Address, AtomicOperation, CodeOffset, Instruction, MemoryOperation, Scalar,
 };
-use destack_mir::Storage;
+use destack_mir::{Space, Storage};
 use destack_program::{
     GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
 };
@@ -209,14 +209,14 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         byte_len: usize,
     ) -> Result<MemoryRange> {
         let range = match storage {
-            Some(Storage::LocalHeap | Storage::SharedHeap) => {
+            Some(Storage::Heap(Space::Local) | Storage::Heap(Space::Shared)) => {
                 let offset = self
                     .activation
                     .memory
                     .heap_offset(address)
                     .ok_or_else(|| self.invalid_instruction())?;
 
-                if storage == Some(Storage::LocalHeap) {
+                if storage == Some(Storage::Heap(Space::Local)) {
                     MemoryRange::local_heap(offset as u64, byte_len as u64)
                 } else {
                     MemoryRange::shared_heap(offset as u64, byte_len as u64)
@@ -231,8 +231,16 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
 
                 MemoryRange::frame(offset as u64, byte_len as u64)
             }
-            Some(storage @ (Storage::Constant | Storage::LocalStatic | Storage::SharedStatic)) => {
-                self.global_range(storage, address, byte_len)?
+            Some(
+                storage @ (Storage::Static(Space::Constant)
+                | Storage::Static(Space::Local)
+                | Storage::Static(Space::Shared)),
+            ) => self.global_range(storage, address, byte_len)?,
+            Some(
+                Storage::Heap(Space::Constant | Space::Parameter(_))
+                | Storage::Static(Space::Parameter(_)),
+            ) => {
+                return Err(self.invalid_instruction());
             }
             None => MemoryRange::address(address as u64, byte_len as u64),
         };
@@ -248,10 +256,10 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         byte_len: usize,
     ) -> Result<MemoryRange> {
         let location = match storage {
-            Storage::Constant => GlobalLocation::Constant,
-            Storage::LocalStatic => GlobalLocation::LocalStatic,
-            Storage::SharedStatic => GlobalLocation::SharedStatic,
-            Storage::LocalHeap | Storage::SharedHeap | Storage::Frame => {
+            Storage::Static(Space::Constant) => GlobalLocation::Constant,
+            Storage::Static(Space::Local) => GlobalLocation::LocalStatic,
+            Storage::Static(Space::Shared) => GlobalLocation::SharedStatic,
+            Storage::Heap(_) | Storage::Static(Space::Parameter(_)) | Storage::Frame => {
                 return Err(self.invalid_instruction());
             }
         };

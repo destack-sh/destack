@@ -60,7 +60,7 @@ function f1 {
         TestProgram::words()
             .local_global()
             .allocations([allocation])
-            .destructor(1, Storage::LocalHeap, 0)
+            .destructor(1, Storage::Heap(Space::Local), 0)
             .frame(1, 2, [(RegisterSpan::new(RegisterId(1), 1), 1)]),
     );
 
@@ -95,7 +95,7 @@ function f1 {
         TestProgram::words()
             .shared_global()
             .allocations([allocation])
-            .destructor(1, Storage::SharedHeap, 0)
+            .destructor(1, Storage::Heap(Space::Shared), 0)
             .frame(1, 2, [(RegisterSpan::new(RegisterId(1), 1), 1)]),
     );
 

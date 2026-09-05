@@ -74,8 +74,10 @@ function f1 {
 #[test]
 fn test_observe_memory() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 0);
-    let store = TestProgram::memory_site(0, 1, MemoryAccess::Write, Some(Storage::LocalHeap));
-    let load = TestProgram::memory_site(0, 2, MemoryAccess::Read, Some(Storage::LocalHeap));
+    let store =
+        TestProgram::memory_site(0, 1, MemoryAccess::Write, Some(Storage::Heap(Space::Local)));
+    let load =
+        TestProgram::memory_site(0, 2, MemoryAccess::Read, Some(Storage::Heap(Space::Local)));
     let mut machine = TestMachine::parse(
         r#"
 function f0 {
@@ -119,7 +121,7 @@ function f0 {
 /// Pair multiple physical accesses with their exact ordered Program sites.
 #[test]
 fn test_observe_memory_sites() {
-    let storage = Some(Storage::LocalStatic);
+    let storage = Some(Storage::Static(Space::Local));
     let source = TestProgram::memory_site(0, 3, MemoryAccess::Read, storage);
     let target = TestProgram::memory_site(0, 3, MemoryAccess::Write, storage);
     let mut machine = TestMachine::parse(

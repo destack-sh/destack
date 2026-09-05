@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use destack_bytecode as bytecode;
 use destack_core::Optional;
-use destack_mir::{Access, Nullability, ReferenceKind, Space, Storage, TraceMap};
+use destack_mir::{Access, ReferenceKind, Space, Storage, TraceMap};
 use destack_program as program;
 use destack_program::{
     AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
@@ -404,13 +404,7 @@ impl TestProgram {
         kind: ReferenceKind,
         storage: Storage,
     ) -> Self {
-        let reference = ReferenceLayout::new(
-            TypeId(pointee),
-            kind,
-            storage,
-            Access::Mutable,
-            Nullability::None,
-        );
+        let reference = ReferenceLayout::new(TypeId(pointee), kind, storage, Access::Mutable);
         let shape = LayoutShapeBuilder::Reference(reference);
         let trace = Self::reference_trace(kind, storage);
         self.insert_layout(TestLayout {
@@ -427,12 +421,12 @@ impl TestProgram {
     /// Return the exact trace map for one reference representation.
     fn reference_trace(kind: ReferenceKind, storage: Storage) -> TraceMap {
         match (kind, storage) {
-            (ReferenceKind::Managed, Storage::LocalHeap) => TraceMap::Fixed {
+            (ReferenceKind::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
                 frame_offsets: Box::new([]),
             },
-            (ReferenceKind::Managed, Storage::SharedHeap) => TraceMap::Fixed {
+            (ReferenceKind::Managed, Storage::Heap(Space::Shared)) => TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
