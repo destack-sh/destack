@@ -6,12 +6,12 @@ export type Ownership = "managed" | "owned" | "borrowed" | "raw";
 
 /// Reborrow `Q` with access mode `A`.
 @languageItem("memory.WithAccess")
-export newtype WithAccess<Q, const A: Access> = intrinsic;
+export type WithAccess<Q, const A: Access> = intrinsic;
 
 /// Project the space `T` occupies.
 @languageItem("memory.PlaceOf")
-export newtype PlaceOf<T> = intrinsic;
+export type PlaceOf<T> = intrinsic;
 
 /// Project the access mode `T` grants.
 @languageItem("memory.AccessOf")
-export newtype AccessOf<T> = intrinsic;
+export type AccessOf<T> = intrinsic;

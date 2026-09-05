@@ -6,7 +6,7 @@ export type ReceiverMode = "readonly" | "mutable" | "exclusive" | "once";
 /// A call takes the callable in its receiver mode, exclusive when elided.
 /// An owned receiver consumes the callable.
 @languageItem("types.Function")
-export newtype Function<
+export type Function<
     Parameters: readonly (...unknown[],) = (),
     Return = unknown,
     const Receiver: ReceiverMode = "exclusive",
@@ -14,7 +14,7 @@ export newtype Function<
 
 /// Thin callable value type.
 @languageItem("types.FunctionPointer")
-export newtype FunctionPointer<
+export type FunctionPointer<
     Parameters: readonly (...unknown[],) = (),
     Return = unknown,
 > = intrinsic;

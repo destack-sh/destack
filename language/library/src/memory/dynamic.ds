@@ -4,7 +4,7 @@ import { DynamicSafe } from "./capability.ds";
 
 /// Runtime-erased value satisfying interface constraint `T`.
 @languageItem("memory.Dynamic")
-export newtype Dynamic<T: DynamicSafe> = intrinsic;
+export type Dynamic<T: DynamicSafe> = intrinsic;
 
 export extension<T: DynamicSafe> of Dynamic<T> {
     /// Return the runtime type carried by this erased value.
