@@ -3,7 +3,7 @@
 import { BinaryReader, BinaryWriter, Json, SerdeError, jsonBigint, jsonBool, jsonField, jsonInteger, jsonObject, jsonString } from "../../../protocol/serde.js";
 
 /** Collector advanced by one GC result. */
-export type GcCollector = "localMajor" | "shared";
+export type GcCollector = "local" | "shared";
 
 export const GcCollector = {
     /** Encode this value. */
@@ -30,7 +30,7 @@ export const GcCollector = {
 /** Encode one GcCollector. */
 export function encodeGcCollector(writer: BinaryWriter, value: GcCollector): void {
     switch (value) {
-        case "localMajor":
+        case "local":
             writer.writeUnsigned(0);
             return;
         case "shared":
@@ -47,7 +47,7 @@ export function decodeGcCollector(reader: BinaryReader): GcCollector {
 
     switch (variant) {
         case 0:
-            return "localMajor";
+            return "local";
         case 1:
             return "shared";
     }
@@ -65,8 +65,8 @@ export function fromJsonGcCollector(value: Json): GcCollector {
     const variant = jsonString(value);
 
     switch (variant) {
-        case "localMajor":
-            return "localMajor";
+        case "local":
+            return "local";
         case "shared":
             return "shared";
     }

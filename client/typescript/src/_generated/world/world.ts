@@ -169,7 +169,7 @@ const listObservationsMethodResponse: Decoder<runtimeServiceWorld.ObservationPag
 const listObservationsMethod: Method<runtimeServiceWorld.ListObservationsRequest, runtimeServiceWorld.ObservationPage, never, never> = {
     service: 10634146378307930274n,
     method: 1437261528243189898n,
-    fingerprint: 65718682829645580991208688603915781461n,
+    fingerprint: 272509569346154754700573340635633096004n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listObservationsMethodRequest,
@@ -566,7 +566,7 @@ const watchObservationsMethodOutput: Decoder<runtimeWorldObservationEntry.Observ
 const watchObservationsMethod: Method<runtimeServiceWorld.WatchObservationsRequest, null, never, runtimeWorldObservationEntry.ObservationEntry> = {
     service: 10634146378307930274n,
     method: 13237122242148560062n,
-    fingerprint: 186674210188787741846574719768957773016n,
+    fingerprint: 5023174407084334668625432590631530649n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: watchObservationsMethodRequest,

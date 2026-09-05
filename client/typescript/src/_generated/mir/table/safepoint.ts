@@ -8,7 +8,7 @@ import { decodeValue, encodeValue, fromJsonValue, toJsonValue } from "../tree/va
 
 /** One point where the collector may run. */
 export type Safepoint = {
-    /** The point: a parking call, or a loop header or tail call that elaboration polls at. */
+    /** The instruction point of the safepoint. */
     readonly point: Point;
     /** How the collector gets to run at the point. */
     readonly kind: SafepointKind;
@@ -153,7 +153,7 @@ export function fromJsonSafepointKind(value: Json): SafepointKind {
     throw new SerdeError(`unknown enum variant: ${variant}`);
 }
 
-/** The safepoints of verified MIR: the points where the collector may run, each with the handles held live there. */
+/** The safepoints of verified MIR. */
 export type SafepointTable = {
     /** The safepoints sorted by point. */
     readonly points: ReadonlyArray<Safepoint>;
