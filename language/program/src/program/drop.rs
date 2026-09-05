@@ -1,6 +1,6 @@
 use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
 use destack_heap::DropId;
-use destack_mir::Storage;
+use destack_mir::{Space, Storage};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -23,9 +23,12 @@ impl DropEntry {
     pub fn destructor(self, storage: Storage) -> Option<FunctionId> {
         match storage {
             Storage::Frame => self.frame.get(),
-            Storage::LocalHeap => self.local.get(),
-            Storage::SharedHeap => self.shared.get(),
-            Storage::Constant | Storage::LocalStatic | Storage::SharedStatic => None,
+            Storage::Heap(Space::Local) => self.local.get(),
+            Storage::Heap(Space::Shared) => self.shared.get(),
+            Storage::Static(_) => None,
+            Storage::Heap(Space::Constant | Space::Parameter(_)) => {
+                unreachable!("program drops close every space")
+            }
         }
     }
 }

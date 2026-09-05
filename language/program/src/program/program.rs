@@ -498,7 +498,9 @@ impl Program {
                 let plan = match site.space {
                     Space::Local => local.allocation_plan(&shape),
                     Space::Shared => shared.allocation_plan(&shape),
-                    Space::Constant => return Err(Error::ConstantAllocationSite),
+                    Space::Constant | Space::Parameter(_) => {
+                        return Err(Error::ConstantAllocationSite);
+                    }
                 };
 
                 Ok(plan)

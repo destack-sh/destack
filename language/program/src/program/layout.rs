@@ -6,8 +6,7 @@ use destack_core::{
     StringId,
 };
 use destack_mir::{
-    Access, Discriminant, FloatType, Nullability, ReferenceKind, Space, Storage, TraceId,
-    VariantEncoding,
+    Access, Discriminant, FloatType, ReferenceKind, Space, Storage, TraceId, VariantEncoding,
 };
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -265,11 +264,12 @@ impl WordLayout {
     #[inline(always)]
     pub fn reference(storage: Storage) -> Self {
         match storage {
-            Storage::LocalHeap => Self::LocalReference,
-            Storage::SharedHeap => Self::SharedReference,
+            Storage::Heap(Space::Local) => Self::LocalReference,
+            Storage::Heap(Space::Shared) => Self::SharedReference,
             Storage::Frame => Self::FrameReference,
-            Storage::Constant | Storage::LocalStatic | Storage::SharedStatic => {
-                Self::GlobalReference
+            Storage::Static(_) => Self::GlobalReference,
+            Storage::Heap(Space::Constant | Space::Parameter(_)) => {
+                unreachable!("program references close every space")
             }
         }
     }
@@ -481,7 +481,7 @@ pub struct SliceLayout {
 pub struct ReferenceLayout {
     /// The referenced value type.
     pub pointee: TypeId,
-    /// Packed ownership, storage, access, and nullability.
+    /// Packed ownership, storage, and access.
     bits: u16,
     /// Explicit initialized entry padding.
     padding: [u8; 2],
@@ -492,25 +492,15 @@ impl ReferenceLayout {
     const KIND_MASK: u16 = 0x7;
     /// Mask for the packed reference access.
     const ACCESS_MASK: u16 = 0x3;
-    /// Mask for the packed reference nullability.
-    const NULLABILITY_MASK: u16 = 0x3;
     /// Mask for the packed reference storage.
     const STORAGE_MASK: u16 = 0x7;
     /// Shift for the packed reference access.
     const ACCESS_SHIFT: u8 = 3;
-    /// Shift for the packed reference nullability.
-    const NULLABILITY_SHIFT: u8 = 5;
     /// Shift for the packed reference storage.
-    const STORAGE_SHIFT: u8 = 7;
+    const STORAGE_SHIFT: u8 = 5;
 
     /// Create one reference layout.
-    pub fn new(
-        pointee: TypeId,
-        kind: ReferenceKind,
-        storage: Storage,
-        access: Access,
-        nullability: Nullability,
-    ) -> Self {
+    pub fn new(pointee: TypeId, kind: ReferenceKind, storage: Storage, access: Access) -> Self {
         let kind = match kind {
             ReferenceKind::Managed => 1,
             ReferenceKind::Unique => 2,
@@ -520,18 +510,12 @@ impl ReferenceLayout {
             Access::Readonly => 0,
             Access::Mutable => 1,
             Access::Exclusive => 2,
+            Access::Parameter(_) => unreachable!("program references close every access"),
         };
         let storage = u16::from(Self::storage_bits(storage));
-        let nullability = match nullability {
-            Nullability::None => 0,
-            Nullability::Null => 1,
-            Nullability::Undefined => 2,
-            Nullability::NullOrUndefined => 3,
-        };
 
         let mut bits = kind & Self::KIND_MASK;
         bits |= access << Self::ACCESS_SHIFT;
-        bits |= nullability << Self::NULLABILITY_SHIFT;
         bits |= storage << Self::STORAGE_SHIFT;
 
         Self {
@@ -563,16 +547,6 @@ impl ReferenceLayout {
         }
     }
 
-    /// Return the reference nullability.
-    pub fn nullability(self) -> Nullability {
-        match (self.bits >> Self::NULLABILITY_SHIFT) & Self::NULLABILITY_MASK {
-            1 => Nullability::Null,
-            2 => Nullability::Undefined,
-            3 => Nullability::NullOrUndefined,
-            _ => Nullability::None,
-        }
-    }
-
     /// Return the storage implied by this reference.
     pub fn storage(self) -> Option<Storage> {
         let bits = ((self.bits >> Self::STORAGE_SHIFT) & Self::STORAGE_MASK) as u8;
@@ -597,12 +571,12 @@ impl ReferenceLayout {
     /// Decode reference storage from packed bits.
     fn storage_from_bits(bits: u8) -> Option<Storage> {
         match bits {
-            0 => Some(Storage::LocalHeap),
-            1 => Some(Storage::SharedHeap),
+            0 => Some(Storage::Heap(Space::Local)),
+            1 => Some(Storage::Heap(Space::Shared)),
             2 => Some(Storage::Frame),
-            3 => Some(Storage::Constant),
-            4 => Some(Storage::LocalStatic),
-            5 => Some(Storage::SharedStatic),
+            3 => Some(Storage::Static(Space::Constant)),
+            4 => Some(Storage::Static(Space::Local)),
+            5 => Some(Storage::Static(Space::Shared)),
             _ => None,
         }
     }
@@ -610,13 +584,16 @@ impl ReferenceLayout {
     /// Encode reference storage as packed bits.
     fn storage_bits(storage: Storage) -> u8 {
         match storage {
-            Storage::LocalHeap => 0,
-            Storage::SharedHeap => 1,
+            Storage::Heap(Space::Local) => 0,
+            Storage::Heap(Space::Shared) => 1,
             Storage::Frame => 2,
-            // constant storage encodes and decodes canonically as global-addressed
-            Storage::Constant => 3,
-            Storage::LocalStatic => 4,
-            Storage::SharedStatic => 5,
+            Storage::Static(Space::Constant) => 3,
+            Storage::Static(Space::Local) => 4,
+            Storage::Static(Space::Shared) => 5,
+            Storage::Heap(Space::Constant | Space::Parameter(_))
+            | Storage::Static(Space::Parameter(_)) => {
+                unreachable!("program references close every space")
+            }
         }
     }
 }
@@ -638,25 +615,15 @@ pub struct PointerLayout {
 impl PointerLayout {
     /// Mask for the packed pointer access.
     const ACCESS_MASK: u8 = 0x3;
-    /// Mask for the packed pointer nullability.
-    const NULLABILITY_MASK: u8 = 0x3;
-    /// Shift for the packed nullability.
-    const NULLABILITY_SHIFT: u8 = 2;
 
     /// Create one process-local pointer layout.
-    pub const fn new(pointee: TypeId, access: Access, nullability: Nullability) -> Self {
-        let access = match access {
+    pub const fn new(pointee: TypeId, access: Access) -> Self {
+        let bits = match access {
             Access::Readonly => 0,
             Access::Mutable => 1,
             Access::Exclusive => 2,
+            Access::Parameter(_) => unreachable!(),
         };
-        let nullability = match nullability {
-            Nullability::None => 0,
-            Nullability::Null => 1,
-            Nullability::Undefined => 2,
-            Nullability::NullOrUndefined => 3,
-        };
-        let bits = access | (nullability << Self::NULLABILITY_SHIFT);
 
         Self {
             pointee,
@@ -674,16 +641,6 @@ impl PointerLayout {
             _ => None,
         }
     }
-
-    /// Return the nullish values allowed by this pointer.
-    pub const fn nullability(self) -> Nullability {
-        match (self.bits >> Self::NULLABILITY_SHIFT) & Self::NULLABILITY_MASK {
-            1 => Nullability::Null,
-            2 => Nullability::Undefined,
-            3 => Nullability::NullOrUndefined,
-            _ => Nullability::None,
-        }
-    }
 }
 
 const _: () = assert!(std::mem::size_of::<PointerLayout>() == 8);
@@ -694,8 +651,6 @@ const _: () = assert!(std::mem::size_of::<PointerLayout>() == 8);
 pub struct DynamicLayout {
     /// The accepted runtime type constraint.
     pub constraint: TypeId,
-    /// The nullish values accepted by this descriptor.
-    pub nullability: Nullability,
 }
 
 /// Concrete layout for one closure value.
@@ -704,12 +659,10 @@ pub struct DynamicLayout {
 pub struct FunctionLayout {
     /// The callable signature.
     pub signature: SignatureId,
-    /// The nullish values accepted by this descriptor.
-    pub nullability: Nullability,
 }
 
-const _: () = assert!(std::mem::size_of::<DynamicLayout>() == 8);
-const _: () = assert!(std::mem::size_of::<FunctionLayout>() == 8);
+const _: () = assert!(std::mem::size_of::<DynamicLayout>() == 4);
+const _: () = assert!(std::mem::size_of::<FunctionLayout>() == 4);
 
 /// Layout for inline indexed element storage.
 #[repr(C)]
@@ -966,8 +919,7 @@ impl VariantLayoutBuilder {
 mod tests {
     use destack_core::{SectionBuilder, SectionImage};
     use destack_mir::{
-        Access, DiscriminantField, Nullability, ReferenceKind, Space, Storage, TraceId,
-        VariantEncoding,
+        Access, DiscriminantField, ReferenceKind, Space, Storage, TraceId, VariantEncoding,
     };
 
     use crate::{
@@ -977,19 +929,13 @@ mod tests {
 
     /// Create one reference layout for reference storage tests.
     fn reference(kind: ReferenceKind, storage: Storage) -> ReferenceLayout {
-        ReferenceLayout::new(
-            TypeId(1),
-            kind,
-            storage,
-            Access::Readonly,
-            Nullability::None,
-        )
+        ReferenceLayout::new(TypeId(1), kind, storage, Access::Readonly)
     }
 
     /// Managed local references trace local heap storage.
     #[test]
     fn test_reference_layout_traces_local_heap_storage() {
-        let reference = reference(ReferenceKind::Managed, Storage::LocalHeap);
+        let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Local));
 
         assert_eq!(reference.heap_space(), Some(Space::Local));
         assert_eq!(reference.word_layout(), Some(WordLayout::LocalReference));
@@ -998,7 +944,7 @@ mod tests {
     /// Managed shared references trace shared heap storage.
     #[test]
     fn test_reference_layout_traces_shared_heap_storage() {
-        let reference = reference(ReferenceKind::Managed, Storage::SharedHeap);
+        let reference = reference(ReferenceKind::Managed, Storage::Heap(Space::Shared));
 
         assert_eq!(reference.heap_space(), Some(Space::Shared));
         assert_eq!(reference.word_layout(), Some(WordLayout::SharedReference));
@@ -1008,7 +954,7 @@ mod tests {
     #[test]
     fn test_reference_layout_rejects_frame_and_global_heap_tracing() {
         let frame = reference(ReferenceKind::Borrowed, Storage::Frame);
-        let global = reference(ReferenceKind::Borrowed, Storage::LocalStatic);
+        let global = reference(ReferenceKind::Borrowed, Storage::Static(Space::Local));
 
         assert_eq!(frame.heap_space(), None);
         assert_eq!(global.heap_space(), None);

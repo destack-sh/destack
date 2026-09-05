@@ -76,7 +76,9 @@ impl Memory<'_> {
         match space {
             Space::Local => self.local_heap.options().allocation_plan(shape),
             Space::Shared => self.shared_heap.options().allocation_plan(shape),
-            Space::Constant => unreachable!("constant space never allocates"),
+            Space::Constant | Space::Parameter(_) => {
+                unreachable!("constant and parameter spaces never allocate")
+            }
         }
     }
 
@@ -91,7 +93,9 @@ impl Memory<'_> {
         match space {
             Space::Local => self.allocate_local(plan, payload, trace_view),
             Space::Shared => self.allocate_shared(plan, payload, trace_view),
-            Space::Constant => Err(HeapError::internal("constant space never allocates")),
+            Space::Constant | Space::Parameter(_) => Err(HeapError::internal(
+                "constant and parameter spaces never allocate",
+            )),
         }
     }
 
