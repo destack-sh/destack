@@ -104,13 +104,16 @@ impl Parser {
                 attribute_spans,
             )?;
         } else if self.peek_is(TokenType::Function) {
-            if is_shared {
-                return Err(ParseError::new("functions cannot be shared", self.pos()));
-            }
             if mutability == Mutability::Immutable {
                 return Err(ParseError::new("functions cannot be readonly", self.pos()));
             }
 
+            // raise a local function to shared linkage
+            let linkage = match is_shared {
+                true if linkage == Linkage::Local => Linkage::Shared,
+                true => return Err(ParseError::new("shared functions link locally", self.pos())),
+                false => linkage,
+            };
             self.parse_function(item_start, linkage, attributes, attribute_spans)?;
         } else {
             return Err(ParseError::new(
@@ -207,27 +210,17 @@ impl Parser {
                 if self.peek_is(TokenType::Type) {
                     self.bump();
 
-                    let lifetime_scope_count = self.lifetime_scopes.len();
-                    let parsed = self.parse_symbol_name().and_then(|(name, _)| {
-                        let (arguments, _) = self.parse_declaration_parameters()?;
-
-                        Ok((name, arguments))
-                    });
-                    self.restore_lifetime_scopes(lifetime_scope_count);
-                    let Ok((name, arguments)) = parsed else {
+                    let Ok((name, _)) = self.parse_symbol_name() else {
                         continue;
                     };
-
-                    let key = (name.clone(), arguments.clone());
-                    if self.type_declaration_map.contains_key(&key) {
+                    if self.type_declaration_map.contains_key(&name) {
                         continue;
                     }
 
                     let name_id = self.strings.intern(&name);
-                    let base = Symbol::named(name_id);
-                    let symbol = base.instantiate(&arguments, &self.tree);
+                    let symbol = Symbol::named(name_id);
                     let type_id = self.tree.reserve_type(symbol);
-                    self.type_declaration_map.insert(key, type_id);
+                    self.type_declaration_map.insert(name, type_id);
 
                     continue;
                 }
@@ -261,7 +254,7 @@ impl Parser {
 
                 let lifetime_scope_count = self.lifetime_scopes.len();
                 let parsed = self.parse_symbol_name().and_then(|(name, _)| {
-                    let (arguments, _) = self.parse_declaration_parameters()?;
+                    let (arguments, _, _) = self.parse_declaration_parameters()?;
 
                     Ok((name, arguments))
                 });
@@ -321,6 +314,7 @@ impl Parser {
         let function_id = header.function_id;
         let function = self.tree.get_mut(function_id);
         function.arguments = header.arguments;
+        function.generics = header.generics.clone();
         function.parameters = header.parameters;
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
@@ -371,14 +365,21 @@ impl Parser {
 
         // declaration name
         let (name, name_start) = self.parse_symbol_name()?;
-        let (arguments, lifetimes) = self.parse_declaration_parameters()?;
-        let name_span = if arguments.is_empty() && lifetimes.is_empty() {
+        let (arguments, generics, lifetimes) = self.parse_declaration_parameters()?;
+        let name_span = if arguments.is_empty() && generics.is_empty() && lifetimes.is_empty() {
             self.span_at(name_start, name.len())
         } else {
             self.span_between(name_start, self.pos())
         };
-        let key = (name.clone(), arguments.clone());
-        if self.type_declaration_definitions.contains(&key) {
+
+        // reject arguments on a declaration and names already declared
+        if !arguments.is_empty() {
+            return Err(ParseError::invalid(
+                "type declaration arguments",
+                name_start,
+            ));
+        }
+        if self.type_declaration_definitions.contains(&name) {
             return Err(ParseError::invalid(
                 &format!("duplicate type declaration '{name}'"),
                 name_start,
@@ -386,19 +387,40 @@ impl Parser {
         }
 
         // resolve the reserved type identity
-        let type_id = match self.type_declaration_map.get(&key).copied() {
+        let type_id = match self.type_declaration_map.get(&name).copied() {
             Some(existing) => existing,
             None => {
-                let base = Symbol::named(self.strings.intern(&name));
-                let symbol = base.instantiate(&arguments, &self.tree);
+                let symbol = Symbol::named(self.strings.intern(&name));
                 let reserved = self.tree.reserve_type(symbol);
-                self.type_declaration_map.insert(key.clone(), reserved);
+                self.type_declaration_map.insert(name.clone(), reserved);
                 reserved
             }
         };
 
         // direct nominal heritage
         let heritage = self.parse_type_heritage()?;
+
+        // record an opaque declaration and stop before a definition
+        if self.eat_token_if(TokenType::Semicolon) {
+            let name_id = self.strings.intern(&name);
+            let id = self.tree.insert_type_declaration(
+                name_id,
+                generics,
+                lifetimes.clone(),
+                type_id,
+                heritage,
+            );
+            self.tree
+                .set_text_span(id, self.span_from_parse_start(item_start));
+            self.tree.set_keyword_span(id, keyword_span);
+            self.tree.set_main_span(id, name_span);
+            self.tree.set_type_lifetimes(type_id, lifetimes);
+            self.tree.set_attribute_spans(id, attribute_spans);
+            self.type_declaration_definitions.insert(name.clone());
+            self.pop_lifetime_scope();
+
+            return Ok(id);
+        }
 
         // declaration target type
         let (ty, type_span, field_spans, declaration_spans) = if self.peek_is(TokenType::OpenBrace)
@@ -453,7 +475,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let id = self.tree.insert_type_declaration(
             name_id,
-            arguments,
+            generics,
             lifetimes.clone(),
             type_id,
             heritage,
@@ -469,7 +491,7 @@ impl Parser {
         self.tree.set_type_field_spans(id, field_spans);
         self.tree.set_type_declaration_spans(id, declaration_spans);
 
-        self.type_declaration_definitions.insert(key);
+        self.type_declaration_definitions.insert(name.clone());
         self.pop_lifetime_scope();
 
         // optional declaration terminator
@@ -712,7 +734,13 @@ impl Parser {
             // function address
             TokenType::Identifier if self.tree.source_text(token.span) == "functionAddress" => {
                 self.bump();
-                let (function, _span) = self.parse_function_reference_part()?;
+                let (function, arguments, span) = self.parse_function_reference_part()?;
+                if !arguments.is_empty() {
+                    return Err(ParseError::invalid(
+                        "template reference outside a call",
+                        span.start as usize,
+                    ));
+                }
 
                 Ok(GlobalInitializer::FunctionAddress(function))
             }
@@ -766,12 +794,9 @@ impl Parser {
 /// Set the copy property on one explicit aggregate type.
 fn set_type_copy(ty: &mut Type, copy: Copy, position: usize) -> ParseResult<()> {
     match ty {
-        Type::FixedArray { copy: target, .. }
-        | Type::Tuple { copy: target, .. }
-        | Type::Struct { copy: target, .. }
+        Type::Struct { copy: target, .. }
         | Type::Newtype { copy: target, .. }
-        | Type::Variant { copy: target, .. }
-        | Type::Vector { copy: target, .. } => {
+        | Type::Variant { copy: target, .. } => {
             *target = copy;
             Ok(())
         }

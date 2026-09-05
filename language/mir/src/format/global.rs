@@ -38,6 +38,8 @@ impl FormatNode for Global {
             write!(f, [token("external"), space()])?;
         } else if self.linkage == Linkage::Export {
             write!(f, [token("export"), space()])?;
+        } else if self.linkage == Linkage::Shared {
+            write!(f, [token("shared"), space()])?;
         }
 
         // reject mutable constants

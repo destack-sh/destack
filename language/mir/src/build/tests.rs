@@ -3,8 +3,9 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, BinaryOperator, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions,
-    Formatter, Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability, Nullability,
-    ReferenceKind, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage, TypeId,
+    Formatter, Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability,
+    ReferenceKind, Space, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage,
+    TypeId,
 };
 
 /// Format one test MIR tree.
@@ -214,7 +215,10 @@ fn test_build_function_with_invoke() {
     let argument = builder.function_parameter(0);
     let result = builder.add_block_parameter(target_block, i32_type);
     builder.invoke(
-        Callee::Direct { function: callee },
+        Callee::Direct {
+            function: callee,
+            arguments: Vec::new(),
+        },
         TypeId::from(signature),
         vec![argument],
         target_block,
@@ -285,13 +289,19 @@ fn test_build_calls_from_callee_and_signature() {
     let argument = builder.function_parameter(0);
     let result = builder
         .call(
-            Callee::Direct { function: identity },
+            Callee::Direct {
+                function: identity,
+                arguments: Vec::new(),
+            },
             TypeId::from(identity_signature),
             vec![argument],
         )
         .expect("identity returns a value");
     let void_result = builder.call(
-        Callee::Direct { function: sink },
+        Callee::Direct {
+            function: sink,
+            arguments: Vec::new(),
+        },
         TypeId::from(sink_signature),
         vec![result],
     );
@@ -328,8 +338,7 @@ fn test_build_function_with_panic_terminator() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
     let void_type = module.type_void();
 
@@ -747,9 +756,9 @@ fn test_type_construction() {
     let i64_type = module.type_int(64, true);
     let f32_type = module.type_float(FloatType::Float32);
     let f64_type = module.type_float(FloatType::Float64);
-    let pointer_type = module.type_pointer(i32_type, Access::Readonly, Nullability::None);
-    let array_type = module.type_fixed_array(i32_type, 10, Copy::Yes);
-    let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
+    let pointer_type = module.type_pointer(i32_type, Access::Readonly);
+    let array_type = module.type_fixed_array(i32_type, 10);
+    let tuple_type = module.type_tuple(vec![i32_type, i64_type]);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
     let callable_type = module.type_function(
@@ -757,9 +766,8 @@ fn test_type_construction() {
         Multiplicity::Repeatable,
         ReferenceKind::Managed,
         Lifetime::empty(),
-        Storage::LocalHeap,
+        Storage::Heap(Space::Local),
         Access::Mutable,
-        Nullability::None,
     );
 
     // verify types
@@ -786,7 +794,7 @@ fn test_type_construction() {
     assert!(matches!(tree.get(pointer_type), Type::Pointer { .. }));
     assert!(matches!(
         tree.get(array_type),
-        Type::FixedArray { length: 10, .. }
+        Type::FixedArray { length, .. } if tree.static_value(*length).length() == Some(10)
     ));
     assert!(matches!(tree.get(tuple_type), Type::Tuple { .. }));
     assert!(matches!(
@@ -854,35 +862,17 @@ fn test_construct_reference_and_pointer_types() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
     let managed_mutable_type = module.type_reference(
         ReferenceKind::Managed,
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
-    let managed_nullable_readonly_type = module.type_reference(
-        ReferenceKind::Managed,
-        Lifetime::empty(),
-        i32_type,
-        Access::Readonly,
-        Storage::LocalHeap,
-        Nullability::Null,
-    );
-    let managed_nullable_mutable_type = module.type_reference(
-        ReferenceKind::Managed,
-        Lifetime::empty(),
-        i32_type,
-        Access::Mutable,
-        Storage::LocalHeap,
-        Nullability::Null,
-    );
-    let pointer_readonly_type = module.type_pointer(i32_type, Access::Readonly, Nullability::None);
-    let pointer_mutable_type = module.type_pointer(i32_type, Access::Mutable, Nullability::None);
+    let pointer_readonly_type = module.type_pointer(i32_type, Access::Readonly);
+    let pointer_mutable_type = module.type_pointer(i32_type, Access::Mutable);
 
     // verify types
     let (tree, _strings) = module.finish_tree();
@@ -891,7 +881,6 @@ fn test_construct_reference_and_pointer_types() {
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Readonly,
-            nullability: Nullability::None,
             ..
         }
     ));
@@ -900,25 +889,6 @@ fn test_construct_reference_and_pointer_types() {
         Type::Reference {
             kind: ReferenceKind::Managed,
             access: Access::Mutable,
-            nullability: Nullability::None,
-            ..
-        }
-    ));
-    assert!(matches!(
-        tree.get(managed_nullable_readonly_type),
-        Type::Reference {
-            kind: ReferenceKind::Managed,
-            access: Access::Readonly,
-            nullability: Nullability::Null,
-            ..
-        }
-    ));
-    assert!(matches!(
-        tree.get(managed_nullable_mutable_type),
-        Type::Reference {
-            kind: ReferenceKind::Managed,
-            access: Access::Mutable,
-            nullability: Nullability::Null,
             ..
         }
     ));
@@ -926,7 +896,6 @@ fn test_construct_reference_and_pointer_types() {
         tree.get(pointer_readonly_type),
         Type::Pointer {
             access: Access::Readonly,
-            nullability: Nullability::None,
             ..
         }
     ));
@@ -934,7 +903,6 @@ fn test_construct_reference_and_pointer_types() {
         tree.get(pointer_mutable_type),
         Type::Pointer {
             access: Access::Mutable,
-            nullability: Nullability::None,
             ..
         }
     ));
@@ -951,8 +919,7 @@ fn test_build_new_zeroed() {
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
 
     // build function with new.zeroed
@@ -989,8 +956,7 @@ fn test_build_new_slice_zeroed() {
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
 
     // build function with new.slice.zeroed
@@ -1031,16 +997,14 @@ fn test_build_slice_view() {
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
     let slice_type = module.type_slice(
         ReferenceKind::Borrowed,
         Lifetime::slot(0),
         i32_type,
         Access::Mutable,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
 
     // build function with slice view
@@ -1196,7 +1160,7 @@ fn test_build_tuple_aggregate() {
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
 
     // build function that constructs a tuple
     let header = module
@@ -1232,7 +1196,7 @@ fn test_build_array_aggregate() {
     // setup
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_int(32, true);
-    let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
+    let array_type = module.type_fixed_array(i32_type, 3);
 
     // build function that constructs an array
     let header = module.function_header("makeArray").result(array_type);
@@ -1308,7 +1272,7 @@ fn test_build_field_get_tuple() {
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
 
     // build function that extracts the first element
     let header = module
@@ -1368,8 +1332,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Lifetime::slot(0),
         user,
         Access::Readonly,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
     let view_field_name = module.strings().intern("user");
     let view_field = module.field(Some(view_field_name), borrowed_user);
@@ -1398,6 +1361,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
     // project the field from one concrete lifetime application
     let static_view = module.tree_mut().intern_type(Type::Application {
         base: view,
+        arguments: Vec::new(),
         lifetimes: vec![Lifetime::static_storage()],
     });
     let static_user = module.type_reference(
@@ -1405,8 +1369,7 @@ fn test_build_field_get_from_lifetime_applied_type() {
         Lifetime::static_storage(),
         user,
         Access::Readonly,
-        Storage::LocalHeap,
-        Nullability::None,
+        Storage::Heap(Space::Local),
     );
     let header = module
         .function_header("getStatic")
@@ -1450,7 +1413,7 @@ fn test_build_element_get_array() {
     let mut module = ModuleBuilder::new();
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
-    let array_type = module.type_fixed_array(i32_type, 3, Copy::Yes);
+    let array_type = module.type_fixed_array(i32_type, 3);
 
     // build function that extracts one fixed element
     let header = module

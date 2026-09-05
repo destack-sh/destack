@@ -47,17 +47,14 @@ entry:
     );
 }
 
-/// Formats reference kinds and nullability canonically.
+/// Formats reference kinds canonically.
 #[test]
-fn test_format_reference_kinds_and_nullability() {
+fn test_format_reference_kinds() {
     assert_format(
         r#"
-function refs(v0: ref<int32, managed, mutable, nullable, local>, v1: ref<int32, unique, readonly, local>): ref<int32, managed, mutable, nullable, local> {
-entry(v0: ref<int32, managed, mutable, nullable, local>, v1: ref<int32, unique, readonly, local>):
-    v2: ref<int32, managed, mutable, nullable, local> = null
-    v3: ref<int32, managed, mutable, undefined, local> = undefined
-    v4: slice<int32, managed, mutable, nullish, local> = undefined
-    return v2
+function refs(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>): ref<int32, managed, mutable, local> {
+entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>):
+    return v0
 }
 "#,
     );
@@ -65,11 +62,12 @@ entry(v0: ref<int32, managed, mutable, nullable, local>, v1: ref<int32, unique, 
 
 /// Formats process-local machine pointers canonically.
 #[test]
-fn test_format_pointer_access_and_nullability() {
+fn test_format_pointer_access() {
     assert_format(
         r#"
-function pointers(v0: ptr<int32, readonly>, v1: ptr<int32, mutable, nullish>, v2: ptr<int32, exclusive, nullable>): ptr<int32, mutable, nullish> {
-entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable, nullish>, v2: ptr<int32, exclusive, nullable>):
+function pointers(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, exclusive>): ptr<int32, mutable> {
+entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, exclusive>):
+    v3: ptr<int32, mutable> = null
     return v1
 }
 "#,
@@ -146,13 +144,33 @@ entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable, local>):
     );
 }
 
-/// Formats concrete type instances with applied lifetime arguments.
+/// Formats opaque declarations and their applications canonically.
 #[test]
-fn test_format_type_instances() {
+fn test_format_opaque_declarations() {
     assert_format(
         r#"
-type Box<int32, 'a> {
-    value: ref<int32, borrowed, 'a, readonly, local>;
+type Iterable<T> = void;
+
+type Iterable.Iterator<T, Self>;
+
+external function Iterable.iterator<T, U: Iterable<T>>(U): Iterable.Iterator<T, U>
+
+function first<T, U: Iterable<T>>(v0: U): Iterable.Iterator<T, U> {
+entry(v0: U):
+    v1: Iterable.Iterator<T, U> = call.witness U, Iterable<T>, Iterable.iterator(v0): (U) => Iterable.Iterator<T, U>
+    return v1
+}
+"#,
+    );
+}
+
+/// Formats template applications with their generic and lifetime arguments.
+#[test]
+fn test_format_type_applications() {
+    assert_format(
+        r#"
+type Box<T, 'a> {
+    value: ref<T, borrowed, 'a, readonly, local>;
 }
 
 function borrow(v0: Box<int32, 'static>): Box<int32, 'static> {
@@ -207,8 +225,8 @@ entry(v0: (int32, float64, boolean), v1: [int32; 10]):
 fn test_format_callable_types() {
     assert_format(
         r#"
-function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish, local>): function<(int32) => int32, once, managed, mutable, nullish, local> {
-entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, nullish, local>):
+function callbacks(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, local>): function<(int32) => int32, once, managed, mutable, local> {
+entry(v0: fn(int32, int32) => int64, v1: function<(int32) => int32, once, managed, mutable, local>):
     return v1
 }
 "#,
@@ -255,8 +273,8 @@ entry(v0: dynamic<Writer, managed, mutable, local>):
     return v0
 }
 
-function sharedErased(v0: dynamic<Writer, managed, mutable, nullish, shared>): dynamic<Writer, managed, mutable, nullish, shared> {
-entry(v0: dynamic<Writer, managed, mutable, nullish, shared>):
+function sharedErased(v0: dynamic<Writer, managed, mutable, shared>): dynamic<Writer, managed, mutable, shared> {
+entry(v0: dynamic<Writer, managed, mutable, shared>):
     return v0
 }
 "#,

@@ -11,9 +11,11 @@ use crate::{Space, Tree, TypeId};
 )]
 pub struct StaticId(pub u32);
 
-/// One closed compile-time value retained in MIR.
+/// One compile-time value retained in MIR.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Static {
+    /// The value one template parameter names.
+    Parameter(u32),
     /// The null value.
     Null,
     /// The undefined value.
@@ -116,5 +118,15 @@ impl Tree {
     /// Return one interned compile-time value.
     pub fn static_value(&self, id: StaticId) -> &Static {
         self.statics.get(id.0)
+    }
+}
+
+impl Static {
+    /// Return the closed length this static names, absent for a value parameter.
+    pub fn length(&self) -> Option<u64> {
+        match self {
+            Static::Integer(length) => u64::try_from(*length).ok(),
+            _ => None,
+        }
     }
 }

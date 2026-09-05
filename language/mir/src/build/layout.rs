@@ -4,9 +4,9 @@ use destack_core::FxIndexSet;
 
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
-    NewtypeLayout, NodeVisitor, Nullability, Primitive, Representation, Scalar, ScalarField,
-    StructLayout, TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration, Validity,
-    Vector, walk_type,
+    NewtypeLayout, NodeVisitor, Primitive, Representation, Scalar, ScalarField, StructLayout,
+    TargetLayout, TraceMap, Tree, TupleLayout, Type, TypeDeclaration, TypeId, Validity, Vector,
+    walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -143,9 +143,16 @@ impl<'tree> LayoutBuilder<'tree> {
 
     /// Compute a layout when one reachable MIR type has a value representation.
     fn layout_reachable_type(&mut self, ty: LocalNodeId<Type>) -> Result<(), LayoutError> {
+        // skip types over template parameters, which lay out at instantiation
+        if TypeId::from(ty).mentions_parameter(self.tree) {
+            return Ok(());
+        }
+
         match self.tree.get(ty) {
             // skip types without runtime representations
-            Type::Error | Type::Never | Type::FunctionSignature { .. } => Ok(()),
+            Type::Error | Type::Never | Type::FunctionSignature { .. } | Type::Parameter { .. } => {
+                Ok(())
+            }
 
             // compute one layout for each represented type
             Type::Void
@@ -189,10 +196,19 @@ impl<'tree> LayoutBuilder<'tree> {
 
         // transparent storage forms share their represented layout exactly
         let represented = match self.tree.get(ty) {
-            Type::Atomic { value }
-            | Type::Application { base: value, .. }
-            | Type::Uninit { value }
-            | Type::ManuallyDrop { value } => Some(*value),
+            // lay out an application through its representation, a lifetime one through its base
+            Type::Application {
+                base, arguments, ..
+            } => match arguments.is_empty() {
+                true => Some(*base),
+                false => match self.tree.representation(TypeId::from(ty)) {
+                    Some(represented) => Some(represented),
+                    None => return Err(self.unsupported("an unrepresented application")),
+                },
+            },
+            Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
+                Some(*value)
+            }
             _ => None,
         };
         if let Some(represented) = represented {
@@ -248,10 +264,11 @@ impl<'tree> LayoutBuilder<'tree> {
             }
             Type::TypeDescriptor => {
                 let bytes = self.pointer_bytes();
-                let scalar = self.pointer_scalar(Nullability::None);
+                let scalar = self.reference_scalar();
 
                 Ok(Layout::scalar(scalar, bytes, self.pointer_alignment()))
             }
+            Type::Parameter { .. } => Err(self.unsupported("an open type")),
             Type::TypeId => Ok(Layout::scalar(
                 Scalar::new(Primitive::Integer { width: 32 }),
                 4,
@@ -264,14 +281,9 @@ impl<'tree> LayoutBuilder<'tree> {
                 Ok(Layout::scalar(scalar, bytes, self.natural_alignment(bytes)))
             }
 
-            // references occupy one pointer, nullish values in the zero page
-            Type::Reference {
-                kind,
-                storage,
-                nullability,
-                ..
-            } => {
-                let scalar = self.pointer_scalar(nullability);
+            // references occupy one pointer, reserving the nullish words as a niche
+            Type::Reference { kind, storage, .. } => {
+                let scalar = self.reference_scalar();
 
                 Ok(Layout {
                     shape: LayoutShape::Scalar,
@@ -284,13 +296,15 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // process-local pointers occupy one untraced machine word
-            Type::Pointer { nullability, .. } => {
-                let scalar = self.pointer_scalar(nullability);
+            Type::Pointer { .. } => {
+                let scalar = Scalar::new(Primitive::Pointer {
+                    width: self.target.pointer_bits(),
+                });
 
                 Ok(Layout {
                     shape: LayoutShape::Scalar,
                     representation: Representation::Scalar(scalar),
-                    niche: scalar.niche(0),
+                    niche: None,
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
                     trace_map: TraceMap::Empty,
@@ -298,13 +312,8 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // slices store their base reference followed by one element count
-            Type::Slice {
-                kind,
-                storage,
-                nullability,
-                ..
-            } => {
-                let reference = self.pointer_scalar(nullability);
+            Type::Slice { kind, storage, .. } => {
+                let reference = self.reference_scalar();
                 let length = Scalar::new(Primitive::Integer {
                     width: self.target.pointer_bits(),
                 });
@@ -327,6 +336,11 @@ impl<'tree> LayoutBuilder<'tree> {
             Type::FixedArray {
                 element, length, ..
             } => {
+                let length = self
+                    .tree
+                    .static_value(length)
+                    .length()
+                    .ok_or_else(|| self.unsupported("an open fixed array"))?;
                 let count = u32::try_from(length).map_err(|_| self.unsupported("fixed array"))?;
                 let element_layout = self.layout_type(element)?;
                 let element_layout = self.layouts.layout(element_layout);
@@ -462,13 +476,8 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // dynamic values store one erased payload reference and dispatch table id
-            Type::Dynamic {
-                kind,
-                storage,
-                nullability,
-                ..
-            } => {
-                let payload = self.pointer_scalar(nullability);
+            Type::Dynamic { kind, storage, .. } => {
+                let payload = self.reference_scalar();
                 let table = Scalar::new(Primitive::Integer { width: 32 });
                 let representation = Representation::ScalarPair([
                     ScalarField::new(payload, 0),
@@ -486,15 +495,10 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // closures store a function identity and erased environment reference
-            Type::Function {
-                kind,
-                storage,
-                nullability,
-                ..
-            } => {
+            Type::Function { kind, storage, .. } => {
                 let environment_offset = self.pointer_bytes();
                 let environment_trace = TraceMap::reference(kind, storage);
-                let function = self.function_scalar(nullability);
+                let function = self.function_scalar();
                 let environment = Scalar::new(Primitive::Pointer {
                     width: self.target.pointer_bits(),
                 });
@@ -515,7 +519,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
             // bare function identities occupy one target word
             Type::FunctionPointer { .. } => {
-                let scalar = self.function_scalar(Nullability::None);
+                let scalar = self.function_scalar();
 
                 Ok(Layout::scalar(
                     scalar,
@@ -613,22 +617,18 @@ impl<'tree> LayoutBuilder<'tree> {
         Ok(Layout::scalar(scalar, size, self.natural_alignment(size)))
     }
 
-    /// Return one pointer scalar with the permitted nullish sentinels.
-    fn pointer_scalar(&self, nullability: Nullability) -> Scalar {
-        let primitive = Primitive::Pointer {
+    /// Return one reference scalar reserving the nullish words as a niche.
+    fn reference_scalar(&self) -> Scalar {
+        Scalar::reference(Primitive::Pointer {
             width: self.target.pointer_bits(),
-        };
-
-        Scalar::with_nullability(primitive, nullability)
+        })
     }
 
-    /// Return one callable identity with the permitted nullish sentinels.
-    fn function_scalar(&self, nullability: Nullability) -> Scalar {
-        let primitive = Primitive::Integer {
+    /// Return one callable identity scalar reserving the nullish words as a niche.
+    fn function_scalar(&self) -> Scalar {
+        Scalar::reference(Primitive::Integer {
             width: self.target.pointer_bits(),
-        };
-
-        Scalar::with_nullability(primitive, nullability)
+        })
     }
 
     /// Return one unsupported physical representation diagnostic.

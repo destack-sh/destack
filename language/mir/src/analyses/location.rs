@@ -630,10 +630,14 @@ impl<'a> MemoryRegionBuilder<'a> {
 
                 let mut region = self.region(base);
 
-                // refine the place by the offset the element stride names
-                let scale = self.expect_element_size(base);
-                if let MemoryRegion::Place(place) = &mut region {
-                    place.add_indexed_offset(index, scale);
+                // refine the place by the element stride, widening an open element to its storage
+                match self.element_size(base) {
+                    Some(scale) => {
+                        if let MemoryRegion::Place(place) = &mut region {
+                            place.add_indexed_offset(index, scale);
+                        }
+                    }
+                    None => region = self.any_region(base),
                 }
 
                 region
@@ -722,8 +726,8 @@ impl<'a> MemoryRegionBuilder<'a> {
         self.function.expect_value_type(value)
     }
 
-    /// Return the byte stride for one indexed value.
-    fn expect_element_size(&mut self, array: mir::Value) -> u64 {
+    /// Return the byte stride for one indexed value, absent for an open element type.
+    fn element_size(&mut self, array: mir::Value) -> Option<u64> {
         let ty_id = self.value_type(array);
         let element_id = match self.tree.get(ty_id) {
             mir::Type::FixedArray { element, .. } | mir::Type::Slice { element, .. } => *element,
@@ -740,13 +744,16 @@ impl<'a> MemoryRegionBuilder<'a> {
             .byte_size(self.tree, self.target_layout.pointer_bits())
             .filter(|size| *size > 0)
         {
-            return size;
+            return Some(size);
+        }
+        if element_id.mentions_parameter(self.tree) {
+            return None;
         }
         let layout = mir::LayoutBuilder::new(self.tree, &mut self.layouts, self.target_layout)
             .layout_type(element_id)
             .unwrap_or_else(|error| panic!("element.address requires a laid-out element: {error}"));
 
-        u64::from(self.layouts.layout(layout).size)
+        Some(u64::from(self.layouts.layout(layout).size))
     }
 
     /// Return the element type for an indexed pointee.
@@ -890,7 +897,7 @@ mod tests {
         };
         let parameter = StorageRoot::Parameter {
             index: 0,
-            storage: mir::Storage::LocalHeap,
+            storage: mir::Storage::Heap(mir::Space::Local),
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };
@@ -919,13 +926,13 @@ mod tests {
     fn test_storage_is_exclusive_parameter() {
         let exclusive_parameter = StorageRoot::Parameter {
             index: 0,
-            storage: mir::Storage::LocalHeap,
+            storage: mir::Storage::Heap(mir::Space::Local),
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Exclusive,
         };
         let mutable_parameter = StorageRoot::Parameter {
             index: 1,
-            storage: mir::Storage::LocalHeap,
+            storage: mir::Storage::Heap(mir::Space::Local),
             kind: mir::ReferenceKind::Borrowed,
             access: mir::Access::Mutable,
         };

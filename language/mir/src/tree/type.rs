@@ -5,7 +5,7 @@ use destack_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Constant, Discriminant, Lifetime, LifetimeParameter, LocalNodeId, Node, NodeType,
-    SignatureParameter, StaticId, StorageSet, Tree, TypeId,
+    SignatureParameter, Static, StaticId, StorageSet, Tree, TypeId,
 };
 
 /// Mutability of a storage binding.
@@ -42,6 +42,8 @@ pub enum Access {
     Mutable,
     /// Mutable exclusive access.
     Exclusive,
+    /// The access one template parameter names.
+    Parameter(u32),
 }
 
 impl Access {
@@ -53,6 +55,26 @@ impl Access {
     /// Return whether this access excludes overlapping borrows.
     pub fn is_exclusive(self) -> bool {
         matches!(self, Access::Exclusive)
+    }
+
+    /// Parse a canonical access name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Some(match name {
+            "readonly" => Access::Readonly,
+            "mutable" => Access::Mutable,
+            "exclusive" => Access::Exclusive,
+            _ => return None,
+        })
+    }
+
+    /// Return the canonical MIR text for a closed access.
+    pub const fn label(self) -> Option<&'static str> {
+        Some(match self {
+            Access::Readonly => "readonly",
+            Access::Mutable => "mutable",
+            Access::Exclusive => "exclusive",
+            Access::Parameter(_) => return None,
+        })
     }
 }
 
@@ -81,6 +103,8 @@ pub enum Space {
     Shared,
     /// Immutable link-written storage, reachable from every space.
     Constant,
+    /// The space one template parameter names.
+    Parameter(u32),
 }
 
 impl Space {
@@ -99,21 +123,23 @@ impl Space {
         })
     }
 
-    /// Return the canonical source name for this space.
-    pub const fn label(self) -> &'static str {
-        match self {
+    /// Return the canonical source name for a closed space.
+    pub const fn label(self) -> Option<&'static str> {
+        Some(match self {
             Space::Local => "local",
             Space::Shared => "shared",
             Space::Constant => "constant",
-        }
+            Space::Parameter(_) => return None,
+        })
     }
 
-    /// Return the backing memory space set.
+    /// Return the backing memory space set, a parameter spanning every runtime space.
     pub const fn space_set(self) -> StorageSet {
         match self {
             Space::Local => StorageSet::LOCAL,
             Space::Shared => StorageSet::SHARED,
             Space::Constant => StorageSet::GLOBAL,
+            Space::Parameter(_) => StorageSet::LOCAL.union(StorageSet::SHARED),
         }
     }
 }
@@ -129,53 +155,45 @@ impl Space {
     Hash,
     PartialOrd,
     Ord,
-    Default,
     Serialize,
     Deserialize,
     Reflect,
     SectionEntry,
 )]
 pub enum Storage {
-    /// Worker-local heap storage.
-    #[default]
-    LocalHeap,
-    /// Runtime-shared heap storage.
-    SharedHeap,
     /// Frame storage inside the current activation.
     Frame,
-    /// Immutable link-written constant storage.
-    Constant,
-    /// Worker-local static storage.
-    LocalStatic,
-    /// Runtime-shared static storage.
-    SharedStatic,
+    /// Heap storage in one space.
+    Heap(Space),
+    /// Static storage written once in one space.
+    Static(Space),
+}
+
+impl Default for Storage {
+    fn default() -> Self {
+        Self::Heap(Space::Local)
+    }
 }
 
 impl Storage {
-    /// Return the heap storage of one space.
+    /// Return the heap storage of one space, the constant space storing statically.
     pub const fn heap(space: Space) -> Self {
         match space {
-            Space::Local => Self::LocalHeap,
-            Space::Shared => Self::SharedHeap,
-            Space::Constant => Self::Constant,
+            Space::Constant => Self::Static(Space::Constant),
+            space => Self::Heap(space),
         }
     }
 
     /// Return the static storage of one space.
     pub const fn global(space: Space) -> Self {
-        match space {
-            Space::Local => Self::LocalStatic,
-            Space::Shared => Self::SharedStatic,
-            Space::Constant => Self::Constant,
-        }
+        Self::Static(space)
     }
 
     /// Return the space coordinate of this storage.
     pub const fn space(self) -> Space {
         match self {
-            Self::LocalHeap | Self::Frame | Self::LocalStatic => Space::Local,
-            Self::SharedHeap | Self::SharedStatic => Space::Shared,
-            Self::Constant => Space::Constant,
+            Self::Frame => Space::Local,
+            Self::Heap(space) | Self::Static(space) => space,
         }
     }
 
@@ -183,17 +201,16 @@ impl Storage {
     pub const fn residence(self) -> Residence {
         match self {
             Self::Frame => Residence::Frame,
-            Self::LocalHeap | Self::SharedHeap => Residence::Heap,
-            Self::Constant | Self::LocalStatic | Self::SharedStatic => Residence::Static,
+            Self::Heap(_) => Residence::Heap,
+            Self::Static(_) => Residence::Static,
         }
     }
 
     /// Return the heap ownership domain when this is heap storage.
     pub const fn heap_space(self) -> Option<Space> {
         match self {
-            Self::LocalHeap => Some(Space::Local),
-            Self::SharedHeap => Some(Space::Shared),
-            Self::Frame | Self::Constant | Self::LocalStatic | Self::SharedStatic => None,
+            Self::Heap(space) => Some(space),
+            Self::Frame | Self::Static(_) => None,
         }
     }
 
@@ -202,39 +219,39 @@ impl Storage {
         matches!(self.space(), Space::Shared)
     }
 
-    /// Return the canonical MIR text for this storage, the local space eliding.
-    pub const fn label(self) -> &'static str {
-        match self {
-            Self::LocalHeap => "local",
-            Self::SharedHeap => "shared",
+    /// Return the canonical MIR text for a closed storage, the local space eliding.
+    pub const fn label(self) -> Option<&'static str> {
+        Some(match self {
             Self::Frame => "frame",
-            Self::Constant => "constant",
-            Self::LocalStatic => "static",
-            Self::SharedStatic => "shared static",
-        }
+            Self::Heap(Space::Local) => "local",
+            Self::Heap(Space::Shared) => "shared",
+            Self::Heap(Space::Constant) | Self::Static(Space::Constant) => "constant",
+            Self::Static(Space::Local) => "static",
+            Self::Static(Space::Shared) => "shared static",
+            Self::Heap(Space::Parameter(_)) | Self::Static(Space::Parameter(_)) => return None,
+        })
     }
 
-    /// Return the symbol path segment for this storage.
-    pub const fn segment(self) -> &'static str {
-        match self {
-            Self::LocalHeap => "local",
-            Self::SharedHeap => "shared",
+    /// Return the symbol path segment for a closed storage.
+    pub const fn segment(self) -> Option<&'static str> {
+        Some(match self {
             Self::Frame => "frame",
-            Self::Constant => "constant",
-            Self::LocalStatic => "static",
-            Self::SharedStatic => "sharedStatic",
-        }
+            Self::Heap(Space::Local) => "local",
+            Self::Heap(Space::Shared) => "shared",
+            Self::Heap(Space::Constant) | Self::Static(Space::Constant) => "constant",
+            Self::Static(Space::Local) => "static",
+            Self::Static(Space::Shared) => "sharedStatic",
+            Self::Heap(Space::Parameter(_)) | Self::Static(Space::Parameter(_)) => return None,
+        })
     }
 
-    /// Return the storage region set used by memory effects.
+    /// Return the storage region set used by memory effects, a parameter spanning every heap.
     pub const fn storage_set(self) -> StorageSet {
         match self {
-            Self::LocalHeap => StorageSet::LOCAL,
-            Self::SharedHeap => StorageSet::SHARED,
             Self::Frame => StorageSet::FRAME,
-            Self::Constant => StorageSet::GLOBAL,
-            Self::LocalStatic => StorageSet::GLOBAL.union(StorageSet::LOCAL),
-            Self::SharedStatic => StorageSet::GLOBAL.union(StorageSet::SHARED),
+            Self::Heap(space) => space.space_set(),
+            Self::Static(Space::Constant) => StorageSet::GLOBAL,
+            Self::Static(space) => StorageSet::GLOBAL.union(space.space_set()),
         }
     }
 }
@@ -297,43 +314,6 @@ impl Multiplicity {
             Self::Repeatable => "repeatable",
             Self::Once => "once",
         }
-    }
-}
-
-/// Nullish values admitted by reference-like types.
-#[repr(u8)]
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect, SectionEntry,
-)]
-pub enum Nullability {
-    /// No nullish values are allowed.
-    #[default]
-    None,
-    /// `null` is allowed.
-    Null,
-    /// `undefined` is allowed.
-    Undefined,
-    /// `null` and `undefined` are allowed.
-    NullOrUndefined,
-}
-
-impl Nullability {
-    /// Return whether null is a valid value.
-    #[inline]
-    pub const fn allows_null(self) -> bool {
-        matches!(self, Nullability::Null | Nullability::NullOrUndefined)
-    }
-
-    /// Return whether undefined is a valid value.
-    #[inline]
-    pub const fn allows_undefined(self) -> bool {
-        matches!(self, Nullability::Undefined | Nullability::NullOrUndefined)
-    }
-
-    /// Return whether any nullish sentinel is valid.
-    #[inline]
-    pub const fn allows_nullish(self) -> bool {
-        !matches!(self, Nullability::None)
     }
 }
 
@@ -409,6 +389,11 @@ pub enum Type {
     TypeDescriptor,
     /// Compact 32-bit runtime type identity token.
     TypeId,
+    /// One parameter of the enclosing template.
+    Parameter {
+        /// The parameter index in template order.
+        index: u32,
+    },
 
     /// Atomic storage cell for one value type.
     Atomic {
@@ -427,8 +412,6 @@ pub enum Type {
         storage: Storage,
         /// The access exposed through the erased payload.
         access: Access,
-        /// The nullish values allowed by this dynamic descriptor.
-        nullability: Nullability,
     },
     /// Reference with explicit kind and access.
     Reference {
@@ -442,8 +425,6 @@ pub enum Type {
         access: Access,
         /// The referenced type.
         pointee: TypeId,
-        /// The nullish values allowed by this reference.
-        nullability: Nullability,
     },
     /// Process-local machine pointer.
     Pointer {
@@ -451,8 +432,6 @@ pub enum Type {
         pointee: TypeId,
         /// The access exposed through this pointer.
         access: Access,
-        /// The nullish values allowed by this pointer.
-        nullability: Nullability,
     },
     /// Slice into memory, a repeated element with explicit kind and access.
     Slice {
@@ -466,8 +445,6 @@ pub enum Type {
         storage: Storage,
         /// The element access exposed by the slice.
         access: Access,
-        /// The nullish values allowed by this slice descriptor.
-        nullability: Nullability,
     },
     /// Linear token for one possibly uninitialized storage.
     Uninit {
@@ -485,16 +462,12 @@ pub enum Type {
         /// The element type of the array.
         element: TypeId,
         /// The number of elements in the array.
-        length: u64,
-        /// Copy of this fixed array type.
-        copy: Copy,
+        length: StaticId,
     },
     /// Tuple: `(T1, T2, ...)`.
     Tuple {
         /// The element types of the tuple.
         elements: Vec<TypeId>,
-        /// Copy of this tuple type.
-        copy: Copy,
     },
     /// Struct.
     Struct {
@@ -526,8 +499,6 @@ pub enum Type {
         element: TypeId,
         /// The number of lanes.
         lanes: u32,
-        /// Copy of this vector type.
-        copy: Copy,
     },
     /// Bare function signature.
     FunctionSignature {
@@ -552,8 +523,6 @@ pub enum Type {
         storage: Storage,
         /// The access exposed through the captured environment.
         access: Access,
-        /// The nullish values allowed by this function descriptor.
-        nullability: Nullability,
     },
     /// Function pointer type.
     FunctionPointer {
@@ -561,10 +530,12 @@ pub enum Type {
         signature: TypeId,
     },
 
-    /// Type use with applied lifetime arguments.
+    /// Type use with applied generic and lifetime arguments.
     Application {
         /// The type being applied.
         base: TypeId,
+        /// The applied generic arguments, in template order.
+        arguments: Vec<GenericArgument>,
         /// The applied lifetime arguments.
         lifetimes: Vec<Lifetime>,
     },
@@ -783,8 +754,11 @@ impl Type {
                 element, length, ..
             } => {
                 let element_size = tree.get(*element).byte_size(tree, pointer_width_bits)?;
+                let Static::Integer(length) = *tree.static_value(*length) else {
+                    return None;
+                };
 
-                element_size.checked_mul(*length)
+                element_size.checked_mul(u64::try_from(length).ok()?)
             }
             Type::Application { base, .. } => tree.get(*base).byte_size(tree, pointer_width_bits),
             _ => None,
@@ -849,6 +823,15 @@ impl Type {
             | Type::Reference { lifetime, .. }
             | Type::Slice { lifetime, .. }
             | Type::Function { lifetime, .. } => *lifetime = replacement,
+            // an application applies its lifetimes as arguments
+            Type::Application { lifetimes, .. } => match replacement.is_empty() {
+                true => lifetimes.clear(),
+                false => {
+                    for lifetime in lifetimes.iter_mut() {
+                        *lifetime = replacement.clone();
+                    }
+                }
+            },
             _ => {}
         }
     }
@@ -905,33 +888,6 @@ impl Type {
         }
     }
 
-    /// Return the nullish values accepted by one reference-like type.
-    pub fn nullability(&self) -> Option<Nullability> {
-        match self {
-            Type::Dynamic { nullability, .. }
-            | Type::Reference { nullability, .. }
-            | Type::Slice { nullability, .. }
-            | Type::Function { nullability, .. }
-            | Type::Pointer { nullability, .. } => Some(*nullability),
-            _ => None,
-        }
-    }
-
-    /// Set the nullish values admitted by one reference-like type.
-    pub fn set_nullability(&mut self, value: Nullability) -> bool {
-        let nullability = match self {
-            Type::Dynamic { nullability, .. }
-            | Type::Reference { nullability, .. }
-            | Type::Slice { nullability, .. }
-            | Type::Function { nullability, .. }
-            | Type::Pointer { nullability, .. } => nullability,
-            _ => return false,
-        };
-        *nullability = value;
-
-        true
-    }
-
     /// Return the hidden storage types for one slice value.
     pub fn slice(
         kind: ReferenceKind,
@@ -945,7 +901,6 @@ impl Type {
             storage,
             access,
             pointee: element,
-            nullability: Nullability::None,
         };
         let length = Type::Usize;
 
@@ -1000,8 +955,11 @@ impl Type {
             // atomic cells are storage, so each use consumes them
             Type::Atomic { .. } => Copy::No,
 
-            // initialization tokens are linear capabilities
-            Type::Uninit { .. } | Type::ManuallyDrop { .. } => Copy::No,
+            // an allocation under construction completes exactly once
+            Type::Uninit { .. } => Copy::No,
+
+            // a manually dropped value copies with the value it wraps
+            Type::ManuallyDrop { value } => tree.get(*value).copy(tree),
 
             // once functions are consumed by invocation
             Type::Function {
@@ -1018,19 +976,36 @@ impl Type {
                 ReferenceKind::Managed | ReferenceKind::Borrowed => Copy::Yes,
             },
 
-            // aggregates have explicit copy
-            Type::FixedArray { copy, .. }
-            | Type::Tuple { copy, .. }
-            | Type::Struct { copy, .. }
-            | Type::Newtype { copy, .. }
-            | Type::Variant { copy, .. }
-            | Type::Vector { copy, .. } => *copy,
+            // anonymous aggregates copy when every element copies
+            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
+                tree.get(*element).copy(tree)
+            }
+            Type::Tuple { elements } => elements.iter().fold(Copy::Yes, |copy, element| {
+                copy.combine(tree.get(*element).copy(tree))
+            }),
+
+            // declared aggregates copy when their declaration permits and every child copies
+            Type::Struct { fields, copy } => fields.iter().fold(*copy, |copy, field| {
+                copy.combine(tree.get(tree.get(*field).ty).copy(tree))
+            }),
+            Type::Newtype { inner, copy } => copy.combine(tree.get(*inner).copy(tree)),
+            Type::Variant { cases, copy, .. } => cases.iter().fold(*copy, |copy, case| {
+                copy.combine(tree.get(case.ty).copy(tree))
+            }),
 
             // signatures and thin function pointers contain no captured storage
             Type::FunctionSignature { .. } | Type::FunctionPointer { .. } => Copy::Yes,
 
-            // lifetime application preserves the represented type's copy property
-            Type::Application { base, .. } => tree.get(*base).copy(tree),
+            // decide an application through its base
+            Type::Application {
+                base, arguments, ..
+            } => Copy::under(tree, *base, &|index| match arguments.get(index as usize) {
+                Some(GenericArgument::Type(argument)) => tree.get(*argument).copy(tree),
+                _ => Copy::Yes,
+            }),
+
+            // move a parameter until instantiation decides
+            Type::Parameter { .. } => Copy::No,
         }
     }
 
@@ -1091,13 +1066,54 @@ impl Node for Field {
     const TYPE: NodeType = NodeType::Field;
 }
 
+/// One generic parameter a function or type declaration takes.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub struct GenericParameter {
+    /// The declared name.
+    pub name: StringId,
+    /// The values the parameter ranges over.
+    pub domain: ParameterDomain,
+}
+
+/// The values one generic parameter ranges over.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum ParameterDomain {
+    /// The types satisfying every bound.
+    Type {
+        /// The applied interfaces the parameter satisfies.
+        bounds: Vec<TypeId>,
+    },
+    /// The memory spaces.
+    Space,
+    /// The reference accesses.
+    Access,
+    /// The values of one type.
+    Value {
+        /// The value type.
+        ty: TypeId,
+    },
+}
+
+/// One argument applied to a generic parameter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum GenericArgument {
+    /// A type.
+    Type(TypeId),
+    /// A memory space.
+    Space(Space),
+    /// A reference access.
+    Access(Access),
+    /// A value.
+    Value(StaticId),
+}
+
 /// A named MIR type declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct TypeDeclaration {
     /// The declaration name.
     pub name: StringId,
-    /// Concrete generic arguments specializing this type.
-    pub arguments: Vec<StaticId>,
+    /// The generic parameters a template takes.
+    pub generics: Vec<GenericParameter>,
     /// Lifetime parameters in type-local slot order.
     pub lifetimes: Vec<LifetimeParameter>,
     /// The identified type.
@@ -1144,7 +1160,7 @@ impl Type {
             | Type::Vector { element, .. } => {
                 *element = map(*element);
             }
-            Type::Tuple { elements, copy: _ } => {
+            Type::Tuple { elements } => {
                 for element in elements {
                     *element = map(*element);
                 }
@@ -1173,9 +1189,17 @@ impl Type {
             Type::FunctionPointer { signature } | Type::Function { signature, .. } => {
                 *signature = map(*signature);
             }
-            Type::Application { base, .. } => {
+            Type::Application {
+                base, arguments, ..
+            } => {
                 *base = map(*base);
+                for argument in arguments {
+                    if let GenericArgument::Type(ty) = argument {
+                        *ty = map(*ty);
+                    }
+                }
             }
+            Type::Parameter { .. } => {}
             // struct children are field nodes, paired by their consumers
             Type::Struct { .. } => {}
             Type::Error
@@ -1193,69 +1217,7 @@ impl Type {
     }
 }
 
-/// One nullish constant a type can store.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Nullish {
-    /// The null constant.
-    Null,
-    /// The undefined constant.
-    Undefined,
-}
-
-/// One position where a type stores an absent nullish constant.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum NullishCase {
-    /// The variant case holding the void payload.
-    Case(u32),
-    /// The nullish niche of a reference-family type.
-    Niche,
-}
-
-impl Nullability {
-    /// Return whether this niche admits one nullish constant.
-    pub fn admits(self, nullish: Nullish) -> bool {
-        matches!(
-            (self, nullish),
-            (
-                Nullability::Null | Nullability::NullOrUndefined,
-                Nullish::Null
-            ) | (
-                Nullability::Undefined | Nullability::NullOrUndefined,
-                Nullish::Undefined
-            )
-        )
-    }
-}
-
 impl Tree {
-    /// Return where one type stores one nullish constant, when it does.
-    pub fn nullish_case(&self, ty: TypeId, nullish: Nullish) -> Option<NullishCase> {
-        match self.get(ty) {
-            // read through lifetime applications onto the wrapped base
-            Type::Application { base, .. } => self.nullish_case(*base, nullish),
-
-            // variants store undefined as their void case
-            Type::Variant { cases, .. } => match nullish {
-                Nullish::Undefined => cases
-                    .iter()
-                    .position(|case| matches!(self.get(case.ty), Type::Void))
-                    .map(|index| NullishCase::Case(index as u32)),
-                Nullish::Null => None,
-            },
-
-            // read the nullish niche of reference-family types
-            other => other
-                .nullability()
-                .filter(|nullability| nullability.admits(nullish))
-                .map(|_| NullishCase::Niche),
-        }
-    }
-
-    /// Return where one type stores undefined, when it does.
-    pub fn undefined_case(&self, ty: TypeId) -> Option<NullishCase> {
-        self.nullish_case(ty, Nullish::Undefined)
-    }
-
     /// Return the case one variant stores a payload representation in, when one does.
     pub fn payload_case(&self, ty: TypeId, payload: TypeId) -> Option<u32> {
         let Type::Variant { cases, .. } = self.get(ty) else {

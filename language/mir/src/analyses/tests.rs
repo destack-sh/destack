@@ -200,7 +200,10 @@ impl TestProgram {
         let mir::Instruction::Call {
             call:
                 mir::Call {
-                    callee: mir::Callee::Direct { function: callee },
+                    callee:
+                        mir::Callee::Direct {
+                            function: callee, ..
+                        },
                     ..
                 },
             ..

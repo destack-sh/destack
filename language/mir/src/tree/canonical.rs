@@ -67,17 +67,46 @@ impl Tree {
         if left == right {
             return true;
         }
+
+        // reject two declared nominals, which match by identity alone
+        if self.type_declaration(left).is_some() && self.type_declaration(right).is_some() {
+            return false;
+        }
+
+        // assume a pair already under comparison matches
         if assumed.insert((left, right), ()).is_some() {
             return true;
         }
 
-        // compare the nodes shallowly with lifetimes erased and children masked out
-        let mut left_type = self.get(left).erased_lifetime();
-        let mut right_type = self.get(right).erased_lifetime();
-        left_type.map_child_type_ids(&mut |_| left);
-        right_type.map_child_type_ids(&mut |_| left);
-        if left_type != right_type {
-            return false;
+        // compare struct heads by copy and field names, leaving field types to the children
+        if let (
+            Type::Struct {
+                fields: left_fields,
+                copy: left_copy,
+            },
+            Type::Struct {
+                fields: right_fields,
+                copy: right_copy,
+            },
+        ) = (self.get(left), self.get(right))
+        {
+            let names_match = left_fields.len() == right_fields.len()
+                && left_fields
+                    .iter()
+                    .zip(right_fields)
+                    .all(|(left, right)| self.get(*left).name == self.get(*right).name);
+            if left_copy != right_copy || !names_match {
+                return false;
+            }
+        } else {
+            // compare other nodes shallowly with lifetimes erased and children masked out
+            let mut left_type = self.get(left).erased_lifetime();
+            let mut right_type = self.get(right).erased_lifetime();
+            left_type.map_child_type_ids(&mut |_| left);
+            right_type.map_child_type_ids(&mut |_| left);
+            if left_type != right_type {
+                return false;
+            }
         }
 
         // recurse into the paired children

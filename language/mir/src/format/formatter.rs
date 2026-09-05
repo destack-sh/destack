@@ -7,8 +7,9 @@ use destack_source::{File, FileType};
 use super::FormatOptions;
 
 use crate::{
-    Block, Function, FunctionId, Global, LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node,
-    TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, Value, mentioned_types,
+    Block, Function, FunctionId, GenericParameter, Global, LifetimeParameter, LifetimeSlot, Local,
+    LocalNodeId, Node, TargetLayout, Tree, TreeImpl, Type, TypeDeclaration, TypeId, Value,
+    mentioned_types,
 };
 
 /// One MIR formatting pass.
@@ -31,8 +32,12 @@ pub struct Formatter<'a> {
     local_indices: FxIndexMap<LocalNodeId<Local>, usize>,
     /// Lifetime parameters currently in scope.
     lifetimes: Vec<LifetimeParameter>,
+    /// Generic parameters currently in scope.
+    generics: Vec<GenericParameter>,
     /// The items a selective format keeps.
     selection: Option<Selection>,
+    /// The anonymous types currently being expanded.
+    pub(crate) expanding: Vec<TypeId>,
 }
 
 /// The FIR writer for one MIR formatting pass.
@@ -73,7 +78,9 @@ impl<'a> Formatter<'a> {
             block_indices: FxIndexMap::default(),
             local_indices: FxIndexMap::default(),
             lifetimes: Vec::new(),
+            generics: Vec::new(),
             selection: None,
+            expanding: Vec::new(),
         }
     }
 
@@ -180,12 +187,15 @@ impl<'a> Formatter<'a> {
             })
     }
 
-    /// Enter one function body.
-    pub(crate) fn enter_function(
-        &mut self,
-        function: LocalNodeId<Function>,
-        lifetimes: &[LifetimeParameter],
-    ) {
+    /// Return one generic parameter name in the current scope.
+    pub(crate) fn parameter_name(&self, index: u32) -> Option<&str> {
+        let parameter = self.generics.get(index as usize)?;
+
+        Some(self.strings.get(parameter.name))
+    }
+
+    /// Enter one function body with its lifetime and generic scope.
+    pub(crate) fn enter_function(&mut self, function: LocalNodeId<Function>) {
         let body = self.tree.get(function);
 
         // index canonical block and local order once per function
@@ -205,9 +215,11 @@ impl<'a> Formatter<'a> {
                 .map(|(index, id)| (*id, index)),
         );
 
-        // enter the function lifetime scope
+        // enter the function lifetime and generic scope
         self.lifetimes.clear();
-        self.lifetimes.extend_from_slice(lifetimes);
+        self.lifetimes.extend_from_slice(&body.lifetimes);
+        self.generics.clear();
+        self.generics.extend_from_slice(&body.generics);
     }
 
     /// Leave the current function body.
@@ -216,6 +228,7 @@ impl<'a> Formatter<'a> {
         self.block_indices.clear();
         self.local_indices.clear();
         self.lifetimes.clear();
+        self.generics.clear();
     }
 
     /// Return the function currently being formatted.
@@ -229,6 +242,14 @@ impl<'a> Formatter<'a> {
         lifetimes: Vec<LifetimeParameter>,
     ) -> Vec<LifetimeParameter> {
         std::mem::replace(&mut self.lifetimes, lifetimes)
+    }
+
+    /// Replace the generic parameters and return the previous parameters.
+    pub(crate) fn replace_generics(
+        &mut self,
+        generics: Vec<GenericParameter>,
+    ) -> Vec<GenericParameter> {
+        std::mem::replace(&mut self.generics, generics)
     }
 }
 

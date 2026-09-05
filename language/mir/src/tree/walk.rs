@@ -1,6 +1,7 @@
 use crate::{
-    Block, Call, Callee, CheckConstraint, Field, Function, Global, Instruction, Local, LocalNodeId,
-    NodeType, NodeVisitor, Static, StaticId, Terminator, Tree, Type, TypeDeclaration, TypeId,
+    Block, Call, Callee, CheckConstraint, Constant, Field, Function, GenericArgument, Global,
+    Instruction, Local, LocalNodeId, NodeType, NodeVisitor, Static, StaticId, Terminator, Tree,
+    Type, TypeDeclaration, TypeId,
 };
 
 /// Walk any node.
@@ -69,7 +70,7 @@ pub fn walk_function<V: NodeVisitor + ?Sized>(
     visitor.visit_any(tree, NodeType::Function, id.id);
 
     for argument in &function.arguments {
-        walk_static(visitor, tree, *argument);
+        walk_argument(visitor, tree, argument);
     }
     for parameter in &function.parameters {
         walk_type_id(visitor, tree, &parameter.ty);
@@ -141,6 +142,12 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         }
         Instruction::DynamicBind { concrete, .. } => walk_type_id(visitor, tree, concrete),
         Instruction::Call { call, .. } => walk_call(visitor, tree, call),
+        Instruction::FunctionAddr { arguments, .. }
+        | Instruction::FunctionBind { arguments, .. } => {
+            for argument in arguments {
+                walk_argument(visitor, tree, argument);
+            }
+        }
         Instruction::NewZeroed {
             storage_type,
             result_type,
@@ -180,6 +187,10 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
             walk_type_id(visitor, tree, element);
             walk_type_id(visitor, tree, result_type);
         }
+        Instruction::Const {
+            value: Constant::Layout { ty, .. },
+            ..
+        } => walk_type_id(visitor, tree, ty),
         Instruction::Error
         | Instruction::Const { .. }
         | Instruction::Binary { .. }
@@ -187,8 +198,6 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::Select { .. }
         | Instruction::LocalGet { .. }
         | Instruction::LocalSet { .. }
-        | Instruction::FunctionAddr { .. }
-        | Instruction::FunctionBind { .. }
         | Instruction::FunctionEnvironment { .. }
         | Instruction::FunctionEnvironmentCurrent { .. }
         | Instruction::ContextCurrent { .. }
@@ -317,7 +326,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Slice { element, .. } => {
             walk_type_id(visitor, tree, element);
         }
-        Type::Tuple { elements, copy: _ } => {
+        Type::Tuple { elements } => {
             for element_id in elements {
                 walk_type_id(visitor, tree, element_id);
             }
@@ -358,8 +367,13 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         Type::Function { signature, .. } => {
             walk_type_id(visitor, tree, signature);
         }
-        Type::Application { base, .. } => {
+        Type::Application {
+            base, arguments, ..
+        } => {
             walk_type_id(visitor, tree, base);
+            for argument in arguments {
+                walk_argument(visitor, tree, argument);
+            }
         }
         Type::Never
         | Type::Void
@@ -370,7 +384,21 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         | Type::Usize
         | Type::Float { .. }
         | Type::TypeDescriptor
+        | Type::Parameter { .. }
         | Type::TypeId => {}
+    }
+}
+
+/// Walk the types referenced by one generic argument.
+fn walk_argument<V: NodeVisitor + ?Sized>(
+    visitor: &mut V,
+    tree: &Tree,
+    argument: &GenericArgument,
+) {
+    match argument {
+        GenericArgument::Type(ty) => walk_type_id(visitor, tree, ty),
+        GenericArgument::Value(value) => walk_static(visitor, tree, *value),
+        GenericArgument::Space(_) | GenericArgument::Access(_) => {}
     }
 }
 
@@ -383,9 +411,6 @@ pub fn walk_type_declaration<V: NodeVisitor + ?Sized>(
 ) {
     visitor.visit_any(tree, NodeType::TypeDeclaration, id.id);
 
-    for argument in &type_declaration.arguments {
-        walk_static(visitor, tree, *argument);
-    }
     let declared_ty = tree.get(type_declaration.ty);
     visitor.visit_type(tree, type_declaration.ty, declared_ty);
 }
@@ -433,7 +458,8 @@ fn walk_static<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: Static
                 walk_static(visitor, tree, field.value);
             }
         }
-        Static::Null
+        Static::Parameter(_)
+        | Static::Null
         | Static::Space(_)
         | Static::Undefined
         | Static::Boolean(_)
@@ -451,9 +477,22 @@ fn walk_call<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, call: &Call)
     walk_type_id(visitor, tree, &call.signature);
 
     match &call.callee {
+        Callee::Direct { arguments, .. } => {
+            for argument in arguments {
+                walk_argument(visitor, tree, argument);
+            }
+        }
         Callee::Virtual { class, .. } => walk_type_id(visitor, tree, class),
         Callee::Dynamic { constraint, .. } => walk_type_id(visitor, tree, constraint),
-        Callee::Direct { .. } | Callee::Indirect { .. } => {}
+        Callee::Witness {
+            receiver,
+            interface,
+            ..
+        } => {
+            walk_type_id(visitor, tree, receiver);
+            walk_type_id(visitor, tree, interface);
+        }
+        Callee::Indirect { .. } => {}
     }
 }
 

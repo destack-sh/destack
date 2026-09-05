@@ -91,6 +91,8 @@ pub enum TokenType {
     Comma,
     /// `|`
     Pipe,
+    /// `&`
+    Ampersand,
     /// `?`
     Question,
     /// `*`
@@ -153,6 +155,8 @@ pub enum TokenType {
     CallDynamic,
     /// `tail.call.dynamic`
     TailCallDynamic,
+    /// `tail.call.witness`
+    TailCallWitness,
     /// `invoke`
     Invoke,
     /// `invoke.indirect`
@@ -161,6 +165,8 @@ pub enum TokenType {
     InvokeVirtual,
     /// `invoke.dynamic`
     InvokeDynamic,
+    /// `invoke.witness`
+    InvokeWitness,
     /// `void`
     Void,
     /// `boolean`
@@ -190,7 +196,11 @@ impl TokenType {
     pub(crate) const fn is_invoke(self) -> bool {
         matches!(
             self,
-            Self::Invoke | Self::InvokeIndirect | Self::InvokeVirtual | Self::InvokeDynamic
+            Self::Invoke
+                | Self::InvokeIndirect
+                | Self::InvokeVirtual
+                | Self::InvokeDynamic
+                | Self::InvokeWitness
         )
     }
 
@@ -198,7 +208,11 @@ impl TokenType {
     pub(crate) const fn is_tail_call(self) -> bool {
         matches!(
             self,
-            Self::TailCall | Self::TailCallIndirect | Self::TailCallVirtual | Self::TailCallDynamic
+            Self::TailCall
+                | Self::TailCallIndirect
+                | Self::TailCallVirtual
+                | Self::TailCallDynamic
+                | Self::TailCallWitness
         )
     }
 
@@ -248,10 +262,12 @@ impl TokenType {
             "tail.call.virtual" => Self::TailCallVirtual,
             "call.dynamic" => Self::CallDynamic,
             "tail.call.dynamic" => Self::TailCallDynamic,
+            "tail.call.witness" => Self::TailCallWitness,
             "invoke" => Self::Invoke,
             "invoke.indirect" => Self::InvokeIndirect,
             "invoke.virtual" => Self::InvokeVirtual,
             "invoke.dynamic" => Self::InvokeDynamic,
+            "invoke.witness" => Self::InvokeWitness,
             "void" => Self::Void,
             "boolean" => Self::Boolean,
             "ref" => Self::Ref,

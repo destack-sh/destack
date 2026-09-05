@@ -468,10 +468,12 @@ pub fn instruction_substitute_uses(
         mir::Instruction::FunctionBind {
             destination,
             function,
+            arguments,
             environment,
         } => mir::Instruction::FunctionBind {
             destination: *destination,
             function: *function,
+            arguments: arguments.clone(),
             environment: substitute(environment),
         },
         mir::Instruction::FunctionEnvironment {
@@ -1572,17 +1574,21 @@ pub fn instruction_map(
         mir::Instruction::FunctionAddr {
             destination,
             function,
+            arguments,
         } => mir::Instruction::FunctionAddr {
             destination: remap(*destination),
             function: *function,
+            arguments: arguments.clone(),
         },
         mir::Instruction::FunctionBind {
             destination,
             function,
+            arguments,
             environment,
         } => mir::Instruction::FunctionBind {
             destination: remap(*destination),
             function: *function,
+            arguments: arguments.clone(),
             environment: remap(*environment),
         },
         mir::Instruction::FunctionEnvironment {
@@ -1980,17 +1986,21 @@ pub fn instruction_map_with_locals(
         mir::Instruction::FunctionAddr {
             destination,
             function,
+            arguments,
         } => mir::Instruction::FunctionAddr {
             destination: remap(*destination),
             function: *function,
+            arguments: arguments.clone(),
         },
         mir::Instruction::FunctionBind {
             destination,
             function,
+            arguments,
             environment,
         } => mir::Instruction::FunctionBind {
             destination: remap(*destination),
             function: *function,
+            arguments: arguments.clone(),
             environment: remap(*environment),
         },
         mir::Instruction::FunctionEnvironment {

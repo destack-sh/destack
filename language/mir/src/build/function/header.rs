@@ -1,8 +1,8 @@
 use destack_core::{StringId, StringPool};
 
 use crate::{
-    Function, FunctionParameter, LifetimeParameter, LifetimeSlot, LocalNodeId, StaticId, Symbol,
-    Type, Value,
+    Function, FunctionParameter, GenericArgument, GenericParameter, LifetimeParameter,
+    LifetimeSlot, LocalNodeId, Symbol, Type, Value,
 };
 
 /// Header used to declare or build one MIR function.
@@ -10,8 +10,10 @@ use crate::{
 pub struct FunctionHeader {
     /// The function name.
     pub name: StringId,
-    /// Concrete generic arguments specializing this function.
-    pub arguments: Vec<StaticId>,
+    /// The generic parameters the function takes.
+    pub generics: Vec<GenericParameter>,
+    /// The generic arguments a specialization applies to its template.
+    pub arguments: Vec<GenericArgument>,
     /// The persistent function identity.
     pub symbol: Symbol,
     /// Lifetime parameters in function-local slot order.
@@ -29,8 +31,10 @@ pub struct FunctionHeaderBuilder<'a> {
     strings: &'a StringPool,
     /// The function name.
     name: StringId,
-    /// Concrete generic arguments specializing this function.
-    arguments: Vec<StaticId>,
+    /// The generic parameters the function takes.
+    generics: Vec<GenericParameter>,
+    /// The generic arguments a specialization applies to its template.
+    arguments: Vec<GenericArgument>,
     /// The persistent function identity.
     symbol: Symbol,
     /// Lifetime parameters in function-local slot order.
@@ -47,6 +51,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
         Self {
             strings,
             name,
+            generics: Vec::new(),
             arguments: Vec::new(),
             symbol: Symbol::named(name),
             lifetimes: Vec::new(),
@@ -62,8 +67,15 @@ impl<'a> FunctionHeaderBuilder<'a> {
     }
 
     /// Set the concrete generic arguments specializing this function.
-    pub fn arguments(mut self, arguments: impl IntoIterator<Item = StaticId>) -> Self {
+    pub fn arguments(mut self, arguments: impl IntoIterator<Item = GenericArgument>) -> Self {
         self.arguments.extend(arguments);
+
+        self
+    }
+
+    /// Declare the generic parameters the function takes.
+    pub fn generics(mut self, generics: Vec<GenericParameter>) -> Self {
+        self.generics = generics;
 
         self
     }
@@ -113,6 +125,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
     pub fn result(self, result: LocalNodeId<Type>) -> FunctionHeader {
         FunctionHeader {
             name: self.name,
+            generics: self.generics,
             arguments: self.arguments,
             symbol: self.symbol,
             lifetimes: self.lifetimes,
@@ -128,6 +141,7 @@ impl FunctionHeader {
         let parameters = Self::parameters_from_types(self.parameters);
 
         Function::declare(self.name, self.lifetimes, parameters, self.result)
+            .with_generics(self.generics)
             .with_arguments(self.arguments)
             .with_symbol(self.symbol)
     }
@@ -137,6 +151,7 @@ impl FunctionHeader {
         let parameters = Self::parameters_from_types(self.parameters);
 
         Function::import(self.name, self.lifetimes, parameters, self.result)
+            .with_generics(self.generics)
             .with_arguments(self.arguments)
             .with_symbol(self.symbol)
     }

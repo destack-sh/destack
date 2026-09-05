@@ -138,7 +138,9 @@ impl<'a, 'b> DispatchResolver<'a, 'b> {
     /// Record one call operation.
     fn record_call(&mut self, callsite: mir::Point, call: &mir::Call) {
         match &call.callee {
-            mir::Callee::Direct { .. } | mir::Callee::Indirect { .. } => {}
+            mir::Callee::Direct { .. }
+            | mir::Callee::Indirect { .. }
+            | mir::Callee::Witness { .. } => {}
             mir::Callee::Virtual {
                 receiver,
                 class,

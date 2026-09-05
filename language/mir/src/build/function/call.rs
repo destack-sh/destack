@@ -1,7 +1,7 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
-    Call, Callee, Function, FunctionBehavior, Instruction, LocalNodeId, Point, SignatureParameter,
-    Type, TypeId, Value,
+    Call, Callee, Function, FunctionBehavior, GenericArgument, Instruction, LocalNodeId, Point,
+    SignatureParameter, Type, TypeId, Value,
 };
 
 impl<'a> FunctionBuilder<'a> {
@@ -60,7 +60,10 @@ impl<'a> FunctionBuilder<'a> {
         });
 
         self.call(
-            Callee::Direct { function },
+            Callee::Direct {
+                function,
+                arguments: Vec::new(),
+            },
             TypeId::from(signature),
             arguments,
         )
@@ -70,12 +73,14 @@ impl<'a> FunctionBuilder<'a> {
     pub fn function_addr(
         &mut self,
         function: LocalNodeId<Function>,
+        arguments: Vec<GenericArgument>,
         signature: LocalNodeId<Type>,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::FunctionAddr {
             destination,
             function,
+            arguments,
         });
         self.define_value(destination, signature);
         destination
@@ -85,6 +90,7 @@ impl<'a> FunctionBuilder<'a> {
     pub fn function_bind(
         &mut self,
         function: LocalNodeId<Function>,
+        arguments: Vec<GenericArgument>,
         signature: LocalNodeId<Type>,
         environment: Value,
     ) -> Value {
@@ -92,6 +98,7 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::FunctionBind {
             destination,
             function,
+            arguments,
             environment,
         });
         self.define_value(destination, signature);

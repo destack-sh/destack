@@ -10,12 +10,12 @@ use super::intern::{TypeEntry, TypeIndexKey};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, Attribute, Block, BorrowedPath, CommentSpan, ExtentSlice, Field, FieldSpan, FlagSlice,
-    FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
-    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType,
-    Nullability, Path, Projection, Provenance, ProvenanceTable, ReferenceKind, Static, StaticId,
-    Storage, SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans,
-    TypeId, TypedValueSpan, Value, ValueSlice,
+    Access, Attribute, Block, BorrowedPath, CommentSpan, Constant, Copy, ExtentSlice, Field,
+    FieldSpan, FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice,
+    Instruction, Lifetime, LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node,
+    NodeIndexEntry, NodeType, Path, Projection, Provenance, ProvenanceTable, ReferenceKind, Space,
+    Static, StaticId, Storage, SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration,
+    TypeDeclarationSpans, TypeId, TypedValueSpan, Value, ValueSlice, VariantCase,
 };
 
 /// MIR tree for a single unit.
@@ -200,11 +200,32 @@ impl Tree {
         Lifetime::new(terms)
     }
 
-    /// Split one optional lifetime application into its base and arguments.
+    /// Split one application into the type its lifetimes apply to and those lifetimes.
     pub fn split_lifetime_application(&self, ty: TypeId) -> (TypeId, &[Lifetime]) {
-        match self.get(ty) {
-            Type::Application { base, lifetimes } => (*base, lifetimes),
-            _ => (ty, &[]),
+        let mut current = ty;
+        let mut outermost: &[Lifetime] = &[];
+        loop {
+            let Type::Application {
+                base,
+                arguments,
+                lifetimes,
+            } = self.get(current)
+            else {
+                return (current, outermost);
+            };
+            if outermost.is_empty() {
+                outermost = lifetimes;
+            }
+
+            // resolve through the representation, or the base while it stays reserved
+            let applied = match arguments.is_empty() {
+                true => *base,
+                false => self.representation(current).unwrap_or(*base),
+            };
+            if applied == current {
+                return (current, outermost);
+            }
+            current = applied;
         }
     }
 
@@ -220,7 +241,7 @@ impl Tree {
         }
     }
 
-    /// Return the transparent storage type.
+    /// Return the transparent storage type, reading an application through its representation.
     pub fn storage_type(&self, mut ty: TypeId) -> TypeId {
         loop {
             ty = match self.get(ty) {
@@ -228,7 +249,15 @@ impl Tree {
                 | Type::Atomic { value: base }
                 | Type::ManuallyDrop { value: base } => *base,
                 Type::Newtype { inner, .. } => *inner,
-                Type::Application { base, .. } => *base,
+                Type::Application {
+                    base, arguments, ..
+                } => match arguments.is_empty() {
+                    true => *base,
+                    false => match self.representation(ty) {
+                        Some(represented) => represented,
+                        None => return ty,
+                    },
+                },
                 _ => return ty,
             };
         }
@@ -362,9 +391,9 @@ impl Tree {
             | Type::Atomic { value: element } => {
                 self.type_lifetime_inner(*element, lifetime_args, visited)
             }
-            Type::Application { base, lifetimes } => {
-                self.type_lifetime_inner(*base, lifetimes, visited)
-            }
+            Type::Application {
+                base, lifetimes, ..
+            } => self.type_lifetime_inner(*base, lifetimes, visited),
             _ => None,
         };
         visited.swap_remove(&ty);
@@ -657,7 +686,9 @@ impl Tree {
                 }
             }
             // substitute outer lifetime arguments
-            Type::Application { base, lifetimes } => {
+            Type::Application {
+                base, lifetimes, ..
+            } => {
                 self.collect_type_borrowed_paths(
                     *base,
                     lifetimes,
@@ -872,66 +903,69 @@ impl Tree {
         unreachable!("missing float type id for {}", format.label());
     }
 
-    /// Return the canonical storage type for the hidden environment field in one function.
+    /// Return the storage type of the hidden environment field: a managed reference or nothing.
     pub fn function_environment_type(&self) -> LocalNodeId<Type> {
-        let Some(void_type) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) else {
+        // look up the void, tag, and reference types the variant names
+        let Some(void_type) = self.find_type(&Type::Void) else {
             unreachable!("missing void type for function environment storage");
         };
+        let Some(tag) = self.find_type(&Type::Int {
+            width: 1,
+            is_signed: false,
+        }) else {
+            unreachable!("missing tag type for function environment storage");
+        };
+        let Some(reference) = self.find_type(&Self::environment_reference(void_type)) else {
+            unreachable!("missing canonical function environment reference type");
+        };
+        // look up the variant those types compose
+        let variant = Self::environment_variant(tag, reference, void_type);
+        let Some(type_id) = self.find_type(&variant) else {
+            unreachable!("missing canonical function environment storage type");
+        };
 
-        if let Some(type_id) = self.find_type_by_predicate(|ty| {
-            matches!(
-                ty,
-                Type::Reference {
-                    kind: ReferenceKind::Managed,
-                    storage: Storage::LocalHeap,
-                    access: Access::Mutable,
-                    pointee,
-                    nullability: Nullability::Null,
-                    ..
-                } if *pointee == void_type
-            )
-        }) {
-            return type_id;
-        }
-
-        unreachable!("missing canonical function environment storage type");
+        type_id
     }
 
-    /// Ensure the canonical storage type for the hidden environment field in one function.
+    /// Ensure the storage type of the hidden environment field: a managed reference or nothing.
     pub fn ensure_function_environment_type(&mut self) -> LocalNodeId<Type> {
-        let void_type =
-            if let Some(type_id) = self.find_type_by_predicate(|ty| matches!(ty, Type::Void)) {
-                type_id
-            } else {
-                self.intern_type(Type::Void)
-            };
+        let void_type = self.intern_type(Type::Void);
+        let tag = self.intern_type(Type::Int {
+            width: 1,
+            is_signed: false,
+        });
+        let reference = self.intern_type(Self::environment_reference(void_type));
 
-        // reuse the canonical erased environment reference when present
-        if let Some(type_id) = self.find_type_by_predicate(|ty| {
-            matches!(
-                ty,
-                Type::Reference {
-                    kind: ReferenceKind::Managed,
-                    storage: Storage::LocalHeap,
-                    access: Access::Mutable,
-                    pointee,
-                    nullability: Nullability::Null,
-                    ..
-                } if *pointee == void_type
-            )
-        }) {
-            return type_id;
-        }
+        self.intern_type(Self::environment_variant(tag, reference, void_type))
+    }
 
-        // otherwise create the canonical erased environment reference
-        self.intern_type(Type::Reference {
+    /// Return the erased managed reference one environment field holds.
+    fn environment_reference(void_type: TypeId) -> Type {
+        Type::Reference {
             kind: ReferenceKind::Managed,
             lifetime: Lifetime::empty(),
-            storage: Storage::LocalHeap,
+            storage: Storage::Heap(Space::Local),
             access: Access::Mutable,
             pointee: void_type,
-            nullability: Nullability::Null,
-        })
+        }
+    }
+
+    /// Return the variant storing one environment reference or its absence.
+    fn environment_variant(tag: TypeId, reference: TypeId, void_type: TypeId) -> Type {
+        Type::Variant {
+            discriminant: tag,
+            cases: vec![
+                VariantCase {
+                    discriminant: Constant::UInt { value: 0, width: 1 },
+                    ty: reference,
+                },
+                VariantCase {
+                    discriminant: Constant::UInt { value: 1, width: 1 },
+                    ty: void_type,
+                },
+            ],
+            copy: Copy::Yes,
+        }
     }
 
     /// Get a reference to a node by id.
@@ -1607,7 +1641,7 @@ impl TreeImpl<Type> for Tree {
     #[inline]
     fn get(tree: &Tree, idx: u32) -> &Type {
         match tree.types.get(idx) {
-            TypeEntry::Structural { ty } | TypeEntry::Identified { ty, .. } => ty,
+            TypeEntry::Structural { ty, .. } | TypeEntry::Identified { ty, .. } => ty,
             // parse recovery leaves failed definitions reserved: they read poisoned
             TypeEntry::Reserved { .. } => &Type::Error,
         }

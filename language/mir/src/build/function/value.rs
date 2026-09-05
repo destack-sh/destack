@@ -14,14 +14,9 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Insert a null reference constant.
-    pub fn null(&mut self, reference_type: LocalNodeId<Type>) -> Value {
-        self.constant(Constant::Null, reference_type)
-    }
-
-    /// Insert an undefined reference constant.
-    pub fn undefined(&mut self, reference_type: LocalNodeId<Type>) -> Value {
-        self.constant(Constant::Undefined, reference_type)
+    /// Insert a null pointer constant.
+    pub fn null(&mut self, pointer_type: LocalNodeId<Type>) -> Value {
+        self.constant(Constant::Null, pointer_type)
     }
 
     /// Insert an integer constant.
@@ -150,8 +145,8 @@ impl<'a> FunctionBuilder<'a> {
         if left_type != right_type {
             self.expect_build::<()>(Err(BuildError::MismatchedBinaryOperands {
                 operator,
-                left: left_type_id,
-                right: right_type_id,
+                left: format!("{:?}", self.tree.get(left_type_id)),
+                right: format!("{:?}", self.tree.get(right_type_id)),
             }));
         }
         self.insert_instruction(Instruction::Binary {

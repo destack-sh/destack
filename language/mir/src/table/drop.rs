@@ -159,10 +159,19 @@ impl DropTable {
             }
             Type::FixedArray {
                 element, length, ..
-            } => *length > 0 && self.child_requires_destructor(*element, storage, tree, seen),
+            } => {
+                tree.static_value(*length).length() != Some(0)
+                    && self.child_requires_destructor(*element, storage, tree, seen)
+            }
             Type::Variant { cases, .. } => cases
                 .iter()
                 .any(|case| self.child_requires_destructor(case.ty, storage, tree, seen)),
+            // answer through the type an application stands for
+            Type::Application { .. } => {
+                let (applied, _) = tree.split_lifetime_application(ty);
+
+                applied != ty && self.children_require_destructor(applied, storage, tree, seen)
+            }
             Type::Slice {
                 kind: ReferenceKind::Unique,
                 element,

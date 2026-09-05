@@ -282,6 +282,7 @@ fn symbol_ty(character: char) -> Option<TokenType> {
         ';' => TokenType::Semicolon,
         ',' => TokenType::Comma,
         '|' => TokenType::Pipe,
+        '&' => TokenType::Ampersand,
         '?' => TokenType::Question,
         '*' => TokenType::Star,
         '=' => TokenType::Equal,

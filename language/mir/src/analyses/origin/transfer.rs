@@ -416,18 +416,31 @@ impl OriginState {
                     Projection::Variant { case: *case },
                 );
             }
+            // bind the absent cases to static and the built case to its payload
             Instruction::VariantNew {
                 destination,
                 case,
-                payload: Some(payload),
+                payload,
                 ..
             } => {
-                self.replace(
-                    cx,
-                    *payload,
-                    *destination,
-                    Projection::Variant { case: *case },
-                );
+                let ty = cx.function.expect_value_type(*destination);
+                let built = Path::root().with_projection(Projection::Variant { case: *case });
+                let absent = cx
+                    .tree
+                    .type_origin_paths(TypeId::from(ty))
+                    .into_iter()
+                    .filter(|borrowed| borrowed.path.strip_prefix(&built).is_none())
+                    .map(|borrowed| (borrowed.path, Origin::one(Region::Static)))
+                    .collect();
+                self.insert_bindings(*destination, absent);
+                if let Some(payload) = payload {
+                    self.replace(
+                        cx,
+                        *payload,
+                        *destination,
+                        Projection::Variant { case: *case },
+                    );
+                }
             }
             _ => {}
         }

@@ -3,8 +3,7 @@ use destack_fir::format::{Format, FormatResult};
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#static::format_static;
-use super::r#type::{format_type_expanded, format_type_name};
+use super::r#type::{format_generic_arguments, format_parameter, format_type_expanded};
 
 use crate::{
     BlockId, Constant, Formatter, FunctionId, GlobalId, LocalNodeId, Type, TypeId, Value, Writer,
@@ -19,8 +18,11 @@ impl<'a> Format<'a, Formatter<'a>> for Value {
 impl<'a> Format<'a, Formatter<'a>> for Constant {
     fn format(&self, f: &mut Writer<'a, '_>) -> FormatResult<()> {
         match self {
+            Constant::Parameter(index) => format_parameter(*index, f),
             Constant::Null => write!(f, [token("null")]),
-            Constant::Undefined => write!(f, [token("undefined")]),
+            Constant::Layout { ty, measure } => {
+                write!(f, [token(measure.keyword()), space(), *ty])
+            }
             Constant::Uninit => write!(f, [token("uninit")]),
             Constant::Zeroed => write!(f, [token("zeroed")]),
             Constant::Boolean { value } => {
@@ -60,12 +62,21 @@ pub(crate) fn format_type_id<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> FormatRe
         let declaration = tree.get(declaration_id);
         let name = f.context().strings.get(declaration.name).to_string();
 
-        return format_type_name(&name, &declaration.arguments, &[], f);
+        return write!(f, [copied_text(&name)]);
     }
 
-    let node = f.context().tree.get(ty);
+    // name an anonymous type met again inside its own expansion
+    if f.context().expanding.contains(&ty) {
+        return write!(f, [copied_text(&format!("type@{}", ty.id))]);
+    }
 
-    format_type_expanded(f, ty, node)
+    // expand the type while marking it as in progress
+    f.context_mut().expanding.push(ty);
+    let node = f.context().tree.get(ty);
+    let result = format_type_expanded(f, ty, node);
+    f.context_mut().expanding.pop();
+
+    result
 }
 
 /// Format a block id by canonical MIR name.
@@ -85,20 +96,7 @@ pub(crate) fn format_function_id<'a>(
     let arguments = &tree.get(function).arguments;
     write!(f, [copied_text(&name)])?;
 
-    if arguments.is_empty() {
-        return Ok(());
-    }
-
-    write!(f, [token("<")])?;
-    for (index, argument) in arguments.iter().enumerate() {
-        if index > 0 {
-            write!(f, [token(","), space()])?;
-        }
-
-        format_static(*argument, f)?;
-    }
-
-    write!(f, [token(">")])
+    format_generic_arguments(arguments, f)
 }
 
 /// Format a global id by canonical MIR name.

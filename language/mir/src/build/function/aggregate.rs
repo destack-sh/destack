@@ -483,6 +483,15 @@ impl<'a> FunctionBuilder<'a> {
         owner: LocalNodeId<Type>,
         project: impl FnOnce(&Tree, &Type) -> BuildResult<LocalNodeId<Type>>,
     ) -> BuildResult<LocalNodeId<Type>> {
+        // project a closed application through its representation
+        let owner = match self.tree.get(owner) {
+            Type::Application { arguments, .. } if !arguments.is_empty() => {
+                self.tree.represented(TypeId::from(owner))
+            }
+            _ => TypeId::from(owner),
+        };
+
+        // project through the base and reinstantiate the applied lifetimes
         let (base, arguments) = self.tree.split_lifetime_application(owner);
         let arguments = arguments.to_vec();
         let projected = project(self.tree, self.tree.get(base))?;
@@ -496,10 +505,16 @@ impl<'a> FunctionBuilder<'a> {
         array_type: LocalNodeId<Type>,
         index: u32,
     ) -> BuildResult<LocalNodeId<Type>> {
-        self.projected_type(array_type, |_, array| match array {
+        self.projected_type(array_type, |tree, array| match array {
             Type::FixedArray {
                 element, length, ..
-            } if u64::from(index) < *length => Ok(*element),
+            } if tree
+                .static_value(*length)
+                .length()
+                .is_some_and(|length| u64::from(index) < length) =>
+            {
+                Ok(*element)
+            }
             Type::FixedArray { .. } => Err(BuildError::InvalidElementIndex {
                 array: array_type,
                 index,

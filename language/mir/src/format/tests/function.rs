@@ -157,3 +157,73 @@ entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, 
 "#,
     );
 }
+
+/// Formats templates, their applications, and witness calls canonically.
+#[test]
+fn test_format_polymorphic_function() {
+    assert_format(
+        r#"
+type Clone = void;
+
+type Box<T> {
+    value: T;
+}
+
+type Pair<T, U, 'a> {
+    left: ref<T, borrowed, 'a, readonly, local>;
+    right: U;
+}
+
+external function Clone.clone<Self: Clone>(Self): Self
+
+function duplicate<T: Clone>(v0: T): T {
+entry(v0: T):
+    v1: T = call.witness T, Clone, Clone.clone(v0): (T) => T
+    v2: Box<T> = aggregate (v1)
+    v3: T = field.get v2, 0
+    return v3
+}
+
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call duplicate<int32>(v0): (int32) => int32
+    return v1
+}
+
+function place<T, space S, access A, const N: usize>(v0: ref<T, borrowed, A, S>, v1: [T; N]): ref<T, borrowed, A, S static> {
+entry(v0: ref<T, borrowed, A, S>, v1: [T; N]):
+    v2: ref<T, borrowed, A, S static> = cast.bit v0 -> ref<T, borrowed, A, S static>
+    return v2
+}
+
+function measure<T>(): usize {
+entry:
+    v0: usize = size.of T
+    v1: usize = align.of T
+    v2: usize = stride.of Box<T>
+    return v2
+}
+"#,
+    );
+}
+
+/// Formats a declared specialization and the calls resolving to it canonically.
+#[test]
+fn test_format_specialization() {
+    assert_format(
+        r#"
+function duplicate<T>(v0: T): T {
+entry(v0: T):
+    return v0
+}
+
+shared function duplicate<int32>(v0: int32): int32;
+
+function caller(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call duplicate<int32>(v0): (int32) => int32
+    return v1
+}
+"#,
+    );
+}

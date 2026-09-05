@@ -1,15 +1,22 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::FloatType;
+use crate::{FloatType, TypeId};
 
 /// A compile-time constant value in MIR.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Constant {
+    /// The value one template parameter names.
+    Parameter(u32),
     /// Null reference constant.
     Null,
-    /// Undefined reference constant.
-    Undefined,
+    /// A measure of one type's layout.
+    Layout {
+        /// The measured type.
+        ty: TypeId,
+        /// The measure taken.
+        measure: LayoutMeasure,
+    },
     /// Boolean constant.
     Boolean {
         /// The boolean value.
@@ -53,11 +60,6 @@ impl Constant {
     /// Create a null constant.
     pub fn null() -> Self {
         Self::Null
-    }
-
-    /// Create an undefined constant.
-    pub fn undefined() -> Self {
-        Self::Undefined
     }
 
     /// Create a new integer constant.
@@ -152,5 +154,37 @@ impl Constant {
     /// Create a new character constant.
     pub fn char(value: char) -> Self {
         Self::Char { value }
+    }
+}
+
+/// One measure a layout constant takes of its type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+pub enum LayoutMeasure {
+    /// The size in bytes.
+    Size,
+    /// The alignment in bytes.
+    Alignment,
+    /// The size padded to the alignment.
+    Stride,
+}
+
+impl LayoutMeasure {
+    /// Return the keyword naming this measure.
+    pub const fn keyword(self) -> &'static str {
+        match self {
+            Self::Size => "size.of",
+            Self::Alignment => "align.of",
+            Self::Stride => "stride.of",
+        }
+    }
+
+    /// Return the measure one keyword names.
+    pub fn from_keyword(keyword: &str) -> Option<Self> {
+        match keyword {
+            "size.of" => Some(Self::Size),
+            "align.of" => Some(Self::Alignment),
+            "stride.of" => Some(Self::Stride),
+            _ => None,
+        }
     }
 }

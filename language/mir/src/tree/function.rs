@@ -3,8 +3,9 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Binding, Block, FunctionParameter, Instruction, LifetimeParameter, Linkage, Local, LocalNodeId,
-    Node, NodeType, ReferenceKind, StaticId, Storage, Symbol, Tree, Type, TypeId, Value,
+    Binding, Block, FunctionParameter, GenericArgument, GenericParameter, Instruction,
+    LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, ReferenceKind, Storage, Symbol,
+    Tree, Type, TypeId, Value,
 };
 
 /// One MIR function declaration or definition.
@@ -12,8 +13,10 @@ use crate::{
 pub struct Function {
     /// The function's declared name.
     pub name: StringId,
-    /// Concrete generic arguments specializing this function.
-    pub arguments: Vec<StaticId>,
+    /// The generic parameters a template takes.
+    pub generics: Vec<GenericParameter>,
+    /// The generic arguments a specialization applies to its template.
+    pub arguments: Vec<GenericArgument>,
     /// The function's persistent mangled symbol: its linkable identity.
     pub symbol: Symbol,
     /// Linkage (local, export, or import).
@@ -512,6 +515,7 @@ impl Function {
         // build the function signature
         Self {
             name,
+            generics: Vec::new(),
             arguments: Vec::new(),
             symbol: Symbol::named(name),
             linkage,
@@ -655,11 +659,23 @@ impl Function {
         self
     }
 
-    /// Set the concrete generic arguments and return self.
-    pub fn with_arguments(mut self, arguments: Vec<StaticId>) -> Self {
+    /// Set the generic arguments this specialization applies and return self.
+    pub fn with_arguments(mut self, arguments: Vec<GenericArgument>) -> Self {
         self.arguments = arguments;
 
         self
+    }
+
+    /// Set the generic parameters this template takes and return self.
+    pub fn with_generics(mut self, generics: Vec<GenericParameter>) -> Self {
+        self.generics = generics;
+
+        self
+    }
+
+    /// Return whether this function is a template.
+    pub fn is_polymorphic(&self) -> bool {
+        !self.generics.is_empty()
     }
 
     /// Set the runtime binding declaration and return self.

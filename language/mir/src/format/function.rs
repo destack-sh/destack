@@ -3,7 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::attribute::{write_attribute, write_attributes};
-use super::r#static::format_static;
+use super::r#type::{format_generic_argument, format_generic_parameter};
 
 use crate::{
     Attribute, AttributeIdentifier, FormatNode, Function, FunctionHeaderSpans, LifetimeParameter,
@@ -21,8 +21,8 @@ impl FormatNode for Function {
         // attributes
         format_function_attributes(id, self, f)?;
 
-        // enter the function's value and lifetime scope
-        f.context_mut().enter_function(id, &self.lifetimes);
+        // enter the function's value, lifetime, and generic scope
+        f.context_mut().enter_function(id);
 
         // imported function
         if self.linkage.is_import() {
@@ -43,9 +43,11 @@ impl FormatNode for Function {
             return Ok(());
         }
 
-        // exported linkage prefix
-        if self.linkage == Linkage::Export {
-            write!(f, [token("export"), space()])?;
+        // linkage prefix
+        match self.linkage {
+            Linkage::Export => write!(f, [token("export"), space()])?,
+            Linkage::Shared => write!(f, [token("shared"), space()])?,
+            Linkage::Local | Linkage::Import => {}
         }
 
         // function header
@@ -60,6 +62,14 @@ impl FormatNode for Function {
 
         write!(f, [token(":"), space(), self.return_type])?;
         format_lifetime_where(&self.lifetimes, f)?;
+
+        // close a shared specialization that has no body
+        if self.body.is_none() {
+            f.context_mut().leave_function();
+
+            return write!(f, [token(";")]);
+        }
+
         write!(f, [space(), token("{"), hard_line_break()])?;
 
         // function body
@@ -108,7 +118,7 @@ fn format_function_keyword<'a>(_function: &Function, f: &mut Writer<'a, '_>) -> 
     write!(f, [token("function")])
 }
 
-/// Format one function's concrete generic arguments and lifetime binders.
+/// Format one function's name with its generic arguments, generic parameters, and lifetimes.
 fn format_function_name<'a>(
     id: LocalNodeId<Function>,
     function: &Function,
@@ -117,23 +127,38 @@ fn format_function_name<'a>(
     let name = f.context().function_name(id).to_string();
     write!(f, [copied_text(&name)])?;
 
-    if function.arguments.is_empty() && function.lifetimes.is_empty() {
+    if function.arguments.is_empty()
+        && function.generics.is_empty()
+        && function.lifetimes.is_empty()
+    {
         return Ok(());
     }
 
     write!(f, [token("<")])?;
-    for (index, argument) in function.arguments.iter().enumerate() {
-        if index > 0 {
+    let mut written = 0;
+    for argument in &function.arguments {
+        if written > 0 {
             write!(f, [token(","), space()])?;
         }
+        written += 1;
 
-        format_static(*argument, f)?;
+        format_generic_argument(*argument, f)?;
+    }
+
+    for parameter in &function.generics {
+        if written > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        written += 1;
+
+        format_generic_parameter(parameter, f)?;
     }
 
     for (index, lifetime) in function.lifetimes.iter().enumerate() {
-        if index > 0 || !function.arguments.is_empty() {
+        if written > 0 {
             write!(f, [token(","), space()])?;
         }
+        written += 1;
 
         let name = lifetime
             .name

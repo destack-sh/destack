@@ -8,9 +8,9 @@ use super::value::{format_function_id, format_type_id};
 
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
-    FunctionId, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Nullability, ReferenceKind,
-    SignatureParameter, StaticId, Storage, Type, TypeDeclaration, TypeDeclarationSpans,
-    TypeHeritage, TypeId, Writer, write_comments_before,
+    FunctionId, GenericArgument, GenericParameter, Lifetime, LifetimeParameter, LifetimeTerm,
+    LocalNodeId, ParameterDomain, ReferenceKind, SignatureParameter, Space, Storage, Type,
+    TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -91,8 +91,8 @@ pub(super) fn format_type_declaration<'a>(
     let lifetimes = declaration_id
         .map(|declaration_id| f.context().tree.get(declaration_id).lifetimes.clone())
         .unwrap_or_default();
-    let arguments = declaration_id
-        .map(|declaration_id| f.context().tree.get(declaration_id).arguments.clone())
+    let generics = declaration_id
+        .map(|declaration_id| f.context().tree.get(declaration_id).generics.clone())
         .unwrap_or_default();
     let heritage = declaration_id
         .map(|declaration_id| f.context().tree.get(declaration_id).heritage.clone())
@@ -124,11 +124,20 @@ pub(super) fn format_type_declaration<'a>(
         write_attributes(attributes, f)?;
     }
 
+    // format the definition under the declaration's lifetime and generic scope
     let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.clone());
+    let previous_generics = f.context_mut().replace_generics(generics.clone());
+    let is_opaque = !f.context().tree.is_defined_type(TypeId::from(type_id));
     let result = match ty {
+        // print an opaque declaration without a definition
+        _ if is_opaque => {
+            write!(f, [token("type"), space()])?;
+            format_type_name(name, &generics, &lifetimes, f)?;
+            write!(f, [token(";")])
+        }
         Type::Struct { fields, .. } => format_struct_type_declaration(
             name,
-            &arguments,
+            &generics,
             declaration_id,
             &lifetimes,
             &heritage,
@@ -137,7 +146,7 @@ pub(super) fn format_type_declaration<'a>(
         ),
         _ => {
             write!(f, [token("type"), space()])?;
-            format_type_name(name, &arguments, &lifetimes, f)?;
+            format_type_name(name, &generics, &lifetimes, f)?;
             format_type_heritage(&heritage, f)?;
             write!(f, [space(), token("="), space()])?;
             format_type_expanded(f, type_id, ty)?;
@@ -145,6 +154,7 @@ pub(super) fn format_type_declaration<'a>(
         }
     };
     f.context_mut().replace_lifetimes(previous_lifetimes);
+    f.context_mut().replace_generics(previous_generics);
 
     result
 }
@@ -152,12 +162,9 @@ pub(super) fn format_type_declaration<'a>(
 /// Return the explicit copy property carried by one aggregate type.
 fn type_copy(ty: &Type) -> Option<Copy> {
     match ty {
-        Type::FixedArray { copy, .. }
-        | Type::Tuple { copy, .. }
-        | Type::Struct { copy, .. }
-        | Type::Newtype { copy, .. }
-        | Type::Variant { copy, .. }
-        | Type::Vector { copy, .. } => Some(*copy),
+        Type::Struct { copy, .. } | Type::Newtype { copy, .. } | Type::Variant { copy, .. } => {
+            Some(*copy)
+        }
         _ => None,
     }
 }
@@ -176,7 +183,7 @@ fn has_copy_attribute(attributes: &[Attribute], f: &Writer<'_, '_>) -> bool {
 /// Format one struct type declaration.
 fn format_struct_type_declaration<'a>(
     name: &str,
-    arguments: &[StaticId],
+    generics: &[GenericParameter],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
     lifetimes: &[LifetimeParameter],
     heritage: &TypeHeritage,
@@ -184,7 +191,7 @@ fn format_struct_type_declaration<'a>(
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("type"), space()])?;
-    format_type_name(name, arguments, lifetimes, f)?;
+    format_type_name(name, generics, lifetimes, f)?;
     format_type_heritage(heritage, f)?;
     write!(f, [space(), token("{")])?;
 
@@ -324,7 +331,7 @@ fn format_type_maybe_named<'a>(
         let declaration = tree.get(declaration_id);
         let name = f.context().strings.get(declaration.name).to_string();
 
-        return format_type_name(&name, &declaration.arguments, &[], f);
+        return write!(f, [copied_text(&name)]);
     }
 
     match ty {
@@ -344,6 +351,7 @@ fn format_type_maybe_named<'a>(
         Type::Usize => write!(f, [token("usize")]),
         Type::Float(float_type) => write!(f, [token(float_type.label())]),
         Type::TypeDescriptor => write!(f, [token("typeDescriptor")]),
+        Type::Parameter { index } => format_parameter(*index, f),
         Type::TypeId => write!(f, [token("typeId")]),
         Type::Atomic { value } => {
             write!(f, [token("atomic"), token("<")])?;
@@ -356,11 +364,10 @@ fn format_type_maybe_named<'a>(
             constraint,
             storage,
             access,
-            nullability,
         } => {
             write!(f, [token("dynamic"), token("<")])?;
             format_type_id(*constraint, f)?;
-            format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
+            format_reference_qualifiers(*kind, lifetime, *storage, *access, f)?;
             write!(f, [token(">")])
         }
         Type::Uninit { value } => {
@@ -379,28 +386,18 @@ fn format_type_maybe_named<'a>(
             storage,
             access,
             pointee,
-            nullability,
         } => {
             write!(f, [token("ref"), token("<")])?;
-            format_view_header(*kind, lifetime, *storage, *access, *nullability, pointee, f)?;
+            format_view_header(*kind, lifetime, *storage, *access, pointee, f)?;
             write!(f, [token(">")])
         }
-        Type::Pointer {
-            pointee,
-            access,
-            nullability,
-        } => {
+        Type::Pointer { pointee, access } => {
             write!(f, [token("ptr"), token("<")])?;
             format_type_id(*pointee, f)?;
             format_access(*access, f)?;
-            format_nullability(*nullability, f)?;
             write!(f, [token(">")])
         }
-        Type::FixedArray {
-            element,
-            length,
-            copy: _,
-        } => {
+        Type::FixedArray { element, length } => {
             write!(
                 f,
                 [
@@ -408,7 +405,7 @@ fn format_type_maybe_named<'a>(
                     FormatTypeId(*element),
                     token(";"),
                     space(),
-                    copied_text(&length.to_string()),
+                    format_with(|f| format_static(*length, f)),
                     token("]")
                 ]
             )
@@ -419,14 +416,13 @@ fn format_type_maybe_named<'a>(
             element,
             storage,
             access,
-            nullability,
         } => {
             write!(f, [token("slice"), token("<")])?;
             format_type_id(*element, f)?;
-            format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
+            format_reference_qualifiers(*kind, lifetime, *storage, *access, f)?;
             write!(f, [token(">")])
         }
-        Type::Tuple { elements, copy: _ } => {
+        Type::Tuple { elements } => {
             write!(f, [token("(")])?;
             for (i, elem) in elements.iter().enumerate() {
                 if i > 0 {
@@ -497,11 +493,7 @@ fn format_type_maybe_named<'a>(
             }
             write!(f, [token("}")])
         }
-        Type::Vector {
-            element,
-            lanes,
-            copy: _,
-        } => {
+        Type::Vector { element, lanes } => {
             write!(
                 f,
                 [
@@ -543,15 +535,18 @@ fn format_type_maybe_named<'a>(
             signature,
             storage,
             access,
-            nullability,
         } => {
             write!(f, [token("function"), token("<")])?;
             format_type_id(*signature, f)?;
             write!(f, [token(","), space(), token(multiplicity.name())])?;
-            format_reference_qualifiers(*kind, lifetime, *storage, *access, *nullability, f)?;
+            format_reference_qualifiers(*kind, lifetime, *storage, *access, f)?;
             write!(f, [token(">")])
         }
-        Type::Application { base, lifetimes } => format_type_application(*base, lifetimes, f),
+        Type::Application {
+            base,
+            arguments,
+            lifetimes,
+        } => format_type_application(*base, arguments, lifetimes, f),
     }
 }
 
@@ -561,21 +556,19 @@ fn format_view_header<'a>(
     lifetime: &Lifetime,
     storage: Storage,
     access: Access,
-    nullability: Nullability,
     element: &TypeId,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_type_id(*element, f)?;
-    format_reference_qualifiers(kind, lifetime, storage, access, nullability, f)
+    format_reference_qualifiers(kind, lifetime, storage, access, f)
 }
 
-/// Format the kind, lifetime, access, nullability, and storage of one reference.
+/// Format the kind, lifetime, access, and storage of one reference.
 fn format_reference_qualifiers<'a>(
     kind: ReferenceKind,
     lifetime: &Lifetime,
     storage: Storage,
     access: Access,
-    nullability: Nullability,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     let kind_token = match kind {
@@ -587,7 +580,6 @@ fn format_reference_qualifiers<'a>(
     write!(f, [token(","), space(), token(kind_token)])?;
     format_lifetime(lifetime, f)?;
     format_access(access, f)?;
-    format_nullability(nullability, f)?;
     write!(f, [token(","), space()])?;
     format_storage(storage, f)?;
 
@@ -595,21 +587,63 @@ fn format_reference_qualifiers<'a>(
 }
 
 /// Format one reference storage qualifier.
-fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+pub(super) fn format_storage<'a>(storage: Storage, f: &mut Writer<'a, '_>) -> FormatResult<()> {
     match storage {
-        Storage::SharedStatic => write!(f, [token("shared"), space(), token("static")]),
-        _ => write!(f, [token(storage.label())]),
+        Storage::Static(Space::Shared) => write!(f, [token("shared"), space(), token("static")]),
+        Storage::Static(Space::Parameter(index)) => {
+            format_parameter(index, f)?;
+            write!(f, [space(), token("static")])
+        }
+        Storage::Heap(Space::Parameter(index)) => format_parameter(index, f),
+        storage => match storage.label() {
+            Some(label) => write!(f, [token(label)]),
+            None => unreachable!("closed storage {storage:?} without a label"),
+        },
     }
 }
 
-/// Format one nullability qualifier.
-fn format_nullability<'a>(nullability: Nullability, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    match nullability {
-        Nullability::None => Ok(()),
-        Nullability::Null => write!(f, [token(","), space(), token("nullable")]),
-        Nullability::Undefined => write!(f, [token(","), space(), token("undefined")]),
-        Nullability::NullOrUndefined => write!(f, [token(","), space(), token("nullish")]),
+/// Format one space name.
+pub(super) fn format_space<'a>(space: Space, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    match space.label() {
+        Some(label) => write!(f, [token(label)]),
+        None => match space {
+            Space::Parameter(index) => format_parameter(index, f),
+            space => unreachable!("closed space {space:?} without a label"),
+        },
     }
+}
+
+/// Format one generic argument.
+pub(super) fn format_generic_argument<'a>(
+    argument: GenericArgument,
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    match argument {
+        GenericArgument::Type(ty) => format_type_id(ty, f),
+        GenericArgument::Space(space) => format_space(space, f),
+        GenericArgument::Access(access) => format_access_name(access, f),
+        GenericArgument::Value(value) => format_static(value, f),
+    }
+}
+
+/// Format one generic argument list, elided when empty.
+pub(super) fn format_generic_arguments<'a>(
+    arguments: &[GenericArgument],
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    if arguments.is_empty() {
+        return Ok(());
+    }
+
+    write!(f, [token("<")])?;
+    for (index, argument) in arguments.iter().enumerate() {
+        if index > 0 {
+            write!(f, [token(","), space()])?;
+        }
+        format_generic_argument(*argument, f)?;
+    }
+
+    write!(f, [token(">")])
 }
 
 /// Format one reference lifetime qualifier.
@@ -622,24 +656,14 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatRes
     format_lifetime_terms(lifetime, f)
 }
 
-/// Format one type use with its applied lifetime arguments.
+/// Format one type use with its applied generic and lifetime arguments.
 fn format_type_application<'a>(
     base: TypeId,
+    arguments: &[GenericArgument],
     lifetimes: &[Lifetime],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
-    let tree = f.context().tree;
-    let declaration = tree.type_declaration(base).map(|id| tree.get(id));
-    let arguments = declaration
-        .as_ref()
-        .map(|declaration| declaration.arguments.as_slice())
-        .unwrap_or_default();
-    if let Some(declaration) = declaration.as_ref() {
-        let name = f.context().strings.get(declaration.name).to_string();
-        write!(f, [copied_text(&name)])?;
-    } else {
-        format_type_id(base, f)?;
-    }
+    format_type_id(base, f)?;
 
     write!(f, [token("<")])?;
     let mut written = 0;
@@ -649,7 +673,7 @@ fn format_type_application<'a>(
         }
         written += 1;
 
-        format_static(*argument, f)?;
+        format_generic_argument(*argument, f)?;
     }
 
     // erased lifetimes elide from the application
@@ -753,32 +777,35 @@ fn format_lifetimes<'a>(
     write!(f, [token(">")])
 }
 
-/// Format one declared type's concrete generic arguments and lifetime terms.
+/// Format one declaration name with its generic and lifetime parameters.
 pub(super) fn format_type_name<'a>(
     name: &str,
-    arguments: &[StaticId],
+    generics: &[GenericParameter],
     lifetimes: &[LifetimeParameter],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [copied_text(name)])?;
 
-    if arguments.is_empty() && lifetimes.is_empty() {
+    if generics.is_empty() && lifetimes.is_empty() {
         return Ok(());
     }
 
     write!(f, [token("<")])?;
-    for (index, argument) in arguments.iter().enumerate() {
-        if index > 0 {
+    let mut written = 0;
+    for parameter in generics {
+        if written > 0 {
             write!(f, [token(","), space()])?;
         }
+        written += 1;
 
-        format_static(*argument, f)?;
+        format_generic_parameter(parameter, f)?;
     }
 
     for (index, lifetime) in lifetimes.iter().enumerate() {
-        if index > 0 || !arguments.is_empty() {
+        if written > 0 {
             write!(f, [token(","), space()])?;
         }
+        written += 1;
 
         let name = lifetime
             .name
@@ -790,12 +817,68 @@ pub(super) fn format_type_name<'a>(
     write!(f, [token(">")])
 }
 
+/// Format one generic parameter declaration with its domain, name, and bounds.
+pub(super) fn format_generic_parameter<'a>(
+    parameter: &GenericParameter,
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    let name = f.context().strings.get(parameter.name).to_string();
+    match &parameter.domain {
+        ParameterDomain::Type { bounds } => {
+            write!(f, [copied_text(&name)])?;
+            for (position, bound) in bounds.iter().enumerate() {
+                match position {
+                    0 => write!(f, [token(":"), space()])?,
+                    _ => write!(f, [space(), token("&"), space()])?,
+                }
+                format_type_id(*bound, f)?;
+            }
+
+            Ok(())
+        }
+        ParameterDomain::Space => write!(f, [token("space"), space(), copied_text(&name)]),
+        ParameterDomain::Access => write!(f, [token("access"), space(), copied_text(&name)]),
+        ParameterDomain::Value { ty } => {
+            write!(
+                f,
+                [
+                    token("const"),
+                    space(),
+                    copied_text(&name),
+                    token(":"),
+                    space()
+                ]
+            )?;
+            format_type_id(*ty, f)
+        }
+    }
+}
+
+/// Format one generic parameter by its name in the enclosing scope.
+pub(super) fn format_parameter<'a>(index: u32, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    let Some(name) = f.context().parameter_name(index).map(str::to_string) else {
+        return Err(FormatError::SyntaxError {
+            message: "MIR generic parameter formatted outside its template",
+        });
+    };
+
+    write!(f, [copied_text(&name)])
+}
+
 /// Format one reference access qualifier.
 fn format_access<'a>(access: Access, f: &mut Writer<'a, '_>) -> FormatResult<()> {
-    match access {
-        Access::Readonly => write!(f, [token(","), space(), token("readonly")]),
-        Access::Mutable => write!(f, [token(","), space(), token("mutable")]),
-        Access::Exclusive => write!(f, [token(","), space(), token("exclusive")]),
+    write!(f, [token(","), space()])?;
+    format_access_name(access, f)
+}
+
+/// Format one access name.
+fn format_access_name<'a>(access: Access, f: &mut Writer<'a, '_>) -> FormatResult<()> {
+    match access.label() {
+        Some(label) => write!(f, [token(label)]),
+        None => match access {
+            Access::Parameter(index) => format_parameter(index, f),
+            access => unreachable!("closed access {access:?} without a label"),
+        },
     }
 }
 

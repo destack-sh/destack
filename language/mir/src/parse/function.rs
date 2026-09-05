@@ -4,9 +4,9 @@ use crate::source::{Token, TokenType};
 use crate::{
     AllocationMode, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, BinaryOperator,
     Binding, Block, BlockParameter, BlockTarget, Call, Callee, CheckConstraint, Function,
-    FunctionBody, FunctionHeaderSpans, FunctionParameter, Instruction, LifetimeParameter, Linkage,
-    Local, LocalNodeId, Mutability, StaticId, SwitchCase, Terminator, TypeId, TypedValueSpan,
-    Value,
+    FunctionBody, FunctionHeaderSpans, FunctionParameter, GenericArgument, GenericParameter,
+    Instruction, LifetimeParameter, Linkage, Local, LocalNodeId, Mutability, SwitchCase,
+    Terminator, TypeId, TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -21,8 +21,10 @@ pub(super) struct ParsedFunctionHeader {
     pub(super) keyword_span: Span,
     /// The parsed function name.
     pub(super) name: String,
-    /// The parsed concrete generic arguments.
-    pub(super) arguments: Vec<StaticId>,
+    /// The parsed generic arguments.
+    pub(super) arguments: Vec<GenericArgument>,
+    /// The parsed generic parameters.
+    pub(super) generics: Vec<GenericParameter>,
     /// The parsed function name span.
     pub(super) name_span: Span,
     /// The parsed lifetime parameters.
@@ -142,8 +144,8 @@ impl Parser {
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
         let (name, name_start) = self.parse_symbol_name()?;
-        let (arguments, mut lifetimes) = self.parse_declaration_parameters()?;
-        let name_span = if arguments.is_empty() && lifetimes.is_empty() {
+        let (arguments, generics, mut lifetimes) = self.parse_declaration_parameters()?;
+        let name_span = if arguments.is_empty() && generics.is_empty() && lifetimes.is_empty() {
             self.span_at(name_start, name.len())
         } else {
             self.span_between(name_start, self.pos())
@@ -177,6 +179,7 @@ impl Parser {
             keyword_span,
             name,
             arguments,
+            generics,
             name_span,
             lifetimes,
             parameters,
@@ -204,18 +207,29 @@ impl Parser {
         // function attributes
         let function_attributes = self.extract_function_attributes(attributes, attribute_spans)?;
 
-        // external function body
-        if linkage.is_import() {
+        // declare an import or a shared specialization without a body
+        let is_opaque = linkage == Linkage::Shared && self.peek_is(TokenType::Semicolon);
+        if linkage.is_import() || is_opaque {
             let name_id = self.strings.intern(&header.name);
             let symbol = self.tree.get(function_id).symbol;
-            let mut function = Function::import(
-                name_id,
-                header.lifetimes,
-                header.parameters,
-                header.return_type,
-            )
-            .with_arguments(header.arguments)
+            let mut function = match linkage.is_import() {
+                true => Function::import(
+                    name_id,
+                    header.lifetimes.clone(),
+                    header.parameters.clone(),
+                    header.return_type,
+                ),
+                false => Function::declare(
+                    name_id,
+                    header.lifetimes.clone(),
+                    header.parameters.clone(),
+                    header.return_type,
+                )
+                .with_linkage(Linkage::Shared),
+            }
+            .with_arguments(header.arguments.clone())
             .with_symbol(symbol);
+            function.generics = header.generics.clone();
             function.environment = function_attributes.environment_type;
             function.binding = function_attributes.binding.map(Box::new);
             function.allocation = AllocationMode::Any; // #Incomplete: set proper MIR allocation mode?
@@ -286,6 +300,7 @@ impl Parser {
         let function = self.tree.get_mut(id);
         function.name = name_id;
         function.arguments = header.arguments;
+        function.generics = header.generics.clone();
         function.parameters = parameters;
         function.lifetimes = header.lifetimes;
         function.return_type = header.return_type;
@@ -1045,10 +1060,9 @@ impl Parser {
 
         // parse the dispatch-specific callable target
         let (callee, arguments, signature) = match token_type {
-            TokenType::Invoke | TokenType::TailCall => {
-                let (function, arguments, signature) = self.parse_direct_call_target()?;
-
-                (Callee::Direct { function }, arguments, signature)
+            TokenType::Invoke | TokenType::TailCall => self.parse_direct_call_target()?,
+            TokenType::InvokeWitness | TokenType::TailCallWitness => {
+                self.parse_witness_call_target()?
             }
             TokenType::InvokeIndirect | TokenType::TailCallIndirect => {
                 let (value, arguments, signature) = self.parse_indirect_call_target()?;

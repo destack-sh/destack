@@ -108,6 +108,7 @@ impl OperationCost {
             mir::CallDispatch::Indirect => self.indirect_call += 1,
             mir::CallDispatch::Virtual { .. } => self.virtual_call += 1,
             mir::CallDispatch::Dynamic { .. } => self.dynamic_call += 1,
+            mir::CallDispatch::Witness => self.direct_call += 1,
         }
     }
 

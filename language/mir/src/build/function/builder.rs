@@ -84,6 +84,7 @@ impl<'a> FunctionBuilder<'a> {
     ) -> Self {
         let FunctionHeader {
             name,
+            generics,
             arguments,
             symbol,
             lifetimes,
@@ -98,6 +99,7 @@ impl<'a> FunctionBuilder<'a> {
         // insert a signature-only function until finish commits the body
         let function = Function {
             name,
+            generics,
             arguments,
             symbol,
             linkage: Linkage::Local,

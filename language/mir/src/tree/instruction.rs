@@ -7,9 +7,9 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
-    Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GlobalId, IndexSlice,
-    Intrinsic, LocalId, Node, NodeType, SamplerId, Tree, TypeId, UnaryOperator, Value, ValueSlice,
-    VectorReduceOperator,
+    Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
+    GlobalId, IndexSlice, Intrinsic, LocalId, Node, NodeType, SamplerId, Tree, TypeId,
+    UnaryOperator, Value, ValueSlice, VectorReduceOperator,
 };
 
 /// What one address instruction means for the borrow check.
@@ -152,6 +152,8 @@ pub enum Instruction {
         destination: Value,
         /// The function to take the address of.
         function: FunctionId,
+        /// The generic arguments applied to a template.
+        arguments: Vec<GenericArgument>,
     },
     /// Bind one environment to a function and produce a function value (function.bind).
     FunctionBind {
@@ -159,6 +161,8 @@ pub enum Instruction {
         destination: Value,
         /// The function to pair with the environment.
         function: FunctionId,
+        /// The generic arguments applied to a template.
+        arguments: Vec<GenericArgument>,
         /// The environment value to capture.
         environment: Value,
     },

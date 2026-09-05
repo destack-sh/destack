@@ -4,9 +4,10 @@ use destack_core::{StringId, stable_hash_value};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use crate::rewrite::Substitution;
 use crate::{
-    Attribute, Field, Lifetime, LifetimeParameter, LocalNodeId, SignatureParameter, StaticId,
-    Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId, VariantCase,
+    Attribute, Field, GenericParameter, Lifetime, LifetimeParameter, LocalNodeId,
+    SignatureParameter, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId, VariantCase,
 };
 
 /// One stored MIR type.
@@ -14,13 +15,17 @@ use crate::{
 pub(crate) enum TypeEntry {
     /// A structural type interned by equality.
     Structural {
-        /// The MIR type.
+        /// The type.
         ty: Type,
+        /// The definition one application denotes.
+        representation: Option<TypeId>,
     },
-    /// An identified type reserved for its recursive definition.
+    /// An identified type reserved for its recursive definition, or declared without one.
     Reserved {
         /// The persistent identity of the type.
         symbol: Symbol,
+        /// The source declaration of the type when present.
+        declaration: Option<LocalNodeId<TypeDeclaration>>,
     },
     /// A completely defined identified type.
     Identified {
@@ -66,11 +71,62 @@ impl Tree {
         }
 
         // allocate and index one new structural type
-        let local_id = self.types.allocate(TypeEntry::Structural { ty });
+        let local_id = self.types.allocate(TypeEntry::Structural {
+            ty,
+            representation: None,
+        });
         let id = self.insert_node(local_id);
         self.type_index.entry(key).or_default().push(id);
+        self.represent(id);
 
         id
+    }
+
+    /// Represent one application, deferring it until its base defines.
+    fn represent(&mut self, id: TypeId) {
+        // represent only an application with generic arguments
+        let Type::Application {
+            base,
+            arguments,
+            lifetimes,
+        } = self.get(id).clone()
+        else {
+            return;
+        };
+        if arguments.is_empty() {
+            return;
+        }
+
+        // wait for the base definition
+        if !self.is_defined_type(base) {
+            return;
+        }
+
+        // intern the base definition at the arguments
+        let representation = Substitution::new(self, &arguments).representation(base, &lifetimes);
+        let local_id = self.node_local_id(id.id);
+        let TypeEntry::Structural {
+            representation: slot,
+            ..
+        } = self.types.get_mut(local_id)
+        else {
+            unreachable!("an application interned outside a structural entry");
+        };
+        *slot = Some(representation);
+    }
+
+    /// Return the definition one application denotes.
+    pub fn representation(&self, ty: TypeId) -> Option<TypeId> {
+        let local_id = self.node_local_id(ty.id);
+        match self.types.get(local_id) {
+            TypeEntry::Structural { representation, .. } => *representation,
+            _ => None,
+        }
+    }
+
+    /// Return the definition one type denotes, an application through its representation.
+    pub fn represented(&self, ty: TypeId) -> TypeId {
+        self.representation(ty).unwrap_or(ty)
     }
 
     /// Reserve one identified type for a recursive definition.
@@ -82,7 +138,10 @@ impl Tree {
         }
 
         // allocate and index one new declaration placeholder
-        let local_id = self.types.allocate(TypeEntry::Reserved { symbol });
+        let local_id = self.types.allocate(TypeEntry::Reserved {
+            symbol,
+            declaration: None,
+        });
         let id = self.insert_node(local_id);
         self.type_index.entry(key).or_default().push(id);
 
@@ -118,35 +177,66 @@ impl Tree {
 
     /// Define one reserved identified type exactly once.
     pub fn define_type(&mut self, id: TypeId, ty: Type) {
+        // reject a definition naming itself as a direct child
+        let mut is_direct = false;
+        let mut children = ty.clone();
+        children.map_child_type_ids(&mut |child| {
+            is_direct |= child == id;
+            child
+        });
+        assert!(
+            !is_direct,
+            "MIR type {id:?} defined as its own direct child: {ty:?}"
+        );
+
         let local_id = self.node_local_id(id.id);
         let entry = self.types.get_mut(local_id);
-        let TypeEntry::Reserved { symbol } = entry else {
+        let TypeEntry::Reserved {
+            symbol,
+            declaration,
+        } = entry
+        else {
             panic!("defined MIR type {id:?} twice or without reserving it");
         };
         let structural = TypeIndexKey::Structural(Self::intern_hash(&ty));
         *entry = TypeEntry::Identified {
             ty,
             symbol: *symbol,
-            declaration: None,
+            declaration: *declaration,
         };
 
         // index the defined content structurally, so an equal unrolling reuses it
         self.type_index.entry(structural).or_default().push(id);
+
+        // represent the applications interned over this definition
+        let applications: Vec<TypeId> = self
+            .iter_nodes::<Type>()
+            .filter(|(applied, ty)| {
+                matches!(ty, Type::Application { base, arguments, .. } if *base == id && !arguments.is_empty())
+                    && self.representation(TypeId::from(*applied)).is_none()
+            })
+            .map(|(applied, _)| TypeId::from(applied))
+            .collect();
+        for application in applications {
+            self.represent(application);
+        }
     }
 
-    /// Insert one declaration for a completely defined identified type.
+    /// Insert one declaration for an identified type.
     pub fn insert_type_declaration(
         &mut self,
         name: StringId,
-        arguments: Vec<StaticId>,
+        generics: Vec<GenericParameter>,
         lifetimes: Vec<LifetimeParameter>,
         ty: TypeId,
         heritage: TypeHeritage,
     ) -> LocalNodeId<TypeDeclaration> {
-        // reject structural types and incomplete recursive placeholders
+        // reject structural types and repeated declarations
         let type_local_id = self.node_local_id(ty.id);
-        let TypeEntry::Identified { declaration, .. } = self.types.get(type_local_id) else {
-            panic!("declared MIR type {ty:?} before its complete identified definition");
+        let (TypeEntry::Identified { declaration, .. } | TypeEntry::Reserved { declaration, .. }) =
+            self.types.get(type_local_id)
+        else {
+            panic!("declared structural MIR type {ty:?}");
         };
         if declaration.is_some() {
             panic!("declared MIR type {ty:?} twice");
@@ -155,7 +245,7 @@ impl Tree {
         // allocate through the only declaration construction path
         let declaration = TypeDeclaration {
             name,
-            arguments,
+            generics,
             lifetimes,
             ty,
             heritage,
@@ -164,7 +254,9 @@ impl Tree {
         let id = self.insert_node(declaration_local_id);
 
         // attach the declaration to its identified type
-        let TypeEntry::Identified { declaration, .. } = self.types.get_mut(type_local_id) else {
+        let (TypeEntry::Identified { declaration, .. } | TypeEntry::Reserved { declaration, .. }) =
+            self.types.get_mut(type_local_id)
+        else {
             unreachable!("identified MIR type changed during declaration insertion");
         };
         *declaration = Some(id);
@@ -175,7 +267,9 @@ impl Tree {
     /// Return the declaration of one identified type when present.
     pub fn type_declaration(&self, ty: TypeId) -> Option<LocalNodeId<TypeDeclaration>> {
         let local_id = self.node_local_id(ty.id);
-        let TypeEntry::Identified { declaration, .. } = self.types.get(local_id) else {
+        let (TypeEntry::Identified { declaration, .. } | TypeEntry::Reserved { declaration, .. }) =
+            self.types.get(local_id)
+        else {
             return None;
         };
 
@@ -211,7 +305,9 @@ impl Tree {
         let local_id = self.node_local_id(id.id);
 
         match self.types.get(local_id) {
-            TypeEntry::Reserved { symbol } | TypeEntry::Identified { symbol, .. } => Some(*symbol),
+            TypeEntry::Reserved { symbol, .. } | TypeEntry::Identified { symbol, .. } => {
+                Some(*symbol)
+            }
             TypeEntry::Structural { .. } => None,
         }
     }
@@ -259,7 +355,8 @@ impl Tree {
             | Type::Usize
             | Type::Float(_)
             | Type::TypeDescriptor
-            | Type::TypeId => return id,
+            | Type::TypeId
+            | Type::Parameter { .. } => return id,
 
             // normalize transparent and storage wrappers
             Type::Atomic { value } => Type::Atomic {
@@ -271,14 +368,12 @@ impl Tree {
                 constraint,
                 storage,
                 access,
-                nullability,
             } => Type::Dynamic {
                 kind,
                 lifetime: Lifetime::empty(),
                 constraint: self.intern_representation(constraint),
                 storage,
                 access,
-                nullability,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.intern_representation(value),
@@ -294,23 +389,16 @@ impl Tree {
                 storage,
                 access,
                 pointee,
-                nullability,
             } => Type::Reference {
                 kind,
                 lifetime: Default::default(),
                 storage,
                 access,
                 pointee: self.intern_representation(pointee),
-                nullability,
             },
-            Type::Pointer {
-                pointee,
-                access,
-                nullability,
-            } => Type::Pointer {
+            Type::Pointer { pointee, access } => Type::Pointer {
                 pointee: self.intern_representation(pointee),
                 access,
-                nullability,
             },
             Type::Slice {
                 kind,
@@ -318,31 +406,23 @@ impl Tree {
                 element,
                 storage,
                 access,
-                nullability,
             } => Type::Slice {
                 kind,
                 lifetime: Default::default(),
                 element: self.intern_representation(element),
                 storage,
                 access,
-                nullability,
             },
             // normalize aggregate children
-            Type::FixedArray {
-                element,
-                length,
-                copy,
-            } => Type::FixedArray {
+            Type::FixedArray { element, length } => Type::FixedArray {
                 element: self.intern_representation(element),
                 length,
-                copy,
             },
-            Type::Tuple { elements, copy } => Type::Tuple {
+            Type::Tuple { elements } => Type::Tuple {
                 elements: elements
                     .into_iter()
                     .map(|element| self.intern_representation(element))
                     .collect(),
-                copy,
             },
             Type::Struct { fields, copy } => Type::Struct {
                 fields: fields
@@ -370,14 +450,9 @@ impl Tree {
                     .collect(),
                 copy,
             },
-            Type::Vector {
-                element,
-                lanes,
-                copy,
-            } => Type::Vector {
+            Type::Vector { element, lanes } => Type::Vector {
                 element: self.intern_representation(element),
                 lanes,
-                copy,
             },
             // erase lifetime binders
             Type::FunctionSignature {
@@ -401,7 +476,6 @@ impl Tree {
                 signature,
                 storage,
                 access,
-                nullability,
             } => Type::Function {
                 multiplicity,
                 kind,
@@ -409,7 +483,6 @@ impl Tree {
                 signature: self.intern_representation(signature),
                 storage,
                 access,
-                nullability,
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.intern_representation(signature),
@@ -442,7 +515,8 @@ impl Tree {
             | Type::Usize
             | Type::Float(_)
             | Type::TypeDescriptor
-            | Type::TypeId => return id,
+            | Type::TypeId
+            | Type::Parameter { .. } => return id,
 
             // instantiate transparent and storage wrappers
             Type::Atomic { value } => Type::Atomic {
@@ -454,14 +528,12 @@ impl Tree {
                 constraint,
                 storage,
                 access,
-                nullability,
             } => Type::Dynamic {
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
                 constraint: self.instantiate_type_lifetimes(constraint, arguments),
                 storage,
                 access,
-                nullability,
             },
             Type::Uninit { value } => Type::Uninit {
                 value: self.instantiate_type_lifetimes(value, arguments),
@@ -477,23 +549,16 @@ impl Tree {
                 storage,
                 access,
                 pointee,
-                nullability,
             } => Type::Reference {
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
                 storage,
                 access,
                 pointee: self.instantiate_type_lifetimes(pointee, arguments),
-                nullability,
             },
-            Type::Pointer {
-                pointee,
-                access,
-                nullability,
-            } => Type::Pointer {
+            Type::Pointer { pointee, access } => Type::Pointer {
                 pointee: self.instantiate_type_lifetimes(pointee, arguments),
                 access,
-                nullability,
             },
             Type::Slice {
                 kind,
@@ -501,31 +566,23 @@ impl Tree {
                 element,
                 storage,
                 access,
-                nullability,
             } => Type::Slice {
                 kind,
                 lifetime: self.substitute_lifetime(&lifetime, arguments),
                 element: self.instantiate_type_lifetimes(element, arguments),
                 storage,
                 access,
-                nullability,
             },
             // instantiate aggregate contents
-            Type::FixedArray {
-                element,
-                length,
-                copy,
-            } => Type::FixedArray {
+            Type::FixedArray { element, length } => Type::FixedArray {
                 element: self.instantiate_type_lifetimes(element, arguments),
                 length,
-                copy,
             },
-            Type::Tuple { elements, copy } => Type::Tuple {
+            Type::Tuple { elements } => Type::Tuple {
                 elements: elements
                     .into_iter()
                     .map(|element| self.instantiate_type_lifetimes(element, arguments))
                     .collect(),
-                copy,
             },
             Type::Struct { fields, copy } => {
                 let mut instantiated = Vec::with_capacity(fields.len());
@@ -563,14 +620,9 @@ impl Tree {
                     .collect(),
                 copy,
             },
-            Type::Vector {
-                element,
-                lanes,
-                copy,
-            } => Type::Vector {
+            Type::Vector { element, lanes } => Type::Vector {
                 element: self.instantiate_type_lifetimes(element, arguments),
                 lanes,
-                copy,
             },
             // preserve signature-local binders, otherwise instantiate captured lifetimes
             Type::FunctionSignature { lifetimes, .. } if !lifetimes.is_empty() => return id,
@@ -595,7 +647,6 @@ impl Tree {
                 signature,
                 storage,
                 access,
-                nullability,
             } => Type::Function {
                 multiplicity,
                 kind,
@@ -603,15 +654,19 @@ impl Tree {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
                 storage,
                 access,
-                nullability,
             },
             Type::FunctionPointer { signature } => Type::FunctionPointer {
                 signature: self.instantiate_type_lifetimes(signature, arguments),
             },
 
             // instantiate explicit applications without entering their identified base
-            Type::Application { base, lifetimes } => Type::Application {
+            Type::Application {
                 base,
+                arguments: type_arguments,
+                lifetimes,
+            } => Type::Application {
+                base,
+                arguments: type_arguments,
                 lifetimes: lifetimes
                     .iter()
                     .map(|lifetime| self.substitute_lifetime(lifetime, arguments))
@@ -644,9 +699,7 @@ impl Tree {
 mod tests {
     use destack_core::StringId;
 
-    use crate::{
-        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Storage, Symbol, Tree, Type,
-    };
+    use crate::{Access, Copy, Field, Lifetime, ReferenceKind, Space, Storage, Symbol, Tree, Type};
 
     /// Equal structural types and fields have one canonical identity.
     #[test]
@@ -740,18 +793,16 @@ mod tests {
         let local = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::slot(0),
-            storage: Storage::LocalHeap,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
-            nullability: Nullability::None,
         });
         let static_ = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::static_storage(),
-            storage: Storage::LocalHeap,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
-            nullability: Nullability::None,
         });
 
         assert_ne!(local, static_);
@@ -769,10 +820,12 @@ mod tests {
         tree.define_type(nominal, Type::Void);
         let local = tree.intern_type(Type::Application {
             base: nominal,
+            arguments: Vec::new(),
             lifetimes: vec![Lifetime::slot(0)],
         });
         let static_ = tree.intern_type(Type::Application {
             base: nominal,
+            arguments: Vec::new(),
             lifetimes: vec![Lifetime::static_storage()],
         });
 

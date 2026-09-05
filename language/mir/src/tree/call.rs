@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
 
 use crate::{
-    Block, DispatchSlot, FunctionId, Instruction, LocalNodeId, Tree, TypeId, Value, ValueSlice,
+    Block, DispatchSlot, FunctionId, GenericArgument, Instruction, LocalNodeId, Tree, TypeId,
+    Value, ValueSlice,
 };
 
 /// One program point inside a function body: an instruction or a block terminator.
@@ -35,6 +36,8 @@ pub enum CallDispatch {
         /// The dispatch slot for the method.
         slot: DispatchSlot,
     },
+    /// Call of the function one receiver type's witness names for an interface member.
+    Witness,
 }
 
 /// Callable target for one call.
@@ -44,6 +47,8 @@ pub enum Callee {
     Direct {
         /// The function to call.
         function: FunctionId,
+        /// The generic arguments applied to a template.
+        arguments: Vec<GenericArgument>,
     },
     /// Indirect function value or pointer target.
     Indirect {
@@ -68,6 +73,15 @@ pub enum Callee {
         /// The dynamic dispatch slot.
         slot: DispatchSlot,
     },
+    /// The function one receiver type's witness names for one interface member.
+    Witness {
+        /// The receiver type the witness is looked up for.
+        receiver: TypeId,
+        /// The applied interface declaring the member.
+        interface: TypeId,
+        /// The requirement the witness answers.
+        requirement: FunctionId,
+    },
 }
 
 impl Callee {
@@ -78,21 +92,25 @@ impl Callee {
             Self::Indirect { .. } => CallDispatch::Indirect,
             Self::Virtual { slot, .. } => CallDispatch::Virtual { slot: *slot },
             Self::Dynamic { slot, .. } => CallDispatch::Dynamic { slot: *slot },
+            Self::Witness { .. } => CallDispatch::Witness,
         }
     }
 
     /// Return the direct function target when present.
     pub const fn function(&self) -> Option<FunctionId> {
         match self {
-            Self::Direct { function } => Some(*function),
-            Self::Indirect { .. } | Self::Virtual { .. } | Self::Dynamic { .. } => None,
+            Self::Direct { function, .. } => Some(*function),
+            Self::Indirect { .. }
+            | Self::Virtual { .. }
+            | Self::Dynamic { .. }
+            | Self::Witness { .. } => None,
         }
     }
 
     /// Return values used to resolve this callee.
     pub fn uses(&self) -> SmallVec<[Value; 1]> {
         match self {
-            Self::Direct { .. } => smallvec![],
+            Self::Direct { .. } | Self::Witness { .. } => smallvec![],
             Self::Indirect { value } => smallvec![*value],
             Self::Virtual { receiver, .. } | Self::Dynamic { receiver, .. } => {
                 smallvec![*receiver]
@@ -103,8 +121,12 @@ impl Callee {
     /// Replace values used to resolve this callee.
     pub fn map_values(&self, mut map: impl FnMut(Value) -> Value) -> Self {
         match self {
-            Self::Direct { function } => Self::Direct {
+            Self::Direct {
+                function,
+                arguments,
+            } => Self::Direct {
                 function: *function,
+                arguments: arguments.clone(),
             },
             Self::Indirect { value } => Self::Indirect { value: map(*value) },
             Self::Virtual {
@@ -125,6 +147,7 @@ impl Callee {
                 constraint: *constraint,
                 slot: *slot,
             },
+            Self::Witness { .. } => self.clone(),
         }
     }
 }

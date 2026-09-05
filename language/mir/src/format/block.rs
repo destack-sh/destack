@@ -203,6 +203,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
                     "invoke.indirect",
                     "invoke.virtual",
                     "invoke.dynamic",
+                    "invoke.witness",
                 ],
                 f,
             )?;
@@ -297,6 +298,7 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
                 "tail.call.indirect",
                 "tail.call.virtual",
                 "tail.call.dynamic",
+                "tail.call.witness",
             ],
             f,
         ),

@@ -2,21 +2,25 @@ use destack_fir::format::FormatResult;
 use destack_fir::prelude::*;
 use destack_fir::write;
 
-use super::r#type::format_function_signature;
+use super::r#type::{format_function_signature, format_generic_arguments};
 use super::value::{format_function_id, format_type_id};
 use crate::{Call, Callee, Type, TypeId, Value, Writer};
 
 /// Format one call using dispatch-specific opcodes.
 pub(super) fn format_call<'a>(
     call: &Call,
-    opcodes: [&'static str; 4],
+    opcodes: [&'static str; 5],
     formatter: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     // format the callable target
     match &call.callee {
-        Callee::Direct { function } => {
+        Callee::Direct {
+            function,
+            arguments,
+        } => {
             write!(formatter, [token(opcodes[0]), space()])?;
             format_function_id(*function, formatter)?;
+            format_generic_arguments(arguments, formatter)?;
         }
         Callee::Indirect { value } => {
             write!(formatter, [token(opcodes[1]), space(), value])?;
@@ -58,6 +62,28 @@ pub(super) fn format_call<'a>(
                     token(","),
                     space(),
                     copied_text(&slot.0.to_string())
+                ]
+            )?;
+        }
+        Callee::Witness {
+            receiver,
+            interface,
+            requirement,
+        } => {
+            let name = formatter.context().tree.get(*requirement).name;
+            let member = formatter.context().strings.get(name).to_string();
+            write!(
+                formatter,
+                [
+                    token(opcodes[4]),
+                    space(),
+                    receiver,
+                    token(","),
+                    space(),
+                    interface,
+                    token(","),
+                    space(),
+                    copied_text(&member)
                 ]
             )?;
         }

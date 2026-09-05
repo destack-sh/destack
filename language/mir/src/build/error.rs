@@ -102,9 +102,9 @@ pub enum BuildError {
         /// The binary operator being inserted.
         operator: BinaryOperator,
         /// The left operand type.
-        left: LocalNodeId<Type>,
+        left: String,
         /// The right operand type.
-        right: LocalNodeId<Type>,
+        right: String,
     },
     /// A select operation received mismatched value types.
     MismatchedSelectOperands {

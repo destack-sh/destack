@@ -2,8 +2,8 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Multiplicity, Nullability,
-    ReferenceKind, Storage, Type, TypeId, VariantCase,
+    Access, Constant, Copy, Field, FloatType, Lifetime, LocalNodeId, Multiplicity, ReferenceKind,
+    Static, Storage, Type, TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -64,7 +64,6 @@ impl ModuleBuilder {
         constraint: LocalNodeId<Type>,
         access: Access,
         storage: Storage,
-        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Dynamic {
             kind,
@@ -72,7 +71,6 @@ impl ModuleBuilder {
             constraint,
             storage,
             access,
-            nullability,
         })
     }
 
@@ -84,7 +82,6 @@ impl ModuleBuilder {
         pointee: LocalNodeId<Type>,
         access: Access,
         storage: Storage,
-        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Reference {
             kind,
@@ -92,7 +89,6 @@ impl ModuleBuilder {
             storage,
             access,
             pointee,
-            nullability,
         })
     }
 
@@ -101,41 +97,26 @@ impl ModuleBuilder {
         &mut self,
         pointee: LocalNodeId<Type>,
         access: Access,
-        nullability: Nullability,
     ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Pointer {
-            pointee,
-            access,
-            nullability,
-        })
+        self.tree.intern_type(Type::Pointer { pointee, access })
     }
 
     /// Create a vector type.
-    pub fn type_vector(
-        &mut self,
-        element: LocalNodeId<Type>,
-        lanes: u32,
-        copy: Copy,
-    ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::Vector {
-            element,
-            lanes,
-            copy,
-        })
+    pub fn type_vector(&mut self, element: LocalNodeId<Type>, lanes: u32) -> LocalNodeId<Type> {
+        self.tree.intern_type(Type::Vector { element, lanes })
     }
 
-    /// Create a fixed array type with explicit copy.
+    /// Create a fixed array type.
     pub fn type_fixed_array(
         &mut self,
         element: LocalNodeId<Type>,
         length: u64,
-        copy: Copy,
     ) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::FixedArray {
-            element,
-            length,
-            copy,
-        })
+        let length = i64::try_from(length)
+            .unwrap_or_else(|_| unreachable!("fixed array length {length} exceeds MIR range"));
+        let length = self.tree.intern_static(Static::Integer(length));
+
+        self.tree.intern_type(Type::FixedArray { element, length })
     }
 
     /// Create a slice type.
@@ -146,7 +127,6 @@ impl ModuleBuilder {
         element: LocalNodeId<Type>,
         access: Access,
         storage: Storage,
-        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Slice {
             kind,
@@ -154,19 +134,14 @@ impl ModuleBuilder {
             element,
             storage,
             access,
-            nullability,
         })
     }
 
-    /// Create a tuple type with explicit copy.
-    pub fn type_tuple(
-        &mut self,
-        elements: Vec<LocalNodeId<Type>>,
-        copy: Copy,
-    ) -> LocalNodeId<Type> {
+    /// Create a tuple type.
+    pub fn type_tuple(&mut self, elements: Vec<LocalNodeId<Type>>) -> LocalNodeId<Type> {
         let elements = elements.into_iter().collect();
 
-        self.tree.intern_type(Type::Tuple { elements, copy })
+        self.tree.intern_type(Type::Tuple { elements })
     }
 
     /// Create a struct type with explicit copy.
@@ -234,7 +209,6 @@ impl ModuleBuilder {
         lifetime: Lifetime,
         storage: Storage,
         access: Access,
-        nullability: Nullability,
     ) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Function {
             signature,
@@ -243,7 +217,6 @@ impl ModuleBuilder {
             lifetime,
             storage,
             access,
-            nullability,
         })
     }
 }

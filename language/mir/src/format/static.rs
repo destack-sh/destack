@@ -12,6 +12,7 @@ pub(super) fn format_static<'a>(id: StaticId, f: &mut Writer<'a, '_>) -> FormatR
     let value = f.context().tree.static_value(id);
 
     match value {
+        Static::Parameter(index) => super::r#type::format_parameter(*index, f),
         Static::Null => write!(f, [token("null")]),
         Static::Undefined => write!(f, [token("undefined")]),
         Static::Boolean(value) => write!(f, [token(if *value { "true" } else { "false" })]),
@@ -26,7 +27,7 @@ pub(super) fn format_static<'a>(id: StaticId, f: &mut Writer<'a, '_>) -> FormatR
         }
         Static::Regex { content, flags } => format_regex(*content, *flags, f),
         Static::Type(ty) => format_static_type(*ty, f),
-        Static::Space(space) => write!(f, [token(space.label())]),
+        Static::Space(space) => super::r#type::format_space(*space, f),
         Static::Array(values) => format_array(values, f),
         Static::FixedArray { value, length } => {
             write!(f, [token("[")])?;
@@ -107,7 +108,8 @@ fn static_type_needs_keyword(ty: TypeId, tree: &Tree) -> bool {
         | Type::Tuple { .. }
         | Type::Struct { .. }
         | Type::FunctionSignature { .. }
-        | Type::Function { .. } => true,
+        | Type::Function { .. }
+        | Type::Parameter { .. } => true,
         Type::Application { base, .. } => static_type_needs_keyword(*base, tree),
         _ => false,
     }

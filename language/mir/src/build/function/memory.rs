@@ -3,7 +3,7 @@ use destack_core::StringId;
 use crate::build::FunctionBuilder;
 use crate::{
     Access, AddressKind, Block, Global, Instruction, Lifetime, Local, LocalNodeId, Mutability,
-    Nullability, ReferenceKind, Storage, Type, Value,
+    ReferenceKind, Storage, Type, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -109,7 +109,6 @@ impl<'a> FunctionBuilder<'a> {
             storage: Storage::global(global_space),
             access: Access::Readonly,
             pointee: global_ty,
-            nullability: Nullability::None,
         });
         let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
 
@@ -126,7 +125,6 @@ impl<'a> FunctionBuilder<'a> {
             storage: Storage::global(global_space),
             access: Access::Mutable,
             pointee: global_ty,
-            nullability: Nullability::None,
         });
         let pointer = self.global_addr(global, global_pointer, AddressKind::Projection);
 

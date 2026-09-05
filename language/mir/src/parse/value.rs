@@ -2,8 +2,8 @@ use crate::source::TokenType;
 use destack_source::Span;
 
 use crate::{
-    BlockId, BlockParameter, FunctionId, GlobalId, LocalId, LocalNodeId, Type, TypedValueSpan,
-    Value,
+    BlockId, BlockParameter, FunctionId, GenericArgument, GlobalId, LocalId, LocalNodeId, Type,
+    TypedValueSpan, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -159,28 +159,30 @@ impl Parser {
         Ok(local)
     }
 
-    /// Parse a function reference and return its span.
-    pub(super) fn parse_function_reference_part(&mut self) -> ParseResult<(FunctionId, Span)> {
+    /// Parse a function reference and return its generic arguments and span.
+    pub(super) fn parse_function_reference_part(
+        &mut self,
+    ) -> ParseResult<(FunctionId, Vec<GenericArgument>, Span)> {
         let (name, start) = self.parse_symbol_name()?;
         let arguments = self.parse_function_arguments()?;
         let span = self.span_between(start, self.pos());
 
-        self.function_map
-            .get(&(name.clone(), arguments))
-            .copied()
-            .map(|function| (function, span))
-            .ok_or_else(|| ParseError::invalid(&format!("function reference '{name}'"), start))
-    }
+        // a declared specialization
+        if let Some(function) = self.function_map.get(&(name.clone(), arguments.clone())) {
+            return Ok((*function, Vec::new(), span));
+        }
 
-    /// Parse a function reference and append its span as one source segment.
-    pub(super) fn parse_function_segment(
-        &mut self,
-        segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<FunctionId> {
-        let (function, span) = self.parse_function_reference_part()?;
-        segment_spans.push(span);
+        // a template applied to the arguments
+        if let Some(template) = self.function_map.get(&(name.clone(), Vec::new()))
+            && !arguments.is_empty()
+        {
+            return Ok((*template, arguments, span));
+        }
 
-        Ok(function)
+        Err(ParseError::invalid(
+            &format!("function reference '{name}'"),
+            start,
+        ))
     }
 
     /// Parse a global reference and return its span.

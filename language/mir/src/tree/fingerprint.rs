@@ -4,9 +4,9 @@ use destack_core::{StableHasher, StringId};
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
-    FloatType, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity, Nullability,
-    ReferenceKind, SignatureParameter, Static, StaticField, StaticId, StaticKey, Storage, Symbol,
-    Tree, Type, TypeFingerprint, TypeId,
+    FloatType, GenericArgument, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
+    Multiplicity, ReferenceKind, SignatureParameter, Space, Static, StaticField, StaticId,
+    StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -17,17 +17,28 @@ impl Tree {
 
         TypeFingerprint::from_raw(hasher.hasher.finish_u128())
     }
+
+    /// Return the stable structural fingerprint of one type with every lifetime erased.
+    pub fn type_shape_fingerprint(&self, ty: TypeId) -> TypeFingerprint {
+        let mut hasher = TypeHasher::new();
+        hasher.erase_lifetimes = true;
+        hasher.hash_type(ty, self);
+
+        TypeFingerprint::from_raw(hasher.hasher.finish_u128())
+    }
 }
 
 /// Stable structural type hasher.
 pub(super) struct TypeHasher {
     /// The stable hash under construction.
     hasher: StableHasher,
+    /// Whether lifetimes hash as absent.
+    erase_lifetimes: bool,
 }
 
 impl TypeHasher {
     /// Derive one generic instance symbol from its concrete arguments.
-    pub(super) fn symbol(base: Symbol, arguments: &[StaticId], tree: &Tree) -> Symbol {
+    pub(super) fn symbol(base: Symbol, arguments: &[GenericArgument], tree: &Tree) -> Symbol {
         if arguments.is_empty() {
             return base;
         }
@@ -35,7 +46,7 @@ impl TypeHasher {
         let mut hasher = Self::for_instance(base);
         hasher.hash_length(arguments.len());
         for argument in arguments {
-            hasher.hash_static(*argument, tree);
+            hasher.hash_argument(*argument, tree);
         }
 
         Symbol::from_raw(hasher.hasher.finish_u64())
@@ -56,7 +67,10 @@ impl TypeHasher {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(b"destack.mir.type.v1");
 
-        Self { hasher }
+        Self {
+            hasher,
+            erase_lifetimes: false,
+        }
     }
 
     /// Create a generic instance hasher.
@@ -65,7 +79,10 @@ impl TypeHasher {
         hasher.update_len_prefixed(b"destack.mir.instance.v1");
         hasher.write_u64(base.raw());
 
-        Self { hasher }
+        Self {
+            hasher,
+            erase_lifetimes: false,
+        }
     }
 
     /// Hash one concrete static value.
@@ -73,6 +90,10 @@ impl TypeHasher {
         let value = tree.static_value(id);
 
         match value {
+            Static::Parameter(index) => {
+                self.hasher.write_u8(20);
+                self.hasher.write_u32(*index);
+            }
             Static::Null => self.hasher.write_u8(0),
             Static::Undefined => self.hasher.write_u8(1),
             Static::Boolean(value) => {
@@ -106,7 +127,7 @@ impl TypeHasher {
             }
             Static::Space(space) => {
                 self.hasher.write_u8(16);
-                self.hasher.write_u8(*space as u8);
+                self.hash_space(*space);
             }
             Static::Type(ty) => {
                 self.hasher.write_u8(9);
@@ -212,7 +233,6 @@ impl TypeHasher {
                 constraint,
                 storage,
                 access,
-                nullability,
             } => {
                 self.hasher.write_u8(12);
                 self.hash_reference_kind(*kind);
@@ -220,7 +240,6 @@ impl TypeHasher {
                 self.hash_type(*constraint, tree);
                 self.hash_storage(*storage);
                 self.hash_access(*access);
-                self.hash_nullability(*nullability);
             }
             Type::Reference {
                 kind,
@@ -228,7 +247,6 @@ impl TypeHasher {
                 storage,
                 access,
                 pointee,
-                nullability,
             } => {
                 self.hasher.write_u8(13);
                 self.hash_reference_kind(*kind);
@@ -236,17 +254,11 @@ impl TypeHasher {
                 self.hash_storage(*storage);
                 self.hash_access(*access);
                 self.hash_type(*pointee, tree);
-                self.hash_nullability(*nullability);
             }
-            Type::Pointer {
-                pointee,
-                access,
-                nullability,
-            } => {
+            Type::Pointer { pointee, access } => {
                 self.hasher.write_u8(31);
                 self.hash_type(*pointee, tree);
                 self.hash_access(*access);
-                self.hash_nullability(*nullability);
             }
             Type::Slice {
                 kind,
@@ -254,7 +266,6 @@ impl TypeHasher {
                 element,
                 storage,
                 access,
-                nullability,
             } => {
                 self.hasher.write_u8(14);
                 self.hash_reference_kind(*kind);
@@ -262,7 +273,6 @@ impl TypeHasher {
                 self.hash_type(*element, tree);
                 self.hash_storage(*storage);
                 self.hash_access(*access);
-                self.hash_nullability(*nullability);
             }
             Type::Uninit { value } => {
                 self.hasher.write_u8(15);
@@ -272,20 +282,14 @@ impl TypeHasher {
                 self.hasher.write_u8(16);
                 self.hash_type(*value, tree);
             }
-            Type::FixedArray {
-                element,
-                length,
-                copy,
-            } => {
+            Type::FixedArray { element, length } => {
                 self.hasher.write_u8(17);
                 self.hash_type(*element, tree);
-                self.hasher.write_u64(*length);
-                self.hash_copy(*copy);
+                self.hash_static(*length, tree);
             }
-            Type::Tuple { elements, copy } => {
+            Type::Tuple { elements } => {
                 self.hasher.write_u8(18);
                 self.hash_types(elements, tree);
-                self.hash_copy(*copy);
             }
             Type::Struct { fields, copy } => {
                 self.hasher.write_u8(19);
@@ -309,20 +313,15 @@ impl TypeHasher {
                 self.hash_type(*discriminant, tree);
                 self.hash_length(cases.len());
                 for case in cases {
-                    self.hash_constant(&case.discriminant);
+                    self.hash_constant(&case.discriminant, tree);
                     self.hash_type(case.ty, tree);
                 }
                 self.hash_copy(*copy);
             }
-            Type::Vector {
-                element,
-                lanes,
-                copy,
-            } => {
+            Type::Vector { element, lanes } => {
                 self.hasher.write_u8(22);
                 self.hash_type(*element, tree);
                 self.hasher.write_u32(*lanes);
-                self.hash_copy(*copy);
             }
             Type::FunctionSignature {
                 lifetimes,
@@ -344,7 +343,6 @@ impl TypeHasher {
                 lifetime,
                 storage,
                 access,
-                nullability,
             } => {
                 self.hasher.write_u8(26);
                 self.hash_type(*signature, tree);
@@ -356,16 +354,49 @@ impl TypeHasher {
                 self.hash_lifetime(lifetime);
                 self.hash_storage(*storage);
                 self.hash_access(*access);
-                self.hash_nullability(*nullability);
             }
             Type::FunctionPointer { signature } => {
                 self.hasher.write_u8(27);
                 self.hash_type(*signature, tree);
             }
-            Type::Application { base, lifetimes } => {
+            Type::Application {
+                base,
+                arguments,
+                lifetimes,
+            } => {
                 self.hasher.write_u8(30);
                 self.hash_type(*base, tree);
+                self.hash_length(arguments.len());
+                for argument in arguments {
+                    self.hash_argument(*argument, tree);
+                }
                 self.hash_lifetimes(lifetimes);
+            }
+            Type::Parameter { index } => {
+                self.hasher.write_u8(32);
+                self.hasher.write_u32(*index);
+            }
+        }
+    }
+
+    /// Hash one generic argument.
+    fn hash_argument(&mut self, argument: GenericArgument, tree: &Tree) {
+        match argument {
+            GenericArgument::Type(ty) => {
+                self.hasher.write_u8(0);
+                self.hash_type(ty, tree);
+            }
+            GenericArgument::Space(space) => {
+                self.hasher.write_u8(1);
+                self.hash_space(space);
+            }
+            GenericArgument::Access(access) => {
+                self.hasher.write_u8(2);
+                self.hash_access(access);
+            }
+            GenericArgument::Value(value) => {
+                self.hasher.write_u8(3);
+                self.hash_static(value, tree);
             }
         }
     }
@@ -480,6 +511,19 @@ impl TypeHasher {
         self.hasher.write_u8(u8::from(value));
     }
 
+    /// Hash one MIR space.
+    fn hash_space(&mut self, space: Space) {
+        match space {
+            Space::Local => self.hasher.write_u8(0),
+            Space::Shared => self.hasher.write_u8(1),
+            Space::Constant => self.hasher.write_u8(2),
+            Space::Parameter(index) => {
+                self.hasher.write_u8(3);
+                self.hasher.write_u32(index);
+            }
+        }
+    }
+
     /// Hash one optional interned string.
     fn hash_string_maybe(&mut self, value: Option<StringId>) {
         match value {
@@ -493,25 +537,30 @@ impl TypeHasher {
 
     /// Hash one MIR access mode.
     fn hash_access(&mut self, access: Access) {
-        let tag = match access {
-            Access::Readonly => 0,
-            Access::Mutable => 1,
-            Access::Exclusive => 2,
-        };
-        self.hasher.write_u8(tag);
+        match access {
+            Access::Readonly => self.hasher.write_u8(0),
+            Access::Mutable => self.hasher.write_u8(1),
+            Access::Exclusive => self.hasher.write_u8(2),
+            Access::Parameter(index) => {
+                self.hasher.write_u8(3);
+                self.hasher.write_u32(index);
+            }
+        }
     }
 
     /// Hash one MIR reference storage.
     fn hash_storage(&mut self, storage: Storage) {
-        let tag = match storage {
-            Storage::LocalHeap => 0,
-            Storage::SharedHeap => 1,
-            Storage::Frame => 2,
-            Storage::Constant => 3,
-            Storage::LocalStatic => 4,
-            Storage::SharedStatic => 5,
-        };
-        self.hasher.write_u8(tag);
+        match storage {
+            Storage::Frame => self.hasher.write_u8(0),
+            Storage::Heap(space) => {
+                self.hasher.write_u8(1);
+                self.hash_space(space);
+            }
+            Storage::Static(space) => {
+                self.hasher.write_u8(2);
+                self.hash_space(space);
+            }
+        }
     }
 
     /// Hash one MIR reference kind.
@@ -520,17 +569,6 @@ impl TypeHasher {
             ReferenceKind::Managed => 0,
             ReferenceKind::Unique => 1,
             ReferenceKind::Borrowed => 2,
-        };
-        self.hasher.write_u8(tag);
-    }
-
-    /// Hash one MIR nullability mode.
-    fn hash_nullability(&mut self, nullability: Nullability) {
-        let tag = match nullability {
-            Nullability::None => 0,
-            Nullability::Null => 1,
-            Nullability::Undefined => 2,
-            Nullability::NullOrUndefined => 3,
         };
         self.hasher.write_u8(tag);
     }
@@ -555,6 +593,10 @@ impl TypeHasher {
 
     /// Hash one applied MIR lifetime.
     fn hash_lifetime(&mut self, lifetime: &Lifetime) {
+        if self.erase_lifetimes {
+            return self.hash_length(0);
+        }
+
         self.hash_length(lifetime.terms.len());
         for term in &lifetime.terms {
             match term {
@@ -589,10 +631,13 @@ impl TypeHasher {
     }
 
     /// Hash one executable scalar constant.
-    fn hash_constant(&mut self, constant: &Constant) {
+    fn hash_constant(&mut self, constant: &Constant, tree: &Tree) {
         match constant {
+            Constant::Parameter(index) => {
+                self.hasher.write_u8(9);
+                self.hasher.write_u32(*index);
+            }
             Constant::Null => self.hasher.write_u8(0),
-            Constant::Undefined => self.hasher.write_u8(1),
             Constant::Boolean { value } => {
                 self.hasher.write_u8(2);
                 self.hash_boolean(*value);
@@ -623,6 +668,11 @@ impl TypeHasher {
             }
             Constant::Uninit => self.hasher.write_u8(7),
             Constant::Zeroed => self.hasher.write_u8(8),
+            Constant::Layout { ty, measure } => {
+                self.hasher.write_u8(10);
+                self.hash_type(*ty, tree);
+                self.hasher.write_u8(*measure as u8);
+            }
         }
     }
 
@@ -644,8 +694,8 @@ mod tests {
     use destack_core::StringId;
 
     use crate::{
-        Access, Copy, Field, Lifetime, Nullability, ReferenceKind, Static, Storage, Symbol, Tree,
-        Type,
+        Access, Copy, Field, GenericArgument, Lifetime, ReferenceKind, Space, Static, Storage,
+        Symbol, Tree, Type,
     };
 
     /// Structural instance symbols are independent of local type allocation order.
@@ -658,20 +708,18 @@ mod tests {
         let first_bool = first.intern_type(Type::Boolean);
         let first_tuple = first.intern_type(Type::Tuple {
             elements: vec![first_int, first_bool],
-            copy: Copy::Yes,
         });
-        let first_int = first.intern_static(Static::Type(first_int));
-        let first_bool = first.intern_static(Static::Type(first_bool));
-        let first_tuple = first.intern_static(Static::Type(first_tuple));
+        let first_int = GenericArgument::Type(first_int);
+        let first_bool = GenericArgument::Type(first_bool);
+        let first_tuple = GenericArgument::Type(first_tuple);
 
         let mut second = Tree::new();
         let second_bool = second.intern_type(Type::Boolean);
         let second_int = second.intern_type(Type::INT32);
         let second_tuple = second.intern_type(Type::Tuple {
             elements: vec![second_int, second_bool],
-            copy: Copy::Yes,
         });
-        let second_tuple = second.intern_static(Static::Type(second_tuple));
+        let second_tuple = GenericArgument::Type(second_tuple);
 
         assert_eq!(
             base.instantiate(&[first_tuple], &first),
@@ -713,9 +761,9 @@ mod tests {
         let mut foreign_tree = Tree::new();
         let foreign_first = foreign_tree.reserve_type(first_name);
         foreign_tree.define_type(foreign_first, Type::Void);
-        let first = tree.intern_static(Static::Type(first));
-        let second = tree.intern_static(Static::Type(second));
-        let foreign_first = foreign_tree.intern_static(Static::Type(foreign_first));
+        let first = GenericArgument::Type(first);
+        let second = GenericArgument::Type(second);
+        let foreign_first = GenericArgument::Type(foreign_first);
         assert_ne!(
             base.instantiate(&[first], &tree),
             base.instantiate(&[second], &tree)
@@ -734,25 +782,23 @@ mod tests {
         let local = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::slot(0),
-            storage: Storage::LocalHeap,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
-            nullability: Nullability::None,
         });
         let static_ = tree.intern_type(Type::Reference {
             kind: ReferenceKind::Borrowed,
             lifetime: Lifetime::static_storage(),
-            storage: Storage::LocalHeap,
+            storage: Storage::Heap(Space::Local),
             access: Access::Readonly,
             pointee,
-            nullability: Nullability::None,
         });
         let local = tree.intern_representation(local);
         let static_ = tree.intern_representation(static_);
         assert_eq!(local, static_);
 
-        let local = tree.intern_static(Static::Type(local));
-        let static_ = tree.intern_static(Static::Type(static_));
+        let local = GenericArgument::Type(local);
+        let static_ = GenericArgument::Type(static_);
         let base = Symbol::named(StringId::for_text("library.inspect"));
 
         assert_eq!(
@@ -766,8 +812,8 @@ mod tests {
     fn test_mangle_static_instances_by_value() {
         let mut tree = Tree::new();
         let base = Symbol::named(StringId::for_text("library.take"));
-        let first = tree.intern_static(Static::Integer(4));
-        let second = tree.intern_static(Static::Integer(8));
+        let first = GenericArgument::Value(tree.intern_static(Static::Integer(4)));
+        let second = GenericArgument::Value(tree.intern_static(Static::Integer(8)));
 
         assert_ne!(
             base.instantiate(&[first], &tree),
@@ -781,11 +827,11 @@ mod tests {
         let base = Symbol::named(StringId::for_text("library.buffer"));
 
         let mut first = Tree::new();
-        let first_length = first.intern_static(Static::Integer(64));
+        let first_length = GenericArgument::Value(first.intern_static(Static::Integer(64)));
 
         let mut second = Tree::new();
         second.intern_static(Static::Integer(32));
-        let second_length = second.intern_static(Static::Integer(64));
+        let second_length = GenericArgument::Value(second.intern_static(Static::Integer(64)));
 
         assert_eq!(
             base.instantiate(&[first_length], &first),

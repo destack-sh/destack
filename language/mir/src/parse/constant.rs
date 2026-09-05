@@ -1,7 +1,7 @@
 use crate::source::TokenType;
 use destack_source::Span;
 
-use crate::{Constant, FloatType, Intrinsic, LocalNodeId, StorageSet, Type};
+use crate::{Constant, FloatType, Intrinsic, LayoutMeasure, LocalNodeId, StorageSet, Type, TypeId};
 
 use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
@@ -23,9 +23,19 @@ impl Parser {
                 self.bump();
                 Ok(Constant::Null)
             }
-            TokenType::Identifier if token_text == "undefined" => {
+            TokenType::Identifier if let Some((index, _)) = self.generic_parameter(&token_text) => {
                 self.bump();
-                Ok(Constant::Undefined)
+                Ok(Constant::Parameter(index))
+            }
+            TokenType::Identifier
+                if let Some(measure) = LayoutMeasure::from_keyword(&token_text) =>
+            {
+                self.bump();
+                let (ty, _) = self.parse_type_use_part()?;
+                Ok(Constant::Layout {
+                    ty: TypeId::from(ty),
+                    measure,
+                })
             }
             TokenType::BooleanLiteral => {
                 let value = token_text == "true";
@@ -85,24 +95,28 @@ impl Parser {
         // validate the literal against the expected type
         match kind {
             TokenType::Identifier if token_text == "null" => {
-                let Some(nullability) = expected.nullability() else {
-                    return Err(ParseError::invalid("null constant type", token_start));
-                };
-                if !nullability.allows_null() {
+                if !matches!(expected, Type::Pointer { .. }) {
                     return Err(ParseError::invalid("null constant type", token_start));
                 }
                 self.bump();
                 Ok(Constant::Null)
             }
-            TokenType::Identifier if token_text == "undefined" => {
-                let Some(nullability) = expected.nullability() else {
-                    return Err(ParseError::invalid("undefined constant type", token_start));
-                };
-                if !nullability.allows_undefined() {
-                    return Err(ParseError::invalid("undefined constant type", token_start));
+            TokenType::Identifier if let Some((index, _)) = self.generic_parameter(&token_text) => {
+                self.bump();
+                Ok(Constant::Parameter(index))
+            }
+            TokenType::Identifier
+                if let Some(measure) = LayoutMeasure::from_keyword(&token_text) =>
+            {
+                if !matches!(expected, Type::Int { .. } | Type::Usize | Type::Isize) {
+                    return Err(ParseError::invalid("layout constant type", token_start));
                 }
                 self.bump();
-                Ok(Constant::Undefined)
+                let (ty, _) = self.parse_type_use_part()?;
+                Ok(Constant::Layout {
+                    ty: TypeId::from(ty),
+                    measure,
+                })
             }
             TokenType::BooleanLiteral => {
                 if !matches!(expected, Type::Boolean) {

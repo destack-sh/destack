@@ -14,12 +14,14 @@ pub enum Linkage {
     Export,
     /// Declared here but defined elsewhere (imported).
     Import,
+    /// Defined here and in every module instantiating it, deduplicated by the linker.
+    Shared,
 }
 
 impl Linkage {
     /// Returns true if the symbol is defined in this module.
     pub fn is_defined(&self) -> bool {
-        matches!(self, Linkage::Local | Linkage::Export)
+        matches!(self, Linkage::Local | Linkage::Export | Linkage::Shared)
     }
 
     /// Returns true if the symbol is visible outside the module.

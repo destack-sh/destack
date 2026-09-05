@@ -48,7 +48,7 @@ type Config {
     enabled: boolean;
 }
 
-function configured<int32, type (int32, boolean), UserId(42), Config { enabled: true }>(): void {
+function configured<int32, (int32, boolean), UserId(42), Config { enabled: true }>(): void {
 entry:
     return
 }

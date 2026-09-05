@@ -3,6 +3,7 @@ use destack_fir::prelude::*;
 use destack_fir::write;
 
 use super::call::format_call;
+use super::r#type::format_generic_arguments;
 use super::value::{
     format_constant_for_type, format_function_id, format_global_id, format_type_id,
 };
@@ -198,6 +199,7 @@ impl FormatNode for Instruction {
             Instruction::FunctionAddr {
                 destination,
                 function,
+                arguments,
             } => {
                 format_typed_destination(*destination, f)?;
                 write!(
@@ -210,11 +212,13 @@ impl FormatNode for Instruction {
                         space()
                     ]
                 )?;
-                format_function_reference(*function, f)
+                format_function_reference(*function, f)?;
+                format_generic_arguments(arguments, f)
             }
             Instruction::FunctionBind {
                 destination,
                 function,
+                arguments,
                 environment,
             } => {
                 format_typed_destination(*destination, f)?;
@@ -229,6 +233,7 @@ impl FormatNode for Instruction {
                     ]
                 )?;
                 format_function_reference(*function, f)?;
+                format_generic_arguments(arguments, f)?;
                 write!(f, [token(","), space(), environment])
             }
             Instruction::FunctionEnvironment {
@@ -970,7 +975,13 @@ impl FormatNode for Instruction {
 
                 format_call(
                     call,
-                    ["call", "call.indirect", "call.virtual", "call.dynamic"],
+                    [
+                        "call",
+                        "call.indirect",
+                        "call.virtual",
+                        "call.dynamic",
+                        "call.witness",
+                    ],
                     f,
                 )
             }

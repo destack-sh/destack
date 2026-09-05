@@ -2,9 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Field, FieldSpan, Lifetime, LifetimeParameter, LifetimeTerm, LocalNodeId,
-    Multiplicity, Nullability, ReferenceKind, SignatureParameter, StaticId, Storage, Type,
-    TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Field, FieldSpan, GenericArgument, Lifetime, LifetimeParameter, LifetimeTerm,
+    LocalNodeId, Multiplicity, ParameterDomain, ReferenceKind, SignatureParameter, Space, Static,
+    StaticId, Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -21,19 +21,16 @@ struct ReferenceQualifiers {
     storage: Storage,
     /// The exposed access mode.
     access: Option<Access>,
-    /// The accepted nullish values.
-    nullability: Nullability,
 }
 
 impl ReferenceQualifiers {
     /// Create empty reference qualifiers.
-    fn new(nullability: Nullability) -> Self {
+    fn new() -> Self {
         Self {
             kind: None,
             lifetime: Lifetime::empty(),
-            storage: Storage::LocalHeap,
+            storage: Storage::Heap(Space::Local),
             access: None,
-            nullability,
         }
     }
 
@@ -58,7 +55,6 @@ impl ReferenceQualifiers {
             access: self
                 .access
                 .ok_or_else(|| ParseError::invalid("reference access", pos))?,
-            nullability: self.nullability,
         })
     }
 }
@@ -74,8 +70,6 @@ struct ResolvedReferenceQualifiers {
     storage: Storage,
     /// The exposed access mode.
     access: Access,
-    /// The accepted nullish values.
-    nullability: Nullability,
 }
 
 impl Parser {
@@ -194,11 +188,25 @@ impl Parser {
         base: TypeId,
         lifetimes: Vec<Lifetime>,
     ) -> ParseResult<TypeId> {
-        if lifetimes.is_empty() {
+        self.apply_type_arguments(base, Vec::new(), lifetimes)
+    }
+
+    /// Apply generic and lifetime arguments to an identified base type.
+    fn apply_type_arguments(
+        &mut self,
+        base: TypeId,
+        arguments: Vec<GenericArgument>,
+        lifetimes: Vec<Lifetime>,
+    ) -> ParseResult<TypeId> {
+        if arguments.is_empty() && lifetimes.is_empty() {
             return Ok(base);
         }
 
-        self.intern_type(Type::Application { base, lifetimes })
+        self.intern_type(Type::Application {
+            base,
+            arguments,
+            lifetimes,
+        })
     }
 
     /// Return whether the next tokens start type lifetime arguments.
@@ -399,6 +407,16 @@ impl Parser {
             return self.intern_type(primitive);
         }
 
+        // a type parameter in scope
+        if let Some((index, parameter)) = self.generic_parameter(name) {
+            let ParameterDomain::Type { .. } = parameter.domain else {
+                return Err(ParseError::invalid("type parameter", start));
+            };
+            self.bump();
+
+            return self.intern_type(Type::Parameter { index });
+        }
+
         let ty = match name {
             "fn" => self.parse_function_pointer_type()?,
             "ptr" => self.parse_pointer_type()?,
@@ -411,42 +429,38 @@ impl Parser {
             _ => {
                 self.bump();
                 let (arguments, lifetimes) = self.parse_identified_type_arguments()?;
-                let key = (name.to_string(), arguments);
                 let base = self
                     .type_declaration_map
-                    .get(&key)
+                    .get(name)
                     .copied()
                     .ok_or_else(|| {
                         ParseError::invalid(&format!("identified type '{name}'"), start)
                     })?;
 
-                return self.apply_type_lifetimes(base, lifetimes);
+                return self.apply_type_arguments(base, arguments, lifetimes);
             }
         };
 
         self.intern_type(ty)
     }
 
-    /// Parse concrete generic arguments followed by lifetime arguments on an identified type.
-    fn parse_identified_type_arguments(&mut self) -> ParseResult<(Vec<StaticId>, Vec<Lifetime>)> {
+    /// Parse the generic and lifetime arguments on an identified type.
+    fn parse_identified_type_arguments(
+        &mut self,
+    ) -> ParseResult<(Vec<GenericArgument>, Vec<Lifetime>)> {
         if !self.eat_token_if(TokenType::LessThan) {
             return Ok((Vec::new(), Vec::new()));
         }
 
-        // parse concrete arguments before lifetime arguments
+        // parse the applied generic arguments, then the applied lifetime terms
         let mut arguments = Vec::new();
-        while !self.peek_is(TokenType::GreaterThan) && !self.peek_is(TokenType::Lifetime) {
-            arguments.push(self.parse_static()?);
-
-            if !self.eat_token_if(TokenType::Comma) {
-                break;
-            }
-        }
-
-        // parse the applied lifetime terms
         let mut lifetimes = Vec::new();
         while !self.peek_is(TokenType::GreaterThan) {
-            lifetimes.push(self.parse_lifetime_union()?);
+            if self.peek_is(TokenType::Lifetime) {
+                lifetimes.push(self.parse_lifetime_union()?);
+            } else {
+                arguments.push(self.parse_generic_argument()?);
+            }
 
             if !self.eat_token_if(TokenType::Comma) {
                 break;
@@ -474,30 +488,12 @@ impl Parser {
 
         // require the access exposed through the pointer
         self.eat_token(TokenType::Comma)?;
-        let access = if self.eat_token_if(TokenType::Readonly) {
-            Access::Readonly
-        } else if self.eat_name_if("mutable") {
-            Access::Mutable
-        } else if self.eat_name_if("exclusive") {
-            Access::Exclusive
-        } else {
-            return Err(ParseError::invalid("pointer access", self.pos()));
-        };
-
-        // accept one optional nullability qualifier
-        let nullability = if self.eat_token_if(TokenType::Comma) {
-            self.parse_nullability()?
-                .ok_or_else(|| ParseError::invalid("pointer nullability", self.pos()))?
-        } else {
-            Nullability::None
-        };
+        let access = self
+            .parse_access_if()
+            .ok_or_else(|| ParseError::invalid("pointer access", self.pos()))?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Pointer {
-            pointee,
-            access,
-            nullability,
-        })
+        Ok(Type::Pointer { pointee, access })
     }
 
     /// Parse a slice type.
@@ -505,7 +501,7 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
-        let (kind, lifetime, storage, access, nullability) = self.parse_slice_qualifiers()?;
+        let (kind, lifetime, storage, access) = self.parse_slice_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Slice {
@@ -514,7 +510,6 @@ impl Parser {
             element,
             storage,
             access,
-            nullability,
         })
     }
 
@@ -534,7 +529,7 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let (constraint, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
-        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
+        let qualifiers = self.parse_reference_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
         Ok(Type::Dynamic {
             kind: qualifiers.kind,
@@ -542,7 +537,6 @@ impl Parser {
             constraint,
             storage: qualifiers.storage,
             access: qualifiers.access,
-            nullability: qualifiers.nullability,
         })
     }
 
@@ -558,7 +552,7 @@ impl Parser {
         let multiplicity = Multiplicity::from_name(multiplicity_name)
             .ok_or_else(|| ParseError::invalid("function multiplicity", multiplicity_start))?;
         self.eat_token(TokenType::Comma)?;
-        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
+        let qualifiers = self.parse_reference_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
         Ok(Type::Function {
             multiplicity,
@@ -567,7 +561,6 @@ impl Parser {
             signature,
             storage: qualifiers.storage,
             access: qualifiers.access,
-            nullability: qualifiers.nullability,
         })
     }
 
@@ -606,11 +599,7 @@ impl Parser {
 
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Vector {
-            element,
-            lanes,
-            copy: Copy::No,
-        })
+        Ok(Type::Vector { element, lanes })
     }
 
     /// Parse a newtype type.
@@ -647,7 +636,6 @@ impl Parser {
                 .into_iter()
                 .map(|parameter| parameter.ty)
                 .collect(),
-            copy: Copy::No,
         })
     }
 
@@ -709,17 +697,11 @@ impl Parser {
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Semicolon)?;
 
-        let length = self.parse_int_literal()?;
-        let length =
-            u64::try_from(length).map_err(|_| ParseError::invalid("array length", self.pos()))?;
+        let length = self.parse_length()?;
 
         self.eat_token(TokenType::CloseBracket)?;
 
-        Ok(Type::FixedArray {
-            element,
-            length,
-            copy: Copy::No,
-        })
+        Ok(Type::FixedArray { element, length })
     }
 
     /// Parse one struct type and retain field declaration spans.
@@ -852,7 +834,7 @@ impl Parser {
 
         let (pointee, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
-        let qualifiers = self.parse_reference_qualifiers(Nullability::None)?;
+        let qualifiers = self.parse_reference_qualifiers()?;
 
         self.eat_token(TokenType::GreaterThan)?;
 
@@ -862,7 +844,6 @@ impl Parser {
             storage: qualifiers.storage,
             access: qualifiers.access,
             pointee,
-            nullability: qualifiers.nullability,
         })
     }
 
@@ -901,12 +882,36 @@ impl Parser {
         })
     }
 
+    /// Parse one fixed array length: a literal or a value parameter in scope.
+    fn parse_length(&mut self) -> ParseResult<StaticId> {
+        // read a value parameter in scope
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("array length", self.pos()))?;
+        if self.token_type(token) == TokenType::Identifier {
+            let name = self.tree.source_text(token.span).to_string();
+            let Some((index, parameter)) = self.generic_parameter(&name) else {
+                return Err(ParseError::invalid("array length", token.start()));
+            };
+            let ParameterDomain::Value { .. } = parameter.domain else {
+                return Err(ParseError::invalid("array length", token.start()));
+            };
+            self.bump();
+
+            return Ok(self.tree.intern_static(Static::Parameter(index)));
+        }
+
+        // read a literal length
+        let length = self.parse_int_literal()?;
+        let length =
+            i64::try_from(length).map_err(|_| ParseError::invalid("array length", self.pos()))?;
+
+        Ok(self.tree.intern_static(Static::Integer(length)))
+    }
+
     /// Parse reference-like qualifiers after the pointee type.
-    fn parse_reference_qualifiers(
-        &mut self,
-        nullability: Nullability,
-    ) -> ParseResult<ResolvedReferenceQualifiers> {
-        let mut qualifiers = ReferenceQualifiers::new(nullability);
+    fn parse_reference_qualifiers(&mut self) -> ParseResult<ResolvedReferenceQualifiers> {
+        let mut qualifiers = ReferenceQualifiers::new();
         self.parse_reference_qualifier(&mut qualifiers)?;
 
         while self.peek_is(TokenType::Comma) {
@@ -927,8 +932,8 @@ impl Parser {
     /// Parse optional trailing qualifiers for one slice type.
     fn parse_slice_qualifiers(
         &mut self,
-    ) -> ParseResult<(ReferenceKind, Lifetime, Storage, Access, Nullability)> {
-        let mut qualifiers = ReferenceQualifiers::new(Nullability::None);
+    ) -> ParseResult<(ReferenceKind, Lifetime, Storage, Access)> {
+        let mut qualifiers = ReferenceQualifiers::new();
 
         while self.peek_is(TokenType::Comma) {
             if self
@@ -949,8 +954,34 @@ impl Parser {
             qualifiers.lifetime,
             qualifiers.storage,
             qualifiers.access,
-            qualifiers.nullability,
         ))
+    }
+
+    /// Parse one access: a keyword or an access parameter in scope.
+    fn parse_access_if(&mut self) -> Option<Access> {
+        // readonly arrives as its own token
+        if self.eat_token_if(TokenType::Readonly) {
+            return Some(Access::Readonly);
+        }
+
+        // read a closed access name or an access parameter in scope
+        let token = self.peek()?;
+        if self.token_type(token) != TokenType::Identifier {
+            return None;
+        }
+        let text = self.tree.source_text(token.span).to_string();
+        let access = match Access::from_name(&text) {
+            Some(access) => access,
+            None => match self.generic_parameter(&text) {
+                Some((index, parameter)) if matches!(parameter.domain, ParameterDomain::Access) => {
+                    Access::Parameter(index)
+                }
+                _ => return None,
+            },
+        };
+        self.bump();
+
+        Some(access)
     }
 
     /// Parse one reference-like qualifier.
@@ -964,26 +995,8 @@ impl Parser {
             return Ok(());
         }
 
-        if self.eat_token_if(TokenType::Readonly) {
-            qualifiers.access = Some(Access::Readonly);
-
-            return Ok(());
-        }
-
-        if self.eat_name_if("mutable") {
-            qualifiers.access = Some(Access::Mutable);
-
-            return Ok(());
-        }
-
-        if self.eat_name_if("exclusive") {
-            qualifiers.access = Some(Access::Exclusive);
-
-            return Ok(());
-        }
-
-        if let Some(nullability) = self.parse_nullability()? {
-            qualifiers.nullability = nullability;
+        if let Some(access) = self.parse_access_if() {
+            qualifiers.access = Some(access);
 
             return Ok(());
         }
@@ -1029,42 +1042,35 @@ impl Parser {
         Ok(Some(kind))
     }
 
-    /// Parse one nullish qualifier.
-    fn parse_nullability(&mut self) -> ParseResult<Option<Nullability>> {
-        let Some(token) = self.peek() else {
-            return Ok(None);
-        };
-        if self.token_type(token) != TokenType::Identifier {
-            return Ok(None);
-        }
-
-        let nullability = match self.tree.source_text(token.span) {
-            "nullable" => Nullability::Null,
-            "undefined" => Nullability::Undefined,
-            "nullish" => Nullability::NullOrUndefined,
-            _ => return Ok(None),
-        };
-        self.bump();
-
-        Ok(Some(nullability))
-    }
-
     /// Parse one optional reference storage.
     fn parse_storage_if(&mut self) -> Option<Storage> {
         let token = self.peek()?;
-        let text = self.tree.source_text(token.span);
-        let storage = match text {
-            "local" => Storage::LocalHeap,
+        let text = self.tree.source_text(token.span).to_string();
+
+        // read a space parameter in scope, static when the keyword follows
+        if let Some((index, parameter)) = self.generic_parameter(&text)
+            && matches!(parameter.domain, ParameterDomain::Space)
+        {
+            self.bump();
+            if self.eat_name_if("static") {
+                return Some(Storage::Static(Space::Parameter(index)));
+            }
+
+            return Some(Storage::Heap(Space::Parameter(index)));
+        }
+
+        let storage = match text.as_str() {
+            "local" => Storage::Heap(Space::Local),
             "frame" => Storage::Frame,
-            "constant" => Storage::Constant,
-            "static" => Storage::LocalStatic,
+            "constant" => Storage::Static(Space::Constant),
+            "static" => Storage::Static(Space::Local),
             "shared" => {
                 self.bump();
                 if self.eat_name_if("static") {
-                    return Some(Storage::SharedStatic);
+                    return Some(Storage::Static(Space::Shared));
                 }
 
-                return Some(Storage::SharedHeap);
+                return Some(Storage::Heap(Space::Shared));
             }
             _ => return None,
         };

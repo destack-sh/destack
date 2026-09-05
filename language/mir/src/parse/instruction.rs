@@ -4,7 +4,7 @@ use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use crate::{
     AddressKind, AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, Callee, CastOperator,
     CompareExchangeAccess, ConvertMode, CounterId, DispatchSlot, ExecutionScope, FenceAccess,
-    FunctionId, Instruction, LocalNodeId, MemoryOrdering, SamplerId, StorageSet, TypeId,
+    Instruction, LayoutMeasure, LocalNodeId, MemoryOrdering, SamplerId, StorageSet, TypeId,
     UnaryOperator, Value, VectorReduceOperator,
 };
 
@@ -50,9 +50,11 @@ impl Parser {
                     && (matches!(
                         self.tree.source_text(token.span),
                         "null" | "undefined" | "inf" | "-inf" | "NaN"
-                    ) || self
-                        .parse_float_constant(self.tree.source_text(token.span))
-                        .is_some())))
+                    ) || LayoutMeasure::from_keyword(self.tree.source_text(token.span))
+                        .is_some()
+                        || self
+                            .parse_float_constant(self.tree.source_text(token.span))
+                            .is_some())))
             {
                 let value = self.parse_constant_for_type(destination_type)?;
                 let instruction = Instruction::Const { destination, value };
@@ -127,13 +129,23 @@ impl Parser {
 
             // calls and intrinsics
             "call" => {
-                let (function, arguments, signature) =
+                let (callee, arguments, signature) =
                     self.parse_direct_call_target_segments(&mut segment_spans)?;
                 let arguments = self.tree.add_values(&arguments);
 
                 Instruction::Call {
                     destination,
-                    call: Call::new(Callee::Direct { function }, arguments, signature),
+                    call: Call::new(callee, arguments, signature),
+                }
+            }
+            "call.witness" => {
+                let (callee, arguments, signature) =
+                    self.parse_witness_call_target_segments(&mut segment_spans)?;
+                let arguments = self.tree.add_values(&arguments);
+
+                Instruction::Call {
+                    destination,
+                    call: Call::new(callee, arguments, signature),
                 }
             }
             "call.virtual" => {
@@ -364,19 +376,23 @@ impl Parser {
                         }
                     }
                     "function.address" => {
-                        let function = self.parse_function_segment(&mut segment_spans)?;
+                        let (function, arguments, span) = self.parse_function_reference_part()?;
+                        segment_spans.push(span);
                         Instruction::FunctionAddr {
                             destination,
                             function,
+                            arguments,
                         }
                     }
                     "function.bind" => {
-                        let function = self.parse_function_segment(&mut segment_spans)?;
+                        let (function, arguments, span) = self.parse_function_reference_part()?;
+                        segment_spans.push(span);
                         self.eat_token(TokenType::Comma)?;
                         let environment = self.parse_value_segment(&mut segment_spans)?;
                         Instruction::FunctionBind {
                             destination,
                             function,
+                            arguments,
                             environment,
                         }
                     }
@@ -996,9 +1012,7 @@ impl Parser {
     }
 
     /// Parse one direct call target and arguments.
-    pub(super) fn parse_direct_call_target(
-        &mut self,
-    ) -> ParseResult<(FunctionId, Vec<Value>, TypeId)> {
+    pub(super) fn parse_direct_call_target(&mut self) -> ParseResult<(Callee, Vec<Value>, TypeId)> {
         let mut segment_spans = Vec::new();
         self.parse_direct_call_target_segments(&mut segment_spans)
     }
@@ -1007,12 +1021,56 @@ impl Parser {
     pub(super) fn parse_direct_call_target_segments(
         &mut self,
         segment_spans: &mut Vec<Span>,
-    ) -> ParseResult<(FunctionId, Vec<Value>, TypeId)> {
-        let function = self.parse_function_segment(segment_spans)?;
+    ) -> ParseResult<(Callee, Vec<Value>, TypeId)> {
+        let (function, generic_arguments, span) = self.parse_function_reference_part()?;
+        segment_spans.push(span);
         let arguments = self.parse_call_argument_segments(segment_spans)?;
         let signature = self.parse_call_signature_segment(segment_spans)?;
+        let callee = Callee::Direct {
+            function,
+            arguments: generic_arguments,
+        };
 
-        Ok((function, arguments, signature))
+        Ok((callee, arguments, signature))
+    }
+
+    /// Parse one witness call target and arguments.
+    pub(super) fn parse_witness_call_target(
+        &mut self,
+    ) -> ParseResult<(Callee, Vec<Value>, TypeId)> {
+        let mut segment_spans = Vec::new();
+        self.parse_witness_call_target_segments(&mut segment_spans)
+    }
+
+    /// Parse one witness call target, arguments, and signature with source segments.
+    pub(super) fn parse_witness_call_target_segments(
+        &mut self,
+        segment_spans: &mut Vec<Span>,
+    ) -> ParseResult<(Callee, Vec<Value>, TypeId)> {
+        // read the receiver type, the interface, and the requirement it names
+        let receiver = self.parse_type_segment(segment_spans)?;
+        self.eat_token(TokenType::Comma)?;
+        let interface = self.parse_type_segment(segment_spans)?;
+        self.eat_token(TokenType::Comma)?;
+        let (requirement, generic_arguments, span) = self.parse_function_reference_part()?;
+        if !generic_arguments.is_empty() {
+            return Err(ParseError::invalid(
+                "witness requirement",
+                span.start as usize,
+            ));
+        }
+        segment_spans.push(span);
+
+        // read the call arguments and the explicit signature
+        let arguments = self.parse_call_argument_segments(segment_spans)?;
+        let signature = self.parse_call_signature_segment(segment_spans)?;
+        let callee = Callee::Witness {
+            receiver: TypeId::from(receiver),
+            interface: TypeId::from(interface),
+            requirement,
+        };
+
+        Ok((callee, arguments, signature))
     }
 
     /// Parse one virtual call target and signature.

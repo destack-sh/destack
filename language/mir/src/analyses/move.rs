@@ -4,8 +4,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Analysis, Function, FunctionCache, Instruction, Local, LocalId, Mutation, NodeTable, Place,
-    PlaceOrigin, PlaceTable, Projection, ReferenceKind, Tree, Type, TypeId, Value,
+    Analysis, Copy, Function, FunctionCache, Instruction, Local, LocalId, Mutation, NodeTable,
+    Place, PlaceOrigin, PlaceTable, Projection, ReferenceKind, Tree, Type, TypeId, Value,
 };
 
 /// Dense structural paths whose initialization can change independently.
@@ -42,7 +42,7 @@ impl MoveTable {
             let Some(ty) = ty else {
                 continue;
             };
-            if tree.get(*ty).copy(tree).is_yes() {
+            if Copy::decide(tree, *ty, &function.generics).is_yes() {
                 continue;
             }
 
@@ -54,7 +54,7 @@ impl MoveTable {
         // create roots for every move-only local
         for &local in function.locals() {
             let ty = tree.get(local).ty;
-            if tree.get(ty).copy(tree).is_yes() {
+            if Copy::decide(tree, ty, &function.generics).is_yes() {
                 continue;
             }
 
@@ -136,7 +136,9 @@ impl MoveTable {
                     _ => continue,
                 };
                 // keep the move-only addresses this walk has yet to reach
-                if tree.get(ty).copy(tree).is_yes() || table.pointees.contains_key(&pointer) {
+                if Copy::decide(tree, ty, &function.generics).is_yes()
+                    || table.pointees.contains_key(&pointer)
+                {
                     continue;
                 }
 
@@ -353,18 +355,27 @@ impl MoveTable {
                 })
                 .collect(),
             Type::Newtype { inner, .. } => vec![(Projection::Field { index: 0 }, *inner)],
+            // expand the elements of a closed length, skipping an open one
             Type::FixedArray {
                 element, length, ..
-            } => (0..*length)
-                .map(|index| {
-                    let index = u32::try_from(index)
-                        .unwrap_or_else(|_| unreachable!("fixed array index exceeds MIR range"));
+            } => match tree.static_value(*length).length() {
+                Some(length) => (0..length)
+                    .map(|index| {
+                        let index = u32::try_from(index).unwrap_or_else(|_| {
+                            unreachable!("fixed array index exceeds MIR range")
+                        });
 
-                    (Projection::Element { index }, *element)
-                })
-                .collect(),
-            Type::Application { base, .. } => {
-                self.expand(parent, place, *base, tree);
+                        (Projection::Element { index }, *element)
+                    })
+                    .collect(),
+                None => Vec::new(),
+            },
+            // expand an application through the type it stands for
+            Type::Application { .. } => {
+                let (applied, _) = tree.split_lifetime_application(ty);
+                if applied != ty {
+                    self.expand(parent, place, applied, tree);
+                }
                 return;
             }
             Type::Reference {

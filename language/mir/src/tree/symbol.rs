@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{StaticId, Tree};
+use crate::{GenericArgument, Tree};
 
 use super::fingerprint::TypeHasher;
 
@@ -24,7 +24,7 @@ impl Symbol {
     }
 
     /// Derive one generic instance symbol from its concrete arguments.
-    pub fn instantiate(self, arguments: &[StaticId], tree: &Tree) -> Self {
+    pub fn instantiate(self, arguments: &[GenericArgument], tree: &Tree) -> Self {
         TypeHasher::symbol(self, arguments, tree)
     }
 

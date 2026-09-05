@@ -3,7 +3,7 @@ use destack_core::{StringId, StringPool};
 use crate::build::FunctionHeaderBuilder;
 use crate::{
     AccessTable, DispatchTable, DropTable, EffectTable, Layout, LayoutId, LayoutTable, LocalNodeId,
-    ProfileTable, TargetLayout, Tree, Type,
+    ProfileTable, TargetLayout, Tree, Type, WitnessTable,
 };
 
 /// The builder for one MIR module.
@@ -19,6 +19,8 @@ pub struct ModuleBuilder {
     pub(super) dispatch: DispatchTable,
     /// The canonical MIR drop table.
     pub(super) drops: DropTable,
+    /// The canonical MIR witness table.
+    pub(super) witnesses: WitnessTable,
     /// The explicit MIR memory access table.
     pub(super) accesses: AccessTable,
     /// The function and call effect table.
@@ -38,6 +40,7 @@ impl ModuleBuilder {
             layouts: LayoutTable::default(),
             dispatch: DispatchTable::default(),
             drops: DropTable::default(),
+            witnesses: WitnessTable::default(),
             accesses: AccessTable::default(),
             effects: EffectTable::default(),
             profile: ProfileTable::default(),
@@ -83,6 +86,11 @@ impl ModuleBuilder {
     /// Return the mutable drop table.
     pub fn drops_mut(&mut self) -> &mut DropTable {
         &mut self.drops
+    }
+
+    /// Return the mutable witness table.
+    pub fn witnesses_mut(&mut self) -> &mut WitnessTable {
+        &mut self.witnesses
     }
 
     /// Return the memory access table.
@@ -177,6 +185,7 @@ impl ModuleBuilder {
         LayoutTable,
         DispatchTable,
         DropTable,
+        WitnessTable,
         AccessTable,
         EffectTable,
         ProfileTable,
@@ -188,6 +197,7 @@ impl ModuleBuilder {
             self.layouts,
             self.dispatch,
             self.drops,
+            self.witnesses,
             self.accesses,
             self.effects,
             self.profile,

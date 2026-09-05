@@ -10,10 +10,10 @@ use super::{
 /// mir::Constant type information for literal values.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConstantType {
-    /// Null reference constant type.
+    /// The open type of a value parameter.
+    Parameter,
+    /// Null pointer constant type.
     Null,
-    /// Undefined reference constant type.
-    Undefined,
     /// Boolean constant type.
     Boolean,
     /// Integer constant type.
@@ -24,6 +24,8 @@ pub enum ConstantType {
     Char,
     /// Untyped storage constant type.
     Storage,
+    /// Layout measure constant type.
+    Layout,
 }
 
 /// Lookup interface for constant maps.
@@ -42,8 +44,8 @@ impl ConstantLookup for FxIndexMap<mir::Value, mir::Constant> {
 /// Return the constant type for a MIR constant.
 pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
     match constant {
+        mir::Constant::Parameter(_) => ConstantType::Parameter,
         mir::Constant::Null => ConstantType::Null,
-        mir::Constant::Undefined => ConstantType::Undefined,
         mir::Constant::Boolean { .. } => ConstantType::Boolean,
         mir::Constant::Int {
             width, is_signed, ..
@@ -58,6 +60,7 @@ pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
         mir::Constant::Float { format, .. } => ConstantType::Float { format: *format },
         mir::Constant::Char { .. } => ConstantType::Char,
         mir::Constant::Uninit | mir::Constant::Zeroed => ConstantType::Storage,
+        mir::Constant::Layout { .. } => ConstantType::Layout,
     }
 }
 
@@ -71,10 +74,8 @@ pub fn constant_matches_type(
     let destination_type = destination_type.into();
 
     match (constant_type, tree.get(destination_type)) {
-        (ConstantType::Null, ty) => ty.nullability().is_some_and(mir::Nullability::allows_null),
-        (ConstantType::Undefined, ty) => ty
-            .nullability()
-            .is_some_and(mir::Nullability::allows_undefined),
+        (ConstantType::Parameter, _) => true,
+        (ConstantType::Null, mir::Type::Pointer { .. }) => true,
         (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
             let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
@@ -797,9 +798,13 @@ fn constant_tree_from_zero(
         mir::Type::FixedArray {
             element, length, ..
         } => {
-            let length = match usize::try_from(*length) {
-                Ok(length) => length,
-                Err(_) => return ConstantTree::Unknown,
+            let length = match tree
+                .static_value(*length)
+                .length()
+                .and_then(|length| usize::try_from(length).ok())
+            {
+                Some(length) => length,
+                None => return ConstantTree::Unknown,
             };
 
             if length > max_aggregate_elements {
@@ -862,9 +867,13 @@ fn constant_tree_from_bytes(
     };
 
     // check length constraints
-    let length = match usize::try_from(*length) {
-        Ok(length) => length,
-        Err(_) => return ConstantTree::Unknown,
+    let length = match tree
+        .static_value(*length)
+        .length()
+        .and_then(|length| usize::try_from(length).ok())
+    {
+        Some(length) => length,
+        None => return ConstantTree::Unknown,
     };
 
     if length != bytes.len() || length > max_aggregate_elements {
@@ -929,9 +938,13 @@ fn constant_tree_from_aggregate_initializer(
         mir::Type::FixedArray {
             element, length, ..
         } => {
-            let length = match usize::try_from(*length) {
-                Ok(length) => length,
-                Err(_) => return ConstantTree::Unknown,
+            let length = match tree
+                .static_value(*length)
+                .length()
+                .and_then(|length| usize::try_from(length).ok())
+            {
+                Some(length) => length,
+                None => return ConstantTree::Unknown,
             };
 
             if length != elements.len() || length > max_aggregate_elements {

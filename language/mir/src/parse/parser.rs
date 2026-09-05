@@ -4,11 +4,11 @@ use destack_source::{
     NodeSpanType, Span,
 };
 
-use crate::source::{Lexer, TokenType};
+use crate::source::{Lexer, Token, TokenType};
 use crate::{
-    AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, Global, LayoutTable,
-    LifetimeParameter, LifetimeSlot, Local, LocalNodeId, Node, ProfileTable, StaticId,
-    TargetLayout, Tree, Type, Value,
+    Access, AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, GenericArgument,
+    GenericParameter, Global, LayoutTable, LifetimeParameter, LifetimeSlot, Local, LocalNodeId,
+    Node, ParameterDomain, ProfileTable, Space, Static, TargetLayout, Tree, Type, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -134,14 +134,14 @@ pub struct Parser {
     pub(super) blob: Blob,
     /// The diagnostics produced while parsing.
     pub(super) diagnostics: DiagnosticCollector,
-    /// Map from concrete function names to their ids for forward references.
-    pub(super) function_map: FxIndexMap<(String, Vec<StaticId>), LocalNodeId<Function>>,
+    /// Map from function names with their generic arguments to their ids for forward references.
+    pub(super) function_map: FxIndexMap<(String, Vec<GenericArgument>), LocalNodeId<Function>>,
     /// Map from global names to their ids (for forward references).
     pub(super) global_map: FxIndexMap<String, LocalNodeId<Global>>,
     /// Map from type declaration names to their ids (for references).
-    pub(super) type_declaration_map: FxIndexMap<(String, Vec<StaticId>), LocalNodeId<Type>>,
+    pub(super) type_declaration_map: FxIndexMap<String, LocalNodeId<Type>>,
     /// Set of type declarations that have been defined.
-    pub(super) type_declaration_definitions: FxIndexSet<(String, Vec<StaticId>)>,
+    pub(super) type_declaration_definitions: FxIndexSet<String>,
     /// Map from symbolic block names to their predeclared block ids.
     pub(super) block_name_map: FxIndexMap<String, LocalNodeId<Block>>,
     /// Blocks predeclared for the current function body in source order.
@@ -160,6 +160,8 @@ pub struct Parser {
     pub(super) parsed_block_count: usize,
     /// Lifetime names visible in the current signature/type body.
     pub(super) lifetime_scopes: Vec<Vec<(String, LifetimeSlot)>>,
+    /// Generic parameter names visible in the current signature/type body.
+    pub(super) generic_scopes: Vec<Vec<(String, GenericParameter)>>,
 }
 
 impl Parser {
@@ -201,6 +203,7 @@ impl Parser {
             next_value_id: 0,
             parsed_block_count: 0,
             lifetime_scopes: Vec::new(),
+            generic_scopes: Vec::new(),
         })
     }
 
@@ -264,15 +267,15 @@ impl Parser {
         Ok((name, start))
     }
 
-    /// Parse concrete function generic arguments.
-    pub(super) fn parse_function_arguments(&mut self) -> ParseResult<Vec<StaticId>> {
+    /// Parse the generic arguments applied to one function reference.
+    pub(super) fn parse_function_arguments(&mut self) -> ParseResult<Vec<GenericArgument>> {
         if !self.eat_token_if(TokenType::LessThan) {
             return Ok(Vec::new());
         }
 
         let mut arguments = Vec::new();
         while !self.peek_is(TokenType::GreaterThan) {
-            arguments.push(self.parse_static()?);
+            arguments.push(self.parse_generic_argument()?);
 
             if !self.eat_token_if(TokenType::Comma) {
                 break;
@@ -284,41 +287,182 @@ impl Parser {
         Ok(arguments)
     }
 
-    /// Parse concrete generic arguments followed by lifetime binders.
+    /// Parse one generic argument: a space, an access, a value, or a type.
+    pub(super) fn parse_generic_argument(&mut self) -> ParseResult<GenericArgument> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("generic argument", self.pos()))?;
+        let kind = self.token_type(token);
+        let text = self.tree.source_text(token.span).to_string();
+        let start = token.start();
+
+        // read a parameter in scope by its domain
+        let parameter = self
+            .generic_parameter(&text)
+            .map(|(index, parameter)| (index, parameter.domain.clone()));
+        if let Some((index, domain)) = parameter {
+            self.bump();
+
+            return Ok(match domain {
+                ParameterDomain::Type { .. } => {
+                    GenericArgument::Type(self.intern_type(Type::Parameter { index })?)
+                }
+                ParameterDomain::Space => GenericArgument::Space(Space::Parameter(index)),
+                ParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
+                ParameterDomain::Value { .. } => {
+                    GenericArgument::Value(self.tree.intern_static(Static::Parameter(index)))
+                }
+            });
+        }
+
+        match kind {
+            // closed spaces and accesses by their keywords
+            TokenType::Identifier if let Some(space) = Space::from_name(&text) => {
+                self.bump();
+
+                Ok(GenericArgument::Space(space))
+            }
+            TokenType::Identifier if let Some(access) = Access::from_name(&text) => {
+                self.bump();
+
+                Ok(GenericArgument::Access(access))
+            }
+            TokenType::Readonly => {
+                self.bump();
+
+                Ok(GenericArgument::Access(Access::Readonly))
+            }
+            // literal values
+            TokenType::BooleanLiteral
+            | TokenType::Integer
+            | TokenType::Float
+            | TokenType::Character
+            | TokenType::String
+            | TokenType::Regex => Ok(GenericArgument::Value(self.parse_static()?)),
+            TokenType::Identifier if matches!(text.as_str(), "null" | "undefined") => {
+                Ok(GenericArgument::Value(self.parse_static()?))
+            }
+            // aggregate values and nominal values by their literal content
+            _ if self.peek_static_aggregate() || self.peek_static_nominal(kind) => {
+                Ok(GenericArgument::Value(self.parse_static()?))
+            }
+            // an explicit type argument
+            TokenType::Type => {
+                self.bump();
+                let (ty, _) = self.parse_type_use_part()?;
+
+                Ok(GenericArgument::Type(ty))
+            }
+            // every other argument is a type
+            _ if self.peek_type(kind) => {
+                let (ty, _) = self.parse_type_use_part()?;
+
+                Ok(GenericArgument::Type(ty))
+            }
+            _ => Err(ParseError::unexpected("generic argument", kind, start)),
+        }
+    }
+
+    /// Return whether the next tokens open a static array, tuple, or object value.
+    fn peek_static_aggregate(&self) -> bool {
+        let Some(open) = self.peek() else {
+            return false;
+        };
+        let content = match self.token_type(open) {
+            TokenType::OpenBracket | TokenType::OpenParenthesis => self.peek_nth_token(1),
+            TokenType::OpenBrace => self.peek_nth_token(3),
+            _ => return false,
+        };
+
+        content.is_some_and(|token| self.peek_static_literal(token))
+    }
+
+    /// Return whether the next tokens name a declared type followed by its static value.
+    fn peek_static_nominal(&self, kind: TokenType) -> bool {
+        kind == TokenType::Identifier
+            && self.peek_nth_token(1).is_some_and(|token| {
+                matches!(
+                    self.token_type(token),
+                    TokenType::OpenParenthesis | TokenType::OpenBrace
+                )
+            })
+    }
+
+    /// Return whether one token starts a static literal value.
+    fn peek_static_literal(&self, token: &Token) -> bool {
+        match self.token_type(token) {
+            TokenType::BooleanLiteral
+            | TokenType::Integer
+            | TokenType::Float
+            | TokenType::Character
+            | TokenType::String
+            | TokenType::Regex
+            | TokenType::CloseBracket
+            | TokenType::CloseParenthesis
+            | TokenType::CloseBrace => true,
+            TokenType::Identifier => matches!(
+                self.tree.source_text(token.span),
+                "null" | "undefined" | "NaN" | "Infinity" | "-Infinity"
+            ),
+            _ => false,
+        }
+    }
+
+    /// Parse the generic arguments, generic parameters, and lifetime binders of a declaration.
     pub(super) fn parse_declaration_parameters(
         &mut self,
-    ) -> ParseResult<(Vec<StaticId>, Vec<LifetimeParameter>)> {
+    ) -> ParseResult<(
+        Vec<GenericArgument>,
+        Vec<GenericParameter>,
+        Vec<LifetimeParameter>,
+    )> {
         if !self.eat_token_if(TokenType::LessThan) {
             self.lifetime_scopes.push(Vec::new());
-            return Ok((Vec::new(), Vec::new()));
+            self.generic_scopes.push(Vec::new());
+
+            return Ok((Vec::new(), Vec::new(), Vec::new()));
         }
 
-        // parse concrete arguments before lifetime binders
+        // read the arguments, parameters, and lifetime binders in declaration order
         let mut arguments = Vec::new();
-        while !self.peek_is(TokenType::GreaterThan) && !self.peek_is(TokenType::Lifetime) {
-            arguments.push(self.parse_static()?);
-
-            if !self.eat_token_if(TokenType::Comma) {
-                break;
-            }
-        }
-
-        // declare the remaining lifetime binders
+        let mut generics = Vec::new();
         let mut lifetimes = Vec::new();
-        let mut scope = Vec::new();
+        let mut lifetime_scope = Vec::new();
+        let mut generic_scope: Vec<(String, GenericParameter)> = Vec::new();
+        self.generic_scopes.push(Vec::new());
         while !self.peek_is(TokenType::GreaterThan) {
-            let name_token = self.eat_token(TokenType::Lifetime)?;
-            let name = self.tree.source_text(name_token.span).to_string();
-            if scope.iter().any(|(candidate, _)| candidate == &name) {
-                return Err(ParseError::invalid(
-                    "duplicate lifetime parameter",
-                    name_token.start(),
-                ));
+            // a lifetime binder
+            if self.peek_is(TokenType::Lifetime) {
+                let name_token = self.eat_token(TokenType::Lifetime)?;
+                let name = self.tree.source_text(name_token.span).to_string();
+                if lifetime_scope
+                    .iter()
+                    .any(|(candidate, _)| candidate == &name)
+                {
+                    return Err(ParseError::invalid(
+                        "duplicate lifetime parameter",
+                        name_token.start(),
+                    ));
+                }
+                let slot = LifetimeSlot(lifetime_scope.len() as u32);
+                lifetime_scope.push((name.clone(), slot));
+                lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
             }
-
-            let slot = LifetimeSlot(scope.len() as u32);
-            scope.push((name.clone(), slot));
-            lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
+            // a generic parameter declaration
+            else if let Some(parameter) = self.parse_generic_parameter_if(&generic_scope)? {
+                let name = self.strings.get(parameter.name).to_string();
+                generic_scope.push((name, parameter.clone()));
+                generics.push(parameter);
+                let scope = self
+                    .generic_scopes
+                    .last_mut()
+                    .unwrap_or_else(|| unreachable!("declaration scope pushed above"));
+                scope.clone_from(&generic_scope);
+            }
+            // a generic argument
+            else {
+                arguments.push(self.parse_generic_argument()?);
+            }
 
             if !self.eat_token_if(TokenType::Comma) {
                 break;
@@ -326,13 +470,108 @@ impl Parser {
         }
 
         self.eat_token(TokenType::GreaterThan)?;
-        self.lifetime_scopes.push(scope);
+        self.lifetime_scopes.push(lifetime_scope);
 
-        Ok((arguments, lifetimes))
+        Ok((arguments, generics, lifetimes))
+    }
+
+    /// Parse one generic parameter declaration when the next tokens declare one.
+    fn parse_generic_parameter_if(
+        &mut self,
+        declared: &[(String, GenericParameter)],
+    ) -> ParseResult<Option<GenericParameter>> {
+        let Some(token) = self.peek().copied() else {
+            return Ok(None);
+        };
+        let kind = self.token_type(&token);
+        let text = self.tree.source_text(token.span).to_string();
+        let start = token.start();
+
+        // read the domain keyword for a space, access, or value parameter
+        let domain = match (kind, text.as_str()) {
+            (TokenType::Identifier, "space") => Some(ParameterDomain::Space),
+            (TokenType::Identifier, "access") => Some(ParameterDomain::Access),
+            (TokenType::Const, _) => None,
+            (TokenType::Identifier, _) if self.peek_declares_type_parameter(&text) => {
+                Some(ParameterDomain::Type { bounds: Vec::new() })
+            }
+            _ => return Ok(None),
+        };
+        self.bump();
+
+        // read the parameter name
+        let name_token = match domain {
+            Some(ParameterDomain::Type { .. }) => token,
+            _ => self.eat_token(TokenType::Identifier)?,
+        };
+        let name = self.tree.source_text(name_token.span).to_string();
+        if declared.iter().any(|(candidate, _)| candidate == &name) {
+            return Err(ParseError::invalid("duplicate generic parameter", start));
+        }
+
+        // read the bounds or the value type
+        let domain = match domain {
+            Some(ParameterDomain::Type { .. }) => {
+                let mut bounds = Vec::new();
+                if self.eat_token_if(TokenType::Colon) {
+                    loop {
+                        let (bound, _) = self.parse_type_use_part()?;
+                        bounds.push(bound);
+                        if !self.eat_token_if(TokenType::Ampersand) {
+                            break;
+                        }
+                    }
+                }
+
+                ParameterDomain::Type { bounds }
+            }
+            Some(domain) => domain,
+            None => {
+                self.eat_token(TokenType::Colon)?;
+                let (ty, _) = self.parse_type_use_part()?;
+
+                ParameterDomain::Value { ty }
+            }
+        };
+
+        Ok(Some(GenericParameter {
+            name: self.strings.intern(&name),
+            domain,
+        }))
+    }
+
+    /// Return whether one identifier at a declaration position declares a type parameter.
+    fn peek_declares_type_parameter(&self, text: &str) -> bool {
+        // treat a declared name or literal as an argument and a bound name as a parameter
+        let is_declared = Type::from_primitive_name(text).is_some()
+            || self.type_declaration_map.contains_key(text)
+            || Space::from_name(text).is_some()
+            || Access::from_name(text).is_some()
+            || matches!(
+                text,
+                "null" | "undefined" | "NaN" | "Infinity" | "-Infinity"
+            );
+        let is_bound = self
+            .peek_nth_token(1)
+            .is_some_and(|token| self.token_type(token) == TokenType::Colon);
+
+        is_bound || !is_declared
+    }
+
+    /// Return one generic parameter visible in the current scope with its index.
+    pub(super) fn generic_parameter(&self, name: &str) -> Option<(u32, &GenericParameter)> {
+        self.generic_scopes.iter().rev().find_map(|scope| {
+            scope
+                .iter()
+                .enumerate()
+                .find(|(_, (candidate, _))| candidate == name)
+                .map(|(index, (_, parameter))| (index as u32, parameter))
+        })
     }
 
     /// Parse optional lifetime parameters after a declaration name.
     pub(super) fn parse_lifetime_parameters(&mut self) -> ParseResult<Vec<LifetimeParameter>> {
+        self.generic_scopes.push(Vec::new());
         if !self.eat_token_if(TokenType::LessThan) {
             self.lifetime_scopes.push(Vec::new());
             return Ok(Vec::new());
@@ -416,14 +655,16 @@ impl Parser {
         result
     }
 
-    /// Leave the current lifetime parameter scope.
+    /// Leave the current lifetime and generic parameter scope.
     pub(super) fn pop_lifetime_scope(&mut self) {
         self.lifetime_scopes.pop();
+        self.generic_scopes.pop();
     }
 
-    /// Restore the lifetime scope stack to a previous depth.
+    /// Restore the lifetime and generic scope stacks to a previous depth.
     pub(super) fn restore_lifetime_scopes(&mut self, count: usize) {
         self.lifetime_scopes.truncate(count);
+        self.generic_scopes.truncate(count);
     }
 
     /// Resolve one named lifetime in the visible lifetime scopes.

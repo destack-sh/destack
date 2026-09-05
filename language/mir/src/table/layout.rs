@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::{FxIndexMap, SectionEntry, StringId};
 use destack_serde::Reflect;
 
-use crate::{FloatType, LocalNodeId, Nullability, TraceMap, Type};
+use crate::{FloatType, LocalNodeId, TraceMap, Type};
 
 /// Canonical layout table for one MIR module.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, Reflect)]
@@ -246,17 +246,11 @@ impl Scalar {
         }
     }
 
-    /// Create one reference-like scalar admitting the selected nullish values.
-    pub const fn with_nullability(primitive: Primitive, nullability: Nullability) -> Self {
+    /// Create one reference scalar reserving the null and undefined words as niches.
+    pub const fn reference(primitive: Primitive) -> Self {
         let maximum = scalar_mask(primitive.bit_width());
-        let validity = match nullability {
-            Nullability::None => Validity::new(2, maximum),
-            Nullability::Null => Validity::new(2, 0),
-            Nullability::Undefined => Validity::new(1, maximum),
-            Nullability::NullOrUndefined => Validity::new(0, maximum),
-        };
 
-        Self::with_validity(primitive, validity)
+        Self::with_validity(primitive, Validity::new(2, maximum))
     }
 
     /// Return the scalar width in bits.
