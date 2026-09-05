@@ -8,9 +8,9 @@ use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
     Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin, Instantiation,
-    LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId, SegmentView,
-    TypeFold, TypeListId, VarianceModifier, Witness,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey, InstanceOrigin,
+    Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
+    SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -271,6 +271,13 @@ impl<'a> GenericTable<'a> {
             .flat_map(|segment| segment.iter_application_regions())
     }
 
+    /// Return the region terms one application substitutes for its instance's bound regions.
+    pub fn application_regions(&self, ty: GlobalTypeId) -> Option<&[GlobalTypeId]> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.application_regions(ty))
+    }
+
     /// Return the witness one closed type answers one interface application with.
     pub fn witness(&self, ty: GlobalTypeId, interface: GlobalTypeId) -> Option<&Witness> {
         self.segments
@@ -285,11 +292,29 @@ impl<'a> GenericTable<'a> {
             .find_map(|segment| segment.parameter_bounds(parameter))
     }
 
+    /// Return the filled where-clause bounds one template assumes for a parameter.
+    pub fn assumed_bounds(
+        &self,
+        template: LocalGenericTemplateId,
+        parameter: LocalGenericParameterId,
+    ) -> Option<TypeListId> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.assumed_bounds(template, parameter))
+    }
+
     /// Return the instance recorded behind one application type.
     pub fn application_instance(&self, ty: GlobalTypeId) -> Option<LocalInstanceId> {
         self.segments
             .iter()
             .find_map(|segment| segment.application_instance(ty))
+    }
+
+    /// Return the allocated instance recorded behind one selection a checked decision wrote.
+    pub fn selection_instance(&self, selection: &InstanceKey) -> Option<LocalInstanceId> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.selection_instance(selection))
     }
 
     /// Iterate the witnesses recorded across every segment.
@@ -342,12 +367,17 @@ pub struct GenericSegment {
     pub(crate) instantiations: Vec<Instantiation>,
     /// The interned instance behind each closed application type.
     pub(crate) application_instances: IndexMap<GlobalTypeId, LocalInstanceId>,
+    /// The allocated instance behind each selection a checked decision wrote.
+    pub(crate) selection_instances: IndexMap<InstanceKey, LocalInstanceId>,
     /// The region terms each closed application substitutes for its instance's bound regions.
     pub(crate) application_regions: IndexMap<GlobalTypeId, Vec<GlobalTypeId>>,
     /// The witness each closed type answers each interface application with.
     pub(crate) witnesses: IndexMap<(GlobalTypeId, GlobalTypeId), Witness>,
     /// The bounds each parameter assumes with elided arguments filled.
     pub(crate) parameter_bounds: IndexMap<LocalGenericParameterId, TypeListId>,
+    /// The filled where-clause bounds each template assumes for a parameter.
+    pub(crate) assumed_bounds:
+        IndexMap<(LocalGenericTemplateId, LocalGenericParameterId), TypeListId>,
     /// Materialized symbol types keyed by instance and symbol.
     pub(crate) instance_symbols: IndexMap<(LocalInstanceId, GlobalSymbolId), GlobalTypeId>,
 }
@@ -367,9 +397,11 @@ impl GenericSegment {
             first_instance_id: 0,
             instances: Arena::new(),
             application_instances: IndexMap::default(),
+            selection_instances: IndexMap::default(),
             application_regions: IndexMap::default(),
             witnesses: IndexMap::default(),
             parameter_bounds: IndexMap::default(),
+            assumed_bounds: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
@@ -389,9 +421,11 @@ impl GenericSegment {
             first_instance_id: base.instance_count(),
             instances: Arena::new(),
             application_instances: IndexMap::default(),
+            selection_instances: IndexMap::default(),
             application_regions: IndexMap::default(),
             witnesses: IndexMap::default(),
             parameter_bounds: IndexMap::default(),
+            assumed_bounds: IndexMap::default(),
             instance_symbols: IndexMap::default(),
             instantiations: Vec::new(),
         }
@@ -576,8 +610,10 @@ impl GenericSegment {
             && self.witnesses.is_empty()
             && self.instantiations.is_empty()
             && self.application_instances.is_empty()
+            && self.selection_instances.is_empty()
             && self.application_regions.is_empty()
             && self.parameter_bounds.is_empty()
+            && self.assumed_bounds.is_empty()
             && self.instance_symbols.is_empty()
     }
 
@@ -644,9 +680,24 @@ impl GenericSegment {
         self.application_instances.insert(ty, instance);
     }
 
+    /// Record the allocated instance behind one selection a checked decision wrote.
+    pub fn bind_selection_instance(&mut self, selection: InstanceKey, instance: LocalInstanceId) {
+        self.selection_instances.insert(selection, instance);
+    }
+
+    /// Return the allocated instance behind one selection a checked decision wrote.
+    pub fn selection_instance(&self, selection: &InstanceKey) -> Option<LocalInstanceId> {
+        self.selection_instances.get(selection).copied()
+    }
+
     /// Record the region terms one closed application substitutes, in bound order.
     pub fn bind_application_regions(&mut self, ty: GlobalTypeId, regions: Vec<GlobalTypeId>) {
         self.application_regions.insert(ty, regions);
+    }
+
+    /// Return the region terms one application recorded in this segment.
+    pub fn application_regions(&self, ty: GlobalTypeId) -> Option<&[GlobalTypeId]> {
+        self.application_regions.get(&ty).map(Vec::as_slice)
     }
 
     /// Iterate the application region rows recorded by this segment.
@@ -676,6 +727,25 @@ impl GenericSegment {
     /// Return the filled bounds recorded for one parameter.
     pub fn parameter_bounds(&self, parameter: LocalGenericParameterId) -> Option<TypeListId> {
         self.parameter_bounds.get(&parameter).copied()
+    }
+
+    /// Record the filled where-clause bounds one template assumes for a parameter.
+    pub fn set_assumed_bounds(
+        &mut self,
+        template: LocalGenericTemplateId,
+        parameter: LocalGenericParameterId,
+        bounds: TypeListId,
+    ) {
+        self.assumed_bounds.insert((template, parameter), bounds);
+    }
+
+    /// Return the filled where-clause bounds one template assumes for a parameter.
+    pub fn assumed_bounds(
+        &self,
+        template: LocalGenericTemplateId,
+        parameter: LocalGenericParameterId,
+    ) -> Option<TypeListId> {
+        self.assumed_bounds.get(&(template, parameter)).copied()
     }
 
     /// Iterate the witnesses recorded by this segment.
