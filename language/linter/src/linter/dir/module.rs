@@ -151,41 +151,46 @@ impl<'a> DirModule<'a> {
     pub(crate) fn satisfies_copy(&self, ty: dir::GlobalTypeId) -> Result<bool, ProviderError> {
         let ty = self.dir.strip_form(ty)?;
 
-        self.conforms(ty, dir::AutoInterface::Copy)
+        self.copies(ty)
     }
 
-    /// Return whether one checked type satisfies an auto interface through the committed tables.
-    pub(crate) fn conforms(
+    /// Return whether values of one checked type copy.
+    fn copies(&self, ty: dir::GlobalTypeId) -> Result<bool, ProviderError> {
+        self.copies_under(ty, None)
+    }
+
+    /// Return whether values of one type copy under one substitution.
+    fn copies_under(
         &self,
         ty: dir::GlobalTypeId,
-        interface: dir::AutoInterface,
+        substitution: Option<&Substitution<'_>>,
     ) -> Result<bool, ProviderError> {
         match self.dir.get_type(ty)? {
-            // applied nominals read the committed declaration or instance conformances
+            // an applied nominal copies when its declaration does at the arguments
             dir::Type::Application(application) => {
                 let arguments = self.dir.read_types(ty.module_id, |types| {
                     Ok(types.type_ids(application.arguments).to_vec())
                 })?;
-                if arguments.is_empty() {
-                    return self.definition_conforms(application.symbol, interface);
-                }
 
-                self.instance_conforms(application.symbol, &arguments, interface)
+                self.copies_applied(application.symbol, &arguments, substitution)
             }
-            // declaration references read the committed declaration conformances
             dir::Type::Reference(reference) => {
-                self.definition_conforms(reference.symbol, interface)
+                self.copies_applied(reference.symbol, &[], substitution)
             }
-            // parameters read the interface closure their bounds committed
+            // a parameter copies through its argument, else when one bound reaches the Copy item
             dir::Type::Parameter(parameter) => {
-                let conformances = self.dir.read_generics(parameter.module_id, |generics| {
-                    Ok(generics
-                        .get_parameter(parameter.local_id)
-                        .conformances
-                        .clone())
+                if let Some((argument, outer)) =
+                    substitution.and_then(|substitution| substitution.argument(parameter))
+                {
+                    return self.copies_under(argument, outer);
+                }
+                let constraint = self.dir.read_generics(parameter.module_id, |generics| {
+                    Ok(generics.get_parameter(parameter.local_id).constraint)
                 })?;
-
-                Ok(conformances.contains(interface))
+                match constraint {
+                    Some(constraint) => self.bound_copies(constraint, &mut Vec::new()),
+                    None => Ok(false),
+                }
             }
             // scalars and singleton values copy by their machine representation
             dir::Type::Primitive(_)
@@ -194,41 +199,23 @@ impl<'a> DirModule<'a> {
             | dir::Type::Null
             | dir::Type::Undefined
             | dir::Type::Never
-            | dir::Type::Void => Ok(matches!(interface, dir::AutoInterface::Copy)),
-            // unions satisfy component interfaces when every alternative does
+            | dir::Type::Void => Ok(true),
+            // unions copy when every alternative does
             dir::Type::Union(union) => {
                 let elements = self.dir.read_types(ty.module_id, |types| {
                     Ok(types.type_ids(union.elements).to_vec())
                 })?;
                 for element in elements {
-                    if !self.conforms(element, interface)? {
+                    if !self.copies_under(element, substitution)? {
                         return Ok(false);
                     }
                 }
 
                 Ok(true)
             }
-            // object values ride managed handles, deeper interfaces decide property-wise
-            dir::Type::Object(shape) => {
-                if matches!(interface, dir::AutoInterface::Copy) {
-                    return Ok(true);
-                }
-                let stores = self.dir.read_types(ty.module_id, |types| {
-                    Ok(types
-                        .properties(shape.properties)
-                        .iter()
-                        .map(|property| property.access.store())
-                        .collect::<Vec<_>>())
-                })?;
-                for store in stores {
-                    if !self.conforms(store, interface)? {
-                        return Ok(false);
-                    }
-                }
-
-                Ok(true)
-            }
-            // tuples satisfy component interfaces when every element does
+            // object values ride managed handles
+            dir::Type::Object(_) => Ok(true),
+            // tuples copy when every element does
             dir::Type::Tuple(tuple) => {
                 let elements = self.dir.read_types(ty.module_id, |types| {
                     Ok(types
@@ -238,7 +225,7 @@ impl<'a> DirModule<'a> {
                         .collect::<Vec<_>>())
                 })?;
                 for element in elements {
-                    if !self.conforms(element, interface)? {
+                    if !self.copies_under(element, substitution)? {
                         return Ok(false);
                     }
                 }
@@ -250,45 +237,128 @@ impl<'a> DirModule<'a> {
         }
     }
 
-    /// Return whether one declaration's committed conformances include an interface.
-    fn definition_conforms(
-        &self,
-        symbol: dir::GlobalSymbolId,
-        interface: dir::AutoInterface,
-    ) -> Result<bool, ProviderError> {
-        self.dir
-            .read_declaration_tables(symbol.module_id, |_, definitions| {
-                let conformances = definitions
-                    .definition(symbol)
-                    .and_then(|definition| definition.conformances().cloned());
-
-                Ok(conformances.is_some_and(|conformances| conformances.contains(interface)))
-            })
-    }
-
-    /// Return whether one materialized nominal instance satisfies an auto interface.
-    fn instance_conforms(
+    /// Return whether one nominal applied to arguments copies by its policy and stored children.
+    fn copies_applied(
         &self,
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
-        interface: dir::AutoInterface,
+        outer: Option<&Substitution<'_>>,
     ) -> Result<bool, ProviderError> {
-        // find the materialized instance whose key matches the applied arguments
-        for (_, instance) in self.generics.iter_instances() {
-            if instance.key.symbol != symbol {
-                continue;
+        let children = self
+            .dir
+            .read_declaration_tables(symbol.module_id, |_, definitions| {
+                let Some(definition) = definitions.definition(symbol) else {
+                    return Ok(None);
+                };
+                if !definition.copies() {
+                    return Ok(None);
+                }
+                let children = match definition {
+                    dir::Definition::Struct(definition) => definition
+                        .members
+                        .iter()
+                        .filter_map(|member| match member {
+                            dir::DefinitionMember::Field(field)
+                                if field.space == dir::MemberSpace::Instance =>
+                            {
+                                Some(field.ty)
+                            }
+                            _ => None,
+                        })
+                        .collect::<Vec<_>>(),
+                    dir::Definition::Newtype(definition) => vec![definition.backing],
+                    _ => Vec::new(),
+                };
+
+                Ok(Some((children, definition.template())))
+            })?;
+        let Some((children, template)) = children else {
+            return Ok(false);
+        };
+        if children.is_empty() {
+            return Ok(true);
+        }
+
+        // decide each child under the declared parameters substituted by the arguments
+        let parameters = match template {
+            None => Vec::new(),
+            Some(template) => self.dir.read_generics(symbol.module_id, |generics| {
+                Ok(generics.get_template(template).parameters.clone())
+            })?,
+        };
+        let substitution = Substitution {
+            parameters: parameters
+                .into_iter()
+                .zip(arguments.iter().copied())
+                .map(|(parameter, argument)| {
+                    (
+                        dir::GlobalGenericParameterId {
+                            module_id: symbol.module_id,
+                            local_id: parameter,
+                        },
+                        argument,
+                    )
+                })
+                .collect(),
+            outer,
+        };
+        for child in children {
+            if !self.copies_under(child, Some(&substitution))? {
+                return Ok(false);
             }
-            let bound: Vec<_> =
-                dir::GenericArgumentBinding::values(&instance.key.arguments).collect();
-            if bound.len() != arguments.len() {
-                continue;
+        }
+
+        Ok(true)
+    }
+
+    /// Return whether one bound reaches the Copy item through interface heritage.
+    fn bound_copies(
+        &self,
+        bound: dir::GlobalTypeId,
+        visited: &mut Vec<dir::GlobalTypeId>,
+    ) -> Result<bool, ProviderError> {
+        if visited.contains(&bound) {
+            return Ok(false);
+        }
+        visited.push(bound);
+
+        let symbol = match self.dir.get_type(bound)? {
+            dir::Type::Intersection(intersection) => {
+                let elements = self.dir.read_types(bound.module_id, |types| {
+                    Ok(types.type_ids(intersection.elements).to_vec())
+                })?;
+                for element in elements {
+                    if self.bound_copies(element, visited)? {
+                        return Ok(true);
+                    }
+                }
+
+                return Ok(false);
             }
-            let mut is_match = true;
-            for (argument, bound) in arguments.iter().zip(&bound) {
-                is_match &= self.dir.types_match(*argument, *bound)?;
-            }
-            if is_match {
-                return Ok(instance.conformances.contains(interface));
+            dir::Type::Application(application) => application.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(false),
+        };
+        if self.dir.environment.language.item(symbol) == Some(dir::LanguageItem::Copy) {
+            return Ok(true);
+        }
+
+        // walk the interfaces the bound extends
+        let extends = self
+            .dir
+            .read_declaration_tables(symbol.module_id, |_, definitions| {
+                Ok(match definitions.definition(symbol) {
+                    Some(dir::Definition::Interface(interface)) => interface
+                        .extends
+                        .iter()
+                        .map(|heritage| heritage.ty)
+                        .collect::<Vec<_>>(),
+                    _ => Vec::new(),
+                })
+            })?;
+        for parent in extends {
+            if self.bound_copies(parent, visited)? {
+                return Ok(true);
             }
         }
 
@@ -504,5 +574,26 @@ impl DirModuleStorage {
             module_node,
             namespace_scope,
         })
+    }
+}
+
+/// The substitution one application makes, over the one its arguments were written under.
+struct Substitution<'a> {
+    /// The declared parameters with their arguments.
+    parameters: Vec<(dir::GlobalGenericParameterId, dir::GlobalTypeId)>,
+    /// The substitution the arguments were written under.
+    outer: Option<&'a Substitution<'a>>,
+}
+
+impl<'a> Substitution<'a> {
+    /// Return the argument of one parameter with the substitution it was written under.
+    fn argument(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> Option<(dir::GlobalTypeId, Option<&'a Substitution<'a>>)> {
+        self.parameters
+            .iter()
+            .find(|(candidate, _)| *candidate == parameter)
+            .map(|(_, argument)| (*argument, self.outer))
     }
 }

@@ -229,10 +229,10 @@ pub type DirModuleCheck = for<'a> fn(&DirModule<'a>, &Lint) -> LintResult;
 pub type DirProgramCheck = for<'a> fn(&DirProgram<'a>, &Lint) -> LintResult;
 
 /// One verified MIR module lint function.
-pub type MirModuleCheck = fn(&mut MirModule, &Lint) -> LintResult;
+pub type MirModuleCheck = for<'a> fn(&mut MirModule<'a>, &Lint) -> LintResult;
 
 /// One verified MIR program lint function.
-pub type MirProgramCheck = fn(&mut MirProgram, &Lint) -> LintResult;
+pub type MirProgramCheck = for<'a> fn(&mut MirProgram<'a>, &Lint) -> LintResult;
 
 /// The tier and scope of a lint.
 #[derive(Clone, Copy)]

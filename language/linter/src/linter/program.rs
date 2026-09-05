@@ -153,8 +153,8 @@ impl Linter {
             }
         }
 
-        // require checked DIR for DIR program lints
-        if lints.has_dir_programs() {
+        // require checked DIR for DIR program lints and the MIR lints reading through it
+        if lints.has_programs() {
             let Some(environment) =
                 self.collect_environment_bound(context, profile, &mut dependencies)?
             else {

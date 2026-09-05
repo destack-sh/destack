@@ -38,7 +38,7 @@ function retain(value: rc.Rc<int32>): rc.Rc<int32> {
 }
 
 /// Report canonical clone calls whose source can be moved instead.
-fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
+fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
     let resolution = module.analyses.resolution(tree, &module.lowered.dispatch);
     let mut output = LintOutput::default();
@@ -67,11 +67,7 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
             for &instruction_id in &block.instructions {
                 // select the receiver of each canonical clone call
                 let receiver = module
-                    .language_call(
-                        instruction_id,
-                        dir::LanguageItem::Clone.member("clone"),
-                        &resolution,
-                    )
+                    .language_call(instruction_id, dir::LanguageItem::Clone.member("clone"))?
                     .and_then(|call| tree.get_values(call.arguments).first().copied());
 
                 // report move-only sources that are movable and dead afterward

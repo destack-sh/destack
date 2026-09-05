@@ -215,9 +215,9 @@ impl TestSession {
             tree,
             target,
             layouts,
-            language: mir::LanguageTable::default(),
             dispatch,
             drops,
+            witnesses: mir::WitnessTable::default(),
             accesses,
             effects,
             profile,
@@ -227,6 +227,7 @@ impl TestSession {
             ModuleId::new(PackageId::new(0), 0),
             Arc::new(lowered),
             Arc::new(strings),
+            None,
         );
         let LintCheck::MirModule(check) = lint.check else {
             panic!("lint '{}' is not a MIR module lint", lint.id);

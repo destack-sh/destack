@@ -43,7 +43,7 @@ newtype Message = int32 | Box<Packet>;
 }
 
 /// Report variant types whose largest case exceeds every other case by more than 200 bytes.
-fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
+fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let layouts = &module.lowered.layouts;
     let tree = &module.lowered.tree;
     let mut output = LintOutput::default();

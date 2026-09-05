@@ -1,15 +1,17 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, MirLowered, MirVerified};
+use destack_artifact::{DiagnosticAnchor, EnvironmentBound, MirLowered, MirVerified};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_mir as mir;
-use destack_repository::{ArtifactReader, ProfileId, ProviderError};
+use destack_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
 use destack_source::{ModuleId, Span, TargetId};
+
+use crate::Dir;
 
 /// Verified MIR and analyses for one module.
 #[derive(Debug)]
-pub struct MirModule {
+pub struct MirModule<'a> {
     /// The module id.
     pub id: ModuleId,
     /// The MIR artifact.
@@ -18,11 +20,18 @@ pub struct MirModule {
     pub analyses: mir::AnalysisCache,
     /// The repository string pool.
     pub strings: Arc<StringPool>,
+    /// The checked DIR the MIR lowered from, absent for parsed MIR.
+    dir: Option<Dir<'a>>,
 }
 
-impl MirModule {
+impl<'a> MirModule<'a> {
     /// Create one verified MIR module.
-    pub(crate) fn new(id: ModuleId, lowered: Arc<MirLowered>, strings: Arc<StringPool>) -> Self {
+    pub(crate) fn new(
+        id: ModuleId,
+        lowered: Arc<MirLowered>,
+        strings: Arc<StringPool>,
+        dir: Option<Dir<'a>>,
+    ) -> Self {
         let options = mir::AnalysisOptions::new(lowered.target);
         let analyses = mir::AnalysisCache::with_options(options);
 
@@ -31,21 +40,63 @@ impl MirModule {
             lowered,
             analyses,
             strings,
+            dir,
         }
     }
 
-    /// Load one module's verified MIR.
+    /// Load one module's verified MIR beside its checked DIR.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn load(
-        artifacts: &ArtifactReader<'_>,
+        repository: &'a Repository,
+        revision: Revision,
+        artifacts: &ArtifactReader<'a>,
         profile: ProfileId,
         target: TargetId,
         module: ModuleId,
         strings: Arc<StringPool>,
+        environment: Arc<EnvironmentBound>,
     ) -> Result<Self, ProviderError> {
         artifacts.read::<MirVerified>((module, profile, target))?;
         let lowered = artifacts.read::<MirLowered>((module, profile, target))?;
+        let dir = Dir::load(
+            repository,
+            revision,
+            artifacts,
+            profile,
+            environment,
+            &[module],
+            &[],
+            &[],
+        )?;
 
-        Ok(Self::new(module, lowered, strings))
+        Ok(Self::new(module, lowered, strings, Some(dir)))
+    }
+
+    /// Return one call operation whose checked expression selects a canonical language member.
+    pub fn language_call(
+        &self,
+        instruction: mir::LocalNodeId<mir::Instruction>,
+        member: dir::LanguageMember,
+    ) -> Result<Option<&mir::Call>, ProviderError> {
+        let mir::Instruction::Call { call, .. } = self.lowered.tree.get(instruction) else {
+            return Ok(None);
+        };
+        let Some(dir) = &self.dir else {
+            return Ok(None);
+        };
+        let Some(source) = self.lowered.tree.get_source(instruction.id) else {
+            return Ok(None);
+        };
+
+        // read the member the lowered expression selects
+        let module = dir.module(self.id)?;
+        let node = dir::LocalNodeIdAny::new(source, module.view().get_node_type(source));
+        let Ok(expression) = node.try_into_typed::<dir::Expression>() else {
+            return Ok(None);
+        };
+        let selected = module.implemented_language_member(expression)?;
+
+        Ok((selected == Some(member)).then_some(call))
     }
 
     /// Return the required source span for one MIR node.
@@ -66,46 +117,5 @@ impl MirModule {
         let span = self.span(node)?;
 
         Ok(DiagnosticAnchor::Span(span))
-    }
-
-    /// Return one call operation when it invokes a canonical language member.
-    pub fn language_call<'a>(
-        &'a self,
-        instruction: mir::LocalNodeId<mir::Instruction>,
-        member: dir::LanguageMember,
-        resolution: &mir::ResolutionTable,
-    ) -> Option<&'a mir::Call> {
-        let operation = self.lowered.tree.get(instruction);
-        let mir::Instruction::Call { call, .. } = operation else {
-            return None;
-        };
-
-        // resolve direct and statically dispatched calls
-        let callsite = mir::Point::Instruction(instruction);
-        let target = operation
-            .call_direct_target()
-            .or_else(|| resolution.target(callsite))?;
-
-        self.implements_language_member(target, member)
-            .then_some(call)
-    }
-
-    /// Return whether one MIR declaration implements a canonical language member.
-    fn implements_language_member<T>(
-        &self,
-        node: mir::LocalNodeId<T>,
-        member: dir::LanguageMember,
-    ) -> bool
-    where
-        T: mir::Node,
-    {
-        let owner = destack_core::StringId::for_text(&member.owner.key());
-        let key = match member.key {
-            dir::StaticKey::Name(name) => mir::StaticKey::Name(name),
-            dir::StaticKey::Index(index) => mir::StaticKey::Index(index as u64),
-        };
-        let member = mir::LanguageMember { owner, key };
-
-        self.lowered.language.implements_member(node, member)
     }
 }

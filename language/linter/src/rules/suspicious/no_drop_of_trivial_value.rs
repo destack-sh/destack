@@ -40,7 +40,7 @@ function unsubscribe(value: Subscription): void {
 }
 
 /// Report explicit drops of values that require no destruction.
-fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
+fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
     let mut output = LintOutput::default();
 

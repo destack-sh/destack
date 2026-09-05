@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, DiagnosticControlIndex, DirChecked,
-    EnvironmentBound, ModuleLinted,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
+    DiagnosticControlIndex, DirChecked, EnvironmentBound, ModuleLinted,
 };
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
@@ -36,13 +36,37 @@ impl Linter {
         dependencies.require(ArtifactKey::dir_declared(module, profile));
         dependencies.require(ArtifactKey::dir_checked(module, profile));
 
-        // require this module's checked DIR
-        if lints.has_dir_modules() {
+        // require the checked DIR of this module and of every module its resolutions name
+        if lints.has_modules() {
             dependencies.require(ArtifactKey::environment_bound(profile));
             for kind in lints.dir_indexes(LintScope::Module) {
                 dependencies.require(ArtifactKey::module_index(module, profile, kind));
             }
-            self.require_dir_modules(revision, &[module], profile, &mut dependencies)?;
+
+            // read this module's edges out of the module graph
+            let graph_key = ArtifactKey::module_graph(profile);
+            dependencies
+                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
+            let artifacts = self.artifact_reader(context);
+            let graph = match artifacts.module_graph_reader(profile) {
+                Ok(graph) => graph,
+                Err(ProviderError::Blocked { .. }) => {
+                    dependencies.mark_partial();
+
+                    return Ok(dependencies);
+                }
+                Err(error) => return Err(error),
+            };
+
+            // require the edges and the checked DIR of every reached module
+            let reachable = graph.reachable(&[module])?;
+            for reached in reachable.iter().copied() {
+                dependencies.require_projection(
+                    graph_key,
+                    ArtifactProjectionKey::ModuleGraphEdges(reached),
+                );
+            }
+            self.require_dir_modules(revision, &reachable, profile, &mut dependencies)?;
         }
 
         // require this module's verified MIR
@@ -151,9 +175,18 @@ impl Linter {
         }
 
         // load this module's verified MIR and analyses
+        let revision = context.revision();
         let artifacts = self.artifact_reader(context);
         let strings = self.repository.string_pool().clone();
-        let mut mir = Mir::load(&artifacts, profile, target, &[module], strings)?;
+        let mut mir = Mir::load(
+            self.repository.as_ref(),
+            revision,
+            &artifacts,
+            profile,
+            target,
+            &[module],
+            strings,
+        )?;
         let strings = mir.strings.clone();
         let module = mir.module_mut(module)?;
 

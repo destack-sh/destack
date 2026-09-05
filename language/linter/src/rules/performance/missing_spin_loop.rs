@@ -42,7 +42,7 @@ function wait(ready: &readonly Atomic<boolean>): void {
 }
 
 /// Report atomic polling loops without a processor hint.
-fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
+fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
     let mut output = LintOutput::default();
 

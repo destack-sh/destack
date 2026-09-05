@@ -45,7 +45,7 @@ function packetCode(packet: &readonly Packet): int32 {
 }
 
 /// Report move-only parameters whose bodies never consume their ownership.
-fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
+fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
     let tree = &module.lowered.tree;
     let mut output = LintOutput::default();
 
@@ -63,7 +63,9 @@ fn check(module: &mut MirModule, lint: &Lint) -> LintResult {
         // report retained move-only parameters
         for (index, parameter) in function.parameters.iter().enumerate() {
             // skip copyable and consumed values
-            if tree.get(parameter.ty).copy(tree).is_yes() || consumed.contains(index) {
+            if mir::Copy::decide(tree, parameter.ty, &function.generics).is_yes()
+                || consumed.contains(index)
+            {
                 continue;
             }
 
@@ -169,8 +171,7 @@ fn find_consumed_projection_source(
     // require ownership for a move-only projection
     let destination_type = function.expect_value_type(destination);
 
-    tree.get(destination_type)
-        .copy(tree)
+    mir::Copy::decide(tree, destination_type, &function.generics)
         .is_no()
         .then_some(source)
 }
