@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use destack_core::FxIndexMap as IndexMap;
 
 use crate::{
-    Arena, AutoInterfaceSet, Cardinality, GenericParameterBinding, GenericParameterKey,
-    GenericTemplate, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin,
-    Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
-    SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
+    Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceOrigin, Instantiation,
+    LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId, SegmentView,
+    TypeFold, TypeListId, VarianceModifier, Witness,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -465,26 +465,6 @@ impl GenericSegment {
         self.templates.allocate(template);
 
         template_id
-    }
-
-    /// Replace the assumed conformances of one parameter in this segment.
-    pub fn set_parameter_conformances(
-        &mut self,
-        parameter_id: LocalGenericParameterId,
-        conformances: AutoInterfaceSet,
-    ) {
-        let slot = parameter_id.0 - self.first_parameter_id;
-        self.parameters.get_mut(slot).conformances = conformances;
-    }
-
-    /// Replace the sealed conformances of one instance in this segment.
-    pub fn set_instance_conformances(
-        &mut self,
-        instance_id: LocalInstanceId,
-        conformances: AutoInterfaceSet,
-    ) {
-        let slot = instance_id.0 - self.first_instance_id;
-        self.instances.get_mut(slot).conformances = conformances;
     }
 
     /// Append a generic parameter to this segment.

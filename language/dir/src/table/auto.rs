@@ -1,6 +1,5 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
-use smallvec::SmallVec;
 
 use crate::LanguageItem;
 
@@ -317,50 +316,5 @@ impl From<AutoInterface> for LanguageItem {
             AutoInterface::Unpin => Self::Unpin,
             AutoInterface::Zeroable => Self::Zeroable,
         }
-    }
-}
-
-/// The auto interfaces one closed declaration or instance satisfies.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct AutoInterfaceSet {
-    /// The satisfied interfaces in declaration order.
-    interfaces: SmallVec<[AutoInterface; 8]>,
-}
-
-impl crate::TypeFold for AutoInterfaceSet {
-    fn map_types<E>(
-        &mut self,
-        _map: &mut impl FnMut(crate::GlobalTypeId) -> Result<crate::GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        Ok(())
-    }
-}
-
-impl AutoInterfaceSet {
-    /// Create an empty set.
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Record one satisfied interface.
-    pub fn insert(&mut self, interface: AutoInterface) {
-        if !self.interfaces.contains(&interface) {
-            self.interfaces.push(interface);
-        }
-    }
-
-    /// Return whether one interface is satisfied.
-    pub fn contains(&self, interface: AutoInterface) -> bool {
-        self.interfaces.contains(&interface)
-    }
-
-    /// Return whether no interface is satisfied.
-    pub fn is_empty(&self) -> bool {
-        self.interfaces.is_empty()
-    }
-
-    /// Iterate the satisfied interfaces in declaration order.
-    pub fn iter(&self) -> impl Iterator<Item = AutoInterface> + '_ {
-        self.interfaces.iter().copied()
     }
 }

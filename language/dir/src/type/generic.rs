@@ -3,9 +3,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    AutoInterfaceSet, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
-    InstanceKeyVisit, LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, StringId, TypeFold,
-    VarianceModifier, WhereRelation,
+    GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit,
+    LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, StringId, TypeFold, VarianceModifier,
+    WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -318,8 +318,6 @@ pub struct GenericParameterBinding {
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
-    /// The auto interfaces the declared bounds assume for this parameter.
-    pub conformances: AutoInterfaceSet,
     /// The form a dependent parameter names.
     pub dependent: Option<GlobalTypeId>,
 }
@@ -386,8 +384,6 @@ pub struct Instance {
     pub source: GlobalNodeIdAny,
     /// The source that introduced this instance.
     pub origin: InstanceOrigin,
-    /// The auto interfaces this closed nominal satisfies, empty on callables.
-    pub conformances: AutoInterfaceSet,
 }
 
 impl TypeFold for Instance {
@@ -395,8 +391,7 @@ impl TypeFold for Instance {
         &mut self,
         map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
     ) -> Result<(), E> {
-        self.key.map_types(map)?;
-        self.conformances.map_types(map)
+        self.key.map_types(map)
     }
 }
 

@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::{
-    AutoInterface, AutoInterfaceSet, EnumBackingType, EnumVariantValue, FunctionRole,
-    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind,
-    MemberSlot, MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey,
-    TypeFold, Visibility,
+    AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
+    GlobalSymbolId, GlobalTypeId, IntegerType, LocalGenericTemplateId, MemberKind, MemberSlot,
+    MemberSpace, MethodAbstraction, PrimitiveType, SegmentView, Space, StaticKey, TypeFold,
+    Visibility,
 };
 
 /// Cumulative declaration definitions for one DIR module.
@@ -497,8 +497,8 @@ pub struct StructDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
-    pub conformances: AutoInterfaceSet,
+    /// Whether values copy when every parameter does.
+    pub copies: bool,
 }
 
 /// Checked declaration data for one nominal class.
@@ -524,8 +524,8 @@ pub struct ClassDefinition {
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
-    pub conformances: AutoInterfaceSet,
+    /// Whether values copy when every parameter does.
+    pub copies: bool,
 }
 
 impl ClassDefinition {
@@ -637,8 +637,8 @@ pub struct EnumDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
-    pub conformances: AutoInterfaceSet,
+    /// Whether values copy when every parameter does.
+    pub copies: bool,
 }
 
 /// Checked declaration data for one nominal type alias.
@@ -660,8 +660,8 @@ pub struct NewtypeDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// The auto interfaces this nominal satisfies, sealed on template-free declarations.
-    pub conformances: AutoInterfaceSet,
+    /// Whether values copy when every parameter does.
+    pub copies: bool,
 }
 
 /// One constructable newtype backing alternative.
@@ -1262,24 +1262,24 @@ impl Definition {
         }
     }
 
-    /// Return the sealed auto interface conformances, empty outside nominals.
-    pub fn conformances(&self) -> Option<&AutoInterfaceSet> {
+    /// Return whether values copy when every parameter does, false outside nominals.
+    pub fn copies(&self) -> bool {
         match self {
-            Self::Struct(definition) => Some(&definition.conformances),
-            Self::Class(definition) => Some(&definition.conformances),
-            Self::Enum(definition) => Some(&definition.conformances),
-            Self::Newtype(definition) => Some(&definition.conformances),
-            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => None,
+            Self::Struct(definition) => definition.copies,
+            Self::Class(definition) => definition.copies,
+            Self::Enum(definition) => definition.copies,
+            Self::Newtype(definition) => definition.copies,
+            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => false,
         }
     }
 
-    /// Replace the sealed auto interface conformances of one nominal.
-    pub fn set_conformances(&mut self, conformances: AutoInterfaceSet) {
+    /// Replace the copy policy of one nominal.
+    pub fn set_copies(&mut self, copies: bool) {
         match self {
-            Self::Struct(definition) => definition.conformances = conformances,
-            Self::Class(definition) => definition.conformances = conformances,
-            Self::Enum(definition) => definition.conformances = conformances,
-            Self::Newtype(definition) => definition.conformances = conformances,
+            Self::Struct(definition) => definition.copies = copies,
+            Self::Class(definition) => definition.copies = copies,
+            Self::Enum(definition) => definition.copies = copies,
+            Self::Newtype(definition) => definition.copies = copies,
             Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => {}
         }
     }
