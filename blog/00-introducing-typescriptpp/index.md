@@ -13,18 +13,19 @@ author: "Florian"
 <!--- very hard to run software locally-->
 - and _now_ we're asking even _more_ from our software than ever before
 - not really hackable
-- unfortunately, just regurgutitating the software we already have isn't going to be _great_
-- so, how do we build correct, optimal, integrated software?
-<!--- with exciting new capabilities that are even harder to get right-->
+- not really visible / homoiconic
 
+- unfortunately, merely regurgutitating the software we already have isn't going to be _great_
 - produce much more software than any one could ever meaningfully review
-- what does higher order programming look like? what does it even mean?
-- what should higher order progrmaming _feel_ like?
-- if code is so cheap, why can't we make it really good?
-- if software is so cheap, why can't we make _that_ really good?
+- so, how does one build correct, optimal, integrated software?
+<!--- with exciting new capabilities that are even harder to get right-->
+<!--- what does higher order programming look like? what does it even mean?
+- what should higher order progrmaming _feel_ like?-->
+<!--- if code is so cheap, why can't we make it really good?-->
+- if software is so cheap, why can't we make it really good?
 
-- will soon have the capbility to (economically) rewrite software from and to any language
-- so what is the final destination?
+- if we can quickly and cheaply rewrite software from and to any language, where do we end up
+- switching costs near zero, incremental adoption eventually becomes less important
 - where do we want to end up?
 - what characteristics would the last language have?
 - would it look like an existing one, or something totally different?
@@ -51,7 +52,7 @@ author: "Florian"
 
 # Higher Order Programming
 
-- the history of programming is one of monotonically increasing levels of abstraction, from handcrafting gears to wiring up vacuum tubes to punching cards to coding assembly to writing C to programming Java to scripting Python
+- the history of programming is one of monotonically increasing levels of abstraction: from handcrafting gears, to wiring up vacuum tubes, to punching cards, to coding assembly, to writing C, to programming Java, to scripting Python, to asking an LLM to script Python.
 - climbing the ladder of abstraction yields more output for every bit of effort
 - so we gradually remove ourselves from the cumbersome burden of having to actually spell out _exactly_ what we want the machine to be doing: which electrons? which bits? which registers? what memory? what computer? _where_ computer? when computer?
 
@@ -73,12 +74,15 @@ author: "Florian"
 - so: 
 - lot of the time is just iterating in some more interactive editor
 - sometimes you "play" the game, sometimes you edit the game, sometimes you build new tools to help you edit the game
+- continuous granularity
+- reusable parts, "asset stores" (ShadCN), ..
 - it's all part of the game
 
-# Code is Solved, Long Live Code
+# Long Live Code
 
 - "coding is solved" ("bugs not solved yet")
 - well, define "coding", define "solved"?
+- if we increasingly work through other tools, why invest in a language?
 - it's a fair question though: why should we even think about code at all if it can all be written by AI anyway
 - in some sense, this is like asking we care about numbers when calculators exist
 - what even is the point of code? why did we ever write code in the first place?
@@ -116,7 +120,14 @@ author: "Florian"
 <!--- abstracting coding away is in itself a "lossy abstraction"-->
 - every attempt to put something _purely_ "above" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, "APIs will replace everything", etc.)
 
-# Human-First Development
+# System Scaffolding
+
+ <!--I would sharpen the claim about proofs. The persuasive point is a proof cannot establish that you chose the right specification or assumptions. Formal
+  guarantees still help enormously with particular properties. That distinction supports your argument better than sounding broadly dismissive of
+  mathematical correctness.
+
+  - discovering what we actually want;
+  - establishing that the system does what we specified.-->
 
 - a new kind of user is coming online, and there is a lot of excitement about "agent first design"
 - a myriad of developer-adjacent tools are being rebuilt to become "agent native".
@@ -137,7 +148,8 @@ author: "Florian"
 - "software in motion"
 - code is going to run _everything_, even more so than it already does (literally)
 
-- fundamentally, there is not a single test, suite of tests, mathematical proof, or any other final gate that you can run to convince me that some non-trivial program is correct
+- fundamentally, there is not a single test, suite of tests, mathematical proof, or any other final gate that you can run to convince me that some non-trivial general program is correct
+- (mathematical proofs are ofc very useful for rigid and fully formalizable systems)
 - doesn't matter whether it's human written or not, software is just very complex
 - and the only way to assess "correct" for any interesting software is to see it in motion under many different angles, over time
 <!--- correctness = alignment + visibility-->
@@ -160,18 +172,20 @@ author: "Florian"
 <!--- incremental granularity (a la casey muratori)-->
 - you can't engineer precision and alignment (i.e. understanding) into a system post-hoc (or at least, only with great difficulty that far exceeds the cost of doing it properly from the start)
 
-# The Universal Stack
+# Boring Software
 
 - there is something beautiful about doing the most with the fewest possible parts
 - in programming, a minimal, simple language like C or even Go is elegant, the least parts to get the most done, with deliberate "no" to the last 20%.
-<!--- (though very few people would have called either "minimal" at the time they were introduced)-->
+- even "multi-paradigm" languages like Java or C# that have organically accumulated more systems-y features over time do not (attempt to) cover the complete spectrum
+- (though very few people would have called either "minimal" at the time they were introduced)
 <!--- it's genuinely pleasing to get so much out of relatively little syntax that covers so many use cases-->
-- various languages with different tradeoffs and their own "focus", even multi-paradigm ones
-- the carcinisation of (managed) languages
-- however, over time, most serious languages with actual production use evolve an set of common features for building serious software
-- Go and generics, Java / C# and unsafe / structs / ref, ...
-- JVM/CLR by default, Rust on demand
+<!--- various languages with different tradeoffs and their own "focus", even multi-paradigm ones-->
+<!--- the carcinisation of (managed) languages-->
+<!--- however, over time, most serious languages with actual production use evolve an set of common features for building serious software-->
+<!--- Go and generics, Java / C# and unsafe / structs / ref, ...
+- JVM/CLR by default, Rust on demand-->
 
+- boring software must mean complete software, an integrated stack, since that has fewer parts.
 - tremendous advantage to using a single language for *everything*, as shown by the popularity of e.g. TypeScript monorepos (suboptimal though they are in various respects)
 - if software is going to become even more ubiquotous, how do we fill thos elast 20%
 <!--- hardware is getting *more* expensive-->
@@ -213,10 +227,6 @@ author: "Florian"
 - more importantly, want a complete language that can represent all the things we need, and then constrain by package / library (but it all has to go togetheraaa)
 - so let's just get on with it
 
----
-
-# TypeScript++
-
 - what is the minimum edit distance from TypeScript to a universal language that keeps TypeScript's ergonomics and familiarity, is strict and sound and analysable, and also runs reliably at machine speed? 
 - basically, what is "TypeScript++"? TS that runs predictably like JVM/CLR/Go with som Rust-y bits
 <!--- what is the minimum set of changes / additions we need to good prior art to get what we need-->
@@ -230,6 +240,8 @@ author: "Florian"
 - only use boring ideas already proven by other languages / libraries / ..
 - safe, sound, predictable, and above all: *familiar*
 
+# TypeScript++
+
 - TypeScript is already tantalizingly close to being a serious, native, _universal_ programming language
 <!--- (AssemblyScript and friends fail in the 'feel like TS' department, and Static Hermes does not by design attempt to go "beyond" TS either, which means we need to start from scratch)-->
 - the dichotomy between "scripting languages" and "systems languages" no longer makes much sense if it's not humans doing the typing (assuming "compile times" are fast)
@@ -238,3 +250,5 @@ author: "Florian"
 <!--- but of course, it would have to really *feel* like TypeScript, not just "look" like TypeScript! as much as possible, TypeScript semantics - far beyond the surface syntax - should be preserved for this to really be a day one language.-->
 - TS++ fashions itself as a "superset of a strict subset of TS", which is vaguely reminiscient of the relationship between C and C++
 - mechnically, what is the ergonomic ladder of TS++ between TS -> Rust, what are the minimal things to remove for unsoundness, and the minimum features to add to cover the whole universal language spectrum
+
+- there are a lot of interesting details details in making "TS++"
