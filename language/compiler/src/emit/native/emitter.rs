@@ -706,6 +706,7 @@ impl<'a> NativeEmitter<'a> {
             mir::Linkage::Local => Linkage::Local,
             mir::Linkage::Export => Linkage::Export,
             mir::Linkage::Import => Linkage::Import,
+            mir::Linkage::Shared => Linkage::Preemptible,
         }
     }
 

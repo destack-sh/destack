@@ -16,8 +16,8 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         match constant {
+            mir::Constant::Parameter(_) => unreachable!("a value parameter survives instantiation"),
             mir::Constant::Null => Ok(builder.ins().iconst(self.types.pointer(), 0)),
-            mir::Constant::Undefined => Ok(builder.ins().iconst(self.types.pointer(), 1)),
             mir::Constant::Boolean { value } => {
                 Ok(builder.ins().iconst(cir::types::I8, i64::from(*value)))
             }
@@ -44,6 +44,9 @@ impl<'a> FunctionEmitter<'a> {
             }
             mir::Constant::Uninit | mir::Constant::Zeroed => {
                 Err(self.invalid("aggregate constant requires canonical storage"))
+            }
+            mir::Constant::Layout { .. } => {
+                Err(self.invalid("layout constant reached native emit before instantiation"))
             }
         }
     }

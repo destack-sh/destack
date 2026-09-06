@@ -122,11 +122,13 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::FunctionAddr {
                 destination,
                 function,
+                ..
             } => self.emit_function_address(*destination, *function, builder)?,
             mir::Instruction::FunctionBind {
                 destination,
                 function,
                 environment,
+                ..
             } => self.emit_function_bind(*destination, *function, *environment, builder)?,
             mir::Instruction::FunctionEnvironment {
                 destination,

@@ -171,6 +171,9 @@ impl<'a> FunctionEmitter<'a> {
 
         // offset the global from the base of the static space it lives in
         let reference = match definition.space {
+            mir::Space::Parameter(_) => {
+                return Err(self.invalid("native globals close every space"));
+            }
             mir::Space::Constant => {
                 let base = self.static_offset(
                     std::mem::offset_of!(native::abi::Activation, constants),

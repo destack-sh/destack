@@ -91,8 +91,8 @@ impl<'a> FunctionEmitter<'a> {
         Ok(match space {
             mir::Space::Local => native::abi::Space::Local,
             mir::Space::Shared => native::abi::Space::Shared,
-            mir::Space::Constant => {
-                return Err(self.invalid("native allocation never targets constant space"));
+            mir::Space::Constant | mir::Space::Parameter(_) => {
+                return Err(self.invalid("native allocation targets a runtime space"));
             }
         })
     }

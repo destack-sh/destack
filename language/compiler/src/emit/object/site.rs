@@ -432,7 +432,9 @@ impl SiteEmitter {
 
                 (Some(space), Some(constraint))
             }
-            mir::Callee::Direct { .. } | mir::Callee::Indirect { .. } => (None, None),
+            mir::Callee::Direct { .. }
+            | mir::Callee::Indirect { .. }
+            | mir::Callee::Witness { .. } => (None, None),
         };
 
         Ok(CallSite {

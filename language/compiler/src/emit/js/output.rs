@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
-    DirParsed, Output, Script,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed,
+    Output, Script,
 };
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
@@ -26,8 +26,6 @@ pub(crate) struct ScriptGenerator<'a> {
     expanded: Arc<DirExpanded>,
     /// The current declared DIR artifact.
     declared: Arc<DirDeclared>,
-    /// The current elaborated DIR artifact.
-    elaborated: Arc<DirElaborated>,
     /// The current checked DIR artifact.
     checked: Arc<DirChecked>,
     /// The current materialized DIR artifact.
@@ -47,7 +45,6 @@ impl<'a> ScriptGenerator<'a> {
         imported: Arc<DirImported>,
         expanded: Arc<DirExpanded>,
         declared: Arc<DirDeclared>,
-        elaborated: Arc<DirElaborated>,
         checked: Arc<DirChecked>,
         materialized: Arc<DirMaterialized>,
         strings: Arc<StringPool>,
@@ -60,7 +57,6 @@ impl<'a> ScriptGenerator<'a> {
             imported,
             expanded,
             declared,
-            elaborated,
             checked,
             materialized,
             strings,
@@ -82,7 +78,6 @@ impl<'a> ScriptGenerator<'a> {
         let imported = self.imported.as_ref();
         let expanded = self.expanded.as_ref();
         let declared = self.declared.as_ref();
-        let elaborated = self.elaborated.as_ref();
         let checked = self.checked.as_ref();
         let materialized = self.materialized.as_ref();
 
@@ -103,7 +98,6 @@ impl<'a> ScriptGenerator<'a> {
             imported,
             expanded,
             declared,
-            elaborated,
             checked,
             materialized,
         );

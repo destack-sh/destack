@@ -520,16 +520,19 @@ impl<'a> FunctionEmitter<'a> {
         let result = self.register(destination)?;
         let ty = self.register_type(destination)?;
         let instruction = match constant {
+            mir::Constant::Parameter(_) => unreachable!("a value parameter survives instantiation"),
             mir::Constant::Null => {
                 bytecode::InstructionBuilder::new(bytecode::Opcode::CONSTANT_NULL)
-            }
-            mir::Constant::Undefined => {
-                bytecode::InstructionBuilder::new(bytecode::Opcode::CONSTANT_UNDEFINED)
             }
             mir::Constant::Zeroed => {
                 bytecode::InstructionBuilder::new(bytecode::Opcode::CONSTANT_ZEROED)
             }
             mir::Constant::Uninit => return Ok(()),
+            mir::Constant::Layout { .. } => {
+                return Err(
+                    self.internal("layout constant reached bytecode emit before instantiation")
+                );
+            }
             mir::Constant::Boolean { value } => {
                 let mut instruction = bytecode::InstructionBuilder::new(
                     bytecode::Opcode::constant(bytecode::Scalar::Boolean),

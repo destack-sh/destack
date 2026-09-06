@@ -7,8 +7,7 @@ fn test_emit_constants() {
         r#"
 export function constants(): int128 {
 entry:
-    v0: ref<int32, managed, mutable, nullable> = null
-    v1: ref<int32, managed, mutable, undefined> = undefined
+    v0: ptr<int32, mutable> = null
     v2: boolean = true
     v3: char = 'A'
     v4: int8 = -8
@@ -26,7 +25,6 @@ entry:
         r#"
 function constants {
     constant.null r0
-    constant.undefined r0
     constant.boolean r0, true
     constant.uint32 r0, 65
     constant.int8 r0, -8
@@ -45,20 +43,19 @@ function constants {
 function u0:0(i64) -> i128 native {
 block0(v0: i64):
     v1 = iconst.i64 0
-    v2 = iconst.i64 1
-    v3 = iconst.i8 1
-    v4 = iconst.i32 65
-    v5 = iconst.i8 -8
-    v6 = iconst.i16 -1
-    v7 = iconst.i64 0
-    v8 = iconst.i64 -9223372036854775808
-    v9 = iconcat v7, v8  ; v7 = 0, v8 = -9223372036854775808
+    v2 = iconst.i8 1
+    v3 = iconst.i32 65
+    v4 = iconst.i8 -8
+    v5 = iconst.i16 -1
+    v6 = iconst.i64 0
+    v7 = iconst.i64 -9223372036854775808
+    v8 = iconcat v6, v7  ; v6 = 0, v7 = -9223372036854775808
+    v9 = iconst.i64 -1
     v10 = iconst.i64 -1
-    v11 = iconst.i64 -1
-    v12 = iconcat v10, v11  ; v10 = -1, v11 = -1
-    v13 = f32const 0x1.800000p0
-    v14 = f64const -0x1.2000000000000p1
-    return v9
+    v11 = iconcat v9, v10  ; v9 = -1, v10 = -1
+    v12 = f32const 0x1.800000p0
+    v13 = f64const -0x1.2000000000000p1
+    return v8
 }
 
 function u1:0(i64, i64, i64) native {

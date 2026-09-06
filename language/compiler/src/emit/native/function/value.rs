@@ -425,6 +425,7 @@ impl<'a> FunctionEmitter<'a> {
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let offset = match self.optimized.tree.get(ty) {
             mir::Type::Function { .. } => self.types.pointer().bytes(),
+            mir::Type::Pointer { .. } => 0,
             ty if ty.is_reference_representation() => 0,
             _ => return Err(self.invalid("value is not a reference representation")),
         };

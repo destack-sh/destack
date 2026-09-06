@@ -94,6 +94,9 @@ impl ObjectEmitter {
         let mut functions = Vec::new();
         let mut function_ids = Vec::new();
         for (id, function) in optimized.tree.iter_nodes::<mir::Function>() {
+            if function.is_polymorphic() {
+                continue;
+            }
             function_ids.push(id);
             functions.push(Function {
                 id,

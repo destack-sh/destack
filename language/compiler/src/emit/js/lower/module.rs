@@ -1,6 +1,5 @@
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
-    DirParsed,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -20,11 +19,10 @@ pub(in crate::emit::js) fn lower_module(
     imported: &DirImported,
     expanded: &DirExpanded,
     declared: &DirDeclared,
-    elaborated: &DirElaborated,
     checked: &DirChecked,
     materialized: &DirMaterialized,
 ) -> (js::Module, Vec<EmitError>) {
-    let bindings = checked.binding_table(bound, expanded, declared, elaborated);
+    let bindings = materialized.binding_table(bound, expanded, declared, checked);
     let modules = expanded.module_table(imported);
     let patches = [expanded.patch.clone(), materialized.patch.clone()];
     let view = dir::View::with_patches(&parsed.tree, &patches);

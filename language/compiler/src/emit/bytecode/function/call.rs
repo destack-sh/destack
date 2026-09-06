@@ -58,6 +58,9 @@ impl<'a> FunctionEmitter<'a> {
             mir::Callee::Indirect { .. } => bytecode::Opcode::TAIL_CALL_INDIRECT,
             mir::Callee::Virtual { .. } => bytecode::Opcode::TAIL_CALL_VIRTUAL,
             mir::Callee::Dynamic { .. } => bytecode::Opcode::TAIL_CALL_DYNAMIC,
+            mir::Callee::Witness { .. } => {
+                return Err(self.internal("witness calls resolve at instantiation"));
+            }
         };
 
         self.emit_call_operation(call, opcode, &[], None)
@@ -98,7 +101,10 @@ impl<'a> FunctionEmitter<'a> {
         instruction: &mut bytecode::InstructionBuilder,
     ) -> Result<(), EmitError> {
         match callee {
-            mir::Callee::Direct { function } => {
+            mir::Callee::Witness { .. } => {
+                return Err(self.internal("witness calls resolve at instantiation"));
+            }
+            mir::Callee::Direct { function, .. } => {
                 let function = self.types.function_id(*function)?;
                 instruction.relocation(bytecode::RelocationTag::FUNCTION, function.0);
             }
@@ -156,6 +162,9 @@ impl<'a> FunctionEmitter<'a> {
             (true, mir::Callee::Indirect { .. }) => bytecode::Opcode::INVOKE_INDIRECT,
             (true, mir::Callee::Virtual { .. }) => bytecode::Opcode::INVOKE_VIRTUAL,
             (true, mir::Callee::Dynamic { .. }) => bytecode::Opcode::INVOKE_DYNAMIC,
+            (_, mir::Callee::Witness { .. }) => {
+                unreachable!("witness calls resolve at instantiation")
+            }
         }
     }
 }

@@ -1,7 +1,6 @@
 use crate::{Compiler, CompilerError, CompilerResult};
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
-    DirParsed, Script,
+    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed, Script,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::ModuleId;
@@ -35,9 +34,6 @@ impl Compiler {
         let declared = artifacts
             .read::<DirDeclared>((module_id, profile))
             .map_err(CompilerError::from)?;
-        let elaborated = artifacts
-            .read::<DirElaborated>((module_id, profile))
-            .map_err(CompilerError::from)?;
         let checked = artifacts
             .read::<DirChecked>((module_id, profile))
             .map_err(CompilerError::from)?;
@@ -53,7 +49,6 @@ impl Compiler {
             imported,
             expanded,
             declared,
-            elaborated,
             checked,
             materialized,
             self.repository.string_pool().clone(),

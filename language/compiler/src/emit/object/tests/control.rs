@@ -493,11 +493,11 @@ export function guard(
     v1: int32,
     v2: uint32,
     v3: uint32,
-    v4: ref<int32, managed, mutable, nullable>,
+    v4: ptr<int32, mutable>,
     v5: int64,
     v6: uint64,
 ): int32 {
-entry(v0: int32, v1: int32, v2: uint32, v3: uint32, v4: ref<int32, managed, mutable, nullable>, v5: int64, v6: uint64):
+entry(v0: int32, v1: int32, v2: uint32, v3: uint32, v4: ptr<int32, mutable>, v5: int64, v6: uint64):
     check bounds.s v0, v1, v4 => b1 | b10
 
 b1:

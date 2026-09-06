@@ -199,8 +199,11 @@ impl FunctionEmitter<'_> {
             Return::Void
         };
         let (direct, identity, environment) = match call.callee {
+            mir::Callee::Witness { .. } => {
+                return Err(self.invalid("witness calls resolve at instantiation"));
+            }
             // resolve direct calls through the object module
-            mir::Callee::Direct { function } => {
+            mir::Callee::Direct { function, .. } => {
                 let function_id = self
                     .functions
                     .get(&function)
@@ -400,7 +403,7 @@ impl FunctionEmitter<'_> {
 
     /// Return whether one call selects an imported binding.
     fn is_imported_binding(&self, call: &mir::Call) -> Result<bool, EmitError> {
-        let mir::Callee::Direct { function } = call.callee else {
+        let mir::Callee::Direct { function, .. } = call.callee else {
             return Ok(false);
         };
         let function = self.optimized.tree.get(function);

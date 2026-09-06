@@ -123,7 +123,7 @@ impl TypeEmitter<'_> {
         id: mir::TypeId,
     ) -> Result<Option<ValueType>, EmitError> {
         match self.optimized.tree.get(id) {
-            mir::Type::Never | mir::Type::Void => Ok(None),
+            mir::Type::Never | mir::Type::Void | mir::Type::Null => Ok(None),
             _ => self.value(id).map(Some),
         }
     }
