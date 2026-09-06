@@ -45,9 +45,9 @@ struct ProjectFile {
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum Template {
     /// Empty project with src/index.ds.
+    #[default]
     Blank,
     /// Application project with src/main.ds.
-    #[default]
     App,
 }
 
@@ -72,8 +72,8 @@ pub struct InitArgs {
     #[arg(long)]
     pub name: Option<String>,
 
-    /// Project template (blank|app, default: app).
-    #[arg(long, short = 't', value_enum, default_value = "app")]
+    /// Project template (blank|app, default: blank).
+    #[arg(long, short = 't', value_enum, default_value_t = Template::default())]
     pub template: Template,
 
     /// Overwrite files owned by the selected template.
