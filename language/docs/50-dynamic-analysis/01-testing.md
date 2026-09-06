@@ -5,6 +5,8 @@ description: Jest/Vitest style tests.
 
 # Testing
 
+- jest/vitest style tests
+
 ```ds:src/add.test.ds
 import { expect, test } from "destack:test";
 

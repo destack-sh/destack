@@ -113,6 +113,7 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
             page.searchKind ?? (modules.has(page.route) ? "module" : "chapter");
     }
     buildNavigation(documents, references);
+    appendChapterContents(documents);
     const pages = [...documents, ...references, ...posts];
     const searchEntries = searchEntriesFor(posts, documents, references);
     if (!isCheck) {
@@ -137,6 +138,53 @@ await withLock(join(generatedDirectory, ".content-lock"), async () => {
         writeGeneratedFile(generatedRouteFile, routeSource);
     }
 });
+
+/// Append immediate child chapters to each authored index.
+function appendChapterContents(documents) {
+    const chapters = documents.filter((page) => page.kind === "chapter");
+
+    // preserve the resolved navigation order and specialized catalogs
+    for (const chapter of chapters) {
+        if (
+            (chapter.path !== "index.md" &&
+                !chapter.path.endsWith("/index.md")) ||
+            chapter.route === moduleCatalogRoute ||
+            chapter.route === ruleCatalogRoute
+        ) {
+            continue;
+        }
+
+        const children = chapters.filter((page) => page.parent === chapter);
+        if (children.length === 0) {
+            continue;
+        }
+
+        // render the same generated links in each published representation
+        const contents = children
+            .map((page) => {
+                const title = page.title.replace(/[\\`*_[\]<>]/g, "\\$&");
+
+                return `- [${title}](${page.route})`;
+            })
+            .join("\n");
+        chapter.markdown = `${chapter.markdown.trimEnd()}\n\n${contents}\n`;
+        chapter.html += renderMarkdown(contents, {
+            assets: [],
+            documentDirectory: chapter.directory,
+            kind: "document",
+            markdownDirectory: dirname(chapter.file),
+            ownHeadings: new Set(),
+            route: chapter.route,
+            slug: chapter.path,
+            sourceRoutes: new Map(),
+        });
+
+        // keep search text and token counts consistent with the published body
+        chapter.searchSections = searchSectionsFor(chapter.markdown);
+        chapter.searchText = searchTextFor(chapter.markdown);
+        chapter.tokens = tokenEstimateFor(plainTextFor(chapter.markdown));
+    }
+}
 
 /// Write rendered page bodies and their content-addressed assets.
 function writePageContent(pages) {

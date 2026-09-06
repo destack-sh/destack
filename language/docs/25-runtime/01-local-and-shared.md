@@ -1,0 +1,29 @@
+---
+title: Local and Shared
+description: local isolated heap per worker
+---
+
+# Local and Shared
+
+- so far we have assumed basically single-threaded, async execution
+- this is most code, but obviously a complete language needs to consider concurrency at a more fundamental level, across threads
+- many ways to do this, TS already strongly biases into the "local-first" direction
+- we could just generalise SharedArrayBuffer and friends?
+- split local and shared memory spaces
+- separate heaps, separate GCs
+- worker-first, local-first, shared-nothing-first memory model
+
+- local isolated heap per worker
+- local and shared modifier on types
+- local and shared modifier on bindings
+- local and shared modifier on declarations
+- worker-local stuff is .. local (Promise, Task, etc.)
+- no need for Send and Sync, basically the 90 degree rotated version of that classic pair
+
+- local borrowing managed is sound except across suspension
+- how to keep local / shared safe
+- proper managed object types on shared
+
+- borrows are place polymorphic by default
+- reference types are local by default unless otherwise specified
+- `SharedSafe`

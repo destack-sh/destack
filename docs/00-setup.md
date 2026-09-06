@@ -23,4 +23,4 @@ destack version
 destack update
 ```
 
-[Write your first program](/docs/language/hello/) or [choose a template](/docs/template/).
+[Write your first program](/docs/language/setup/) or [choose a template](/docs/template/).
