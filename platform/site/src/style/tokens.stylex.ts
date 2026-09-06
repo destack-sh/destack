@@ -7,7 +7,8 @@ export const tokens = stylex.defineVars({
     cream: "var(--publication-page)",
     creamDeep: "var(--publication-page-muted)",
     diagnostic: "#c22b12",
-    displayFont: '"IBM Plex Sans Variable", Helvetica, Arial, sans-serif',
+    displayFont:
+        '"IBM Plex Sans Condensed", "IBM Plex Sans Variable", sans-serif',
     gutterLeft: "calc(1.5rem + env(safe-area-inset-left))",
     gutterRight: "calc(1.5rem + env(safe-area-inset-right))",
     hairline: "var(--publication-hairline)",

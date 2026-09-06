@@ -266,11 +266,14 @@ author: "Florian"
 
 All of the inherited JavaScript legacy-era dynamisms must go:
 - no dynamic JS shenanigans or monkey patching, so goodbye to `__proto__` or anything like that
-- no `module.x = foo..`
+- no `module.x = foo..`, no mutable globals
 - no `Object.prototype`, `Object.isOwnProperty`, `Object.assign`, ...
 - no `Reflect.*`
 - no `Proxy`
 - no `delete obj.x`
+- no `__proto__`
+- no `eval` / `Function`
+- no `with`
 - no "truthiness"; conditionals always take booleans
 - no array holes
 - oh also: no sequence expressions, who needs sequence expressions
@@ -281,6 +284,7 @@ There are also some TypeScript features that are not sound or just not needed in
 - no predicate functions (e.g. `isUser(user: any): asserts user is User` is unsound)
 - unknown still works as a fat existential
 - no symbol / string keyed duck typing (proper traits)
+- no thenables (nominal Promise, TAsk only)
 
 ### Primitives
 

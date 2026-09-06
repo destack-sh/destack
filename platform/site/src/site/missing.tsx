@@ -32,7 +32,9 @@ export function MissingPage(props: MissingPageProps) {
             <section {...stylex.attrs(styles.page)}>
                 <p {...stylex.attrs(styles.label)}>{props.label}</p>
                 <h1 {...stylex.attrs(styles.title)}>{props.title}</h1>
-                <A {...stylex.attrs(styles.action)} href={props.backHref}>← {props.backLabel}</A>
+                <A {...stylex.attrs(styles.action)} href={props.backHref}>
+                    ← {props.backLabel}
+                </A>
             </section>
         </>
     );
@@ -42,25 +44,25 @@ const styles = stylex.create({
     action: {
         alignItems: "center",
         backgroundColor: tokens.orange,
-        borderColor: tokens.ink,
+        borderColor: tokens.line,
         borderStyle: "solid",
         borderWidth: tokens.hairline,
         display: "inline-flex",
-        fontFamily: tokens.monoFont,
-        fontWeight: 700,
+        fontFamily: tokens.textFont,
+        fontWeight: 500,
         fontSize: "var(--size-navigation)",
         letterSpacing: "0.06em",
         padding: "0.625rem 1rem",
-        textTransform: "uppercase",
+        textTransform: "none",
         width: "max-content",
         ":hover": {
             color: tokens.cream,
         },
     },
     label: {
-        color: tokens.soft,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.78rem",
+        color: tokens.ink,
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-navigation)",
         margin: 0,
     },
     page: {
@@ -73,9 +75,9 @@ const styles = stylex.create({
         width: "100%",
     },
     title: {
-        fontFamily: tokens.monoFont,
-        fontSize: "clamp(2.2rem, 5vw, 3.25rem)",
-        fontWeight: 700,
+        fontFamily: tokens.displayFont,
+        fontSize: "var(--size-page-title)",
+        fontWeight: 500,
         letterSpacing: "-0.04em",
         lineHeight: 1,
         margin: 0,

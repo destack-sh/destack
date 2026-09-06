@@ -1,11 +1,11 @@
 ---
-title: Reference
+title: Language
 description: Safe, sound, predictable, and above all familiar.
 ---
 
-# Reference
+# Language
 
-- [Setup](00-setup.md)
+- [Hello, Destack](00-hello.md)
 - [TypeScript](10-typescript/index.md)
 - [TypeScript++](20-typescriptpp/index.md)
 - [Standard Library](/docs/language/standard-library/)

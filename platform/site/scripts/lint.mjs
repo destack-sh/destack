@@ -12,7 +12,8 @@ const lintReferenceFile = join(
     "platform/site/.generated/lint-reference.json",
 );
 const ruleCatalogPath = "language/static-analysis/linter/rules";
-const ruleCatalogRoute = `/docs/${ruleCatalogPath}/`;
+/// The linter rule catalogue.
+export const ruleCatalogRoute = `/docs/${ruleCatalogPath}/`;
 const lintCategories = [
     ["correctness", "Correctness"],
     ["suspicious", "Suspicious"],

@@ -5,11 +5,10 @@ import { tokens } from "../style/tokens.stylex";
 
 const mobile = "@media (max-width: 767px)";
 const reducedMotion = "@media (prefers-reduced-motion: reduce)";
+// give the rings a stronger diagonal than the cloud bands
+const ringTilt = "rotate(-22 480 254)";
+const cloudTilt = "rotate(-10 480 254)";
 
-const driftFleet = stylex.keyframes({
-    "0%, 100%": { transform: "translateX(0)" },
-    "50%": { transform: "translateX(10px)" },
-});
 const driftMoon = stylex.keyframes({
     "0%, 100%": { transform: "translate(0, 0)" },
     "35%": { transform: "translate(-3px, 1px)" },
@@ -21,44 +20,39 @@ const driftPlanet = stylex.keyframes({
     "50%": { transform: "translate(3px, 0)" },
     "75%": { transform: "translate(1px, 3px)" },
 });
-const driftStreaks = stylex.keyframes({
-    "0%, 100%": { transform: "translate(0, 0)" },
-    "25%": { transform: "translate(-1px, 3px)" },
-    "50%": { transform: "translate(-3px, 0)" },
-    "75%": { transform: "translate(-1px, -3px)" },
-});
-const driftStorm = stylex.keyframes({
-    "0%, 100%": { transform: "translate(0, 0)" },
-    "50%": { transform: "translate(4px, 1px)" },
-});
-const driftWorld = stylex.keyframes({
-    "0%, 100%": { transform: "translate(0, 0)" },
-    "50%": { transform: "translate(2px, -2px)" },
-});
-const driftWorldReverse = stylex.keyframes({
-    "0%, 100%": { transform: "translate(0, 0)" },
-    "50%": { transform: "translate(-3px, 2px)" },
-});
 const twinkle = stylex.keyframes({
     "0%, 100%": { opacity: 0.5 },
     "38%": { opacity: 0.76 },
     "68%": { opacity: 0.58 },
     "86%": { opacity: 0.82 },
 });
-const pulseRing = stylex.keyframes({
-    "0%, 100%": { filter: "drop-shadow(0 0 0 rgba(241, 234, 219, 0))" },
-    "50%": { filter: "drop-shadow(0 0 3px rgba(241, 234, 219, 0.24))" },
-});
-const warmPlanet = stylex.keyframes({
-    "0%, 100%": { filter: "brightness(0.98) saturate(0.94)" },
-    "50%": { filter: "brightness(1.04) saturate(1.08)" },
-});
 
 /// Render the homepage cover poster.
 export function Cover() {
+    // shift the viewpoint by a few pixels within the poster
+    const move = (event: PointerEvent & { currentTarget: HTMLDivElement }) => {
+        if (event.pointerType !== "mouse") return;
+
+        const bounds = event.currentTarget.getBoundingClientRect();
+        const x = (event.clientX - bounds.left) / bounds.width - 0.5;
+        const y = (event.clientY - bounds.top) / bounds.height - 0.5;
+        event.currentTarget.style.setProperty("--scene-x", `${x * 8}px`);
+        event.currentTarget.style.setProperty("--scene-y", `${y * 6}px`);
+    };
+
+    // return to the composed view when the pointer leaves
+    const reset = (event: PointerEvent & { currentTarget: HTMLDivElement }) => {
+        event.currentTarget.style.setProperty("--scene-x", "0px");
+        event.currentTarget.style.setProperty("--scene-y", "0px");
+    };
+
     return (
         <section {...stylex.attrs(posterStyles.matte)}>
-            <div {...stylex.attrs(posterStyles.field)}>
+            <div
+                {...stylex.attrs(posterStyles.field)}
+                onPointerMove={move}
+                onPointerLeave={reset}
+            >
                 <header {...stylex.attrs(posterStyles.heading)}>
                     <p
                         {...stylex.attrs(posterStyles.proposition)}
@@ -69,7 +63,7 @@ export function Cover() {
                             aria-hidden="true"
                             {...stylex.attrs(
                                 posterStyles.propositionEnd,
-                                posterStyles.propositionStandardized,
+                                posterStyles.propositionLight,
                             )}
                         >
                             <em
@@ -113,7 +107,7 @@ export function Cover() {
                     >
                         <span
                             aria-hidden="true"
-                            {...stylex.attrs(posterStyles.propositionOpen)}
+                            {...stylex.attrs(posterStyles.propositionLight)}
                         >
                             <span
                                 {...stylex.attrs(
@@ -135,6 +129,28 @@ export function Cover() {
 
                 <div {...stylex.attrs(posterStyles.sceneFrame)}>
                     <Scene />
+                    {/* continue the foreground beneath the installation block */}
+                    <svg
+                        aria-hidden="true"
+                        {...stylex.attrs(posterStyles.horizon)}
+                        viewBox="0 0 900 100"
+                        preserveAspectRatio="none"
+                    >
+                        <path
+                            d="M0 60 Q450 -30 900 60 V100 H0Z"
+                            fill="#0a222c"
+                        />
+                        <path
+                            d="M0 60 Q450 -30 900 60"
+                            fill="none"
+                            stroke="#39717a"
+                        />
+                        <path
+                            d="M0 83 Q450 0 900 83"
+                            fill="none"
+                            stroke="#1d414c"
+                        />
+                    </svg>
                 </div>
 
                 <div {...stylex.attrs(posterStyles.actions)}>
@@ -142,9 +158,9 @@ export function Cover() {
                         <Installation />
                         <a
                             {...stylex.attrs(posterStyles.boarding)}
-                            href="/docs/language/start/"
+                            href="/docs/setup/"
                         >
-                            get started <span aria-hidden="true">→</span>
+                            start building <span aria-hidden="true">→</span>
                         </a>
                     </div>
 
@@ -157,352 +173,129 @@ export function Cover() {
     );
 }
 
-/// Render the flat poster illustration.
+/// Render the planet, its illuminated rings, and the foreground horizon.
 function Scene() {
     return (
         <svg
             aria-hidden="true"
             {...stylex.attrs(posterStyles.scene)}
-            preserveAspectRatio="xMidYMid slice"
-            viewBox="0 0 900 560"
+            preserveAspectRatio="xMidYMid meet"
+            viewBox="60 45 780 420"
             xmlns="http://www.w3.org/2000/svg"
         >
-            {/* star field */}
+            <defs>
+                <clipPath id="poster-globe">
+                    <circle cx="480" cy="254" r="176" />
+                </clipPath>
+            </defs>
+
+            {/* leave broad stretches of uninterrupted sky */}
             <g fill="#f1eadb">
-                <circle
-                    {...stylex.attrs(posterStyles.starOne)}
-                    cx="80"
-                    cy="60"
-                    r="2"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starTwo)}
-                    cx="210"
-                    cy="140"
-                    r="1.4"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starThree)}
-                    cx="330"
-                    cy="48"
-                    r="1.8"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starOne)}
-                    cx="520"
-                    cy="90"
-                    r="1.4"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starTwo)}
-                    cx="660"
-                    cy="40"
-                    r="2"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starThree)}
-                    cx="805"
-                    cy="120"
-                    r="1.4"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starTwo)}
-                    cx="120"
-                    cy="300"
-                    r="1.6"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starOne)}
-                    cx="60"
-                    cy="470"
-                    r="1.6"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starThree)}
-                    cx="840"
-                    cy="330"
-                    r="1.8"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starOne)}
-                    cx="770"
-                    cy="470"
-                    r="1.4"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starThree)}
-                    cx="240"
-                    cy="430"
-                    r="1.4"
-                />
-                <circle
-                    {...stylex.attrs(posterStyles.starTwo)}
-                    cx="430"
-                    cy="520"
-                    r="1.6"
-                />
-            </g>
-
-            {/* distant fleet */}
-            <g {...stylex.attrs(posterStyles.fleet)}>
-                <g transform="rotate(-7 450 300)">
-                    <Ship scale={1} x={180} y={150} />
-                    <Ship scale={0.8} x={280} y={112} />
-                    <Ship scale={0.62} x={120} y={104} />
+                <g {...stylex.attrs(posterStyles.starOne)}>
+                    <circle cx="92" cy="132" r="1.5" />
+                    <circle cx="733" cy="65" r="1.2" />
+                    <circle cx="217" cy="384" r="1" />
+                    <circle cx="675" cy="446" r="1.2" />
+                </g>
+                <g {...stylex.attrs(posterStyles.starTwo)}>
+                    <circle cx="281" cy="54" r="1" />
+                    <circle cx="802" cy="314" r="1.5" />
+                    <circle cx="151" cy="282" r=".8" />
+                    <circle cx="762" cy="401" r=".8" />
+                </g>
+                <g {...stylex.attrs(posterStyles.starThree)}>
+                    <circle cx="350" cy="454" r="1" />
+                    <circle cx="845" cy="174" r=".8" />
+                    <circle cx="178" cy="69" r=".8" />
                 </g>
             </g>
 
-            {/* far worlds */}
+            {/* place one distant crescent beyond the rings */}
             <g {...stylex.attrs(posterStyles.moon)}>
-                <g transform="rotate(-16 112 132)">
-                    <clipPath id="poster-moon-back">
-                        <rect height="132" width="200" x="12" y="0" />
-                    </clipPath>
-                    <g clip-path="url(#poster-moon-back)">
-                        <ellipse
-                            cx="112"
-                            cy="132"
-                            fill="none"
-                            rx="74"
-                            ry="17"
-                            stroke="#e6dcc8"
-                            stroke-width="4"
-                        />
-                    </g>
-                </g>
-                <circle cx="112" cy="132" fill="#0f6470" r="46" />
-                <g transform="rotate(-16 112 132)">
-                    <clipPath id="poster-moon-front">
-                        <rect height="132" width="200" x="12" y="132" />
-                    </clipPath>
-                    <g clip-path="url(#poster-moon-front)">
-                        <ellipse
-                            cx="112"
-                            cy="132"
-                            fill="none"
-                            rx="74"
-                            ry="17"
-                            stroke="#f1eadb"
-                            stroke-width="4"
-                        />
-                    </g>
-                </g>
-            </g>
-            <circle
-                {...stylex.attrs(posterStyles.world)}
-                cx="812"
-                cy="88"
-                fill="#a44328"
-                r="22"
-            />
-            <circle
-                {...stylex.attrs(posterStyles.worldReverse)}
-                cx="756"
-                cy="452"
-                fill="#e77443"
-                r="12"
-            />
-
-            {/* speed streaks */}
-            <g {...stylex.attrs(posterStyles.streaks)}>
-                <g transform="rotate(-7 450 300)">
-                    <rect
-                        fill="#dc5b2d"
-                        height="7"
-                        rx="3.5"
-                        width="330"
-                        x="-30"
-                        y="196"
-                    />
-                    <rect
-                        fill="#f1eadb"
-                        height="5"
-                        rx="2.5"
-                        width="210"
-                        x="60"
-                        y="230"
-                    />
-                    <rect
-                        fill="#0f6470"
-                        height="9"
-                        rx="4.5"
-                        width="410"
-                        x="-60"
-                        y="262"
-                    />
-                    <rect
-                        fill="#a44328"
-                        height="6"
-                        rx="3"
-                        width="250"
-                        x="30"
-                        y="300"
-                    />
-                    <rect
-                        fill="#e77443"
-                        height="8"
-                        rx="4"
-                        width="480"
-                        x="470"
-                        y="180"
-                    />
-                    <rect
-                        fill="#f1eadb"
-                        height="5"
-                        rx="2.5"
-                        width="300"
-                        x="600"
-                        y="216"
-                    />
-                    <rect
-                        fill="#0f6470"
-                        height="7"
-                        rx="3.5"
-                        width="360"
-                        x="560"
-                        y="330"
-                    />
-                    <rect
-                        fill="#dc5b2d"
-                        height="6"
-                        rx="3"
-                        width="280"
-                        x="640"
-                        y="366"
-                    />
-                </g>
+                <circle cx="190" cy="157" r="25" fill="#0c2731" />
+                <path
+                    d="M190 132 A25 25 0 1 0 202 179 C177 177 171 148 190 132Z"
+                    fill="#43838b"
+                />
             </g>
 
+            {/* move the globe and both halves of the ring together */}
             <g {...stylex.attrs(posterStyles.planet)}>
-                {/* ring, far side */}
-                <g {...stylex.attrs(posterStyles.ring)}>
-                    <clipPath id="poster-ring-back">
-                        <rect height="320" width="1200" x="-150" y="-40" />
-                    </clipPath>
-                    <g transform="rotate(-16 470 292)">
-                        <g clip-path="url(#poster-ring-back)">
-                            <ellipse
-                                cx="470"
-                                cy="292"
-                                fill="none"
-                                rx="292"
-                                ry="86"
-                                stroke="#e6dcc8"
-                                stroke-width="26"
-                            />
-                            <ellipse
-                                cx="470"
-                                cy="292"
-                                fill="none"
-                                rx="292"
-                                ry="86"
-                                stroke="#c9beaa"
-                                stroke-width="8"
-                            />
-                        </g>
-                    </g>
+                <g transform={ringTilt}>
+                    <Ring path="M174 254 A306 82 0 0 1 786 254" />
                 </g>
 
-                {/* the planet */}
-                <g {...stylex.attrs(posterStyles.planetColor)}>
-                    <circle cx="470" cy="292" fill="#dc5b2d" r="188" />
-                    <clipPath id="poster-planet">
-                        <circle cx="470" cy="292" r="188" />
-                    </clipPath>
-                    <g clip-path="url(#poster-planet)">
-                        <rect
-                            fill="#a44328"
-                            height="42"
-                            transform="rotate(-7 470 292)"
-                            width="420"
-                            x="260"
-                            y="196"
-                        />
-                        <rect
+                <g clip-path="url(#poster-globe)">
+                    <circle cx="480" cy="254" r="176" fill="#dc5b2d" />
+                    <g transform={cloudTilt}>
+                        <path
+                            d="M280 118 Q480 185 680 118 L680 155 Q480 212 280 155Z"
                             fill="#e77443"
-                            height="26"
-                            transform="rotate(-7 470 292)"
-                            width="420"
-                            x="260"
-                            y="262"
                         />
-                        <rect
+                        <path
+                            d="M280 176 Q480 226 680 176 L680 209 Q480 257 280 209Z"
                             fill="#a44328"
-                            height="56"
-                            transform="rotate(-7 470 292)"
-                            width="420"
-                            x="260"
-                            y="330"
                         />
-                        <rect
-                            fill="#8a3a22"
-                            height="30"
-                            transform="rotate(-7 470 292)"
-                            width="420"
-                            x="260"
-                            y="416"
+                        <path
+                            d="M280 235 Q480 278 680 235 L680 251 Q480 296 280 251Z"
+                            fill="#ee8952"
                         />
-                        <g {...stylex.attrs(posterStyles.storm)}>
-                            <circle cx="360" cy="180" fill="#e77443" r="34" />
-                            <circle cx="560" cy="404" fill="#8a3a22" r="24" />
-                        </g>
+                        <path
+                            d="M280 276 Q480 319 680 276 L680 315 Q480 355 280 315Z"
+                            fill="#aa4729"
+                        />
+                        <path
+                            d="M280 338 Q480 383 680 338 L680 354 Q480 397 280 354Z"
+                            fill="#e77443"
+                        />
+                        <path
+                            d="M280 389 Q480 426 680 389 L680 450 H280Z"
+                            fill="#a44328"
+                        />
                     </g>
+                    {/* follow the ring tilt when projecting its shadow */}
+                    <g transform={ringTilt}>
+                        <path
+                            d="M270 286 Q480 370 690 286"
+                            fill="none"
+                            stroke="#542e29"
+                            stroke-width="20"
+                        />
+                    </g>
+                    {/* shade the cloud bands with two flat curved regions */}
+                    <path
+                        d="M546 78 C650 190 587 368 416 430 H700 V50Z"
+                        fill="#623027"
+                        opacity=".55"
+                    />
+                    <path
+                        d="M614 128 C682 267 595 405 480 430 H700 V80Z"
+                        fill="#102a33"
+                    />
                 </g>
-                <circle
-                    cx="470"
-                    cy="292"
+                <path
+                    d="M306 278 A176 176 0 0 1 515 81"
                     fill="none"
-                    r="188"
-                    stroke="#171512"
-                    stroke-width="3"
+                    stroke="#f1b77a"
+                    stroke-width="1.5"
+                    opacity=".7"
                 />
 
-                {/* ring, near side */}
-                <g {...stylex.attrs(posterStyles.ring)}>
-                    <clipPath id="poster-ring-front">
-                        <rect height="320" width="1200" x="-150" y="292" />
-                    </clipPath>
-                    <g transform="rotate(-16 470 292)">
-                        <g clip-path="url(#poster-ring-front)">
-                            <ellipse
-                                cx="470"
-                                cy="292"
-                                fill="none"
-                                rx="292"
-                                ry="86"
-                                stroke="#f1eadb"
-                                stroke-width="26"
-                            />
-                            <ellipse
-                                cx="470"
-                                cy="292"
-                                fill="none"
-                                rx="292"
-                                ry="86"
-                                stroke="#171512"
-                                stroke-width="2"
-                            />
-                        </g>
-                    </g>
+                <g transform={ringTilt}>
+                    <Ring path="M174 254 A306 82 0 0 0 786 254" />
                 </g>
             </g>
         </svg>
     );
 }
 
-/// Render one small poster rocket with its trail.
-function Ship(props: { scale: number; x: number; y: number }) {
+/// Draw the divisions along one half of the ring.
+function Ring(props: { path: string }) {
     return (
-        <g transform={`translate(${props.x} ${props.y}) scale(${props.scale})`}>
-            <rect fill="#f1eadb" height="4" rx="2" width="90" x="-96" y="4" />
-            <path
-                d="M0 0 L44 6 L0 12 L8 6 Z"
-                fill="#f1eadb"
-                stroke="#171512"
-                stroke-width="1.5"
-            />
-            <path d="M2 0 L-8 -6 L4 2 Z" fill="#dc5b2d" />
-            <path d="M2 12 L-8 18 L4 10 Z" fill="#dc5b2d" />
+        <g fill="none" stroke="#f1eadb">
+            <path d={props.path} stroke-width="22" />
+            <path d={props.path} stroke="#12313c" stroke-width="3" />
+            <path d={props.path} stroke="#8b8376" stroke-width="1" />
         </g>
     );
 }
@@ -548,7 +341,7 @@ const posterStyles = stylex.create({
         display: "flex",
         gap: "1.5rem",
         justifyContent: "center",
-        maxWidth: "36rem",
+        maxWidth: "40rem",
         padding: "0.55rem 0.6rem 0.55rem 1.4rem",
         width: "100%",
         [mobile]: {
@@ -559,11 +352,11 @@ const posterStyles = stylex.create({
         },
     },
     actions: {
+        backgroundColor: "#0a222c",
         display: "grid",
         gap: "clamp(0.8rem, 1.6vw, 1.3rem)",
         justifyItems: "center",
-        padding:
-            "clamp(0.75rem, 1.5vw, 1.25rem) clamp(1rem, 3vw, 3rem) clamp(1.5rem, 3vw, 2.5rem)",
+        padding: "1rem clamp(1rem, 3vw, 3rem) 2.5rem",
         textAlign: "center",
         [mobile]: {
             gap: "1rem",
@@ -619,6 +412,11 @@ const posterStyles = stylex.create({
         textOverflow: "ellipsis",
         userSelect: "text",
         whiteSpace: "nowrap",
+        [mobile]: {
+            overflowWrap: "anywhere",
+            textAlign: "left",
+            whiteSpace: "normal",
+        },
     },
     commandPrompt: {
         color: tokens.orangeLight,
@@ -627,10 +425,10 @@ const posterStyles = stylex.create({
         color: tokens.orangeLight,
         display: "grid",
         fontFamily: tokens.monoFont,
-        fontSize: "clamp(0.78rem, 1.05vw, 0.88rem)",
+        fontSize: "clamp(0.65rem, 1.5cqw, 0.8125rem)",
         fontWeight: 700,
         gridTemplateColumns: "1fr 1fr",
-        letterSpacing: "0.32em",
+        letterSpacing: "0.22em",
         lineHeight: 1.2,
         margin: 0,
         maxWidth: "42rem",
@@ -653,7 +451,7 @@ const posterStyles = stylex.create({
     propositionLower: {
         marginTop: "-0.525rem",
     },
-    propositionOpen: {
+    propositionLight: {
         color: tokens.cream,
     },
     propositionUnderline: {
@@ -662,10 +460,10 @@ const posterStyles = stylex.create({
         textDecorationThickness: tokens.hairline,
         textUnderlineOffset: "0.38em",
     },
-    propositionStandardized: {
-        color: tokens.cream,
-    },
     field: {
+        containerType: "inline-size",
+        marginInline: "auto",
+        width: "min(100%, calc((100svh - 10rem) * 1.35))",
         backgroundColor: tokens.night,
         borderColor: tokens.ink,
         borderStyle: "solid",
@@ -677,6 +475,7 @@ const posterStyles = stylex.create({
         overflow: "clip",
         [mobile]: {
             gridTemplateRows: "auto auto auto",
+            width: "100%",
             height: "auto",
         },
     },
@@ -695,21 +494,11 @@ const posterStyles = stylex.create({
             letterSpacing: "0.08em",
         },
     },
-    fleet: {
-        animationDuration: "48s",
-        animationIterationCount: "infinite",
-        animationName: driftFleet,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
-    },
     heading: {
         display: "grid",
         gap: "clamp(0.45rem, 0.8vw, 0.65rem)",
         justifyItems: "center",
-        padding:
-            "clamp(2.5rem, 4vw, 3.5rem) clamp(1rem, 3vw, 3rem) clamp(0.75rem, 1.5vw, 1.25rem)",
+        padding: "2.5rem clamp(1rem, 3vw, 3rem) 1rem",
         width: "100%",
         [mobile]: {
             gap: "0.4rem",
@@ -748,31 +537,23 @@ const posterStyles = stylex.create({
             animationName: "none",
         },
     },
-    planetColor: {
-        animationDuration: "23s",
-        animationIterationCount: "infinite",
-        animationName: warmPlanet,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
-    },
-    ring: {
-        animationDuration: "7.5s",
-        animationIterationCount: "infinite",
-        animationName: pulseRing,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
-    },
     scene: {
+        transform: "translate(var(--scene-x, 0px), var(--scene-y, 0px))",
+        transition: "transform 1.5s ease-out",
+        [reducedMotion]: {
+            transform: "none",
+            transition: "none",
+        },
         display: "block",
         height: "100%",
         inset: 0,
         overflow: "hidden",
         position: "absolute",
         width: "100%",
+        [mobile]: {
+            left: "-42%",
+            width: "184%",
+        },
     },
     sceneFrame: {
         minHeight: 0,
@@ -782,6 +563,13 @@ const posterStyles = stylex.create({
             height: "clamp(21rem, 48svh, 25rem)",
             minHeight: "clamp(21rem, 48svh, 25rem)",
         },
+    },
+    horizon: {
+        position: "absolute",
+        bottom: 0,
+        width: "100%",
+        height: "15%",
+        pointerEvents: "none",
     },
     starOne: {
         animationDuration: "5s",
@@ -815,29 +603,11 @@ const posterStyles = stylex.create({
             opacity: 0.8,
         },
     },
-    storm: {
-        animationDuration: "31s",
-        animationIterationCount: "infinite",
-        animationName: driftStorm,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
-    },
-    streaks: {
-        animationDuration: "42s",
-        animationIterationCount: "infinite",
-        animationName: driftStreaks,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
-    },
     title: {
         color: tokens.cream,
         display: "flex",
         fontFamily: tokens.posterFont,
-        fontSize: "clamp(3.4rem, 10.5vw, 8.25rem)",
+        fontSize: "clamp(3.4rem, 13cqw, 7rem)",
         fontWeight: 400,
         justifyContent: "space-between",
         letterSpacing: 0,
@@ -856,24 +626,5 @@ const posterStyles = stylex.create({
     },
     titleLast: {
         transform: "translateX(0.02em)",
-    },
-    world: {
-        animationDuration: "72s",
-        animationIterationCount: "infinite",
-        animationName: driftWorld,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
-    },
-    worldReverse: {
-        animationDelay: "-31s",
-        animationDuration: "93s",
-        animationIterationCount: "infinite",
-        animationName: driftWorldReverse,
-        animationTimingFunction: "ease-in-out",
-        [reducedMotion]: {
-            animationName: "none",
-        },
     },
 });

@@ -2,12 +2,12 @@ import { A } from "@solidjs/router";
 import { type Accessor, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
+import { publicationStyles } from "./publication.stylex";
+
 import { type Post, type PostContent } from "../generated/posts";
 import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
-
-const mobile = "@media (max-width: 767px)";
 
 /// Properties for one rendered blog article.
 type BlogArticleProps = {
@@ -82,11 +82,14 @@ export type BlogNavigationProps = {
 export function BlogNavigation(props: BlogNavigationProps) {
     return (
         <nav aria-label="blog" {...stylex.attrs(styles.book)}>
-            <A {...stylex.attrs(styles.bookTitle)} href="/blog/">
+            <A
+                {...stylex.attrs(publicationStyles.collectionTitle)}
+                href="/blog/"
+            >
                 blog
             </A>
 
-            <ol {...stylex.attrs(styles.bookList)}>
+            <ol {...stylex.attrs(publicationStyles.collectionList)}>
                 <For each={props.posts}>
                     {(post) => (
                         <li>
@@ -94,7 +97,7 @@ export function BlogNavigation(props: BlogNavigationProps) {
                                 {...stylex.attrs(
                                     styles.bookLink,
                                     post.route === props.current?.route &&
-                                        styles.active,
+                                        publicationStyles.active,
                                 )}
                                 href={post.route}
                             >
@@ -127,9 +130,11 @@ type BlogArticleHeaderProps = {
 /// Render the post title and subtitle.
 function BlogArticleHeader(props: BlogArticleHeaderProps) {
     return (
-        <header {...stylex.attrs(styles.articleHeader)}>
-            <h1 {...stylex.attrs(styles.articleTitle)}>{props.post.title}</h1>
-            <p {...stylex.attrs(styles.articleSubtitle)}>
+        <header {...stylex.attrs(publicationStyles.header)}>
+            <h1 {...stylex.attrs(publicationStyles.title)}>
+                {props.post.title}
+            </h1>
+            <p {...stylex.attrs(publicationStyles.description)}>
                 {props.post.subtitle}
             </p>
         </header>
@@ -192,39 +197,6 @@ function PostNavigationLink(props: PostNavigationLinkProps) {
 
 /// Journal navigation and article styles.
 const styles = stylex.create({
-    active: {
-        color: tokens.ink,
-        fontWeight: 600,
-    },
-    articleHeader: {
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        display: "grid",
-        gap: tokens.publicationSpace,
-        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
-        [mobile]: {
-            gap: tokens.publicationSpace,
-            paddingBlock: "1rem",
-        },
-    },
-    articleSubtitle: {
-        color: tokens.soft,
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-page-description)",
-        lineHeight: 1.4,
-        margin: 0,
-        maxWidth: "44rem",
-    },
-    articleTitle: {
-        fontFamily: tokens.displayFont,
-        fontSize: "var(--size-page-title)",
-        fontWeight: 400,
-        letterSpacing: "-0.03em",
-        lineHeight: 1,
-        margin: 0,
-        textIndent: "-0.04em",
-    },
     book: {
         alignContent: "start",
         display: "grid",
@@ -235,7 +207,7 @@ const styles = stylex.create({
         paddingTop: `calc(${tokens.publicationSpace} * 0.5)`,
     },
     bookLink: {
-        color: tokens.soft,
+        color: tokens.ink,
         display: "block",
         lineHeight: 1.3,
         paddingBlock: "0.25rem",
@@ -243,37 +215,14 @@ const styles = stylex.create({
             color: tokens.accent,
         },
     },
-    bookList: {
-        display: "grid",
-        gap: 0,
-        listStyle: "none",
-        margin: 0,
-        padding: `calc(${tokens.publicationSpace} * 4) 0 0`,
-    },
-    bookTitle: {
-        alignItems: "center",
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        borderTopColor: tokens.line,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
-        display: "flex",
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-label)",
-        fontWeight: 500,
-        minHeight: tokens.publicationRow,
-        ":hover": {
-            color: tokens.accent,
-        },
-    },
+
     pagination: {
         borderTopColor: tokens.line,
         borderTopStyle: "solid",
         borderTopWidth: tokens.hairline,
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem 2rem",

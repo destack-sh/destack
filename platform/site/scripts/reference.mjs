@@ -13,7 +13,8 @@ const libraryReferenceFile = join(
     "platform/site/.generated/library-reference.json",
 );
 const moduleCatalogPath = "language/standard-library/modules";
-const moduleCatalogRoute = `/docs/${moduleCatalogPath}/`;
+/// The standard library module catalogue.
+export const moduleCatalogRoute = `/docs/${moduleCatalogPath}/`;
 const libraryKindOrder = [
     "namespace",
     "class",

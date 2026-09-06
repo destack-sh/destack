@@ -94,13 +94,11 @@ export function renderMarkdown(markdown, context) {
     const headingSlugs = new Map();
     const counters = {
         figure: 0,
-        section: "",
     };
 
     renderer.heading = (token) => {
         const id = uniqueSlug(token.text, headingSlugs);
         const content = marked.parseInline(token.text);
-        counters.section = searchTextFor(token.text);
 
         return `<h${token.depth} id="${id}">${content}</h${token.depth}>`;
     };
@@ -121,6 +119,18 @@ export function renderMarkdown(markdown, context) {
     };
     renderer.table = (token) => renderTable(token, renderer);
     renderer.code = (token) => renderCode(token, counters);
+    renderer.blockquote = (token) => {
+        // render GitHub alerts using the existing callout presentation
+        const alert = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n/.exec(token.text);
+        if (alert != null) {
+            const kind = alert[1].toLowerCase();
+            const body = marked.parse(token.text.slice(alert[0].length), { gfm: true, renderer });
+
+            return `<aside class="markdown-callout" data-kind="${kind}"><strong>${kind}</strong>${body}</aside>`;
+        }
+
+        return `<blockquote>\n${marked.parse(token.text, { gfm: true, renderer })}</blockquote>\n`;
+    };
 
     const withDirectives = renderDirectives(footnotes.markdown, context, renderer, counters);
     const html = marked.parse(withDirectives, { gfm: true, renderer });
@@ -138,7 +148,10 @@ function renderTable(token, renderer) {
         const cells = row.map((cell, index) => {
             const label = escapeAttribute(labels[index] ?? "");
 
-            return renderer.tablecell(cell).replace("<td", `<td data-label="${label}"`);
+            const alignment = cell.align == null ? "" : ` align="${cell.align}"`;
+            const content = marked.parseInline(cell.text, { renderer });
+
+            return `<td data-label="${label}"${alignment}><div>${content}</div></td>`;
         }).join("");
 
         return renderer.tablerow({ text: cells });
@@ -302,11 +315,13 @@ function renderCode(token, counters) {
     }
 
     const highlighted = highlightCode(token.text, language);
-    const caption = fence.caption ?? fence.title ?? counters.section ?? "Example";
+    const caption = fence.caption ?? fence.title;
     const format = codeFormat(language);
     const code = renderCodeBody(highlighted);
 
-    return `<figure class="markdown-code" data-publication-listing><figcaption data-publication-caption><span class="markdown-code__title" data-publication-caption-title>${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption><pre data-publication-body tabindex="0">${code}</pre></figure>`;
+    const heading = caption == undefined ? "" : `<figcaption data-publication-caption><span class="markdown-code__title" data-publication-caption-title>${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption>`;
+
+    return `<figure class="markdown-code" data-publication-listing>${heading}<pre data-publication-body tabindex="0" aria-label="${escapeAttribute(caption ?? language ?? "Code")}">${code}</pre></figure>`;
 }
 
 /// Convert a fence language into its visible file format.

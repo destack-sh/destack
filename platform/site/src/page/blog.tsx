@@ -2,6 +2,8 @@ import { A } from "@solidjs/router";
 import { For } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
+import { publicationStyles } from "../reader/publication.stylex";
+
 import { posts, type Post } from "../generated/posts";
 import { BlogNavigation } from "../reader/blog";
 import { Seo } from "../site/seo";
@@ -33,14 +35,11 @@ export function BlogPage() {
                 </aside>
 
                 <div {...stylex.attrs(styles.article)}>
-                    <header {...stylex.attrs(styles.toolbar)}>
-                        <span>date</span>
-                        <span>article</span>
-                    </header>
-
-                    <header {...stylex.attrs(styles.articleHeader)}>
-                        <h1 {...stylex.attrs(styles.heading)}>Articles</h1>
-                        <p {...stylex.attrs(styles.description)}>
+                    <header {...stylex.attrs(publicationStyles.header)}>
+                        <h1 {...stylex.attrs(publicationStyles.title)}>
+                            Articles
+                        </h1>
+                        <p {...stylex.attrs(publicationStyles.description)}>
                             Language design, runtime architecture, and
                             engineering notes from Destack.
                         </p>
@@ -96,9 +95,6 @@ const mobile = "@media (max-width: 767px)";
 
 const styles = stylex.create({
     archive: {
-        borderTopColor: tokens.line,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
         listStyle: "none",
         margin: 0,
         padding: 0,
@@ -113,45 +109,19 @@ const styles = stylex.create({
             gridColumn: "auto",
         },
     },
-    articleHeader: {
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        display: "grid",
-        gap: tokens.publicationSpace,
-        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
-        [mobile]: {
-            gap: tokens.publicationSpace,
-            paddingBlock: "1rem",
-        },
-    },
+
     copy: {
         display: "grid",
         gap: tokens.publicationSpace,
         minWidth: 0,
     },
     date: {
-        color: tokens.soft,
-        fontFamily: tokens.monoFont,
+        color: tokens.ink,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
         whiteSpace: "nowrap",
     },
-    description: {
-        color: tokens.soft,
-        fontSize: "var(--size-page-description)",
-        lineHeight: 1.4,
-        margin: 0,
-        maxWidth: "42rem",
-    },
-    heading: {
-        fontFamily: tokens.displayFont,
-        fontSize: "var(--size-page-title)",
-        fontWeight: 400,
-        letterSpacing: "-0.03em",
-        lineHeight: 1,
-        margin: 0,
-        textIndent: "-0.04em",
-    },
+
     index: {
         columnGap: "4rem",
         display: "grid",
@@ -205,7 +175,7 @@ const styles = stylex.create({
         },
     },
     subtitle: {
-        color: tokens.soft,
+        color: tokens.ink,
         lineHeight: 1.5,
     },
     title: {
@@ -213,23 +183,5 @@ const styles = stylex.create({
         fontSize: "var(--size-minor-title)",
         fontWeight: 600,
         lineHeight: 1.25,
-    },
-    toolbar: {
-        alignItems: "center",
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        borderTopColor: tokens.line,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
-        display: "grid",
-        fontFamily: tokens.monoFont,
-        fontSize: "var(--size-label)",
-        gap: "1.5rem",
-        gridTemplateColumns: "8rem minmax(0, 1fr)",
-        minHeight: tokens.publicationRow,
-        [mobile]: {
-            display: "none",
-        },
     },
 });

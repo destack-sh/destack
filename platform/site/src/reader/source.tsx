@@ -24,7 +24,9 @@ export type PageSourceCommands = {
 };
 
 /// Create source commands shared by responsive article controls.
-export function createPageSourceCommands(source: PageSource): PageSourceCommands {
+export function createPageSourceCommands(
+    source: PageSource,
+): PageSourceCommands {
     const write = async (kind: SourceKind) => {
         // load the requested source format
         const route = kind === "md" ? source.markdownRoute : source.textRoute;
@@ -56,7 +58,10 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
 
         // unbind page actions when the reader is replaced
         onCleanup(() => {
-            document.removeEventListener(commandEvents.copyMarkdown, copyMarkdown);
+            document.removeEventListener(
+                commandEvents.copyMarkdown,
+                copyMarkdown,
+            );
             document.removeEventListener(commandEvents.copyText, copyText);
         });
     });
@@ -103,8 +108,8 @@ const styles = stylex.create({
     controls: {
         alignItems: "baseline",
         display: "flex",
-        fontFamily: tokens.monoFont,
-        fontSize: "0.72rem",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem",
         letterSpacing: "0.02em",

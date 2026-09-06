@@ -1,6 +1,6 @@
-import { Navigate } from "@solidjs/router";
+import { DocumentPage } from "../../page/document";
 
-/// Forward `/docs` to the language reference.
-export default function Reference() {
-    return <Navigate href="/docs/language/" />;
+/// Render the project documentation overview.
+export default function Docs() {
+    return <DocumentPage route="/docs/" />;
 }

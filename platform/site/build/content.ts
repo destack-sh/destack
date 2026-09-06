@@ -1,3 +1,4 @@
+import { collections } from "../content";
 import { spawn } from "node:child_process";
 import { isAbsolute, join, normalize, relative, resolve } from "node:path";
 import type { Plugin, ViteDevServer } from "vite";
@@ -37,11 +38,11 @@ export function contentPlugin(siteDirectory: string): Plugin {
             outputDirectory: join(siteDirectory, "src/generated"),
             workingDirectory: siteDirectory,
             script: "scripts/generate-content.mjs",
-            triggers: [
-                join(siteDirectory, "src/content/blog"),
-                resolve(siteDirectory, "../../language/docs"),
-                resolve(siteDirectory, "../../language/library/docs"),
-            ],
+            triggers: collections.flatMap((collection) =>
+                collection.sources.map((source) =>
+                    resolve(siteDirectory, "../..", source.directory),
+                ),
+            ),
         },
     ];
 
@@ -71,7 +72,10 @@ function isTriggered(path: string, task: ContentTask) {
         const normalizedTrigger = normalize(trigger);
         const relation = relative(normalizedTrigger, file);
 
-        return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
+        return (
+            relation === "" ||
+            (!relation.startsWith("..") && !isAbsolute(relation))
+        );
     });
 }
 
@@ -128,5 +132,7 @@ function invalidate(task: ContentTask, server: ViteDevServer) {
 function isWithin(path: string, directory: string) {
     const relation = relative(directory, normalize(path));
 
-    return relation === "" || (!relation.startsWith("..") && !isAbsolute(relation));
+    return (
+        relation === "" || (!relation.startsWith("..") && !isAbsolute(relation))
+    );
 }

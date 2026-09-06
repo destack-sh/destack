@@ -1,4 +1,5 @@
 @import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource/ibm-plex-sans-condensed/500.css";
 @import "@fontsource/limelight";
 @import "@fontsource/ibm-plex-mono/300.css";
 @import "@fontsource/ibm-plex-mono/400.css";
@@ -25,14 +26,14 @@
     --publication-syntax-punctuation: #6d5b45;
     --publication-hairline: 1px;
     --publication-stroke: 3px;
-    --size-page-title: clamp(2.25rem, 3.5vw, 3rem);
+    --size-page-title: clamp(2.25rem, 3.8vw, 3.25rem);
     --size-page-description: var(--size-body);
-    --size-section-title: 1.625rem;
-    --size-subsection-title: 1.25rem;
+    --size-section-title: 1.875rem;
+    --size-subsection-title: 1.5rem;
     --size-minor-title: 1.125rem;
     --size-body: 1.0625rem;
     --size-navigation: 0.8125rem;
-    --size-label: 0.75rem;
+    --size-label: var(--size-navigation);
 }
 
 *,
@@ -84,9 +85,9 @@ summary::-webkit-details-marker {
     display: grid;
     min-width: 0;
     gap: 1.125rem;
-    font-size: 1rem;
+    font-size: var(--size-body);
     font-weight: 400;
-    line-height: 1.6;
+    line-height: 1.7;
 }
 
 .markdown h1,
@@ -94,14 +95,14 @@ summary::-webkit-details-marker {
 .markdown h3 {
     margin: 0;
     color: var(--publication-ink);
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
+    font-family: "IBM Plex Sans Condensed", "IBM Plex Sans Variable", sans-serif;
 }
 
 .markdown h1 {
     margin-top: 2.25rem;
     font-size: var(--size-section-title);
-    font-weight: 400;
-    letter-spacing: -0.03em;
+    font-weight: 500;
+    letter-spacing: -0.015em;
     line-height: 1.2;
 }
 
@@ -116,7 +117,7 @@ summary::-webkit-details-marker {
 .markdown h3 {
     margin-top: 1rem;
     font-size: var(--size-minor-title);
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 0;
     line-height: 1.35;
 }
@@ -234,7 +235,7 @@ summary::-webkit-details-marker {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
-    border: var(--publication-hairline) solid var(--publication-line);
+    border-block: var(--publication-hairline) solid var(--publication-line);
     outline: 0;
     overscroll-behavior-inline: contain;
     -webkit-overflow-scrolling: touch;
@@ -263,7 +264,8 @@ summary::-webkit-details-marker {
 
 .markdown th {
     background: transparent;
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    border-bottom-color: var(--publication-line);
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
     font-weight: 600;
 }
 
@@ -335,10 +337,30 @@ summary::-webkit-details-marker {
 }
 
 .markdown-callout {
-    padding: 1rem 1.25rem;
+    padding: 0.75rem 1rem;
+    border: 0;
+    border-left: 2px solid var(--publication-accent);
+    background: transparent;
 }
 
-.markdown-callout strong,
+.markdown-callout > p {
+    margin: 0;
+}
+
+.markdown-callout > p:first-of-type {
+    display: inline;
+}
+
+/* frame examples with the shared publication rule */
+.markdown-code,
+.markdown-diagram,
+.markdown-figure,
+[data-publication-listing] {
+    border-top: var(--publication-hairline) solid var(--publication-line);
+    border-right: 0;
+    border-left: 0;
+}
+
 .markdown-diagram figcaption,
 .markdown-figure figcaption {
     display: flex;
@@ -348,23 +370,21 @@ summary::-webkit-details-marker {
     border-bottom: var(--publication-hairline) solid var(--publication-line);
     padding: 0.5rem 0.75rem;
     color: var(--publication-ink);
-    font-size: 0.72rem;
+    font-size: var(--size-label);
     line-height: 1.4;
 }
 
-.markdown-callout strong {
-    margin: -1rem -1.25rem 1rem;
-    background: transparent;
-    color: var(--publication-accent);
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.9rem;
-    font-weight: 700;
+.markdown-callout > strong {
+    margin-right: 0.5em;
+    font: inherit;
+    font-weight: 600;
+    text-transform: capitalize;
 }
 
 .markdown-code figcaption,
 .markdown-diagram figcaption,
 .markdown-figure figcaption {
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
 .markdown-code figcaption .markdown-code__title {
@@ -430,10 +450,10 @@ summary::-webkit-details-marker {
     grid-row: 1;
     align-items: center;
     justify-content: center;
-    border-right: var(--publication-hairline) solid var(--publication-ink);
+    border-right: var(--publication-hairline) solid var(--publication-line);
     background: var(--publication-page-muted);
     color: var(--publication-accent);
-    font-size: 0.72rem;
+    font-size: var(--size-label);
 }
 
 /* shared publication listings */
@@ -454,7 +474,7 @@ summary::-webkit-details-marker {
     border-bottom: var(--publication-hairline) solid var(--publication-line);
     color: var(--publication-ink);
     font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.75rem;
+    font-size: var(--size-label);
     font-weight: 500;
     letter-spacing: 0;
     line-height: 1.4;
@@ -559,7 +579,7 @@ summary::-webkit-details-marker {
 
 .markdown-figure figcaption {
     background: transparent;
-    color: var(--publication-soft);
+    color: var(--publication-ink);
     font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
@@ -602,18 +622,18 @@ summary::-webkit-details-marker {
 }
 
 .reference-catalog dt {
-    color: var(--publication-soft);
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.72rem;
+    color: var(--publication-ink);
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
+    font-size: var(--size-label);
     letter-spacing: 0.02em;
 }
 
 .reference-catalog dd {
     margin: 0;
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
 }
 
-.reference-module-list {
+.markdown .reference-module-list {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     margin: 0;
@@ -622,33 +642,38 @@ summary::-webkit-details-marker {
     list-style: none;
 }
 
-.reference-module-list li {
+.markdown .reference-module-list li {
+    padding: 0;
     min-width: 0;
     border-bottom: var(--publication-hairline) solid var(--publication-line);
 }
 
-.reference-module-list a {
+.markdown .reference-module-list a {
     display: flex;
     min-width: 0;
     align-items: baseline;
     justify-content: space-between;
     gap: 1rem;
-    padding: 0.65rem 0.75rem;
+    padding: 0.65rem 0;
+    text-decoration: none;
 }
 
 .reference-module-list a:hover {
     color: var(--publication-accent);
 }
 
-.reference-module-list code {
+.markdown .reference-module-list code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
     overflow-wrap: anywhere;
 }
 
 .reference-module-list span {
     flex: none;
-    color: var(--publication-soft);
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.72rem;
+    color: var(--publication-ink);
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
+    font-size: var(--size-label);
 }
 
 .reference-module,
@@ -730,14 +755,15 @@ summary::-webkit-details-marker {
 }
 
 .lint-category > h2 span:last-child {
-    color: var(--publication-soft);
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--publication-ink);
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
     font-size: var(--size-label);
     font-weight: 400;
 }
 
 .markdown .lint-rule-list {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
     list-style: none;
     margin: 0;
@@ -745,6 +771,7 @@ summary::-webkit-details-marker {
 }
 
 .markdown .lint-rule-list li {
+    min-width: 0;
     border-bottom: var(--publication-hairline) solid var(--publication-line);
     padding: 0;
 }
@@ -774,7 +801,7 @@ summary::-webkit-details-marker {
 }
 
 .lint-rule-list span {
-    color: var(--publication-soft);
+    color: var(--publication-ink);
     flex: 1;
     font-size: var(--size-label);
     min-width: 0;
@@ -793,44 +820,39 @@ summary::-webkit-details-marker {
     flex-wrap: wrap;
     gap: 0.375rem;
     margin: 0;
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
     font-size: var(--size-label);
 }
 
 .lint-tag {
     border: var(--publication-hairline) solid var(--publication-line);
-    color: var(--publication-soft);
+    color: var(--publication-ink);
     line-height: 1;
     padding: 0.35rem 0.5rem;
 }
 
 .lint-tag-category {
     background: color-mix(in srgb, var(--publication-syntax-type) 9%, transparent);
-    border-color: color-mix(in srgb, var(--publication-syntax-type) 28%, var(--publication-line));
     color: var(--publication-syntax-type);
 }
 
 .lint-tag-level {
     background: color-mix(in srgb, var(--publication-accent) 10%, transparent);
-    border-color: color-mix(in srgb, var(--publication-accent) 32%, var(--publication-line));
     color: var(--publication-accent);
 }
 
 .lint-tag-error {
     background: color-mix(in srgb, var(--publication-rust) 11%, transparent);
-    border-color: color-mix(in srgb, var(--publication-rust) 34%, var(--publication-line));
     color: var(--publication-rust);
 }
 
 .lint-tag-automatic {
     background: color-mix(in srgb, var(--publication-syntax-string) 9%, transparent);
-    border-color: color-mix(in srgb, var(--publication-syntax-string) 28%, var(--publication-line));
     color: var(--publication-syntax-string);
 }
 
 .lint-tag-suggestion {
     background: color-mix(in srgb, var(--publication-syntax-function) 9%, transparent);
-    border-color: color-mix(in srgb, var(--publication-syntax-function) 28%, var(--publication-line));
     color: var(--publication-syntax-function);
 }
 
@@ -863,9 +885,9 @@ summary::-webkit-details-marker {
 .lint-references {
     align-items: baseline;
     border-top: var(--publication-hairline) solid var(--publication-line);
-    color: var(--publication-soft);
+    color: var(--publication-ink);
     display: flex;
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
     font-size: var(--size-label);
     flex-wrap: wrap;
     gap: 0.5rem 1.25rem;
@@ -889,10 +911,10 @@ summary::-webkit-details-marker {
     margin: 0;
 }
 
-.reference-signature .reference-source {
+.reference-signature figcaption .reference-source {
     align-self: center;
-    color: var(--publication-soft);
-    font-size: 0.6875rem;
+    color: var(--publication-ink);
+    font-size: var(--size-label);
     font-weight: 400;
     letter-spacing: 0;
     overflow-wrap: anywhere;
@@ -971,8 +993,21 @@ summary::-webkit-details-marker {
 }
 
 @media (max-width: 767px) {
+    /* keep each rule within the mobile reading column */
+    .lint-rule-list span {
+        display: none;
+    }
+
+    .markdown .lint-rule-list code {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
     .lint-metadata {
-        gap: 0.35rem 0;
+        gap: 0.35rem;
     }
 
     .lint-references {
@@ -1016,8 +1051,8 @@ summary::-webkit-details-marker {
 
     .markdown td::before {
         content: attr(data-label);
-        color: var(--publication-soft);
-        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: var(--publication-ink);
+        font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
         font-size: var(--size-label);
         font-weight: 600;
     }

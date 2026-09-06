@@ -60,12 +60,16 @@ export function Reader(props: ReaderProps) {
     // align direct links after responsive layout and webfonts settle
     onMount(() => {
         const scrollToHeading = () => {
-            const identifier = decodeURIComponent(window.location.hash.slice(1));
+            const identifier = decodeURIComponent(
+                window.location.hash.slice(1),
+            );
             if (identifier === "") {
                 return;
             }
 
-            document.getElementById(identifier)?.scrollIntoView({ block: "start" });
+            document
+                .getElementById(identifier)
+                ?.scrollIntoView({ block: "start" });
         };
         const scrollAfterLayout = () => {
             window.requestAnimationFrame(scrollToHeading);
@@ -112,13 +116,7 @@ export function Reader(props: ReaderProps) {
 /// Render one toolbar at its responsive DOM position.
 function ReaderToolbar(props: ReaderToolbarProps) {
     return (
-        <header
-            {...stylex.attrs(
-                styles.toolbar,
-                styles.toolbarPublication,
-                styles.toolbarTop,
-            )}
-        >
+        <header {...stylex.attrs(styles.toolbar, styles.toolbarPublication)}>
             <details {...stylex.attrs(styles.menu)} name="reader-tools">
                 <summary {...stylex.attrs(styles.menuSummary)}>menu</summary>
                 <div {...stylex.attrs(styles.menuBody)}>
@@ -126,9 +124,7 @@ function ReaderToolbar(props: ReaderToolbarProps) {
                 </div>
             </details>
 
-            <div {...stylex.attrs(styles.location)}>
-                {props.location()}
-            </div>
+            <div {...stylex.attrs(styles.location)}>{props.location()}</div>
             <div {...stylex.attrs(styles.toolbarTools)}>
                 {props.tokenCount !== undefined && (
                     <span {...stylex.attrs(styles.tokenCount)}>
@@ -185,13 +181,15 @@ const styles = stylex.create({
             display: "none",
         },
         [narrow]: {
-            gridColumn: 1,
+            gridColumn: "1 / -1",
             gridRow: 1,
         },
     },
     menuBody: {
         alignContent: "start",
         display: "grid",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-navigation)",
         gap: "2rem",
         maxHeight: "min(32rem, calc(100svh - 10rem))",
         overflowY: "auto",
@@ -202,7 +200,7 @@ const styles = stylex.create({
         color: tokens.text,
         cursor: "pointer",
         display: "flex",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
         fontWeight: 500,
         gap: "0.75rem",
@@ -248,11 +246,11 @@ const styles = stylex.create({
         alignItems: "center",
         borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
+        borderBottomWidth: 0,
         borderTopColor: tokens.line,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
-        color: tokens.soft,
+        borderTopWidth: 0,
+        color: tokens.ink,
         display: "flex",
         flexWrap: "wrap",
         fontSize: tokens.siteFontSize,
@@ -269,26 +267,22 @@ const styles = stylex.create({
         },
     },
     toolbarPublication: {
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
     },
     toolbarTools: {
-        alignItems: "baseline",
+        alignItems: "center",
         display: "flex",
         gap: "0.75rem",
+        minHeight: tokens.publicationRow,
         minWidth: 0,
         [narrow]: {
             gridColumn: 2,
             gridRow: 1,
         },
     },
-    toolbarTop: {
-        [mobile]: {
-            display: "none",
-        },
-    },
     tokenCount: {
-        color: tokens.soft,
+        color: tokens.ink,
         whiteSpace: "nowrap",
         "::after": {
             content: "·",

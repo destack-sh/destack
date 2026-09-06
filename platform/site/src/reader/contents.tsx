@@ -9,6 +9,8 @@ import {
 } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
+import { publicationStyles } from "./publication.stylex";
+
 import { tokens } from "../style/tokens.stylex";
 
 /// One article heading in the rendered contents.
@@ -74,21 +76,25 @@ function ContentsList(props: ContentsListProps) {
         <ol {...stylex.attrs(styles.list, props.isNested && styles.nested)}>
             <For each={props.nodes}>
                 {(node) => {
-                    const isExpanded = () => containsHeading(node, props.activeId());
+                    const isExpanded = () =>
+                        containsHeading(node, props.activeId());
 
                     return (
                         <li>
                             <a
                                 {...stylex.attrs(
                                     styles.link,
-                                    props.activeId() === node.id && styles.active,
+                                    props.activeId() === node.id &&
+                                        publicationStyles.active,
                                 )}
                                 href={`#${node.id}`}
                             >
                                 <span>{node.text}</span>
                             </a>
 
-                            <Show when={node.children.length > 0 && isExpanded()}>
+                            <Show
+                                when={node.children.length > 0 && isExpanded()}
+                            >
                                 <ContentsList
                                     activeId={props.activeId}
                                     isNested
@@ -138,12 +144,8 @@ function outlineFor(entries: readonly ContentsEntry[]) {
 }
 
 const styles = stylex.create({
-    active: {
-        color: tokens.text,
-        fontWeight: 600,
-    },
     link: {
-        color: tokens.soft,
+        color: tokens.ink,
         display: "block",
         paddingBlock: "0.25rem",
         ":hover": {

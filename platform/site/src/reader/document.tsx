@@ -2,24 +2,13 @@ import { A } from "@solidjs/router";
 import { type Accessor, For, Show } from "solid-js";
 import * as stylex from "@stylexjs/stylex";
 
-import {
-    type Document,
-    type DocumentContent,
-    documents,
-} from "../generated/documents";
-import { Breadcrumbs, type Breadcrumb } from "./breadcrumbs";
+import { publicationStyles } from "./publication.stylex";
+
+import { type Document, type DocumentContent } from "../content/document";
+import { Breadcrumbs } from "./breadcrumbs";
 import { ContentsTree, type ContentsEntry } from "./contents";
 import { tokens } from "../style/tokens.stylex";
 import { Reader } from "./reader";
-
-const mobile = "@media (max-width: 767px)";
-
-const referenceIndex = "language/index.md";
-const standardLibraryPath = "language/standard-library/";
-const libraryModulePath = `${standardLibraryPath}modules/`;
-const libraryModuleIndex = `${libraryModulePath}index.md`;
-const lintRulePath = "language/static-analysis/linter/rules/";
-const lintRuleIndex = `${lintRulePath}index.md`;
 
 /// Properties for one rendered manual chapter.
 type DocumentArticleProps = {
@@ -32,18 +21,8 @@ type DocumentArticleProps = {
 
 /// Render one manual chapter with book and heading navigation.
 export function DocumentArticle(props: DocumentArticleProps) {
-    // show reading size for authored manual chapters
-    const isGeneratedReference = (
-        props.document.path.startsWith(libraryModulePath) ||
-        props.document.path.startsWith(lintRulePath)
-    );
-    const tokenCount = isGeneratedReference
-        ? undefined
-        : props.document.tokens;
-    const isLintRule = (
-        props.document.path.startsWith(lintRulePath) &&
-        props.document.path !== lintRuleIndex
-    );
+    const tokenCount =
+        props.document.kind === "chapter" ? props.document.tokens : undefined;
 
     return (
         <Reader
@@ -60,18 +39,18 @@ export function DocumentArticle(props: DocumentArticleProps) {
             source={props.document}
             tokenCount={tokenCount}
         >
-            <header {...stylex.attrs(styles.articleHeader)}>
+            <header {...stylex.attrs(publicationStyles.header)}>
                 <h1
                     {...stylex.attrs(
-                        styles.articleTitle,
-                        isLintRule && styles.lintRuleTitle,
+                        publicationStyles.title,
+                        props.document.kind === "rule" && styles.lintRuleTitle,
                     )}
                 >
                     {props.document.title}
                 </h1>
                 <Show when={props.document.lead}>
                     {(lead) => (
-                        <p {...stylex.attrs(styles.articleDescription)}>
+                        <p {...stylex.attrs(publicationStyles.description)}>
                             {lead()}
                         </p>
                     )}
@@ -97,65 +76,43 @@ type DocumentNavigationProps = {
 
 /// Render the manual chapters and current article headings.
 function DocumentNavigation(props: DocumentNavigationProps) {
-    // show reference roots and the current section
-    const isLibraryModule = props.current.path.startsWith(libraryModulePath);
-    const isLintRule = (
-        props.current.path.startsWith(lintRulePath) &&
-        props.current.path !== lintRuleIndex
-    );
-    const currentSection = props.current.path.split("/")[1];
-    const chapters = documents.filter((document) => {
-        const isGeneratedModule =
-            document.path.startsWith(libraryModulePath) &&
-            document.path !== libraryModuleIndex;
-        if (document.path === referenceIndex || isGeneratedModule) {
-            return false;
-        }
-
-        const section = document.path.split("/")[1];
-
-        return documentDepth(document) === 0 || section === currentSection;
-    });
+    const navigation = () => props.current.navigation;
 
     return (
         <nav aria-label="manual" {...stylex.attrs(styles.book)}>
-            <A {...stylex.attrs(styles.bookTitle)} href="/docs/">
-                <span>reference</span>
+            <A
+                {...stylex.attrs(publicationStyles.collectionTitle)}
+                href={navigation().root.route}
+            >
+                {navigation().root.title}
             </A>
-
-            <ol {...stylex.attrs(styles.bookList)}>
-                <For each={chapters}>
-                    {(document) => (
+            <ol {...stylex.attrs(publicationStyles.collectionList)}>
+                <For each={navigation().entries}>
+                    {(entry) => (
                         <li>
                             <A
                                 {...stylex.attrs(
                                     styles.bookLink,
-                                    documentIndent(document),
-                                    documentDepth(document) === 0 &&
-                                        styles.section,
-                                    (document.route === props.current.route ||
-                                        (document.path === libraryModuleIndex &&
-                                            isLibraryModule) ||
-                                        (document.path === lintRuleIndex &&
-                                            isLintRule)) &&
-                                        styles.active,
+                                    documentIndent(entry.depth),
+                                    entry.depth === 0 && styles.section,
+                                    entry.route === props.current.route &&
+                                        publicationStyles.active,
                                 )}
                                 end
-                                href={document.route}
+                                href={entry.route}
                             >
-                                {document.title}
+                                {entry.title}
                             </A>
-
                             <Show
                                 when={
-                                    document.route === props.current.route &&
+                                    entry.route === props.current.route &&
                                     props.contents.length > 0
                                 }
                             >
                                 <div
                                     {...stylex.attrs(
                                         styles.documentContents,
-                                        documentIndent(document),
+                                        documentIndent(entry.depth),
                                     )}
                                 >
                                     <ContentsTree
@@ -165,107 +122,6 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                                     />
                                 </div>
                             </Show>
-
-                            <Show
-                                when={
-                                    document.path === libraryModuleIndex &&
-                                    props.current.path !==
-                                        libraryModuleIndex &&
-                                    isLibraryModule
-                                }
-                            >
-                                <Show
-                                    fallback={
-                                        <>
-                                            <A
-                                                {...stylex.attrs(
-                                                    styles.bookLink,
-                                                    styles.depth2,
-                                                    styles.active,
-                                                )}
-                                                end
-                                                href={props.current.route}
-                                            >
-                                                {props.current.title}
-                                            </A>
-                                            <div
-                                                {...stylex.attrs(
-                                                    styles.documentContents,
-                                                    styles.depth2,
-                                                )}
-                                            >
-                                                <ContentsTree
-                                                    activeId={
-                                                        props.activeHeading
-                                                    }
-                                                    entries={props.contents}
-                                                    isNested
-                                                />
-                                            </div>
-                                        </>
-                                    }
-                                    when={props.current.moduleRoute}
-                                >
-                                    {(moduleRoute) => (
-                                        <>
-                                            <A
-                                                {...stylex.attrs(
-                                                    styles.bookLink,
-                                                    styles.depth2,
-                                                )}
-                                                end
-                                                href={moduleRoute()}
-                                            >
-                                                {props.current.moduleTitle}
-                                            </A>
-                                            <A
-                                                {...stylex.attrs(
-                                                    styles.bookLink,
-                                                    styles.depth3,
-                                                    styles.active,
-                                                )}
-                                                end
-                                                href={props.current.route}
-                                            >
-                                                {props.current.title}
-                                            </A>
-                                            <div
-                                                {...stylex.attrs(
-                                                    styles.documentContents,
-                                                    styles.depth3,
-                                                )}
-                                            >
-                                                <ContentsTree
-                                                    activeId={
-                                                        props.activeHeading
-                                                    }
-                                                    entries={props.contents}
-                                                    isNested
-                                                />
-                                            </div>
-                                        </>
-                                    )}
-                                </Show>
-                            </Show>
-
-                            <Show
-                                when={
-                                    document.path === lintRuleIndex &&
-                                    isLintRule
-                                }
-                            >
-                                <A
-                                    {...stylex.attrs(
-                                        styles.bookLink,
-                                        styles.depth3,
-                                        styles.active,
-                                    )}
-                                    end
-                                    href={props.current.route}
-                                >
-                                    {props.current.title}
-                                </A>
-                            </Show>
                         </li>
                     )}
                 </For>
@@ -274,127 +130,53 @@ function DocumentNavigation(props: DocumentNavigationProps) {
     );
 }
 
-/// Return the visual nesting below the manual root.
-function documentDepth(document: Document) {
-    // omit the collection root and each directory index
-    const segments = document.path.split("/");
-    const isDirectoryIndex = segments.at(-1) === "index.md";
-    const depth = segments.length - (isDirectoryIndex ? 3 : 2);
-
-    return Math.max(0, depth);
+/// Return the indentation of one generated navigation entry.
+function documentIndent(depth: number) {
+    return [styles.depth0, styles.depth1, styles.depth2, styles.depth3][
+        Math.min(depth, 3)
+    ];
 }
 
-/// Return the fixed indentation for one manual chapter.
-function documentIndent(document: Document) {
-    switch (documentDepth(document)) {
-        // top-level area
-        case 0:
-            return styles.depth0;
-
-        // direct child
-        case 1:
-            return styles.depth1;
-
-        // grandchild
-        case 2:
-            return styles.depth2;
-
-        // deeper descendants
-        default:
-            return styles.depth3;
-    }
+/// Render the generated document ancestors.
+function DocumentLocation(props: { document: Document }) {
+    return (
+        <Breadcrumbs
+            items={props.document.navigation.ancestors.map((link) => ({
+                href: link.route,
+                label: link.title,
+            }))}
+        />
+    );
 }
 
-/// Properties for the manual chapter location.
-type DocumentLocationProps = {
-    /// The current document.
-    document: Document;
-};
-
-/// Render the navigable chapter path.
-function DocumentLocation(props: DocumentLocationProps) {
-    const items = (): readonly Breadcrumb[] => {
-        // describe generated items through their public module
-        if (
-            props.document.moduleRoute != undefined &&
-            props.document.moduleTitle != undefined
-        ) {
-            return [
-                { href: "/docs/language/", label: "language" },
-                {
-                    href: "/docs/language/standard-library/",
-                    label: "standard library",
-                },
-                {
-                    href: "/docs/language/standard-library/modules/",
-                    label: "modules",
-                },
-                {
-                    href: props.document.moduleRoute,
-                    label: props.document.moduleTitle,
-                },
-            ];
-        }
-
-        // retain only the navigable ancestors
-        const segments = props.document.route
-            .split("/")
-            .filter(Boolean)
-            .slice(1, -1);
-        const breadcrumbs: Breadcrumb[] = [];
-
-        // link each ancestor from the documentation root
-        for (let index = 0; index < segments.length; index += 1) {
-            const label = segments[index];
-            const href = `/docs/${segments.slice(0, index + 1).join("/")}/`;
-            breadcrumbs.push({ href, label });
-        }
-
-        return breadcrumbs;
-    };
-
-    return <Breadcrumbs items={items()} />;
-}
-
-/// Properties for the adjacent chapter navigation.
-type DocumentPaginationProps = {
-    /// The current document.
-    current: Document;
-};
-
-/// Link to the adjacent chapters in manual order.
-function DocumentPagination(props: DocumentPaginationProps) {
-    const index = () =>
-        documents.findIndex(
-            (document) => document.route === props.current.route,
-        );
-    const previous = () => documents[index() - 1];
-    const next = () => documents[index() + 1];
+/// Render the generated adjacent chapter links.
+function DocumentPagination(props: { current: Document }) {
+    const previous = () => props.current.navigation.previous;
+    const next = () => props.current.navigation.next;
 
     return (
-        <Show when={index() >= 0}>
+        <Show when={previous() || next()}>
             <nav
                 aria-label="chapter navigation"
                 {...stylex.attrs(styles.pagination)}
             >
                 <Show when={previous()}>
-                    {(document) => (
+                    {(link) => (
                         <A
                             {...stylex.attrs(styles.paginationLink)}
-                            href={document().route}
+                            href={link().route}
                         >
-                            ← {document().title}
+                            ← {link().title}
                         </A>
                     )}
                 </Show>
-
                 <Show when={next()}>
-                    {(document) => (
+                    {(link) => (
                         <A
                             {...stylex.attrs(styles.paginationLink)}
-                            href={document().route}
+                            href={link().route}
                         >
-                            {document().title} →
+                            {link().title} →
                         </A>
                     )}
                 </Show>
@@ -405,39 +187,6 @@ function DocumentPagination(props: DocumentPaginationProps) {
 
 /// Manual navigation styles.
 const styles = stylex.create({
-    active: {
-        color: tokens.ink,
-        fontWeight: 600,
-    },
-    articleDescription: {
-        color: tokens.soft,
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-page-description)",
-        lineHeight: 1.4,
-        margin: 0,
-        maxWidth: "42rem",
-    },
-    articleHeader: {
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        display: "grid",
-        gap: tokens.publicationSpace,
-        paddingBlock: `calc(${tokens.publicationSpace} * 4)`,
-        [mobile]: {
-            gap: tokens.publicationSpace,
-            paddingBlock: "1rem",
-        },
-    },
-    articleTitle: {
-        fontFamily: tokens.displayFont,
-        fontSize: "var(--size-page-title)",
-        fontWeight: 400,
-        letterSpacing: "-0.03em",
-        lineHeight: 1,
-        margin: 0,
-        textIndent: "-0.04em",
-    },
     book: {
         alignContent: "start",
         color: tokens.ink,
@@ -445,7 +194,7 @@ const styles = stylex.create({
         gap: 0,
     },
     bookLink: {
-        color: tokens.soft,
+        color: tokens.ink,
         display: "block",
         fontSize: "var(--size-navigation)",
         lineHeight: 1.3,
@@ -454,32 +203,7 @@ const styles = stylex.create({
             color: tokens.accent,
         },
     },
-    bookList: {
-        display: "grid",
-        gap: 0,
-        listStyle: "none",
-        margin: 0,
-        padding: `calc(${tokens.publicationSpace} * 4) 0 0`,
-    },
-    bookTitle: {
-        alignItems: "center",
-        borderBottomColor: tokens.line,
-        borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
-        borderTopColor: tokens.line,
-        borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
-        color: tokens.ink,
-        display: "flex",
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-label)",
-        fontWeight: 500,
-        gap: "0.75rem",
-        minHeight: tokens.publicationRow,
-        ":hover": {
-            color: tokens.orange,
-        },
-    },
+
     depth0: {
         paddingLeft: 0,
     },
@@ -502,7 +226,7 @@ const styles = stylex.create({
         borderTopWidth: tokens.hairline,
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-navigation)",
         fontWeight: 600,
         gap: "1rem 2rem",

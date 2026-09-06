@@ -13,7 +13,10 @@ export function Footer() {
         <footer {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
                 <div {...stylex.attrs(styles.body)}>
-                    <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
+                    <nav
+                        aria-label="Social navigation"
+                        {...stylex.attrs(styles.navigation)}
+                    >
                         {socialLinks.map(({ label, href, shortcut }) => (
                             <SiteLink
                                 href={href}
@@ -28,7 +31,7 @@ export function Footer() {
                     <div {...stylex.attrs(styles.release)}>
                         <span>{release.version}</span>
                         <span>{release.stability}</span>
-                        <span>zurich, switzerland</span>
+                        <span>Switzerland</span>
                     </div>
                 </div>
             </div>

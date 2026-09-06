@@ -26,9 +26,13 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
                     <>
                         {index() > 0 && <span>/</span>}
                         {item.href == undefined ? (
-                            <span {...stylex.attrs(styles.current)}>{item.label}</span>
+                            <span {...stylex.attrs(styles.current)}>
+                                {item.label}
+                            </span>
                         ) : (
-                            <A {...stylex.attrs(styles.link)} href={item.href}>{item.label}</A>
+                            <A {...stylex.attrs(styles.link)} href={item.href}>
+                                {item.label}
+                            </A>
                         )}
                     </>
                 )}
@@ -39,7 +43,7 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
 
 const styles = stylex.create({
     current: {
-        color: tokens.soft,
+        color: tokens.ink,
         fontWeight: 400,
     },
     link: {
@@ -53,7 +57,7 @@ const styles = stylex.create({
         alignItems: "baseline",
         display: "flex",
         flexWrap: "wrap",
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontSize: "var(--size-label)",
         gap: "0.5rem",
         letterSpacing: "0.02em",

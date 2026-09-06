@@ -13,11 +13,19 @@ export function TopBar() {
         <header {...stylex.attrs(styles.root)}>
             <div {...stylex.attrs(styles.frame)}>
                 <div {...stylex.attrs(styles.body)}>
-                    <SiteLink href="/" shortcut="h" style={styles.brand} title="Alt+H: home">
+                    <SiteLink
+                        href="/"
+                        shortcut="h"
+                        style={styles.brand}
+                        title="Alt+H: home"
+                    >
                         destack.sh
                     </SiteLink>
 
-                    <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
+                    <nav
+                        aria-label="Primary navigation"
+                        {...stylex.attrs(styles.navigation)}
+                    >
                         {primaryLinks.map(({ label, href, shortcut }) => (
                             <SiteLink
                                 href={href}
@@ -54,13 +62,13 @@ const styles = stylex.create({
         width: "100%",
         [mobile]: {
             gap: "0.75rem",
-            gridTemplateColumns: "auto minmax(0, 1fr)",
+            gridTemplateColumns: "minmax(0, 1fr)",
             paddingBlock: "0.75rem",
         },
     },
     brand: {
         color: tokens.ink,
-        fontFamily: tokens.monoFont,
+        fontFamily: tokens.textFont,
         fontWeight: 600,
         gridColumn: "1 / span 8",
         ":hover": hover,
@@ -86,8 +94,9 @@ const styles = stylex.create({
         minWidth: 0,
         [mobile]: {
             gap: "0.875rem",
-            gridColumn: 2,
-            gridRow: 1,
+            gridColumn: 1,
+            gridRow: 2,
+            justifyContent: "space-between",
         },
     },
     link: {
