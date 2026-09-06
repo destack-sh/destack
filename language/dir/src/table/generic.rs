@@ -512,6 +512,16 @@ impl GenericSegment {
         parameter_id
     }
 
+    /// Record the dependents one template of this segment declares.
+    pub fn set_template_dependents(
+        &mut self,
+        template_id: LocalGenericTemplateId,
+        dependents: Vec<GlobalTypeId>,
+    ) {
+        let slot = template_id.0 - self.first_template_id;
+        self.templates.get_mut(slot).dependents = dependents;
+    }
+
     /// Append a generic parameter and register it on its declaring template.
     pub fn push_template_parameter(
         &mut self,

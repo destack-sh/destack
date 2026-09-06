@@ -125,8 +125,6 @@ pub enum GenericParameterOrigin {
     Induced,
     /// The receiver an interface template declares implicitly, bounded by the interface itself.
     Receiver,
-    /// Minted for one open form the face writes over its parameters, equal to that form.
-    Dependent,
 }
 
 /// Representation used to solve one generic parameter.
@@ -220,6 +218,8 @@ pub struct GenericTemplate {
     pub parameters: Vec<LocalGenericParameterId>,
     /// The where-clause predicates declared on this template.
     pub predicates: Vec<WherePredicate>,
+    /// The types the signature writes over its parameters that only close at an instance.
+    pub dependents: Vec<GlobalTypeId>,
 }
 
 impl GenericTemplate {
@@ -235,6 +235,7 @@ impl GenericTemplate {
             symbol,
             parameters: Vec::new(),
             predicates: Vec::new(),
+            dependents: Vec::new(),
         }
     }
 }
@@ -246,6 +247,9 @@ impl TypeFold for GenericTemplate {
     ) -> Result<(), E> {
         for predicate in &mut self.predicates {
             predicate.map_types(map)?;
+        }
+        for dependent in &mut self.dependents {
+            *dependent = map(*dependent)?;
         }
 
         Ok(())
@@ -318,8 +322,6 @@ pub struct GenericParameterBinding {
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
-    /// The form a dependent parameter names.
-    pub dependent: Option<GlobalTypeId>,
 }
 
 impl TypeFold for GenericParameterBinding {
@@ -330,7 +332,6 @@ impl TypeFold for GenericParameterBinding {
         self.ty = map(self.ty)?;
         self.constraint.map_types(map)?;
         self.default.map_types(map)?;
-        self.dependent.map_types(map)?;
 
         Ok(())
     }

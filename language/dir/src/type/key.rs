@@ -30,15 +30,18 @@ pub struct InstanceKey {
     pub receiver: Option<GlobalTypeId>,
     /// The selected generic argument bindings.
     pub arguments: Vec<GenericArgumentBinding>,
+    /// The declaration's dependents evaluated at the arguments, owner templates first.
+    pub dependents: Vec<GlobalTypeId>,
 }
 
 impl InstanceKey {
-    /// Create an instance key without a receiver.
+    /// Create an instance key without a receiver or dependents.
     pub fn new(symbol: GlobalSymbolId, arguments: Vec<GenericArgumentBinding>) -> Self {
         Self {
             symbol,
             receiver: None,
             arguments,
+            dependents: Vec::new(),
         }
     }
 
@@ -60,6 +63,9 @@ impl TypeFold for InstanceKey {
         }
         for binding in &mut self.arguments {
             binding.map_types(map)?;
+        }
+        for dependent in &mut self.dependents {
+            *dependent = map(*dependent)?;
         }
 
         Ok(())
