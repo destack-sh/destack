@@ -2,6 +2,7 @@ mod access;
 mod alias;
 mod call;
 mod callable;
+mod copy;
 mod drop;
 mod initialization;
 mod library;

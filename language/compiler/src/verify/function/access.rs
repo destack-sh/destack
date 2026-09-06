@@ -8,9 +8,9 @@ use destack_core::BitSet;
 
 use crate::verify::VerifyError;
 
-use super::checker::BorrowChecker;
+use super::checker::FunctionChecker;
 
-impl BorrowChecker<'_, '_> {
+impl FunctionChecker<'_, '_> {
     /// Check one instruction against the current origin.
     pub(super) fn check_instruction(
         &mut self,

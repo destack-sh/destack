@@ -1,17 +1,9 @@
 use destack_core::{FxIndexMap, FxIndexSet};
-use destack_mir::{BlockId, Function, Instruction, Terminator, Tree, Type, Value};
+use destack_mir::{BlockId, Instruction, Terminator, Type, Value};
 
-use crate::verify::{VerifyError, VerifyState};
+use crate::verify::VerifyError;
 
-/// Definite initialization checker for one constructor receiver.
-pub(in crate::verify) struct InitializationChecker<'a, 'b> {
-    /// The function being checked.
-    function: &'a Function,
-    /// The MIR tree.
-    tree: &'a Tree,
-    /// Module verification state.
-    verification: &'a mut VerifyState<'b>,
-}
+use super::checker::FunctionChecker;
 
 /// The field initialization state entering one block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,22 +52,9 @@ impl FieldState {
     }
 }
 
-impl<'a, 'b> InitializationChecker<'a, 'b> {
-    /// Create one constructor initialization checker.
-    pub(in crate::verify) fn new(
-        function: &'a Function,
-        tree: &'a Tree,
-        verification: &'a mut VerifyState<'b>,
-    ) -> Self {
-        Self {
-            function,
-            tree,
-            verification,
-        }
-    }
-
-    /// Check definite initialization of the constructor receiver.
-    pub(in crate::verify) fn check(mut self) {
+impl FunctionChecker<'_, '_> {
+    /// Check definite initialization of a constructor's receiver.
+    pub(super) fn check_initialization(&mut self) {
         // constructors receive exclusive uninitialized field storage
         let Some((receiver, field_count)) = self.uninitialized_receiver() else {
             return;

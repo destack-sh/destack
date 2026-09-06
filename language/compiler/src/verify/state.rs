@@ -2,13 +2,15 @@ use std::mem;
 use std::sync::Arc;
 
 use destack_artifact::{DiagnosticBuilder, MirLowered};
+use destack_core::FxIndexSet;
 use destack_mir::{
-    AccessTable, AnalysisCache, AnalysisOptions, DropTable, EffectTable, Function, FunctionCache,
-    LocalNodeIdAny, ResolutionTable, RetentionTable, SafepointTable, TargetLayout, Tree,
+    AccessTable, AnalysisCache, AnalysisOptions, DispatchTable, DropTable, EffectTable, Function,
+    FunctionBehavior, FunctionCache, FunctionId, LocalNodeId, LocalNodeIdAny, ResolutionTable,
+    RetentionTable, SafepointTable, TargetLayout, Tree,
 };
 
 use crate::DiagnosticAnchor;
-use crate::verify::{BorrowChecker, DropChecker, InitializationChecker, MoveChecker, VerifyError};
+use crate::verify::{FunctionChecker, VerifyError};
 
 /// State for one MIR verification.
 pub(crate) struct VerifyState<'a> {
@@ -37,20 +39,34 @@ pub(crate) struct VerifyState<'a> {
 impl<'a> VerifyState<'a> {
     /// Create verification state for one lowered MIR module.
     pub(crate) fn new(lowered: &'a MirLowered) -> Self {
-        let mut analyses = AnalysisCache::new();
-        let resolution = analyses.resolution(&lowered.tree, &lowered.dispatch);
-        let effects = analyses.effect(
+        Self::over(
             &lowered.tree,
+            &lowered.drops,
             &lowered.accesses,
-            &lowered.effects,
             &lowered.dispatch,
-        );
+            &lowered.effects,
+            lowered.target,
+        )
+    }
+
+    /// Create verification state over one MIR tree and its tables.
+    pub(crate) fn over(
+        tree: &'a Tree,
+        drops: &'a DropTable,
+        accesses: &'a AccessTable,
+        dispatch: &DispatchTable,
+        effects: &EffectTable,
+        target: TargetLayout,
+    ) -> Self {
+        let mut analyses = AnalysisCache::new();
+        let resolution = analyses.resolution(tree, dispatch);
+        let effects = analyses.effect(tree, accesses, effects, dispatch);
 
         Self {
-            tree: &lowered.tree,
-            drops: &lowered.drops,
-            accesses: &lowered.accesses,
-            target: lowered.target,
+            tree,
+            drops,
+            accesses,
+            target,
             effects,
             resolution,
             retention: RetentionTable::default(),
@@ -59,27 +75,29 @@ impl<'a> VerifyState<'a> {
         }
     }
 
-    /// Verify the current MIR tree.
+    /// Verify every defined function of the tree.
     pub(crate) fn verify(&mut self) {
+        let functions: Vec<_> = self
+            .tree
+            .iter_nodes::<Function>()
+            .filter(|(_, function)| function.is_defined())
+            .map(|(id, _)| id)
+            .collect();
+
+        self.verify_functions(&functions);
+    }
+
+    /// Verify the given functions.
+    pub(crate) fn verify_functions(&mut self, functions: &[FunctionId]) {
         let tree = self.tree;
 
-        // verify every defined function
-        for (_, function) in tree.iter_nodes::<Function>() {
-            if !function.is_defined() {
-                continue;
-            }
+        // verify each function
+        for id in functions {
+            let function = tree.get(*id);
 
             let options = AnalysisOptions::new(self.target);
             let mut analyses = FunctionCache::with_options(options);
-
-            // check moves before borrow legality
-            MoveChecker::new(function, tree, self, &mut analyses).check();
-
-            // check constructor receivers initialize every field
-            InitializationChecker::new(function, tree, self).check();
-
-            // check borrows and retain ownership roots
-            let verdict = BorrowChecker::new(function, tree, self, &mut analyses).check();
+            let verdict = FunctionChecker::new(function, tree, self, &mut analyses).check();
             self.retention.extend(verdict.retention);
             self.safepoints.extend(verdict.safepoints);
         }
@@ -88,7 +106,39 @@ impl<'a> VerifyState<'a> {
         self.safepoints.sort();
 
         // check drop hooks for forbidden effects
-        DropChecker::new(self).check();
+        self.check_drop_effects();
+    }
+
+    /// Check every authored drop hook for forbidden effects.
+    fn check_drop_effects(&mut self) {
+        // collect each hook once across its registered storages
+        let hooks: FxIndexSet<_> = self
+            .drops
+            .hooks()
+            .map(|(_, _, function)| function)
+            .collect();
+        let effects = self.effects.clone();
+
+        for function in hooks {
+            // check each hook where its body was analyzed, an imported hook checking in its module
+            let Some(effect) = effects.function(function) else {
+                continue;
+            };
+            let behavior = effect.behavior.clone();
+
+            self.check_drop_hook(function, &behavior);
+        }
+    }
+
+    /// Check one drop hook's closed behavior.
+    fn check_drop_hook(&mut self, function: LocalNodeId<Function>, behavior: &FunctionBehavior) {
+        if !behavior.park.may_park() {
+            return;
+        }
+
+        let anchor = self.anchor(function.into_any());
+
+        self.emit_error(VerifyError::DropEffect { anchor });
     }
 
     /// Create a source anchor for one MIR node.

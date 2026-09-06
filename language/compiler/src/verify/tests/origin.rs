@@ -226,8 +226,11 @@ type String {
 }
 
 @copy
+type Stored = variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
+
+@copy
 type Box {
-    message: ref<String, managed, mutable, undefined, local>;
+    message: Stored;
 }
 
 type Maybe = variant<uint1> { 0uint1 = ref<String, managed, readonly, local>; 1uint1 = void; }
@@ -239,14 +242,16 @@ function test<'a>(v0: ref<Box, borrowed, 'a, readonly, local>): ref<String, borr
     local l1: ref<String, borrowed, 'a, readonly, local>, readonly
 
 entry(v0: ref<Box, borrowed, 'a, readonly, local>):
-    v1: ref<ref<String, managed, readonly, undefined, local>, borrowed, readonly, local> = field.address v0, 0
-    v2: ref<String, managed, readonly, undefined, local> = load v1
-    v3: ref<String, managed, readonly, undefined, local> = undefined
-    v4: boolean = eq v2, v3
+    v1: ref<Stored, borrowed, readonly, local> = field.address v0, 0
+    v2: Stored = load v1
+    v3: uint1 = variant.tag v2
+    v15: uint1 = 1
+    v4: boolean = eq v3, v15
     branch v4 => b2 | b1
 
 b1:
-    v5: ref<String, managed, readonly, local> = cast.bit v2 -> ref<String, managed, readonly, local>
+    v16: ref<String, managed, mutable, local> = variant.payload v2, 0
+    v5: ref<String, managed, readonly, local> = cast.bit v16 -> ref<String, managed, readonly, local>
     v6: Maybe = variant.new 0, v5
     local.set l0, v6
     jump b3
@@ -437,9 +442,9 @@ type String {
     codeUnits: slice<uint16, unique, exclusive, local>;
 }
 
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): ref<String, borrowed, 'a, readonly, undefined, local> {
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly, local>; 1uint1 = void; } {
 entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    v1: ref<String, borrowed, 'a, readonly, undefined, local> = undefined
+    v1: variant<uint1> { 0uint1 = ref<String, borrowed, 'a, readonly, local>; 1uint1 = void; } = variant.new 1
     return v1
 }
 "#,

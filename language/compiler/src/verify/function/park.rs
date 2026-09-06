@@ -4,9 +4,9 @@ use destack_mir::{
 
 use destack_core::FxIndexSet;
 
-use super::checker::BorrowChecker;
+use super::checker::FunctionChecker;
 
-impl BorrowChecker<'_, '_> {
+impl FunctionChecker<'_, '_> {
     /// Hold the handles of the managed storage borrowed across one parking call.
     pub(super) fn hold_park(&mut self, callsite: Point, direct: Option<LocalNodeId<Function>>) {
         // act only on calls that may park

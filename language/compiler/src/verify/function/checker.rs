@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use destack_mir::{
-    Access, AliasTable, Block, EscapeTable, Function, FunctionCache, Lifetime, LiveSet,
-    LivenessTable, LoanId, LocalNodeId, LocalNodeIdAny, LoopTable, MemoryTable, MovePathId,
-    MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Point,
-    Projection, RetentionTable, SafepointKind, SafepointTable, Terminator, Tree, Type, TypeId,
-    Value,
+    Access, AliasTable, Block, Copy, EscapeTable, Function, FunctionCache, InitializationTable,
+    Lifetime, LiveSet, LivenessTable, LoanId, LocalNodeId, LocalNodeIdAny, LoopTable, MemoryTable,
+    MovePathId, MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable,
+    Point, Projection, RetentionTable, SafepointKind, SafepointTable, Terminator, Tree, Type,
+    TypeId, Value,
 };
 
 use destack_artifact::DiagnosticAnchor;
@@ -13,14 +13,16 @@ use destack_core::{BitSet, FxIndexSet};
 
 use crate::verify::VerifyState;
 
-/// Borrow checker for one MIR function.
-pub(in crate::verify) struct BorrowChecker<'a, 'b> {
+/// Checker for one MIR function: its moves, its constructor initialization, and its borrows.
+pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     /// The function being verified.
     pub(super) function: &'a Function,
     /// The MIR tree.
     pub(super) tree: &'a Tree,
     /// Module verification state.
     pub(super) verification: &'a mut VerifyState<'b>,
+    /// Move-path initialization.
+    pub(super) initialization: Arc<InitializationTable>,
     /// SSA value liveness.
     liveness: Arc<LivenessTable>,
     /// Alias relation for physical memory accesses.
@@ -29,8 +31,8 @@ pub(in crate::verify) struct BorrowChecker<'a, 'b> {
     pub(super) memory: Arc<MemoryTable>,
     /// Places derived by address values.
     pub(super) places: Arc<PlaceTable>,
-    /// Dense independently movable paths.
-    moves: Arc<MoveTable>,
+    /// Dense independently movable paths, owned pointees included.
+    pub(super) moves: Arc<MoveTable>,
     /// Solved borrow origin.
     pub(super) origin: Arc<OriginTable>,
     /// Whole-function escape decisions.
@@ -52,7 +54,7 @@ pub(in crate::verify) struct BorrowChecker<'a, 'b> {
 }
 
 /// What one verified function hands to elaboration.
-pub(in crate::verify) struct BorrowVerdict {
+pub(in crate::verify) struct FunctionVerdict {
     /// Verified ownership retention.
     pub(in crate::verify) retention: RetentionTable,
     /// The safepoints of every verified function.
@@ -62,14 +64,15 @@ pub(in crate::verify) struct BorrowVerdict {
     pub(in crate::verify) safepoints: SafepointTable,
 }
 
-impl<'a, 'b> BorrowChecker<'a, 'b> {
-    /// Create one function borrow checker.
+impl<'a, 'b> FunctionChecker<'a, 'b> {
+    /// Create one function checker over the function's analyses.
     pub(in crate::verify) fn new(
         function: &'a Function,
         tree: &'a Tree,
         verification: &'a mut VerifyState<'b>,
         analyses: &mut FunctionCache,
     ) -> Self {
+        let initialization = analyses.initialization(function, tree);
         let liveness = analyses.liveness(function, tree);
         let places = analyses.place(function, tree);
         let moves = analyses.moves(function, tree);
@@ -84,6 +87,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             function,
             tree,
             verification,
+            initialization,
             liveness,
             alias,
             memory,
@@ -118,8 +122,21 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
         self.reported.insert((loan, anchor))
     }
 
-    /// Check borrow legality across the function, answering what elaboration needs.
-    pub(in crate::verify) fn check(mut self) -> BorrowVerdict {
+    /// Check the function, answering what elaboration needs: moves first, so a moved value
+    /// reports before the borrows it breaks, then the constructor's initialization, then borrows.
+    pub(in crate::verify) fn check(mut self) -> FunctionVerdict {
+        self.check_moves();
+        self.check_initialization();
+        self.check_borrows();
+
+        FunctionVerdict {
+            retention: self.retention,
+            safepoints: self.safepoints,
+        }
+    }
+
+    /// Check borrow legality across the function.
+    fn check_borrows(&mut self) {
         // check each reachable block from its fixed origin
         for &block_id in self.function.blocks() {
             let Some(entry) = self.origin.entry(block_id).cloned() else {
@@ -127,11 +144,6 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
             };
 
             self.check_block(block_id, entry);
-        }
-
-        BorrowVerdict {
-            retention: self.retention,
-            safepoints: self.safepoints,
         }
     }
 
@@ -339,14 +351,38 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     pub(super) fn is_move_only(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).copy(self.tree).is_no()
+        Copy::decide(self.tree, ty, &self.function.generics).is_no()
     }
 
-    /// Return whether one value has a variant type.
-    fn is_variant_value(&self, value: Value) -> bool {
+    /// Return whether one value stores a variant, whose case a store may change.
+    pub(super) fn is_variant(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
         matches!(self.tree.get(ty), Type::Variant { .. })
+    }
+
+    /// Return whether one value has a user drop hook.
+    pub(super) fn has_drop_hook(&self, value: Value) -> bool {
+        let ty = self.function.expect_value_type(value);
+
+        self.verification.drops.has_hook(ty)
+    }
+
+    /// Return whether one reference grants exclusive access.
+    pub(super) fn is_exclusive(&self, value: Value) -> bool {
+        let ty = self.function.expect_value_type(value);
+
+        self.tree.get(ty).reference_access() == Some(Access::Exclusive)
+    }
+
+    /// Return whether one reference addresses uninitialized storage.
+    pub(super) fn points_to_uninitialized(&self, value: Value) -> bool {
+        let ty = self.function.expect_value_type(value);
+        let Type::Reference { pointee, .. } = self.tree.get(ty) else {
+            return false;
+        };
+
+        matches!(self.tree.get(*pointee), Type::Uninit { .. })
     }
 
     /// Return access for one reference-like value.
@@ -366,7 +402,7 @@ impl<'a, 'b> BorrowChecker<'a, 'b> {
     /// Return the moved place for one projected move.
     pub(super) fn place_moved_by_projection(&self, base: Value, projection: Projection) -> Place {
         let place = self.places.get(base).clone();
-        if self.is_variant_value(base) {
+        if self.is_variant(base) {
             return place;
         }
 

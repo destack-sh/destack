@@ -1,49 +1,15 @@
-use std::sync::Arc;
-
 use destack_mir::{
-    Access, Function, FunctionCache, Initialization, InitializationState, InitializationTable,
-    Instruction, LocalNodeId, LocalNodeIdAny, MoveTable, Terminator, Tree, Type, Unavailability,
-    Value,
+    Initialization, InitializationState, Instruction, LocalNodeId, LocalNodeIdAny, Terminator,
+    Unavailability,
 };
 
-use crate::verify::{VerifyError, VerifyState};
+use crate::verify::VerifyError;
 
-/// Move checker for one MIR function.
-pub(in crate::verify) struct MoveChecker<'a, 'b> {
-    /// The function being checked.
-    function: &'a Function,
-    /// The MIR tree.
-    tree: &'a Tree,
-    /// Module verification state.
-    verification: &'a mut VerifyState<'b>,
-    /// Move-path initialization.
-    initialization: Arc<InitializationTable>,
-    /// Move paths, owned pointees included.
-    paths: Arc<MoveTable>,
-}
+use super::checker::FunctionChecker;
 
-impl<'a, 'b> MoveChecker<'a, 'b> {
-    /// Create one function move checker.
-    pub(in crate::verify) fn new(
-        function: &'a Function,
-        tree: &'a Tree,
-        verification: &'a mut VerifyState<'b>,
-        analyses: &mut FunctionCache,
-    ) -> Self {
-        let initialization = analyses.initialization(function, tree);
-        let paths = analyses.moves(function, tree);
-
-        Self {
-            function,
-            tree,
-            verification,
-            initialization,
-            paths,
-        }
-    }
-
+impl FunctionChecker<'_, '_> {
     /// Check move legality across the function.
-    pub(in crate::verify) fn check(mut self) {
+    pub(super) fn check_moves(&mut self) {
         for &block_id in self.function.blocks() {
             let Some(mut state) = self.initialization.entry(block_id).cloned() else {
                 continue;
@@ -53,19 +19,19 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
             // check and transfer instructions in execution order
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
-                self.check_instruction(instruction_id, instruction, &state);
+                self.check_move_instruction(instruction_id, instruction, &state);
                 self.initialization
                     .transfer_instruction(instruction_id, &mut state, self.tree);
             }
 
             // check the terminating operation
             let terminator = self.tree.get(block.terminator);
-            self.check_terminator(block.terminator, terminator, &state);
+            self.check_move_terminator(block.terminator, terminator, &state);
         }
     }
 
     /// Check initialized storage and move rules for one instruction.
-    fn check_instruction(
+    fn check_move_instruction(
         &mut self,
         instruction_id: LocalNodeId<Instruction>,
         instruction: &Instruction,
@@ -119,7 +85,7 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
             } if !self.is_pointer(*pointer)
                 && !self.points_to_uninitialized(*pointer)
                 && self.is_move_only(*destination)
-                && self.paths.pointee(*pointer).is_none() =>
+                && self.moves.pointee(*pointer).is_none() =>
             {
                 self.verification
                     .emit_error(VerifyError::MoveOutOfReference {
@@ -142,7 +108,7 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
     }
 
     /// Check initialized storage read by one terminator.
-    fn check_terminator(
+    fn check_move_terminator(
         &mut self,
         terminator_id: LocalNodeId<Terminator>,
         terminator: &Terminator,
@@ -198,50 +164,5 @@ impl<'a, 'b> MoveChecker<'a, 'b> {
                 unreachable!("initialized path produced an unavailable use")
             }
         }
-    }
-
-    /// Return whether one value is move-only.
-    fn is_move_only(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        self.tree.get(ty).copy(self.tree).is_no()
-    }
-
-    /// Return whether one value has a user drop hook.
-    fn has_drop_hook(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        self.verification.drops.has_hook(ty)
-    }
-
-    /// Return whether one value has an unchecked pointer type.
-    fn is_pointer(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        self.tree.get(ty).is_pointer()
-    }
-
-    /// Return whether one value stores a variant, whose case a store may change.
-    fn is_variant(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        matches!(self.tree.get(ty), Type::Variant { .. })
-    }
-
-    /// Return whether one reference grants exclusive access.
-    fn is_exclusive(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        self.tree.get(ty).reference_access() == Some(Access::Exclusive)
-    }
-
-    /// Return whether one reference addresses uninitialized storage.
-    fn points_to_uninitialized(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-        let Type::Reference { pointee, .. } = self.tree.get(ty) else {
-            return false;
-        };
-
-        matches!(self.tree.get(*pointee), Type::Uninit { .. })
     }
 }

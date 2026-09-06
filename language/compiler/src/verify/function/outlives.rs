@@ -4,9 +4,9 @@ use destack_mir::{
 
 use crate::verify::VerifyError;
 
-use super::checker::BorrowChecker;
+use super::checker::FunctionChecker;
 
-impl BorrowChecker<'_, '_> {
+impl FunctionChecker<'_, '_> {
     /// Check one returned value.
     pub(super) fn check_return(&mut self, value: Value, anchor: LocalNodeIdAny) {
         if !self
