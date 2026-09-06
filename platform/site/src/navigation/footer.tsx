@@ -31,7 +31,6 @@ export function Footer() {
                     <div {...stylex.attrs(styles.release)}>
                         <span>{release.version}</span>
                         <span>{release.stability}</span>
-                        <span>Switzerland</span>
                     </div>
                 </div>
             </div>

@@ -147,6 +147,7 @@ const styles = stylex.create({
     link: {
         color: tokens.ink,
         display: "block",
+        lineHeight: 1.3,
         paddingBlock: "0.25rem",
         ":hover": {
             color: tokens.accent,

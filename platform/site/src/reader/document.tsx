@@ -111,7 +111,6 @@ function DocumentNavigation(props: DocumentNavigationProps) {
                             >
                                 <div
                                     {...stylex.attrs(
-                                        styles.documentContents,
                                         documentIndent(entry.depth),
                                     )}
                                 >
@@ -215,10 +214,6 @@ const styles = stylex.create({
     },
     depth3: {
         paddingLeft: "3rem",
-    },
-    documentContents: {
-        paddingBottom: `calc(${tokens.publicationSpace} * 1.5)`,
-        paddingTop: `calc(${tokens.publicationSpace} * 0.5)`,
     },
     pagination: {
         borderTopColor: tokens.line,
