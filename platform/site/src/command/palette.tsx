@@ -1,4 +1,11 @@
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+    createMemo,
+    createSignal,
+    For,
+    onCleanup,
+    onMount,
+    Show,
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import * as stylex from "@stylexjs/stylex";
 
@@ -9,6 +16,8 @@ import {
     commandsFor,
     highlightParts,
     matchCommands,
+    searchScopes,
+    type SearchScope,
 } from "./command";
 import { loadSearchEntries, type SearchEntry } from "../content/search";
 import { siteSearchEntries } from "../content/site";
@@ -24,16 +33,25 @@ export function CommandPalette() {
     let dialog: HTMLDialogElement | undefined;
     let input: HTMLInputElement | undefined;
     const [entries, setEntries] = createSignal<readonly SearchEntry[]>([]);
+    const [loading, setLoading] = createSignal(false);
+    const [error, setError] = createSignal<string>();
     const [source, setSource] = createSignal<PageFormats>();
     const [query, setQuery] = createSignal("");
     const [selected, setSelected] = createSignal(0);
-    const commands = createMemo(() => commandsFor([...siteSearchEntries, ...entries()], source()));
-    const results = createMemo(() => matchCommands(commands(), query(), resultLimit));
+    const [scope, setScope] = createSignal<SearchScope>("All");
+    const commands = createMemo(() =>
+        commandsFor([...siteSearchEntries, ...entries()], source()),
+    );
+    const results = createMemo(() =>
+        matchCommands(commands(), query(), resultLimit, scope()),
+    );
 
     // open the palette from anywhere outside an editable control
     onMount(() => {
         const handleKey = (event: KeyboardEvent) => {
-            const isCommand = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
+            const isCommand =
+                (event.metaKey || event.ctrlKey) &&
+                event.key.toLowerCase() === "k";
             const isSlash = event.key === "/" && !isEditable(event.target);
             if (!isCommand && !isSlash) {
                 return;
@@ -54,15 +72,28 @@ export function CommandPalette() {
 
     // load search content only when somebody asks for it
     const openPalette = async () => {
-        if (entries().length === 0) {
-            setEntries(await loadSearchEntries());
-        }
-
+        // show local commands while the content index loads
         setQuery("");
         setSelected(0);
         setSource(currentPageSource());
         dialog?.showModal();
         queueMicrotask(() => input?.focus());
+
+        // report index failures in the open dialog and retry on the next open
+        if (entries().length === 0 && !loading()) {
+            setLoading(true);
+            setError(undefined);
+            try {
+                setEntries(await loadSearchEntries());
+                setSelected(0);
+            } catch (error: unknown) {
+                setError(
+                    error instanceof Error ? error.message : String(error),
+                );
+            } finally {
+                setLoading(false);
+            }
+        }
     };
 
     const choose = (command: Command) => {
@@ -70,7 +101,11 @@ export function CommandPalette() {
 
         if (command.action.kind === "navigate") {
             if (isExternalLink(command.action.href)) {
-                window.open(command.action.href, "_blank", "noopener,noreferrer");
+                window.open(
+                    command.action.href,
+                    "_blank",
+                    "noopener,noreferrer",
+                );
             } else {
                 window.location.assign(command.action.href);
             }
@@ -80,13 +115,17 @@ export function CommandPalette() {
     };
 
     const handleInputKey = (event: KeyboardEvent) => {
-        if (event.key === "ArrowDown") {
+        if (event.key === "Escape") {
+            event.preventDefault();
+            dialog?.close();
+        } else if (event.key === "ArrowDown") {
             event.preventDefault();
             moveSelection((selected() + 1) % Math.max(results().length, 1));
         } else if (event.key === "ArrowUp") {
             event.preventDefault();
             moveSelection(
-                (selected() - 1 + Math.max(results().length, 1)) % Math.max(results().length, 1),
+                (selected() - 1 + Math.max(results().length, 1)) %
+                    Math.max(results().length, 1),
             );
         } else if (event.key === "Enter") {
             const match = results()[selected()];
@@ -100,7 +139,9 @@ export function CommandPalette() {
     const moveSelection = (index: number) => {
         setSelected(index);
         queueMicrotask(() => {
-            document.getElementById(`search-result-${index}`)?.scrollIntoView({ block: "nearest" });
+            document
+                .getElementById(`search-result-${index}`)
+                ?.scrollIntoView({ block: "nearest" });
         });
     };
 
@@ -128,12 +169,25 @@ export function CommandPalette() {
                     ref={dialog}
                 >
                     <div {...stylex.attrs(styles.frame)}>
-                        <label {...stylex.attrs(styles.inputLabel)}>
-                            <span {...stylex.attrs(styles.inputPrompt)}>&gt;</span>
+                        <div {...stylex.attrs(styles.inputLabel)}>
+                            <svg
+                                aria-hidden="true"
+                                width="18"
+                                height="18"
+                                viewBox="0 0 20 20"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="1.5"
+                            >
+                                <circle cx="8" cy="8" r="5.5" />
+                                <path d="m12 12 5 5" />
+                            </svg>
                             <input
                                 {...stylex.attrs(styles.input)}
                                 aria-activedescendant={
-                                    results().length === 0 ? undefined : `search-result-${selected()}`
+                                    results().length === 0
+                                        ? undefined
+                                        : `search-result-${selected()}`
                                 }
                                 aria-autocomplete="list"
                                 aria-controls="search-results"
@@ -145,7 +199,11 @@ export function CommandPalette() {
                                     setSelected(0);
                                 }}
                                 onKeyDown={handleInputKey}
-                                placeholder="search everything"
+                                placeholder={
+                                    scope() === "All"
+                                        ? "Search Destack…"
+                                        : `Search ${scope().toLowerCase()}…`
+                                }
                                 ref={input}
                                 role="combobox"
                                 type="search"
@@ -159,46 +217,135 @@ export function CommandPalette() {
                             >
                                 close
                             </button>
+                        </div>
+
+                        {/* keep the selected collection visible while searching */}
+                        <label {...stylex.attrs(styles.scopes)}>
+                            Search in
+                            <select
+                                aria-label="Search scope"
+                                {...stylex.attrs(styles.scope)}
+                                value={scope()}
+                                onChange={(event) => {
+                                    setScope(
+                                        event.currentTarget
+                                            .value as SearchScope,
+                                    );
+                                    setSelected(0);
+                                    input?.focus();
+                                }}
+                            >
+                                <For each={searchScopes}>
+                                    {(name) => (
+                                        <option value={name}>
+                                            {name === "All"
+                                                ? "Everything"
+                                                : name}
+                                        </option>
+                                    )}
+                                </For>
+                            </select>
                         </label>
 
-                        <ol {...stylex.attrs(styles.resultList)} id="search-results" role="listbox">
+                        <ol
+                            {...stylex.attrs(styles.resultList)}
+                            id="search-results"
+                            role="listbox"
+                        >
                             <For each={results()}>
                                 {(match, index) => (
-                                    <li {...stylex.attrs(styles.resultRow, index() === 0 && styles.resultRowFirst)} role="none">
+                                    <li
+                                        {...stylex.attrs(
+                                            styles.resultRow,
+                                            index() === 0 &&
+                                                styles.resultRowFirst,
+                                        )}
+                                        role="none"
+                                    >
                                         <button
                                             {...stylex.attrs(
                                                 styles.resultButton,
-                                                selected() === index() && styles.selected,
+                                                selected() === index() &&
+                                                    styles.selected,
                                             )}
-                                            aria-selected={selected() === index()}
+                                            aria-selected={
+                                                selected() === index()
+                                            }
                                             id={`search-result-${index()}`}
                                             onClick={(event) => {
                                                 event.preventDefault();
                                                 choose(match.command);
                                             }}
-                                            onMouseMove={() => setSelected(index())}
+                                            onMouseMove={() =>
+                                                setSelected(index())
+                                            }
                                             role="option"
                                             type="button"
                                         >
-                                            <span aria-hidden="true" {...stylex.attrs(styles.indicator)}>
-                                                {selected() === index() ? ">" : ""}
+                                            <span
+                                                aria-hidden="true"
+                                                {...stylex.attrs(
+                                                    styles.indicator,
+                                                )}
+                                            >
+                                                {selected() === index()
+                                                    ? ">"
+                                                    : ""}
                                             </span>
-                                            <span {...stylex.attrs(styles.result)}>
-                                                <strong {...stylex.attrs(styles.resultLabel)}>
-                                                    <Highlight match={match} text={match.command.label} />
+                                            <span
+                                                {...stylex.attrs(styles.result)}
+                                            >
+                                                <strong
+                                                    {...stylex.attrs(
+                                                        styles.resultLabel,
+                                                    )}
+                                                >
+                                                    <Highlight
+                                                        match={match}
+                                                        text={
+                                                            match.command.label
+                                                        }
+                                                    />
                                                 </strong>
-                                                <span {...stylex.attrs(styles.context)}>
-                                                    <Highlight match={match} text={match.command.context} />
-                                                </span>
-                                                <Show when={match.excerpt !== ""}>
-                                                    <span {...stylex.attrs(styles.excerpt)}>
-                                                        <Highlight match={match} text={match.excerpt} />
+                                                <Show
+                                                    when={query().trim() !== ""}
+                                                >
+                                                    <span
+                                                        {...stylex.attrs(
+                                                            styles.context,
+                                                        )}
+                                                    >
+                                                        <Highlight
+                                                            match={match}
+                                                            text={
+                                                                match.command
+                                                                    .context
+                                                            }
+                                                        />
+                                                    </span>
+                                                </Show>
+                                                <Show
+                                                    when={match.excerpt !== ""}
+                                                >
+                                                    <span
+                                                        {...stylex.attrs(
+                                                            styles.excerpt,
+                                                        )}
+                                                    >
+                                                        <Highlight
+                                                            match={match}
+                                                            text={match.excerpt}
+                                                        />
                                                     </span>
                                                 </Show>
                                             </span>
                                             <Show when={match.command.shortcut}>
                                                 {(shortcut) => (
-                                                    <kbd {...stylex.attrs(styles.shortcut)}>
+                                                    <kbd
+                                                        {...stylex.attrs(
+                                                            styles.shortcut,
+                                                        )}
+                                                    >
                                                         alt+{shortcut()}
                                                     </kbd>
                                                 )}
@@ -209,9 +356,30 @@ export function CommandPalette() {
                             </For>
                         </ol>
 
-                        <Show when={results().length === 0}>
+                        <Show when={loading()}>
+                            <p {...stylex.attrs(styles.empty)} role="status">
+                                Loading search…
+                            </p>
+                        </Show>
+                        <Show when={error()}>
+                            {(message) => (
+                                <p {...stylex.attrs(styles.empty)} role="alert">
+                                    {message()}
+                                </p>
+                            )}
+                        </Show>
+                        <Show
+                            when={
+                                !loading() && !error() && results().length === 0
+                            }
+                        >
                             <p {...stylex.attrs(styles.empty)}>no matches</p>
                         </Show>
+                        <footer {...stylex.attrs(styles.help)}>
+                            <span>↑ ↓ Navigate</span>
+                            <span>↵ Open</span>
+                            <span>Esc Close</span>
+                        </footer>
                     </div>
                 </dialog>
             </Portal>
@@ -247,23 +415,31 @@ type HighlightProps = {
 function Highlight(props: HighlightProps) {
     return (
         <For each={highlightParts(props.text, props.match.terms)}>
-            {(part) => part.isMatch ? <mark {...stylex.attrs(styles.mark)}>{part.text}</mark> : part.text}
+            {(part) =>
+                part.isMatch ? (
+                    <mark {...stylex.attrs(styles.mark)}>{part.text}</mark>
+                ) : (
+                    part.text
+                )
+            }
         </For>
     );
 }
 
 /// Return whether the keyboard event originated in editable content.
 function isEditable(target: EventTarget | null) {
-    return target instanceof HTMLInputElement
-        || target instanceof HTMLTextAreaElement
-        || (target instanceof HTMLElement && target.isContentEditable);
+    return (
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        (target instanceof HTMLElement && target.isContentEditable)
+    );
 }
 
 const styles = stylex.create({
     close: {
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.soft,
+        color: tokens.ink,
         cursor: "pointer",
         font: "inherit",
         padding: 0,
@@ -272,20 +448,23 @@ const styles = stylex.create({
         },
     },
     context: {
-        color: tokens.soft,
+        color: tokens.ink,
         fontSize: "var(--size-label)",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
+        maxWidth: "15rem",
+        textAlign: "right",
     },
     empty: {
-        color: tokens.soft,
+        color: tokens.ink,
         margin: 0,
         padding: "1rem",
     },
     excerpt: {
-        color: tokens.soft,
-        fontSize: "0.8rem",
+        gridColumn: "1 / -1",
+        color: tokens.ink,
+        fontSize: "var(--size-label)",
         minWidth: 0,
         overflow: "hidden",
         textOverflow: "ellipsis",
@@ -307,7 +486,7 @@ const styles = stylex.create({
         minWidth: 0,
         outlineWidth: 0,
         "::placeholder": {
-            color: tokens.soft,
+            color: tokens.ink,
             opacity: 1,
         },
     },
@@ -321,9 +500,6 @@ const styles = stylex.create({
         gridTemplateColumns: "1rem minmax(0, 1fr) auto",
         padding: "0.75rem 1rem",
     },
-    inputPrompt: {
-        color: tokens.accent,
-    },
     mark: {
         backgroundColor: "transparent",
         color: tokens.accent,
@@ -331,24 +507,28 @@ const styles = stylex.create({
     },
     palette: {
         backgroundColor: tokens.cream,
-        borderColor: tokens.ink,
+        borderColor: tokens.line,
         borderStyle: "solid",
         borderWidth: tokens.hairline,
         color: tokens.ink,
-        fontFamily: tokens.monoFont,
-        fontSize: tokens.siteFontSize,
-        margin: "10svh auto auto",
-        maxHeight: "min(42rem, calc(100svh - 2rem))",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-body)",
+        margin: "min(12svh, 6rem) auto auto",
+        maxHeight: "calc(100dvh - 2rem)",
         maxWidth: "none",
         padding: 0,
         width: "min(42rem, calc(100vw - 2rem))",
         "::backdrop": {
-            backgroundColor: "rgb(5 46 64 / 72%)",
+            backgroundColor: "rgb(23 26 27 / 35%)",
+        },
+        "@media (max-width: 640px)": {
+            marginTop: "1rem",
         },
     },
     result: {
         display: "grid",
-        gap: "0.25rem",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(0, auto)",
+        gap: "0.2rem 1rem",
         minWidth: 0,
     },
     resultButton: {
@@ -360,7 +540,8 @@ const styles = stylex.create({
         font: "inherit",
         gap: "0.75rem",
         gridTemplateColumns: "1rem minmax(0, 1fr) auto",
-        padding: "0.625rem 1rem",
+        minHeight: "2.75rem",
+        padding: "0.5rem 0.75rem",
         textAlign: "left",
         width: "100%",
         ":hover": {
@@ -382,24 +563,58 @@ const styles = stylex.create({
     resultList: {
         listStyle: "none",
         margin: 0,
-        maxHeight: "min(34rem, calc(100svh - 8rem))",
+        maxHeight: "min(28rem, calc(100dvh - 13rem))",
         overflowY: "auto",
-        padding: 0,
+        padding: "0.5rem",
     },
     resultRow: {
         borderTopColor: tokens.line,
         borderTopStyle: "solid",
-        borderTopWidth: tokens.hairline,
+        borderTopWidth: 0,
     },
     resultRowFirst: {
         borderTopWidth: 0,
     },
     selected: {
-        backgroundColor: tokens.creamDeep,
+        backgroundColor:
+            "color-mix(in srgb, var(--publication-accent) 9%, var(--publication-page))",
         color: tokens.ink,
     },
+    scopes: {
+        display: "flex",
+        alignItems: "center",
+        gap: "0.75rem",
+        fontSize: "var(--size-navigation)",
+        paddingInline: "1rem",
+        borderBottomColor: tokens.line,
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+    },
+    scope: {
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        borderBottomColor: "transparent",
+        borderBottomStyle: "solid",
+        borderBottomWidth: tokens.hairline,
+        color: tokens.ink,
+        cursor: "pointer",
+        font: "inherit",
+        fontSize: "var(--size-navigation)",
+        padding: "0.7rem 0.5rem",
+        whiteSpace: "nowrap",
+        ":hover": { color: tokens.accent },
+    },
+    help: {
+        display: "flex",
+        gap: "1.25rem",
+        borderTopColor: tokens.line,
+        borderTopStyle: "solid",
+        borderTopWidth: tokens.hairline,
+        padding: "0.65rem 1rem",
+        fontSize: "var(--size-navigation)",
+    },
     shortcut: {
-        color: tokens.soft,
+        color: tokens.ink,
         font: "inherit",
         whiteSpace: "nowrap",
     },

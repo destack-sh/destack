@@ -1,0 +1,80 @@
+/// A published collection, its sources, and its optional header shortcut.
+export type Collection = {
+    /// The visible collection name.
+    title: string;
+    /// The canonical collection root.
+    route: string;
+    /// The header keyboard shortcut.
+    shortcut?: string;
+    /// The repository directories published in this collection.
+    sources: readonly {
+        directory: string;
+        path: string;
+        hierarchy: readonly number[];
+    }[];
+};
+
+/// The collections published by the site.
+export const collections: readonly Collection[] = [
+    {
+        title: "Docs",
+        route: "/docs/",
+        shortcut: "d",
+        sources: [{ directory: "docs", path: "", hierarchy: [] }],
+    },
+    {
+        title: "Language",
+        route: "/docs/language/",
+        sources: [
+            { directory: "language/docs", path: "language", hierarchy: [10] },
+            {
+                directory: "language/library/docs",
+                path: "language/standard-library",
+                hierarchy: [10, 30],
+            },
+        ],
+    },
+    {
+        title: "Libraries",
+        route: "/docs/library/",
+        sources: [
+            { directory: "library/docs", path: "library", hierarchy: [20] },
+        ],
+    },
+    {
+        title: "Templates",
+        route: "/docs/template/",
+        shortcut: "t",
+        sources: [
+            { directory: "template/docs", path: "template", hierarchy: [50] },
+            {
+                directory: "template/blank/docs",
+                path: "template/blank",
+                hierarchy: [50, 10],
+            },
+        ],
+    },
+    {
+        title: "Blog",
+        route: "/blog/",
+        shortcut: "b",
+        sources: [{ directory: "blog", path: "", hierarchy: [] }],
+    },
+];
+
+/// Find the most specific collection containing a route.
+export function collectionAt(route: string): Collection | undefined {
+    let match: Collection | undefined;
+
+    // prefer the deepest matching collection
+    for (const collection of collections) {
+        if (
+            route.startsWith(collection.route) &&
+            (match == undefined || collection.route.length > match.route.length)
+        ) {
+            match = collection;
+        }
+    }
+
+    return match;
+}
