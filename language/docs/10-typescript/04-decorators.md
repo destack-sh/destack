@@ -12,9 +12,7 @@ description: decorators on expressions
 - incl. union newtypes
 
 - queryable
-- `@if` static gating
-- `@if(staticTerm)` removes imports, declarations, members, statements, cases, arguments, fields, and similar contributions before checking and output
-- `@if` is resolved before inference
+- [`@if` static gating](/docs/language/typescript/static-ifs/)
 
 - `@allow`, `@warn`, `@deny`, `@forbid`, and `@expect` tune diagnostics lexically; conditional forms may use static metadata and carry a reason
 - `@unsafe` marks an unsafe operation, while `@safe` exposes a checked API whose implementation contains unsafe operations

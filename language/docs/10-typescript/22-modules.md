@@ -30,4 +30,4 @@ import { square } from "./geometry.ds";
 square(4.0);
 ```
 
-- [Globals](22-globals.md)
+- [Globals](23-globals.md)

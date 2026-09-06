@@ -37,7 +37,7 @@ struct WireHeader {
 }
 ```
 
-Layout can also be queried during compilation - available as a [static term](/docs/language/typescriptpp/const-evaluation/#static-evaluation) during inference - for conditional branching and storage:
+Layout can also be queried during compilation - available as a static term during inference - for conditional branching and storage:
 
 | Layout Query | Result |
 | --- | --- |
