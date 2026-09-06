@@ -156,6 +156,8 @@ pub enum ResidualTarget {
     Try(GlobalNodeId<Expression>),
     /// The enclosing callable's return.
     Callable,
+    /// A trap: the operand must hold its output.
+    Trap,
 }
 
 impl InstanceKeyVisit for ResidualDecision {
