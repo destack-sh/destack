@@ -278,6 +278,8 @@ impl TokenType {
             "owned" | "borrowed" | "copy" => Self::Ownership,
             "readonly" => Self::Readonly,
             "const" => Self::Const,
+            // null names a constant and a type, both read as an identifier
+            "null" => Self::Identifier,
             _ if Type::from_primitive_name(text).is_some() => Self::TypeName,
             _ => Self::Identifier,
         }

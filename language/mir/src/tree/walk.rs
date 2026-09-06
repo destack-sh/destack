@@ -377,6 +377,7 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         }
         Type::Never
         | Type::Void
+        | Type::Null
         | Type::Boolean
         | Type::Character
         | Type::Int { .. }

@@ -10,12 +10,12 @@ use super::intern::{TypeEntry, TypeIndexKey};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Access, Attribute, Block, BorrowedPath, CommentSpan, Constant, Copy, ExtentSlice, Field,
-    FieldSpan, FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice,
-    Instruction, Lifetime, LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node,
-    NodeIndexEntry, NodeType, Path, Projection, Provenance, ProvenanceTable, ReferenceKind, Space,
-    Static, StaticId, Storage, SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration,
-    TypeDeclarationSpans, TypeId, TypedValueSpan, Value, ValueSlice, VariantCase,
+    Access, Attribute, Block, BorrowedPath, CommentSpan, Copy, ExtentSlice, Field, FieldSpan,
+    FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
+    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path,
+    Projection, Provenance, ProvenanceTable, ReferenceKind, Space, Static, StaticId, Storage,
+    SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
+    TypedValueSpan, Value, ValueSlice, VariantCase,
 };
 
 /// MIR tree for a single unit.
@@ -905,22 +905,21 @@ impl Tree {
 
     /// Return the storage type of the hidden environment field: a managed reference or nothing.
     pub fn function_environment_type(&self) -> LocalNodeId<Type> {
-        // look up the void, tag, and reference types the variant names
+        // look up the void and reference types the variant stores
         let Some(void_type) = self.find_type(&Type::Void) else {
             unreachable!("missing void type for function environment storage");
-        };
-        let Some(tag) = self.find_type(&Type::Int {
-            width: 1,
-            is_signed: false,
-        }) else {
-            unreachable!("missing tag type for function environment storage");
         };
         let Some(reference) = self.find_type(&Self::environment_reference(void_type)) else {
             unreachable!("missing canonical function environment reference type");
         };
-        // look up the variant those types compose
-        let variant = Self::environment_variant(tag, reference, void_type);
-        let Some(type_id) = self.find_type(&variant) else {
+
+        // look up the variant over those two payloads
+        let stores =
+            |cases: &[VariantCase], payload: TypeId| cases.iter().any(|case| case.ty == payload);
+        let Some(type_id) = self.find_type_by_predicate(|ty| {
+            matches!(ty, Type::Variant { cases, .. }
+                if cases.len() == 2 && stores(cases, reference) && stores(cases, void_type))
+        }) else {
             unreachable!("missing canonical function environment storage type");
         };
 
@@ -930,16 +929,12 @@ impl Tree {
     /// Ensure the storage type of the hidden environment field: a managed reference or nothing.
     pub fn ensure_function_environment_type(&mut self) -> LocalNodeId<Type> {
         let void_type = self.intern_type(Type::Void);
-        let tag = self.intern_type(Type::Int {
-            width: 1,
-            is_signed: false,
-        });
         let reference = self.intern_type(Self::environment_reference(void_type));
 
-        self.intern_type(Self::environment_variant(tag, reference, void_type))
+        self.intern_union(vec![reference, void_type], Copy::Yes)
     }
 
-    /// Return the erased managed reference one environment field holds.
+    /// Return the managed reference one environment stores.
     fn environment_reference(void_type: TypeId) -> Type {
         Type::Reference {
             kind: ReferenceKind::Managed,
@@ -947,24 +942,6 @@ impl Tree {
             storage: Storage::Heap(Space::Local),
             access: Access::Mutable,
             pointee: void_type,
-        }
-    }
-
-    /// Return the variant storing one environment reference or its absence.
-    fn environment_variant(tag: TypeId, reference: TypeId, void_type: TypeId) -> Type {
-        Type::Variant {
-            discriminant: tag,
-            cases: vec![
-                VariantCase {
-                    discriminant: Constant::UInt { value: 0, width: 1 },
-                    ty: reference,
-                },
-                VariantCase {
-                    discriminant: Constant::UInt { value: 1, width: 1 },
-                    ty: void_type,
-                },
-            ],
-            copy: Copy::Yes,
         }
     }
 

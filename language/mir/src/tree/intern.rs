@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::rewrite::Substitution;
 use crate::{
-    Attribute, Field, GenericParameter, Lifetime, LifetimeParameter, LocalNodeId,
+    Attribute, Constant, Copy, Field, GenericParameter, Lifetime, LifetimeParameter, LocalNodeId,
     SignatureParameter, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId, VariantCase,
 };
 
@@ -57,8 +57,61 @@ impl Tree {
         ids.iter().copied().find(|id| self.get(*id) == ty)
     }
 
-    /// Intern one type by structure.
+    /// Intern one anonymous union: the variant canonical over its payload set.
+    pub fn intern_union(&mut self, payloads: Vec<TypeId>, copy: Copy) -> TypeId {
+        let variant = self.canonical_variant(payloads, copy);
+
+        self.intern_type(variant)
+    }
+
+    /// Return the canonical variant over one payload set.
+    fn canonical_variant(&mut self, payloads: Vec<TypeId>, copy: Copy) -> Type {
+        // order the payloads by lifetime-erased shape, once each
+        let mut keyed: Vec<_> = payloads
+            .into_iter()
+            .map(|payload| (self.type_shape_fingerprint(payload), payload))
+            .collect();
+        keyed.sort();
+        keyed.dedup_by_key(|(_, payload)| *payload);
+
+        // select enough bits to distinguish every case
+        let width = keyed.len().next_power_of_two().ilog2().max(1) as u16;
+        let discriminant = self.intern_type(Type::Int {
+            width,
+            is_signed: false,
+        });
+
+        // assign each payload the case at its canonical position
+        let cases = keyed
+            .into_iter()
+            .enumerate()
+            .map(|(index, (_, ty))| VariantCase {
+                discriminant: Constant::UInt {
+                    value: index as u128,
+                    width,
+                },
+                ty,
+            })
+            .collect();
+
+        Type::Variant {
+            discriminant,
+            cases,
+            copy,
+        }
+    }
+
+    /// Intern one type by structure, a variant canonical over its payload set.
     pub fn intern_type(&mut self, ty: Type) -> TypeId {
+        let ty = match ty {
+            Type::Variant { cases, copy, .. } => {
+                let payloads = cases.into_iter().map(|case| case.ty).collect();
+
+                self.canonical_variant(payloads, copy)
+            }
+            other => other,
+        };
+
         // reuse an equal structural type
         let hash = Self::intern_hash(&ty);
         let key = TypeIndexKey::Structural(hash);
@@ -348,6 +401,7 @@ impl Tree {
             Type::Error
             | Type::Never
             | Type::Void
+            | Type::Null
             | Type::Boolean
             | Type::Character
             | Type::Int { .. }
@@ -508,6 +562,7 @@ impl Tree {
             Type::Error
             | Type::Never
             | Type::Void
+            | Type::Null
             | Type::Boolean
             | Type::Character
             | Type::Int { .. }
@@ -809,6 +864,68 @@ mod tests {
         assert_eq!(
             tree.intern_representation(local),
             tree.intern_representation(static_)
+        );
+    }
+
+    /// One union interns to one variant whatever order its payloads are written in.
+    #[test]
+    fn test_intern_unions_canonically() {
+        let mut tree = Tree::new();
+        let int = tree.intern_type(Type::INT32);
+        let boolean = tree.intern_type(Type::Boolean);
+        let void = tree.intern_type(Type::Void);
+
+        let written = tree.intern_union(vec![int, boolean, void], Copy::Yes);
+        let reversed = tree.intern_union(vec![void, boolean, int], Copy::Yes);
+        let repeated = tree.intern_union(vec![int, int, boolean, void], Copy::Yes);
+
+        assert_eq!(written, reversed);
+        assert_eq!(written, repeated);
+        let Type::Variant { cases, .. } = tree.get(written) else {
+            unreachable!("a union interns to a variant");
+        };
+        assert_eq!(cases.len(), 3);
+        for (index, case) in cases.iter().enumerate() {
+            assert_eq!(
+                case.discriminant(),
+                Some(crate::Discriminant::from_bits(index as u128))
+            );
+        }
+    }
+
+    /// Unions equal up to lifetimes store their cases at the same positions.
+    #[test]
+    fn test_intern_lifetime_variants_with_shared_case_positions() {
+        let mut tree = Tree::new();
+        let int = tree.intern_type(Type::INT32);
+        let void = tree.intern_type(Type::Void);
+        let borrow = |tree: &mut Tree, lifetime: Lifetime| {
+            tree.intern_type(Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                lifetime,
+                storage: Storage::Heap(Space::Local),
+                access: Access::Readonly,
+                pointee: int,
+            })
+        };
+        let local = borrow(&mut tree, Lifetime::slot(0));
+        let static_ = borrow(&mut tree, Lifetime::static_storage());
+
+        let local_union = tree.intern_union(vec![local, void, int], Copy::Yes);
+        let static_union = tree.intern_union(vec![int, static_, void], Copy::Yes);
+
+        assert_ne!(local_union, static_union);
+        assert_eq!(
+            tree.payload_case(local_union, local),
+            tree.payload_case(static_union, static_)
+        );
+        assert_eq!(
+            tree.payload_case(local_union, int),
+            tree.payload_case(static_union, int)
+        );
+        assert_eq!(
+            tree.payload_case(local_union, void),
+            tree.payload_case(static_union, void)
         );
     }
 

@@ -338,6 +338,7 @@ fn format_type_maybe_named<'a>(
         Type::Error => write!(f, [token("<error>")]),
         Type::Never => write!(f, [token("never")]),
         Type::Void => write!(f, [token("void")]),
+        Type::Null => write!(f, [token("null")]),
         Type::Boolean => write!(f, [token("boolean")]),
         Type::Character => write!(f, [token("char")]),
         Type::Int {

@@ -373,6 +373,8 @@ pub enum Type {
     Never,
     /// Void / unit type (no value).
     Void,
+    /// The null singleton: zero-sized, distinct from void.
+    Null,
     /// Boolean (1 bit logical, typically 1 byte).
     Boolean,
     /// Unicode scalar value.
@@ -636,6 +638,7 @@ impl Type {
         Some(match name {
             "never" => Type::Never,
             "void" => Type::Void,
+            "null" => Type::Null,
             "boolean" => Type::Boolean,
             "char" => Type::Character,
             name if let Some(width) = name.strip_prefix("int")
@@ -724,6 +727,7 @@ impl Type {
         matches!(
             self,
             Type::Void
+                | Type::Null
                 | Type::Boolean
                 | Type::Character
                 | Type::Int { .. }
@@ -942,6 +946,7 @@ impl Type {
             Type::Never => Copy::Yes,
             // primitives are always trivially copyable
             Type::Void
+            | Type::Null
             | Type::Boolean
             | Type::Character
             | Type::Int { .. }
@@ -1205,6 +1210,7 @@ impl Type {
             Type::Error
             | Type::Never
             | Type::Void
+            | Type::Null
             | Type::Boolean
             | Type::Character
             | Type::Int { .. }
@@ -1228,5 +1234,14 @@ impl Tree {
             .iter()
             .position(|case| self.types_equal(case.ty, payload))
             .map(|index| index as u32)
+    }
+
+    /// Return the payload type one variant stores at a case.
+    pub fn case_payload(&self, ty: TypeId, case: u32) -> Option<TypeId> {
+        let Type::Variant { cases, .. } = self.get(ty) else {
+            return None;
+        };
+
+        cases.get(case as usize).map(|case| case.ty)
     }
 }

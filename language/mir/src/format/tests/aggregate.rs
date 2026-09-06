@@ -128,7 +128,7 @@ entry(v0: ref<FileWriter, managed, readonly, local>):
 fn test_format_stored_variant_access() {
     assert_format(
         r#"
-type Maybe = variant<uint1> { 0uint1 = int32; 1uint1 = void; };
+type Maybe = variant<uint1> { 0uint1 = void; 1uint1 = int32; };
 
 function inspect(v0: ptr<Maybe, readonly>): uint1 {
 entry(v0: ptr<Maybe, readonly>):

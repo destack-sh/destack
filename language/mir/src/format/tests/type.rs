@@ -74,6 +74,21 @@ entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, exclusiv
     );
 }
 
+/// Formats the null type as its keyword, distinct from void.
+#[test]
+fn test_format_null_type() {
+    assert_format(
+        r#"
+type Nullish = variant<uint2> { 0uint2 = void; 1uint2 = null; 2uint2 = int32; };
+
+function nullish(v0: Nullish, v1: null): null {
+entry(v0: Nullish, v1: null):
+    return v1
+}
+"#,
+    );
+}
+
 /// Formats each reference storage canonically.
 #[test]
 fn test_format_reference_storage() {

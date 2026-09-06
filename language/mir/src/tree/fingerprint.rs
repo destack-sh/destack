@@ -208,6 +208,7 @@ impl TypeHasher {
             Type::Error => self.hasher.write_u8(0),
             Type::Never => self.hasher.write_u8(1),
             Type::Void => self.hasher.write_u8(2),
+            Type::Null => self.hasher.write_u8(45),
             Type::Boolean => self.hasher.write_u8(3),
             Type::Character => self.hasher.write_u8(4),
             Type::Int { width, is_signed } => {

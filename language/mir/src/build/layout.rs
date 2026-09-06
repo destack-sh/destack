@@ -156,6 +156,7 @@ impl<'tree> LayoutBuilder<'tree> {
 
             // compute one layout for each represented type
             Type::Void
+            | Type::Null
             | Type::Boolean
             | Type::Character
             | Type::Int { .. }
@@ -235,7 +236,7 @@ impl<'tree> LayoutBuilder<'tree> {
     fn compute_type(&mut self, ty: LocalNodeId<Type>) -> Result<Layout, LayoutError> {
         match self.tree.get(ty).clone() {
             // scalars occupy their natural width
-            Type::Void => Ok(Layout {
+            Type::Void | Type::Null => Ok(Layout {
                 shape: LayoutShape::None,
                 representation: Representation::Memory,
                 niche: None,
