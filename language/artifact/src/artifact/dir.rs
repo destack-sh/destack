@@ -597,6 +597,10 @@ impl DirChecked {
 pub struct DirMaterialized {
     /// Tree changes.
     pub patch: dir::Patch,
+    /// The symbols the synthesized bodies declare.
+    pub bindings: Arc<dir::BindingSegment>,
+    /// The lexical names the synthesized bodies resolve.
+    pub resolutions: Arc<dir::ResolutionSegment>,
     /// New types.
     pub types: Arc<dir::TypeSegment>,
     /// Closed generic instances and their materialized types.
@@ -612,6 +616,38 @@ pub struct DirMaterialized {
 }
 
 impl DirMaterialized {
+    /// Return the cumulative binding table for materialized DIR.
+    pub fn binding_table(
+        &self,
+        bound: &DirBound,
+        expanded: &DirExpanded,
+        declared: &DirDeclared,
+        checked: &DirChecked,
+    ) -> dir::BindingTable<'static> {
+        dir::BindingTable::from_segments(vec![
+            bound.bindings.clone(),
+            expanded.bindings.clone(),
+            declared.bindings.clone(),
+            checked.bindings.clone(),
+            self.bindings.clone(),
+        ])
+    }
+
+    /// Return the cumulative resolution table for materialized DIR.
+    pub fn resolution_table(
+        &self,
+        declared: &DirDeclared,
+        elaborated: &DirElaborated,
+        checked: &DirChecked,
+    ) -> dir::ResolutionTable<'static> {
+        dir::ResolutionTable::from_segments(vec![
+            declared.resolutions.clone(),
+            elaborated.resolutions.clone(),
+            checked.resolutions.clone(),
+            self.resolutions.clone(),
+        ])
+    }
+
     /// Return the cumulative type table for materialized DIR.
     pub fn type_table(
         &self,

@@ -15,12 +15,12 @@ pub struct MirLowered {
 
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
-    /// Canonical language identities.
-    pub language: mir::LanguageTable,
     /// Canonical MIR dispatch table.
     pub dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
+    /// The witnesses that satisfy each closed type's constraints.
+    pub witnesses: mir::WitnessTable,
     /// Explicit MIR memory access table.
     pub accesses: mir::AccessTable,
     /// Function and call effect table.
@@ -37,9 +37,9 @@ impl MirLowered {
             target: mir::TargetLayout::default(),
             initializer: None,
             layouts: mir::LayoutTable::default(),
-            language: mir::LanguageTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
+            witnesses: mir::WitnessTable::default(),
             accesses: mir::AccessTable::default(),
             effects: mir::EffectTable::default(),
             profile: mir::ProfileTable::default(),
@@ -71,6 +71,8 @@ pub struct MirElaborated {
     pub layouts: mir::LayoutTable,
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
+    /// Explicit MIR memory access table.
+    pub accesses: mir::AccessTable,
     /// Function and call effect table.
     pub effects: mir::EffectTable,
 }

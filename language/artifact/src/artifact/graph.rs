@@ -233,13 +233,6 @@ impl ModuleGraph {
         &self.implementations[start..end]
     }
 
-    /// Iterate the distinct interfaces with implementations in the graph.
-    pub fn implemented_interfaces(&self) -> impl Iterator<Item = GlobalSymbolId> + '_ {
-        self.implementations
-            .chunk_by(|left, right| left.interface == right.interface)
-            .map(|run| run[0].interface)
-    }
-
     /// Return the stable fingerprint of one projected module graph value.
     pub(crate) fn fingerprint_projection(
         &self,
