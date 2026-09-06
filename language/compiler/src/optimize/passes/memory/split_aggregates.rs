@@ -151,8 +151,6 @@ struct ReferenceSpec {
     storage: mir::Storage,
     /// The access for the reference.
     access: mir::Access,
-    /// The nullability for the reference.
-    nullability: mir::Nullability,
 }
 
 impl ReferenceSpec {
@@ -162,7 +160,6 @@ impl ReferenceSpec {
             kind,
             storage,
             access,
-            nullability,
             ..
         } = ty
         else {
@@ -173,7 +170,6 @@ impl ReferenceSpec {
             kind: *kind,
             storage: *storage,
             access: *access,
-            nullability: *nullability,
         })
     }
 }
@@ -310,23 +306,20 @@ fn get_element_types(
             Some(types)
         }
 
-        mir::Type::Tuple { elements, copy: _ } => {
+        mir::Type::Tuple { elements } => {
             // collect element types without recursive flattening
             Some(elements.to_vec())
         }
 
-        mir::Type::FixedArray {
-            element,
-            length,
-            copy: _,
-        } => {
-            // only split small arrays
-            if *length as usize > max_array_elements {
+        mir::Type::FixedArray { element, length } => {
+            // only split small closed arrays
+            let length = tree.static_value(*length).length()? as usize;
+            if length > max_array_elements {
                 return None;
             }
 
             // create element types for each array element
-            let types = vec![*element; *length as usize];
+            let types = vec![*element; length];
 
             Some(types)
         }
@@ -514,7 +507,6 @@ fn split_local(
             storage: candidate.reference_spec.storage,
             access: candidate.reference_spec.access,
             pointee: elem_type,
-            nullability: candidate.reference_spec.nullability,
         });
         layouts.copy_type_entries(candidate.result_type, result_type);
         let new_value = function.next_typed_value(result_type);

@@ -100,7 +100,7 @@ impl Compiler {
             layouts: elaborated.layouts.clone(),
             dispatch: lowered.dispatch.clone(),
             drops: elaborated.drops.clone(),
-            accesses: lowered.accesses.clone(),
+            accesses: elaborated.accesses.clone(),
             effects: elaborated.effects.clone(),
             profile: lowered.profile.clone(),
         };

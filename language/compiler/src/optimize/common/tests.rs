@@ -817,6 +817,7 @@ mod tests {
 
         mir::Function {
             name,
+            generics: Vec::new(),
             arguments: Vec::new(),
             symbol: mir::Symbol::named(name),
             linkage: mir::Linkage::Local,
@@ -881,7 +882,6 @@ mod tests {
         let pointer = tree.intern_type(mir::Type::Pointer {
             access: mir::Access::Mutable,
             pointee,
-            nullability: mir::Nullability::None,
         });
         let borrowed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
@@ -889,7 +889,6 @@ mod tests {
             storage: mir::Storage::Frame,
             access: mir::Access::Mutable,
             pointee,
-            nullability: mir::Nullability::None,
         });
         let function = test_function(&mut tree, &[pointee]);
 
@@ -946,10 +945,9 @@ mod tests {
         let managed_ref = tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
             lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::LocalHeap,
+            storage: mir::Storage::Heap(mir::Space::Local),
             access: mir::Access::Mutable,
             pointee,
-            nullability: mir::Nullability::None,
         });
         let function = test_function(&mut tree, &[pointee]);
 

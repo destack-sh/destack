@@ -230,9 +230,11 @@ entry(v0: ref<Dead, borrowed, exclusive, frame>):
         test.optimized
             .drops
             .set_destructor(dropped, mir::Storage::Frame, drop_dropped);
-        test.optimized
-            .drops
-            .set_destructor(allocated, mir::Storage::LocalHeap, drop_allocated);
+        test.optimized.drops.set_destructor(
+            allocated,
+            mir::Storage::Heap(mir::Space::Local),
+            drop_allocated,
+        );
         test.optimized
             .drops
             .set_destructor(dead, mir::Storage::Frame, drop_dead);
@@ -259,7 +261,7 @@ entry(v0: ref<Dead, borrowed, exclusive, frame>):
         assert_eq!(
             test.optimized
                 .drops
-                .destructor(allocated, mir::Storage::LocalHeap),
+                .destructor(allocated, mir::Storage::Heap(mir::Space::Local)),
             Some(drop_allocated)
         );
         assert_eq!(

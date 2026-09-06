@@ -134,7 +134,10 @@ impl Devirtualization {
                 Some(mir::Instruction::Call {
                     destination: *destination,
                     call: mir::Call {
-                        callee: mir::Callee::Direct { function },
+                        callee: mir::Callee::Direct {
+                            function,
+                            arguments: Vec::new(),
+                        },
                         ..call.clone()
                     },
                 })
@@ -161,7 +164,10 @@ impl Devirtualization {
             {
                 Some(mir::Terminator::Invoke {
                     call: mir::Call {
-                        callee: mir::Callee::Direct { function },
+                        callee: mir::Callee::Direct {
+                            function,
+                            arguments: Vec::new(),
+                        },
                         ..call.clone()
                     },
                     target: target.clone(),
@@ -176,7 +182,10 @@ impl Devirtualization {
             {
                 Some(mir::Terminator::TailCall {
                     call: mir::Call {
-                        callee: mir::Callee::Direct { function },
+                        callee: mir::Callee::Direct {
+                            function,
+                            arguments: Vec::new(),
+                        },
                         ..call.clone()
                     },
                 })

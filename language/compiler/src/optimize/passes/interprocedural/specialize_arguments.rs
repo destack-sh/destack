@@ -121,10 +121,10 @@ struct SpecializationKey {
 /// Hashable representation of a constant value.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ConstantKey {
+    /// The value one template parameter names.
+    Parameter(u32),
     /// Null reference constant.
     Null,
-    /// Undefined reference constant.
-    Undefined,
     /// Uninitialized storage constant.
     Uninit,
     /// Zeroed storage constant.
@@ -143,6 +143,8 @@ enum ConstantKey {
     Float { bits: u64, format: mir::FloatType },
     /// Character constant.
     Char(char),
+    /// Layout measure constant.
+    Layout(mir::TypeId, mir::LayoutMeasure),
 }
 
 /// Run argument specialization over the module.
@@ -401,10 +403,11 @@ fn specialization_key(
 /// Convert a MIR constant into a hashable key.
 fn constant_key(constant: &mir::Constant) -> ConstantKey {
     match constant {
+        mir::Constant::Parameter(index) => ConstantKey::Parameter(*index),
         mir::Constant::Null => ConstantKey::Null,
-        mir::Constant::Undefined => ConstantKey::Undefined,
         mir::Constant::Uninit => ConstantKey::Uninit,
         mir::Constant::Zeroed => ConstantKey::Zeroed,
+        mir::Constant::Layout { ty, measure } => ConstantKey::Layout(*ty, *measure),
         mir::Constant::Boolean { value } => ConstantKey::Boolean(*value),
         mir::Constant::Int {
             value,
@@ -662,6 +665,7 @@ fn update_callsite(
     let mut call = call;
     call.callee = mir::Callee::Direct {
         function: new_callee,
+        arguments: Vec::new(),
     };
     call.arguments = new_slice;
     call.signature = signature;

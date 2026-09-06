@@ -495,6 +495,7 @@ impl Promotion {
         mir::Call {
             callee: mir::Callee::Direct {
                 function: self.function,
+                arguments: Vec::new(),
             },
             ..call.clone()
         }

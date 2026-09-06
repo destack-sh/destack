@@ -590,6 +590,7 @@ fn rewrite_as_wrapper(
         call: mir::Call::new(
             mir::Callee::Direct {
                 function: impl_function_id,
+                arguments: Vec::new(),
             },
             call_arguments,
             signature,
