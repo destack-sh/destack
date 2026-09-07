@@ -1,6 +1,7 @@
 name: Platform
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - ".github/actions/**"
@@ -31,7 +32,7 @@ permissions:
 
 concurrency:
   group: platform-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
@@ -54,7 +55,7 @@ jobs:
 
   deploy:
     name: Deploy Platform
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: check
     permissions:
       contents: read
