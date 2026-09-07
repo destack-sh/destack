@@ -90,7 +90,7 @@ export newtype EntitySelector =
 @languageItem("topology.Entity")
 export newtype interface Entity {
     /// Entity kind for this projected value.
-    type Kind: EntityKind;
+    const Kind: EntityKind;
 
     /// Return this value's entity identifier.
     entityId(&readonly this): EntityId;

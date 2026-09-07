@@ -117,7 +117,7 @@ export newtype EdgeSelector =
 @languageItem("topology.Edge")
 export newtype interface Edge {
     /// Edge kind for this projected value.
-    type Kind: EdgeKind;
+    const Kind: EdgeKind;
 
     /// Return this value's edge identifier.
     edgeId(&readonly this): EdgeId;
