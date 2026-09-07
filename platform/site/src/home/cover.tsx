@@ -300,22 +300,14 @@ function Ring(props: { path: string }) {
     );
 }
 
-/// Render the install command as a copy control.
+/// Render the unavailable install command.
 function Installation() {
-    // copy the canonical install command
-    const copy = async () => {
-        try {
-            await navigator.clipboard.writeText(installCommand);
-        } catch (error: unknown) {
-            console.error(error);
-        }
-    };
-
     return (
         <button
             {...stylex.attrs(posterStyles.command)}
-            aria-label="Copy install command"
-            onClick={() => void copy()}
+            aria-disabled="true"
+            aria-label="Install Destack: coming soon"
+            title="Coming soon"
             type="button"
         >
             <span
@@ -388,8 +380,8 @@ const posterStyles = stylex.create({
         alignItems: "baseline",
         backgroundColor: "transparent",
         borderWidth: 0,
-        color: tokens.cream,
-        cursor: "pointer",
+        color: "#88979c",
+        cursor: "not-allowed",
         display: "flex",
         font: "inherit",
         fontFamily: tokens.monoFont,
@@ -400,9 +392,6 @@ const posterStyles = stylex.create({
         maxWidth: "100%",
         minWidth: 0,
         padding: 0,
-        ":hover": {
-            color: tokens.orangeLight,
-        },
         [mobile]: {
             width: "100%",
         },
@@ -410,7 +399,7 @@ const posterStyles = stylex.create({
     commandCode: {
         overflow: "hidden",
         textOverflow: "ellipsis",
-        userSelect: "text",
+        userSelect: "none",
         whiteSpace: "nowrap",
         [mobile]: {
             overflowWrap: "anywhere",
@@ -419,7 +408,7 @@ const posterStyles = stylex.create({
         },
     },
     commandPrompt: {
-        color: tokens.orangeLight,
+        color: "inherit",
     },
     proposition: {
         color: tokens.orangeLight,

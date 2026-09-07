@@ -120,7 +120,7 @@ author: "Florian"
 <!--- abstracting coding away is in itself a "lossy abstraction"-->
 - every attempt to put something _purely_ "above" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, "APIs will replace everything", etc.)
 
-# System Scaffolding
+# Systems and Scaffolding
 
  <!--I would sharpen the claim about proofs. The persuasive point is a proof cannot establish that you chose the right specification or assumptions. Formal
   guarantees still help enormously with particular properties. That distinction supports your argument better than sounding broadly dismissive of

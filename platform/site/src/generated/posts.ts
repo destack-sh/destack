@@ -42,16 +42,16 @@ export type TableOfContentsEntry = {
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/8e2f9286bb36f6a402c46f1c0cd2c9ed64de97769560cba9db55458865dd8f2b.html",
+        contentRoute: "/_content/html/4d43ba66351722520c7d9f9c63ef341a2ed690def10224168a83cbf736dbb25f.html",
         date: "2026-09-14",
         markdownRoute: "/blog/introducing-typescriptpp.md",
         route: "/blog/introducing-typescriptpp/",
         slug: "introducing-typescriptpp",
         subtitle: "Evolving TypeScript into the Last Programming Language",
-        tableOfContents: [{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"long-live-code","text":"Long Live Code"},{"depth":1,"id":"system-scaffolding","text":"System Scaffolding"},{"depth":1,"id":"boring-software","text":"Boring Software"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
+        tableOfContents: [{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"long-live-code","text":"Long Live Code"},{"depth":1,"id":"systems-and-scaffolding","text":"Systems and Scaffolding"},{"depth":1,"id":"boring-software","text":"Boring Software"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
         textRoute: "/blog/introducing-typescriptpp.txt",
         title: "Introducing TypeScript++",
-        tokens: 3356,
+        tokens: 3357,
     }
 ] as const satisfies readonly Post[];
 
