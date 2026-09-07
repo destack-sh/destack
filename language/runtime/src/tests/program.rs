@@ -38,12 +38,24 @@ impl TestProgram {
         {
             panic!("failed to parse runtime test MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (
+            tree,
+            provenance,
+            target,
+            layouts,
+            dispatch,
+            drops,
+            accesses,
+            effects,
+            profile,
+            strings,
+            _,
+        ) = parsed.into_parts();
 
         Self {
             lowered: MirLowered {
                 tree,
+                provenance,
                 target,
                 layouts,
                 language: mir::LanguageTable::default(),
@@ -139,6 +151,7 @@ impl TestProgram {
 
         MirOptimized {
             tree,
+            provenance: self.lowered.provenance.clone(),
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),

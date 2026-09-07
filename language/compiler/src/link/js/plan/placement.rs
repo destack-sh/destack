@@ -1,19 +1,15 @@
-use std::collections::HashSet;
-use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 use crate::{LinkError, LinkResult};
-use destack_core::{StableHasher, stable_hash_bytes};
 use destack_repository::{JsOutputFormat, JsOutputMode, Module, Target};
 use destack_source::ModuleId;
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
 
 use super::super::JsLinker;
-use super::{OutputGraph, OutputId, OutputKind};
+use super::{OutputGraph, OutputId};
 
 const DEFAULT_SCRIPT_ENTRY_FILE_NAME_TEMPLATE: &str = "[name].[ext]";
-const DEFAULT_SCRIPT_SHARED_FILE_NAME_TEMPLATE: &str = "[name]-[hash].[ext]";
 
 /// One output layout for one JS target.
 #[derive(Debug, Clone, Default)]
@@ -88,18 +84,6 @@ impl OutputLayout {
         OutputLocation::new(output_layout.output_directory().join(output_name))
     }
 
-    /// Build one emitted JS shared output location.
-    pub(crate) fn shared_output_location(
-        output_layout: &TargetLocation<'_>,
-        target: &Target,
-        name: &str,
-        hash: Option<&str>,
-    ) -> OutputLocation {
-        let output_name = Self::render_shared_file_name(output_layout, target, name, hash);
-
-        OutputLocation::new(output_layout.output_directory().join(output_name))
-    }
-
     /// Render one configured JS entry file name.
     pub(crate) fn render_entry_file_name(
         output_layout: &TargetLocation<'_>,
@@ -126,32 +110,6 @@ impl OutputLayout {
         )
     }
 
-    /// Render one configured JS shared file name.
-    pub(crate) fn render_shared_file_name(
-        output_layout: &TargetLocation<'_>,
-        target: &Target,
-        name: &str,
-        hash: Option<&str>,
-    ) -> String {
-        let template = target
-            .js
-            .output
-            .chunk_file_names
-            .as_deref()
-            .unwrap_or(DEFAULT_SCRIPT_SHARED_FILE_NAME_TEMPLATE);
-
-        output_layout.render_output_file_name_with_values(
-            Some(template),
-            OutputFileNameValues {
-                directory: None,
-                name,
-                hash,
-                format: Some(Self::js_output_format_name(target)),
-                extension: "js",
-            },
-        )
-    }
-
     /// Return the naming token for the configured JS output format.
     fn js_output_format_name(target: &Target) -> &'static str {
         match target.js.output.format.unwrap_or(JsOutputFormat::Esm) {
@@ -162,17 +120,6 @@ impl OutputLayout {
 }
 
 impl<'a> JsLinker<'a> {
-    /// Return one stable content hash for one source-backed module.
-    fn source_hash(&self, module_id: ModuleId) -> LinkResult<String> {
-        let module = self.module(module_id)?;
-        let file = self.file(module.file_id)?;
-
-        // hash the loaded content directly, regardless of file kind
-        let hash = stable_hash_bytes(file.bytes());
-
-        Ok(format!("{:08x}", hash as u32))
-    }
-
     /// Build the output layout over the current JS output graph.
     pub(crate) fn build_output_layout(
         &self,
@@ -194,67 +141,8 @@ impl<'a> JsLinker<'a> {
                     None,
                 )],
             }),
-            JsOutputMode::Chunked => self.build_chunked_output_layout(output_graph),
             JsOutputMode::PreserveModules => self.build_preserve_output_layout(output_graph),
         }
-    }
-
-    /// Build the chunked output layout over the current JS output graph.
-    pub(crate) fn build_chunked_output_layout(
-        &self,
-        output_graph: &OutputGraph,
-    ) -> LinkResult<OutputLayout> {
-        let output_layout = TargetLocation::new(self.package_dir, self.target, self.target_name());
-        let mut used_names = HashSet::new();
-        let mut used_output_paths = HashSet::new();
-        let mut output_names = Vec::with_capacity(output_graph.outputs().len());
-        let mut output_locations = Vec::with_capacity(output_graph.outputs().len());
-
-        // derive unique names in stable output order
-        for output in output_graph.outputs() {
-            let mut output_name = if let Some(name) = output.manual_name() {
-                name.to_string()
-            } else {
-                self.automatic_js_output_name(output)?
-            };
-            let base_name = output_name.clone();
-            let mut duplicate_index = 2;
-
-            while !used_names.insert(output_name.clone()) {
-                output_name = format!("{base_name}-{duplicate_index}");
-                duplicate_index += 1;
-            }
-            let output_hash = self.js_output_hash(output)?;
-
-            let output_location = self.build_chunked_js_output_location(
-                &output_layout,
-                self.target,
-                output.kind(),
-                &output_name,
-                Some(&output_hash),
-            );
-
-            // reject templates that collapse distinct outputs onto one path
-            if !used_output_paths.insert(output_location.path().to_path_buf()) {
-                return Err(LinkError::InvalidTarget {
-                    anchor: self.package_id.into(),
-                    package: self.package_id,
-                    target: *self.target_id,
-                    message: format!(
-                        "multiple JS outputs resolve to the same emitted path '{}'",
-                        output_location.path().display()
-                    ),
-                });
-            }
-
-            output_names.push(output_name);
-            output_locations.push(output_location);
-        }
-
-        Ok(OutputLayout {
-            output_names,
-            output_locations,
-        })
     }
 
     /// Build the preserve-modules output layout over the current JS output graph.
@@ -264,17 +152,7 @@ impl<'a> JsLinker<'a> {
 
         // each preserve-modules output maps to one module path
         for output in output_graph.outputs() {
-            let module_id = output
-                .facade_module()
-                .or_else(|| output.modules().first().copied());
-            let Some(module_id) = module_id else {
-                return Err(LinkError::Internal {
-                    anchor: (self.package_id).into(),
-                    package: self.package_id,
-                    message: "preserve-modules JS output had no facade or member modules"
-                        .to_string(),
-                });
-            };
+            let module_id = output.facade_module();
             let output_location = OutputLayout::module_output_location(
                 self.package_dir,
                 self.root_dir,
@@ -296,67 +174,6 @@ impl<'a> JsLinker<'a> {
             output_names,
             output_locations,
         })
-    }
-
-    /// Build one emitted output location for one chunked output.
-    fn build_chunked_js_output_location(
-        &self,
-        output_layout: &TargetLocation<'_>,
-        target: &Target,
-        kind: OutputKind,
-        name: &str,
-        hash: Option<&str>,
-    ) -> OutputLocation {
-        match kind {
-            OutputKind::Entry => {
-                OutputLayout::entry_output_location(output_layout, target, name, hash)
-            }
-            OutputKind::DynamicEntry | OutputKind::Shared => {
-                OutputLayout::shared_output_location(output_layout, target, name, hash)
-            }
-        }
-    }
-
-    /// Build one stable emitted file-name hash for one JS output.
-    fn js_output_hash(&self, output: &super::Output) -> LinkResult<String> {
-        let mut hasher = StableHasher::new();
-
-        // output shape
-        output.kind().hash(&mut hasher);
-        output.facade_module().hash(&mut hasher);
-        output.manual_name().hash(&mut hasher);
-
-        // source-backed module content
-        for module_id in output.modules() {
-            module_id.hash(&mut hasher);
-
-            let module = self.module(*module_id)?;
-            let module = module.as_ref();
-
-            if module.path.is_some() {
-                let source_hash = self.source_hash(*module_id)?;
-
-                source_hash.hash(&mut hasher);
-            } else {
-                module.uri.hash(&mut hasher);
-            }
-        }
-
-        Ok(format!("{:08x}", hasher.finish_u64() as u32))
-    }
-
-    /// Build one default output name candidate for one automatic chunk.
-    fn automatic_js_output_name(&self, output: &super::Output) -> LinkResult<String> {
-        if output.kind() == OutputKind::Shared && output.facade_module().is_none() {
-            return Ok("chunk".to_string());
-        }
-
-        let module_id = output
-            .facade_module()
-            .or_else(|| output.modules().first().copied())
-            .unwrap_or_else(|| unreachable!("JS output should contain at least one module"));
-
-        self.base_js_output_name(module_id, self.package_dir)
     }
 
     /// Build one default output name candidate for one module.
@@ -412,29 +229,6 @@ mod tests {
 
     use crate::link::{OutputLayout, TargetLocation};
 
-    /// Render configured entry and shared output file names.
-    #[test]
-    fn test_renders_configured_js_output_file_names() {
-        let mut target = Target::js();
-        target.destination.directory = Path::new("dist/bundle").to_path_buf();
-        target.js.output.entry_file_names = Some("entries/[name]-entry.[ext]".to_string());
-        target.js.output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
-
-        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "bundle");
-        let entry_path = OutputLayout::entry_output_location(&layout, &target, "application", None);
-        let shared_path =
-            OutputLayout::shared_output_location(&layout, &target, "shared-value", None);
-
-        assert_eq!(
-            entry_path.path(),
-            Path::new("/workspace/pkg/dist/bundle/entries/application-entry.js")
-        );
-        assert_eq!(
-            shared_path.path(),
-            Path::new("/workspace/pkg/dist/bundle/chunks/shared-value-shared.js")
-        );
-    }
-
     /// Render configured entry file name templates for linked JS entries.
     #[test]
     fn test_renders_entry_file_name_template_for_script_entry() {
@@ -447,22 +241,6 @@ mod tests {
         assert_eq!(
             entry_path.path(),
             Path::new("/workspace/pkg/dist/entries/app-bundle.js")
-        );
-    }
-
-    /// Render configured shared file name templates for linked JS outputs.
-    #[test]
-    fn test_renders_shared_file_name_template_for_js_output() {
-        let mut target = Target::js();
-        target.js.output.chunk_file_names = Some("chunks/[name]-shared.[ext]".to_string());
-
-        let layout = TargetLocation::new(Path::new("/workspace/pkg"), &target, "app");
-        let shared_path =
-            OutputLayout::shared_output_location(&layout, &target, "shared-value", None);
-
-        assert_eq!(
-            shared_path.path(),
-            Path::new("/workspace/pkg/dist/chunks/shared-value-shared.js")
         );
     }
 

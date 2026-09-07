@@ -342,10 +342,22 @@ impl VmSetup {
         {
             panic!("failed to parse footprint MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (
+            tree,
+            provenance,
+            target,
+            layouts,
+            dispatch,
+            drops,
+            accesses,
+            effects,
+            profile,
+            strings,
+            _,
+        ) = parsed.into_parts();
         let lowered = MirLowered {
             tree,
+            provenance,
             target,
             layouts,
             language: mir::LanguageTable::default(),
@@ -366,6 +378,7 @@ impl VmSetup {
             .expect("footprint MIR layouts should build");
         let optimized = MirOptimized {
             tree,
+            provenance: lowered.provenance.clone(),
             layouts,
             dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),

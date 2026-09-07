@@ -3,9 +3,163 @@ use destack_js as js;
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::EmitError;
-use crate::emit::js::ModuleEmitter;
+use crate::emit::js::ScriptEmitter;
 
-impl ModuleEmitter<'_> {
+impl ScriptEmitter<'_> {
+    /// Move one direct export onto an explicit export statement.
+    pub(crate) fn split_export(
+        &mut self,
+        statement: js::LocalNodeId<js::Statement>,
+        source: dir::LocalNodeId<dir::Expression>,
+    ) -> Result<Option<js::LocalNodeId<js::Statement>>, EmitError> {
+        let value = self.output.tree.get(statement).clone();
+        let (identifiers, export) = match value {
+            js::Statement::Declaration {
+                export: Some(export),
+                declaration,
+            } => {
+                let declaration_value = self.output.tree.get(declaration);
+                let identifier = match declaration_value {
+                    js::Declaration::Class(declaration) => declaration.name,
+                    js::Declaration::Function(declaration) => declaration.name,
+                };
+
+                // retain anonymous default declarations in their only valid declaration form
+                let Some(identifier) = identifier else {
+                    if export == js::ExportKind::Default {
+                        return Ok(None);
+                    }
+
+                    return Err(
+                        self.internal_error("named JavaScript export has no binding".to_string())
+                    );
+                };
+                let replacement = js::Statement::Declaration {
+                    export: None,
+                    declaration,
+                };
+                self.output
+                    .tree
+                    .rewrite(statement, replacement, &mut self.provenance);
+
+                (vec![identifier], Some(export))
+            }
+            js::Statement::Let {
+                is_exported: true,
+                mutability,
+                declarators,
+            } => {
+                let mut identifiers = Vec::new();
+                for declarator in &declarators {
+                    let pattern = self.output.tree.get(*declarator).pattern;
+                    self.collect_export_bindings(pattern, &mut identifiers);
+                }
+                let replacement = js::Statement::Let {
+                    is_exported: false,
+                    mutability,
+                    declarators,
+                };
+                self.output
+                    .tree
+                    .rewrite(statement, replacement, &mut self.provenance);
+
+                (identifiers, None)
+            }
+            js::Statement::Var {
+                is_exported: true,
+                declarators,
+            } => {
+                let mut identifiers = Vec::new();
+                for declarator in &declarators {
+                    let pattern = self.output.tree.get(*declarator).pattern;
+                    self.collect_export_bindings(pattern, &mut identifiers);
+                }
+                let replacement = js::Statement::Var {
+                    is_exported: false,
+                    declarators,
+                };
+                self.output
+                    .tree
+                    .rewrite(statement, replacement, &mut self.provenance);
+
+                (identifiers, None)
+            }
+            _ => return Ok(None),
+        };
+
+        // omit an empty export created by an empty binding pattern
+        if identifiers.is_empty() {
+            return Ok(None);
+        }
+
+        // export each local binding under its fixed public name
+        let default_name = self.output.strings.intern("default");
+        let mut specifiers = Vec::with_capacity(identifiers.len());
+        for identifier in identifiers {
+            let [local_provenance, exported_provenance] =
+                self.provenance.split(identifier.provenance);
+            let local = js::Identifier {
+                provenance: local_provenance,
+                ..identifier
+            };
+            let text = match export {
+                Some(js::ExportKind::Default) => default_name,
+                Some(js::ExportKind::Named) | None => identifier.original_name,
+            };
+            let exported = js::ModuleExportName::Identifier(js::IdentifierName {
+                text,
+                provenance: exported_provenance,
+            });
+            let specifier = js::ExportSpecifier { local, exported };
+            let specifier = self.insert_from_source(specifier, source);
+            specifiers.push(specifier);
+        }
+
+        let export = self.insert_from_source(js::Statement::Export { specifiers }, source);
+
+        Ok(Some(export))
+    }
+
+    /// Collect every binding declared by one exported pattern.
+    fn collect_export_bindings(
+        &self,
+        pattern: js::LocalNodeId<js::Pattern>,
+        identifiers: &mut Vec<js::Identifier>,
+    ) {
+        match self.output.tree.get(pattern) {
+            js::Pattern::Binding { identifier } => identifiers.push(*identifier),
+            js::Pattern::Array { fields, rest } => {
+                for field in fields {
+                    if let js::ArrayPatternField::Positional { pattern, .. } =
+                        self.output.tree.get(*field)
+                    {
+                        self.collect_export_bindings(*pattern, identifiers);
+                    }
+                }
+
+                if let Some(rest) = rest {
+                    self.collect_export_bindings(*rest, identifiers);
+                }
+            }
+            js::Pattern::Object { fields, rest } => {
+                for field in fields {
+                    match self.output.tree.get(*field) {
+                        js::ObjectPatternField::Named { pattern, .. } => {
+                            self.collect_export_bindings(*pattern, identifiers);
+                        }
+                        js::ObjectPatternField::Shorthand { identifier, .. } => {
+                            identifiers.push(*identifier);
+                        }
+                    }
+                }
+
+                if let Some(rest) = rest {
+                    identifiers.push(*rest);
+                }
+            }
+        }
+    }
+
     /// Emit one ECMAScript export declaration.
     pub(crate) fn emit_export(
         &mut self,

@@ -1,3 +1,4 @@
+use destack_artifact::Script;
 use destack_core::{FxIndexMap, StringPool};
 use destack_dir as dir;
 use destack_js as js;
@@ -7,7 +8,7 @@ use crate::{DiagnosticAnchor, EmitError};
 
 /// A JavaScript emitter for one DIR module.
 #[derive(Debug)]
-pub(crate) struct ModuleEmitter<'a> {
+pub(crate) struct ScriptEmitter<'a> {
     /// The source module identity.
     pub(super) module: ModuleId,
 
@@ -17,6 +18,8 @@ pub(crate) struct ModuleEmitter<'a> {
     pub(super) tree: dir::View<'a>,
     /// The source binding table.
     pub(super) bindings: dir::BindingTable<'static>,
+    /// The resolved source module edges.
+    pub(super) modules: dir::ModuleTable<'static>,
     /// The resolved source references.
     pub(super) references: &'a dir::ReferenceTable,
     /// The checked source name resolutions.
@@ -32,14 +35,18 @@ pub(crate) struct ModuleEmitter<'a> {
     /// JavaScript symbols keyed by source symbol id.
     pub(super) symbols: Vec<Option<js::SymbolId>>,
     /// Root symbols keyed by emitted global name.
-    pub(super) globals: FxIndexMap<dir::StringId, js::SymbolId>,
+    pub(super) globals: FxIndexMap<(dir::StringId, Option<dir::GlobalSymbolId>), js::SymbolId>,
+    /// DIR symbols keyed by JavaScript symbol id.
+    pub(super) source_symbols: Vec<Option<dir::GlobalSymbolId>>,
+    /// Resolved dependency modules keyed by JavaScript node id.
+    pub(super) dependency_modules: Vec<Option<ModuleId>>,
     /// JavaScript scopes keyed by source scope id.
     pub(super) scopes: Vec<Option<js::ScopeId>>,
     /// The next generated discard name.
     pub(super) discard_count: u32,
 }
 
-impl<'a> ModuleEmitter<'a> {
+impl<'a> ScriptEmitter<'a> {
     /// Return the JavaScript form of one DIR asynchrony.
     pub(super) fn asynchrony(&self, asynchrony: dir::Asynchrony) -> js::Asynchrony {
         match asynchrony {
@@ -162,6 +169,7 @@ impl<'a> ModuleEmitter<'a> {
         roots: &'a [dir::LocalNodeId<dir::Expression>],
         source_strings: &'a StringPool,
         bindings: dir::BindingTable<'static>,
+        modules: dir::ModuleTable<'static>,
         references: &'a dir::ReferenceTable,
         resolutions: dir::ResolutionTable<'static>,
         decisions: dir::DecisionTable<'static>,
@@ -191,6 +199,7 @@ impl<'a> ModuleEmitter<'a> {
             tree,
             roots,
             bindings,
+            modules,
             references,
             resolutions,
             decisions,
@@ -199,21 +208,37 @@ impl<'a> ModuleEmitter<'a> {
             provenance,
             symbols,
             globals: FxIndexMap::default(),
+            source_symbols: Vec::new(),
+            dependency_modules: Vec::new(),
             scopes,
             discard_count: 0,
         }
     }
 
     /// Emit the source module as JavaScript.
-    pub(crate) fn emit(mut self) -> Result<js::Module, EmitError> {
+    pub(crate) fn emit(mut self) -> Result<Script, EmitError> {
         // emit the module roots
         for expression in self.roots.iter().copied() {
             if let Some(root) = self.emit_statement(expression)? {
                 self.output.roots.push(root);
+
+                // separate the public export name from its local binding
+                if let Some(export) = self.split_export(root, expression)? {
+                    self.output.roots.push(export);
+                }
             }
         }
 
-        Ok(self.output)
+        let external_symbols = self
+            .globals
+            .into_iter()
+            .filter_map(|((_, source), symbol)| source.is_none().then_some(symbol));
+        let mut script = Script::new(self.output, self.source_symbols, self.dependency_modules);
+        for symbol in external_symbols {
+            script.set_external_symbol(symbol);
+        }
+
+        Ok(script)
     }
 
     /// Build one source span anchor from a DIR node.

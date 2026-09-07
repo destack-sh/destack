@@ -44,8 +44,6 @@ pub enum BundleMode {
     PreserveModules,
     /// One assembled output file.
     SingleFile,
-    /// Multiple assembled output files.
-    Chunked,
 }
 
 impl BundleMode {
@@ -54,7 +52,6 @@ impl BundleMode {
         match self {
             Self::PreserveModules => "preserveModules",
             Self::SingleFile => "singleFile",
-            Self::Chunked => "chunked",
         }
     }
 }

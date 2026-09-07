@@ -3,9 +3,9 @@ use destack_js as js;
 use destack_source::{NodeSpanType, ProvenanceId};
 
 use crate::EmitError;
-use crate::emit::js::ModuleEmitter;
+use crate::emit::js::ScriptEmitter;
 
-impl ModuleEmitter<'_> {
+impl ScriptEmitter<'_> {
     /// Return or allocate the JavaScript scope for one DIR scope.
     pub(crate) fn intern_scope(
         &mut self,
@@ -74,6 +74,7 @@ impl ModuleEmitter<'_> {
         let symbol = self
             .output
             .insert_symbol(name, namespace, scope, provenance);
+        self.record_source_symbol(symbol, source.into_global(self.module));
 
         self.symbols[source.id as usize] = Some(symbol);
 
@@ -220,7 +221,7 @@ impl ModuleEmitter<'_> {
                     self.intern_symbol(symbol.local_id)?
                 }
                 // preserve an external binding
-                [_] => self.intern_global_symbol(name, provenance),
+                [symbol] => self.intern_global_symbol(name, Some(*symbol), provenance),
                 // use the selected symbol
                 _ => {
                     let Some(symbol) = self
@@ -237,7 +238,7 @@ impl ModuleEmitter<'_> {
                     if symbol.module_id == self.module {
                         self.intern_symbol(symbol.local_id)?
                     } else {
-                        self.intern_global_symbol(name, provenance)
+                        self.intern_global_symbol(name, Some(symbol), provenance)
                     }
                 }
             },
@@ -255,14 +256,19 @@ impl ModuleEmitter<'_> {
                 self.intern_symbol(symbol)?
             }
             // preserve an external namespace reference
-            Some(dir::Reference::Namespace { .. }) => self.intern_global_symbol(name, provenance),
+            Some(dir::Reference::Namespace { .. }) => {
+                self.intern_global_symbol(name, None, provenance)
+            }
             // resolve the base of a projected reference
             Some(dir::Reference::Projected { base, .. }) => match base {
                 dir::ReferenceTarget::Symbol(symbol) if symbol.module_id == self.module => {
                     self.intern_symbol(symbol.local_id)?
                 }
-                dir::ReferenceTarget::Symbol(_) | dir::ReferenceTarget::Namespace(_) => {
-                    self.intern_global_symbol(name, provenance)
+                dir::ReferenceTarget::Symbol(symbol) => {
+                    self.intern_global_symbol(name, Some(*symbol), provenance)
+                }
+                dir::ReferenceTarget::Namespace(_) => {
+                    self.intern_global_symbol(name, None, provenance)
                 }
             },
             // reject ambiguous references
@@ -292,10 +298,12 @@ impl ModuleEmitter<'_> {
     fn intern_global_symbol(
         &mut self,
         name: dir::StringId,
+        source: Option<dir::GlobalSymbolId>,
         provenance: ProvenanceId,
     ) -> js::SymbolId {
         // return an existing global symbol
-        if let Some(symbol) = self.globals.get(&name).copied() {
+        let key = (name, source);
+        if let Some(symbol) = self.globals.get(&key).copied() {
             return symbol;
         }
 
@@ -306,9 +314,22 @@ impl ModuleEmitter<'_> {
             js::ScopeId::ROOT,
             provenance,
         );
-        self.globals.insert(name, symbol);
+        if let Some(source) = source {
+            self.record_source_symbol(symbol, source);
+        }
+        self.globals.insert(key, symbol);
 
         symbol
+    }
+
+    /// Record the DIR symbol represented by one JavaScript symbol.
+    fn record_source_symbol(&mut self, symbol: js::SymbolId, source: dir::GlobalSymbolId) {
+        let required_len = symbol.0 as usize + 1;
+        if self.source_symbols.len() < required_len {
+            self.source_symbols.resize(required_len, None);
+        }
+
+        self.source_symbols[symbol.0 as usize] = Some(source);
     }
 
     /// Emit one JavaScript label identifier.

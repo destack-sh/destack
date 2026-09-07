@@ -826,11 +826,9 @@ entry:
             .call(callsite)
             .expect("missing call metadata");
         let instruction = test.optimized.tree.get(call_id);
-        let signature = test.optimized.tree.get(
-            instruction
-                .call_signature()
-                .expect("call signature should be concrete"),
-        );
+        let signature = test.optimized.tree.ty(instruction
+            .call_signature()
+            .expect("call signature should be concrete"));
         let expected_signature = mir::Type::FunctionSignature {
             lifetimes: Vec::new(),
             parameters: callee

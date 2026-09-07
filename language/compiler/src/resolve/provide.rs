@@ -4,7 +4,6 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirExported,
     DirImported, DirParsed, EnvironmentBound,
 };
-use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
 use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
@@ -59,8 +58,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
 
         // build expanded resolve inputs
-        let patches = std::slice::from_ref(&expanded.patch);
-        let view = dir::View::with_patches(&parsed.tree, patches);
+        let view = expanded.view(&parsed);
         let bindings = expanded.binding_table(&bound);
         let modules = expanded.module_table(&imported);
 

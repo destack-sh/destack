@@ -1251,7 +1251,7 @@ dependencies = [
 
 [[package]]
 name = "destack_mir_macros"
-version = "0.55.4"
+version = "2026.8.3"
 dependencies = [
  "proc-macro2",
  "quote",

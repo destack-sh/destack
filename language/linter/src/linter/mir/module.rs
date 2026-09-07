@@ -50,7 +50,7 @@ impl MirModule {
 
     /// Return the required source span for one MIR node.
     pub fn span(&self, node: mir::LocalNodeIdAny) -> Result<Span, ProviderError> {
-        let provenance = self.lowered.tree.provenance(node.id);
+        let provenance = self.lowered.tree.provenance(node);
         self.lowered
             .provenance
             .primary_span(provenance)
@@ -65,7 +65,7 @@ impl MirModule {
 
     /// Return whether one MIR node traces to authored source.
     pub fn is_authored(&self, node: mir::LocalNodeIdAny) -> bool {
-        let provenance = self.lowered.tree.provenance(node.id);
+        let provenance = self.lowered.tree.provenance(node);
 
         self.lowered.provenance.span(provenance).is_some()
     }

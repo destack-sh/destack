@@ -1,4 +1,3 @@
-use std::slice::from_ref;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -371,7 +370,7 @@ impl CheckModuleState {
 
     /// Return the post-expansion DIR tree view visible to check.
     pub(in crate::sema) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, from_ref(&self.expanded.patch))
+        self.expanded.view(&self.parsed)
     }
 
     /// Return the full source span of one visible node's authored origin.

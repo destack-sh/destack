@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_js as js;
 
 use crate::EmitError;
-use crate::emit::js::ModuleEmitter;
+use crate::emit::js::ScriptEmitter;
 
-impl ModuleEmitter<'_> {
+impl ScriptEmitter<'_> {
     /// Return the JavaScript mutability for one DIR binding kind.
     fn mutability(&self, kind: dir::LetKind) -> js::Mutability {
         match kind {
@@ -75,18 +75,12 @@ impl ModuleEmitter<'_> {
 
                 js::Statement::Block { block }
             }
-            // emit an import and attach its declarations
+            // emit an import
             dir::Expression::Import {
                 target,
                 items,
                 attributes,
-            } => {
-                let statement =
-                    self.emit_import(source, *target, items.as_deref(), attributes.as_ref())?;
-                let statement = self.insert_from_source(statement, source);
-
-                return Ok(Some(statement));
-            }
+            } => self.emit_import(source, *target, items.as_deref(), attributes.as_ref())?,
             // emit an export
             dir::Expression::Export {
                 target,
@@ -189,7 +183,35 @@ impl ModuleEmitter<'_> {
         };
 
         let statement = self.insert_from_source(statement, source);
+        self.record_dependency_module(statement, source);
 
         Ok(Some(statement))
+    }
+
+    /// Record the resolved module referenced by one dependency statement.
+    fn record_dependency_module(
+        &mut self,
+        statement: js::LocalNodeId<js::Statement>,
+        source: dir::LocalNodeId<dir::Expression>,
+    ) {
+        let relation = match self.tree.get(source) {
+            dir::Expression::Import { .. } => dir::ModuleRelation::Import,
+            dir::Expression::Export {
+                target: Some(_), ..
+            } => dir::ModuleRelation::ReExport,
+            _ => return,
+        };
+        let source = source.into_global_any(self.module);
+        let target = self.modules.target_for_source(source, relation);
+        let Some(target) = target else {
+            return;
+        };
+
+        let required_len = statement.id as usize + 1;
+        if self.dependency_modules.len() < required_len {
+            self.dependency_modules.resize(required_len, None);
+        }
+
+        self.dependency_modules[statement.id as usize] = Some(target);
     }
 }

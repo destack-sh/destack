@@ -15,46 +15,25 @@ pub(crate) struct ModuleSet {
     pub(super) modules: Vec<ModuleId>,
     /// The retained external static dependency targets.
     pub(super) external_targets: IndexSet<String>,
-    /// The retained dynamic import targets.
-    pub(super) dynamic_targets: IndexSet<String>,
-    /// Whether the set contains dynamic imports without static targets.
-    pub(super) has_opaque_dynamic_imports: bool,
 }
 
 /// One stable output id inside one JS output graph.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub(crate) struct OutputId(pub(crate) usize);
 
-/// One output kind in the current JS output graph.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub(crate) enum OutputKind {
-    /// One statically discovered entry output.
-    Entry,
-    /// One asynchronously discovered entry output.
-    DynamicEntry,
-    /// One shared non-entry output.
-    Shared,
-}
-
 /// One emitted JS output.
 #[derive(Debug, Clone)]
 pub(crate) struct Output {
-    /// The emitted output kind.
-    pub(super) kind: OutputKind,
     /// The member modules carried by this output.
     pub(super) modules: Vec<ModuleId>,
-    /// The facade module used for naming and manifest input metadata when one exists.
-    pub(super) facade_module: Option<ModuleId>,
-    /// The configured manual output name when one exists.
-    pub(super) manual_name: Option<String>,
+    /// The facade module used for naming and manifest input.
+    pub(super) facade_module: ModuleId,
+    /// Whether this output is a configured entry.
+    pub(super) is_entry: bool,
     /// The bundled outgoing static output dependencies.
     pub(super) static_output_dependencies: Vec<OutputId>,
-    /// The bundled outgoing dynamic output dependencies.
-    pub(super) dynamic_output_dependencies: Vec<OutputId>,
     /// The retained external static imports.
     pub(super) external_imports: Vec<String>,
-    /// The retained external dynamic imports.
-    pub(super) external_dynamic_imports: Vec<String>,
 }
 
 /// One output graph for one JS target.
@@ -104,42 +83,22 @@ impl ModuleSet {
     pub(crate) fn external_targets(&self) -> indexmap::set::Iter<'_, String> {
         self.external_targets.iter()
     }
-
-    /// Return the retained dynamic targets for this module set.
-    pub(crate) fn dynamic_targets(&self) -> indexmap::set::Iter<'_, String> {
-        self.dynamic_targets.iter()
-    }
 }
 
 impl Output {
-    /// Return the emitted output kind.
-    pub(crate) fn kind(&self) -> OutputKind {
-        self.kind
-    }
-
     /// Return the member modules carried by this output.
     pub(crate) fn modules(&self) -> &[ModuleId] {
         &self.modules
     }
 
-    /// Return the facade module carried by this output when one exists.
-    pub(crate) fn facade_module(&self) -> Option<ModuleId> {
+    /// Return the facade module carried by this output.
+    pub(crate) fn facade_module(&self) -> ModuleId {
         self.facade_module
     }
 
-    /// Return the configured manual output name when one exists.
-    pub(crate) fn manual_name(&self) -> Option<&str> {
-        self.manual_name.as_deref()
-    }
-
-    /// Return whether this output is a static entry.
+    /// Return whether this output is an entry.
     pub(crate) fn is_entry(&self) -> bool {
-        self.kind == OutputKind::Entry
-    }
-
-    /// Return whether this output is a dynamic entry.
-    pub(crate) fn is_dynamic_entry(&self) -> bool {
-        self.kind == OutputKind::DynamicEntry
+        self.is_entry
     }
 
     /// Return the bundled outgoing static output dependencies.
@@ -147,19 +106,9 @@ impl Output {
         &self.static_output_dependencies
     }
 
-    /// Return the bundled outgoing dynamic output dependencies.
-    pub(crate) fn dynamic_output_dependencies(&self) -> &[OutputId] {
-        &self.dynamic_output_dependencies
-    }
-
     /// Return the retained external static imports.
     pub(crate) fn external_imports(&self) -> &[String] {
         &self.external_imports
-    }
-
-    /// Return the retained external dynamic imports.
-    pub(crate) fn external_dynamic_imports(&self) -> &[String] {
-        &self.external_dynamic_imports
     }
 }
 
@@ -191,11 +140,6 @@ impl OutputGraph {
     /// Return one output id by its source module when it exists.
     pub(crate) fn output_id_for_module(&self, module_id: ModuleId) -> Option<OutputId> {
         self.output_ids_by_module.get(&module_id).copied()
-    }
-
-    /// Return whether two modules belong to the same output.
-    pub(crate) fn shares_output(&self, left: ModuleId, right: ModuleId) -> bool {
-        self.output_id_for_module(left) == self.output_id_for_module(right)
     }
 }
 

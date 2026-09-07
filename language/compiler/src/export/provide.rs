@@ -4,7 +4,6 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirImported,
     DirParsed,
 };
-use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::ModuleId;
 
@@ -56,7 +55,7 @@ impl Compiler {
         let environment = self.environment(context.revision())?;
 
         // build expanded export inputs
-        let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let view = expanded.view(&parsed);
         let bindings = expanded.binding_table(&bound);
         let modules = expanded.module_table(&imported);
         let mut state = ExportState::new(

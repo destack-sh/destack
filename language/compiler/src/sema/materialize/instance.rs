@@ -1,5 +1,4 @@
 use std::collections::VecDeque;
-use std::slice::from_ref;
 
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -251,8 +250,7 @@ impl CheckState<'_> {
                 .ok_or_else(|| CompilerError::Internal {
                     message: format!("DIR node {node:?} belongs to an unloaded module"),
                 })?;
-        let view =
-            dir::View::with_patches(&external.parsed.tree, from_ref(&external.expanded.patch));
+        let view = external.expanded.view(&external.parsed);
         let source = view.provenance_any(node.local_id);
         let remap =
             self.provenance_remaps

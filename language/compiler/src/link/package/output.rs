@@ -3,9 +3,9 @@ use std::path::Path;
 
 use crate::{Compiler, CompilerResult};
 
-use destack_artifact::{BuildManifest, Bundle, BundleFile, BundleMode, BundleSection, SourceMap};
+use destack_artifact::{BuildManifest, Bundle, BundleFile, BundleMode, BundleSection};
 use destack_repository::{JsOutputMode, RepositoryError, Target};
-use destack_source::{FileType, ModuleId, Uri};
+use destack_source::{FileType, ModuleId, SourceMap, TextMap, Uri};
 
 use super::layout::TargetLocation;
 
@@ -15,7 +15,6 @@ impl Compiler {
         match bundle_mode {
             JsOutputMode::PreserveModules => BundleMode::PreserveModules,
             JsOutputMode::SingleFile => BundleMode::SingleFile,
-            JsOutputMode::Chunked => BundleMode::Chunked,
         }
     }
 
@@ -82,6 +81,7 @@ impl Compiler {
             FileType::Json,
             &bytes,
             None,
+            TextMap::default(),
         )?;
 
         output.files.push(file);
@@ -97,10 +97,11 @@ impl Compiler {
         file_type: FileType,
         bytes: &[u8],
         source: Option<Uri>,
+        map: TextMap,
     ) -> Result<BundleFile, RepositoryError> {
         let blob = self.repository.retain_blob(bytes)?;
 
-        Ok(BundleFile::new(section, uri, file_type, blob, source))
+        Ok(BundleFile::new(section, uri, file_type, blob, source, map))
     }
 
     /// Encode one normalized text output.

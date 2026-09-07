@@ -47,11 +47,12 @@ impl CheckState<'_> {
         // read the full source span from the checked or imported module
         let span = match self.module_maybe(module) {
             Some(state) => state.source_span(source),
-            None => self
-                .external_module(module)
-                .parsed
-                .tree
-                .get_span_by_id(source.id),
+            None => Some(
+                self.external_module(module)
+                    .parsed
+                    .tree
+                    .get_span_by_id(source.id),
+            ),
         };
         let span = span.ok_or_else(|| CompilerError::Internal {
             message: format!("check node {} has no source span", source.id),

@@ -74,10 +74,7 @@ impl CheckState<'_> {
                         && self.symbol_type_maybe(symbol).is_none()
                     {
                         let (parsed, expanded) = self.patched_inputs(module);
-                        let tree = dir::View::with_patches(
-                            &parsed.tree,
-                            std::slice::from_ref(&expanded.patch),
-                        );
+                        let tree = expanded.view(&parsed);
                         let mut walk = WalkState::new(module, tree, self);
                         walk.walk_property(*property, &tree.get(*property).clone())?;
                         walk.flush_flows()?;

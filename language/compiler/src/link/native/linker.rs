@@ -62,6 +62,7 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
         self.place_blocks(&mut image)?;
 
         // assign physical frame maps before resolving their index cells
+        let extents = self.link_extents(&image)?;
         let traps = self.link_traps(&image)?;
         let (frames, constants) = self.link_maps(&mut image)?;
         self.place_indices(&mut image)?;
@@ -78,25 +79,53 @@ impl<'a, 'b> NativeLinker<'a, 'b> {
         let features = features
             .into_iter()
             .map(|feature| self.program.intern_string(&feature));
-        let map = native::CodeMapBuilder::new()
+        let map = native::CodeMapBuilder::new(extents)
             .traps(traps)
             .frames(frames)
             .constants(constants);
         let imports = image.import_relocations;
         let alignment = image.alignment;
         let bytes = image.bytes;
-        let mut code = native::CodeBuilder::new(target)
+        let mut code = native::CodeBuilder::new(target, map)
             .features(features)
             .bytes(bytes, alignment)
             .functions(functions)
             .resumes(resumes)
-            .imports(imports)
-            .map(map);
+            .imports(imports);
         if let Some(unwind) = unwind {
             code = code.unwind(unwind);
         }
 
         Ok(Some(code))
+    }
+
+    /// Link object-local machine ranges into Program provenance extents.
+    fn link_extents(&self, image: &Image) -> LinkResult<Vec<native::CodeExtent>> {
+        let mut extents = Vec::new();
+
+        // rebase every block extent and import its provenance
+        for (module, object) in self.program.objects() {
+            let source = self.source(object)?;
+            let sections = source.sections();
+            for extent in source.map().extents(sections) {
+                let block = self.block(image, *module, extent.block)?;
+                let byte_offset =
+                    block
+                        .offset
+                        .checked_add(extent.range.offset)
+                        .ok_or_else(|| {
+                            self.program
+                                .layout_overflow("native provenance extent exceeds u32")
+                        })?;
+                let provenance = self.program.provenance(*module, extent.provenance)?;
+                extents.push(native::CodeExtent {
+                    range: native::CodeRange::new(byte_offset, extent.range.byte_len),
+                    provenance,
+                });
+            }
+        }
+
+        Ok(extents)
     }
 
     /// Return the common native target and feature set.

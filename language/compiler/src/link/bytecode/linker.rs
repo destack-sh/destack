@@ -52,6 +52,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         let (frames, registers) = self.link_frames()?;
         let mut functions = Vec::with_capacity(self.program.functions_by_id().len());
         let mut operations = Vec::new();
+        let mut mappings = Vec::new();
         let mut code = Vec::new();
 
         // place physical functions in dense Program function order
@@ -60,11 +61,13 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
             let object = self.program.object(module);
             let source = self.function(object, function)?;
             let linked = self.link_function(
+                module,
                 function,
                 object,
                 source,
                 &object_code[object_index],
                 &mut operations,
+                &mut mappings,
                 &mut code,
             )?;
             functions.push(linked);
@@ -76,6 +79,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
                 .frames(frames)
                 .registers(registers)
                 .operations(operations)
+                .mappings(mappings)
                 .code(code),
         ))
     }

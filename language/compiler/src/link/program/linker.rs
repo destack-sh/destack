@@ -8,7 +8,7 @@ use destack_program::{
     AllocationSiteId, CounterId, DropEntry, DynamicTableId, FunctionId, GlobalId, LayoutId, Object,
     Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId, VirtualTableId,
 };
-use destack_source::{ModuleId, PackageId};
+use destack_source::{ModuleId, PackageId, ProvenanceId, ProvenanceRemap, ProvenanceTable};
 
 use crate::{LinkError, LinkResult};
 
@@ -29,6 +29,10 @@ pub struct ProgramLinker<'a> {
     object_ids: HashMap<ModuleId, usize>,
     /// Target ABI layout shared by every object.
     target_layout: mir::TargetLayout,
+    /// Joined provenance table for every linked object.
+    provenance: ProvenanceTable,
+    /// Program provenance ids keyed by object-local provenance.
+    provenance_remaps: HashMap<ModuleId, ProvenanceRemap>,
     /// Program string pool.
     strings: &'a StringPool,
     /// Dense program function ids keyed by module-local MIR function id.
@@ -79,6 +83,12 @@ impl<'a> ProgramLinker<'a> {
     ) -> LinkResult<Self> {
         let object_ids = Self::object_ids(package, &objects)?;
         let target_layout = Self::common_layout(package, &objects)?;
+        let mut provenance = ProvenanceTable::build();
+        let provenance_remaps = objects
+            .iter()
+            .map(|(module, object)| (*module, provenance.import(object.provenance())))
+            .collect();
+        let provenance = provenance.finish();
         let (type_ids, types_by_id) = TypeLinker::index(&objects);
         let (function_ids, functions_by_id) =
             FunctionLinker::index(package, &objects, &type_ids, strings)?;
@@ -103,6 +113,8 @@ impl<'a> ProgramLinker<'a> {
             objects,
             object_ids,
             target_layout,
+            provenance,
+            provenance_remaps,
             strings,
             function_ids,
             functions_by_id,
@@ -142,8 +154,9 @@ impl<'a> ProgramLinker<'a> {
 
         // assemble the durable program image
         let package = self.package;
-        let mut program = ProgramBuilder::new(self.target_layout)
-            .strings(self.strings, self.string_ids()?)
+        let string_ids = self.string_ids()?;
+        let mut program = ProgramBuilder::new(self.target_layout, self.provenance)
+            .strings(self.strings, string_ids)
             .types(types)
             .drops(self.drops)
             .layouts(layouts.layouts)
@@ -176,6 +189,22 @@ impl<'a> ProgramLinker<'a> {
         })?;
 
         Ok(program)
+    }
+
+    /// Return one object's provenance in the joined Program table.
+    pub(crate) fn provenance(
+        &self,
+        module: ModuleId,
+        source: ProvenanceId,
+    ) -> LinkResult<ProvenanceId> {
+        self.provenance_remaps
+            .get(&module)
+            .and_then(|remap| remap.get(source))
+            .ok_or_else(|| {
+                self.invalid_input(format!(
+                    "module {module:?} provenance {source:?} was not imported"
+                ))
+            })
     }
 
     /// Return string ids retained by the linked program.

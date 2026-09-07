@@ -1,38 +1,46 @@
-use destack_artifact::SourceMap;
-use destack_fir as fir;
-use destack_source::File;
+use destack_source::SourceMap;
+
+use crate::{CompilerError, CompilerResult};
 
 const BASE64_VLQ_ALPHABET: &[u8; 64] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-/// One source map marker for one emitted output position.
+/// One mapped or unmapped source map position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) struct SourceMapMarker {
-    /// The mapped source index.
-    pub source_index: usize,
-    /// The mapped source line.
-    pub original_line: u32,
-    /// The mapped source column.
-    pub original_column: u32,
-    /// The mapped emitted byte offset.
-    pub emitted_byte: u32,
+pub(crate) enum SourceMapMarker {
+    /// Start a mapped generated range.
+    Mapped {
+        /// The emitted byte offset.
+        emitted_byte: u32,
+        /// The mapped source index.
+        source_index: usize,
+        /// The mapped source line.
+        original_line: u32,
+        /// The mapped source UTF-16 column.
+        original_column: u32,
+        /// The authored identifier name index when one exists.
+        name: Option<usize>,
+    },
+    /// Start an unmapped generated range.
+    Unmapped {
+        /// The emitted byte offset.
+        emitted_byte: u32,
+    },
 }
 
 impl SourceMapMarker {
-    /// Build one source map marker from one printed file marker.
-    pub(crate) fn from_file_marker(
-        source_index: usize,
-        source_file: &File,
-        marker: fir::format::FileMarker,
-    ) -> Option<Self> {
-        let (original_line, original_column) = source_file.get_position(marker.source)?;
+    /// Return the emitted byte offset.
+    const fn emitted_byte(self) -> u32 {
+        match self {
+            Self::Mapped { emitted_byte, .. } | Self::Unmapped { emitted_byte } => emitted_byte,
+        }
+    }
 
-        Some(Self {
-            source_index,
-            original_line,
-            original_column,
-            emitted_byte: marker.dest,
-        })
+    /// Return the mutable emitted byte offset.
+    fn emitted_byte_mut(&mut self) -> &mut u32 {
+        match self {
+            Self::Mapped { emitted_byte, .. } | Self::Unmapped { emitted_byte } => emitted_byte,
+        }
     }
 }
 
@@ -40,25 +48,46 @@ impl SourceMapMarker {
 #[derive(Debug, Clone)]
 pub(crate) struct SourceMapBuilder {
     /// The mapped source paths.
-    pub sources: Vec<String>,
+    sources: Vec<String>,
+    /// The embedded source contents when requested.
+    sources_content: Option<Vec<Option<String>>>,
     /// The precise source markers.
-    pub markers: Vec<SourceMapMarker>,
+    markers: Vec<SourceMapMarker>,
+    /// Authored identifier names referenced by markers.
+    names: Vec<String>,
 }
 
 impl SourceMapBuilder {
-    /// Create one source map builder from explicit source markers.
-    pub(crate) fn new(sources: Vec<String>, markers: Vec<SourceMapMarker>) -> Self {
-        Self { sources, markers }
+    /// Build one invalid source map error.
+    fn error(message: impl Into<String>) -> CompilerError {
+        CompilerError::Internal {
+            message: message.into(),
+        }
+    }
+
+    /// Create one source map builder with authored identifier names.
+    pub(crate) fn new(
+        sources: Vec<String>,
+        sources_content: Option<Vec<Option<String>>>,
+        names: Vec<String>,
+        markers: Vec<SourceMapMarker>,
+    ) -> Self {
+        Self {
+            sources,
+            sources_content,
+            markers,
+            names,
+        }
     }
 
     /// Shift all emitted positions by one byte prefix length.
-    pub(crate) fn prepend_emitted_bytes(&mut self, byte_count: u32) {
+    pub(crate) fn shift(&mut self, byte_count: u32) {
         if byte_count == 0 {
             return;
         }
 
         for marker in &mut self.markers {
-            marker.emitted_byte += byte_count;
+            *marker.emitted_byte_mut() += byte_count;
         }
     }
 
@@ -67,344 +96,180 @@ impl SourceMapBuilder {
         &self,
         emitted_code: &str,
         trailing_unmapped_line_count: usize,
-    ) -> SourceMap {
+    ) -> CompilerResult<SourceMap> {
         let mappings =
-            encode_source_map_mappings(emitted_code, trailing_unmapped_line_count, &self.markers);
+            Self::encode_mappings(emitted_code, trailing_unmapped_line_count, &self.markers)?;
 
-        SourceMap {
-            version: destack_artifact::SOURCE_MAP_VERSION,
+        Ok(SourceMap {
             file: None,
             source_root: None,
-            sources: self.sources.clone(),
-            sources_content: None,
-            names: Vec::new(),
+            sources: self.sources.iter().cloned().map(Some).collect(),
+            sources_content: self.sources_content.clone(),
+            names: self.names.clone(),
             mappings,
+            ignore_list: Vec::new(),
             debug_id: None,
-        }
-    }
-}
-
-/// Return the number of visible lines in one text payload.
-fn line_count(text: &str) -> usize {
-    if text.is_empty() {
-        return 0;
+        })
     }
 
-    let newline_count = text.bytes().filter(|byte| *byte == b'\n').count();
-
-    if text.ends_with('\n') {
-        return newline_count;
-    }
-
-    newline_count + 1
-}
-
-/// Encode one source map marker list into one VLQ mappings payload.
-fn encode_source_map_mappings(
-    emitted_code: &str,
-    trailing_unmapped_line_count: usize,
-    markers: &[SourceMapMarker],
-) -> String {
-    let mut mappings = String::new();
-    let mut previous_emitted_line = 0u32;
-    let mut previous_emitted_column = 0i32;
-    let mut previous_source_index = 0i32;
-    let mut previous_original_line = 0i32;
-    let mut previous_original_column = 0i32;
-    let emitted_offsets = line_start_offsets(emitted_code);
-    let total_line_count = line_count(emitted_code) + trailing_unmapped_line_count;
-    let mut is_first_segment_on_line = true;
-
-    for marker in markers {
-        let Some((emitted_line, emitted_column)) =
-            byte_position(&emitted_offsets, marker.emitted_byte)
-        else {
-            continue;
-        };
-
-        while previous_emitted_line < emitted_line {
-            mappings.push(';');
-            previous_emitted_line += 1;
-            previous_emitted_column = 0;
-            is_first_segment_on_line = true;
+    /// Return the number of visible lines in one text payload.
+    fn line_count(text: &str) -> usize {
+        if text.is_empty() {
+            return 0;
         }
 
-        if !is_first_segment_on_line {
-            mappings.push(',');
+        let newline_count = text.bytes().filter(|byte| *byte == b'\n').count();
+
+        if text.ends_with('\n') {
+            return newline_count;
         }
 
-        encode_vlq(
-            emitted_column as i32 - previous_emitted_column,
-            &mut mappings,
-        );
-
-        let source_index = marker.source_index as i32;
-        let original_line = marker.original_line as i32;
-        let original_column = marker.original_column as i32;
-
-        encode_vlq(source_index - previous_source_index, &mut mappings);
-        encode_vlq(original_line - previous_original_line, &mut mappings);
-        encode_vlq(original_column - previous_original_column, &mut mappings);
-
-        previous_emitted_column = emitted_column as i32;
-        previous_source_index = source_index;
-        previous_original_line = original_line;
-        previous_original_column = original_column;
-        is_first_segment_on_line = false;
+        newline_count + 1
     }
 
-    // keep trailing unmapped output lines visible in the final map
-    while previous_emitted_line + 1 < total_line_count as u32 {
-        mappings.push(';');
-        previous_emitted_line += 1;
-    }
+    /// Encode one source map marker list into one VLQ mappings payload.
+    fn encode_mappings(
+        emitted_code: &str,
+        trailing_unmapped_line_count: usize,
+        markers: &[SourceMapMarker],
+    ) -> CompilerResult<String> {
+        let mut mappings = String::new();
+        let mut emitted_byte = 0usize;
+        let mut emitted_line = 0u32;
+        let mut emitted_column = 0u32;
+        let mut previous_emitted_line = 0u32;
+        let mut previous_emitted_column = 0i64;
+        let mut previous_source_index = 0i64;
+        let mut previous_original_line = 0i64;
+        let mut previous_original_column = 0i64;
+        let mut previous_name_index = 0i64;
+        let total_line_count =
+            (Self::line_count(emitted_code) + trailing_unmapped_line_count) as u32;
+        let mut is_first_segment_on_line = true;
 
-    mappings
-}
-
-/// Build one line-start index for arbitrary text.
-fn line_start_offsets(text: &str) -> Vec<u32> {
-    let mut offsets = vec![0];
-
-    for (index, byte) in text.bytes().enumerate() {
-        if byte == b'\n' {
-            offsets.push(index as u32 + 1);
-        }
-    }
-
-    offsets
-}
-
-/// Return one line and column pair for one byte offset.
-fn byte_position(line_start_offsets: &[u32], byte_offset: u32) -> Option<(u32, u32)> {
-    let line_index = match line_start_offsets.binary_search(&byte_offset) {
-        Ok(exact_match) => exact_match as u32,
-        Err(insertion_point) => {
-            if insertion_point == 0 {
-                return None;
+        for (marker_index, marker) in markers.iter().enumerate() {
+            let marker_byte = marker.emitted_byte() as usize;
+            if marker_byte < emitted_byte {
+                return Err(SourceMapBuilder::error(format!(
+                    "source map marker byte {marker_byte} precedes byte {emitted_byte}"
+                )));
             }
 
-            (insertion_point - 1) as u32
-        }
-    };
-    let line_start = line_start_offsets[line_index as usize];
+            // omit one terminal unmapped position when no final text follows it
+            let is_terminal_unmapped = matches!(marker, SourceMapMarker::Unmapped { .. })
+                && marker_index + 1 == markers.len()
+                && marker_byte == emitted_code.len()
+                && trailing_unmapped_line_count == 0;
+            if is_terminal_unmapped {
+                break;
+            }
 
-    Some((line_index, byte_offset - line_start))
-}
+            // advance through each emitted scalar once
+            let text = emitted_code.get(emitted_byte..marker_byte).ok_or_else(|| {
+                SourceMapBuilder::error(format!(
+                    "source map marker byte {marker_byte} is outside emitted text"
+                ))
+            })?;
+            for character in text.chars() {
+                if character == '\n' {
+                    emitted_line += 1;
+                    emitted_column = 0;
+                } else {
+                    emitted_column += character.len_utf16() as u32;
+                }
+            }
+            emitted_byte = marker_byte;
 
-/// Encode one signed integer into one base64 VLQ segment.
-fn encode_vlq(value: i32, output: &mut String) {
-    let mut value = encode_vlq_signed(value) as u32;
+            while previous_emitted_line < emitted_line {
+                mappings.push(';');
+                previous_emitted_line += 1;
+                previous_emitted_column = 0;
+                is_first_segment_on_line = true;
+            }
 
-    loop {
-        let mut digit = value & 0b1_1111;
-        value >>= 5;
+            if !is_first_segment_on_line {
+                mappings.push(',');
+            }
 
-        if value != 0 {
-            digit |= 0b10_0000;
-        }
+            let mapped_emitted_column = i64::from(emitted_column);
+            Self::encode_vlq(
+                mapped_emitted_column - previous_emitted_column,
+                &mut mappings,
+            )?;
 
-        output.push(BASE64_VLQ_ALPHABET[digit as usize] as char);
+            if let SourceMapMarker::Mapped {
+                source_index,
+                original_line,
+                original_column,
+                name,
+                ..
+            } = *marker
+            {
+                let source_index = source_index as i64;
+                let original_line = i64::from(original_line);
+                let original_column = i64::from(original_column);
 
-        if value == 0 {
-            break;
-        }
-    }
-}
-
-/// Convert one signed integer into one VLQ signed payload.
-fn encode_vlq_signed(value: i32) -> i32 {
-    if value < 0 {
-        ((-value) << 1) + 1
-    } else {
-        value << 1
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{SourceMapBuilder, SourceMapMarker};
-
-    /// One decoded source map segment.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-    struct DecodedSegment {
-        /// The emitted column on the current output line.
-        emitted_column: i32,
-        /// The mapped source index.
-        source_index: i32,
-        /// The mapped source line.
-        original_line: i32,
-        /// The mapped source column.
-        original_column: i32,
-    }
-
-    #[test]
-    fn test_build_encodes_exact_segments() {
-        // marker stream
-        let builder = SourceMapBuilder::new(
-            vec!["src/app.ts".to_string()],
-            vec![
-                SourceMapMarker {
-                    source_index: 0,
-                    original_line: 0,
-                    original_column: 0,
-                    emitted_byte: 0,
-                },
-                SourceMapMarker {
-                    source_index: 0,
-                    original_line: 0,
-                    original_column: 5,
-                    emitted_byte: 5,
-                },
-                SourceMapMarker {
-                    source_index: 0,
-                    original_line: 1,
-                    original_column: 2,
-                    emitted_byte: 8,
-                },
-            ],
-        );
-
-        // encoded output
-        let source_map = builder.build("abcdefg\nxyz", 0);
-        let segments = decode_mappings(&source_map.mappings);
-
-        assert_eq!(
-            segments,
-            vec![
-                vec![
-                    DecodedSegment {
-                        emitted_column: 0,
-                        source_index: 0,
-                        original_line: 0,
-                        original_column: 0,
-                    },
-                    DecodedSegment {
-                        emitted_column: 5,
-                        source_index: 0,
-                        original_line: 0,
-                        original_column: 5,
-                    },
-                ],
-                vec![DecodedSegment {
-                    emitted_column: 0,
-                    source_index: 0,
-                    original_line: 1,
-                    original_column: 2,
-                }],
-            ]
-        );
-    }
-
-    #[test]
-    fn test_build_preserves_trailing_unmapped_lines() {
-        // one mapped line plus two trailing unmapped lines
-        let builder = SourceMapBuilder::new(
-            vec!["src/app.ts".to_string()],
-            vec![SourceMapMarker {
-                source_index: 0,
-                original_line: 0,
-                original_column: 0,
-                emitted_byte: 0,
-            }],
-        );
-
-        // one emitted line plus two annotation lines
-        let source_map = builder.build("export const app = 1;\n", 2);
-        let segments = decode_mappings(&source_map.mappings);
-
-        assert_eq!(segments.len(), 3);
-        assert_eq!(segments[0].len(), 1);
-        assert!(segments[1].is_empty());
-        assert!(segments[2].is_empty());
-    }
-
-    /// Decode one mappings string into per line source segments.
-    fn decode_mappings(mappings: &str) -> Vec<Vec<DecodedSegment>> {
-        let mut lines = Vec::new();
-        let mut current_line = Vec::new();
-        let mut previous_source_index = 0i32;
-        let mut previous_original_line = 0i32;
-        let mut previous_original_column = 0i32;
-
-        // one line at a time
-        for line in mappings.split(';') {
-            current_line.clear();
-            let mut previous_emitted_column = 0i32;
-
-            // one segment at a time
-            for segment in line.split(',') {
-                if segment.is_empty() {
-                    continue;
+                Self::encode_vlq(source_index - previous_source_index, &mut mappings)?;
+                Self::encode_vlq(original_line - previous_original_line, &mut mappings)?;
+                Self::encode_vlq(original_column - previous_original_column, &mut mappings)?;
+                if let Some(name) = name {
+                    let name = name as i64;
+                    Self::encode_vlq(name - previous_name_index, &mut mappings)?;
+                    previous_name_index = name;
                 }
 
-                let values = decode_vlq_segment(segment);
-                let emitted_column = previous_emitted_column + values[0];
-                let source_index = previous_source_index + values[1];
-                let original_line = previous_original_line + values[2];
-                let original_column = previous_original_column + values[3];
-
-                current_line.push(DecodedSegment {
-                    emitted_column,
-                    source_index,
-                    original_line,
-                    original_column,
-                });
-
-                previous_emitted_column = emitted_column;
                 previous_source_index = source_index;
                 previous_original_line = original_line;
                 previous_original_column = original_column;
             }
 
-            lines.push(current_line.clone());
+            previous_emitted_column = mapped_emitted_column;
+            is_first_segment_on_line = false;
         }
-        lines
+
+        // keep trailing unmapped output lines visible in the final map
+        let last_emitted_line = total_line_count.saturating_sub(1);
+        while previous_emitted_line < last_emitted_line {
+            mappings.push(';');
+            previous_emitted_line += 1;
+        }
+
+        Ok(mappings)
     }
 
-    /// Decode one VLQ segment into signed integers.
-    fn decode_vlq_segment(segment: &str) -> Vec<i32> {
-        let mut values = Vec::new();
-        let mut value = 0u32;
-        let mut shift = 0u32;
+    /// Encode one signed integer into one base64 VLQ segment.
+    fn encode_vlq(value: i64, output: &mut String) -> CompilerResult<()> {
+        if i32::try_from(value).is_err() {
+            return Err(Self::error("source map VLQ value exceeds 32 bits"));
+        }
+        let mut value = Self::encode_signed(value);
 
-        // one digit at a time
-        for character in segment.chars() {
-            let digit = decode_base64_vlq(character);
-            let continuation = (digit & 0b10_0000) != 0;
-            let payload = (digit & 0b1_1111) as u32;
+        loop {
+            let mut digit = value & 0b1_1111;
+            value >>= 5;
 
-            value |= payload << shift;
-            shift += 5;
-
-            if continuation {
-                continue;
+            if value != 0 {
+                digit |= 0b10_0000;
             }
 
-            values.push(decode_vlq_signed(value));
-            value = 0;
-            shift = 0;
+            output.push(BASE64_VLQ_ALPHABET[digit as usize] as char);
+
+            if value == 0 {
+                break;
+            }
         }
 
-        values
+        Ok(())
     }
 
-    /// Decode one base64 VLQ digit.
-    fn decode_base64_vlq(character: char) -> u8 {
-        super::BASE64_VLQ_ALPHABET
-            .iter()
-            .position(|candidate| *candidate == character as u8)
-            .unwrap_or_else(|| panic!("invalid base64 VLQ digit: {character}")) as u8
-    }
+    /// Convert one signed integer into one VLQ signed payload.
+    fn encode_signed(value: i64) -> u64 {
+        let magnitude = value.unsigned_abs();
 
-    /// Decode one VLQ signed payload into one signed integer.
-    fn decode_vlq_signed(value: u32) -> i32 {
-        let magnitude = (value >> 1) as i32;
-
-        if (value & 1) == 1 {
-            -magnitude
+        if value < 0 {
+            (magnitude << 1) | 1
         } else {
-            magnitude
+            magnitude << 1
         }
     }
 }

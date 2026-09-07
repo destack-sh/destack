@@ -2,7 +2,6 @@ use std::borrow::Cow;
 use std::sync::Arc;
 
 use destack_core::Blob;
-use destack_js::Module;
 use destack_program::{Object, Program};
 use destack_serde as serde;
 use destack_serde::Reflect;
@@ -13,7 +12,7 @@ use crate::{
     Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared,
     IndexKind, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph,
-    ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted,
+    ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
 };
 
 use ::serde::{Deserialize, Serialize};
@@ -72,7 +71,7 @@ pub enum ArtifactPayload {
     /// Completed lint analysis for one target program.
     ProgramLinted(Arc<ProgramLinted>),
     /// One structured linker input for one target.
-    Script(Arc<Module>),
+    Script(Arc<Script>),
     /// One optimized module object for one target.
     Object(Arc<Object>),
     /// One opaque linker input for one target.
@@ -139,7 +138,7 @@ pub enum ArtifactPayloadRef<'a> {
     /// Completed lint analysis for one target program.
     ProgramLinted(&'a ProgramLinted),
     /// One structured linker input for one target.
-    Script(&'a Module),
+    Script(&'a Script),
     /// One optimized module object for one target.
     Object(&'a Object),
     /// One opaque linker input for one target.
@@ -558,7 +557,7 @@ artifact!(
     (profile, target) => ArtifactKey::program_linted(profile, target)
 );
 artifact!(
-    Module,
+    Script,
     Script,
     (ModuleId, TargetId),
     (module, target) => ArtifactKey::script(module, target)

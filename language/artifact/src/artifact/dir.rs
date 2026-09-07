@@ -607,8 +607,6 @@ impl DirChecked {
 /// Materialized DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirMaterialized {
-    /// Tree changes.
-    pub patch: dir::Patch,
     /// The provenance table through materialization.
     pub provenance: ProvenanceTable,
     /// New types.

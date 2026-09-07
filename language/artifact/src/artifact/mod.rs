@@ -13,6 +13,7 @@ mod package;
 mod payload;
 mod product;
 mod reference;
+mod script;
 
 pub use asset::*;
 pub use build::*;
@@ -29,3 +30,4 @@ pub use package::*;
 pub use payload::*;
 pub use product::*;
 pub use reference::*;
+pub use script::*;

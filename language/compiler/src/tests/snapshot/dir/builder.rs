@@ -550,11 +550,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             return SnapshotAnchor::End;
         }
 
-        if let Some(span) = self.tree.get_span_by_id(node_id.local_id.id) {
-            SnapshotAnchor::After(span)
-        } else {
-            SnapshotAnchor::End
-        }
+        SnapshotAnchor::After(self.tree.get_span_by_id(node_id.local_id.id))
     }
 
     /// Return the source anchor for one name resolution row.
@@ -1218,7 +1214,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             return None;
         }
 
-        let span = self.tree.get_span_by_id(node_id.local_id.id)?;
+        let span = self.tree.get_span_by_id(node_id.local_id.id);
         let source = &self.source[span.start as usize..span.end as usize];
         let source = source.trim();
 

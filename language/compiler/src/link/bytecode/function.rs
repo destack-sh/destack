@@ -2,6 +2,7 @@ use destack_bytecode as bytecode;
 use destack_core::{EntryRange, Optional};
 use destack_mir as mir;
 use destack_program::{Object, Word};
+use destack_source::{ModuleId, ProvenanceId};
 
 use crate::LinkResult;
 
@@ -11,20 +12,44 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
     /// Link one bytecode function and append its operation and code sections.
     pub(super) fn link_function(
         &self,
+        module: ModuleId,
         function: mir::FunctionId,
         object: &Object,
         source: &bytecode::Function,
         object_code: &[u8],
-        operations: &mut Vec<bytecode::CodeOffset>,
+        operations: &mut Vec<(bytecode::CodeOffset, ProvenanceId)>,
+        mappings: &mut Vec<bytecode::Mapping>,
         code: &mut Vec<u8>,
     ) -> LinkResult<bytecode::Function> {
         let bytecode = self.object(object)?;
 
-        // append operation coordinates without changing function-relative offsets
+        // append function relative logical operation offsets
         let operation_start = operations.len() as u32;
         let source_operations = source.operations(bytecode.operations());
-        operations.extend_from_slice(source_operations);
+        let source_provenance = source.operation_provenances(bytecode.operation_provenances());
+        if source_operations.len() != source_provenance.len() {
+            return Err(self.program.invalid_input(
+                "bytecode operation provenance count differs from operation count",
+            ));
+        }
+        for (&offset, &provenance) in source_operations.iter().zip(source_provenance) {
+            let provenance = self.program.provenance(module, provenance)?;
+            operations.push((offset, provenance));
+        }
         let operation_count = operations.len() as u32 - operation_start;
+
+        // append provenance mappings with Program identities
+        let mapping_start = mappings.len() as u32;
+        let source_mappings = source.mappings(bytecode.mappings());
+        for mapping in source_mappings {
+            let provenance = self.program.provenance(module, mapping.provenance)?;
+            mappings.push(bytecode::Mapping::new(
+                mapping.offset,
+                mapping.operation,
+                provenance,
+            ));
+        }
+        let mapping_count = mappings.len() as u32 - mapping_start;
 
         // append the linked function body when this object defines it
         let code_range = source.code().map(|range| {
@@ -43,6 +68,7 @@ impl<'a, 'b> BytecodeLinker<'a, 'b> {
         Ok(bytecode::Function::new(
             Optional::from(code_range),
             EntryRange::new(operation_start, operation_count),
+            EntryRange::new(mapping_start, mapping_count),
             register_count,
         ))
     }

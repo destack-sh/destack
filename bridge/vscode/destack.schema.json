@@ -2852,10 +2852,7 @@
             "module": "esnext",
             "target": "esnext",
             "mode": "singleFile",
-            "preserveModules": false,
             "preserveModulesRoot": null,
-            "manualChunks": {},
-            "onlyExplicitManualChunks": false,
             "dependencies": {
               "external": [],
               "neverBundle": [],
@@ -2870,23 +2867,13 @@
               "format": null,
               "name": null,
               "entryFileNames": null,
-              "chunkFileNames": null,
               "assetFileNames": null,
               "publicPath": null,
               "manifest": false,
               "legalComments": "inline",
               "banner": null,
               "footer": null,
-              "generatedCode": null,
-              "sourceMapExcludeSources": false,
-              "sourceMapDebugIds": false
-            },
-            "minify": {
-              "enabled": false,
-              "syntax": false,
-              "whitespace": false,
-              "identifiers": false,
-              "keepNames": false
+              "sourceMapExcludeSources": false
             }
           }
         },
@@ -3621,11 +3608,6 @@
           "$ref": "#/$defs/JsOutputMode",
           "default": "singleFile"
         },
-        "preserveModules": {
-          "description": "Whether to preserve one emitted module file per reachable module.",
-          "type": "boolean",
-          "default": false
-        },
         "preserveModulesRoot": {
           "description": "Root directory for preserved module paths.",
           "type": [
@@ -3633,22 +3615,6 @@
             "null"
           ],
           "default": null
-        },
-        "manualChunks": {
-          "description": "Manual chunk assignments keyed by chunk name.",
-          "type": "object",
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "default": {}
-        },
-        "onlyExplicitManualChunks": {
-          "description": "Whether to only honor explicit manual chunk declarations.",
-          "type": "boolean",
-          "default": false
         },
         "dependencies": {
           "description": "Dependency and resolution options.",
@@ -3675,27 +3641,13 @@
             "format": null,
             "name": null,
             "entryFileNames": null,
-            "chunkFileNames": null,
             "assetFileNames": null,
             "publicPath": null,
             "manifest": false,
             "legalComments": "inline",
             "banner": null,
             "footer": null,
-            "generatedCode": null,
-            "sourceMapExcludeSources": false,
-            "sourceMapDebugIds": false
-          }
-        },
-        "minify": {
-          "description": "Minification options.",
-          "$ref": "#/$defs/JsMinifyOptions",
-          "default": {
-            "enabled": false,
-            "syntax": false,
-            "whitespace": false,
-            "identifiers": false,
-            "keepNames": false
+            "sourceMapExcludeSources": false
           }
         }
       }
@@ -3712,11 +3664,6 @@
           "description": "Preserve one emitted module file per reachable module.",
           "type": "string",
           "const": "preserveModules"
-        },
-        {
-          "description": "Assemble one chunk graph with multiple linked outputs.",
-          "type": "string",
-          "const": "chunked"
         }
       ]
     },
@@ -3824,15 +3771,7 @@
           "default": null
         },
         "entryFileNames": {
-          "description": "Output naming template for entry chunks.",
-          "type": [
-            "string",
-            "null"
-          ],
-          "default": null
-        },
-        "chunkFileNames": {
-          "description": "Output naming template for shared chunks.",
+          "description": "Output naming template for entry files.",
           "type": [
             "string",
             "null"
@@ -3881,25 +3820,8 @@
           ],
           "default": null
         },
-        "generatedCode": {
-          "description": "Generated code controls for final output rendering.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/JsGeneratedCodeOptions"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        },
         "sourceMapExcludeSources": {
           "description": "Whether to omit source contents from source maps.",
-          "type": "boolean",
-          "default": false
-        },
-        "sourceMapDebugIds": {
-          "description": "Whether to include debug ids in source maps.",
           "type": "boolean",
           "default": false
         }
@@ -3939,59 +3861,6 @@
           "const": "none"
         }
       ]
-    },
-    "JsGeneratedCodeOptions": {
-      "description": "Generated code controls for one output.",
-      "type": "object",
-      "properties": {
-        "objectShorthand": {
-          "description": "Whether to emit object shorthand properties.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
-        },
-        "reservedNamesAsProps": {
-          "description": "Whether to preserve reserved names as properties.",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
-        }
-      }
-    },
-    "JsMinifyOptions": {
-      "description": "JavaScript minification options.",
-      "type": "object",
-      "properties": {
-        "enabled": {
-          "description": "Whether to minify final bundled output.",
-          "type": "boolean",
-          "default": false
-        },
-        "syntax": {
-          "description": "Whether to minify syntax forms.",
-          "type": "boolean",
-          "default": false
-        },
-        "whitespace": {
-          "description": "Whether to minify whitespace.",
-          "type": "boolean",
-          "default": false
-        },
-        "identifiers": {
-          "description": "Whether to minify identifiers.",
-          "type": "boolean",
-          "default": false
-        },
-        "keepNames": {
-          "description": "Whether to preserve function and class names.",
-          "type": "boolean",
-          "default": false
-        }
-      }
     },
     "TargetNativeOptions": {
       "description": "Native target configuration.",

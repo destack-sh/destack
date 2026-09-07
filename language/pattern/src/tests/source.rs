@@ -142,14 +142,14 @@ impl TestSource {
 
     /// Return the exact authored text of one node.
     pub(crate) fn node_text(&self, node: dir::LocalNodeIdAny) -> &str {
-        let span = self.tree().get_span_by_id(node.id).expect("node span");
+        let span = self.tree().get_span_by_id(node.id);
 
         self.file().get_span_str(span).expect("node source")
     }
 
     /// Return the source span of one node.
     pub(crate) fn node_span(&self, node: dir::LocalNodeIdAny) -> Span {
-        self.tree().get_span_by_id(node.id).expect("node span")
+        self.tree().get_span_by_id(node.id)
     }
 
     /// Return the byte offset starting the line containing one source offset.

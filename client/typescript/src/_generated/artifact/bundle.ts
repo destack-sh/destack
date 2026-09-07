@@ -165,7 +165,7 @@ export function fromJsonBundleFile(value: Json): BundleFile {
 }
 
 /** The assembly mode for one bundle. */
-export type BundleMode = "preserveModules" | "singleFile" | "chunked";
+export type BundleMode = "preserveModules" | "singleFile";
 
 export const BundleMode = {
     /** Encode this value. */
@@ -198,9 +198,6 @@ export function encodeBundleMode(writer: BinaryWriter, value: BundleMode): void 
         case "singleFile":
             writer.writeUnsigned(1);
             return;
-        case "chunked":
-            writer.writeUnsigned(2);
-            return;
     }
 
     throw new SerdeError("unknown enum variant");
@@ -215,8 +212,6 @@ export function decodeBundleMode(reader: BinaryReader): BundleMode {
             return "preserveModules";
         case 1:
             return "singleFile";
-        case 2:
-            return "chunked";
     }
 
     throw new SerdeError(`unknown enum variant index: ${variant}`);
@@ -236,8 +231,6 @@ export function fromJsonBundleMode(value: Json): BundleMode {
             return "preserveModules";
         case "singleFile":
             return "singleFile";
-        case "chunked":
-            return "chunked";
     }
 
     throw new SerdeError(`unknown enum variant: ${variant}`);

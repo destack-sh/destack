@@ -126,6 +126,15 @@ impl<'a> JsLinker<'a> {
             })
     }
 
+    /// Build one missing module output error.
+    pub(super) fn missing_module_output(&self, module: ModuleId) -> LinkError {
+        LinkError::Internal {
+            anchor: self.package_id.into(),
+            package: self.package_id,
+            message: format!("missing JS output for module {module:?}"),
+        }
+    }
+
     /// Map one compiler boundary failure into a link diagnostic.
     pub(crate) fn link_error(&self, error: CompilerError) -> LinkError {
         Compiler::link_error(self.package_id, error)

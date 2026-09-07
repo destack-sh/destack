@@ -589,10 +589,7 @@ impl TypeLowerer<'_, '_> {
     }
 
     /// Lower one value type through its representation class, else its scalar form.
-    fn lower_value_representation(
-        &mut self,
-        ty: &dir::Type,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn lower_value_representation(&mut self, ty: &dir::Type) -> CompilerResult<mir::TypeId> {
         // lower reference primitives through their representation classes
         if let Some(item) = ModuleLowerer::representation_item(ty) {
             let symbol = self.lowerer.language_item_symbol(item)?;

@@ -589,7 +589,7 @@ impl TestSession {
             };
             let (size, alignment) = (layout.size, layout.alignment);
 
-            match (&layout.shape, tree.get(ty)) {
+            match (&layout.shape, tree.ty(ty)) {
                 // render one struct row followed by its fields
                 (destack_mir::LayoutShape::Struct(shape), destack_mir::Type::Struct { .. }) => {
                     rows.push_str(&format!(
@@ -1837,7 +1837,7 @@ fn test_executor() -> Arc<Executor> {
 }
 
 /// Return one rendered MIR type reference.
-fn mir_type_name(ty: destack_mir::LocalNodeId<destack_mir::Type>) -> String {
+fn mir_type_name(ty: destack_mir::TypeId) -> String {
     format!("type@{}", ty.id)
 }
 

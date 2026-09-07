@@ -105,7 +105,7 @@ impl CheckState<'_> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
 
         // collect the constant declarator bindings first
         let mut bindings = Vec::new();

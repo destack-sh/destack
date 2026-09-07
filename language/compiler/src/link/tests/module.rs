@@ -34,13 +34,14 @@ impl TestModule {
         // emit common metadata and relocatable bytecode
         let object = ObjectEmitter::new(module, &lowered, &optimized, dependencies)
             .expect("object emission failed");
+        let mut provenance = optimized.provenance.extend();
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
-            .emit()
+            .emit(&mut provenance)
             .expect("MIR should emit bytecode");
 
         Self {
             module,
-            object: Arc::new(object.bytecode(bytecode).build()),
+            object: Arc::new(object.bytecode(bytecode).build(provenance.finish())),
             strings,
         }
     }
@@ -57,8 +58,9 @@ impl TestModule {
         // emit common metadata with canonical bytecode beside native code
         let object = ObjectEmitter::new(module, &lowered, &optimized, dependencies)
             .expect("object emission failed");
+        let mut provenance = optimized.provenance.extend();
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
-            .emit()
+            .emit(&mut provenance)
             .expect("MIR should emit bytecode");
         let native = NativeEmitter::new(
             module,
@@ -68,12 +70,17 @@ impl TestModule {
             &destack_repository::Target::native(),
         )
         .expect("native emitter should initialize")
-        .emit()
+        .emit(&mut provenance)
         .expect("MIR should emit native code");
 
         Self {
             module,
-            object: Arc::new(object.bytecode(bytecode).native(native).build()),
+            object: Arc::new(
+                object
+                    .bytecode(bytecode)
+                    .native(native)
+                    .build(provenance.finish()),
+            ),
             strings,
         }
     }
@@ -92,8 +99,19 @@ impl TestModule {
         let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
             .expect("test MIR should be text");
         assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-        let (tree, target, mut layouts, dispatch, drops, accesses, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (
+            tree,
+            provenance,
+            target,
+            mut layouts,
+            dispatch,
+            drops,
+            accesses,
+            effects,
+            profile,
+            strings,
+            _,
+        ) = parsed.into_parts();
 
         // compute target layouts required by object emission
         let mut layout_builder = mir::LayoutBuilder::new(&tree, &mut layouts, target);
@@ -102,6 +120,7 @@ impl TestModule {
             .expect("test MIR layouts should lower");
         let lowered = MirLowered {
             tree: tree.clone(),
+            provenance: provenance.clone(),
             target,
             initializer: None,
             layouts: layouts.clone(),
@@ -114,6 +133,7 @@ impl TestModule {
         };
         let optimized = MirOptimized {
             tree,
+            provenance,
             layouts,
             dispatch,
             drops,

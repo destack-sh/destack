@@ -1,21 +1,25 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
 use destack_artifact::{Bundle, BundleFile};
-use destack_repository::JsOutputFormat;
-use destack_source::ModuleId;
+use destack_repository::{EsTarget, JsModuleFormat, JsOutputFormat, JsOutputMode};
+use destack_source::{ModuleId, ProvenanceTable};
 
 use super::JsLinker;
 
 impl<'a> JsLinker<'a> {
     /// Link one discovered JS target.
     pub(crate) fn link_target(&self, root_modules: &[ModuleId]) -> CompilerResult<Bundle> {
-        self.validate_target()?;
+        self.validate_target(root_modules)?;
 
         let plan = self.plan(root_modules)?;
+        let mut provenance = ProvenanceTable::build();
         let mut output_files = Vec::new();
 
         // JS outputs
-        output_files.extend(self.render_js_graph(&plan).map_err(CompilerError::from)?);
+        output_files.extend(
+            self.render_js_graph(&plan, &mut provenance)
+                .map_err(CompilerError::from)?,
+        );
 
         // asset outputs
         output_files.extend(
@@ -24,7 +28,7 @@ impl<'a> JsLinker<'a> {
         );
 
         // packaged output
-        let mut output = self.bundle(output_files);
+        let mut output = self.bundle(output_files, provenance.finish());
 
         // optional manifest
         if self.target.js.output.manifest {
@@ -43,8 +47,28 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Validate the JS bundle options used by this target.
-    fn validate_target(&self) -> LinkResult<()> {
-        // only esm bundle output is implemented so far
+    fn validate_target(&self, root_modules: &[ModuleId]) -> LinkResult<()> {
+        // require native ESM emission
+        if self.target.js.module != JsModuleFormat::EsNext {
+            return Err(LinkError::InvalidTarget {
+                anchor: self.package_id.into(),
+                package: self.package_id,
+                target: *self.target_id,
+                message: "JavaScript emission requires js.module = 'esnext'".to_string(),
+            });
+        }
+
+        // require the source ECMAScript level
+        if self.target.js.target != EsTarget::EsNext {
+            return Err(LinkError::InvalidTarget {
+                anchor: self.package_id.into(),
+                package: self.package_id,
+                target: *self.target_id,
+                message: "JavaScript emission requires js.target = 'esnext'".to_string(),
+            });
+        }
+
+        // require ESM output
         if let Some(format) = self.target.js.output.format
             && format != JsOutputFormat::Esm
         {
@@ -57,7 +81,20 @@ impl<'a> JsLinker<'a> {
                 anchor: self.package_id.into(),
                 package: self.package_id,
                 target: *self.target_id,
-                message: format!("js.output.format '{format}' is not implemented yet"),
+                message: format!("JavaScript linking only supports 'esm', received '{format}'"),
+            });
+        }
+
+        // require one unambiguous facade for single-file output
+        if self.target.js.mode == JsOutputMode::SingleFile && root_modules.len() != 1 {
+            return Err(LinkError::InvalidTarget {
+                anchor: self.package_id.into(),
+                package: self.package_id,
+                target: *self.target_id,
+                message: format!(
+                    "single-file JavaScript output requires one entry module, received {}",
+                    root_modules.len()
+                ),
             });
         }
 
@@ -65,7 +102,11 @@ impl<'a> JsLinker<'a> {
     }
 
     /// Build the packaged JS output groups for this target.
-    pub(crate) fn bundle(&self, files: Vec<BundleFile>) -> Bundle {
-        Bundle::new(Compiler::package_assembly(self.target.js.mode), files)
+    pub(crate) fn bundle(&self, files: Vec<BundleFile>, provenance: ProvenanceTable) -> Bundle {
+        Bundle::new(
+            Compiler::package_assembly(self.target.js.mode),
+            files,
+            provenance,
+        )
     }
 }

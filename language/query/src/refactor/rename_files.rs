@@ -93,7 +93,7 @@ pub fn rename_files(
         let parsed = artifacts.read::<DirParsed>(module_id)?;
         let imported = artifacts.read::<DirImported>((module_id, selected.profile_id))?;
         let expanded = artifacts.read::<DirExpanded>((module_id, selected.profile_id))?;
-        let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let view = expanded.view(&parsed);
         let module_table = expanded.module_table(&imported);
 
         // resolve file content for literal edits

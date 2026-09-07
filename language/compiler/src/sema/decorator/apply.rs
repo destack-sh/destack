@@ -1,5 +1,4 @@
 use std::mem::take;
-use std::slice::from_ref;
 
 use destack_artifact::DiagnosticControlLevel;
 use destack_core::FxIndexSet;
@@ -108,7 +107,7 @@ impl CheckState<'_> {
             let input = self.module(module);
             let parsed = input.parsed.clone();
             let expanded = input.expanded.clone();
-            let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+            let tree = expanded.view(&parsed);
             let mut walk = WalkState::new(module, tree, self);
             for decorator_use in declared.decorators.iter_uses() {
                 walk.enter_node(decorator_use.source.local_id)?;

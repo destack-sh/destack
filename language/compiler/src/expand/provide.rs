@@ -44,6 +44,7 @@ impl Compiler {
         // TODO #Incomplete: implement proper expansion
         let expanded = DirExpanded {
             patch: dir::Patch::new(&parsed.tree, "expand"),
+            provenance: parsed.provenance.clone(),
             bindings: Arc::new(dir::BindingSegment::from_base(&bound.bindings)),
             modules: Arc::new(dir::ModuleSegment::new(module)),
             types: Arc::new(dir::TypeSegment::from_base(&bound.types)),

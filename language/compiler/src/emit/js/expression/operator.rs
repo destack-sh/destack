@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_js as js;
 
 use crate::EmitError;
-use crate::emit::js::ModuleEmitter;
+use crate::emit::js::ScriptEmitter;
 
-impl ModuleEmitter<'_> {
+impl ScriptEmitter<'_> {
     /// Emit a DIR unary expression to a JavaScript unary expression.
     pub(crate) fn emit_unary_expression(
         &mut self,

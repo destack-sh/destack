@@ -1,5 +1,3 @@
-use std::slice::from_ref;
-
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -45,7 +43,7 @@ impl CheckState<'_> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
 
         // walk the module over its patched view
         let mut walk = WalkState::new(module, tree, self);
@@ -69,7 +67,7 @@ impl CheckState<'_> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
 
         // walk and type each root in source order
         let mut walk = WalkState::new(module, tree, self);
@@ -334,7 +332,7 @@ impl CheckState<'_> {
         index: usize,
     ) -> Option<dir::GlobalNodeIdAny> {
         let module = self.module_maybe(source.module_id)?;
-        let tree = dir::View::with_patches(&module.parsed.tree, from_ref(&module.expanded.patch));
+        let tree = module.expanded.view(&module.parsed);
 
         // alias declarations apply in their value expression
         let node = match source.try_into_typed::<dir::Declaration>() {
@@ -378,7 +376,7 @@ impl CheckState<'_> {
         let input = self.module(module);
         let parsed = input.parsed.clone();
         let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
 
         // walk module roots in source order
         let mut walk = WalkState::new(module, tree, self);

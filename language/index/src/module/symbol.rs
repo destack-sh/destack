@@ -1,5 +1,3 @@
-use std::slice;
-
 use destack_artifact::{DirBound, DirExpanded, DirParsed};
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -35,7 +33,7 @@ impl<'a> SymbolIndexer<'a> {
         let symbols = expanded.binding_table(bound);
         let mut indexer = Self {
             module_id: symbols.module_id,
-            view: dir::View::with_patches(&parsed.tree, slice::from_ref(&expanded.patch)),
+            view: expanded.view(parsed),
             symbols,
             provenance: &expanded.provenance,
             namespace_scope: bound.namespace_scope,

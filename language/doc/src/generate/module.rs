@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug, Formatter};
-use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -111,7 +110,7 @@ impl<'a> Module<'a> {
 
     /// Return the visible source tree.
     pub(crate) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.expanded.view(&self.parsed)
     }
 
     /// Return the cumulative binding table.

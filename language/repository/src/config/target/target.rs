@@ -261,15 +261,9 @@ impl Target {
 
     /// Return whether this target assembles one target level output shape.
     pub fn emits_assembled_output(&self) -> bool {
-        is_assembled_target(
-            Some(self.js.mode),
-            self.root(),
-            self.entry.len(),
-            self.output,
-            self.js.preserve_modules,
-            !self.js.manual_chunks.is_empty(),
-            self.destination.file.is_some(),
-        )
+        self.destination.file.is_some()
+            || matches!(self.output, Output::Program)
+            || self.js.mode.uses_entry_output_layout()
     }
 
     /// Return whether this target emits one file per source module.
@@ -422,67 +416,4 @@ pub struct Entrypoint {
     pub module: PathBuf,
     /// Exported function invoked after runtime bootstrap.
     pub export: String,
-}
-
-/// Resolve the JavaScript output mode for a target.
-fn resolved_js_output_mode(
-    explicit_mode: Option<JsOutputMode>,
-    root: TargetRoot,
-    entry_count: usize,
-    output: Output,
-    has_output_file: bool,
-    preserves_modules: bool,
-    has_manual_chunks: bool,
-) -> JsOutputMode {
-    if has_output_file || matches!(output, Output::Program) {
-        return JsOutputMode::SingleFile;
-    }
-
-    if let Some(explicit_mode) = explicit_mode {
-        return explicit_mode;
-    }
-
-    if preserves_modules {
-        return JsOutputMode::PreserveModules;
-    }
-
-    if has_manual_chunks {
-        return JsOutputMode::Chunked;
-    }
-
-    if root == TargetRoot::Entry && entry_count > 1 {
-        return JsOutputMode::Chunked;
-    }
-
-    match root {
-        TargetRoot::Entry => JsOutputMode::SingleFile,
-        TargetRoot::Include => JsOutputMode::PreserveModules,
-    }
-}
-
-/// Returns `true` if the target is an assembled target (i.e. it uses entry output layout).
-fn is_assembled_target(
-    explicit_mode: Option<JsOutputMode>,
-    root: TargetRoot,
-    entry_count: usize,
-    output: Output,
-    preserves_modules: bool,
-    has_manual_chunks: bool,
-    has_output_file: bool,
-) -> bool {
-    let mode = resolved_js_output_mode(
-        explicit_mode,
-        root,
-        entry_count,
-        output,
-        has_output_file,
-        preserves_modules,
-        has_manual_chunks,
-    );
-
-    if has_output_file || matches!(output, Output::Program) {
-        return true;
-    }
-
-    mode.uses_entry_output_layout()
 }

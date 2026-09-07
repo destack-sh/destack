@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use base64::Engine as _;
+use base64::Engine;
 use destack_artifact::{BundleFile, BundleSection};
 use destack_repository::{JsAssetMode, Module, Target};
-use destack_source::{File, FileType, ModuleId, Uri};
-use indexmap::{IndexMap, IndexSet};
+use destack_source::{File, FileType, ModuleId, TextMap, Uri};
+use indexmap::IndexMap;
 
 use super::super::JsLinker;
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation};
-use crate::{CompilerResult, LinkError, LinkResult};
+use crate::{LinkError, LinkResult};
 
 use super::model::{Asset, AssetReference};
 use super::name::{content_hash, directory_token, name_token, percent_encode_for_data_url};
@@ -123,22 +123,11 @@ fn uses_utf8_charset(file_type: FileType) -> bool {
 }
 
 impl<'a> JsLinker<'a> {
-    /// Collect the asset module ids rooted by one target entry.
-    pub(in crate::link::js) fn collect_asset_modules(
-        &self,
-        asset_root_modules: &[ModuleId],
-        script_module_ids: &[ModuleId],
-    ) -> CompilerResult<Vec<ModuleId>> {
-        let mut asset_module_ids = asset_root_modules.iter().copied().collect::<IndexSet<_>>();
-
-        // include JS file loader modules in the emitted assets
-        asset_module_ids.extend(self.collect_file_modules(script_module_ids)?);
-
-        Ok(asset_module_ids.into_iter().collect())
-    }
-
     /// Collect the file modules that should emit as assets.
-    fn collect_file_modules(&self, module_ids: &[ModuleId]) -> LinkResult<Vec<ModuleId>> {
+    pub(in crate::link::js) fn collect_file_modules(
+        &self,
+        module_ids: &[ModuleId],
+    ) -> LinkResult<Vec<ModuleId>> {
         let mut asset_module_ids = Vec::new();
 
         // collect file modules in the JS closure
@@ -269,6 +258,7 @@ impl<'a> JsLinker<'a> {
             file.ty,
             file.blob(),
             Some(module.uri.clone()),
+            TextMap::default(),
         ))
     }
 

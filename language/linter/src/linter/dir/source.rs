@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::slice;
 
 use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
@@ -332,7 +331,7 @@ impl DirModule<'_> {
 
     /// Return the checked DIR tree.
     pub fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.expanded.view(&self.parsed)
     }
 
     /// Return one source file.

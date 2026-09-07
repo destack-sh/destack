@@ -199,14 +199,12 @@ impl CheckState<'_> {
         self.commit_instance_conformances(module)?;
 
         // take the tail segments this pass wrote
-        let parsed = Arc::clone(&self.module.parsed);
         let roots = self.module.expanded.roots.clone();
         let provenance = self.provenance.finish();
         let module_state = self.module;
         let types = module_state.types_tail.finish();
 
         Ok(DirMaterialized {
-            patch: dir::Patch::new(&parsed.tree, "materialize"),
             provenance,
             types: Arc::new(types),
             generics: Arc::new(module_state.generics_tail),

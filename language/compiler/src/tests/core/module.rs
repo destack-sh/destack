@@ -4,7 +4,7 @@ use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDepen
 use destack_dir as dir;
 use destack_parser::{CommentRetention, ParseOptions, Parser};
 use destack_repository::{Module, Repository, Revision};
-use destack_source::{File, LanguageType, ProfileId, Span};
+use destack_source::{File, LanguageType, ProfileId, ProvenanceTable, Span};
 
 /// One code module in a compiler test.
 #[derive(Debug)]
@@ -26,6 +26,7 @@ pub(crate) fn parse_module(
     revision: Revision,
 ) -> DirParsed {
     let mut tree = dir::Tree::new(module.id);
+    let mut provenance = ProvenanceTable::new();
     let mut files = Vec::with_capacity(module.files.len());
 
     // parse each contributing file into one module tree
@@ -39,18 +40,23 @@ pub(crate) fn parse_module(
             source_file,
             repository,
             &mut tree,
+            &mut provenance,
         );
 
         files.push(parsed_file);
     }
 
     // preserve a stable module-level anchor
+    let mut builder = provenance.extend();
+    let anchor_provenance = builder.insert_authored(Span::empty(module.file_id));
+    let provenance = builder.finish();
     let anchor_expression = tree.insert(
         dir::Expression::Literal(dir::Literal::Boolean(false)),
         Span::empty(module.file_id),
+        anchor_provenance,
     );
 
-    DirParsed::new(tree, files, anchor_expression)
+    DirParsed::new(tree, provenance, files, anchor_expression)
 }
 
 /// Parse one physical module file into a shared parsed DIR tree.
@@ -59,16 +65,19 @@ fn parse_module_file(
     source_file: Arc<File>,
     repository: &Repository,
     tree: &mut dir::Tree,
+    provenance: &mut ProvenanceTable,
 ) -> DirParsedFile {
     let language_type =
         LanguageType::try_from(source_file.ty).expect("test code file should have a language type");
 
     // parse the file with the shared tree
     let tree_in = std::mem::replace(tree, dir::Tree::new(tree.module_id));
+    let provenance_in = std::mem::replace(provenance, ProvenanceTable::new());
     let parser = Parser::new(
         source_file.clone(),
         language_type,
         tree_in,
+        provenance_in,
         ParseOptions {
             comment_retention: CommentRetention::Documentation,
             ..ParseOptions::default()
@@ -93,10 +102,14 @@ fn parse_module_file(
 
     // restore the shared tree
     *tree = parse.tree;
+    let mut builder = parse.provenance.extend();
+    let anchor_provenance = builder.insert_authored(Span::empty(source_file.id));
     let anchor_expression = tree.insert(
         dir::Expression::Literal(dir::Literal::Boolean(false)),
         Span::empty(source_file.id),
+        anchor_provenance,
     );
+    *provenance = builder.finish();
 
     DirParsedFile {
         file_id: source_file.id,

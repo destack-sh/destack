@@ -970,7 +970,7 @@ impl CheckState<'_> {
 
         // walk the decorators over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let mut walk = WalkState::new(module, tree, self).for_body();
         let present = walk.walk_decorators(decorated)?;
         walk.flush_flows()?;
@@ -1012,7 +1012,7 @@ impl CheckState<'_> {
 
         // walk the construct type over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let mut walk = WalkState::new(module, tree, self).for_body();
         walk.walk_construct_type_expression(ty)?;
 
@@ -1027,7 +1027,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         // walk the term over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let mut walk = WalkState::new(module, tree, self).for_body();
 
         walk.walk_static_term(expression)
@@ -1056,7 +1056,7 @@ impl CheckState<'_> {
 
         // read the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
 
         // close elided borrows at static in module positions, at frame in bodies
         let is_body_position = self.is_body_annotation(module, ty);
@@ -1113,7 +1113,7 @@ impl CheckState<'_> {
 
         // walk the guard target with its borrows closing at the frame
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let mut walk = WalkState::new(module, tree, self).for_body();
         walk.walk_type_expression_in(ty, ElisionSite::Body)?;
 
@@ -1137,7 +1137,7 @@ impl CheckState<'_> {
 
         // walk the arguments over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let mut walk = WalkState::new(module, tree, self).for_body();
         walk.walk_generic_arguments(arguments)?;
 
@@ -1159,7 +1159,7 @@ impl CheckState<'_> {
 
         // read the declaration's written form
         let (parsed, expanded) = self.patched_inputs(node.module_id);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
 
         Ok(matches!(
             tree.get(declaration),
@@ -1183,7 +1183,7 @@ impl CheckState<'_> {
 
         // read the declaration over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let kind = tree.get(declaration).clone();
 
         // declare the signature, commit the body, and key it by value
@@ -1234,7 +1234,7 @@ impl CheckState<'_> {
 
         // read the declaration over the patched view
         let (parsed, expanded) = self.patched_inputs(module);
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let tree = expanded.view(&parsed);
         let kind = tree.get(declaration).clone();
 
         // type declaration statements as void

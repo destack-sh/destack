@@ -1,71 +1,10 @@
-use crate::link::{OutputLocation, TargetLocation};
+use crate::link::TargetLocation;
 use crate::{LinkError, LinkResult};
-use destack_artifact::{
-    BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, Bundle,
-    BundleFile, BundleSection,
-};
+use destack_artifact::{BuildManifest, BuildManifestFile, Bundle, BundleFile, BundleSection};
 use destack_repository::JsOutputMode;
 
 use super::JsLinker;
-use super::plan::{Output, OutputId, Plan};
-
-/// One internal manifest record before lowering to the public artifact type.
-struct ManifestFileRecord {
-    /// The manifest-visible relative output path.
-    path: String,
-    /// The manifest-visible file kind.
-    file_type: BuildManifestFileType,
-    /// The manifest-visible loader kind.
-    loader: BuildManifestLoader,
-    /// Optional chunk-style metadata.
-    chunk: Option<ManifestChunkMetadata>,
-}
-
-/// One manifest chunk metadata payload.
-struct ManifestChunkMetadata {
-    /// The exposed output name.
-    name: Option<String>,
-    /// The source module path for this output.
-    input: Option<String>,
-    /// Whether this output is an entry.
-    is_entry: bool,
-    /// Whether this output is a dynamic entry.
-    is_dynamic_entry: bool,
-    /// Static import references from this output.
-    imports: Vec<String>,
-    /// Dynamic import references from this output.
-    dynamic_imports: Vec<String>,
-    /// Associated stylesheet references from this output.
-    stylesheets: Vec<String>,
-}
-
-impl From<ManifestFileRecord> for BuildManifestFile {
-    fn from(record: ManifestFileRecord) -> Self {
-        let chunk = record.chunk;
-
-        Self {
-            path: record.path,
-            r#type: record.file_type,
-            loader: record.loader,
-            name: chunk.as_ref().and_then(|chunk| chunk.name.clone()),
-            input: chunk.as_ref().and_then(|chunk| chunk.input.clone()),
-            is_entry: chunk.as_ref().map(|chunk| chunk.is_entry),
-            is_dynamic_entry: chunk.as_ref().map(|chunk| chunk.is_dynamic_entry),
-            imports: chunk
-                .as_ref()
-                .map(|chunk| chunk.imports.clone())
-                .unwrap_or_default(),
-            dynamic_imports: chunk
-                .as_ref()
-                .map(|chunk| chunk.dynamic_imports.clone())
-                .unwrap_or_default(),
-            stylesheets: chunk
-                .as_ref()
-                .map(|chunk| chunk.stylesheets.clone())
-                .unwrap_or_default(),
-        }
-    }
-}
+use super::plan::Plan;
 
 impl<'a> JsLinker<'a> {
     /// Build one public build manifest for one JS target.
@@ -102,43 +41,42 @@ impl<'a> JsLinker<'a> {
                 self.compiler
                     .package_relative_uri_path(self.package_dir, &file.uri)
             });
-        let chunk = self.build_js_manifest_output_metadata(
-            target_layout,
-            file.section,
-            output_location.as_ref(),
-            plan,
-        )?;
-
-        Ok(ManifestFileRecord {
+        let mut manifest = BuildManifestFile {
             path,
-            file_type: self.compiler.build_manifest_file_type(file),
+            r#type: self.compiler.build_manifest_file_type(file),
             loader: self.compiler.build_manifest_loader(file),
-            chunk,
-        }
-        .into())
-    }
-
-    /// Build one manifest metadata record for one JS output when one exists.
-    fn build_js_manifest_output_metadata(
-        &self,
-        target_layout: &TargetLocation<'_>,
-        section: BundleSection,
-        output_location: Option<&OutputLocation>,
-        plan: &Plan,
-    ) -> LinkResult<Option<ManifestChunkMetadata>> {
-        if !matches!(section, BundleSection::Entry | BundleSection::Module) {
-            return Ok(None);
-        }
-
-        let Some(output_location) = output_location else {
-            return Ok(None);
+            name: None,
+            input: None,
+            is_entry: None,
+            is_dynamic_entry: None,
+            imports: Vec::new(),
+            dynamic_imports: Vec::new(),
+            stylesheets: Vec::new(),
         };
-        let Some(output_id) = plan
+
+        // non-script outputs use the common manifest fields
+        if !matches!(file.section, BundleSection::Entry | BundleSection::Module) {
+            return Ok(manifest);
+        }
+
+        let output_location = output_location
+            .as_ref()
+            .ok_or_else(|| LinkError::Internal {
+                anchor: self.package_id.into(),
+                package: self.package_id,
+                message: format!("missing output location for JavaScript file '{}'", file.uri),
+            })?;
+        let output_id = plan
             .output_layout()
             .output_id_for_output_location(output_location)
-        else {
-            return Ok(None);
-        };
+            .ok_or_else(|| LinkError::Internal {
+                anchor: self.package_id.into(),
+                package: self.package_id,
+                message: format!(
+                    "missing output graph node for JavaScript file '{}'",
+                    file.uri
+                ),
+            })?;
         let output = plan
             .output_graph()
             .output(output_id)
@@ -148,22 +86,6 @@ impl<'a> JsLinker<'a> {
                 message: format!("missing output graph node for output id {}", output_id.0),
             })?;
 
-        Ok(Some(self.build_js_manifest_node_metadata(
-            target_layout,
-            output_id,
-            output,
-            plan,
-        )?))
-    }
-
-    /// Build one manifest metadata record for one output node.
-    fn build_js_manifest_node_metadata(
-        &self,
-        target_layout: &TargetLocation<'_>,
-        output_id: OutputId,
-        output: &Output,
-        plan: &Plan,
-    ) -> LinkResult<ManifestChunkMetadata> {
         let output_location = plan
             .output_layout()
             .output_location(output_id)
@@ -172,54 +94,58 @@ impl<'a> JsLinker<'a> {
                 package: self.package_id,
                 message: format!("missing output placement for output id {}", output_id.0),
             })?;
-        let mut imports = output
-            .static_output_dependencies()
-            .iter()
-            .filter_map(|dependency_output_id| {
-                let _ = plan.output_graph().output(*dependency_output_id)?;
-                let dependency_output_location = plan
-                    .output_layout()
-                    .output_location(*dependency_output_id)?;
+        let mut imports = Vec::new();
 
-                Some(target_layout.output_reference(output_location, dependency_output_location))
-            })
-            .collect::<Vec<_>>();
-        let mut dynamic_imports = output
-            .dynamic_output_dependencies()
-            .iter()
-            .filter_map(|dependency_output_id| {
-                let _ = plan.output_graph().output(*dependency_output_id)?;
-                let dependency_output_location = plan
-                    .output_layout()
-                    .output_location(*dependency_output_id)?;
+        // resolve every planned output dependency
+        for dependency_output_id in output.static_output_dependencies() {
+            plan.output_graph()
+                .output(*dependency_output_id)
+                .ok_or_else(|| LinkError::Internal {
+                    anchor: self.package_id.into(),
+                    package: self.package_id,
+                    message: format!(
+                        "missing output graph node for dependency output id {}",
+                        dependency_output_id.0
+                    ),
+                })?;
+            let dependency_output_location = plan
+                .output_layout()
+                .output_location(*dependency_output_id)
+                .ok_or_else(|| LinkError::Internal {
+                    anchor: self.package_id.into(),
+                    package: self.package_id,
+                    message: format!(
+                        "missing output placement for dependency output id {}",
+                        dependency_output_id.0
+                    ),
+                })?;
+            let reference =
+                target_layout.output_reference(output_location, dependency_output_location);
 
-                Some(target_layout.output_reference(output_location, dependency_output_location))
-            })
-            .collect::<Vec<_>>();
+            imports.push(reference);
+        }
         imports.extend(output.external_imports().iter().cloned());
-        dynamic_imports.extend(output.external_dynamic_imports().iter().cloned());
 
-        Ok(ManifestChunkMetadata {
-            name: if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
-                None
-            } else {
-                plan.output_layout()
-                    .output_name(output_id)
-                    .map(ToString::to_string)
-            },
-            input: output
-                .facade_module()
-                .map(|module_id| {
-                    self.compiler
-                        .package_relative_module_path(self.package_dir, module_id, self.context)
-                        .map_err(|error| self.link_error(error))
-                })
-                .transpose()?,
-            is_entry: output.is_entry(),
-            is_dynamic_entry: output.is_dynamic_entry(),
-            imports,
-            dynamic_imports,
-            stylesheets: Vec::new(),
-        })
+        manifest.name = if plan.output_graph().bundle_mode() == JsOutputMode::PreserveModules {
+            None
+        } else {
+            plan.output_layout()
+                .output_name(output_id)
+                .map(ToString::to_string)
+        };
+        manifest.input = Some(
+            self.compiler
+                .package_relative_module_path(
+                    self.package_dir,
+                    output.facade_module(),
+                    self.context,
+                )
+                .map_err(|error| self.link_error(error))?,
+        );
+        manifest.is_entry = Some(output.is_entry());
+        manifest.is_dynamic_entry = Some(false);
+        manifest.imports = imports;
+
+        Ok(manifest)
     }
 }

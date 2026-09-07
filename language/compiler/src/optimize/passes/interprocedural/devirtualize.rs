@@ -338,7 +338,7 @@ entry(v0: int32):
     fn int32_type(test: &TestProgram) -> mir::TypeId {
         test.optimized
             .tree
-            .iter_nodes::<mir::Type>()
+            .iter_types()
             .find(|(_, ty)| **ty == mir::Type::INT32)
             .expect("missing int32 type")
             .0

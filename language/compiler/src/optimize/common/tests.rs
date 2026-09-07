@@ -50,7 +50,7 @@ fn expected_mir_text(source: &str) -> String {
     let file = test_mir_file(source);
     let parsed = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
         .expect("test MIR should be text");
-    let (tree, strings) = match parsed.finish() {
+    let (tree, _, strings) = match parsed.finish() {
         Ok(parsed) => parsed,
         Err(error) => {
             eprintln!("===EXPECTED_BEGIN===\n{source}\n===EXPECTED_END===");
@@ -797,10 +797,11 @@ impl TestProgram {
     #[track_caller]
     pub(crate) fn assert_unchanged(&self, original: &str) {
         let file = test_mir_file(original);
-        let (tree, strings) = mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
-            .expect("test MIR should be text")
-            .finish()
-            .expect("failed to parse expected MIR");
+        let (tree, _, strings) =
+            mir::parse::Parser::parse(&file, mir::parse::ParseOptions::default())
+                .expect("test MIR should be text")
+                .finish()
+                .expect("failed to parse expected MIR");
         let expected = mir::Formatter::new(
             &tree,
             mir::TargetLayout::default(),

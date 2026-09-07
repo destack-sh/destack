@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug, Formatter};
-use std::slice;
 use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
@@ -305,10 +304,7 @@ impl<'a> ModuleQueryContext<'a> {
         let expanded = self.expanded()?;
         let parsed = self.parsed()?;
 
-        Ok(dir::View::with_patches(
-            &parsed.tree,
-            slice::from_ref(&expanded.patch),
-        ))
+        Ok(expanded.view(parsed))
     }
 
     /// Return the resolved import and source-reference DIR.

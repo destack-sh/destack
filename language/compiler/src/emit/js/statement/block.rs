@@ -2,9 +2,9 @@ use destack_dir as dir;
 use destack_js as js;
 
 use crate::EmitError;
-use crate::emit::js::ModuleEmitter;
+use crate::emit::js::ScriptEmitter;
 
-impl ModuleEmitter<'_> {
+impl ScriptEmitter<'_> {
     /// Emit one statement body as a JavaScript block.
     pub(crate) fn emit_body(
         &mut self,

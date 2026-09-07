@@ -3,9 +3,9 @@ use destack_js as js;
 use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 use crate::EmitError;
-use crate::emit::js::ModuleEmitter;
+use crate::emit::js::ScriptEmitter;
 
-impl ModuleEmitter<'_> {
+impl ScriptEmitter<'_> {
     /// Emit one ECMAScript import declaration.
     pub(crate) fn emit_import(
         &mut self,

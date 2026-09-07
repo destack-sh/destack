@@ -5,9 +5,9 @@ use destack_repository::ProviderError;
 use destack_source::ModuleId;
 use indexmap::IndexSet;
 
-use crate::{CompilerError, CompilerResult, LinkError, LinkResult};
+use crate::{CompilerError, CompilerResult, LinkResult};
 
-use super::super::{JsLinker, dynamic_js_dependencies, static_js_dependencies};
+use super::super::{JsLinker, static_js_dependencies};
 use super::{ModuleSet, OutputGraph, Plan};
 
 impl<'a> JsLinker<'a> {
@@ -24,11 +24,9 @@ impl<'a> JsLinker<'a> {
             entry_modules,
             modules,
             external_targets: IndexSet::new(),
-            dynamic_targets: IndexSet::new(),
-            has_opaque_dynamic_imports: false,
         };
 
-        // collect retained external and dynamic edges
+        // collect retained external edges
         self.collect_retained_script_targets(&mut module_set)?;
 
         Ok(module_set)
@@ -97,7 +95,7 @@ impl<'a> JsLinker<'a> {
         Ok(())
     }
 
-    /// Collect the retained external and dynamic JS targets.
+    /// Collect the retained external JS targets.
     fn collect_retained_script_targets(&self, module_set: &mut ModuleSet) -> LinkResult<()> {
         for module_id in &module_set.modules {
             let module = self.module(*module_id)?;
@@ -107,58 +105,14 @@ impl<'a> JsLinker<'a> {
             }
 
             let script = self.script(*module_id)?;
-            let script = script.module();
 
             // retained static externals
-            for dependency in static_js_dependencies(script) {
-                if !self.should_bundle_js_dependency(
-                    self.module_anchor_span(*module_id)?,
-                    self.package_id,
-                    self.target_id,
-                    self.target,
-                    &dependency.target,
-                )? {
+            for dependency in static_js_dependencies(&script) {
+                if !self.should_bundle_js_dependency(*module_id, &dependency)? {
                     module_set
                         .external_targets
-                        .insert(dependency.target.specifier().to_string());
+                        .insert(dependency.specifier().to_string());
                 }
-            }
-
-            // retained and bundled dynamic edges
-            for dependency in dynamic_js_dependencies(script) {
-                let Some(dependency_target) = &dependency.target else {
-                    module_set.has_opaque_dynamic_imports = true;
-                    continue;
-                };
-
-                let should_bundle = self.should_bundle_js_dependency(
-                    self.module_anchor_span(*module_id)?,
-                    self.package_id,
-                    self.target_id,
-                    self.target,
-                    dependency_target,
-                )?;
-
-                // chunked outputs can retain internal dynamic edges as output links
-                if should_bundle {
-                    if self.target.js.mode == destack_repository::JsOutputMode::Chunked {
-                        continue;
-                    }
-
-                    return Err(LinkError::InvalidTarget {
-                        anchor: (*module_id).into(),
-                        package: self.package_id,
-                        target: *self.target_id,
-                        message: format!(
-                            "bundled dynamic import '{}' is not implemented yet",
-                            dependency_target.specifier()
-                        ),
-                    });
-                }
-
-                module_set
-                    .dynamic_targets
-                    .insert(dependency_target.specifier().to_string());
             }
         }
 
@@ -198,20 +152,25 @@ impl<'a> JsLinker<'a> {
             let module = self.module(module_id)?;
             let profile_id = self.profile_id()?;
 
-            // asset modules link directly from patched module state
+            // resource modules link from materialized DIR and parsed values
             if !module.is_code() {
+                dependencies.require(ArtifactKey::dir_parsed(module_id));
                 dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
-                dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+                dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
+                dependencies.require(ArtifactKey::dir_materialized(module_id, profile_id));
+                if module.loader.is_data() {
+                    dependencies.require(ArtifactKey::data(module_id));
+                }
                 required_modules.push(module_id);
                 continue;
             }
 
-            // code modules link from emitted output and the checked dir
+            // code modules link from emitted output and resolved DIR
             let output_key = ArtifactKey::script(module_id, *self.target_id);
             dependencies.require(output_key);
             dependencies.require(ArtifactKey::dir_bound(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_expanded(module_id, profile_id));
-            dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_resolved(module_id, profile_id));
             required_modules.push(module_id);
 
             // the bundle closure is revealed once the emitted output is built
@@ -249,25 +208,18 @@ impl<'a> JsLinker<'a> {
 
         let profile_id = self.profile_id()?;
         let script = self.script(module_id)?;
-        let script = script.module();
         let mut requirements = IndexSet::new();
 
         // collect bundled static dependency export tables
-        for dependency in static_js_dependencies(script) {
+        for dependency in static_js_dependencies(&script) {
             let should_bundle = self
-                .should_bundle_js_dependency(
-                    self.module_anchor_span(module_id)?,
-                    self.package_id,
-                    self.target_id,
-                    self.target,
-                    &dependency.target,
-                )
+                .should_bundle_js_dependency(module_id, &dependency)
                 .map_err(CompilerError::from)?;
             if !should_bundle {
                 continue;
             }
 
-            let Some(target_module) = dependency.target.module() else {
+            let Some(target_module) = dependency.module() else {
                 continue;
             };
 
@@ -287,30 +239,12 @@ impl<'a> JsLinker<'a> {
             return Ok(Vec::new());
         }
 
-        let mut dependency_modules = self.bundled_static_js_modules(
-            module_id,
-            self.target,
-            self.target_id,
-            self.package_id,
-        )?;
-        let dynamic_dependency_modules = self.bundled_dynamic_js_modules(
-            module_id,
-            self.target,
-            self.target_id,
-            self.package_id,
-        )?;
-
-        dependency_modules.extend(dynamic_dependency_modules);
-        let mut seen_dependency_modules = HashSet::new();
-        dependency_modules.retain(|module_id| seen_dependency_modules.insert(*module_id));
-
-        Ok(dependency_modules)
+        self.bundled_static_js_modules(module_id)
     }
 
     /// Build the output plan for this target.
     pub(in super::super) fn plan(&self, root_modules: &[ModuleId]) -> CompilerResult<Plan> {
         let script_root_modules = root_modules.to_vec();
-        let asset_root_modules = Vec::new();
 
         let script_module_id_set = if script_root_modules.is_empty() {
             Vec::new()
@@ -330,8 +264,7 @@ impl<'a> JsLinker<'a> {
             self.build_js_output_graph(&module_set)
                 .map_err(CompilerError::from)?
         };
-        let asset_module_id_set =
-            self.collect_asset_modules(&asset_root_modules, &script_module_id_set)?;
+        let asset_module_id_set = self.collect_file_modules(&script_module_id_set)?;
         let output_layout = self
             .build_output_layout(&output_graph)
             .map_err(CompilerError::from)?;

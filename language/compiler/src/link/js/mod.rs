@@ -10,7 +10,9 @@ mod plan;
 #[cfg(test)]
 mod tests;
 
+const SCRIPT_SEPARATOR: &str = "\n\n";
+
 pub(crate) use asset::AssetReference;
-pub(crate) use dependency::{JsDependencyTarget, dynamic_js_dependencies, static_js_dependencies};
+pub(crate) use dependency::{JsDependencyTarget, static_js_dependencies};
 pub(crate) use linker::JsLinker;
 pub(crate) use plan::{ModuleSet, OutputGraph, OutputId, OutputLayout};

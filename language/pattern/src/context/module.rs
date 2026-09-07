@@ -1,4 +1,3 @@
-use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -109,7 +108,7 @@ impl ModuleContext {
 
     /// Return the post-expansion DIR view.
     pub fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.expanded.view(&self.parsed)
     }
 
     /// Return the parsed source tree.

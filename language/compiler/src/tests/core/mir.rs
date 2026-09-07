@@ -53,12 +53,24 @@ impl TestProgram {
         {
             panic!("failed to parse MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
-            parsed.into_parts();
+        let (
+            tree,
+            provenance,
+            target,
+            layouts,
+            dispatch,
+            drops,
+            accesses,
+            effects,
+            profile,
+            strings,
+            _,
+        ) = parsed.into_parts();
 
         Self {
             lowered: MirLowered {
                 tree,
+                provenance,
                 target,
                 layouts,
                 language: mir::LanguageTable::default(),
@@ -87,6 +99,7 @@ impl TestProgram {
         // emit and format the exact relocatable bytecode object
         let object = ObjectEmitter::new(self.module_id(), &self.lowered, &optimized, Vec::new())
             .expect("test MIR should emit object metadata");
+        let mut provenance = optimized.provenance.extend();
         let mut function_names = optimized
             .tree
             .iter_nodes::<mir::Function>()
@@ -105,7 +118,7 @@ impl TestProgram {
             .map(|(_, name)| name)
             .collect::<Vec<_>>();
         let bytecode = BytecodeEmitter::new(self.module_id(), &optimized, &object)
-            .emit()
+            .emit(&mut provenance)
             .expect("test MIR should emit bytecode");
         let formatted =
             format_bytecode(&bytecode, &function_names, BytecodeFormatOptions::default())
@@ -113,7 +126,7 @@ impl TestProgram {
 
         assert_snapshot(formatted, expected);
 
-        object.bytecode(bytecode).build()
+        object.bytecode(bytecode).build(provenance.finish())
     }
 
     /// Assert complete native emission and return the reloaded object.
@@ -137,6 +150,7 @@ impl TestProgram {
         assert_snapshot(cranelift, expected);
 
         // compile and reload the complete zero-copy object
+        let mut provenance = optimized.provenance.extend();
         let native = NativeEmitter::new(
             self.module_id(),
             self.lowered.target,
@@ -145,7 +159,7 @@ impl TestProgram {
             &destack_repository::Target::native(),
         )
         .expect("host native emitter should initialize")
-        .emit()
+        .emit(&mut provenance)
         .expect("test MIR should emit native code");
 
         destack_native::Object::from_bytes(native.bytes())
@@ -157,7 +171,7 @@ impl TestProgram {
     pub(crate) fn type_by_name(&self, name: &str) -> mir::TypeId {
         self.lowered
             .tree
-            .iter_nodes::<mir::Type>()
+            .iter_types()
             .find_map(|(id, _)| {
                 let declaration = self.lowered.tree.type_declaration(id)?;
                 let declaration = self.lowered.tree.get(declaration);
@@ -183,7 +197,7 @@ impl TestProgram {
         let ty = self.type_by_name(name);
         let function = self.function_by_name(function_name);
         let parameter = self.lowered.tree.get(function).parameters[0].ty;
-        let mir::Type::Reference { storage, .. } = self.lowered.tree.get(parameter) else {
+        let mir::Type::Reference { storage, .. } = self.lowered.tree.ty(parameter) else {
             panic!("drop hook {function_name} has no reference receiver");
         };
         self.lowered.drops.set_hook(ty, *storage, function);
@@ -230,6 +244,7 @@ impl TestProgram {
 
         MirOptimized {
             tree,
+            provenance: self.lowered.provenance.clone(),
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
