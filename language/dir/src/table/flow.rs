@@ -23,6 +23,8 @@ impl BindingUse {
     pub const MUTATE: Self = Self(1 << 3);
     /// The use takes mutable access to the value, in place or through a handle.
     pub const MUTABLE: Self = Self(1 << 4);
+    /// The use takes the value out of the binding by value.
+    pub const MOVE: Self = Self(1 << 5);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {

@@ -136,11 +136,11 @@ impl<'a> TypeTable<'a> {
         None
     }
 
-    /// Return the canonical flat union members one type resolves to.
-    pub fn get_union_members(&self, type_id: GlobalTypeId) -> Option<TypeListId> {
+    /// Return the type one written head lowers through, recorded where it differs.
+    pub fn reduction(&self, type_id: GlobalTypeId) -> Option<GlobalTypeId> {
         for segment in self.segments.iter().rev() {
-            if let Some(members) = segment.get_union_members(type_id) {
-                return Some(members);
+            if let Some(reduced) = segment.reduction(type_id) {
+                return Some(reduced);
             }
         }
 
@@ -622,8 +622,8 @@ pub struct TypeSegment {
     pub(crate) node_types: IndexMap<GlobalNodeIdAny, GlobalTypeId>,
     /// Checked declaration type by symbol.
     pub(crate) symbol_types: IndexMap<GlobalSymbolId, GlobalTypeId>,
-    /// Canonical flat union members by resolving type.
-    pub(crate) union_members: IndexMap<GlobalTypeId, TypeListId>,
+    /// The type each written head lowers through, by head, recorded where it differs.
+    pub(crate) reductions: IndexMap<GlobalTypeId, GlobalTypeId>,
 }
 
 impl TypeSegment {
@@ -665,10 +665,10 @@ impl TypeSegment {
             symbol.hash(&mut hasher);
             ty.hash(&mut hasher);
         }
-        self.union_members.len().hash(&mut hasher);
-        for (ty, members) in &self.union_members {
+        self.reductions.len().hash(&mut hasher);
+        for (ty, reduced) in &self.reductions {
             ty.hash(&mut hasher);
-            members.hash(&mut hasher);
+            reduced.hash(&mut hasher);
         }
 
         hasher.finish128().as_u128()
@@ -694,7 +694,7 @@ impl TypeSegment {
             borrows: ValuePool::new(0),
             node_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
-            union_members: IndexMap::default(),
+            reductions: IndexMap::default(),
         }
     }
 
@@ -718,7 +718,7 @@ impl TypeSegment {
             borrows: ValuePool::new(base.borrows.count()),
             node_types: IndexMap::default(),
             symbol_types: IndexMap::default(),
-            union_members: IndexMap::default(),
+            reductions: IndexMap::default(),
         }
     }
 
@@ -816,14 +816,14 @@ impl TypeSegment {
         self.symbol_types.get(&symbol_id).copied()
     }
 
-    /// Return the canonical flat union members one type resolves to.
-    pub fn get_union_members(&self, type_id: GlobalTypeId) -> Option<TypeListId> {
-        self.union_members.get(&type_id).copied()
+    /// Return the type one written head lowers through, recorded where it differs.
+    pub fn reduction(&self, type_id: GlobalTypeId) -> Option<GlobalTypeId> {
+        self.reductions.get(&type_id).copied()
     }
 
-    /// Set the canonical flat union members one type resolves to.
-    pub fn set_union_members(&mut self, type_id: GlobalTypeId, members: TypeListId) {
-        self.union_members.insert(type_id, members);
+    /// Record the type one written head lowers through.
+    pub fn set_reduction(&mut self, type_id: GlobalTypeId, reduced: GlobalTypeId) {
+        self.reductions.insert(type_id, reduced);
     }
 
     /// Get a type by its id.
@@ -910,7 +910,7 @@ impl TypeSegment {
         self.types.is_empty()
             && self.node_types.is_empty()
             && self.symbol_types.is_empty()
-            && self.union_members.is_empty()
+            && self.reductions.is_empty()
     }
 
     /// Return whether this segment contains the given type id.
