@@ -398,7 +398,7 @@ where
         }
     }
 
-    /// Call one destructor with an exclusive reference to caller storage.
+    /// Call one destructor with a mutable reference to caller storage.
     pub(crate) fn call_destructor(
         &mut self,
         function: FunctionId,

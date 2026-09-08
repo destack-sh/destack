@@ -33,7 +33,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         self.read_edge(register, space)
     }
 
-    /// Execute one unique allocation release.
+    /// Execute one unique allocation return.
     pub(crate) fn execute_free(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);
         let owner = operands.register()?;
