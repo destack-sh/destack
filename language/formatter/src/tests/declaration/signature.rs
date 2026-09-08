@@ -57,14 +57,14 @@ fn test_format_receiver_shorthand() {
 type Visitor = (readonly this, value: Node) => void
 type BorrowingVisitor = (&readonly this, value: Node) => void
 extension of Buffer {
-push(&exclusive this, value: uint8): void { undefined! }
+push(&this, value: uint8): void { undefined! }
 }
 "#,
         r#"type PlainVisitor = (this, value: Node) => void;
 type Visitor = (readonly this, value: Node) => void;
 type BorrowingVisitor = (&readonly this, value: Node) => void;
 extension of Buffer {
-    push(&exclusive this, value: uint8): void {
+    push(&this, value: uint8): void {
         undefined!;
     }
 }

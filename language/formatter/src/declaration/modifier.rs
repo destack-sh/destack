@@ -68,7 +68,6 @@ pub(crate) fn write_mutability_prefix<'ast>(
 ) -> FormatResult<()> {
     match mutability {
         Some(Mutability::Immutable) => write!(f, [Keyword::Readonly, space()]),
-        Some(Mutability::Exclusive) => write!(f, [token("exclusive"), space()]),
         Some(Mutability::Mutable) | None => Ok(()),
     }
 }

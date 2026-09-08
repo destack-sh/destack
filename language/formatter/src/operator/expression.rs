@@ -320,7 +320,6 @@ pub(crate) fn format_operator_expression<'ast>(
             if let Some(mutability) = mutability {
                 match mutability {
                     Mutability::Immutable => write!(f, [token("readonly"), space()])?,
-                    Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
                     Mutability::Mutable => {}
                 }
             }

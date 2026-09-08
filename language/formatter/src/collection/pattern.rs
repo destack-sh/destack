@@ -23,7 +23,6 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Mutability {
     fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("readonly")]),
-            Mutability::Exclusive => write!(f, [token("exclusive")]),
             Mutability::Mutable => Ok(()),
         }
     }
@@ -310,15 +309,11 @@ fn format_prefixed_pattern<'ast>(
     if let Some(mutability) = mutability {
         match mutability {
             Mutability::Immutable => write!(f, [token("readonly"), space()])?,
-            Mutability::Exclusive => write!(f, [token("exclusive"), space()])?,
             Mutability::Mutable => {}
         }
     }
 
-    let operand_has_space = matches!(
-        mutability,
-        Some(Mutability::Immutable | Mutability::Exclusive)
-    );
+    let operand_has_space = matches!(mutability, Some(Mutability::Immutable));
     write_prefix_pattern_operand(f, node_id, right, operand_has_space)?;
 
     Ok(())

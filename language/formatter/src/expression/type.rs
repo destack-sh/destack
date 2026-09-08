@@ -2901,7 +2901,6 @@ fn write_type_expression_body_inner<'ast>(
             if let Some(mutability) = mutability {
                 match mutability {
                     Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
-                    Mutability::Exclusive => write!(f, [Keyword::Exclusive, space()])?,
                     Mutability::Mutable => {}
                 }
             }
@@ -2931,7 +2930,6 @@ fn write_type_expression_body_inner<'ast>(
             if let Some(mutability) = mutability {
                 match mutability {
                     Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
-                    Mutability::Exclusive => write!(f, [Keyword::Exclusive, space()])?,
                     Mutability::Mutable => {}
                 }
             }
@@ -2955,7 +2953,6 @@ fn write_type_expression_body_inner<'ast>(
             if let Some(mutability) = mutability {
                 match mutability {
                     Mutability::Immutable => write!(f, [Keyword::Readonly, space()])?,
-                    Mutability::Exclusive => write!(f, [Keyword::Exclusive, space()])?,
                     Mutability::Mutable => {}
                 }
             }

@@ -372,7 +372,7 @@ fn test_format_extension_implements_list_layout() {
     IndexSet<number, T>,
     Iterable<T>,
     Iterable<&readonly T>,
-    Extend<T, "exclusive">
+    Extend<T, "mutable">
 {
     index(index: number): T;
 }
@@ -387,7 +387,7 @@ fn test_format_extension_implements_list_layout() {
     IndexSet<number, T>,
     Iterable<T>,
     Iterable<&readonly T>,
-    Extend<T, "exclusive">
+    Extend<T, "mutable">
 {
   index(index: number): T;
 }
@@ -395,7 +395,7 @@ fn test_format_extension_implements_list_layout() {
             ),
             (
                 160,
-                r#"extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive"> {
+                r#"extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable<T>, Iterable<&readonly T>, Extend<T, "mutable"> {
   index(index: number): T;
 }
 "#,
