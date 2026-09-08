@@ -5,7 +5,7 @@
   "type": "object",
   "properties": {
     "name": {
-      "description": "Package name.",
+      "description": "Package or workspace name.",
       "type": [
         "string",
         "null"
@@ -13,7 +13,7 @@
       "default": null
     },
     "version": {
-      "description": "Package version.",
+      "description": "Package or workspace version.",
       "type": [
         "string",
         "null"
@@ -21,7 +21,7 @@
       "default": null
     },
     "stability": {
-      "description": "Stability promised by this package.",
+      "description": "Stability promised by this package or workspace.",
       "anyOf": [
         {
           "$ref": "#/$defs/Stability"
@@ -247,7 +247,6 @@
             "memoryLimitBytes": null,
             "growthPercent": 100,
             "local": {
-              "youngSizeBytes": 1048576,
               "minBytes": null,
               "maxBytes": null
             },
@@ -1737,7 +1736,6 @@
               "memoryLimitBytes": null,
               "growthPercent": 100,
               "local": {
-                "youngSizeBytes": 1048576,
                 "minBytes": null,
                 "maxBytes": null
               },
@@ -1935,7 +1933,6 @@
             "memoryLimitBytes": null,
             "growthPercent": 100,
             "local": {
-              "youngSizeBytes": 1048576,
               "minBytes": null,
               "maxBytes": null
             },
@@ -2123,7 +2120,6 @@
           "description": "Worker-local heap policy.",
           "$ref": "#/$defs/LocalHeapOptions",
           "default": {
-            "youngSizeBytes": 1048576,
             "minBytes": null,
             "maxBytes": null
           }
@@ -2142,13 +2138,6 @@
       "description": "Runtime local-heap policy.",
       "type": "object",
       "properties": {
-        "youngSizeBytes": {
-          "description": "The byte width for worker-local young space.",
-          "type": "integer",
-          "format": "uint",
-          "minimum": 0,
-          "default": 1048576
-        },
         "minBytes": {
           "description": "Minimum heap bytes before normal growth pacing applies.",
           "type": [
@@ -2946,7 +2935,6 @@
                 "memoryLimitBytes": null,
                 "growthPercent": 100,
                 "local": {
-                  "youngSizeBytes": 1048576,
                   "minBytes": null,
                   "maxBytes": null
                 },
