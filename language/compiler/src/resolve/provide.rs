@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirExported,
-    DirImported, DirParsed, EnvironmentBound,
+    DirImported, DirParsed, DirView, EnvironmentBound,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
@@ -39,38 +39,33 @@ impl Compiler {
     ) -> CompilerResult<ArtifactPayload> {
         // load provider inputs
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts
-            .read::<DirParsed>(module)
-            .map_err(CompilerError::from)?;
-        let bound = artifacts
-            .read::<DirBound>((module, profile))
-            .map_err(CompilerError::from)?;
-        let imported = artifacts
-            .read::<DirImported>((module, profile))
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .read::<DirExpanded>((module, profile))
-            .map_err(CompilerError::from)?;
+        let key = (module, profile);
+        let stages = DirView::expanded(
+            artifacts.read::<DirParsed>(module)?,
+            artifacts.read::<DirBound>(key)?,
+            artifacts.read::<DirImported>(key)?,
+            artifacts.read::<DirExpanded>(key)?,
+        );
         let exported = artifacts
-            .read::<DirExported>((module, profile))
+            .read::<DirExported>(key)
             .map_err(CompilerError::from)?;
         let environment = artifacts
             .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
 
         // build expanded resolve inputs
+        let parsed = stages.parsed();
+        let expanded = &stages.expanded;
         let patches = std::slice::from_ref(&expanded.patch);
         let view = dir::View::with_patches(&parsed.tree, patches);
-        let bindings = expanded.binding_table(&bound);
-        let modules = expanded.module_table(&imported);
 
         let mut state = ResolveState::new(
             artifacts,
             profile,
             module,
             view,
-            bindings,
-            modules,
+            stages.bindings().clone(),
+            stages.modules().clone(),
             self.strings(),
         );
 
