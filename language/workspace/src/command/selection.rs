@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
-    DirParsed, DirResolved, EnvironmentBound,
+    DirImported, DirParsed, DirResolved, DirView, EnvironmentBound,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -201,35 +201,21 @@ impl CommandContext<'_> {
         let modules = modules
             .into_iter()
             .map(|module| {
-                let parsed = artifacts
-                    .read::<DirParsed>(module)
-                    .map_err(|error| error.to_string())?;
-                let bound = artifacts
-                    .read::<DirBound>((module, profile))
-                    .map_err(|error| error.to_string())?;
-                let expanded = artifacts
-                    .read::<DirExpanded>((module, profile))
-                    .map_err(|error| error.to_string())?;
-                let exported = artifacts
-                    .read::<DirExported>((module, profile))
-                    .map_err(|error| error.to_string())?;
-                let resolved = artifacts
-                    .read::<DirResolved>((module, profile))
-                    .map_err(|error| error.to_string())?;
-                let declared = artifacts
-                    .read::<DirDeclared>((module, profile))
-                    .map_err(|error| error.to_string())?;
-                let elaborated = artifacts
-                    .read::<DirElaborated>((module, profile))
-                    .map_err(|error| error.to_string())?;
-                let checked = artifacts
-                    .read::<DirChecked>((module, profile))
-                    .map_err(|error| error.to_string())?;
+                let key = (module, profile);
+                let read = |error: destack_repository::ProviderError| error.to_string();
+                let view = DirView::checked(
+                    artifacts.read::<DirParsed>(module).map_err(read)?,
+                    artifacts.read::<DirBound>(key).map_err(read)?,
+                    artifacts.read::<DirImported>(key).map_err(read)?,
+                    artifacts.read::<DirExpanded>(key).map_err(read)?,
+                    artifacts.read::<DirResolved>(key).map_err(read)?,
+                    artifacts.read::<DirDeclared>(key).map_err(read)?,
+                    artifacts.read::<DirElaborated>(key).map_err(read)?,
+                    artifacts.read::<DirChecked>(key).map_err(read)?,
+                );
+                let exported = artifacts.read::<DirExported>(key).map_err(read)?;
 
-                ModuleContext::new(
-                    parsed, bound, expanded, exported, resolved, declared, elaborated, checked,
-                )
-                .map_err(|error| error.to_string().into())
+                ModuleContext::new(view, exported).map_err(|error| error.to_string().into())
             })
             .collect::<CommandResult<Vec<_>>>()?;
 
