@@ -318,11 +318,6 @@ impl Printer<'_, '_, '_> {
                 {
                     Ok(format!("&{lifetime}readonly {value}"))
                 }
-                dir::Type::Literal(dir::Literal::String(access))
-                    if dir::Access::from_text(*access) == Some(dir::Access::Exclusive) =>
-                {
-                    Ok(format!("&{lifetime}exclusive {value}"))
-                }
 
                 // retain generic access through its canonical language form
                 dir::Type::Parameter(parameter) => {

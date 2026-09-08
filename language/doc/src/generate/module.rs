@@ -3,8 +3,8 @@ use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, IndexKind,
-    ModuleIndex,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
+    DirResolved, DirView, IndexKind, ModuleIndex,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -59,12 +59,18 @@ impl<'a> Module<'a> {
         profile: ProfileId,
     ) -> DocResult<Self> {
         let reader = ArtifactReader::new(repository, revision);
-        let parsed = reader.read::<DirParsed>(module_id)?;
-        let bound = reader.read::<DirBound>((module_id, profile))?;
-        let expanded = reader.read::<DirExpanded>((module_id, profile))?;
-        let declared = reader.read::<DirDeclared>((module_id, profile))?;
-        let elaborated = reader.read::<DirElaborated>((module_id, profile))?;
-        let checked = reader.read::<DirChecked>((module_id, profile))?;
+        let view = DirView::checked(
+            reader.read::<DirParsed>(module_id)?,
+            reader.read::<DirBound>((module_id, profile))?,
+            reader.read::<DirImported>((module_id, profile))?,
+            reader.read::<DirExpanded>((module_id, profile))?,
+            reader.read::<DirResolved>((module_id, profile))?,
+            reader.read::<DirDeclared>((module_id, profile))?,
+            reader.read::<DirElaborated>((module_id, profile))?,
+            reader.read::<DirChecked>((module_id, profile))?,
+        );
+        let parsed = Arc::clone(&view.parsed);
+        let expanded = Arc::clone(&view.expanded);
         let member_index = reader.read::<ModuleIndex>((module_id, profile, IndexKind::Members))?;
         let ModuleIndex::Members(members) = member_index.as_ref() else {
             return Err(DocError::invalid(format!(
@@ -74,10 +80,10 @@ impl<'a> Module<'a> {
         };
 
         // compose the cumulative tables required while printing declarations
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
-        let generics = checked.generic_table(&declared, &elaborated);
-        let definitions = checked.definition_table(&declared, &elaborated);
+        let bindings = view.bindings().clone();
+        let types = view.types().clone();
+        let generics = view.generics().clone();
+        let definitions = view.definitions().clone();
 
         Ok(Self {
             repository,
