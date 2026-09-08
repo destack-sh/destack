@@ -84,7 +84,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         allocate: Self::allocate,
         allocate_repeated: Self::allocate_repeated,
         drop: Self::drop,
-        free: Self::free,
+        release: Self::release,
         write_barrier: Self::write_barrier,
         poll: Self::poll,
         stop: Self::stop,
@@ -442,8 +442,8 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         function.call(unsafe { &mut *activation }, &arguments, &mut result);
     }
 
-    /// Release one unique heap object.
-    unsafe extern "C-unwind" fn free(activation: *mut abi::Activation, owner: usize) {
+    /// Return one unique heap object.
+    unsafe extern "C-unwind" fn release(activation: *mut abi::Activation, owner: usize) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
         let edge = match call.activation.memory.edge(owner) {
@@ -452,7 +452,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             Err(error) => call.fail(error),
         };
 
-        if let Err(error) = call.activation.memory.free(edge) {
+        if let Err(error) = call.activation.memory.release(edge) {
             call.fail(error);
         }
     }
@@ -913,8 +913,8 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     }
 
     /// Return the unique release operation.
-    pub const fn free_entry() -> abi::Free {
-        Self::free
+    pub const fn release_entry() -> abi::Release {
+        Self::release
     }
 
     /// Return the managed write-barrier operation.

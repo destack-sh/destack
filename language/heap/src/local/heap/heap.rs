@@ -112,9 +112,13 @@ impl Heap {
             .trace_shared_roots(roots, budget_bytes, trace_view)
     }
 
-    /// Free one heap block immediately.
-    pub fn free(&mut self, reference: HeapReference) -> HeapResult<()> {
-        self.storage.free(reference)
+    /// Release one heap block: freed now, or left to the collector once the managed graph retained it.
+    pub fn release(&mut self, reference: HeapReference) -> HeapResult<()> {
+        if !self.storage.is_retained(reference)? {
+            self.storage.free(reference)?;
+        }
+
+        Ok(())
     }
 
     /// Return the current derived collector pacing targets.

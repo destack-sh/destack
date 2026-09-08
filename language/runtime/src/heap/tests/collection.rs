@@ -15,8 +15,8 @@ use crate::world::RunOutcome;
 fn test_collect_runs_allocation_destructor() {
     let program = TestProgram::mir(
         r#"
-function Item.destruct(v0: ref<int32, borrowed, exclusive>): void {
-entry(v0: ref<int32, borrowed, exclusive>):
+function Item.destruct(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
     unreachable
 }
 
@@ -61,8 +61,8 @@ entry:
 fn test_collect_reclaims_allocation_after_drop() {
     let program = TestProgram::mir(
         r#"
-function Item.destruct(v0: ref<int32, borrowed, exclusive>): void {
-entry(v0: ref<int32, borrowed, exclusive>):
+function Item.destruct(v0: ref<int32, borrowed, mutable>): void {
+entry(v0: ref<int32, borrowed, mutable>):
     return
 }
 
@@ -108,8 +108,8 @@ fn test_collect_reclaims_shared_allocation_after_drop() {
     let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
-function Item.destruct(v0: ref<int32, borrowed, exclusive, shared>): void {
-entry(v0: ref<int32, borrowed, exclusive, shared>):
+function Item.destruct(v0: ref<int32, borrowed, mutable, shared>): void {
+entry(v0: ref<int32, borrowed, mutable, shared>):
     return
 }
 

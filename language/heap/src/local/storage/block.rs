@@ -18,6 +18,8 @@ pub(crate) struct LargeBlock {
     pub(crate) trace_map: TraceMap,
     /// The drop plan for this managed block.
     pub(crate) drop: Option<DropPlan>,
+    /// Whether managed storage referenced this block, its release waiting for the collector.
+    pub(crate) retained: bool,
     /// The mark epoch when this block was last marked.
     pub(crate) mark_epoch: u64,
 }
@@ -60,4 +62,6 @@ pub(crate) struct LargeBlockImage {
     pub trace_map: TraceMap,
     /// The drop plan for this managed block.
     pub drop: Option<DropPlan>,
+    /// Whether managed storage referenced this block.
+    pub retained: bool,
 }

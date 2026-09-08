@@ -3,8 +3,8 @@ use destack_mir::TraceMap;
 
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{
-    DropPlan, HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange,
-    SharedHeapReference,
+    DropPlan, HeapEdge, HeapError, HeapReference, HeapResult, ReferenceInput, ReferenceRange,
+    SharedHeapReference, visit_heap_edges,
 };
 
 impl HeapStorage {
@@ -78,6 +78,74 @@ impl HeapStorage {
         let (extent, byte_offset) = self.resolve_range(reference, start, byte_len)?;
 
         self.record_write_barrier(reference, extent, byte_offset, byte_len, trace_view)
+    }
+
+    /// Retain the allocations one payload references for the collector.
+    pub(crate) fn retain_payload(&mut self, trace_map: &TraceMap, bytes: &[u8]) -> HeapResult<()> {
+        let mut references = Vec::new();
+        visit_heap_edges(trace_map, 0, bytes, ReferenceRange::All, &mut |edge| {
+            if let HeapEdge::Local(reference) = edge {
+                references.push(reference);
+            }
+
+            Ok(())
+        })?;
+        for reference in references {
+            self.retain(reference)?;
+        }
+
+        Ok(())
+    }
+
+    /// Retain one allocation for the collector once managed storage references it.
+    pub(crate) fn retain(&mut self, reference: HeapReference) -> HeapResult<()> {
+        if reference.is_nullish() || self.is_constant(reference) {
+            return Ok(());
+        }
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
+        };
+
+        match extent.place {
+            HeapPlace::Slot(slot) => {
+                let Some(span) = self.span_mut(slot.span_index()) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+                span.retained.set(slot.slot_index());
+            }
+            HeapPlace::LargeBlock(block_id) => {
+                let Some(block) = self.large_block_mut(block_id) else {
+                    return Err(HeapError::internal("missing large block"));
+                };
+                block.retained = true;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Return whether the managed graph retained one allocation.
+    pub(crate) fn is_retained(&self, reference: HeapReference) -> HeapResult<bool> {
+        let Some(extent) = self.resolve_extent(reference) else {
+            return Err(HeapError::invalid_heap_reference(reference));
+        };
+
+        Ok(match extent.place {
+            HeapPlace::Slot(slot) => {
+                let Some(span) = self.span(slot.span_index()) else {
+                    return Err(HeapError::internal("missing span"));
+                };
+
+                span.retained.contains(slot.slot_index())
+            }
+            HeapPlace::LargeBlock(block_id) => {
+                let Some(block) = self.large_block(block_id) else {
+                    return Err(HeapError::internal("missing large block"));
+                };
+
+                block.retained
+            }
+        })
     }
 
     /// Return old and new shared edges for one heap store before it writes.

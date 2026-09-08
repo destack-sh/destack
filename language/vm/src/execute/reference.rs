@@ -42,7 +42,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             return Ok(());
         };
 
-        self.activation.memory.free(edge).map_err(Error::heap)
+        self.activation.memory.release(edge).map_err(Error::heap)
     }
 
     /// Execute one heap reference lifetime or collector operation.

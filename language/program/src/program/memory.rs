@@ -139,9 +139,9 @@ impl Memory<'_> {
     }
 
     /// Return one uniquely owned heap allocation, freed unless managed storage referenced it.
-    pub fn free(&mut self, edge: HeapEdge) -> HeapResult<()> {
+    pub fn release(&mut self, edge: HeapEdge) -> HeapResult<()> {
         match edge {
-            HeapEdge::Local(reference) => self.local_heap.free(reference),
+            HeapEdge::Local(reference) => self.local_heap.release(reference),
             HeapEdge::Shared(reference) => self.shared_heap.free(self.shared_cache, reference),
         }
     }

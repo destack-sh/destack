@@ -95,6 +95,11 @@ impl HeapStorage {
             }
         }
 
+        // keep the allocations the payload references for the collector
+        if let Payload::Bytes(bytes) = payload {
+            self.retain_payload(layout.trace_map, bytes)?;
+        }
+
         // publish the block into any active local cycle
         self.publish_allocation(reference, place, layout.trace_map)?;
 
@@ -211,6 +216,7 @@ impl HeapStorage {
         // vacate the slot and its trace metadata
         span.occupied.clear(slot_index);
         span.marked.clear(slot_index);
+        span.retained.clear(slot_index);
         let size_class = span.class.size_class();
         clear_slot_reference_bits(
             &mut span.local_reference_bits,
@@ -333,6 +339,7 @@ impl HeapStorage {
             pages,
             trace_map,
             drop,
+            retained: false,
             mark_epoch: 0,
         };
 
@@ -393,6 +400,7 @@ impl HeapStorage {
             local_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
             shared_reference_bits: Bitmap::with_capacity(slot_count * scan_word_count),
             marked: Bitmap::with_capacity(slot_count),
+            retained: Bitmap::with_capacity(slot_count),
             mark_epoch: 0,
             pages,
         };

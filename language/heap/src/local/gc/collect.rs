@@ -28,7 +28,7 @@ impl HeapStorage {
         self.enqueue_payload_references(reference, place, 0, usize::MAX, trace_map)
     }
 
-    /// Queue the local references one write stores into an active cycle.
+    /// Keep the allocations one write references for the collector.
     pub(crate) fn write_mark_barrier(
         &mut self,
         extent: HeapExtent,
@@ -36,11 +36,6 @@ impl HeapStorage {
         byte_len: usize,
         trace_view: TraceView<'_>,
     ) -> HeapResult<()> {
-        // inactive collector
-        if self.collector.phase == Phase::Idle {
-            return Ok(());
-        }
-
         // scan the written range into the reusable scratch
         let scan_len = byte_len.min(self.resolve_byte_len(extent.place)? - byte_offset);
         let mut scratch = std::mem::take(&mut self.collector.local_reference_scratch);
@@ -57,9 +52,13 @@ impl HeapStorage {
             },
         )?;
 
-        // enqueue the discovered references
+        // keep the referenced allocations, queueing them while a cycle runs
+        let is_collecting = self.collector.phase != Phase::Idle;
         for reference in scratch.drain(..) {
-            self.enqueue_reference(reference)?;
+            self.retain(reference)?;
+            if is_collecting {
+                self.enqueue_reference(reference)?;
+            }
         }
         self.collector.local_reference_scratch = scratch;
 
@@ -763,10 +762,11 @@ impl HeapStorage {
             return Ok(());
         }
 
-        // mark the referenced block before queueing scan work
+        // mark the referenced block before queueing scan work, an interior address by its block
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
+        let reference = HeapReference::new(reference.offset() - extent.byte_offset);
 
         // queue scan work for freshly marked blocks
         if self.mark_place(extent.place)? {

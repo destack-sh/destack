@@ -142,7 +142,7 @@ fn test_reserve_small_reuses_a_freed_slot_of_the_class_span() {
     let first = heap.test_allocate(layout.block(), Payload::Zeroed);
     let second = heap.test_allocate(layout.block(), Payload::Zeroed);
     let third = heap.test_allocate(layout.block(), Payload::Zeroed);
-    heap.free(second).expect("heap free should succeed");
+    heap.release(second).expect("heap free should succeed");
 
     // the fast path reserves the freed slot before advancing past the third
     let reserved = heap

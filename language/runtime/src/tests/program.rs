@@ -43,7 +43,7 @@ impl TestProgram {
 
         Self {
             lowered: MirLowered {
-                tree,
+                tree: Arc::new(tree),
                 target,
                 layouts,
                 dispatch,
@@ -66,7 +66,7 @@ impl TestProgram {
         self
     }
 
-    /// Attach one destructor from its exclusive reference parameter.
+    /// Attach one destructor from its mutable reference parameter.
     pub(crate) fn destructor(mut self, function_name: &str) -> Self {
         let function = self.function_id(function_name);
         let declaration = self.lowered.tree.get(function);
@@ -151,7 +151,7 @@ impl TestProgram {
             .expect("runtime test MIR layouts should build");
 
         MirOptimized {
-            tree,
+            tree: mir::Tree::clone(&tree),
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
