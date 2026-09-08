@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use destack_artifact::{DirBound, DirParsed, LanguageEnvironment};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId};
@@ -23,7 +25,7 @@ impl Compiler {
             let bound = artifacts
                 .read::<DirBound>((*module_id, profile))
                 .map_err(CompilerError::from)?;
-            let bindings = bound.binding_table();
+            let bindings = dir::BindingTable::from_segment(Arc::clone(&bound.bindings));
 
             self.collect_language_items_into(
                 *module_id,
