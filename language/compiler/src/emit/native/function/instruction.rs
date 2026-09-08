@@ -353,8 +353,6 @@ impl<'a> FunctionEmitter<'a> {
                 let reference = self.reference(*value, builder)?;
                 self.emit_runtime(native::abi::Operation::Free, &[reference], builder)?;
             }
-            // hold keeps its values live in the frame state alone
-            mir::Instruction::Hold { .. } => {}
             mir::Instruction::BarrierWrite {
                 object,
                 offset,

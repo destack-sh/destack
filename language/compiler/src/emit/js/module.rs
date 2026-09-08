@@ -1,6 +1,7 @@
 use crate::{Compiler, CompilerError, CompilerResult};
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed, Script,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
+    DirParsed, DirResolved, DirView, Script,
 };
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
 use destack_source::ModuleId;
@@ -19,38 +20,23 @@ impl Compiler {
     ) -> CompilerResult<Script> {
         // snapshot module for this emit pass
         let module = self.module(context.revision(), module_id)?;
-        let parsed = artifacts
-            .read::<DirParsed>(module_id)
-            .map_err(CompilerError::from)?;
-        let bound = artifacts
-            .read::<DirBound>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let imported = artifacts
-            .read::<DirImported>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .read::<DirExpanded>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let declared = artifacts
-            .read::<DirDeclared>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let checked = artifacts
-            .read::<DirChecked>((module_id, profile))
-            .map_err(CompilerError::from)?;
-        let materialized = artifacts
-            .read::<DirMaterialized>((module_id, profile))
-            .map_err(CompilerError::from)?;
+        let module_id_key = (module_id, profile);
+        let view = DirView::materialized(
+            artifacts.read::<DirParsed>(module_id)?,
+            artifacts.read::<DirBound>(module_id_key)?,
+            artifacts.read::<DirImported>(module_id_key)?,
+            artifacts.read::<DirExpanded>(module_id_key)?,
+            artifacts.read::<DirResolved>(module_id_key)?,
+            artifacts.read::<DirDeclared>(module_id_key)?,
+            artifacts.read::<DirElaborated>(module_id_key)?,
+            artifacts.read::<DirChecked>(module_id_key)?,
+            artifacts.read::<DirMaterialized>(module_id_key)?,
+        );
 
         // emit one structured script
         let (script, errors) = ScriptGenerator::new(
             module.clone(),
-            parsed.clone(),
-            bound.clone(),
-            imported,
-            expanded,
-            declared,
-            checked,
-            materialized,
+            view,
             self.repository.string_pool().clone(),
             target,
         )

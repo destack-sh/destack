@@ -92,7 +92,7 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
-    /// Release one unique representation's backing allocation.
+    /// Return one unique allocation to the heap.
     pub(super) fn emit_free(&mut self, value: mir::Value) -> Result<(), EmitError> {
         let owner = self.representation_register(self.register(value)?, value)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FREE);

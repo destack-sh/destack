@@ -108,8 +108,8 @@ type Resource {
     value: int32;
 }
 
-function destroy(v0: ref<Resource, borrowed, exclusive, frame>): void {
-entry(v0: ref<Resource, borrowed, exclusive, frame>):
+function destroy(v0: ref<Resource, borrowed, mutable, frame>): void {
+entry(v0: ref<Resource, borrowed, mutable, frame>):
     return
 }
 

@@ -48,6 +48,9 @@ impl<'a> FunctionEmitter<'a> {
             mir::Constant::Layout { .. } => {
                 Err(self.invalid("layout constant reached native emit before instantiation"))
             }
+            mir::Constant::Witness { .. } => {
+                Err(self.invalid("witness constant reached native emit before instantiation"))
+            }
         }
     }
 

@@ -533,6 +533,11 @@ impl<'a> FunctionEmitter<'a> {
                     self.internal("layout constant reached bytecode emit before instantiation")
                 );
             }
+            mir::Constant::Witness { .. } => {
+                return Err(
+                    self.internal("witness constant reached bytecode emit before instantiation")
+                );
+            }
             mir::Constant::Boolean { value } => {
                 let mut instruction = bytecode::InstructionBuilder::new(
                     bytecode::Opcode::constant(bytecode::Scalar::Boolean),

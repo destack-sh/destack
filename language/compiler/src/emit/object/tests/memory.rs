@@ -197,9 +197,9 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
-/// Report one changed reference range and keep a held handle silent in the emitted code.
+/// Report one changed reference range.
 #[test]
-fn test_emit_a_barrier_and_a_silent_hold() {
+fn test_emit_a_barrier() {
     let program = TestProgram::mir(
         r#"
 export function update(v0: ref<int32, managed, mutable>): void {
@@ -207,7 +207,6 @@ entry(v0: ref<int32, managed, mutable>):
     v1: usize = 0
     v2: usize = 8
     barrier.write v0, v1, v2
-    hold (v0)
     return
 }
 "#,

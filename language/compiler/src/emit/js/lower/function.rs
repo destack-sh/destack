@@ -51,7 +51,7 @@ impl ModuleLowerer<'_> {
     pub(crate) fn lower_mutability(&self, mutability: dir::Mutability) -> js::Mutability {
         match mutability {
             dir::Mutability::Immutable => js::Mutability::Immutable,
-            dir::Mutability::Mutable | dir::Mutability::Exclusive => js::Mutability::Mutable,
+            dir::Mutability::Mutable => js::Mutability::Mutable,
         }
     }
 

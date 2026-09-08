@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirExpanded, DirImported, DirMaterialized, DirParsed,
-    Output, Script,
-};
+use destack_artifact::{DirView, Output, Script};
 use destack_core::StringPool;
 use destack_repository::{Module, Target};
 
@@ -16,20 +13,8 @@ use super::lower::lower_module;
 pub(crate) struct ScriptGenerator<'a> {
     /// The current module snapshot.
     module: Arc<Module>,
-    /// The current parsed DIR.
-    parsed: Arc<DirParsed>,
-    /// The current bound DIR artifact.
-    bound: Arc<DirBound>,
-    /// The current imported DIR artifact.
-    imported: Arc<DirImported>,
-    /// The current expanded DIR artifact.
-    expanded: Arc<DirExpanded>,
-    /// The current declared DIR artifact.
-    declared: Arc<DirDeclared>,
-    /// The current checked DIR artifact.
-    checked: Arc<DirChecked>,
-    /// The current materialized DIR artifact.
-    materialized: Arc<DirMaterialized>,
+    /// The module's DIR stages, their tables stacked once.
+    view: DirView,
     /// The shared string pool.
     strings: Arc<StringPool>,
     /// The target configuration.
@@ -40,25 +25,13 @@ impl<'a> ScriptGenerator<'a> {
     /// Create one script generator.
     pub(crate) fn new(
         module: Arc<Module>,
-        parsed: Arc<DirParsed>,
-        bound: Arc<DirBound>,
-        imported: Arc<DirImported>,
-        expanded: Arc<DirExpanded>,
-        declared: Arc<DirDeclared>,
-        checked: Arc<DirChecked>,
-        materialized: Arc<DirMaterialized>,
+        view: DirView,
         strings: Arc<StringPool>,
         target: &'a Target,
     ) -> Self {
         Self {
             module,
-            parsed,
-            bound,
-            imported,
-            expanded,
-            declared,
-            checked,
-            materialized,
+            view,
             strings,
             target,
         }
@@ -73,13 +46,6 @@ impl<'a> ScriptGenerator<'a> {
 
         // current module inputs
         let module = self.module.as_ref();
-        let parsed = self.parsed.as_ref();
-        let bound = self.bound.as_ref();
-        let imported = self.imported.as_ref();
-        let expanded = self.expanded.as_ref();
-        let declared = self.declared.as_ref();
-        let checked = self.checked.as_ref();
-        let materialized = self.materialized.as_ref();
 
         // asset modules are linked directly in the JS linker
         if !module.is_code() {
@@ -90,17 +56,7 @@ impl<'a> ScriptGenerator<'a> {
         }
 
         // emit one lowered JavaScript module tree
-        let (module, errors) = lower_module(
-            module,
-            parsed,
-            self.strings.as_ref(),
-            bound,
-            imported,
-            expanded,
-            declared,
-            checked,
-            materialized,
-        );
+        let (module, errors) = lower_module(module, &self.view, self.strings.as_ref());
 
         let script = Script {
             module,
