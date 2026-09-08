@@ -215,7 +215,7 @@ struct Holder<'a> {
     value: &'a readonly int32;
 }
 
-function store<'a>(holder: &exclusive Holder<'a>, value: &'a readonly int32): void {
+function store<'a>(holder: &Holder<'a>, value: &'a readonly int32): void {
     holder.value = value;
 }
 "#,

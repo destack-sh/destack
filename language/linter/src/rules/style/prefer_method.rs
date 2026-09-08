@@ -21,7 +21,7 @@ struct Counter {
     value: int32;
 }
 
-function increment(counter: &exclusive Counter): void {
+function increment(counter: &Counter): void {
     counter.value += 1;
 }
 "#,
@@ -31,7 +31,7 @@ struct Counter {
 }
 
 extension of Counter {
-    increment(&exclusive this): void {
+    increment(&this): void {
         this.value += 1;
     }
 }
@@ -126,7 +126,7 @@ struct Counter {
     value: int32;
 }
 
-function increment(counter: &exclusive Counter): void {
+function increment(counter: &Counter): void {
     counter.value += 1;
 }
 "#,
@@ -139,7 +139,7 @@ warning[prefer-method]: first parameter establishes the function's nominal recei
   │
 3 │ }
 4 │
-5 │ function increment(counter: &exclusive Counter): void {
+5 │ function increment(counter: &Counter): void {
   │          ^^^^^^^^^
 6 │     counter.value += 1;
 7 │ }

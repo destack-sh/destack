@@ -212,7 +212,7 @@ impl TestSession {
             .layout_reachable_types()
             .expect("lint MIR layouts should build");
         let lowered = MirLowered {
-            tree,
+            tree: Arc::new(tree),
             target,
             layouts,
             dispatch,

@@ -161,8 +161,12 @@ impl BooleanLiteralComparison {
         file_patch.replace(comparison_span, replacement);
         let patches = PatchSet::from_files(vec![file_patch]);
         let preserves_type = self.is_negated
-            || module.node_type_id(comparison.into_any())?
-                == module.node_type_id(self.value.into_any())?;
+            || module
+                .dir
+                .strip_form(module.node_type_id(comparison.into_any())?)?
+                == module
+                    .dir
+                    .strip_form(module.node_type_id(self.value.into_any())?)?;
         let suggestion = if preserves_type {
             lint.fix("remove the boolean literal comparison", patches)?
         } else {

@@ -344,12 +344,12 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
         let session = TestSession::dir(
             &MANUAL_MAP,
             r#"
-declare function increment(value: &exclusive int32): int32;
+declare function increment(value: &int32): int32;
 
 function incremented(values: int32[]): int32[] {
     const result: int32[] = [];
     for (let value of values) {
-        result.push(increment(&exclusive value));
+        result.push(increment(&value));
     }
     return result;
 }

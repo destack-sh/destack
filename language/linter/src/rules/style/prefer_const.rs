@@ -288,7 +288,7 @@ function replace(): int32 {
             r#"
 function replace(): int32 {
     let value: int32 = 0;
-    const borrowed = &exclusive value;
+    const borrowed = &value;
     *borrowed = 1;
     return value;
 }
@@ -501,7 +501,7 @@ function increment(counter: Counter): Counter {
 struct Counter {
     value: int32;
 
-    increment(&exclusive this): void {
+    increment(&this): void {
         this.value += 1;
     }
 }
@@ -525,7 +525,7 @@ function increment(): int32 {
         let session = TestSession::dir(
             &PREFER_CONST,
             r#"
-function replace(value: &exclusive int32): void {
+function replace(value: &int32): void {
     let reference = value;
     *reference = 1;
 }
@@ -534,7 +534,7 @@ function replace(value: &exclusive int32): void {
 
         session.assert_fixes(
             r#"
-function replace(value: &exclusive int32): void {
+function replace(value: &int32): void {
     const reference = value;
     *reference = 1;
 }

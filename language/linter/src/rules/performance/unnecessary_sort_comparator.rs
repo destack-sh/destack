@@ -212,7 +212,7 @@ function order(values: int32[]): void {
         let session = TestSession::dir(
             &UNNECESSARY_SORT_COMPARATOR,
             r#"
-function order(values: ^int32[], slice: &exclusive [int32]): ^int32[] {
+function order(values: ^int32[], slice: &[int32]): ^int32[] {
     values.sortUnstable((left, right) => left.compare(right));
     slice.sort((left, right) => left.compare(right));
     values.toSortedUnstable((left, right) => left.compare(right));
@@ -223,7 +223,7 @@ function order(values: ^int32[], slice: &exclusive [int32]): ^int32[] {
 
         session.assert_fixes(
             r#"
-function order(values: ^int32[], slice: &exclusive [int32]): ^int32[] {
+function order(values: ^int32[], slice: &[int32]): ^int32[] {
     values.sortUnstable();
     slice.sort();
     values.toSortedUnstable();

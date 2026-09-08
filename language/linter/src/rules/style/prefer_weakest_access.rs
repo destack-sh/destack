@@ -21,7 +21,7 @@ struct Counter {
     value: int32;
 }
 
-function read(counter: &exclusive Counter): int32 {
+function read(counter: &Counter): int32 {
     return counter.value;
 }
 "#,
@@ -123,16 +123,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 ),
                 span,
             )
-            .suggestion(suggestion(
-                module,
-                lint,
-                span,
-                declared_type,
-                *target_type,
-                *lifetime,
-                declared_access,
-                required,
-            )?);
+            .suggestion(suggestion(module, lint, declared_type, *lifetime)?);
         output.report(diagnostic);
     }
 
@@ -167,45 +158,26 @@ fn access_span(
     ))
 }
 
-/// Build one weaker access annotation.
+/// Build the readonly access annotation.
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    span: Span,
     borrowed: dir::LocalNodeId<dir::TypeExpression>,
-    target: dir::LocalNodeId<dir::TypeExpression>,
     lifetime: Option<dir::LocalNodeId<dir::TypeExpression>>,
-    declared: dir::Access,
-    access: dir::Access,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
-    let patch = if declared == dir::Access::Mutable && access == dir::Access::Readonly {
-        let borrowed = module.source_extent(borrowed.into_any())?;
-        let (position, text) = if let Some(lifetime) = lifetime {
-            let lifetime = module.source_extent(lifetime.into_any())?;
+    let borrowed = module.source_extent(borrowed.into_any())?;
+    let (position, text) = if let Some(lifetime) = lifetime {
+        let lifetime = module.source_extent(lifetime.into_any())?;
 
-            (lifetime.end, " readonly")
-        } else {
-            (borrowed.start + 1, "readonly ")
-        };
-
-        Patch::insert(borrowed.file, position, text)
-    } else if declared == dir::Access::Exclusive && access == dir::Access::Mutable {
-        let target = module.source_extent(target.into_any())?;
-        let trailing = Span::new(span.file, span.end, target.start);
-        let whitespace = module
-            .source(trailing)?
-            .chars()
-            .take_while(|character| character.is_whitespace())
-            .map(char::len_utf8)
-            .sum::<usize>() as u32;
-        let extent = Span::new(span.file, span.start, span.end + whitespace);
-
-        Patch::replace(extent, "")
+        (lifetime.end, " readonly")
     } else {
-        Patch::replace(span, access.text())
+        (borrowed.start + 1, "readonly ")
     };
 
-    lint.suggestion(format!("use {} access", access.text()), patch)
+    lint.suggestion(
+        "use readonly access".to_string(),
+        Patch::insert(borrowed.file, position, text),
+    )
 }
 
 #[cfg(test)]
@@ -213,23 +185,11 @@ mod tests {
     use super::*;
     use crate::tests::TestSession;
 
-    /// Replace exclusive access with mutable access for projected writes.
+    /// Accept mutable access for projected writes.
     #[test]
-    fn test_replaces_exclusive_with_mutable() {
+    fn test_accepts_a_field_increment() {
         let session = TestSession::dir(
             &PREFER_WEAKEST_ACCESS,
-            r#"
-struct Counter {
-    value: int32;
-}
-
-function increment(counter: &exclusive Counter): void {
-    counter.value += 1;
-}
-"#,
-        );
-
-        session.assert_suggestions(
             r#"
 struct Counter {
     value: int32;
@@ -240,6 +200,8 @@ function increment(counter: &Counter): void {
 }
 "#,
         );
+
+        session.assert_no_diagnostics();
     }
 
     /// Add readonly access to an unqualified mutable borrow.
@@ -273,7 +235,7 @@ function read(counter: &readonly Counter): int32 {
 
     /// Preserve exclusive access used to replace the borrowed place.
     #[test]
-    fn test_accepts_exclusive_replacement() {
+    fn test_accepts_a_mutable_replacement() {
         let session = TestSession::dir(
             &PREFER_WEAKEST_ACCESS,
             r#"
@@ -281,7 +243,7 @@ struct Counter {
     value: int32;
 }
 
-function replace(counter: &exclusive Counter, replacement: Counter): void {
+function replace(counter: &Counter, replacement: Counter): void {
     *counter = replacement;
 }
 "#,
@@ -292,7 +254,7 @@ function replace(counter: &exclusive Counter, replacement: Counter): void {
 
     /// Preserve exclusive access passed to another exclusive parameter.
     #[test]
-    fn test_accepts_exclusive_call() {
+    fn test_accepts_a_mutable_call() {
         let session = TestSession::dir(
             &PREFER_WEAKEST_ACCESS,
             r#"
@@ -300,9 +262,9 @@ struct Counter {
     value: int32;
 }
 
-declare function replace(counter: &exclusive Counter): void;
+declare function replace(counter: &Counter): void;
 
-function forward(counter: &exclusive Counter): void {
+function forward(counter: &Counter): void {
     replace(counter);
 }
 "#,
@@ -313,7 +275,7 @@ function forward(counter: &exclusive Counter): void {
 
     /// Preserve exclusive access returned from the callable.
     #[test]
-    fn test_accepts_returned_exclusive_borrow() {
+    fn test_accepts_a_returned_mutable_borrow() {
         let session = TestSession::dir(
             &PREFER_WEAKEST_ACCESS,
             r#"
@@ -321,7 +283,7 @@ struct Counter {
     value: int32;
 }
 
-function identity<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
+function identity<'a>(counter: &'a Counter): &'a Counter {
     return counter;
 }
 "#,
@@ -332,7 +294,7 @@ function identity<'a>(counter: &'a exclusive Counter): &'a exclusive Counter {
 
     /// Preserve exclusive access used by a returned function.
     #[test]
-    fn test_accepts_captured_exclusive_borrow() {
+    fn test_accepts_a_captured_mutable_borrow() {
         let session = TestSession::dir(
             &PREFER_WEAKEST_ACCESS,
             r#"
@@ -340,7 +302,7 @@ struct Counter {
     value: int32;
 }
 
-function replaceLater<'a>(counter: &'a exclusive Counter): () => void {
+function replaceLater<'a>(counter: &'a Counter): () => void {
     return () => {
         *counter = Counter { value: 0 };
     };
@@ -363,13 +325,13 @@ struct Counter {
     value: int32;
 }
 
-function increment(counter: &exclusive Counter): void {
+function increment(counter: &Counter): void {
     todo("increment");
 }
 
 export extension of Counter {
     /// Replace the counter value.
-    set(&exclusive this, value: int32): void {
+    set(&this, value: int32): void {
         todo("Counter.set");
     }
 }

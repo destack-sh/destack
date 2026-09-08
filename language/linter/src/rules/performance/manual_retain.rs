@@ -258,7 +258,7 @@ function keep(input: Values): Values {
 newtype interface Duplicate {
     clone(&readonly this): ^this;
 
-    cloneFrom(&exclusive this, source: &readonly this): void {
+    cloneFrom(&this, source: &readonly this): void {
         *this = source.clone();
     }
 }

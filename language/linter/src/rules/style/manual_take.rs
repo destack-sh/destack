@@ -27,7 +27,7 @@ import { take } from "destack:memory";
 
 function remove<T: Default>(initial: T): T {
     let value = initial;
-    return take(&exclusive value);
+    return take(&value);
 }
 "#,
         },
@@ -61,7 +61,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 let place = module.source(place)?;
                 let diagnostic = lint
                     .diagnostic("place is moved and then assigned its default", span)
-                    .help(format!("use `take(&exclusive {place})`"));
+                    .help(format!("use `take(&{place})`"));
                 output.report(diagnostic);
             }
 
@@ -163,7 +163,7 @@ warning[manual-take]: place is moved and then assigned its default
 6 │ }
   │
 
- = help: use `take(&exclusive value)`
+ = help: use `take(&value)`
 "#,
         );
     }

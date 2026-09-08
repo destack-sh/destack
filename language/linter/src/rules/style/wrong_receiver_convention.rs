@@ -203,7 +203,7 @@ struct Buffer {
         todo("Buffer.asBytes")
     }
 
-    toBytesMut(&readonly this): &exclusive [uint8] {
+    toBytesMut(&readonly this): &[uint8] {
         todo("Buffer.toBytesMut")
     }
 }
@@ -249,7 +249,7 @@ warning[wrong-receiver-convention]: toBytesMut should borrow its receiver with m
    │
 12 │     }
 13 │
-14 │     toBytesMut(&readonly this): &exclusive [uint8] {
+14 │     toBytesMut(&readonly this): &[uint8] {
    │     ^^^^^^^^^^
 15 │         todo("Buffer.toBytesMut")
 16 │     }
@@ -277,7 +277,7 @@ struct Buffer {
         todo("Buffer.fromBytes")
     }
 
-    toBytesMut(&exclusive this): &exclusive [uint8] {
+    toBytesMut(&this): &[uint8] {
         todo("Buffer.toBytesMut")
     }
 }

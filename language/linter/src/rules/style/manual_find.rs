@@ -274,11 +274,11 @@ function firstPositive(values: int32[]): int32 | undefined {
         let session = TestSession::dir(
             &MANUAL_FIND,
             r#"
-declare function increment(value: &exclusive int32): int32;
+declare function increment(value: &int32): int32;
 
 function firstPositive(values: int32[]): int32 | undefined {
     for (let value of values) {
-        if (increment(&exclusive value) > 0) {
+        if (increment(&value) > 0) {
             return value;
         }
     }

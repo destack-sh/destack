@@ -69,9 +69,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(array_access) = module.access_resolution(array) else {
             continue;
         };
-        let uses =
-            module.access_uses_within(array_access.path(), iteration.body.into_any(), &accesses);
-        if uses.may_mutate() || uses.contains(dir::BindingUse::EXCLUSIVE) {
+        let required = module.required_access_within(
+            array_access.path(),
+            iteration.body.into_any(),
+            &accesses,
+        )?;
+        if required == dir::Access::Mutable {
             continue;
         }
 

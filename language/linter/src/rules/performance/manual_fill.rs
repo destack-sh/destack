@@ -287,7 +287,7 @@ function clear(values: int32[]): void {
         let session = TestSession::dir(
             &MANUAL_FILL,
             r#"
-function clear(values: &exclusive [int32]): void {
+function clear(values: &[int32]): void {
     for (let index: isize = 0; index < values.length; index++) {
         values[index] = 0;
     }
@@ -297,7 +297,7 @@ function clear(values: &exclusive [int32]): void {
 
         session.assert_suggestions(
             r#"
-function clear(values: &exclusive [int32]): void {
+function clear(values: &[int32]): void {
     values.fill(0);
 }
 "#,

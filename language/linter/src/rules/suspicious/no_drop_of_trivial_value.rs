@@ -23,7 +23,7 @@ function discard(value: int32): void {
 import { Drop, drop } from "destack:memory";
 
 struct Subscription implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 function unsubscribe(value: Subscription): void {
@@ -255,7 +255,7 @@ struct Subscription {
 }
 
 extension of Subscription implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 function unsubscribe(value: Subscription): void {
@@ -278,7 +278,7 @@ import { Drop, drop } from "destack:memory";
 struct Producer<T> implements Drop {
     value: T;
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 function unsubscribe(producer: Producer<int32>): void {
@@ -299,7 +299,7 @@ function unsubscribe(producer: Producer<int32>): void {
 import { Drop, drop } from "destack:memory";
 
 class Session implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 function close(value: Session): void {

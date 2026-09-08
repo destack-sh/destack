@@ -188,7 +188,7 @@ mod tests {
         let session = TestSession::dir(
             &PREFER_SLICE_PARAMETER,
             r#"
-function clear(values: &exclusive int32[]): void {
+function clear(values: &int32[]): void {
     values[0] = 0;
 }
 "#,
@@ -196,7 +196,7 @@ function clear(values: &exclusive int32[]): void {
 
         session.assert_suggestions(
             r#"
-function clear(values: &exclusive [int32]): void {
+function clear(values: &[int32]): void {
     values[0] = 0;
 }
 "#,
@@ -239,7 +239,7 @@ function consume(values: int32[]): void {
         let session = TestSession::dir(
             &PREFER_SLICE_PARAMETER,
             r#"
-function append(values: &exclusive int32[]): void {
+function append(values: &int32[]): void {
     values.push(1);
 }
 "#,

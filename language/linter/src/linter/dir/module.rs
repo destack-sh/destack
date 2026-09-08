@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirParsed, DirResolved, IndexKind, ModuleIndex,
+    DirParsed, DirResolved, DirView, IndexKind, ModuleIndex,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
@@ -477,16 +477,23 @@ impl DirModuleStorage {
     ) -> Result<Self, ProviderError> {
         let module_id = module.id;
 
-        // read the DIR artifacts
-        let parsed = artifacts.read::<DirParsed>(module_id)?;
-        let bound = artifacts.read::<DirBound>((module_id, profile))?;
-        let imported = artifacts.read::<DirImported>((module_id, profile))?;
-        let resolved = artifacts.read::<DirResolved>((module_id, profile))?;
-        let expanded = artifacts.read::<DirExpanded>((module_id, profile))?;
+        // read the DIR artifacts, the checked stages stacked once
+        let reader = artifacts;
+        let view = DirView::checked(
+            reader.read::<DirParsed>(module_id)?,
+            reader.read::<DirBound>((module_id, profile))?,
+            reader.read::<DirImported>((module_id, profile))?,
+            reader.read::<DirExpanded>((module_id, profile))?,
+            reader.read::<DirResolved>((module_id, profile))?,
+            reader.read::<DirDeclared>((module_id, profile))?,
+            reader.read::<DirElaborated>((module_id, profile))?,
+            reader.read::<DirChecked>((module_id, profile))?,
+        );
+        let parsed = Arc::clone(&view.parsed);
+        let bound = Arc::clone(&view.bound);
+        let resolved = Arc::clone(view.resolved.as_ref().unwrap_or_else(|| unreachable!()));
+        let expanded = Arc::clone(&view.expanded);
         let exported = artifacts.read::<DirExported>((module_id, profile))?;
-        let checked = artifacts.read::<DirChecked>((module_id, profile))?;
-        let declared = artifacts.read::<DirDeclared>((module_id, profile))?;
-        let elaborated = artifacts.read::<DirElaborated>((module_id, profile))?;
 
         // load each index explicitly requested by an active lint
         let mut loaded_indexes = std::array::from_fn(|_| None);
@@ -533,19 +540,19 @@ impl DirModuleStorage {
             files.push(file);
         }
 
-        // compose the checked tables
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let modules = expanded.module_table(&imported);
-        let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
-        let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
-        let decorators = checked.decorator_table(&elaborated);
-        let resolutions = checked.resolution_table(&declared, &elaborated);
-        let decisions = checked.decision_table(&declared, &elaborated);
-        let generics = checked.generic_table(&declared, &elaborated);
-        let definitions = checked.definition_table(&declared, &elaborated);
-        let coercions = checked.coercion_table();
-        let captures = checked.capture_table();
-        let flows = checked.flow_table(&declared, &elaborated);
+        // take the checked tables
+        let bindings = view.bindings().clone();
+        let modules = view.modules().clone();
+        let types = view.types().clone();
+        let statics = view.statics().clone();
+        let decorators = view.decorators().clone();
+        let resolutions = view.resolutions().clone();
+        let decisions = view.decisions().clone();
+        let generics = view.generics().clone();
+        let definitions = view.definitions().clone();
+        let coercions = view.coercions().clone();
+        let captures = view.captures().clone();
+        let flows = view.flows().clone();
         let roots = expanded.roots.clone();
         let module_node = bound.module_node;
         let namespace_scope = bound.namespace_scope;

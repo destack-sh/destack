@@ -213,12 +213,12 @@ warning[no-mutated-range-bound]: range bound is mutated after the range captures
         let session = TestSession::dir(
             &NO_MUTATED_RANGE_BOUND,
             r#"
-declare function reset(value: &exclusive int32): void;
+declare function reset(value: &int32): void;
 
 function visit(limit: int32): void {
     let end = limit;
     for (const value of 0..end) {
-        reset(&exclusive end);
+        reset(&end);
         value;
     }
 }
@@ -232,8 +232,8 @@ warning[no-mutated-range-bound]: range bound is mutated after the range captures
   │
 4 │     let end = limit;
 5 │     for (const value of 0..end) {
-6 │         reset(&exclusive end);
-  │               ^^^^^^^^^^^^^^
+6 │         reset(&end);
+  │               ^^^^
 7 │         value;
 8 │     }
   │

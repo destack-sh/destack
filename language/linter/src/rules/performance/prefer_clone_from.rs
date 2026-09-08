@@ -18,14 +18,14 @@ Instead, you SHOULD call `cloneFrom` so the destination can reuse its existing a
             reported: r#"
 import { rc } from "destack:memory";
 
-function replace(target: &exclusive rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
+function replace(target: &rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
     *target = source.clone();
 }
 "#,
             accepted: r#"
 import { rc } from "destack:memory";
 
-function replace(target: &exclusive rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
+function replace(target: &rc.Rc<int32>, source: &readonly rc.Rc<int32>): void {
     target.cloneFrom(source);
 }
 "#,
@@ -73,7 +73,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 .coercions
                 .coercion(assignment.value.into_global_any(module.id))
                 .is_some()
-            || module.place_access(assignment.target)? != Some(dir::Access::Exclusive)
+            || module.place_access(assignment.target)? != Some(dir::Access::Mutable)
         {
             continue;
         }
@@ -143,30 +143,8 @@ mod tests {
             r#"
 import { rc } from "destack:memory";
 
-function retain(value: &exclusive rc.Rc<int32>): void {
+function retain(value: &rc.Rc<int32>): void {
     *value = value.clone();
-}
-"#,
-        );
-
-        session.assert_no_diagnostics();
-    }
-
-    /// Preserve clone assignment through mutable access.
-    #[test]
-    fn test_accepts_mutable_destination() {
-        let session = TestSession::dir(
-            &PREFER_CLONE_FROM,
-            r#"
-import { rc } from "destack:memory";
-
-struct Pair {
-    left: rc.Rc<int32>;
-    right: rc.Rc<int32>;
-}
-
-function replace(pair: &Pair): void {
-    pair.left = pair.right.clone();
 }
 "#,
         );
@@ -187,7 +165,7 @@ struct Pair {
     right: rc.Rc<int32>;
 }
 
-function replace(pair: &exclusive Pair): void {
+function replace(pair: &Pair): void {
     pair.left = pair.right.clone();
 }
 "#,
@@ -202,7 +180,7 @@ struct Pair {
     right: rc.Rc<int32>;
 }
 
-function replace(pair: &exclusive Pair): void {
+function replace(pair: &Pair): void {
     pair.left.cloneFrom(pair.right);
 }
 "#,
@@ -215,7 +193,7 @@ function replace(pair: &exclusive Pair): void {
         let session = TestSession::dir(
             &PREFER_CLONE_FROM,
             r#"
-function replace(target: &exclusive int32, source: int32): void {
+function replace(target: &int32, source: int32): void {
     *target = source.clone();
 }
 "#,
@@ -233,7 +211,7 @@ function replace(target: &exclusive int32, source: int32): void {
 newtype interface Duplicate {
     clone(&readonly this): ^this;
 
-    cloneFrom(&exclusive this, source: &readonly this): void {
+    cloneFrom(&this, source: &readonly this): void {
         *this = source.clone();
     }
 }

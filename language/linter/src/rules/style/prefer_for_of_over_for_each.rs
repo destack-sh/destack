@@ -381,11 +381,11 @@ function copy(values: int32[], output: int32[]): void {
         let session = TestSession::dir(
             &PREFER_FOR_OF_OVER_FOR_EACH,
             r#"
-declare function mutate(value: &exclusive int32): void;
+declare function mutate(value: &int32): void;
 
 function increment(values: int32[], output: int32[]): void {
     values.forEach((value) => {
-        mutate(&exclusive value);
+        mutate(&value);
         output.push(value);
     });
 }
@@ -394,11 +394,11 @@ function increment(values: int32[], output: int32[]): void {
 
         session.assert_suggestions(
             r#"
-declare function mutate(value: &exclusive int32): void;
+declare function mutate(value: &int32): void;
 
 function increment(values: int32[], output: int32[]): void {
     for (let value of values) {
-        mutate(&exclusive value);
+        mutate(&value);
         output.push(value);
     }
 }
