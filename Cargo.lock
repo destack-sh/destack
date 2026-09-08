@@ -937,6 +937,7 @@ dependencies = [
  "destack_session",
  "destack_source",
  "destack_webassembly",
+ "elsa",
  "filetime",
  "futures",
  "gimli 0.33.0",
@@ -1004,6 +1005,7 @@ dependencies = [
  "destack_serde",
  "destack_source",
  "destack_unicode",
+ "elsa",
  "indexmap",
  "parking_lot",
  "rustc-hash 2.1.2",
@@ -1631,6 +1633,16 @@ name = "either"
 version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
+name = "elsa"
+version = "1.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9abf33c656a7256451ebb7d0082c5a471820c31269e49d807c538c252352186e"
+dependencies = [
+ "indexmap",
+ "stable_deref_trait",
+]
 
 [[package]]
 name = "embedded-io"

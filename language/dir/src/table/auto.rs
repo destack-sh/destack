@@ -42,8 +42,6 @@ pub enum AutoInterface {
     Integer,
     /// Integer literals, intervals, and builtin integer types.
     IntegerDomain,
-    /// Non-exclusive overwrite marker.
-    OverwriteStable,
     /// Partial ordered comparison interface.
     PartialCompare,
     /// Partial equality interface.
@@ -62,7 +60,7 @@ pub enum AutoInterface {
 
 impl AutoInterface {
     /// Every auto interface in declaration order.
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 25] = [
         Self::AtomicSafe,
         Self::SuspendSafe,
         Self::Compare,
@@ -81,7 +79,6 @@ impl AutoInterface {
         Self::Hash,
         Self::Integer,
         Self::IntegerDomain,
-        Self::OverwriteStable,
         Self::PartialCompare,
         Self::PartialEqual,
         Self::Serialize,
@@ -112,7 +109,6 @@ impl AutoInterface {
             LanguageItem::Hash => Some(Self::Hash),
             LanguageItem::Integer => Some(Self::Integer),
             LanguageItem::IntegerDomain => Some(Self::IntegerDomain),
-            LanguageItem::OverwriteStable => Some(Self::OverwriteStable),
             LanguageItem::PartialCompare => Some(Self::PartialCompare),
             LanguageItem::PartialEqual => Some(Self::PartialEqual),
             LanguageItem::Serialize => Some(Self::Serialize),
@@ -145,7 +141,6 @@ impl AutoInterface {
             Self::Hash => "Hash",
             Self::Integer => "Integer",
             Self::IntegerDomain => "IntegerDomain",
-            Self::OverwriteStable => "OverwriteStable",
             Self::PartialCompare => "PartialCompare",
             Self::PartialEqual => "PartialEqual",
             Self::Serialize => "Serialize",
@@ -164,7 +159,6 @@ impl AutoInterface {
             | Self::Concrete
             | Self::Copy
             | Self::DynamicSafe
-            | Self::OverwriteStable
             | Self::SharedSafe
             | Self::StrictEqual
             | Self::Unpin
@@ -206,7 +200,6 @@ impl AutoInterface {
             | Self::SuspendSafe
             | Self::Copy
             | Self::DynamicSafe
-            | Self::OverwriteStable
             | Self::SharedSafe
             | Self::StrictEqual
             | Self::Unpin
@@ -224,11 +217,7 @@ impl AutoInterface {
     pub fn permits_unsafe_implementation(self) -> bool {
         matches!(
             self,
-            Self::SuspendSafe
-                | Self::OverwriteStable
-                | Self::SharedSafe
-                | Self::Unpin
-                | Self::Zeroable
+            Self::SuspendSafe | Self::SharedSafe | Self::Unpin | Self::Zeroable
         )
     }
 
@@ -307,7 +296,6 @@ impl From<AutoInterface> for LanguageItem {
             AutoInterface::Hash => Self::Hash,
             AutoInterface::Integer => Self::Integer,
             AutoInterface::IntegerDomain => Self::IntegerDomain,
-            AutoInterface::OverwriteStable => Self::OverwriteStable,
             AutoInterface::PartialCompare => Self::PartialCompare,
             AutoInterface::PartialEqual => Self::PartialEqual,
             AutoInterface::Serialize => Self::Serialize,

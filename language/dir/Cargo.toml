@@ -22,10 +22,11 @@ destack_unicode = { workspace = true }
 
 # general
 dashmap = { workspace = true }
+elsa = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true }
 rustc-hash = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
+serde = { workspace = true, features = ["derive", "rc"] }
 siphasher = { workspace = true }
 serde_json = { workspace = true }
 smallvec = { workspace = true, features = ["serde"] }

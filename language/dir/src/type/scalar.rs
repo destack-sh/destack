@@ -2,7 +2,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
-use crate::{AutoInterface, GlobalSymbolId, LanguageItem};
+use crate::{AutoInterface, FloatType, GlobalSymbolId, IntegerType, LanguageItem, PrimitiveType};
 
 /// One runtime scalar family.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -149,6 +149,62 @@ pub enum ScalarDomain {
 }
 
 impl ScalarDomain {
+    /// Return the sized primitives this domain holds, none outside the machine scalars.
+    pub fn primitives(self) -> &'static [PrimitiveType] {
+        const INTEGERS: [PrimitiveType; 10] = [
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 8,
+                is_signed: true,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 8,
+                is_signed: false,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 16,
+                is_signed: true,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 16,
+                is_signed: false,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 32,
+                is_signed: true,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 32,
+                is_signed: false,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 64,
+                is_signed: true,
+            }),
+            PrimitiveType::Integer(IntegerType::Fixed {
+                width: 64,
+                is_signed: false,
+            }),
+            PrimitiveType::Integer(IntegerType::Pointer { is_signed: true }),
+            PrimitiveType::Integer(IntegerType::Pointer { is_signed: false }),
+        ];
+
+        const FLOATS: [PrimitiveType; 2] = [
+            PrimitiveType::Float(FloatType::Float32),
+            PrimitiveType::Float(FloatType::Float64),
+        ];
+
+        match self {
+            Self::Integer => &INTEGERS,
+            Self::Float => &FLOATS,
+            Self::Bigint
+            | Self::Character
+            | Self::String
+            | Self::Boolean
+            | Self::Null
+            | Self::Undefined => &[],
+        }
+    }
+
     /// Return how this domain decides one capability interface, when it decides it.
     pub fn conforms_to(self, interface: AutoInterface) -> Option<bool> {
         match interface {

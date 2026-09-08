@@ -21,8 +21,8 @@ impl BindingUse {
     pub const CAPTURE: Self = Self(1 << 2);
     /// The use mutates the binding storage.
     pub const MUTATE: Self = Self(1 << 3);
-    /// The use requires exclusive access.
-    pub const EXCLUSIVE: Self = Self(1 << 4);
+    /// The use takes mutable access to the value, in place or through a handle.
+    pub const MUTABLE: Self = Self(1 << 4);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {

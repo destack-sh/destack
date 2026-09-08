@@ -536,6 +536,14 @@ impl<'a> DecisionTable<'a> {
             .find_map(|segment| segment.narrowing(node_id))
     }
 
+    /// Return the fields every constructor of one class assigns.
+    pub fn constructor_assignments(&self, class: GlobalSymbolId) -> Option<&[GlobalSymbolId]> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.constructor_assignments(class))
+    }
+
     /// Iterate visible node decisions.
     pub fn decision_entries(&self) -> impl Iterator<Item = (GlobalNodeIdAny, &Decision)> + '_ {
         self.segments
@@ -591,6 +599,8 @@ pub struct DecisionSegment {
     places: IndexMap<GlobalNodeIdAny, PlaceResolution>,
     /// The union members flow narrowings leave live at reads, by node.
     narrowings: IndexMap<GlobalNodeIdAny, Narrowing>,
+    /// The fields every constructor of a class assigns, by class.
+    constructor_assignments: IndexMap<GlobalSymbolId, Vec<GlobalSymbolId>>,
 }
 
 impl DecisionSegment {
@@ -602,7 +612,22 @@ impl DecisionSegment {
             accesses: IndexMap::default(),
             places: IndexMap::default(),
             narrowings: IndexMap::default(),
+            constructor_assignments: IndexMap::default(),
         }
+    }
+
+    /// Record the fields every constructor of one class assigns.
+    pub fn set_constructor_assignments(
+        &mut self,
+        class: GlobalSymbolId,
+        fields: Vec<GlobalSymbolId>,
+    ) {
+        self.constructor_assignments.insert(class, fields);
+    }
+
+    /// Return the fields every constructor of one class assigns.
+    pub fn constructor_assignments(&self, class: GlobalSymbolId) -> Option<&[GlobalSymbolId]> {
+        self.constructor_assignments.get(&class).map(Vec::as_slice)
     }
 
     /// Set the decision made for a node.

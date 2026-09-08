@@ -1806,7 +1806,6 @@ define_language_items! {
             DynamicSafe => (NewtypeInterface, "memory/capability", "DynamicSafe"),
 
             /// Non-exclusive overwrite capability.
-            OverwriteStable => (NewtypeInterface, "memory/capability", "OverwriteStable"),
 
             /// Await-crossing safety capability.
             SuspendSafe => (NewtypeInterface, "memory/capability", "SuspendSafe"),

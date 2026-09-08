@@ -10,7 +10,7 @@ use crate::{
     Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey, InstanceOrigin,
     Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
-    SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
+    LocalSymbolId, SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -310,6 +310,13 @@ impl<'a> GenericTable<'a> {
             .find_map(|segment| segment.application_instance(ty))
     }
 
+    /// Return the dependents recorded for one declaration's signature.
+    pub fn symbol_dependents(&self, symbol: LocalSymbolId) -> Option<&[GlobalTypeId]> {
+        self.segments
+            .iter()
+            .find_map(|segment| segment.symbol_dependents(symbol))
+    }
+
     /// Return the allocated instance recorded behind one selection a checked decision wrote.
     pub fn selection_instance(&self, selection: &InstanceKey) -> Option<LocalInstanceId> {
         self.segments
@@ -367,6 +374,8 @@ pub struct GenericSegment {
     pub(crate) instantiations: Vec<Instantiation>,
     /// The interned instance behind each closed application type.
     pub(crate) application_instances: IndexMap<GlobalTypeId, LocalInstanceId>,
+    /// The dependents each declaration's signature writes, in signature order.
+    pub(crate) symbol_dependents: IndexMap<LocalSymbolId, Vec<GlobalTypeId>>,
     /// The allocated instance behind each selection a checked decision wrote.
     pub(crate) selection_instances: IndexMap<InstanceKey, LocalInstanceId>,
     /// The region terms each closed application substitutes for its instance's bound regions.
@@ -397,6 +406,7 @@ impl GenericSegment {
             first_instance_id: 0,
             instances: Arena::new(),
             application_instances: IndexMap::default(),
+            symbol_dependents: IndexMap::default(),
             selection_instances: IndexMap::default(),
             application_regions: IndexMap::default(),
             witnesses: IndexMap::default(),
@@ -421,6 +431,7 @@ impl GenericSegment {
             first_instance_id: base.instance_count(),
             instances: Arena::new(),
             application_instances: IndexMap::default(),
+            symbol_dependents: IndexMap::default(),
             selection_instances: IndexMap::default(),
             application_regions: IndexMap::default(),
             witnesses: IndexMap::default(),
@@ -510,16 +521,6 @@ impl GenericSegment {
         self.parameters.allocate(parameter);
 
         parameter_id
-    }
-
-    /// Record the dependents one template of this segment declares.
-    pub fn set_template_dependents(
-        &mut self,
-        template_id: LocalGenericTemplateId,
-        dependents: Vec<GlobalTypeId>,
-    ) {
-        let slot = template_id.0 - self.first_template_id;
-        self.templates.get_mut(slot).dependents = dependents;
     }
 
     /// Append a generic parameter and register it on its declaring template.
@@ -620,6 +621,7 @@ impl GenericSegment {
             && self.witnesses.is_empty()
             && self.instantiations.is_empty()
             && self.application_instances.is_empty()
+            && self.symbol_dependents.is_empty()
             && self.selection_instances.is_empty()
             && self.application_regions.is_empty()
             && self.parameter_bounds.is_empty()
@@ -683,6 +685,16 @@ impl GenericSegment {
         symbol: GlobalSymbolId,
     ) -> Option<GlobalTypeId> {
         self.instance_symbols.get(&(instance, symbol)).copied()
+    }
+
+    /// Record the dependents one declaration's signature writes.
+    pub fn set_symbol_dependents(&mut self, symbol: LocalSymbolId, dependents: Vec<GlobalTypeId>) {
+        self.symbol_dependents.insert(symbol, dependents);
+    }
+
+    /// Return the dependents recorded for one declaration's signature.
+    pub fn symbol_dependents(&self, symbol: LocalSymbolId) -> Option<&[GlobalTypeId]> {
+        self.symbol_dependents.get(&symbol).map(Vec::as_slice)
     }
 
     /// Record the interned instance behind one closed application type.
@@ -872,6 +884,11 @@ impl TypeFold for GenericSegment {
         for regions in self.application_regions.values_mut() {
             for region in regions {
                 *region = map(*region)?;
+            }
+        }
+        for dependents in self.symbol_dependents.values_mut() {
+            for dependent in dependents {
+                *dependent = map(*dependent)?;
             }
         }
 

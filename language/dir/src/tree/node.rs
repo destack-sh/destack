@@ -603,8 +603,6 @@ pub enum Mutability {
     Immutable,
     /// May be modified when the target is mutable.
     Mutable,
-    /// May be modified through exclusive access.
-    Exclusive,
 }
 
 impl Mutability {
@@ -613,7 +611,6 @@ impl Mutability {
         match self {
             Self::Immutable => Access::Readonly,
             Self::Mutable => Access::Mutable,
-            Self::Exclusive => Access::Exclusive,
         }
     }
 }

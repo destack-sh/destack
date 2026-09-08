@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit,
-    LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, StringId, TypeFold, VarianceModifier,
-    WhereRelation,
+    LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, StringId, TypeFlags, TypeFold,
+    VarianceModifier, WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -137,6 +137,14 @@ pub enum GenericParameterKind {
 }
 
 impl GenericParameterKind {
+    /// Return the flags a parameter of this kind contributes to the types mentioning it.
+    pub fn parameter_flags(self) -> TypeFlags {
+        match self {
+            Self::Memory(MemoryParameter::Region) => TypeFlags::EMPTY,
+            Self::Type | Self::Memory(_) => TypeFlags::HAS_TYPE_PARAMETER,
+        }
+    }
+
     /// Classify one declared parameter by its declaration and the memory domain its constraint names.
     pub fn declared(parameter: &GenericParameter, constraint: Option<LanguageItem>) -> Self {
         match parameter {
@@ -218,8 +226,6 @@ pub struct GenericTemplate {
     pub parameters: Vec<LocalGenericParameterId>,
     /// The where-clause predicates declared on this template.
     pub predicates: Vec<WherePredicate>,
-    /// The types the signature writes over its parameters that only close at an instance.
-    pub dependents: Vec<GlobalTypeId>,
 }
 
 impl GenericTemplate {
@@ -235,7 +241,6 @@ impl GenericTemplate {
             symbol,
             parameters: Vec::new(),
             predicates: Vec::new(),
-            dependents: Vec::new(),
         }
     }
 }
@@ -247,9 +252,6 @@ impl TypeFold for GenericTemplate {
     ) -> Result<(), E> {
         for predicate in &mut self.predicates {
             predicate.map_types(map)?;
-        }
-        for dependent in &mut self.dependents {
-            *dependent = map(*dependent)?;
         }
 
         Ok(())

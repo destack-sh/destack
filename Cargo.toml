@@ -206,6 +206,7 @@ sha1 = "0.10.6"
 crossbeam-channel = "0.5.15"
 crossbeam-deque = "0.8.6"
 dashmap = "6.1.0"
+elsa = { version = "1.11.2", features = ["indexmap"] }
 filetime = "0.2.26"
 fs2 = "0.4.3"
 indexmap = "2.13.0"

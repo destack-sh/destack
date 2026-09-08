@@ -10,6 +10,7 @@ use smallvec::SmallVec;
 
 use destack_core::{Arena, PoolId, StringId, ValueInterner, ValuePool};
 use destack_source::ModuleId;
+use elsa::sync::FrozenVec;
 
 use crate::{
     BorrowForm, BorrowFormId, Form, FunctionParameterType, FunctionSignatureId,
@@ -25,6 +26,8 @@ pub struct TypeTable<'a> {
     pub module_id: ModuleId,
     /// The ordered type table segments.
     segments: SegmentView<'a, TypeSegment>,
+    /// The lists an open tail interned, read ahead of the segments.
+    lists: Option<&'a TypeListArena>,
 }
 
 impl TypeTable<'static> {
@@ -36,6 +39,13 @@ impl TypeTable<'static> {
     /// Create a type table from one segment.
     pub fn from_segment(segment: Arc<TypeSegment>) -> Self {
         Self::from_segments(vec![segment])
+    }
+}
+
+impl TypeTable<'_> {
+    /// Return the committed segments in stage order.
+    pub fn segments(&self) -> &[Arc<TypeSegment>] {
+        self.segments.committed()
     }
 }
 
@@ -64,12 +74,16 @@ impl<'a> TypeTable<'a> {
         Self {
             module_id,
             segments,
+            lists: None,
         }
     }
 
-    /// Create a type table by appending a borrowed tail segment.
-    pub fn with_tail<'b>(&'b self, tail: &'b TypeSegment) -> TypeTable<'b> {
-        TypeTable::from_view(self.segments.with_tail(tail))
+    /// Create a type table by appending a borrowed tail.
+    pub fn with_tail<'b>(&'b self, tail: &'b TypeTail<'_>) -> TypeTable<'b> {
+        let mut table = TypeTable::from_view(self.segments.with_tail(&tail.segment));
+        table.lists = Some(tail.lists);
+
+        table
     }
 
     /// Iterate effective checked types keyed by DIR node.
@@ -253,32 +267,44 @@ impl<'a> TypeTable<'a> {
 
     /// Get one type id list.
     pub fn type_ids(&self, list: TypeListId) -> &[GlobalTypeId] {
-        self.slice(list, |segment| &segment.type_ids)
+        self.slice(list, |segment| &segment.type_ids, |lists| &lists.type_ids)
     }
 
     /// Get one tuple element list.
     pub fn elements(&self, list: TypeListId) -> &[TypeElement] {
-        self.slice(list, |segment| &segment.elements)
+        self.slice(list, |segment| &segment.elements, |lists| &lists.elements)
     }
 
     /// Get one shape property list.
     pub fn properties(&self, list: TypeListId) -> &[TypeProperty] {
-        self.slice(list, |segment| &segment.properties)
+        self.slice(
+            list,
+            |segment| &segment.properties,
+            |lists| &lists.properties,
+        )
     }
 
     /// Get one function parameter list.
     pub fn parameters(&self, list: TypeListId) -> &[FunctionParameterType] {
-        self.slice(list, |segment| &segment.parameters)
+        self.slice(
+            list,
+            |segment| &segment.parameters,
+            |lists| &lists.parameters,
+        )
     }
 
     /// Get one index signature list.
     pub fn index_signatures(&self, list: TypeListId) -> &[TypeIndexSignature] {
-        self.slice(list, |segment| &segment.index_signatures)
+        self.slice(
+            list,
+            |segment| &segment.index_signatures,
+            |lists| &lists.index_signatures,
+        )
     }
 
     /// Get one string list.
     pub fn strings(&self, list: TypeListId) -> &[StringId] {
-        self.slice(list, |segment| &segment.strings)
+        self.slice(list, |segment| &segment.strings, |lists| &lists.strings)
     }
 
     /// Visit each direct child type id of one type owned by this module.
@@ -512,12 +538,20 @@ impl<'a> TypeTable<'a> {
     }
 
     /// Resolve one list inside its owning segment.
-    fn slice<T>(&self, list: TypeListId, pool: impl Fn(&TypeSegment) -> &ListPool<T>) -> &[T] {
+    fn slice<T>(
+        &self,
+        list: TypeListId,
+        pool: impl Fn(&TypeSegment) -> &ListPool<T>,
+        arena: impl Fn(&TypeListArena) -> &ListArena<T>,
+    ) -> &[T] {
         if list.is_empty() {
             return &[];
         }
 
-        // search the segments from the newest backward
+        // read the open tail's lists, then the segments from the newest backward
+        if let Some(slice) = self.lists.and_then(|lists| arena(lists).get_maybe(list)) {
+            return slice;
+        }
         for segment in self.segments.iter().rev() {
             if let Some(slice) = pool(segment).get_maybe(list) {
                 return slice;
@@ -671,12 +705,12 @@ impl TypeSegment {
             first_type_id: base.type_count(),
             types: Arena::new(),
             flags: Arena::new(),
-            type_ids: ListPool::new(base.type_ids.element_count()),
-            elements: ListPool::new(base.elements.element_count()),
-            properties: ListPool::new(base.properties.element_count()),
-            parameters: ListPool::new(base.parameters.element_count()),
-            index_signatures: ListPool::new(base.index_signatures.element_count()),
-            strings: ListPool::new(base.strings.element_count()),
+            type_ids: ListPool::new(base.type_ids.list_count()),
+            elements: ListPool::new(base.elements.list_count()),
+            properties: ListPool::new(base.properties.list_count()),
+            parameters: ListPool::new(base.parameters.list_count()),
+            index_signatures: ListPool::new(base.index_signatures.list_count()),
+            strings: ListPool::new(base.strings.list_count()),
             operations: ValuePool::new(base.operations.count()),
             signatures: ValuePool::new(base.signatures.count()),
             members: ValuePool::new(base.members.count()),
@@ -890,22 +924,19 @@ impl TypeSegment {
     }
 }
 
-/// Interned lists of one type payload kind.
+/// Interned lists of one type payload kind, each list its own allocation.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub(crate) struct ListPool<T> {
-    /// The first element owned by this segment.
+    /// The index of the first list owned by this segment.
     first: u32,
-    /// The stored list elements.
-    elements: Arena<T>,
-    /// The lists allocated in this segment, in order.
-    lists: Vec<TypeListId>,
+    /// The lists in allocation order.
+    lists: Vec<Vec<T>>,
 }
 
 impl<T: Hash> Hash for ListPool<T> {
-    /// Hash the pool's elements and list spans behind the base offset.
+    /// Hash the lists behind the base index.
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.first.hash(state);
-        self.elements.hash(state);
         self.lists.hash(state);
     }
 }
@@ -922,19 +953,20 @@ pub(crate) struct ListInterner {
 }
 
 impl<T> ListPool<T> {
-    /// Create empty list storage starting at one cumulative offset.
+    /// Create empty list storage starting at one cumulative list index.
     fn new(first: u32) -> Self {
         Self {
             first,
-            elements: Arena::new(),
             lists: Vec::new(),
         }
     }
 
-    /// Get one owned list.
-    fn get(&self, list: TypeListId) -> &[T] {
-        self.get_maybe(list)
-            .unwrap_or_else(|| panic!("DIR type list {list:?} is not allocated in this segment"))
+    /// Create list storage taking the lists one arena interned.
+    fn from_arena(arena: ListArena<T>) -> Self {
+        Self {
+            first: arena.first,
+            lists: arena.lists.into_vec(),
+        }
     }
 
     /// Get one owned list when present.
@@ -942,27 +974,119 @@ impl<T> ListPool<T> {
         if list.is_empty() {
             return Some(&[]);
         }
+        let position = list.index.checked_sub(self.first)? as usize;
 
-        let start = list.start.checked_sub(self.first)? as usize;
-        let end = start + list.count as usize;
-
-        self.elements.as_slice().get(start..end)
+        self.lists
+            .get(position)
+            .filter(|values| values.len() == list.count as usize)
+            .map(Vec::as_slice)
     }
 
-    /// Return the cumulative element count.
-    fn element_count(&self) -> u32 {
-        self.first + self.elements.len() as u32
+    /// Return the cumulative list count.
+    fn list_count(&self) -> u32 {
+        self.first + self.lists.len() as u32
     }
 }
 
-impl<T: Copy> ListPool<T> {
-    /// Allocate one list at the pool tail.
-    fn allocate_list(&mut self, values: &[T]) -> TypeListId {
-        let list = TypeListId::new(self.element_count(), values.len() as u32);
-        for value in values {
-            self.elements.allocate(*value);
+/// The lists one pass interns, appended through shared references and read past later appends.
+pub struct TypeListArena {
+    /// The type id lists.
+    type_ids: ListArena<GlobalTypeId>,
+    /// The tuple element lists.
+    elements: ListArena<TypeElement>,
+    /// The shape property lists.
+    properties: ListArena<TypeProperty>,
+    /// The function parameter lists.
+    parameters: ListArena<FunctionParameterType>,
+    /// The index signature lists.
+    index_signatures: ListArena<TypeIndexSignature>,
+    /// The string lists.
+    strings: ListArena<StringId>,
+}
+
+impl std::fmt::Debug for TypeListArena {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TypeListArena").finish_non_exhaustive()
+    }
+}
+
+impl TypeListArena {
+    /// Create the arena continuing one segment's pools.
+    pub fn following(base: &TypeSegment) -> Self {
+        Self {
+            type_ids: ListArena::new(base.type_ids.list_count()),
+            elements: ListArena::new(base.elements.list_count()),
+            properties: ListArena::new(base.properties.list_count()),
+            parameters: ListArena::new(base.parameters.list_count()),
+            index_signatures: ListArena::new(base.index_signatures.list_count()),
+            strings: ListArena::new(base.strings.list_count()),
         }
-        self.lists.push(list);
+    }
+
+    /// Move the interned lists into the segment the pass finished.
+    pub fn finish_into(self, segment: &mut TypeSegment) {
+        segment.type_ids = ListPool::from_arena(self.type_ids);
+        segment.elements = ListPool::from_arena(self.elements);
+        segment.properties = ListPool::from_arena(self.properties);
+        segment.parameters = ListPool::from_arena(self.parameters);
+        segment.index_signatures = ListPool::from_arena(self.index_signatures);
+        segment.strings = ListPool::from_arena(self.strings);
+    }
+
+    /// Create the arena of a module without committed lists.
+    pub fn new() -> Self {
+        Self {
+            type_ids: ListArena::new(0),
+            elements: ListArena::new(0),
+            properties: ListArena::new(0),
+            parameters: ListArena::new(0),
+            index_signatures: ListArena::new(0),
+            strings: ListArena::new(0),
+        }
+    }
+}
+
+impl Default for TypeListArena {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// One kind's lists, each stored at its cumulative index.
+struct ListArena<T> {
+    /// The index of the first list this arena allocates.
+    first: u32,
+    /// The lists in allocation order.
+    lists: FrozenVec<Vec<T>>,
+}
+
+impl<T> ListArena<T> {
+    /// Create empty storage starting at one cumulative list index.
+    fn new(first: u32) -> Self {
+        Self {
+            first,
+            lists: FrozenVec::new(),
+        }
+    }
+
+    /// Get one list when this arena holds it.
+    fn get_maybe(&self, list: TypeListId) -> Option<&[T]> {
+        if list.is_empty() {
+            return Some(&[]);
+        }
+        let position = list.index.checked_sub(self.first)? as usize;
+
+        self.lists
+            .get(position)
+            .filter(|values| values.len() == list.count as usize)
+    }
+}
+
+impl<T: Copy> ListArena<T> {
+    /// Allocate one list at the arena tail.
+    fn allocate_list(&self, values: &[T]) -> TypeListId {
+        let list = TypeListId::new(self.first + self.lists.len() as u32, values.len() as u32);
+        self.lists.push(values.to_vec());
 
         list
     }
@@ -971,16 +1095,17 @@ impl<T: Copy> ListPool<T> {
 impl ListInterner {
     /// Seed the committed index from one committed segment's pool.
     fn seed<T: Copy + Eq + Hash>(&mut self, pool: &ListPool<T>) {
-        for list in &pool.lists {
-            let hash = fx_hash(&pool.get(*list));
-            self.committed.entry(hash).or_default().push(*list);
+        for (position, values) in pool.lists.iter().enumerate() {
+            let list = TypeListId::new(pool.first + position as u32, values.len() as u32);
+            let hash = fx_hash(&values.as_slice());
+            self.committed.entry(hash).or_default().push(list);
         }
     }
 
     /// Intern one list into the pool, reusing committed content.
     fn intern<T: Copy + Eq + Hash>(
         &mut self,
-        pool: &mut ListPool<T>,
+        arena: &ListArena<T>,
         committed_holds: impl Fn(TypeListId, &[T]) -> bool,
         values: &[T],
     ) -> TypeListId {
@@ -1002,14 +1127,14 @@ impl ListInterner {
         // probe the index for an existing content hit
         if let Some(lists) = self.index.get(&hash) {
             for list in lists {
-                if pool.get(*list) == values {
+                if arena.get_maybe(*list) == Some(values) {
                     return *list;
                 }
             }
         }
 
         // append and index the new list
-        let list = pool.allocate_list(values);
+        let list = arena.allocate_list(values);
         self.index.entry(hash).or_default().push(list);
         self.log.push((hash, list));
 
@@ -1027,9 +1152,11 @@ fn fx_hash(value: &impl Hash) -> u64 {
 
 /// One growing type segment interning over committed bases.
 #[derive(Debug, Clone)]
-pub struct TypeTail {
+pub struct TypeTail<'a> {
     /// The entries built by this pass.
     segment: TypeSegment,
+    /// The lists this pass interns, owned past the pass by the frame running it.
+    lists: &'a TypeListArena,
     /// The intern index from value hash to owned type slots.
     index: FxHashMap<u64, SmallVec<[LocalTypeId; 1]>>,
     /// The value hash per owned type, parallel to the segment's types.
@@ -1063,7 +1190,7 @@ pub struct TypeTail {
     borrows: ValueInterner<BorrowFormId>,
 }
 
-impl std::ops::Deref for TypeTail {
+impl std::ops::Deref for TypeTail<'_> {
     type Target = TypeSegment;
 
     fn deref(&self) -> &TypeSegment {
@@ -1071,34 +1198,34 @@ impl std::ops::Deref for TypeTail {
     }
 }
 
-impl std::ops::DerefMut for TypeTail {
+impl std::ops::DerefMut for TypeTail<'_> {
     fn deref_mut(&mut self) -> &mut TypeSegment {
         &mut self.segment
     }
 }
 
-impl TypeTail {
+impl<'a> TypeTail<'a> {
     /// Create an empty tail over one fresh module segment.
-    pub fn new(module_id: ModuleId) -> Self {
-        Self::wrap(TypeSegment::new(module_id), Vec::new())
+    pub fn new(module_id: ModuleId, lists: &'a TypeListArena) -> Self {
+        Self::wrap(TypeSegment::new(module_id), Vec::new(), lists)
     }
 
     /// Create an empty tail continuing one open base segment.
-    pub fn from_base(base: &TypeSegment) -> Self {
-        Self::wrap(TypeSegment::from_base(base), Vec::new())
+    pub fn from_base(base: &TypeSegment, lists: &'a TypeListArena) -> Self {
+        Self::wrap(TypeSegment::from_base(base), Vec::new(), lists)
     }
 
     /// Create an empty tail whose interning reuses one committed segment's types.
-    pub fn over_base(base: Arc<TypeSegment>) -> Self {
-        Self::over(vec![base])
+    pub fn over_base(base: Arc<TypeSegment>, lists: &'a TypeListArena) -> Self {
+        Self::over(vec![base], lists)
     }
 
     /// Create an empty tail whose interning reuses stacked committed segments' types.
-    pub fn over(bases: Vec<Arc<TypeSegment>>) -> Self {
+    pub fn over(bases: Vec<Arc<TypeSegment>>, lists: &'a TypeListArena) -> Self {
         let last = bases
             .last()
             .expect("committed tail requires at least one base");
-        let mut tail = Self::wrap(TypeSegment::from_base(last), bases);
+        let mut tail = Self::wrap(TypeSegment::from_base(last), bases, lists);
 
         // index the committed types so identical structures reuse their ids
         for base in &tail.committed {
@@ -1129,9 +1256,39 @@ impl TypeTail {
         tail
     }
 
-    /// Finish this tail into its pure entry segment.
+    /// Finish this tail into its pure entry segment, the frame moving the interned lists in.
     pub fn finish(self) -> TypeSegment {
         self.segment
+    }
+
+    /// Get one type id list this pass interned, read past later interns.
+    pub fn type_ids_maybe(&self, list: TypeListId) -> Option<&'a [GlobalTypeId]> {
+        self.lists.type_ids.get_maybe(list)
+    }
+
+    /// Get one tuple element list this pass interned, read past later interns.
+    pub fn elements_maybe(&self, list: TypeListId) -> Option<&'a [TypeElement]> {
+        self.lists.elements.get_maybe(list)
+    }
+
+    /// Get one shape property list this pass interned, read past later interns.
+    pub fn properties_maybe(&self, list: TypeListId) -> Option<&'a [TypeProperty]> {
+        self.lists.properties.get_maybe(list)
+    }
+
+    /// Get one function parameter list this pass interned, read past later interns.
+    pub fn parameters_maybe(&self, list: TypeListId) -> Option<&'a [FunctionParameterType]> {
+        self.lists.parameters.get_maybe(list)
+    }
+
+    /// Get one index signature list this pass interned, read past later interns.
+    pub fn index_signatures_maybe(&self, list: TypeListId) -> Option<&'a [TypeIndexSignature]> {
+        self.lists.index_signatures.get_maybe(list)
+    }
+
+    /// Get one string list this pass interned, read past later interns.
+    pub fn strings_maybe(&self, list: TypeListId) -> Option<&'a [StringId]> {
+        self.lists.strings.get_maybe(list)
     }
 
     /// Record one symbol's type in this tail.
@@ -1145,9 +1302,15 @@ impl TypeTail {
     }
 
     /// Wrap one segment with empty intern bookkeeping.
-    fn wrap(segment: TypeSegment, committed: Vec<Arc<TypeSegment>>) -> Self {
+    fn wrap(
+        segment: TypeSegment,
+        committed: Vec<Arc<TypeSegment>>,
+        lists: &'a TypeListArena,
+    ) -> Self {
+        debug_assert_eq!(lists.type_ids.first, segment.type_ids.first);
         Self {
             segment,
+            lists,
             index: FxHashMap::default(),
             hashes: Vec::new(),
             committed,
@@ -1264,7 +1427,7 @@ impl TypeTail {
     pub fn intern_type_ids(&mut self, values: &[GlobalTypeId]) -> TypeListId {
         intern_list(
             &mut self.type_ids,
-            &mut self.segment.type_ids,
+            &self.lists.type_ids,
             &self.committed,
             |base| &base.type_ids,
             values,
@@ -1275,7 +1438,7 @@ impl TypeTail {
     pub fn intern_elements(&mut self, values: &[TypeElement]) -> TypeListId {
         intern_list(
             &mut self.elements,
-            &mut self.segment.elements,
+            &self.lists.elements,
             &self.committed,
             |base| &base.elements,
             values,
@@ -1286,7 +1449,7 @@ impl TypeTail {
     pub fn intern_properties(&mut self, values: &[TypeProperty]) -> TypeListId {
         intern_list(
             &mut self.properties,
-            &mut self.segment.properties,
+            &self.lists.properties,
             &self.committed,
             |base| &base.properties,
             values,
@@ -1297,7 +1460,7 @@ impl TypeTail {
     pub fn intern_parameters(&mut self, values: &[FunctionParameterType]) -> TypeListId {
         intern_list(
             &mut self.parameters,
-            &mut self.segment.parameters,
+            &self.lists.parameters,
             &self.committed,
             |base| &base.parameters,
             values,
@@ -1308,7 +1471,7 @@ impl TypeTail {
     pub fn intern_index_signatures(&mut self, values: &[TypeIndexSignature]) -> TypeListId {
         intern_list(
             &mut self.index_signatures,
-            &mut self.segment.index_signatures,
+            &self.lists.index_signatures,
             &self.committed,
             |base| &base.index_signatures,
             values,
@@ -1319,7 +1482,7 @@ impl TypeTail {
     pub fn intern_strings(&mut self, values: &[StringId]) -> TypeListId {
         intern_list(
             &mut self.strings,
-            &mut self.segment.strings,
+            &self.lists.strings,
             &self.committed,
             |base| &base.strings,
             values,
@@ -1330,13 +1493,13 @@ impl TypeTail {
 /// Intern one list into a kind's pool, reusing content the committed segments already hold.
 fn intern_list<T: Copy + Eq + Hash>(
     interner: &mut ListInterner,
-    pool: &mut ListPool<T>,
+    arena: &ListArena<T>,
     committed: &[Arc<TypeSegment>],
     select: impl Fn(&TypeSegment) -> &ListPool<T>,
     values: &[T],
 ) -> TypeListId {
     interner.intern(
-        pool,
+        arena,
         |list, values| {
             committed
                 .iter()

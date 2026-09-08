@@ -60,13 +60,15 @@ impl<'a> DefinitionTable<'a> {
 
     /// Return one definition by symbol.
     pub fn definition(&self, symbol: GlobalSymbolId) -> Option<&Definition> {
-        for segment in self.segments.iter().rev() {
-            if let Some(definition) = segment.definition(symbol) {
-                return Some(definition);
-            }
-        }
+        self.definition_handle(symbol).map(Arc::as_ref)
+    }
 
-        None
+    /// Return one definition's shared handle by symbol.
+    pub fn definition_handle(&self, symbol: GlobalSymbolId) -> Option<&Arc<Definition>> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.definition_handle(symbol))
     }
 
     /// Return the source declaration node for one definition.
@@ -170,24 +172,6 @@ impl<'a> DefinitionTable<'a> {
         None
     }
 
-    /// Iterate checked member conformances in definition order.
-    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
-        self.iter_definitions()
-            .flat_map(|(_, definition)| definition.member_conformances())
-    }
-
-    /// Iterate checked override selections as overriding member and inherited base.
-    pub fn member_overrides(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
-        self.iter_definitions()
-            .flat_map(|(_, definition)| definition.member_overrides())
-    }
-
-    /// Iterate member implementation edges.
-    pub fn member_implementations(&self) -> impl Iterator<Item = ImplementationEdge> + '_ {
-        self.iter_definitions()
-            .flat_map(|(_, definition)| definition.member_implementations())
-    }
-
     /// Return true when this table has no definitions.
     pub fn is_empty(&self) -> bool {
         self.segments.iter().all(|segment| segment.is_empty())
@@ -202,7 +186,7 @@ pub struct DefinitionSegment {
     /// Source declaration nodes keyed by declaring symbol.
     pub(crate) sources: IndexMap<GlobalSymbolId, GlobalNodeIdAny>,
     /// Definitions keyed by declaring symbol.
-    pub(crate) definitions: IndexMap<GlobalSymbolId, Definition>,
+    pub(crate) definitions: IndexMap<GlobalSymbolId, Arc<Definition>>,
     /// Declaring definition symbols keyed by member symbol.
     pub(crate) definitions_by_member: IndexMap<GlobalSymbolId, GlobalSymbolId>,
     /// Extension symbols by target root.
@@ -283,7 +267,7 @@ impl DefinitionSegment {
 
         // retain the definition and its source
         self.sources.insert(symbol, source);
-        self.definitions.insert(symbol, definition);
+        self.definitions.insert(symbol, Arc::new(definition));
     }
 
     /// Return the source declaration node for one definition when present.
@@ -301,12 +285,12 @@ impl DefinitionSegment {
 
     /// Return one definition by symbol.
     pub fn definition(&self, symbol: GlobalSymbolId) -> Option<&Definition> {
-        self.definitions.get(&symbol)
+        self.definitions.get(&symbol).map(Arc::as_ref)
     }
 
-    /// Return one definition for in-place mutation.
-    pub fn definition_mut(&mut self, symbol: GlobalSymbolId) -> Option<&mut Definition> {
-        self.definitions.get_mut(&symbol)
+    /// Return one definition's shared handle by symbol.
+    pub fn definition_handle(&self, symbol: GlobalSymbolId) -> Option<&Arc<Definition>> {
+        self.definitions.get(&symbol)
     }
 
     /// Return the symbol of the definition declaring one member.
@@ -331,25 +315,12 @@ impl DefinitionSegment {
     pub fn iter_definitions(&self) -> impl Iterator<Item = (GlobalSymbolId, &Definition)> + '_ {
         self.definitions
             .iter()
-            .map(|(symbol, definition)| (*symbol, definition))
+            .map(|(symbol, definition)| (*symbol, definition.as_ref()))
     }
 
     /// Return true when this segment has no definitions.
     pub fn is_empty(&self) -> bool {
         self.definitions.is_empty()
-    }
-}
-
-impl TypeFold for DefinitionSegment {
-    fn map_types<E>(
-        &mut self,
-        map: &mut impl FnMut(GlobalTypeId) -> Result<GlobalTypeId, E>,
-    ) -> Result<(), E> {
-        for definition in self.definitions.values_mut() {
-            definition.map_types(map)?;
-        }
-
-        Ok(())
     }
 }
 
@@ -370,15 +341,6 @@ pub enum Definition {
     Newtype(NewtypeDefinition),
     /// Extension declaration.
     Extension(ExtensionDefinition),
-}
-
-/// One exact member implementation edge.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub struct ImplementationEdge {
-    /// The declared member requirement.
-    pub declaration: GlobalSymbolId,
-    /// The member satisfying the declaration.
-    pub implementation: GlobalSymbolId,
 }
 
 impl Definition {
@@ -404,12 +366,7 @@ impl Definition {
                     .count()
                     == 1
             }
-            (
-                Self::Enum(_),
-                RepresentationKind::Destack
-                | RepresentationKind::C
-                | RepresentationKind::Integer(_),
-            ) => true,
+            (Self::Enum(_), RepresentationKind::Destack | RepresentationKind::C) => true,
             (
                 Self::Newtype(_),
                 RepresentationKind::Destack
@@ -419,7 +376,7 @@ impl Definition {
             (Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_), _)
             | (Self::Struct(_), RepresentationKind::Integer(_))
             | (Self::Class(_), RepresentationKind::Transparent | RepresentationKind::Integer(_))
-            | (Self::Enum(_), RepresentationKind::Transparent)
+            | (Self::Enum(_), RepresentationKind::Transparent | RepresentationKind::Integer(_))
             | (Self::Newtype(_), RepresentationKind::Integer(_)) => false,
         }
     }
@@ -434,20 +391,6 @@ impl Definition {
             Self::Newtype(definition) => definition.space,
             Self::TypeAlias(_) | Self::Extension(_) => None,
         }
-    }
-
-    /// Set the effective space of this nominal declaration.
-    pub fn set_space(&mut self, space: Space) -> bool {
-        match self {
-            Self::Struct(definition) => definition.space = Some(space),
-            Self::Class(definition) => definition.space = Some(space),
-            Self::Interface(definition) => definition.space = Some(space),
-            Self::Enum(definition) => definition.space = Some(space),
-            Self::Newtype(definition) => definition.space = Some(space),
-            Self::TypeAlias(_) | Self::Extension(_) => return false,
-        }
-
-        true
     }
 
     /// Return whether this definition has nominal identity.
@@ -489,16 +432,12 @@ pub struct StructDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the struct.
     pub template: Option<LocalGenericTemplateId>,
-    /// The selected runtime representation.
-    pub representation: Representation,
     /// The implemented interfaces.
     pub implements: Vec<NominalConformance>,
     /// The written derive list replacing the auto set, if any.
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// Whether values copy when every parameter does.
-    pub copies: bool,
 }
 
 /// Checked declaration data for one nominal class.
@@ -508,8 +447,6 @@ pub struct ClassDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the class.
     pub template: Option<LocalGenericTemplateId>,
-    /// The selected runtime representation.
-    pub representation: Representation,
     /// Whether the class is abstract.
     pub is_abstract: bool,
     /// Whether the class rejects subclasses.
@@ -524,8 +461,6 @@ pub struct ClassDefinition {
     pub constructors: Vec<ClassConstructorDefinition>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// Whether values copy when every parameter does.
-    pub copies: bool,
 }
 
 impl ClassDefinition {
@@ -627,8 +562,6 @@ pub struct EnumDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the enum.
     pub template: Option<LocalGenericTemplateId>,
-    /// The selected runtime representation.
-    pub representation: Representation,
     /// The scalar type backing every enum variant.
     pub backing: EnumBackingType,
     /// The implemented interfaces.
@@ -637,8 +570,6 @@ pub struct EnumDefinition {
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// Whether values copy when every parameter does.
-    pub copies: bool,
 }
 
 /// Checked declaration data for one nominal type alias.
@@ -648,29 +579,14 @@ pub struct NewtypeDefinition {
     pub space: Option<Space>,
     /// The generic template declared by the newtype.
     pub template: Option<LocalGenericTemplateId>,
-    /// The selected runtime representation.
-    pub representation: Representation,
     /// The nominal backing type.
     pub backing: GlobalTypeId,
     /// The backing visibility, gating construction and unwrapping outside the module.
     pub backing_visibility: Visibility,
-    /// The constructable backing alternatives in selection order.
-    pub constructors: Vec<NewtypeConstructor>,
     /// The written derive list replacing the auto set, if any.
     pub derives: Option<Vec<AutoInterface>>,
     /// The members in declaration order.
     pub members: Vec<DefinitionMember>,
-    /// Whether values copy when every parameter does.
-    pub copies: bool,
-}
-
-/// One constructable newtype backing alternative.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct NewtypeConstructor {
-    /// The reduced backing alternative selected by this constructor.
-    pub backing: GlobalTypeId,
-    /// The callable constructor type.
-    pub ty: GlobalTypeId,
 }
 
 /// How an extension declaration relates to its target type.
@@ -842,17 +758,6 @@ pub struct NominalConformance {
     pub source: GlobalNodeIdAny,
     /// The applied interface type.
     pub interface: GlobalTypeId,
-    /// The members selected to satisfy interface requirements.
-    pub members: Vec<MemberConformance>,
-}
-
-/// One member satisfying an interface requirement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
-pub struct MemberConformance {
-    /// The implementing member symbol.
-    pub member: GlobalSymbolId,
-    /// The required interface member symbol.
-    pub requirement: GlobalSymbolId,
 }
 
 /// One field member.
@@ -880,8 +785,6 @@ pub struct FieldDefinition {
     pub is_abstract: bool,
     /// Whether the field overrides an inherited member.
     pub is_override: bool,
-    /// The overridden base member, selected while checking.
-    pub overrides: Option<GlobalSymbolId>,
 }
 
 /// One method member.
@@ -903,8 +806,6 @@ pub struct MethodDefinition {
     pub abstraction: MethodAbstraction,
     /// Whether the method overrides an inherited member.
     pub is_override: bool,
-    /// The overridden base member, selected while checking.
-    pub overrides: Option<GlobalSymbolId>,
     /// How the method receives its implementation.
     pub implementation: MemberImplementation,
 }
@@ -1110,20 +1011,6 @@ impl DefinitionMember {
         }
     }
 
-    /// Return the inherited member this member was checked to override.
-    pub fn overrides(&self) -> Option<GlobalSymbolId> {
-        match self {
-            Self::Field(field) => field.overrides,
-            Self::Method(method) => method.overrides,
-            Self::AssociatedType(_)
-            | Self::AssociatedConst(_)
-            | Self::EnumVariant(_)
-            | Self::CallSignature(_)
-            | Self::ConstructSignature(_)
-            | Self::IndexSignature(_) => None,
-        }
-    }
-
     /// Return the member key when the member is keyed.
     pub fn key(&self) -> Option<StaticKey> {
         match self {
@@ -1262,28 +1149,6 @@ impl Definition {
         }
     }
 
-    /// Return whether values copy when every parameter does, false outside nominals.
-    pub fn copies(&self) -> bool {
-        match self {
-            Self::Struct(definition) => definition.copies,
-            Self::Class(definition) => definition.copies,
-            Self::Enum(definition) => definition.copies,
-            Self::Newtype(definition) => definition.copies,
-            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => false,
-        }
-    }
-
-    /// Replace the copy policy of one nominal.
-    pub fn set_copies(&mut self, copies: bool) {
-        match self {
-            Self::Struct(definition) => definition.copies = copies,
-            Self::Class(definition) => definition.copies = copies,
-            Self::Enum(definition) => definition.copies = copies,
-            Self::Newtype(definition) => definition.copies = copies,
-            Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_) => {}
-        }
-    }
-
     /// Return the implemented interfaces.
     pub fn implementations(&self) -> &[NominalConformance] {
         match self {
@@ -1293,60 +1158,6 @@ impl Definition {
             Self::Extension(definition) => &definition.implements,
             Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => &[],
         }
-    }
-
-    /// Return the implemented interfaces for in-place mutation.
-    pub fn implementations_mut(&mut self) -> Option<&mut [NominalConformance]> {
-        match self {
-            Self::Struct(definition) => Some(&mut definition.implements),
-            Self::Class(definition) => Some(&mut definition.implements),
-            Self::Enum(definition) => Some(&mut definition.implements),
-            Self::Extension(definition) => Some(&mut definition.implements),
-            Self::TypeAlias(_) | Self::Interface(_) | Self::Newtype(_) => None,
-        }
-    }
-
-    /// Iterate selected interface member conformances.
-    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
-        self.implementations()
-            .iter()
-            .flat_map(|conformance| &conformance.members)
-    }
-
-    /// Iterate selected member overrides.
-    pub fn member_overrides(&self) -> impl Iterator<Item = (GlobalSymbolId, GlobalSymbolId)> + '_ {
-        self.members()
-            .iter()
-            .filter_map(|member| Some((member.symbol()?, member.overrides()?)))
-    }
-
-    /// Iterate selected member implementation edges.
-    pub fn member_implementations(&self) -> impl Iterator<Item = ImplementationEdge> + '_ {
-        let conformances = self
-            .member_conformances()
-            .map(|conformance| ImplementationEdge {
-                declaration: conformance.requirement,
-                implementation: conformance.member,
-            });
-        let overrides = self
-            .member_overrides()
-            .map(|(implementation, declaration)| ImplementationEdge {
-                declaration,
-                implementation,
-            });
-
-        conformances.chain(overrides)
-    }
-
-    /// Iterate declarations satisfied by one member symbol.
-    pub fn member_declarations(
-        &self,
-        symbol: GlobalSymbolId,
-    ) -> impl Iterator<Item = GlobalSymbolId> + '_ {
-        self.member_implementations()
-            .filter_map(move |implementation| {
-                (implementation.implementation == symbol).then_some(implementation.declaration)
-            })
     }
 
     /// Return the method member symbol declared at one source node.

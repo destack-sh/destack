@@ -51,6 +51,11 @@ impl<'a, T> SegmentView<'a, T> {
         }
     }
 
+    /// Return the committed segments in phase order.
+    pub fn committed(&self) -> &[Arc<T>] {
+        self.base.as_slice()
+    }
+
     /// Iterate segments in phase order.
     pub fn iter(&self) -> SegmentIter<'_, T> {
         SegmentIter {

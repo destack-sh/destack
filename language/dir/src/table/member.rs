@@ -86,6 +86,48 @@ impl<'a> MemberTable<'a> {
             .find_map(|segment| segment.membership(&subject))
     }
 
+    /// Return the members selected to satisfy one `implements` clause.
+    pub fn conformance_members(&self, source: GlobalNodeIdAny) -> Option<&[MemberConformance]> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.conformance_members(source))
+    }
+
+    /// Iterate every selected member conformance.
+    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
+        self.segments
+            .iter()
+            .flat_map(|segment| segment.member_conformances())
+    }
+
+    /// Return the constructable backing alternatives derived for one newtype.
+    pub fn newtype_constructors(&self, symbol: GlobalSymbolId) -> Option<&[NewtypeConstructor]> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.newtype_constructors(symbol))
+    }
+
+    /// Iterate member implementation edges.
+    pub fn member_implementations(&self) -> impl Iterator<Item = ImplementationEdge> + '_ {
+        self.member_conformances()
+            .map(|conformance| ImplementationEdge {
+                declaration: conformance.requirement,
+                implementation: conformance.member,
+            })
+    }
+
+    /// Iterate declarations satisfied by one member symbol.
+    pub fn member_declarations(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> impl Iterator<Item = GlobalSymbolId> + '_ {
+        self.member_conformances().filter_map(move |conformance| {
+            (conformance.member == symbol).then_some(conformance.requirement)
+        })
+    }
+
     /// Return one member binding projected at a source site.
     pub fn binding(&self, site: MemberSite, key: StaticKey) -> Option<&MemberBinding> {
         // read the membership the site's subject selects
@@ -146,6 +188,37 @@ pub struct MemberSegment {
     bindings: IndexMap<(GlobalSymbolId, MemberSpace), Vec<MemberBinding>>,
     /// The membership each settled subject selects.
     memberships: IndexMap<MemberSubject, Membership>,
+    /// The members selected to satisfy each `implements` clause, keyed by its source node.
+    conformances: IndexMap<GlobalNodeIdAny, Vec<MemberConformance>>,
+    /// The constructable backing alternatives derived per newtype, in selection order.
+    newtype_constructors: IndexMap<GlobalSymbolId, Vec<NewtypeConstructor>>,
+}
+
+/// One member satisfying an interface requirement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct MemberConformance {
+    /// The implementing member symbol.
+    pub member: GlobalSymbolId,
+    /// The required interface member symbol.
+    pub requirement: GlobalSymbolId,
+}
+
+/// One constructable newtype backing alternative.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
+pub struct NewtypeConstructor {
+    /// The reduced backing alternative selected by this constructor.
+    pub backing: GlobalTypeId,
+    /// The callable constructor type.
+    pub ty: GlobalTypeId,
+}
+
+/// One exact member implementation edge.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub struct ImplementationEdge {
+    /// The declared member requirement.
+    pub declaration: GlobalSymbolId,
+    /// The member satisfying the declaration.
+    pub implementation: GlobalSymbolId,
 }
 
 impl MemberSegment {
@@ -156,7 +229,42 @@ impl MemberSegment {
             subjects: IndexMap::default(),
             bindings: IndexMap::default(),
             memberships: IndexMap::default(),
+            conformances: IndexMap::default(),
+            newtype_constructors: IndexMap::default(),
         }
+    }
+
+    /// Set the constructable backing alternatives derived for one newtype.
+    pub fn set_newtype_constructors(
+        &mut self,
+        symbol: GlobalSymbolId,
+        constructors: Vec<NewtypeConstructor>,
+    ) {
+        self.newtype_constructors.insert(symbol, constructors);
+    }
+
+    /// Return the constructable backing alternatives derived for one newtype.
+    pub fn newtype_constructors(&self, symbol: GlobalSymbolId) -> Option<&[NewtypeConstructor]> {
+        self.newtype_constructors.get(&symbol).map(Vec::as_slice)
+    }
+
+    /// Set the members selected to satisfy one `implements` clause.
+    pub fn set_conformance_members(
+        &mut self,
+        source: GlobalNodeIdAny,
+        members: Vec<MemberConformance>,
+    ) {
+        self.conformances.insert(source, members);
+    }
+
+    /// Return the members selected to satisfy one `implements` clause.
+    pub fn conformance_members(&self, source: GlobalNodeIdAny) -> Option<&[MemberConformance]> {
+        self.conformances.get(&source).map(Vec::as_slice)
+    }
+
+    /// Iterate every selected member conformance.
+    pub fn member_conformances(&self) -> impl Iterator<Item = &MemberConformance> + '_ {
+        self.conformances.values().flatten()
     }
 
     /// Commit the member lookup subject and key at one source site, where the resolved one wins.

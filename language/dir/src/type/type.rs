@@ -64,7 +64,7 @@ pub enum Type {
 
     /// One reference region: the referent's lifetime extent and space set.
     Region(RegionType),
-    /// Canonical memory or access form, like `^User` or `&exclusive User`.
+    /// Canonical memory or access form, like `^User` or `&User`.
     Form(FormType),
     /// Explicit runtime `Dynamic<T>` representation, like `Dynamic<Printable>`.
     Dynamic(DynamicType),
@@ -139,6 +139,19 @@ impl From<&Literal> for Type {
 }
 
 impl Type {
+    /// Return whether an alias of this type declares a representation of its own.
+    pub fn is_structural(&self) -> bool {
+        matches!(
+            self,
+            Self::Object(_)
+                | Self::Union(_)
+                | Self::Tuple(_)
+                | Self::Slice(_)
+                | Self::FixedArray(_)
+                | Self::Function(_)
+        )
+    }
+
     /// Return whether this is a boolean type or boolean singleton.
     pub fn is_boolean(&self) -> bool {
         matches!(
@@ -347,7 +360,7 @@ impl Type {
             Self::Parameter(_) => TypeFlags::HAS_PARAMETER,
             Self::Erased(_) => TypeFlags::HAS_PARAMETER,
             Self::This => TypeFlags::HAS_THIS,
-            Self::Reference(_) => TypeFlags::HAS_REFERENCE,
+            Self::Reference(_) | Self::Application(_) => TypeFlags::HAS_REFERENCE,
             Self::Member(_) => TypeFlags::HAS_MEMBER,
             Self::Refined(_) => TypeFlags::HAS_MEMBER,
             Self::Operation(_) => TypeFlags::HAS_OPERATION,
@@ -363,7 +376,6 @@ impl Type {
             | Self::Key(_)
             | Self::Static(_)
             | Self::Intrinsic
-            | Self::Application(_)
             | Self::Variant(_)
             | Self::Form(_)
             | Self::Region(_)
@@ -480,7 +492,7 @@ impl TypeFlags {
     pub const HAS_ERROR: Self = Self(1 << 2);
     /// The graph contains a `this` type.
     pub const HAS_THIS: Self = Self(1 << 3);
-    /// The graph contains an unexpanded declaration reference.
+    /// The graph names a declaration, a bare reference or an application, which may expand.
     pub const HAS_REFERENCE: Self = Self(1 << 4);
     /// The graph contains a member projection like `T.Output`.
     pub const HAS_MEMBER: Self = Self(1 << 5);
@@ -488,8 +500,8 @@ impl TypeFlags {
     pub const HAS_OPERATION: Self = Self(1 << 6);
     /// The graph contains a conditional infer binding.
     pub const HAS_INFER: Self = Self(1 << 7);
-    /// The graph contains an application of a type alias.
-    pub const HAS_ALIAS: Self = Self(1 << 9);
+    /// The graph contains a generic parameter outside the region kind.
+    pub const HAS_TYPE_PARAMETER: Self = Self(1 << 8);
 
     /// Return whether every bit of `other` is set.
     pub fn contains(self, other: Self) -> bool {
@@ -519,14 +531,14 @@ impl TypeFlags {
         self.contains(Self::HAS_VARIABLE)
     }
 
-    /// Return whether the graph contains an application of a type alias.
-    pub fn has_alias(self) -> bool {
-        self.contains(Self::HAS_ALIAS)
-    }
-
     /// Return whether the graph contains a generic parameter.
     pub fn has_parameter(self) -> bool {
         self.contains(Self::HAS_PARAMETER)
+    }
+
+    /// Return whether the graph contains a generic parameter outside the region kind.
+    pub fn has_type_parameter(self) -> bool {
+        self.contains(Self::HAS_TYPE_PARAMETER)
     }
 
     /// Return whether the graph contains an error type.
@@ -708,35 +720,29 @@ impl LocalTypeId {
 }
 
 /// One open inference variable inside a checked component.
-///
-/// This is component-scoped solver state like `ConstraintId`.
-/// Every committed table is variable free, so the id needs no module qualification.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize, Reflect,
 )]
 pub struct TypeVariableId(pub u32);
 
 /// One interned list inside the owning module's type storage.
-///
-/// The id addresses elements interned beside the composite type that reads them.
-/// This keeps every type small and `Copy`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub struct TypeListId {
-    /// The first element of the list.
-    pub start: u32,
+    /// The index of the list across the module's pools of its kind.
+    pub index: u32,
     /// The number of elements in the list.
     pub count: u32,
 }
 
 impl TypeListId {
     /// The canonical empty list.
-    pub const EMPTY: Self = Self { start: 0, count: 0 };
+    pub const EMPTY: Self = Self { index: 0, count: 0 };
 
     /// Create a new list id.
-    pub fn new(start: u32, count: u32) -> Self {
-        Self { start, count }
+    pub fn new(index: u32, count: u32) -> Self {
+        Self { index, count }
     }
 
     /// Return the number of elements in the list.
@@ -748,42 +754,33 @@ impl TypeListId {
     pub fn is_empty(&self) -> bool {
         self.count == 0
     }
-
-    /// Iterate the cumulative element indices of the list.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = u32> {
-        self.start..self.start + self.count
-    }
 }
 
-/// Normalized memory access value, ordered from the weakest to the strongest access.
+/// Normalized memory access value, ordered from the weaker to the stronger access.
 ///
 /// A literal text at a language-item-typed position normalizes here.
-/// The `"exclusive"` in `Borrowed<User, L, "exclusive">` commits as `Access::Exclusive`.
+/// The `"mutable"` in `Borrowed<User, L, "mutable">` commits as `Access::Mutable`.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
 pub enum Access {
     /// Shared readonly access.
     Readonly,
-    /// Mutable access.
+    /// Mutable access, exclusive on owned storage by the borrow check and aliased through handles.
     Mutable,
-    /// Exclusive access.
-    Exclusive,
 }
 
 impl Access {
     /// Parse one canonical access name.
     pub fn from_text(value: StringId) -> Option<Self> {
-        [Self::Readonly, Self::Mutable, Self::Exclusive]
+        [Self::Readonly, Self::Mutable]
             .into_iter()
             .find(|access| value == StringId::for_text(access.text()))
     }
 
     /// Return whether this access grants one requested access mode.
     pub fn grants(self, requested: Self) -> bool {
-        self == requested
-            || self == Self::Exclusive
-            || (self == Self::Mutable && requested == Self::Readonly)
+        self >= requested
     }
 
     /// Return the canonical text of this access.
@@ -791,7 +788,6 @@ impl Access {
         match self {
             Self::Readonly => "readonly",
             Self::Mutable => "mutable",
-            Self::Exclusive => "exclusive",
         }
     }
 }
@@ -959,7 +955,7 @@ pub struct FormType {
 }
 
 /// Canonical memory or access form constructor.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum Ownership {
     /// Automatically managed reference ownership.
     Managed,
@@ -1001,7 +997,7 @@ pub enum Form {
     },
     /// Owned value, like `^User`.
     Owned,
-    /// Borrowed value, like `&User`, `&readonly User`, or `&exclusive User`,
+    /// Borrowed value, like `&User`, `&readonly User`, or `&User`,
     /// with its lifetime, access, and referent place interned in the segment.
     Borrowed(BorrowFormId),
     /// Raw pointer value, like `*User`.
@@ -2494,8 +2490,8 @@ pub enum ReceiverMode {
 }
 
 impl ReceiverMode {
-    /// The mode an elided receiver takes: the highest access a local handle grants.
-    pub const ELIDED: Self = Self::Borrowed(Access::Exclusive);
+    /// The mode an elided receiver takes: mutable access.
+    pub const ELIDED: Self = Self::Borrowed(Access::Mutable);
 
     /// Parse one canonical receiver mode name.
     pub fn from_text(value: StringId) -> Option<Self> {

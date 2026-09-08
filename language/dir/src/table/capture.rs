@@ -5,7 +5,9 @@ use destack_core::FxIndexMap as IndexMap;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, SegmentView, StringId, TypeFold};
+use crate::{
+    Arena, GlobalScopeId, GlobalSymbolId, GlobalTypeId, Ownership, SegmentView, StringId, TypeFold,
+};
 
 /// Cumulative captures for one DIR module.
 #[derive(Debug, Clone)]
@@ -85,8 +87,10 @@ impl<'a> CaptureTable<'a> {
 
     /// Get capture directive for a function symbol.
     pub fn capture_directive(&self, symbol: GlobalSymbolId) -> Option<&CaptureDirective> {
-        self.capture(symbol)
-            .and_then(|capture| capture.directive.as_ref())
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.capture_directive(symbol))
     }
 
     /// Get capture for a function symbol.
@@ -133,6 +137,8 @@ pub struct CaptureSegment {
     pub(crate) frames: Arena<CaptureFrame>,
     /// Capture for each function symbol.
     pub capture_by_function: IndexMap<GlobalSymbolId, Capture>,
+    /// The capture directive declared on each function.
+    directive_by_function: IndexMap<GlobalSymbolId, CaptureDirective>,
 }
 
 impl CaptureSegment {
@@ -143,6 +149,7 @@ impl CaptureSegment {
             first_frame_id: 0,
             frames: Arena::new(),
             capture_by_function: IndexMap::default(),
+            directive_by_function: IndexMap::default(),
         }
     }
 
@@ -153,6 +160,7 @@ impl CaptureSegment {
             first_frame_id: base.frame_count(),
             frames: Arena::new(),
             capture_by_function: IndexMap::default(),
+            directive_by_function: IndexMap::default(),
         }
     }
 
@@ -171,15 +179,12 @@ impl CaptureSegment {
 
     /// Store capture directive for a function symbol.
     pub fn set_capture_directive(&mut self, symbol: GlobalSymbolId, directive: CaptureDirective) {
-        let capture = self.capture_by_function.entry(symbol).or_default();
-        capture.directive = Some(directive);
+        self.directive_by_function.insert(symbol, directive);
     }
 
     /// Get capture directive for a function symbol.
     pub fn capture_directive(&self, symbol: GlobalSymbolId) -> Option<&CaptureDirective> {
-        self.capture_by_function
-            .get(&symbol)
-            .and_then(|capture| capture.directive.as_ref())
+        self.directive_by_function.get(&symbol)
     }
 
     /// Get capture for a function symbol.
@@ -225,7 +230,9 @@ impl CaptureSegment {
 
     /// Return whether this segment has no capture entries.
     pub fn is_empty(&self) -> bool {
-        self.frames.is_empty() && self.capture_by_function.is_empty()
+        self.frames.is_empty()
+            && self.capture_by_function.is_empty()
+            && self.directive_by_function.is_empty()
     }
 
     /// Return whether this segment contains the given capture frame id.
@@ -428,7 +435,7 @@ pub struct CapturedReceiver {
 }
 
 /// Captures for a function declaration.
-#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect, TypeFold)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
 pub struct Capture {
     /// The lexical frames used by this function.
     pub frames: Vec<LocalCaptureFrameId>,
@@ -436,6 +443,6 @@ pub struct Capture {
     pub captures: Vec<CapturedBinding>,
     /// The captured `this` binding.
     pub this: Option<CapturedReceiver>,
-    /// The capture directive applied to this function.
-    pub directive: Option<CaptureDirective>,
+    /// The ownership the closure's callable form gives its environment.
+    pub ownership: Ownership,
 }
