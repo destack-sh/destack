@@ -101,13 +101,13 @@ impl TestModule {
             .layout_reachable_types()
             .expect("test MIR layouts should lower");
         let lowered = MirLowered {
-            tree: tree.clone(),
+            tree: Arc::new(tree.clone()),
             target,
             initializer: None,
             layouts: layouts.clone(),
-            language: mir::LanguageTable::default(),
             dispatch: dispatch.clone(),
             drops: drops.clone(),
+            witnesses: mir::WitnessTable::default(),
             accesses: accesses.clone(),
             effects: effects.clone(),
             profile: profile.clone(),

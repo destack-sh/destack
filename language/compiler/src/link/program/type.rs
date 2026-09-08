@@ -207,18 +207,12 @@ impl<'a> ObjectTypes<'a> {
 
     /// Project one MIR dynamic type into a program layout shape.
     fn dynamic_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
-        let mir::Type::Dynamic {
-            constraint,
-            nullability,
-            ..
-        } = type_shape
-        else {
+        let mir::Type::Dynamic { constraint, .. } = type_shape else {
             return None;
         };
 
         Some(LayoutShapeBuilder::Dynamic(DynamicLayout {
             constraint: self.type_id(*constraint),
-            nullability: *nullability,
         }))
     }
 
@@ -312,24 +306,16 @@ impl<'a> ObjectTypes<'a> {
                 storage,
                 access,
                 pointee,
-                nullability,
                 ..
             } => Some(LayoutShapeBuilder::Reference(ReferenceLayout::new(
                 self.type_id(*pointee),
                 *kind,
                 *storage,
                 *access,
-                *nullability,
             ))),
-            mir::Type::Pointer {
-                pointee,
-                access,
-                nullability,
-            } => Some(LayoutShapeBuilder::Pointer(PointerLayout::new(
-                self.type_id(*pointee),
-                *access,
-                *nullability,
-            ))),
+            mir::Type::Pointer { pointee, access } => Some(LayoutShapeBuilder::Pointer(
+                PointerLayout::new(self.type_id(*pointee), *access),
+            )),
             mir::Type::FunctionPointer { signature } => Some(LayoutShapeBuilder::FunctionPointer(
                 self.signature(*signature)?,
             )),
@@ -344,38 +330,26 @@ impl<'a> ObjectTypes<'a> {
             storage,
             access,
             element,
-            nullability,
             ..
         } = type_shape
         else {
             return None;
         };
 
-        let reference = ReferenceLayout::new(
-            self.type_id(*element),
-            *kind,
-            *storage,
-            *access,
-            *nullability,
-        );
+        // build the slice's element reference
+        let reference = ReferenceLayout::new(self.type_id(*element), *kind, *storage, *access);
 
         Some(LayoutShapeBuilder::Slice(SliceLayout { reference }))
     }
 
     /// Project one MIR function type into a program layout shape.
     fn function_layout_shape(&self, type_shape: &mir::Type) -> Option<LayoutShapeBuilder> {
-        let mir::Type::Function {
-            signature,
-            nullability,
-            ..
-        } = type_shape
-        else {
+        let mir::Type::Function { signature, .. } = type_shape else {
             return None;
         };
 
         Some(LayoutShapeBuilder::Function(FunctionLayout {
             signature: self.signature(*signature)?,
-            nullability: *nullability,
         }))
     }
 
@@ -481,7 +455,9 @@ impl TypeLinker<'_> {
             for (ty, storage, function) in object.drops().destructors() {
                 if matches!(
                     storage,
-                    mir::Storage::Constant | mir::Storage::LocalStatic | mir::Storage::SharedStatic
+                    mir::Storage::Static(mir::Space::Constant)
+                        | mir::Storage::Static(mir::Space::Local)
+                        | mir::Storage::Static(mir::Space::Shared)
                 ) {
                     return Err(LinkError::invalid_input(
                         package,
@@ -516,10 +492,10 @@ impl TypeLinker<'_> {
                 .remove(&(ty, mir::Storage::Frame))
                 .map(|(module, function)| function_ids[&(module, function)]);
             let local = functions
-                .remove(&(ty, mir::Storage::LocalHeap))
+                .remove(&(ty, mir::Storage::Heap(mir::Space::Local)))
                 .map(|(module, function)| function_ids[&(module, function)]);
             let shared = functions
-                .remove(&(ty, mir::Storage::SharedHeap))
+                .remove(&(ty, mir::Storage::Heap(mir::Space::Shared)))
                 .map(|(module, function)| function_ids[&(module, function)]);
 
             // skip types without a destructor in any storage

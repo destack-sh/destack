@@ -191,6 +191,7 @@ impl<'a> GlobalLinker<'a> {
             mir::Space::Constant => (constants, false),
             mir::Space::Shared => (shared, global.is_mutable()),
             mir::Space::Local => (local, global.is_mutable()),
+            mir::Space::Parameter(_) => unreachable!("linked globals close every space"),
         };
         let offset = allocator.reserve(alignment, byte_len);
 
@@ -241,6 +242,7 @@ impl<'a> GlobalLinker<'a> {
             mir::Space::Constant => constants,
             mir::Space::Shared => shared,
             mir::Space::Local => local,
+            mir::Space::Parameter(_) => unreachable!("linked globals close every space"),
         };
         allocator.write(placed.offset(), &bytes);
 
@@ -551,6 +553,7 @@ impl<'a> GlobalLinker<'a> {
             mir::Space::Constant => GlobalLocation::Constant,
             mir::Space::Shared => GlobalLocation::SharedStatic,
             mir::Space::Local => GlobalLocation::LocalStatic,
+            mir::Space::Parameter(_) => unreachable!(),
         }
     }
 
@@ -613,9 +616,7 @@ impl<'a> GlobalLinker<'a> {
                 self.integer_constant_bytes(constant, u32::BITS as u16, false, byte_len)
             }
             mir::Type::Float(format) => self.float_constant_bytes(constant, *format, byte_len),
-            mir::Type::Reference { nullability, .. } | mir::Type::Pointer { nullability, .. } => {
-                self.reference_constant_bytes(constant, *nullability, byte_len)
-            }
+            mir::Type::Pointer { .. } => self.pointer_constant_bytes(constant, byte_len),
             _ => Err(self
                 .program
                 .type_mismatch("scalar initializer type", format!("{ty_node:?}"))),
@@ -762,16 +763,14 @@ impl<'a> GlobalLinker<'a> {
         Ok(self.unsigned_bytes(raw.into(), byte_len))
     }
 
-    /// Encode one reference constant.
-    fn reference_constant_bytes(
+    /// Encode one pointer constant.
+    fn pointer_constant_bytes(
         &self,
         constant: &mir::Constant,
-        nullability: mir::Nullability,
         byte_len: usize,
     ) -> LinkResult<Vec<u8>> {
         let bits = match constant {
-            mir::Constant::Null if nullability.allows_null() => 0usize,
-            mir::Constant::Undefined if nullability.allows_undefined() => 1usize,
+            mir::Constant::Null => 0usize,
             _ => {
                 return Err(self
                     .program
@@ -948,15 +947,7 @@ impl<'a> GlobalLinker<'a> {
             | mir::Type::Boolean
             | mir::Type::Character
             | mir::Type::TypeId => Ok(()),
-            mir::Type::Reference { nullability, .. } | mir::Type::Pointer { nullability, .. } => {
-                if !nullability.allows_null() {
-                    return Err(self
-                        .program
-                        .unsupported_zero_initializer(format!("{ty_node:?}")));
-                }
-
-                Ok(())
-            }
+            mir::Type::Pointer { .. } => Ok(()),
             _ => Err(self
                 .program
                 .unsupported_zero_initializer(format!("{ty_node:?}"))),

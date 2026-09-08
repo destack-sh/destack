@@ -133,6 +133,7 @@ impl<'a> SiteLinker<'a> {
             mir::CallDispatch::Indirect => (CallDispatch::Indirect, None),
             mir::CallDispatch::Virtual { slot } => (CallDispatch::Virtual, Some(slot.0)),
             mir::CallDispatch::Dynamic { slot } => (CallDispatch::Dynamic, Some(slot.0)),
+            mir::CallDispatch::Witness => unreachable!("linked calls resolve every witness"),
         };
         let target = site
             .target

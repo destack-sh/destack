@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::emit::js;
-use destack_artifact::{DirBound, DirExpanded, DirExported};
+use destack_artifact::{DirBound, DirExpanded, DirExported, DirImported, DirParsed, DirView};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_repository::ProviderContext;
@@ -289,25 +289,6 @@ impl JsLinker<'_> {
         profile_id: destack_source::ProfileId,
         package_id: PackageId,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
-        let source_bound = self
-            .artifacts
-            .read::<DirBound>((module_id, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing bound DIR for same-output import rewrite module {module_id:?}: {error:?}",
-                ),
-            })?;
-        let source_expanded = self.artifacts.read::<DirExpanded>((module_id, profile_id)).map_err(
-            |error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing expanded DIR for same-output import rewrite module {module_id:?}: {error:?}",
-                ),
-            },
-        )?;
         let origin = module
             .tree
             .get_origin(item_id.id)
@@ -318,7 +299,8 @@ impl JsLinker<'_> {
             })?;
         let source_item_id = dir::LocalNodeId::<dir::DependencyItem>::new(origin.node_id);
 
-        let source_symbols = source_expanded.binding_table(&source_bound);
+        // read the symbol the source module declares for the imported item
+        let source_symbols = self.source_bindings(module_id, profile_id, package_id)?;
         let target_symbol = {
             if let Some(symbol) =
                 source_symbols.declaration_symbol(source_item_id.into_global_any(module_id))
@@ -338,6 +320,31 @@ impl JsLinker<'_> {
         self.resolve_same_output_printable_symbol(target_symbol, profile_id, package_id)
     }
 
+    /// Read one source module's bindings through its expanded stage.
+    fn source_bindings(
+        &self,
+        module_id: ModuleId,
+        profile_id: destack_source::ProfileId,
+        package_id: PackageId,
+    ) -> LinkResult<dir::BindingTable<'static>> {
+        let key = (module_id, profile_id);
+        let read = |error: destack_repository::ProviderError| LinkError::Internal {
+            anchor: package_id.into(),
+            package: package_id,
+            message: format!(
+                "missing expanded DIR for same-output module {module_id:?}: {error:?}"
+            ),
+        };
+        let stages = DirView::expanded(
+            self.artifacts.read::<DirParsed>(module_id).map_err(read)?,
+            self.artifacts.read::<DirBound>(key).map_err(read)?,
+            self.artifacts.read::<DirImported>(key).map_err(read)?,
+            self.artifacts.read::<DirExpanded>(key).map_err(read)?,
+        );
+
+        Ok(stages.bindings().clone())
+    }
+
     /// Resolve one same-output symbol to a printable binding symbol and name.
     fn resolve_same_output_printable_symbol(
         &self,
@@ -346,27 +353,7 @@ impl JsLinker<'_> {
         package_id: PackageId,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         // load the source module for the exported symbol
-        let source_bound = self
-            .artifacts
-            .read::<DirBound>((symbol_id.module_id, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing bound DIR for same-output import target symbol {symbol_id:?}: {error:?}"
-                ),
-            })?;
-        let source_expanded = self
-            .artifacts
-            .read::<DirExpanded>((symbol_id.module_id, profile_id))
-            .map_err(|error| LinkError::Internal {
-                anchor: (package_id).into(),
-                package: package_id,
-                message: format!(
-                    "missing expanded DIR for same-output import target symbol {symbol_id:?}: {error:?}"
-                ),
-            })?;
-        let symbols = source_expanded.binding_table(&source_bound);
+        let symbols = self.source_bindings(symbol_id.module_id, profile_id, package_id)?;
         let symbol = symbols.get_symbol(symbol_id.local_id);
 
         // use the source declaration name for same-output local bridging

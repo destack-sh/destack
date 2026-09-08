@@ -78,26 +78,38 @@ impl FunctionLinker<'_> {
         let mut symbols = HashMap::new();
         let mut bindings = HashMap::new();
 
-        // assign every local and exported definition
+        // assign every definition, the copies of one shared specialization folding into the first
         for (module, object) in objects {
             for function in object.functions() {
                 let function_id = function.id;
                 if function.linkage.is_import() {
                     continue;
                 }
-
+                let placed = symbols.get(&function.symbol).map(|(id, _, _)| *id);
                 let id = FunctionId::from(functions.len() as u32);
-                if function.linkage.is_exported() {
-                    let definition = (id, *module, function);
-                    if symbols.insert(function.symbol, definition).is_some() {
-                        return Err(LinkError::invalid_input(
-                            package,
-                            format!(
-                                "function symbol {:?} has multiple definitions",
-                                function.symbol
-                            ),
-                        ));
-                    }
+
+                // fold a shared copy into its placed definition
+                if function.linkage == mir::Linkage::Shared
+                    && let Some(placed) = placed
+                {
+                    ids.insert((*module, function_id), placed);
+
+                    continue;
+                }
+                // refuse a second definition of an exported symbol
+                else if function.linkage.is_exported() && placed.is_some() {
+                    return Err(LinkError::invalid_input(
+                        package,
+                        format!(
+                            "function symbol {:?} has multiple definitions",
+                            function.symbol
+                        ),
+                    ));
+                }
+                // place the symbol's definition
+                else if function.linkage == mir::Linkage::Shared || function.linkage.is_exported()
+                {
+                    symbols.insert(function.symbol, (id, *module, function));
                 }
 
                 ids.insert((*module, function_id), id);

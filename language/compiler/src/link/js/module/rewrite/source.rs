@@ -114,7 +114,7 @@ impl JsLinker<'_> {
 
         Ok(Some(MinifySourceContext {
             strings: self.compiler.repository.string_pool().clone(),
-            symbols: Arc::new(dir.binding_table()),
+            symbols: Arc::new(dir::BindingTable::from_segment(Arc::clone(&dir.bindings))),
             namespace_scope: dir.namespace_scope,
         }))
     }

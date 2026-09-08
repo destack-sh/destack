@@ -1,8 +1,7 @@
+use super::linker::Rewriter;
 use crate::emit::js;
 use destack_core::StringPool;
 use destack_repository::Target;
-
-use super::linker::Rewriter;
 
 /// One small JS module builder for minify rewrite tests.
 struct TestModuleBuilder {
