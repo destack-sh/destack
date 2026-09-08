@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported,
-    DirParsed, DirParsedFile, DirResolved,
+    DirParsed, DirParsedFile, DirResolved, DirView,
 };
 use destack_core::StringPool;
 use destack_dir as dir;
@@ -31,37 +31,12 @@ pub struct ModuleQueryContext<'a> {
     parsed: OnceLock<Result<Arc<DirParsed>, ProviderError>>,
     /// The bound module artifact.
     bound: OnceLock<Result<Arc<DirBound>, ProviderError>>,
-    /// The imported module artifact.
-    imported: OnceLock<Result<Arc<DirImported>, ProviderError>>,
     /// The expanded module artifact.
     expanded: OnceLock<Result<Arc<DirExpanded>, ProviderError>>,
     /// The resolved import and source-reference artifact.
     resolved: OnceLock<Result<Arc<DirResolved>, ProviderError>>,
-    /// The declared module artifact.
-    declared: OnceLock<Result<Arc<DirDeclared>, ProviderError>>,
-    /// The elaborated module artifact.
-    elaborated: OnceLock<Result<Arc<DirElaborated>, ProviderError>>,
-    /// The checked module artifact.
-    checked: OnceLock<Result<Arc<DirChecked>, ProviderError>>,
-    /// The cumulative binding table.
-    bindings: OnceLock<dir::BindingTable<'static>>,
-    /// The cumulative module table.
-    modules: OnceLock<dir::ModuleTable<'static>>,
-    /// The cumulative type table.
-    types: OnceLock<dir::TypeTable<'static>>,
-    /// The cumulative static table.
-    statics: OnceLock<dir::StaticTable<'static>>,
-    /// The cumulative decorator table.
-    decorators: OnceLock<dir::DecoratorTable<'static>>,
-    /// The cumulative generic table.
-    generics: OnceLock<dir::GenericTable<'static>>,
-    /// The cumulative definition table.
-    definitions: OnceLock<dir::DefinitionTable<'static>>,
-    /// The cumulative resolution table.
-    resolutions: OnceLock<dir::ResolutionTable<'static>>,
-    decisions: OnceLock<dir::DecisionTable<'static>>,
-    /// The checked member table.
-    members: OnceLock<dir::MemberTable<'static>>,
+    /// The checked stages with their tables stacked once.
+    view: OnceLock<Result<DirView, ProviderError>>,
 }
 
 impl Debug for ModuleQueryContext<'_> {
@@ -94,22 +69,9 @@ impl<'a> ModuleQueryContext<'a> {
             strings: repository.string_pool().as_ref(),
             parsed: OnceLock::new(),
             bound: OnceLock::new(),
-            imported: OnceLock::new(),
             expanded: OnceLock::new(),
             resolved: OnceLock::new(),
-            declared: OnceLock::new(),
-            elaborated: OnceLock::new(),
-            checked: OnceLock::new(),
-            bindings: OnceLock::new(),
-            modules: OnceLock::new(),
-            types: OnceLock::new(),
-            statics: OnceLock::new(),
-            decorators: OnceLock::new(),
-            generics: OnceLock::new(),
-            definitions: OnceLock::new(),
-            resolutions: OnceLock::new(),
-            decisions: OnceLock::new(),
-            members: OnceLock::new(),
+            view: OnceLock::new(),
         }
     }
 
@@ -159,48 +121,12 @@ impl<'a> ModuleQueryContext<'a> {
         )
     }
 
-    /// Return the imported module artifact.
-    fn imported(&self) -> QueryResult<&DirImported> {
-        self.read_artifact(
-            ArtifactKey::dir_imported(self.module_id, self.profile_id),
-            &self.imported,
-            |reader| reader.read::<DirImported>((self.module_id, self.profile_id)),
-        )
-    }
-
     /// Return the expanded module artifact.
     fn expanded(&self) -> QueryResult<&DirExpanded> {
         self.read_artifact(
             ArtifactKey::dir_expanded(self.module_id, self.profile_id),
             &self.expanded,
             |reader| reader.read::<DirExpanded>((self.module_id, self.profile_id)),
-        )
-    }
-
-    /// Return the declared module artifact.
-    fn declared(&self) -> QueryResult<&DirDeclared> {
-        self.read_artifact(
-            ArtifactKey::dir_declared(self.module_id, self.profile_id),
-            &self.declared,
-            |reader| reader.read::<DirDeclared>((self.module_id, self.profile_id)),
-        )
-    }
-
-    /// Return the elaborated module artifact.
-    fn elaborated(&self) -> QueryResult<&DirElaborated> {
-        self.read_artifact(
-            ArtifactKey::dir_elaborated(self.module_id, self.profile_id),
-            &self.elaborated,
-            |reader| reader.read::<DirElaborated>((self.module_id, self.profile_id)),
-        )
-    }
-
-    /// Return the checked module artifact.
-    fn checked(&self) -> QueryResult<&DirChecked> {
-        self.read_artifact(
-            ArtifactKey::dir_checked(self.module_id, self.profile_id),
-            &self.checked,
-            |reader| reader.read::<DirChecked>((self.module_id, self.profile_id)),
         )
     }
 
@@ -294,8 +220,8 @@ impl<'a> ModuleQueryContext<'a> {
 
     /// Return the visible DIR tree view.
     pub(crate) fn view(&self) -> QueryResult<dir::View<'_>> {
-        let expanded = self.expanded()?;
         let parsed = self.parsed()?;
+        let expanded = self.expanded()?;
 
         Ok(dir::View::with_patches(
             &parsed.tree,
@@ -314,19 +240,7 @@ impl<'a> ModuleQueryContext<'a> {
 
     /// Return the cumulative DIR binding table.
     pub(crate) fn bindings(&self) -> QueryResult<&dir::BindingTable<'static>> {
-        if let Some(bindings) = self.bindings.get() {
-            return Ok(bindings);
-        }
-
-        let checked = self.checked()?;
-        let bound = self.bound()?;
-        let expanded = self.expanded()?;
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .bindings
-            .get_or_init(|| checked.binding_table(bound, expanded, declared, elaborated)))
+        Ok(self.stages()?.bindings())
     }
 
     /// Return the symbol declared by one local node when bound.
@@ -341,137 +255,81 @@ impl<'a> ModuleQueryContext<'a> {
 
     /// Return the cumulative DIR type table.
     pub(crate) fn types(&self) -> QueryResult<&dir::TypeTable<'static>> {
-        if let Some(types) = self.types.get() {
-            return Ok(types);
-        }
-
-        let checked = self.checked()?;
-        let bound = self.bound()?;
-        let expanded = self.expanded()?;
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .types
-            .get_or_init(|| checked.type_table(bound, expanded, declared, elaborated)))
+        Ok(self.stages()?.types())
     }
 
     /// Return the cumulative DIR static table.
     pub(crate) fn statics(&self) -> QueryResult<&dir::StaticTable<'static>> {
-        if let Some(statics) = self.statics.get() {
-            return Ok(statics);
-        }
-
-        let checked = self.checked()?;
-        let bound = self.bound()?;
-        let expanded = self.expanded()?;
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .statics
-            .get_or_init(|| checked.static_table(bound, expanded, declared, elaborated)))
+        Ok(self.stages()?.statics())
     }
 
     /// Return the cumulative DIR decorator table.
     pub(crate) fn decorators(&self) -> QueryResult<&dir::DecoratorTable<'static>> {
-        if let Some(decorators) = self.decorators.get() {
-            return Ok(decorators);
-        }
-
-        let checked = self.checked()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .decorators
-            .get_or_init(|| checked.decorator_table(elaborated)))
+        Ok(self.stages()?.decorators())
     }
 
     /// Return the cumulative DIR generic table.
     pub(crate) fn generics(&self) -> QueryResult<&dir::GenericTable<'static>> {
-        if let Some(generics) = self.generics.get() {
-            return Ok(generics);
-        }
-
-        let checked = self.checked()?;
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .generics
-            .get_or_init(|| checked.generic_table(declared, elaborated)))
+        Ok(self.stages()?.generics())
     }
 
     /// Return the cumulative DIR definition table.
     pub(crate) fn definitions(&self) -> QueryResult<&dir::DefinitionTable<'static>> {
-        if let Some(definitions) = self.definitions.get() {
-            return Ok(definitions);
-        }
-
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-        let checked = self.checked()?;
-
-        Ok(self
-            .definitions
-            .get_or_init(|| checked.definition_table(declared, elaborated)))
+        Ok(self.stages()?.definitions())
     }
 
     /// Return the cumulative DIR decision table.
     pub(crate) fn decisions(&self) -> QueryResult<&dir::DecisionTable<'static>> {
-        if let Some(decisions) = self.decisions.get() {
-            return Ok(decisions);
-        }
-
-        let checked = self.checked()?;
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .decisions
-            .get_or_init(|| checked.decision_table(declared, elaborated)))
+        Ok(self.stages()?.decisions())
     }
 
     /// Return the cumulative DIR resolution table.
     pub(crate) fn resolutions(&self) -> QueryResult<&dir::ResolutionTable<'static>> {
-        if let Some(resolutions) = self.resolutions.get() {
-            return Ok(resolutions);
-        }
-
-        let checked = self.checked()?;
-        let declared = self.declared()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .resolutions
-            .get_or_init(|| checked.resolution_table(declared, elaborated)))
+        Ok(self.stages()?.resolutions())
     }
 
-    /// Return the checked DIR member table.
+    /// Return the cumulative DIR member table.
     pub(crate) fn members(&self) -> QueryResult<&dir::MemberTable<'static>> {
-        if let Some(members) = self.members.get() {
-            return Ok(members);
-        }
-
-        let declared = self.declared()?;
-        let checked = self.checked()?;
-        let elaborated = self.elaborated()?;
-
-        Ok(self
-            .members
-            .get_or_init(|| checked.member_table(declared, elaborated)))
+        Ok(self.stages()?.members())
     }
 
     /// Return the cumulative DIR module table.
     pub(crate) fn modules(&self) -> QueryResult<&dir::ModuleTable<'static>> {
-        if let Some(modules) = self.modules.get() {
-            return Ok(modules);
+        Ok(self.stages()?.modules())
+    }
+
+    /// Return the checked stages with their tables stacked, read once.
+    fn stages(&self) -> QueryResult<&DirView> {
+        let key = (self.module_id, self.profile_id);
+        (self.require_artifacts)(&[
+            ArtifactKey::dir_parsed(self.module_id),
+            ArtifactKey::dir_bound(self.module_id, self.profile_id),
+            ArtifactKey::dir_imported(self.module_id, self.profile_id),
+            ArtifactKey::dir_expanded(self.module_id, self.profile_id),
+            ArtifactKey::dir_resolved(self.module_id, self.profile_id),
+            ArtifactKey::dir_declared(self.module_id, self.profile_id),
+            ArtifactKey::dir_elaborated(self.module_id, self.profile_id),
+            ArtifactKey::dir_checked(self.module_id, self.profile_id),
+        ])?;
+        let view = self.view.get_or_init(|| {
+            let reader = ArtifactReader::new(self.repository, self.revision);
+
+            Ok(DirView::checked(
+                reader.read::<DirParsed>(self.module_id)?,
+                reader.read::<DirBound>(key)?,
+                reader.read::<DirImported>(key)?,
+                reader.read::<DirExpanded>(key)?,
+                reader.read::<DirResolved>(key)?,
+                reader.read::<DirDeclared>(key)?,
+                reader.read::<DirElaborated>(key)?,
+                reader.read::<DirChecked>(key)?,
+            ))
+        });
+
+        match view {
+            Ok(view) => Ok(view),
+            Err(error) => Err(QueryError::from(error.clone())),
         }
-
-        let imported = self.imported()?;
-        let expanded = self.expanded()?;
-
-        Ok(self.modules.get_or_init(|| expanded.module_table(imported)))
     }
 
     /// Return the DIR string pool.

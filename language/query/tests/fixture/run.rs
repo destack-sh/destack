@@ -2,7 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::slice;
 
-use destack_artifact::{DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed};
+use destack_artifact::{
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
+    DirResolved, DirView,
+};
 use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
 use destack_query::{
     CallItem, CallItemRequest, CodeActionContext, CodeActionsRequest, CodeLensesRequest,
@@ -724,22 +727,23 @@ impl<'a> QueryRun<'a> {
         };
         let path = self.format_module(module)?;
         let artifacts = ArtifactReader::new(self.workspace.repository(), self.revision);
-        let bound = artifacts
-            .read::<DirBound>((symbol_id.module_id, profile_id))
-            .map_err(|error| format!("failed to read bound DIR for query symbol: {error}"))?;
-        let expanded = artifacts
-            .read::<DirExpanded>((symbol_id.module_id, profile_id))
-            .map_err(|error| format!("failed to read expanded DIR for query symbol: {error}"))?;
-        let declared = artifacts
-            .read::<DirDeclared>((symbol_id.module_id, profile_id))
-            .map_err(|error| format!("failed to read declared DIR for query symbol: {error}"))?;
-        let elaborated = artifacts
-            .read::<DirElaborated>((symbol_id.module_id, profile_id))
-            .map_err(|error| format!("failed to read elaborated DIR for query symbol: {error}"))?;
-        let checked = artifacts
-            .read::<DirChecked>((symbol_id.module_id, profile_id))
-            .map_err(|error| format!("failed to read checked DIR for query symbol: {error}"))?;
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
+        let key = (symbol_id.module_id, profile_id);
+        let read = |error: destack_repository::ProviderError| {
+            format!("failed to read DIR for query symbol: {error}")
+        };
+        let view = DirView::checked(
+            artifacts
+                .read::<DirParsed>(symbol_id.module_id)
+                .map_err(read)?,
+            artifacts.read::<DirBound>(key).map_err(read)?,
+            artifacts.read::<DirImported>(key).map_err(read)?,
+            artifacts.read::<DirExpanded>(key).map_err(read)?,
+            artifacts.read::<DirResolved>(key).map_err(read)?,
+            artifacts.read::<DirDeclared>(key).map_err(read)?,
+            artifacts.read::<DirElaborated>(key).map_err(read)?,
+            artifacts.read::<DirChecked>(key).map_err(read)?,
+        );
+        let bindings = view.bindings();
         let symbol = bindings
             .get_symbol_maybe(symbol_id.local_id)
             .ok_or_else(|| format!("query response names unknown symbol {symbol_id:?}"))?;

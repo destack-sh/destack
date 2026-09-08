@@ -375,9 +375,6 @@ impl Formatter<'_, '_, '_> {
                 (Some(dir::Access::Readonly), _, Some(lifetime)) => {
                     Ok(format!("&{lifetime}readonly {borrowed}"))
                 }
-                (Some(dir::Access::Exclusive), _, Some(lifetime)) => {
-                    Ok(format!("&{lifetime}exclusive {borrowed}"))
-                }
                 (Some(_), _, None) => {
                     let access = formatter.local_type(type_value)?;
 

@@ -350,7 +350,7 @@ impl ModuleQueryContext<'_> {
         let range = self.node_span(view, root_id.into())?;
         let kind = match mutability {
             dir::Mutability::Immutable => SymbolKind::Constant,
-            dir::Mutability::Mutable | dir::Mutability::Exclusive => SymbolKind::Variable,
+            dir::Mutability::Mutable => SymbolKind::Variable,
         };
         let mut symbols = Vec::new();
         let mut seen = FxHashSet::default();

@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactKey, DirExpanded, DirImported, DirParsed};
+use destack_artifact::{ArtifactKey, DirBound, DirExpanded, DirImported, DirParsed, DirView};
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Repository, Revision};
 use destack_serde::Reflect;
@@ -90,12 +90,18 @@ pub fn rename_files(
             .module(revision, module_id)?
             .ok_or_else(|| QueryError::missing(format!("repository module {module_id:?}")))?;
         let artifacts = ArtifactReader::new(repository, revision);
-        let parsed = artifacts.read::<DirParsed>(module_id)?;
-        let imported = artifacts.read::<DirImported>((module_id, selected.profile_id))?;
-        let expanded = artifacts.read::<DirExpanded>((module_id, selected.profile_id))?;
+        let key = (module_id, selected.profile_id);
+        let stages = DirView::expanded(
+            artifacts.read::<DirParsed>(module_id)?,
+            artifacts.read::<DirBound>(key)?,
+            artifacts.read::<DirImported>(key)?,
+            artifacts.read::<DirExpanded>(key)?,
+        );
+        let parsed = &stages.parsed;
+        let expanded = &stages.expanded;
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
         let source_index = &parsed.tree.source_index;
-        let module_table = expanded.module_table(&imported);
+        let module_table = stages.modules();
 
         // resolve file content for literal edits
         let file_id = source_module.file_id;
