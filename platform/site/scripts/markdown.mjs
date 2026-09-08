@@ -1,8 +1,9 @@
-import { marked } from "marked";
+import { Marked, marked } from "marked";
 import { existsSync } from "node:fs";
 import { extname, relative, resolve } from "node:path";
 
 import { highlightCode } from "./highlight.mjs";
+import { parseDirective, parseAttributes } from "./directives.mjs";
 import { searchTextFor } from "./text.mjs";
 
 const codeExtensions = {
@@ -71,7 +72,7 @@ function parseMetadataValue(value) {
 /// Remove matching quotes from one metadata scalar.
 function parseQuotedString(value) {
     if (
-        (value.startsWith("\"") && value.endsWith("\"")) ||
+        (value.startsWith('"') && value.endsWith('"')) ||
         (value.startsWith("'") && value.endsWith("'"))
     ) {
         return value.slice(1, -1);
@@ -89,8 +90,8 @@ export function requireString(metadata, field, file) {
 
 /// Render trusted Markdown with collection-aware links and assets.
 export function renderMarkdown(markdown, context) {
-    const footnotes = extractFootnotes(markdown, context);
     const renderer = new marked.Renderer();
+    const parser = new Marked({ gfm: true });
     const headingSlugs = new Map();
     const counters = {
         figure: 0,
@@ -98,16 +99,16 @@ export function renderMarkdown(markdown, context) {
 
     renderer.heading = (token) => {
         const id = uniqueSlug(token.text, headingSlugs);
-        const content = marked.parseInline(token.text);
+        const content = parser.parseInline(token.text);
 
         return `<h${token.depth} id="${id}">${content}</h${token.depth}>`;
     };
     renderer.link = (token) => {
         const href = resolveLink(token.href, context);
         const title = token.title == undefined ? "" : ` title="${escapeAttribute(token.title)}"`;
-        const rel = isExternalLink(href) ? " rel=\"external noopener noreferrer\"" : "";
-        const target = isExternalLink(href) ? " target=\"_blank\"" : "";
-        const text = marked.parseInline(token.text);
+        const rel = isExternalLink(href) ? ' rel="external noopener noreferrer"' : "";
+        const target = isExternalLink(href) ? ' target="_blank"' : "";
+        const text = parser.parseInline(token.text);
 
         return `<a href="${escapeAttribute(href)}"${title}${rel}${target}>${text}</a>`;
     };
@@ -115,166 +116,220 @@ export function renderMarkdown(markdown, context) {
         const src = resolveLink(token.href, context);
         const title = token.title == undefined ? "" : ` title="${escapeAttribute(token.title)}"`;
 
-        return `<img alt="${escapeAttribute(token.text)}" src="${escapeAttribute(src)}"${title}>`;
+        return `<img alt="${escapeAttribute(token.text)}" src="${escapeAttribute(src)}" loading="lazy" decoding="async"${title}>`;
     };
-    renderer.table = (token) => renderTable(token, renderer);
+    renderer.table = (token) => renderTable(token, renderer, parser);
     renderer.code = (token) => renderCode(token, counters);
     renderer.blockquote = (token) => {
         // render GitHub alerts using the existing callout presentation
         const alert = /^\[!(NOTE|TIP|IMPORTANT|WARNING|CAUTION)\]\s*\n/.exec(token.text);
         if (alert != null) {
             const kind = alert[1].toLowerCase();
-            const body = marked.parse(token.text.slice(alert[0].length), { gfm: true, renderer });
+            const body = parser.parse(token.text.slice(alert[0].length));
 
             return `<aside class="markdown-callout" data-kind="${kind}"><strong>${kind}</strong>${body}</aside>`;
         }
 
-        return `<blockquote>\n${marked.parse(token.text, { gfm: true, renderer })}</blockquote>\n`;
+        return `<blockquote>\n${parser.parse(token.text)}</blockquote>\n`;
     };
 
-    const withDirectives = renderDirectives(footnotes.markdown, context, renderer, counters);
-    const html = marked.parse(withDirectives, { gfm: true, renderer });
-    const notes = renderFootnotes(footnotes.notes, renderer);
+    // register the complete renderer before collecting and rendering notes
+    parser.use({
+        renderer,
+        extensions: [
+            {
+                name: "directive",
+                level: "block",
+                start: (source) => source.search(/^:::\w/m),
+                tokenizer(source) {
+                    const directive = parseDirective(source);
+
+                    return directive == undefined
+                        ? undefined
+                        : {
+                              type: "directive",
+                              ...directive,
+                              tokens: this.lexer.blockTokens(directive.body),
+                          };
+                },
+                renderer(token) {
+                    return renderDirective(
+                        token.name,
+                        token.attributes,
+                        token.body,
+                        context,
+                        parser,
+                        counters,
+                    );
+                },
+            },
+        ],
+    });
+    const footnotes = configureFootnotes(markdown, parser, context);
+    const html = parser.parse(markdown);
+    const notes = renderFootnotes(footnotes, parser);
 
     return `${html}${notes}`;
 }
 
 /// Render one responsive GFM table.
-function renderTable(token, renderer) {
+function renderTable(token, renderer, parser) {
     const labels = token.header.map((cell) => searchTextFor(cell.text));
-    const header = token.header.map((cell) => renderer.tablecell(cell)).join("");
-    const head = renderer.tablerow({ text: header });
-    const rows = token.rows.map((row) => {
-        const cells = row.map((cell, index) => {
-            const label = escapeAttribute(labels[index] ?? "");
-
+    const header = token.header
+        .map((cell) => {
             const alignment = cell.align == null ? "" : ` align="${cell.align}"`;
-            const content = marked.parseInline(cell.text, { renderer });
 
-            return `<td data-label="${label}"${alignment}><div>${content}</div></td>`;
-        }).join("");
+            return `<th${alignment}>${parser.parseInline(cell.text)}</th>`;
+        })
+        .join("");
+    const head = renderer.tablerow({ text: header });
+    const rows = token.rows
+        .map((row) => {
+            const cells = row
+                .map((cell, index) => {
+                    const label = escapeAttribute(labels[index] ?? "");
 
-        return renderer.tablerow({ text: cells });
-    }).join("");
+                    const alignment = cell.align == null ? "" : ` align="${cell.align}"`;
+                    const content = parser.parseInline(cell.text);
+
+                    return `<td data-label="${label}"${alignment}><div>${content}</div></td>`;
+                })
+                .join("");
+
+            return renderer.tablerow({ text: cells });
+        })
+        .join("");
     const body = rows === "" ? "" : `<tbody>${rows}</tbody>`;
 
     return `<div class="markdown-table" tabindex="0"><table><thead>${head}</thead>${body}</table></div>`;
 }
 
-/// Extract footnote definitions and replace their references.
-function extractFootnotes(markdown, context) {
+/// Register footnote definitions and references with the page parser.
+function configureFootnotes(markdown, parser, context) {
+    const definitions = new Map();
     const notes = [];
-    const lines = markdown.split("\n");
-    const kept = [];
+    let isCollecting = true;
 
-    for (const line of lines) {
-        const match = line.match(/^\[\^([^\]]+)]:\s*(.+)$/);
-        if (match == undefined) {
-            kept.push(line);
-            continue;
-        }
+    // let Markdown distinguish notes from code, comments, escapes, and link destinations
+    parser.use({
+        extensions: [
+            {
+                name: "footnoteDefinition",
+                level: "block",
+                start: (source) => source.search(/^ {0,3}\[\^[^\]\s]+]:/m),
+                tokenizer(source) {
+                    const opening = /^ {0,3}\[\^([^\]\s]+)]:[ \t]*([^\n]*)(?:\n|$)/.exec(source);
+                    if (opening == null) {
+                        return;
+                    }
 
-        const number = notes.length + 1;
-        notes.push({ id: match[1], number, text: match[2] });
-    }
+                    // include indented paragraphs, lists, and fenced code in the definition
+                    let length = opening[0].length;
+                    let body = opening[2];
+                    let continuation;
+                    while (
+                        (continuation = /^(?:[ \t]*\n)*(?: {4}|\t)[^\n]*(?:\n|$)/.exec(
+                            source.slice(length),
+                        ))
+                    ) {
+                        body += `\n${continuation[0].replace(/^( {4}|\t)/gm, "").trimEnd()}`;
+                        length += continuation[0].length;
+                    }
 
-    const nextIndex = new Map();
-    const rewritten = kept.join("\n").replace(/\[\^([^\]]+)]/g, (_, id) => {
-        const note = notes.find((note) => note.id === id);
-        if (note == undefined) {
-            throw new Error(`missing footnote definition in ${context.slug}: ${id}`);
-        }
+                    // collect each definition once before rendering references
+                    const id = opening[1].toLowerCase();
+                    if (isCollecting) {
+                        if (definitions.has(id)) {
+                            throw new Error(
+                                `duplicate footnote definition in ${context.slug}: ${id}`,
+                            );
+                        }
+                        definitions.set(id, { text: body, references: [] });
+                    }
 
-        const count = (nextIndex.get(id) ?? 0) + 1;
-        const referenceId = count === 1 ? id : `${id}-${count}`;
-        const noteId = escapeAttribute(id);
-        const reference = escapeAttribute(referenceId);
-        nextIndex.set(id, count);
+                    return { type: "footnoteDefinition", raw: source.slice(0, length) };
+                },
+                renderer: () => "",
+            },
+            {
+                name: "footnoteReference",
+                level: "inline",
+                start: (source) => source.indexOf("[^"),
+                tokenizer(source) {
+                    const match = /^\[\^([^\]\s]+)]/.exec(source);
 
-        return `<sup class="markdown-footnote-ref" id="fnref-${reference}"><a href="#fn-${noteId}">${escapeHtml(String(note.number))}</a></sup><span class="markdown-margin-note" aria-hidden="true"><span>${escapeHtml(String(note.number))}</span>${marked.parseInline(note.text)}</span>`;
+                    return match == null
+                        ? undefined
+                        : {
+                              type: "footnoteReference",
+                              raw: match[0],
+                              id: match[1].toLowerCase(),
+                          };
+                },
+                renderer(token) {
+                    const note = definitions.get(token.id);
+                    if (note == undefined) {
+                        throw new Error(
+                            `missing footnote definition in ${context.slug}: ${token.id}`,
+                        );
+                    }
+
+                    // number notes by their first citation and link back to every occurrence
+                    if (note.references.length === 0) {
+                        note.number = notes.length + 1;
+                        notes.push(note);
+                    }
+                    const reference = `fnref-${note.number}-${note.references.length + 1}`;
+                    note.references.push(reference);
+
+                    return `<sup class="markdown-footnote-ref" id="${reference}"><a href="#fn-${note.number}" role="doc-noteref" aria-label="Footnote ${note.number}">${note.number}</a></sup>`;
+                },
+            },
+        ],
     });
 
-    return { markdown: rewritten, notes };
+    // resolve definitions before rendering, including citations in figure captions
+    parser.lexer(markdown);
+    isCollecting = false;
+
+    return notes;
 }
 
 /// Render collected footnotes below the article.
-function renderFootnotes(notes, renderer) {
+function renderFootnotes(notes, parser) {
     if (notes.length === 0) {
         return "";
     }
 
-    const items = notes
-        .map((note) => {
-            const body = marked.parseInline(note.text, { renderer });
-            const id = escapeAttribute(note.id);
+    // render note bodies before backlinks so citations inside notes are included
+    const bodies = [];
+    for (let index = 0; index < notes.length; index++) {
+        bodies.push(parser.parse(notes[index].text));
+    }
 
-            return `<li id="fn-${id}"><span class="markdown-footnote-number">${note.number}</span><span>${body} <a class="markdown-footnote-back" href="#fnref-${id}">back</a></span></li>`;
+    const items = notes
+        .map((note, index) => {
+            const body = bodies[index];
+            const links = note.references
+                .map((reference, index) => {
+                    const occurrence = note.references.length === 1 ? "" : ` ${index + 1}`;
+
+                    return `<a class="markdown-footnote-back" href="#${reference}" role="doc-backlink" aria-label="Back to reference ${note.number}${occurrence}">↩${occurrence}</a>`;
+                })
+                .join(" ");
+
+            return `<li id="fn-${note.number}"><span class="markdown-footnote-number">${note.number}</span><div>${body}${links}</div></li>`;
         })
         .join("");
 
-    return `<section class="markdown-footnotes"><h2>notes</h2><ol>${items}</ol></section>`;
-}
-
-/// Expand supported block directives before Markdown parsing.
-function renderDirectives(markdown, context, renderer, counters) {
-    const lines = markdown.split("\n");
-    const output = [];
-
-    for (let index = 0; index < lines.length; index += 1) {
-        const inlineMatch = lines[index].match(/^:::(\w+)(?:\s+(.*?))?\s+:::$/);
-        if (inlineMatch != undefined) {
-            const name = inlineMatch[1];
-            const attributes = parseAttributes(inlineMatch[2] ?? "");
-            output.push(renderDirective(name, attributes, "", context, renderer, counters));
-            continue;
-        }
-
-        const match = lines[index].match(/^:::(\w+)(?:\s+(.*))?$/);
-        if (match == undefined) {
-            output.push(lines[index]);
-            continue;
-        }
-
-        const name = match[1];
-        const attributes = parseAttributes(match[2] ?? "");
-        const body = [];
-        index += 1;
-
-        while (index < lines.length && lines[index] !== ":::") {
-            body.push(lines[index]);
-            index += 1;
-        }
-
-        if (index >= lines.length) {
-            throw new Error(`unclosed directive in ${context.slug}: ${name}`);
-        }
-
-        output.push(renderDirective(name, attributes, body.join("\n"), context, renderer, counters));
-    }
-
-    return output.join("\n");
-}
-
-/// Parse quoted and unquoted directive or fence attributes.
-function parseAttributes(source) {
-    const attributes = {};
-
-    for (const match of source.matchAll(/(\w+)=(?:"([^"]*)"|'([^']*)'|(\S+))/g)) {
-        attributes[match[1]] = match[2] ?? match[3] ?? match[4];
-    }
-
-    if (!source.includes("=") && source.trim() !== "") {
-        attributes.kind = source.trim();
-    }
-
-    return attributes;
+    return `<section class="markdown-footnotes" role="doc-endnotes" aria-label="Footnotes"><h2>Notes</h2><ol>${items}</ol></section>`;
 }
 
 /// Render one supported Markdown directive.
-function renderDirective(name, attributes, body, context, renderer, counters) {
+function renderDirective(name, attributes, body, context, parser, counters) {
     if (name === "callout") {
         const kind = attributes.kind ?? "note";
-        const html = marked.parse(body, { gfm: true, renderer });
+        const html = parser.parse(body);
 
         return `<aside class="markdown-callout" data-kind="${escapeAttribute(kind)}"><strong>${escapeHtml(kind)}</strong>${html}</aside>`;
     }
@@ -283,13 +338,87 @@ function renderDirective(name, attributes, body, context, renderer, counters) {
         const src = requireAttribute(attributes, "src", context.slug, name);
         const alt = requireAttribute(attributes, "alt", context.slug, name);
         const caption = attributes.caption ?? body.trim();
-        const url = resolveAsset(src, context);
+        const url = resolveLink(src, context);
         const label = nextFigureLabel(counters, "figure");
 
-        return `<figure class="markdown-figure"><img alt="${escapeAttribute(alt)}" src="${escapeAttribute(url)}"><figcaption><span>${label}</span>${marked.parseInline(caption, { renderer })}</figcaption></figure>`;
+        return `<figure class="markdown-figure"><div class="markdown-figure__frame"><img alt="${escapeAttribute(alt)}" src="${escapeAttribute(url)}" loading="lazy" decoding="async"></div><figcaption><span>${label}</span><span>${parser.parseInline(caption)}</span></figcaption></figure>`;
+    }
+
+    if (name === "video") {
+        const src = requireAttribute(attributes, "src", context.slug, name);
+        const title = requireAttribute(attributes, "title", context.slug, name);
+        const caption = attributes.caption ?? body.trim();
+        const url = resolveLink(src, context);
+        const youtube = youtubeVideo(src);
+        const poster =
+            attributes.poster == undefined ? undefined : resolveLink(attributes.poster, context);
+        const link = `<a href="${escapeAttribute(url)}">${escapeHtml(title)}</a>`;
+        let player;
+
+        // load the YouTube player only when the reader activates its preview
+        if (youtube != undefined) {
+            const preview = poster ?? `https://i.ytimg.com/vi/${youtube.id}/hqdefault.jpg`;
+            player = `<a class="markdown-video__preview" href="${escapeAttribute(url)}" data-video-src="${escapeAttribute(youtube.embed)}" data-video-title="${escapeAttribute(title)}" aria-label="${escapeAttribute(`Play ${title}`)}"><img src="${escapeAttribute(preview)}" alt="" loading="lazy" decoding="async"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></span></a>`;
+        } else {
+            const extension = extname(src.split(/[?#]/, 1)[0]).toLowerCase();
+            if (![".mp4", ".webm", ".ogv"].includes(extension)) {
+                throw new Error(`unsupported video in ${context.slug}: ${src}`);
+            }
+            const preview = poster == undefined ? "" : ` poster="${escapeAttribute(poster)}"`;
+            player = `<video controls playsinline preload="none" aria-label="${escapeAttribute(title)}" src="${escapeAttribute(url)}"${preview}>${link}</video>`;
+        }
+
+        const source = youtube == undefined ? "Open video" : "YouTube";
+
+        return `<figure class="markdown-figure markdown-video"><div class="markdown-figure__frame">${player}</div><figcaption><span>${escapeHtml(title)}${caption === "" ? "" : `<br>${parser.parseInline(caption)}`}</span><a href="${escapeAttribute(url)}" aria-label="${escapeAttribute(`Open ${title}${youtube == undefined ? "" : " on YouTube"}`)}">${source} ↗</a></figcaption></figure>`;
     }
 
     throw new Error(`unknown directive in ${context.slug}: ${name}`);
+}
+
+/// Resolve supported YouTube URLs into a privacy-enhanced player URL.
+function youtubeVideo(source) {
+    if (!/^https?:\/\//i.test(source)) {
+        return;
+    }
+
+    const url = new URL(source);
+    const host = url.hostname.replace(/^(www|m)\./, "");
+    if (!["youtube.com", "youtube-nocookie.com", "youtu.be"].includes(host)) {
+        return;
+    }
+
+    const segments = url.pathname.split("/").filter(Boolean);
+    const id =
+        host === "youtu.be"
+            ? segments[0]
+            : url.pathname === "/watch"
+              ? url.searchParams.get("v")
+              : ["embed", "shorts"].includes(segments[0])
+                ? segments[1]
+                : undefined;
+    if (id == undefined || !/^[\w-]{11}$/.test(id)) {
+        throw new Error(`invalid YouTube video: ${source}`);
+    }
+
+    // preserve an optional start time in seconds or YouTube's hour/minute/second form
+    const embed = new URL(`https://www.youtube-nocookie.com/embed/${id}`);
+    const start = url.searchParams.get("start") ?? url.searchParams.get("t");
+    if (start != null) {
+        const duration = /^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/.exec(start);
+        if (!/^\d+$/.test(start) && (duration == null || start === "")) {
+            throw new Error(`invalid YouTube start time: ${source}`);
+        }
+        const seconds = /^\d+$/.test(start)
+            ? Number(start)
+            : Number(duration[1] ?? 0) * 3600 +
+              Number(duration[2] ?? 0) * 60 +
+              Number(duration[3] ?? 0);
+        embed.searchParams.set("start", String(seconds));
+    }
+    embed.searchParams.set("autoplay", "1");
+
+    return { id, embed: embed.href };
 }
 
 /// Require one non-empty directive attribute.
@@ -319,9 +448,12 @@ function renderCode(token, counters) {
     const format = codeFormat(language);
     const code = renderCodeBody(highlighted);
 
-    const heading = caption == undefined ? "" : `<figcaption data-publication-caption><span class="markdown-code__title" data-publication-caption-title>${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption>`;
+    const heading =
+        caption == undefined
+            ? ""
+            : `<figcaption data-publication-caption><span class="markdown-code__title" data-publication-caption-title>${escapeHtml(caption)}</span><span class="markdown-code__format">${escapeHtml(format)}</span></figcaption>`;
 
-    return `<figure class="markdown-code" data-publication-listing>${heading}<pre data-publication-body tabindex="0" aria-label="${escapeAttribute(caption ?? language ?? "Code")}">${code}</pre></figure>`;
+    return `<figure class="markdown-code" data-publication-listing>${heading}<pre data-publication-body tabindex="0" aria-label="${escapeAttribute(caption ?? (language || "Code"))}">${code}</pre></figure>`;
 }
 
 /// Convert a fence language into its visible file format.
@@ -386,7 +518,9 @@ function resolveLink(href, context) {
 
         const content = context.sourceRoutes.get(target);
         if (content == undefined) {
-            throw new Error(`markdown link leaves its content collection in ${context.slug}: ${href}`);
+            throw new Error(
+                `markdown link leaves its content collection in ${context.slug}: ${href}`,
+            );
         }
 
         const fragment = markdownLink[2] ?? "";
@@ -433,9 +567,8 @@ function isBareAssetLink(href) {
 /// Resolve one content asset into a build-time placeholder.
 function resolveAsset(href, context) {
     const target = resolve(context.markdownDirectory, href);
-    const contentDirectory = context.kind === "document"
-        ? context.documentDirectory
-        : context.markdownDirectory;
+    const contentDirectory =
+        context.kind === "document" ? context.documentDirectory : context.markdownDirectory;
     const relativeTarget = relative(contentDirectory, target);
 
     if (relativeTarget.startsWith("..") || relativeTarget === "") {
@@ -546,7 +679,7 @@ function escapeHtml(value) {
         .replaceAll("&", "&amp;")
         .replaceAll("<", "&lt;")
         .replaceAll(">", "&gt;")
-        .replaceAll("\"", "&quot;");
+        .replaceAll('"', "&quot;");
 }
 
 /// Escape text for an HTML attribute.

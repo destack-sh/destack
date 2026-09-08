@@ -2,8 +2,55 @@ import * as stylex from "@stylexjs/stylex";
 
 import { tokens } from "../style/tokens.stylex";
 
+const narrow = "@media (width < 80rem)";
+const mobile = "@media (max-width: 767px)";
+
 /** Shared typography for articles, chapters, and their navigation. */
 export const publicationStyles = stylex.create({
+    layout: {
+        display: "grid",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-body)",
+        columnGap: "2.5rem",
+        gridTemplateColumns: "10rem minmax(0, 1fr) 10rem",
+        marginInline: "auto",
+        maxWidth: tokens.siteWidth,
+        padding: `1.5rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
+        width: "100%",
+        [narrow]: {
+            display: "block",
+            maxWidth: "48rem",
+            padding: `1rem ${tokens.gutterRight} 3rem ${tokens.gutterLeft}`,
+        },
+        [mobile]: {
+            paddingTop: "0.75rem",
+            paddingBottom: "2rem",
+        },
+    },
+    article: {
+        alignContent: "start",
+        color: tokens.ink,
+        display: "grid",
+        gridColumn: 2,
+        minWidth: 0,
+        width: "100%",
+    },
+    sidebar: {
+        alignSelf: "start",
+        display: "none",
+        fontFamily: tokens.textFont,
+        fontSize: "var(--size-navigation)",
+        gridColumn: 1,
+        "@media (min-width: 80rem)": {
+            display: "block",
+            position: "sticky",
+            top: "1.5rem",
+            maxHeight: "calc(100svh - 3rem)",
+            overflowY: "auto",
+            overscrollBehaviorY: "contain",
+            scrollbarWidth: "thin",
+        },
+    },
     active: {
         color: tokens.ink,
         fontWeight: 600,
@@ -18,7 +65,8 @@ export const publicationStyles = stylex.create({
         borderBottomWidth: tokens.hairline,
         display: "grid",
         gap: "0.75rem",
-        paddingBlock: "1.5rem 2rem",
+        paddingBlock: "2rem",
+        paddingInline: "max(0px, calc((100% - var(--width-prose)) / 2))",
         "@media (max-width: 767px)": {
             paddingBlock: "1rem 1.25rem",
         },
@@ -38,7 +86,7 @@ export const publicationStyles = stylex.create({
         fontSize: "var(--size-page-description)",
         lineHeight: 1.5,
         margin: 0,
-        maxWidth: "42rem",
+        maxWidth: "var(--width-prose)",
     },
     collectionTitle: {
         alignItems: "center",

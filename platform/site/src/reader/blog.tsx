@@ -159,19 +159,24 @@ function PostNavigation(props: PostNavigationProps) {
     const older = () => props.posts[index() + 1];
 
     return (
-        <nav aria-label="post navigation" {...stylex.attrs(styles.pagination)}>
-            <Show when={newer()}>
-                {(post) => (
-                    <PostNavigationLink direction="newer" post={post()} />
-                )}
-            </Show>
+        <Show when={newer() || older()}>
+            <nav
+                aria-label="post navigation"
+                {...stylex.attrs(styles.pagination)}
+            >
+                <Show when={newer()}>
+                    {(post) => (
+                        <PostNavigationLink direction="newer" post={post()} />
+                    )}
+                </Show>
 
-            <Show when={older()}>
-                {(post) => (
-                    <PostNavigationLink direction="older" post={post()} />
-                )}
-            </Show>
-        </nav>
+                <Show when={older()}>
+                    {(post) => (
+                        <PostNavigationLink direction="older" post={post()} />
+                    )}
+                </Show>
+            </nav>
+        </Show>
     );
 }
 
@@ -227,6 +232,7 @@ const styles = stylex.create({
         fontWeight: 600,
         gap: "1rem 2rem",
         justifyContent: "space-between",
+        marginTop: "2rem",
         paddingTop: "1.25rem",
     },
     paginationLink: {

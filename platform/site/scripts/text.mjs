@@ -1,6 +1,12 @@
+import { mapDirectives } from "./directives.mjs";
+
 /// Normalize Markdown into compact full-text search content.
 export function searchTextFor(markdown) {
-    return withoutComments(markdown)
+    return mapDirectives(
+        withoutComments(markdown),
+        (name, attributes, body) =>
+            `${attributes.title ?? attributes.alt ?? ""}\n${attributes.caption ?? body}`,
+    )
         .replace(/```[\s\S]*?```/g, (block) => block.replace(/^```[^\n]*|```$/g, ""))
         .replace(/<[^>]+>/g, " ")
         .replace(/\[([^\]]+)]\([^)]+\)/g, "$1")
@@ -15,7 +21,16 @@ export function plainTextFor(markdown) {
     const protectedMarkdown = withoutComments(markdown)
         .replace(/^```[^\n]*\n([\s\S]*?)^```\s*$/gm, (_, source) => protect(source.trimEnd(), code))
         .replace(/`([^`\n]+)`/g, (_, source) => protect(source, code));
-    const text = protectedMarkdown
+    const text = mapDirectives(protectedMarkdown, (name, attributes, body) => {
+        if (name === "figure" || name === "video") {
+            const title = attributes.title ?? attributes.alt ?? "";
+            const source = protect(attributes.src, code);
+
+            return `${title} (${source})\n${attributes.caption ?? body}`;
+        }
+
+        return body;
+    })
         .replace(/^```[^\n]*\n/gm, "")
         .replace(/^```\s*$/gm, "")
         .replace(/^:::\w+[^\n]*$/gm, "")

@@ -42,7 +42,7 @@ export type TableOfContentsEntry = {
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/48c6217efe51bf73b33346815cf1741074a8cc49f4eb8157a8a38e3b750feea7.html",
+        contentRoute: "/_content/html/edbf34ce0366905dad5817ff2b9383c7d377edac9f5fde89084e19fe1f03f9e5.html",
         date: "2026-09-14",
         markdownRoute: "/blog/introducing-typescriptpp.md",
         route: "/blog/introducing-typescriptpp/",

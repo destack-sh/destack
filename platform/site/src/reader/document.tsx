@@ -237,7 +237,7 @@ const styles = stylex.create({
     },
     section: {
         color: tokens.ink,
-        fontWeight: 600,
+        fontWeight: 500,
         paddingTop: `calc(${tokens.publicationSpace} * 1.5)`,
     },
     lintRuleTitle: {

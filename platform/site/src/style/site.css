@@ -34,6 +34,7 @@
     --size-body: 1.0625rem;
     --size-navigation: 0.8125rem;
     --size-label: var(--size-navigation);
+    --width-prose: 40rem;
 }
 
 *,
@@ -83,11 +84,30 @@ summary::-webkit-details-marker {
 /* generated Markdown */
 .markdown {
     display: grid;
+    grid-template-columns:
+        [wide-start] minmax(0, 1fr)
+        [text-start] minmax(0, var(--width-prose))
+        [text-end] minmax(0, 1fr) [wide-end];
     min-width: 0;
-    gap: 1.125rem;
+    gap: 1.125rem 0;
     font-size: var(--size-body);
     font-weight: 400;
     line-height: 1.7;
+}
+
+/* center the text column and extend figures and listings equally on both sides */
+.markdown > * {
+    grid-column: text;
+    min-width: 0;
+}
+
+.markdown > :is(
+    .markdown-code, .markdown-figure, .markdown-diagram, .markdown-table,
+    .lint-rule, .lint-category, .reference-catalog, .reference-module,
+    .reference-module-list, .reference-item
+),
+.markdown > p:has(> img:only-child) {
+    grid-column: wide;
 }
 
 .markdown h1,
@@ -139,11 +159,16 @@ summary::-webkit-details-marker {
     overflow-wrap: anywhere;
 }
 
-.markdown > p,
-.markdown > ul,
-.markdown > ol,
-.markdown > blockquote {
-    max-width: 42rem;
+/* keep prose readable while figures and listings use the full article width */
+.markdown p,
+.markdown > :is(ul, ol, blockquote, .markdown-callout, .markdown-footnotes) {
+    width: 100%;
+    max-width: var(--width-prose);
+    margin-inline: auto;
+}
+
+.markdown > p:has(> img:only-child) {
+    max-width: 100%;
 }
 
 .markdown ul,
@@ -275,16 +300,14 @@ summary::-webkit-details-marker {
 
 /* generated footnotes */
 .markdown-footnote-ref {
+    font-size: 0.75em;
+    line-height: 0;
     vertical-align: super;
 }
 
 .markdown-footnote-ref a {
     color: var(--publication-accent);
     text-decoration: none;
-}
-
-.markdown-margin-note {
-    display: none;
 }
 
 .markdown-footnotes {
@@ -295,7 +318,7 @@ summary::-webkit-details-marker {
 
 .markdown-footnotes h2 {
     margin: 0 0 0.75rem;
-    color: var(--publication-soft);
+    color: var(--publication-ink);
     font-size: inherit;
     line-height: 1.5;
 }
@@ -311,15 +334,23 @@ summary::-webkit-details-marker {
     display: grid;
     grid-template-columns: 2rem minmax(0, 1fr);
     gap: 0.75rem;
+    padding: 0;
 }
 
 .markdown-footnote-number {
-    color: var(--publication-soft);
+    color: var(--publication-ink);
 }
 
 .markdown-footnote-back {
     margin-left: 0.5rem;
-    font-size: 0.75rem;
+}
+
+.markdown-footnotes li:target .markdown-footnote-number {
+    color: var(--publication-accent);
+}
+
+.markdown-footnotes li p + p {
+    margin-top: 0.75rem;
 }
 
 /* generated callouts and specimens */
@@ -395,7 +426,7 @@ summary::-webkit-details-marker {
 
 .markdown-code figcaption .markdown-code__format {
     align-self: center;
-    color: var(--publication-accent);
+    color: var(--publication-ink);
     grid-column: 3;
     padding-right: 0.75rem;
 }
@@ -464,6 +495,15 @@ summary::-webkit-details-marker {
     overflow: visible;
 }
 
+/* size examples to their code, with prose width as the minimum */
+.markdown-code {
+    width: fit-content;
+    min-width: min(100%, var(--width-prose));
+    max-width: 100%;
+    justify-self: center;
+    margin-inline: auto;
+}
+
 [data-publication-caption],
 .markdown-code figcaption {
     display: grid;
@@ -473,9 +513,9 @@ summary::-webkit-details-marker {
     gap: 0;
     border-bottom: var(--publication-hairline) solid var(--publication-line);
     color: var(--publication-ink);
-    font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
     font-size: var(--size-label);
-    font-weight: 500;
+    font-weight: 400;
     letter-spacing: 0;
     line-height: 1.4;
 }
@@ -486,7 +526,7 @@ summary::-webkit-details-marker {
     grid-column: 1;
     grid-row: 1;
     border-right: var(--publication-hairline) solid var(--publication-line);
-    background: var(--publication-page-muted);
+    background: transparent;
 }
 
 [data-publication-caption-title],
@@ -528,7 +568,7 @@ summary::-webkit-details-marker {
 [data-publication-gutter],
 .markdown-code-gutter {
     border-right: var(--publication-hairline) solid var(--publication-line);
-    background: var(--publication-page-muted);
+    background: transparent;
     padding-inline: 0.5rem;
     color: var(--publication-soft);
     text-align: right;
@@ -572,15 +612,97 @@ summary::-webkit-details-marker {
     line-height: 1.5rem;
 }
 
-.markdown-figure img {
+.markdown img {
+    max-width: 100%;
+    height: auto;
+}
+
+.markdown-figure__frame > img {
+    display: block;
     width: 100%;
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
 }
 
 .markdown-figure figcaption {
+    gap: 1rem;
+    padding: 0.75rem 0 0;
+    border: 0;
     background: transparent;
     color: var(--publication-ink);
     font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
+}
+
+/* keep image and video figures on the same reading grid */
+.markdown-figure {
+    margin-block: 1rem;
+    border: 0;
+    background: transparent;
+}
+
+.markdown-video figcaption {
+    justify-content: space-between;
+}
+
+.markdown-video figcaption > a {
+    flex: none;
+}
+
+.markdown-figure__frame {
+    padding: 0.375rem;
+    border: var(--publication-hairline) solid var(--publication-line);
+    background: var(--publication-listing);
+}
+
+.markdown-figure__frame > video,
+.markdown-figure__frame > iframe,
+.markdown-video__preview {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    background: #19303a;
+}
+
+.markdown-figure__frame > video {
+    height: auto;
+    object-fit: contain;
+}
+
+.markdown .markdown-video__preview {
+    position: relative;
+    color: var(--publication-ink);
+    text-decoration: none;
+}
+
+.markdown-video__preview > img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.markdown-video__preview > span {
+    position: absolute;
+    inset: 50% auto auto 50%;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border: 1px solid rgb(255 255 255 / 65%);
+    border-radius: 50%;
+    background: rgb(18 49 60 / 90%);
+    color: #fff;
+}
+
+.markdown-video__preview:hover > span,
+.markdown-video__preview:focus-visible > span {
+    background: var(--publication-accent);
+    color: var(--publication-page);
+}
+
+.markdown-video__preview:focus-visible {
+    outline: 2px solid var(--publication-accent);
+    outline-offset: -2px;
 }
 
 /* publication-specific generated copy */
@@ -636,6 +758,7 @@ summary::-webkit-details-marker {
 .markdown .reference-module-list {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    gap: 0;
     margin: 0;
     padding: 0;
     border-top: var(--publication-hairline) solid var(--publication-line);
@@ -695,14 +818,16 @@ summary::-webkit-details-marker {
     padding-bottom: 0.5rem;
 }
 
-.reference-item-list {
+.markdown .reference-item-list {
     display: grid;
+    gap: 0;
     list-style: none;
     margin: 0;
     padding: 0;
 }
 
-.reference-item-list li {
+.markdown .reference-item-list li {
+    padding: 0;
     border-bottom: var(--publication-hairline) solid var(--publication-line);
 }
 
@@ -723,13 +848,13 @@ summary::-webkit-details-marker {
     color: var(--publication-accent);
 }
 
-.reference-item-list code {
+.markdown .reference-item-list code {
     background: transparent;
     padding: 0;
 }
 
 .reference-item-list span {
-    color: var(--publication-soft);
+    color: var(--publication-ink);
 }
 
 .lint-rule {
@@ -860,8 +985,17 @@ summary::-webkit-details-marker {
     display: grid;
     gap: 1.5rem;
     max-width: 100%;
-    min-width: 0;
+    min-width: min(100%, var(--width-prose));
+    width: fit-content;
+    justify-self: center;
+}
+
+.lint-metadata,
+.lint-example > h2,
+.lint-references {
     width: 100%;
+    max-width: var(--width-prose);
+    margin-inline: auto;
 }
 
 .lint-example {
@@ -870,16 +1004,16 @@ summary::-webkit-details-marker {
     min-width: 0;
 }
 
+/* align both examples to the longer listing */
+.lint-example .markdown-code {
+    min-width: 0;
+    width: 100%;
+}
+
 .lint-example > h2 {
     font-size: var(--size-subsection-title);
     font-weight: 500;
-    margin: 0;
-}
-
-.lint-example figure {
-    max-width: 100%;
-    min-width: 0;
-    width: 100%;
+    margin: 0 auto;
 }
 
 .lint-references {
@@ -899,7 +1033,9 @@ summary::-webkit-details-marker {
 }
 
 .reference-item > :not(.reference-signature, .reference-declaration, .reference-member-section) {
-    max-width: 42rem;
+    max-width: var(--width-prose);
+    width: 100%;
+    margin-inline: auto;
 }
 
 .reference-signature [data-publication-caption] {

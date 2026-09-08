@@ -25,8 +25,8 @@ export function BlogPage() {
                 title="Blog"
             />
 
-            <section {...stylex.attrs(styles.index)}>
-                <aside {...stylex.attrs(styles.sidebar)}>
+            <section {...stylex.attrs(publicationStyles.layout)}>
+                <aside {...stylex.attrs(publicationStyles.sidebar)}>
                     <BlogNavigation
                         activeHeading={() => ""}
                         contents={[]}
@@ -34,7 +34,7 @@ export function BlogPage() {
                     />
                 </aside>
 
-                <div {...stylex.attrs(styles.article)}>
+                <div {...stylex.attrs(publicationStyles.article)}>
                     <header {...stylex.attrs(publicationStyles.header)}>
                         <h1 {...stylex.attrs(publicationStyles.title)}>
                             Articles
@@ -90,24 +90,11 @@ function comparePosts(left: Post, right: Post) {
     );
 }
 
-const narrow = "@media (width < 60rem)";
-const mobile = "@media (max-width: 767px)";
-
 const styles = stylex.create({
     archive: {
         listStyle: "none",
         margin: 0,
         padding: 0,
-    },
-    article: {
-        alignContent: "start",
-        display: "grid",
-        gridColumn: 2,
-        minWidth: 0,
-        width: "100%",
-        [narrow]: {
-            gridColumn: "auto",
-        },
     },
 
     copy: {
@@ -122,25 +109,6 @@ const styles = stylex.create({
         whiteSpace: "nowrap",
     },
 
-    index: {
-        columnGap: "4rem",
-        display: "grid",
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-body)",
-        gridTemplateColumns: "15rem minmax(0, 1fr)",
-        marginInline: "auto",
-        maxWidth: tokens.siteWidth,
-        padding: `1.5rem ${tokens.gutterRight} 4rem ${tokens.gutterLeft}`,
-        width: "100%",
-        [narrow]: {
-            display: "block",
-            maxWidth: "48rem",
-            padding: `1rem ${tokens.gutterRight} 3rem ${tokens.gutterLeft}`,
-        },
-        [mobile]: {
-            paddingTop: "0.75rem",
-        },
-    },
     postLink: {
         alignItems: "baseline",
         display: "grid",
@@ -159,20 +127,6 @@ const styles = stylex.create({
         borderBottomColor: tokens.line,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
-    },
-    sidebar: {
-        alignContent: "start",
-        alignSelf: "start",
-        display: "none",
-        fontFamily: tokens.textFont,
-        fontSize: "var(--size-navigation)",
-        gridColumn: 1,
-        gap: 0,
-        "@media (min-width: 60rem)": {
-            display: "grid",
-            position: "sticky",
-            top: "1.5rem",
-        },
     },
     subtitle: {
         color: tokens.ink,
