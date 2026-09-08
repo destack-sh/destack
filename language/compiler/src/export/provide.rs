@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirImported,
-    DirParsed,
+    DirParsed, DirView,
 };
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
@@ -39,35 +39,30 @@ impl Compiler {
         let profile_id = profile;
         let profile_state = self.profile(context.revision(), profile_id)?;
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts
-            .read::<DirParsed>(module)
-            .map_err(CompilerError::from)?;
-        let bound = artifacts
-            .read::<DirBound>((module, profile_id))
-            .map_err(CompilerError::from)?;
-        let imported = artifacts
-            .read::<DirImported>((module, profile_id))
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .read::<DirExpanded>((module, profile_id))
-            .map_err(CompilerError::from)?;
+        let key = (module, profile_id);
+        let stages = DirView::expanded(
+            artifacts.read::<DirParsed>(module)?,
+            artifacts.read::<DirBound>(key)?,
+            artifacts.read::<DirImported>(key)?,
+            artifacts.read::<DirExpanded>(key)?,
+        );
         let module = self.module(context.revision(), module)?;
         let package = self.package(context.revision(), module.package_id)?;
         let environment = self.environment(context.revision())?;
 
         // build expanded export inputs
+        let parsed = stages.parsed();
+        let expanded = &stages.expanded;
         let view = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
-        let bindings = expanded.binding_table(&bound);
-        let modules = expanded.module_table(&imported);
         let mut state = ExportState::new(
             view,
             module.as_ref(),
             package.as_ref(),
             environment.as_ref(),
             &profile_state.key,
-            bound.namespace_scope,
-            bindings,
-            modules,
+            stages.bound.namespace_scope,
+            stages.bindings().clone(),
+            stages.modules().clone(),
             self.strings(),
         );
         self.collect_exports(&mut state, &expanded.roots)
