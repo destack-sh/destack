@@ -15,8 +15,6 @@ pub struct AliasTable {
     regions: Vec<Option<MemoryRegion>>,
     /// Constants used to compare structural projections.
     constants: Arc<ConstantTable>,
-    /// Whether each SSA value may alias another storage root.
-    value_is_aliasable: Vec<bool>,
     /// Addressed storage indexed by SSA value.
     value_storage: Vec<Option<Storage>>,
     /// Static storage indexed by global identity.
@@ -33,7 +31,7 @@ impl AliasTable {
         target_layout: TargetLayout,
         tree: &Tree,
     ) -> Self {
-        let regions = Self::build_regions(function, definitions, target_layout, tree);
+        let regions = Self::build_regions(function, definitions, places, target_layout, tree);
         // index global storage by local node identity
         let globals = tree
             .iter_nodes::<Global>()
@@ -43,20 +41,6 @@ impl AliasTable {
         for (id, global) in tree.iter_nodes::<Global>() {
             *global_spaces.get_mut(id) = Some(global.space);
         }
-
-        // classify SSA roots that may alias other storage
-        let value_is_aliasable = function
-            .value_types()
-            .iter()
-            .map(|ty| {
-                let Some(ty) = ty else {
-                    return false;
-                };
-                let ty = tree.get(*ty);
-
-                ty.is_aliasable_reference()
-            })
-            .collect();
 
         // resolve the storage addressed by every SSA value
         let value_storage = function
@@ -77,7 +61,6 @@ impl AliasTable {
         Self {
             regions,
             constants,
-            value_is_aliasable,
             value_storage,
             global_spaces,
         }
@@ -121,13 +104,6 @@ impl AliasTable {
         match (left_region, right_region) {
             (MemoryRegion::Place(left_place), MemoryRegion::Place(right_place)) => {
                 if left_place.root.is_disjoint_from(&right_place.root) {
-                    return AliasResult::NoAlias;
-                }
-
-                if left_place
-                    .root
-                    .exclusive_parameters_are_disjoint(&right_place.root)
-                {
                     return AliasResult::NoAlias;
                 }
 
@@ -194,16 +170,8 @@ impl AliasTable {
     /// Return whether two distinct place origins may overlap.
     fn origins_may_overlap(&self, left: PlaceOrigin, right: PlaceOrigin) -> bool {
         match (left, right) {
-            // compare two reference-carrying SSA roots
-            (PlaceOrigin::Value(left), PlaceOrigin::Value(right)) => {
-                if self.addresses_no_alias(left, right) {
-                    return false;
-                }
-
-                self.value_may_overlap(left)
-                    && self.value_may_overlap(right)
-                    && self.value_storage(left) == self.value_storage(right)
-            }
+            // distinct reference roots name disjoint places, aliased writes being the runtime's
+            (PlaceOrigin::Value(_), PlaceOrigin::Value(_)) => false,
             // compare an opaque reference with concrete storage
             (PlaceOrigin::Value(value), concrete) | (concrete, PlaceOrigin::Value(value)) => {
                 self.value_storage(value) == self.origin_storage(concrete)
@@ -211,11 +179,6 @@ impl AliasTable {
             // distinguish concrete local and global roots
             (PlaceOrigin::Local(_) | PlaceOrigin::Global(_), _) => false,
         }
-    }
-
-    /// Return whether one SSA root may overlap another storage root.
-    fn value_may_overlap(&self, value: Value) -> bool {
-        self.value_is_aliasable[value.id() as usize]
     }
 
     /// Return the storage addressed by one SSA value.
@@ -234,6 +197,13 @@ impl AliasTable {
 
     /// Return whether two projections are proven disjoint.
     fn projections_are_disjoint(&self, left: &Projection, right: &Projection) -> bool {
+        // the payloads of two cases never hold values at once
+        if let (Projection::Variant { case: left }, Projection::Variant { case: right }) =
+            (left, right)
+        {
+            return left != right;
+        }
+
         let Some(left) = self.projection_interval(left) else {
             return false;
         };
@@ -283,10 +253,12 @@ impl AliasTable {
     fn build_regions(
         function: &Function,
         definitions: &DefinitionTable,
+        places: &PlaceTable,
         target_layout: TargetLayout,
         tree: &Tree,
     ) -> Vec<Option<MemoryRegion>> {
-        let mut builder = MemoryRegionBuilder::new(function, definitions, tree, target_layout);
+        let mut builder =
+            MemoryRegionBuilder::new(function, definitions, places, tree, target_layout);
 
         let mut regions = vec![None; function.value_capacity()];
 

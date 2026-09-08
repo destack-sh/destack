@@ -1,6 +1,8 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use destack_core::StringId;
+
 use crate::{FloatType, TypeId};
 
 /// A compile-time constant value in MIR.
@@ -16,6 +18,15 @@ pub enum Constant {
         ty: TypeId,
         /// The measure taken.
         measure: LayoutMeasure,
+    },
+    /// The associated const one type answers an interface with, resolved at instantiation.
+    Witness {
+        /// The type answering the interface.
+        receiver: TypeId,
+        /// The applied interface declaring the const.
+        interface: TypeId,
+        /// The associated const name.
+        member: StringId,
     },
     /// Boolean constant.
     Boolean {

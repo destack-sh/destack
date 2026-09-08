@@ -191,6 +191,18 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
             value: Constant::Layout { ty, .. },
             ..
         } => walk_type_id(visitor, tree, ty),
+        Instruction::Const {
+            value:
+                Constant::Witness {
+                    receiver,
+                    interface,
+                    ..
+                },
+            ..
+        } => {
+            walk_type_id(visitor, tree, receiver);
+            walk_type_id(visitor, tree, interface);
+        }
         Instruction::Error
         | Instruction::Const { .. }
         | Instruction::Binary { .. }
@@ -223,8 +235,7 @@ pub fn walk_instruction<V: NodeVisitor + ?Sized>(
         | Instruction::VectorCompare { .. }
         | Instruction::VectorConvert { .. }
         | Instruction::Drop { .. }
-        | Instruction::Free { .. }
-        | Instruction::Hold { .. }
+        | Instruction::Release { .. }
         | Instruction::BarrierWrite { .. }
         | Instruction::AtomicStore { .. }
         | Instruction::AtomicCompareExchange { .. }

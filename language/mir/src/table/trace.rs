@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
-use crate::{Discriminant, ReferenceKind, Space, Storage, VariantEncoding};
+use crate::{Discriminant, Space, Storage, VariantEncoding};
 
 /// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -56,7 +56,7 @@ impl TraceMap {
     }
 
     /// Create the canonical trace map for one reference-like value.
-    pub fn reference(kind: ReferenceKind, storage: Storage) -> Self {
+    pub fn reference(storage: Storage) -> Self {
         // frame references must be rewritten when continuations move
         if storage == Storage::Frame {
             return Self::Fixed {
@@ -66,19 +66,19 @@ impl TraceMap {
             };
         }
 
-        // only managed heap references keep allocations live
-        match (kind, storage.heap_space()) {
-            (ReferenceKind::Managed, Some(Space::Local)) => Self::Fixed {
+        // every heap reference keeps its allocation live, a borrow through its interior address
+        match storage.heap_space() {
+            None | Some(Space::Constant | Space::Parameter(_)) => Self::Empty,
+            Some(Space::Local) => Self::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
                 frame_offsets: Box::new([]),
             },
-            (ReferenceKind::Managed, Some(Space::Shared)) => Self::Fixed {
+            Some(Space::Shared) => Self::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
             },
-            _ => Self::Empty,
         }
     }
 

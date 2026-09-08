@@ -465,9 +465,9 @@ impl<'a> FunctionBuilder<'a> {
         variant_type: LocalNodeId<Type>,
         case: u32,
     ) -> BuildResult<LocalNodeId<Type>> {
-        self.projected_type(variant_type, |_, variant| match variant {
+        self.projected_type(variant_type, |tree, variant| match variant {
             Type::Variant { cases, .. } => match cases.get(case as usize) {
-                Some(entry) => Ok(entry.ty),
+                Some(entry) => Ok(entry.payload(tree)),
                 None => Err(BuildError::InvalidCaseIndex {
                     variant: variant_type,
                     case,

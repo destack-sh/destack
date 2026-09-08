@@ -11,8 +11,8 @@ use crate::{Function, LocalNodeId, ReferenceKind, Storage, Tree, Type};
 pub struct DropTable {
     /// Generated destructors keyed by type and storage.
     destructors: FxIndexMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
-    /// User-authored drop hooks keyed by type and storage.
-    hooks: FxIndexMap<(LocalNodeId<Type>, Storage), LocalNodeId<Function>>,
+    /// User-authored drop hooks keyed by type.
+    hooks: FxIndexMap<LocalNodeId<Type>, LocalNodeId<Function>>,
 }
 
 impl DropTable {
@@ -32,13 +32,8 @@ impl DropTable {
             self.set_destructor(to, storage, function);
         }
 
-        let hooks = self
-            .hooks
-            .iter()
-            .filter_map(|(&(ty, storage), &function)| (ty == from).then_some((storage, function)))
-            .collect::<Vec<_>>();
-        for (storage, function) in hooks {
-            self.set_hook(to, storage, function);
+        if let Some(function) = self.hook(from) {
+            self.set_hook(to, function);
         }
     }
 
@@ -84,7 +79,7 @@ impl DropTable {
         if tree.get(ty).copy(tree).is_yes() {
             return false;
         }
-        if self.destructor(ty, storage).is_some() || self.hook(ty, storage).is_some() {
+        if self.destructor(ty, storage).is_some() || self.hook(ty).is_some() {
             return true;
         }
 
@@ -109,32 +104,27 @@ impl DropTable {
     }
 
     /// Return the user-authored drop hook for a type in one storage.
-    pub fn hook(&self, ty: LocalNodeId<Type>, storage: Storage) -> Option<LocalNodeId<Function>> {
-        self.hooks.get(&(ty, storage)).copied()
+    pub fn hook(&self, ty: LocalNodeId<Type>) -> Option<LocalNodeId<Function>> {
+        self.hooks.get(&ty).copied()
     }
 
     /// Return whether any user-authored drop hook exists for a type.
     pub fn has_hook(&self, ty: LocalNodeId<Type>) -> bool {
-        self.hooks.keys().any(|(candidate, _)| *candidate == ty)
+        self.hooks.contains_key(&ty)
     }
 
     /// Iterate user-authored drop hooks.
-    pub fn hooks(
-        &self,
-    ) -> impl Iterator<Item = (LocalNodeId<Type>, Storage, LocalNodeId<Function>)> + '_ {
-        self.hooks
-            .iter()
-            .map(|(&(ty, storage), &function)| (ty, storage, function))
+    pub fn hooks(&self) -> impl Iterator<Item = (LocalNodeId<Type>, LocalNodeId<Function>)> + '_ {
+        self.hooks.iter().map(|(&ty, &function)| (ty, function))
     }
 
-    /// Record the user-authored drop hook for a type in one storage.
+    /// Record the user-authored drop hook for a type.
     pub fn set_hook(
         &mut self,
         ty: LocalNodeId<Type>,
-        storage: Storage,
         function: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
-        self.hooks.insert((ty, storage), function)
+        self.hooks.insert(ty, function)
     }
 
     /// Return whether one inline child requires destruction.
@@ -194,7 +184,7 @@ impl DropTable {
             return false;
         }
         if self.destructor(ty, storage).is_some()
-            || self.hook(ty, storage).is_some()
+            || self.hook(ty).is_some()
             || tree.get(ty).is_unique_storage()
         {
             return true;

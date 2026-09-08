@@ -43,7 +43,7 @@ pub enum LifetimeTerm {
     Slot(LifetimeSlot),
 }
 
-/// The boundary lifetime for an escaping borrowed value.
+/// The lifetime one escaping borrowed value stays within.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub struct Lifetime {
     /// Terms the borrowed value may depend on.
@@ -168,7 +168,11 @@ impl Lifetime {
         match (longer, shorter) {
             (LifetimeTerm::Static, _) => true,
             (LifetimeTerm::Frame, LifetimeTerm::Frame) => true,
-            (LifetimeTerm::Managed, LifetimeTerm::Managed | LifetimeTerm::Frame) => true,
+            // managed storage stays alive while a borrow into it is held
+            (
+                LifetimeTerm::Managed,
+                LifetimeTerm::Managed | LifetimeTerm::Frame | LifetimeTerm::Slot(_),
+            ) => true,
             (LifetimeTerm::Slot(_), LifetimeTerm::Frame) => true,
             (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) if left == right => true,
             (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) => {

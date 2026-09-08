@@ -65,8 +65,8 @@ entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, 
 fn test_format_pointer_access() {
     assert_format(
         r#"
-function pointers(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, exclusive>): ptr<int32, mutable> {
-entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, exclusive>):
+function pointers(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, mutable>): ptr<int32, mutable> {
+entry(v0: ptr<int32, readonly>, v1: ptr<int32, mutable>, v2: ptr<int32, mutable>):
     v3: ptr<int32, mutable> = null
     return v1
 }
@@ -403,7 +403,7 @@ fn test_format_synthetic_copy_marker() {
         copy: Copy::Yes,
     });
     let representation = tree.get(struct_type).clone();
-    let pair = tree.reserve_type(Symbol::named(declaration_name));
+    let pair = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     tree.define_type(pair, representation);
     tree.insert_type_declaration(
         declaration_name,
@@ -458,7 +458,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
         copy: Copy::Yes,
     });
     let representation = tree.get(struct_type).clone();
-    let point = tree.reserve_type(Symbol::named(declaration_name));
+    let point = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     tree.define_type(point, representation);
     tree.insert_type_declaration(
         declaration_name,

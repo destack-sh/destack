@@ -2,9 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Field, FieldSpan, GenericArgument, Lifetime, LifetimeParameter, LifetimeTerm,
-    LocalNodeId, Multiplicity, ParameterDomain, ReferenceKind, SignatureParameter, Space, Static,
-    StaticId, Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
+    Access, Copy, Field, FieldSpan, GenericArgument, GenericParameterDomain, Lifetime,
+    LifetimeParameter, LifetimeTerm, LocalNodeId, Multiplicity, ReferenceKind, SignatureParameter,
+    Space, Static, StaticId, Storage, Type, TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -409,7 +409,7 @@ impl Parser {
 
         // a type parameter in scope
         if let Some((index, parameter)) = self.generic_parameter(name) {
-            let ParameterDomain::Type { .. } = parameter.domain else {
+            let GenericParameterDomain::Type { .. } = parameter.domain else {
                 return Err(ParseError::invalid("type parameter", start));
             };
             self.bump();
@@ -859,8 +859,19 @@ impl Parser {
         while !self.peek_is(TokenType::CloseBrace) {
             let discriminant = self.parse_constant_for_type(discriminant)?;
             self.eat_token(TokenType::Equal)?;
+            let is_boxed = self.peek().is_some_and(|token| {
+                matches!(self.token_type(token), TokenType::Identifier)
+                    && self.tree.source_text(token.span) == "boxed"
+            });
+            if is_boxed {
+                self.bump();
+            }
             let (ty, _) = self.parse_type_use_part()?;
-            cases.push(VariantCase { discriminant, ty });
+            cases.push(VariantCase {
+                discriminant,
+                ty,
+                is_boxed,
+            });
 
             if self.eat_token_if(TokenType::Semicolon) || self.eat_token_if(TokenType::Comma) {
                 continue;
@@ -893,7 +904,7 @@ impl Parser {
             let Some((index, parameter)) = self.generic_parameter(&name) else {
                 return Err(ParseError::invalid("array length", token.start()));
             };
-            let ParameterDomain::Value { .. } = parameter.domain else {
+            let GenericParameterDomain::Value { .. } = parameter.domain else {
                 return Err(ParseError::invalid("array length", token.start()));
             };
             self.bump();
@@ -973,7 +984,9 @@ impl Parser {
         let access = match Access::from_name(&text) {
             Some(access) => access,
             None => match self.generic_parameter(&text) {
-                Some((index, parameter)) if matches!(parameter.domain, ParameterDomain::Access) => {
+                Some((index, parameter))
+                    if matches!(parameter.domain, GenericParameterDomain::Access) =>
+                {
                     Access::Parameter(index)
                 }
                 _ => return None,
@@ -1049,7 +1062,7 @@ impl Parser {
 
         // read a space parameter in scope, static when the keyword follows
         if let Some((index, parameter)) = self.generic_parameter(&text)
-            && matches!(parameter.domain, ParameterDomain::Space)
+            && matches!(parameter.domain, GenericParameterDomain::Space)
         {
             self.bump();
             if self.eat_name_if("static") {

@@ -15,7 +15,7 @@ external function take<4>(): void
         .iter_nodes::<Function>()
         .next()
         .expect("fixture should contain one function");
-    let base = Symbol::named(StringId::for_text("take"));
+    let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("take"));
     let expected = base.instantiate(&function.arguments, &tree);
 
     assert_eq!(function.symbol, expected);

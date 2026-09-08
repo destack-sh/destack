@@ -8,10 +8,6 @@ use super::r#type::Type;
 
 impl Tree {
     /// Return each member of one cycle component with its canonical key.
-    ///
-    /// Distinct dir spellings of one cyclic type lower to isomorphic graphs;
-    /// keying every member by its canonical serialization lets later walks
-    /// unify on the first interned identity, entered at any member.
     pub fn canonical_component(&self, entry: TypeId) -> Vec<(TypeId, String)> {
         // gather the nodes reachable from the entry
         let mut forward = Vec::new();
@@ -21,7 +17,7 @@ impl Tree {
             forward.push(*id);
         }
 
-        // keep the members that reach the entry back: the cycle component
+        // keep the members with a path back to the entry: the cycle component
         let mut members = Vec::new();
         for id in forward {
             let mut visited = FxIndexMap::default();
@@ -48,13 +44,15 @@ impl Tree {
     }
 
     /// Return whether two type graphs are equal, cycles included.
-    ///
-    /// A revisited pair holds by assumption, so unrolled and rolled
-    /// spellings of one recursive type compare equal.
     pub fn types_equal(&self, left: TypeId, right: TypeId) -> bool {
         let mut assumed = FxIndexMap::default();
 
         self.types_equal_assuming(left, right, &mut assumed)
+    }
+
+    /// Return whether two types share one representation, lifetimes aside.
+    pub fn same_representation(&self, left: TypeId, right: TypeId) -> bool {
+        self.types_equal(self.represented(left), self.represented(right))
     }
 
     /// Compare two type graphs under an assumption set.
@@ -139,7 +137,7 @@ impl Tree {
     fn child_type_ids(&self, id: TypeId) -> Vec<TypeId> {
         let mut children = Vec::new();
         match self.get(id) {
-            // struct children reach through their field nodes
+            // read struct children through their field nodes
             Type::Struct { fields, .. } => {
                 for field in fields {
                     children.push(self.get(*field).ty);
@@ -171,9 +169,8 @@ impl Tree {
             return;
         }
 
-        // nominal identities serialize by name: isomorphic structure never
-        //  unifies distinct nominals, and the root stays structural so
-        //  isomorphic cycle spellings still meet
+        // serialize nominal identities by name, keeping the root structural so
+        //  isomorphic cycles still meet
         if !indices.is_empty()
             && let Some(symbol) = self.type_symbol(id)
         {

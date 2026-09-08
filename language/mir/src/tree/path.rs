@@ -95,6 +95,11 @@ impl Path {
         self
     }
 
+    /// Return the first projection, absent at the root.
+    pub fn first(&self) -> Option<&Projection> {
+        self.projections.first()
+    }
+
     /// Return whether this path is rooted at the value itself.
     #[inline]
     pub fn is_root(&self) -> bool {

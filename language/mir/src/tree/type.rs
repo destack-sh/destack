@@ -37,11 +37,9 @@ pub enum Mutability {
 pub enum Access {
     /// Readonly access.
     Readonly,
-    /// Mutable access.
+    /// Mutable access, exclusive on owned storage by the borrow check and aliased through handles.
     #[default]
     Mutable,
-    /// Mutable exclusive access.
-    Exclusive,
     /// The access one template parameter names.
     Parameter(u32),
 }
@@ -49,12 +47,7 @@ pub enum Access {
 impl Access {
     /// Return whether this access can write through the reference.
     pub fn can_write(self) -> bool {
-        matches!(self, Access::Mutable | Access::Exclusive)
-    }
-
-    /// Return whether this access excludes overlapping borrows.
-    pub fn is_exclusive(self) -> bool {
-        matches!(self, Access::Exclusive)
+        matches!(self, Access::Mutable)
     }
 
     /// Parse a canonical access name.
@@ -62,7 +55,6 @@ impl Access {
         Some(match name {
             "readonly" => Access::Readonly,
             "mutable" => Access::Mutable,
-            "exclusive" => Access::Exclusive,
             _ => return None,
         })
     }
@@ -72,7 +64,6 @@ impl Access {
         Some(match self {
             Access::Readonly => "readonly",
             Access::Mutable => "mutable",
-            Access::Exclusive => "exclusive",
             Access::Parameter(_) => return None,
         })
     }
@@ -548,11 +539,21 @@ pub enum Type {
 pub struct VariantCase {
     /// The discriminant constant selecting this case.
     pub discriminant: Constant,
-    /// The logical payload type.
+    /// The stored payload type, the unique box of a boxed case.
     pub ty: TypeId,
+    /// Whether the case stores its payload behind a unique box it owns.
+    pub is_boxed: bool,
 }
 
 impl VariantCase {
+    /// Return the logical payload type, the pointee of a boxed case.
+    pub fn payload(&self, tree: &Tree) -> TypeId {
+        match (self.is_boxed, tree.get(self.ty)) {
+            (true, Type::Reference { pointee, .. }) => *pointee,
+            _ => self.ty,
+        }
+    }
+
     /// Return the logical discriminant bits when this case uses a scalar constant.
     pub fn discriminant(&self) -> Option<Discriminant> {
         let bits = match &self.discriminant {
@@ -795,13 +796,6 @@ impl Type {
     /// Return whether this type is a unique reference.
     pub fn is_unique_reference(&self) -> bool {
         self.reference_kind() == Some(ReferenceKind::Unique)
-    }
-
-    /// Return whether this reference-like value may alias another reference.
-    pub fn is_aliasable_reference(&self) -> bool {
-        self.is_reference_representation()
-            && !self.is_unique_reference()
-            && !self.reference_access().is_some_and(Access::is_exclusive)
     }
 
     /// Return whether this type owns unique storage.
@@ -1077,12 +1071,12 @@ pub struct GenericParameter {
     /// The declared name.
     pub name: StringId,
     /// The values the parameter ranges over.
-    pub domain: ParameterDomain,
+    pub domain: GenericParameterDomain,
 }
 
 /// The values one generic parameter ranges over.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
-pub enum ParameterDomain {
+pub enum GenericParameterDomain {
     /// The types satisfying every bound.
     Type {
         /// The applied interfaces the parameter satisfies.
@@ -1232,7 +1226,7 @@ impl Tree {
 
         cases
             .iter()
-            .position(|case| self.types_equal(case.ty, payload))
+            .position(|case| self.same_representation(case.payload(self), payload))
             .map(|index| index as u32)
     }
 
@@ -1242,6 +1236,6 @@ impl Tree {
             return None;
         };
 
-        cases.get(case as usize).map(|case| case.ty)
+        cases.get(case as usize).map(|case| case.payload(self))
     }
 }

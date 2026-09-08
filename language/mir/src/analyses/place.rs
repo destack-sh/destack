@@ -1,6 +1,8 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+use destack_core::{FxIndexMap, FxIndexSet};
+
 use crate::{
     Analysis, Block, CastOperator, ControlTable, Function, FunctionCache, GlobalId, Instruction,
     Intrinsic, LocalId, LocalNodeId, Mutation, Path, Projection, Tree, Value,
@@ -97,7 +99,12 @@ impl PlaceTable {
             );
         }
 
-        // solve block parameters and address derivations together
+        // forward the reference a local holds through its loads, unless its address escapes
+        let forwarded = Self::forwarded_locals(function, tree);
+        let mut exits: FxIndexMap<LocalNodeId<Block>, FxIndexMap<LocalId, Resolution>> =
+            FxIndexMap::default();
+
+        // solve block parameters, held references, and address derivations together
         let mut is_changed = true;
         while is_changed {
             is_changed = false;
@@ -114,15 +121,45 @@ impl PlaceTable {
                     }
                 }
 
+                // merge the references the locals hold at entry from every predecessor
+                let mut held = Self::merge_held(block_id, &graph, &exits, &forwarded);
+
                 // derive instruction destinations from their storage operands
                 for &instruction_id in &block.instructions {
                     let instruction = tree.get(instruction_id);
+                    match instruction {
+                        Instruction::LocalSet { local, value } if forwarded.contains(local) => {
+                            held.insert(*local, Self::copy(*value, &resolutions));
+                            continue;
+                        }
+                        Instruction::LocalGet { destination, local }
+                            if forwarded.contains(local) =>
+                        {
+                            // forward the place of a local holding one reference, else name its dereference
+                            let resolution = match held.get(local) {
+                                Some(Resolution::Opaque) => Resolution::Known(
+                                    Place::local(*local).with_projection(Projection::Deref),
+                                ),
+                                Some(resolution) => resolution.clone(),
+                                None => Resolution::Unknown,
+                            };
+                            is_changed |= Self::set(&mut resolutions, *destination, resolution);
+                            continue;
+                        }
+                        _ => {}
+                    }
                     let Some(destination) = instruction.destination() else {
                         continue;
                     };
                     let resolution =
                         Self::instruction(destination, instruction, &resolutions, tree);
                     is_changed |= Self::set(&mut resolutions, destination, resolution);
+                }
+
+                // record the references held at exit
+                if exits.get(&block_id) != Some(&held) {
+                    exits.insert(block_id, held);
+                    is_changed = true;
                 }
             }
         }
@@ -204,6 +241,61 @@ impl PlaceTable {
             },
             _ => Resolution::Known(Place::value(destination)),
         }
+    }
+
+    /// Return the locals holding a reference with an address kept inside the frame.
+    fn forwarded_locals(function: &Function, tree: &Tree) -> FxIndexSet<LocalId> {
+        let mut exposed = FxIndexSet::default();
+        for &block_id in function.blocks() {
+            for &instruction_id in &tree.get(block_id).instructions {
+                if let Instruction::LocalAddr { local, .. } = tree.get(instruction_id) {
+                    exposed.insert(*local);
+                }
+            }
+        }
+
+        function
+            .locals()
+            .iter()
+            .copied()
+            .filter(|local| {
+                let (held, _) = tree.split_lifetime_application(tree.get(*local).ty);
+
+                !exposed.contains(local) && tree.get(held).is_reference_representation()
+            })
+            .collect()
+    }
+
+    /// Merge the references the forwarded locals hold at one block's entry.
+    fn merge_held(
+        block: LocalNodeId<Block>,
+        graph: &ControlTable,
+        exits: &FxIndexMap<LocalNodeId<Block>, FxIndexMap<LocalId, Resolution>>,
+        forwarded: &FxIndexSet<LocalId>,
+    ) -> FxIndexMap<LocalId, Resolution> {
+        let mut held = FxIndexMap::default();
+        for &local in forwarded {
+            let mut merged = Resolution::Unknown;
+            for predecessor in graph.predecessors(block) {
+                let Some(incoming) = exits.get(predecessor).and_then(|exit| exit.get(&local))
+                else {
+                    continue;
+                };
+                merged = match (&merged, incoming) {
+                    (_, Resolution::Unknown) => merged,
+                    (Resolution::Unknown, incoming) => incoming.clone(),
+                    (Resolution::Known(current), Resolution::Known(next)) if current == next => {
+                        merged
+                    }
+                    _ => Resolution::Opaque,
+                };
+            }
+            if merged != Resolution::Unknown {
+                held.insert(local, merged);
+            }
+        }
+
+        held
     }
 
     /// Resolve one block parameter from incoming arguments.

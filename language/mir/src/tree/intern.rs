@@ -6,8 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::rewrite::Substitution;
 use crate::{
-    Attribute, Constant, Copy, Field, GenericParameter, Lifetime, LifetimeParameter, LocalNodeId,
-    SignatureParameter, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId, VariantCase,
+    Access, Attribute, Constant, Copy, Field, GenericParameter, Lifetime, LifetimeParameter,
+    LocalNodeId, ReferenceKind, SignatureParameter, Space, Storage, Symbol, Tree, Type,
+    TypeDeclaration, TypeHeritage, TypeId, VariantCase,
 };
 
 /// One stored MIR type.
@@ -59,20 +60,35 @@ impl Tree {
 
     /// Intern one anonymous union: the variant canonical over its payload set.
     pub fn intern_union(&mut self, payloads: Vec<TypeId>, copy: Copy) -> TypeId {
-        let variant = self.canonical_variant(payloads, copy);
+        let cases = payloads
+            .into_iter()
+            .map(|payload| (payload, false))
+            .collect();
+        let variant = self.canonical_variant(cases, copy);
 
         self.intern_type(variant)
     }
 
-    /// Return the canonical variant over one payload set.
-    fn canonical_variant(&mut self, payloads: Vec<TypeId>, copy: Copy) -> Type {
-        // order the payloads by lifetime-erased shape, once each
-        let mut keyed: Vec<_> = payloads
+    /// Return the canonical variant over one case set of stored payloads and their boxing.
+    fn canonical_variant(&mut self, cases: Vec<(TypeId, bool)>, copy: Copy) -> Type {
+        // box each inline payload the layout stores behind a unique pointer
+        let cases: Vec<_> = cases
             .into_iter()
-            .map(|payload| (self.type_shape_fingerprint(payload), payload))
+            .map(
+                |(payload, is_boxed)| match !is_boxed && self.boxes_payload(payload) {
+                    true => (self.box_type(payload), true),
+                    false => (payload, is_boxed),
+                },
+            )
+            .collect();
+
+        // order the payloads by lifetime-erased shape, once each
+        let mut keyed: Vec<_> = cases
+            .into_iter()
+            .map(|(payload, is_boxed)| (self.type_shape_fingerprint(payload), payload, is_boxed))
             .collect();
         keyed.sort();
-        keyed.dedup_by_key(|(_, payload)| *payload);
+        keyed.dedup_by_key(|(_, payload, _)| *payload);
 
         // select enough bits to distinguish every case
         let width = keyed.len().next_power_of_two().ilog2().max(1) as u16;
@@ -85,12 +101,13 @@ impl Tree {
         let cases = keyed
             .into_iter()
             .enumerate()
-            .map(|(index, (_, ty))| VariantCase {
+            .map(|(index, (_, ty, is_boxed))| VariantCase {
                 discriminant: Constant::UInt {
                     value: index as u128,
                     width,
                 },
                 ty,
+                is_boxed,
             })
             .collect();
 
@@ -101,13 +118,42 @@ impl Tree {
         }
     }
 
+    /// Return whether a variant stores one payload boxed: a concrete non-Copy aggregate, which
+    /// managed storage must never lend inline (Swift's indirect case). The box lives in the local
+    /// heap; a shared union owning memory inline is rejected by the shared representation check.
+    fn boxes_payload(&self, payload: TypeId) -> bool {
+        if payload.mentions_parameter(self) {
+            return false;
+        }
+        let stored = self.storage_type(payload);
+
+        matches!(
+            self.get(stored),
+            Type::Struct { .. } | Type::Tuple { .. } | Type::FixedArray { .. }
+        ) && self.get(payload).copy(self) == Copy::No
+    }
+
+    /// Intern the unique box one boxed case owns.
+    fn box_type(&mut self, pointee: TypeId) -> TypeId {
+        self.intern_type(Type::Reference {
+            kind: ReferenceKind::Unique,
+            lifetime: Lifetime::empty(),
+            storage: Storage::heap(Space::Local),
+            access: Access::Mutable,
+            pointee,
+        })
+    }
+
     /// Intern one type by structure, a variant canonical over its payload set.
     pub fn intern_type(&mut self, ty: Type) -> TypeId {
         let ty = match ty {
             Type::Variant { cases, copy, .. } => {
-                let payloads = cases.into_iter().map(|case| case.ty).collect();
+                let cases = cases
+                    .into_iter()
+                    .map(|case| (case.ty, case.is_boxed))
+                    .collect();
 
-                self.canonical_variant(payloads, copy)
+                self.canonical_variant(cases, copy)
             }
             other => other,
         };
@@ -249,17 +295,13 @@ impl Tree {
             declaration,
         } = entry
         else {
-            panic!("defined MIR type {id:?} twice or without reserving it");
+            panic!("defined MIR type {id:?} twice or without reserving it: {entry:?}");
         };
-        let structural = TypeIndexKey::Structural(Self::intern_hash(&ty));
         *entry = TypeEntry::Identified {
             ty,
             symbol: *symbol,
             declaration: *declaration,
         };
-
-        // index the defined content structurally, so an equal unrolling reuses it
-        self.type_index.entry(structural).or_default().push(id);
 
         // represent the applications interned over this definition
         let applications: Vec<TypeId> = self
@@ -500,6 +542,7 @@ impl Tree {
                     .map(|case| VariantCase {
                         discriminant: case.discriminant,
                         ty: self.intern_representation(case.ty),
+                        is_boxed: case.is_boxed,
                     })
                     .collect(),
                 copy,
@@ -671,6 +714,7 @@ impl Tree {
                     .map(|case| VariantCase {
                         discriminant: case.discriminant,
                         ty: self.instantiate_type_lifetimes(case.ty, arguments),
+                        is_boxed: case.is_boxed,
                     })
                     .collect(),
                 copy,
@@ -794,8 +838,14 @@ mod tests {
     #[test]
     fn test_define_recursive_identified_types() {
         let mut tree = Tree::new();
-        let first = tree.reserve_type(Symbol::named(StringId::for_text("First")));
-        let second = tree.reserve_type(Symbol::named(StringId::for_text("Second")));
+        let first = tree.reserve_type(Symbol::named(
+            crate::TEST_MODULE,
+            StringId::for_text("First"),
+        ));
+        let second = tree.reserve_type(Symbol::named(
+            crate::TEST_MODULE,
+            StringId::for_text("Second"),
+        ));
         let first_field = tree.intern_field(
             Field {
                 name: None,
@@ -835,7 +885,10 @@ mod tests {
     #[should_panic(expected = "defined MIR type")]
     fn test_reject_second_type_definition() {
         let mut tree = Tree::new();
-        let id = tree.reserve_type(Symbol::named(StringId::for_text("Nominal")));
+        let id = tree.reserve_type(Symbol::named(
+            crate::TEST_MODULE,
+            StringId::for_text("Nominal"),
+        ));
         tree.define_type(id, Type::Void);
         tree.define_type(id, Type::Void);
     }
@@ -933,7 +986,10 @@ mod tests {
     #[test]
     fn test_intern_identified_lifetime_representations() {
         let mut tree = Tree::new();
-        let nominal = tree.reserve_type(Symbol::named(StringId::for_text("Nominal")));
+        let nominal = tree.reserve_type(Symbol::named(
+            crate::TEST_MODULE,
+            StringId::for_text("Nominal"),
+        ));
         tree.define_type(nominal, Type::Void);
         let local = tree.intern_type(Type::Application {
             base: nominal,
@@ -967,7 +1023,7 @@ mod tests {
             fields: vec![field],
             copy: Copy::Yes,
         });
-        let symbol = Symbol::named(StringId::for_text("Nominal"));
+        let symbol = Symbol::named(crate::TEST_MODULE, StringId::for_text("Nominal"));
         let nominal = tree.reserve_type(symbol);
         tree.define_type(nominal, Type::Void);
         let node_count = tree.node_count();

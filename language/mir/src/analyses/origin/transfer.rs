@@ -111,14 +111,10 @@ impl OriginState {
                 .into_iter()
                 .map(|borrowed| {
                     let stored = place.clone().with_path(&borrowed.path);
-                    let mut origin = match borrowed.kind {
-                        // a handle carries the regions of the storage it is read from
-                        ReferenceKind::Managed => self.place(cx, &stored),
-                        _ => self
-                            .get_place(&stored)
-                            .cloned()
-                            .unwrap_or_else(|| Origin::from_lifetime(&borrowed.lifetime)),
-                    };
+                    let mut origin = self
+                        .get_place(&stored)
+                        .cloned()
+                        .unwrap_or_else(|| Origin::from_path(&borrowed));
                     if let Some(loan) = cx.loans.carried(destination, &borrowed.path) {
                         origin = origin.with_loan(loan);
                     }
@@ -559,10 +555,19 @@ impl OriginState {
 
     /// Return whether addressed storage may outlive its reference value.
     fn storage_outlives_reference(cx: &OriginContext<'_>, place: &Place) -> bool {
-        match place.origin {
-            PlaceOrigin::Local(_) => false,
-            PlaceOrigin::Global(_) => true,
-            PlaceOrigin::Value(value) => matches!(
+        match (place.origin, place.path.first()) {
+            (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
+                let ty = cx.tree.get(local).ty;
+                let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
+
+                matches!(
+                    ty.reference_kind(),
+                    Some(ReferenceKind::Managed | ReferenceKind::Borrowed)
+                )
+            }
+            (PlaceOrigin::Local(_), _) => false,
+            (PlaceOrigin::Global(_), _) => true,
+            (PlaceOrigin::Value(value), _) => matches!(
                 cx.function.reference_kind(value, cx.tree),
                 Some(ReferenceKind::Managed | ReferenceKind::Borrowed)
             ),

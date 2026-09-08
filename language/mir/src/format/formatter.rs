@@ -2,7 +2,7 @@ use std::fmt;
 
 use destack_core::{FxIndexMap, FxIndexSet, StringPool};
 use destack_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
-use destack_source::{File, FileType};
+use destack_source::{File, FileType, ModuleId};
 
 use super::FormatOptions;
 
@@ -58,6 +58,8 @@ pub(crate) struct Selection {
     pub(crate) declarations: FxIndexSet<LocalNodeId<TypeDeclaration>>,
     /// The functions kept.
     pub(crate) functions: FxIndexSet<FunctionId>,
+    /// The kept declarations imported from other modules, printed without their definitions.
+    pub(crate) imported: FxIndexSet<LocalNodeId<TypeDeclaration>>,
 }
 
 impl<'a> Formatter<'a> {
@@ -85,16 +87,32 @@ impl<'a> Formatter<'a> {
     }
 
     /// Format some functions with the type declarations they mention, in tree order.
-    pub fn format_functions(mut self, functions: &[FunctionId]) -> FormatResult<String> {
+    pub fn format_functions(
+        mut self,
+        functions: &[FunctionId],
+        module: ModuleId,
+    ) -> FormatResult<String> {
         // keep the requested functions and the declarations they mention
         let types = mentioned_types(self.tree, functions);
-        let declarations = types
+        let declarations: FxIndexSet<_> = types
             .iter()
             .filter_map(|ty| self.tree.type_declaration(*ty))
+            .collect();
+        let imported = declarations
+            .iter()
+            .copied()
+            .filter(|declaration| {
+                let ty = self.tree.get(*declaration).ty;
+
+                self.tree
+                    .type_symbol(ty)
+                    .is_some_and(|symbol| !symbol.is_defined_in(module))
+            })
             .collect();
         self.selection = Some(Selection {
             declarations,
             functions: functions.iter().copied().collect(),
+            imported,
         });
 
         self.format()

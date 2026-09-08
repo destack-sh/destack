@@ -162,7 +162,11 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Type> {
         let cases = cases
             .into_iter()
-            .map(|(discriminant, ty)| VariantCase { discriminant, ty })
+            .map(|(discriminant, ty)| VariantCase {
+                discriminant,
+                ty,
+                is_boxed: false,
+            })
             .collect();
 
         self.tree.intern_type(Type::Variant {

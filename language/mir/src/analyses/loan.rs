@@ -139,12 +139,13 @@ impl LoanTable {
         loan: &Loan,
         active: &[LoanId],
         mut may_overlap: impl FnMut(&Place, &Place) -> bool,
+        mut is_exclusive: impl FnMut(&Loan) -> bool,
     ) -> Option<LoanId> {
         active.iter().copied().find(|&current| {
             let current_loan = self.get(current);
             !loan.parents.contains(&current)
                 && current_loan.may_overlap(loan, &mut may_overlap)
-                && (current_loan.is_exclusive() || loan.is_exclusive())
+                && (is_exclusive(current_loan) || is_exclusive(loan))
         })
     }
 
@@ -256,9 +257,9 @@ impl Loan {
         &self.parents
     }
 
-    /// Return whether this loan excludes overlapping access.
-    pub fn is_exclusive(&self) -> bool {
-        self.access.is_exclusive()
+    /// Return whether this loan writes through its reference.
+    pub fn writes(&self) -> bool {
+        self.access.can_write()
     }
 
     /// Return whether this loan may overlap another loan.

@@ -8,9 +8,10 @@ use super::value::{format_function_id, format_type_id};
 
 use crate::{
     Access, Attribute, AttributeIdentifier, Copy, Field, FieldSpan, FormatNode, Formatter,
-    FunctionId, GenericArgument, GenericParameter, Lifetime, LifetimeParameter, LifetimeTerm,
-    LocalNodeId, ParameterDomain, ReferenceKind, SignatureParameter, Space, Storage, Type,
-    TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer, write_comments_before,
+    FunctionId, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+    LifetimeParameter, LifetimeTerm, LocalNodeId, ReferenceKind, SignatureParameter, Space,
+    Storage, Type, TypeDeclaration, TypeDeclarationSpans, TypeHeritage, TypeId, Writer,
+    write_comments_before,
 };
 
 impl FormatNode for Type {
@@ -127,7 +128,11 @@ pub(super) fn format_type_declaration<'a>(
     // format the definition under the declaration's lifetime and generic scope
     let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.clone());
     let previous_generics = f.context_mut().replace_generics(generics.clone());
-    let is_opaque = !f.context().tree.is_defined_type(TypeId::from(type_id));
+    let is_imported = f
+        .context()
+        .selection()
+        .is_some_and(|selection| declaration_id.is_some_and(|id| selection.imported.contains(&id)));
+    let is_opaque = is_imported || !f.context().tree.is_defined_type(TypeId::from(type_id));
     let result = match ty {
         // print an opaque declaration without a definition
         _ if is_opaque => {
@@ -477,17 +482,11 @@ fn format_type_maybe_named<'a>(
                 if index > 0 {
                     write!(f, [space()])?;
                 }
-                write!(
-                    f,
-                    [
-                        &case.discriminant,
-                        space(),
-                        token("="),
-                        space(),
-                        FormatTypeId(case.ty),
-                        token(";")
-                    ]
-                )?;
+                write!(f, [&case.discriminant, space(), token("="), space()])?;
+                if case.is_boxed {
+                    write!(f, [token("boxed"), space()])?;
+                }
+                write!(f, [FormatTypeId(case.ty), token(";")])?;
             }
             if !cases.is_empty() {
                 write!(f, [space()])?;
@@ -825,7 +824,7 @@ pub(super) fn format_generic_parameter<'a>(
 ) -> FormatResult<()> {
     let name = f.context().strings.get(parameter.name).to_string();
     match &parameter.domain {
-        ParameterDomain::Type { bounds } => {
+        GenericParameterDomain::Type { bounds } => {
             write!(f, [copied_text(&name)])?;
             for (position, bound) in bounds.iter().enumerate() {
                 match position {
@@ -837,9 +836,9 @@ pub(super) fn format_generic_parameter<'a>(
 
             Ok(())
         }
-        ParameterDomain::Space => write!(f, [token("space"), space(), copied_text(&name)]),
-        ParameterDomain::Access => write!(f, [token("access"), space(), copied_text(&name)]),
-        ParameterDomain::Value { ty } => {
+        GenericParameterDomain::Space => write!(f, [token("space"), space(), copied_text(&name)]),
+        GenericParameterDomain::Access => write!(f, [token("access"), space(), copied_text(&name)]),
+        GenericParameterDomain::Value { ty } => {
             write!(
                 f,
                 [

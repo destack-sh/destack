@@ -96,7 +96,7 @@ impl<'a> FunctionBuilder<'a> {
         ty: LocalNodeId<Type>,
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
-        self.insert(Global::import(name, ty, mutability))
+        self.insert(Global::import(self.module, name, ty, mutability))
     }
 
     /// Load one global value through its address.
@@ -241,9 +241,9 @@ impl<'a> FunctionBuilder<'a> {
         self.insert_instruction(Instruction::Drop { value })
     }
 
-    /// Release one unique representation's backing heap allocation after drop elaboration.
-    pub fn free(&mut self, value: Value) {
-        self.insert_instruction(Instruction::Free { value });
+    /// Release one unique representation's backing allocation to the heap after its contents dropped.
+    pub fn release(&mut self, value: Value) {
+        self.insert_instruction(Instruction::Release { value });
     }
 
     // instruction builders: assumptions

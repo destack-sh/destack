@@ -10,8 +10,13 @@ impl ModuleBuilder {
         initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);
-        self.tree
-            .insert(Global::new(name, ty, Mutability::Mutable, initializer))
+        self.tree.insert(Global::new(
+            self.module,
+            name,
+            ty,
+            Mutability::Mutable,
+            initializer,
+        ))
     }
 
     /// Create one program constant.
@@ -22,7 +27,8 @@ impl ModuleBuilder {
         initializer: GlobalInitializer,
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);
-        self.tree.insert(Global::constant(name, ty, initializer))
+        self.tree
+            .insert(Global::constant(self.module, name, ty, initializer))
     }
 
     /// Create one global at an explicit mutability.
@@ -35,7 +41,7 @@ impl ModuleBuilder {
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);
         self.tree
-            .insert(Global::new(name, ty, mutability, initializer))
+            .insert(Global::new(self.module, name, ty, mutability, initializer))
     }
 
     /// Declare one external global.
@@ -46,7 +52,8 @@ impl ModuleBuilder {
         mutability: Mutability,
     ) -> LocalNodeId<Global> {
         let name = self.strings.intern(name);
-        self.tree.insert(Global::import(name, ty, mutability))
+        self.tree
+            .insert(Global::import(self.module, name, ty, mutability))
     }
 
     /// Start building one new function.

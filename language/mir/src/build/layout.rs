@@ -204,7 +204,12 @@ impl<'tree> LayoutBuilder<'tree> {
                 true => Some(*base),
                 false => match self.tree.representation(TypeId::from(ty)) {
                     Some(represented) => Some(represented),
-                    None => return Err(self.unsupported("an unrepresented application")),
+                    None => {
+                        return Err(self.unsupported(&format!(
+                            "an unrepresented application {:?}",
+                            self.tree.get(ty)
+                        )));
+                    }
                 },
             },
             Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
@@ -283,7 +288,7 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // references occupy one pointer, reserving the nullish words as a niche
-            Type::Reference { kind, storage, .. } => {
+            Type::Reference { storage, .. } => {
                 let scalar = self.reference_scalar();
 
                 Ok(Layout {
@@ -292,7 +297,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: scalar.niche(0),
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage),
+                    trace_map: TraceMap::reference(storage),
                 })
             }
 
@@ -313,7 +318,7 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // slices store their base reference followed by one element count
-            Type::Slice { kind, storage, .. } => {
+            Type::Slice { storage, .. } => {
                 let reference = self.reference_scalar();
                 let length = Scalar::new(Primitive::Integer {
                     width: self.target.pointer_bits(),
@@ -329,7 +334,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: reference.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage),
+                    trace_map: TraceMap::reference(storage),
                 })
             }
 
@@ -477,7 +482,7 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // dynamic values store one erased payload reference and dispatch table id
-            Type::Dynamic { kind, storage, .. } => {
+            Type::Dynamic { storage, .. } => {
                 let payload = self.reference_scalar();
                 let table = Scalar::new(Primitive::Integer { width: 32 });
                 let representation = Representation::ScalarPair([
@@ -491,14 +496,14 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: payload.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage),
+                    trace_map: TraceMap::reference(storage),
                 })
             }
 
             // closures store a function identity and erased environment reference
-            Type::Function { kind, storage, .. } => {
+            Type::Function { storage, .. } => {
                 let environment_offset = self.pointer_bytes();
-                let environment_trace = TraceMap::reference(kind, storage);
+                let environment_trace = TraceMap::reference(storage);
                 let function = self.function_scalar();
                 let environment = Scalar::new(Primitive::Pointer {
                     width: self.target.pointer_bits(),

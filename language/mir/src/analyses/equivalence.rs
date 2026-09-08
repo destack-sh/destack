@@ -153,8 +153,7 @@ impl PureExpression {
             | mir::Instruction::NewComplete { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::Free { .. }
-            | mir::Instruction::Hold { .. }
+            | mir::Instruction::Release { .. }
             | mir::Instruction::Aggregate { .. }
             | mir::Instruction::VectorSplat { .. }
             | mir::Instruction::VectorExtract { .. }

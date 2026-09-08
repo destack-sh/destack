@@ -1,4 +1,5 @@
 use destack_core::{StringId, StringPool};
+use destack_source::ModuleId;
 
 use crate::build::FunctionHeaderBuilder;
 use crate::{
@@ -9,6 +10,8 @@ use crate::{
 /// The builder for one MIR module.
 #[derive(Debug)]
 pub struct ModuleBuilder {
+    /// The module being built.
+    pub(super) module: ModuleId,
     /// The tree being built.
     pub(super) tree: Tree,
     /// The target ABI layout.
@@ -33,8 +36,9 @@ pub struct ModuleBuilder {
 
 impl ModuleBuilder {
     /// Create one module builder.
-    pub fn new() -> Self {
+    pub fn new(module: ModuleId) -> Self {
         Self {
+            module,
             tree: Tree::new(),
             target_layout: TargetLayout::default(),
             layouts: LayoutTable::default(),
@@ -173,7 +177,7 @@ impl ModuleBuilder {
 
     /// Start one function header.
     pub fn function_header(&mut self, name: &str) -> FunctionHeaderBuilder<'_> {
-        FunctionHeaderBuilder::new(&self.strings, name)
+        FunctionHeaderBuilder::new(&self.strings, self.module, name)
     }
 
     /// Finish building the module.
@@ -208,11 +212,5 @@ impl ModuleBuilder {
     /// Finish building the module and return only the tree and strings.
     pub fn finish_tree(self) -> (Tree, StringPool) {
         (self.tree, self.strings)
-    }
-}
-
-impl Default for ModuleBuilder {
-    fn default() -> Self {
-        Self::new()
     }
 }

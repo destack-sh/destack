@@ -148,7 +148,6 @@ fn test_format_cleanup_and_hold_family() {
         r#"
 function cleanup(v0: ref<int32, managed, mutable, local>, v1: ref<int32, managed, mutable, local>): void {
 entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, managed, mutable, local>):
-    hold (v0, v1)
     drop v0
     return
 }

@@ -7,6 +7,28 @@ use super::error::{ParseError, ParseResult};
 use super::parser::Parser;
 
 impl Parser {
+    /// Parse one witness constant: the receiver type, the applied interface, and the member.
+    fn parse_witness_constant(&mut self) -> ParseResult<Constant> {
+        let (receiver, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::Comma)?;
+        let (interface, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::Comma)?;
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("witness member", self.pos()))?;
+        if self.token_type(token) != TokenType::Identifier {
+            return Err(ParseError::invalid("witness member", token.start()));
+        }
+        let member = self.tree.source_text(token.span).to_string();
+        self.bump();
+
+        Ok(Constant::Witness {
+            receiver: TypeId::from(receiver),
+            interface: TypeId::from(interface),
+            member: self.strings.intern(&member),
+        })
+    }
+
     /// Parse a constant.
     pub(super) fn parse_constant(&mut self) -> ParseResult<Constant> {
         // read the next token
@@ -36,6 +58,10 @@ impl Parser {
                     ty: TypeId::from(ty),
                     measure,
                 })
+            }
+            TokenType::Identifier if token_text == "witness" => {
+                self.bump();
+                self.parse_witness_constant()
             }
             TokenType::BooleanLiteral => {
                 let value = token_text == "true";
@@ -117,6 +143,10 @@ impl Parser {
                     ty: TypeId::from(ty),
                     measure,
                 })
+            }
+            TokenType::Identifier if token_text == "witness" => {
+                self.bump();
+                self.parse_witness_constant()
             }
             TokenType::BooleanLiteral => {
                 if !matches!(expected, Type::Boolean) {

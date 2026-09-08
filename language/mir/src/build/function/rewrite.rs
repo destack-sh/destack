@@ -128,7 +128,7 @@ impl<'a> FunctionBuilder<'a> {
                 | Instruction::DynamicType {
                     dynamic: argument, ..
                 }
-                | Instruction::Free { value: argument }
+                | Instruction::Release { value: argument }
                 | Instruction::AtomicLoad {
                     pointer: argument, ..
                 } => {
@@ -285,9 +285,7 @@ impl<'a> FunctionBuilder<'a> {
                 }
 
                 // arguments stored externally
-                Instruction::Aggregate { .. }
-                | Instruction::Hold { .. }
-                | Instruction::Intrinsic { .. } => {}
+                Instruction::Aggregate { .. } | Instruction::Intrinsic { .. } => {}
             }
             argument_slice
         };

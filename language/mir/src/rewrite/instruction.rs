@@ -74,9 +74,6 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => false,
 
-        // holding handles live is a collector effect
-        mir::Instruction::Hold { .. } => false,
-
         // calls may have side effects
         mir::Instruction::Call { .. }
         | mir::Instruction::ContextCurrent { .. }
@@ -90,8 +87,8 @@ pub fn instruction_is_pure(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. } => false,
 
-        // deallocation has side effects
-        mir::Instruction::Free { .. } => false,
+        // returning storage has side effects
+        mir::Instruction::Release { .. } => false,
 
         // instrumentation and intrinsics may have side effects
         mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => false,
@@ -226,9 +223,6 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::AtomicFence { .. }
         | mir::Instruction::BarrierWrite { .. } => true,
 
-        // holding handles live is a collector effect
-        mir::Instruction::Hold { .. } => true,
-
         // calls may have side effects
         mir::Instruction::Call { .. }
         | mir::Instruction::ContextReplace { .. }
@@ -241,8 +235,8 @@ pub fn instruction_has_side_effects(instruction: &mir::Instruction) -> bool {
         | mir::Instruction::NewSliceZeroed { .. }
         | mir::Instruction::NewSliceUninit { .. } => true,
 
-        // deallocation has side effects
-        mir::Instruction::Free { .. } => true,
+        // returning storage has side effects
+        mir::Instruction::Release { .. } => true,
 
         // profile instrumentation must be preserved
         mir::Instruction::ProfileIncrement { .. } | mir::Instruction::ProfileSample { .. } => true,
@@ -294,8 +288,7 @@ pub fn instruction_may_affect_memory(instruction: &mir::Instruction) -> bool {
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
-            | mir::Instruction::Free { .. }
-            | mir::Instruction::Hold { .. }
+            | mir::Instruction::Release { .. }
     )
 }
 
@@ -593,7 +586,7 @@ pub fn instruction_substitute_uses(
             offset: substitute(offset),
             byte_len: substitute(byte_len),
         },
-        mir::Instruction::Free { value } => mir::Instruction::Free {
+        mir::Instruction::Release { value } => mir::Instruction::Release {
             value: substitute(value),
         },
         mir::Instruction::FieldGet {
@@ -907,7 +900,6 @@ pub fn instruction_substitute_uses(
         | mir::Instruction::FunctionAddr { .. }
         | mir::Instruction::LocalAddr { .. }
         | mir::Instruction::Aggregate { .. }
-        | mir::Instruction::Hold { .. }
         | mir::Instruction::FunctionEnvironmentCurrent { .. }
         | mir::Instruction::ContextCurrent { .. }
         | mir::Instruction::NewZeroed { .. }
@@ -1366,10 +1358,7 @@ pub fn instruction_map(
             pointer: remap(*pointer),
             value: remap(*value),
         },
-        mir::Instruction::Hold { values } => mir::Instruction::Hold {
-            values: remap_arguments(*values),
-        },
-        mir::Instruction::Free { value } => mir::Instruction::Free {
+        mir::Instruction::Release { value } => mir::Instruction::Release {
             value: remap(*value),
         },
         mir::Instruction::FieldGet {
@@ -2374,10 +2363,7 @@ pub fn instruction_map_with_locals(
             length: remap(*length),
             result_type: *result_type,
         },
-        mir::Instruction::Hold { values } => mir::Instruction::Hold {
-            values: remap_arguments(*values),
-        },
-        mir::Instruction::Free { value } => mir::Instruction::Free {
+        mir::Instruction::Release { value } => mir::Instruction::Release {
             value: remap(*value),
         },
         mir::Instruction::Call { destination, call } => mir::Instruction::Call {

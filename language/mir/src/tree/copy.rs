@@ -1,5 +1,6 @@
 use crate::{
-    Copy, GenericArgument, GenericParameter, LanguageItem, ParameterDomain, Tree, Type, TypeId,
+    Copy, GenericArgument, GenericParameter, GenericParameterDomain, LanguageItem, Tree, Type,
+    TypeId,
 };
 
 impl Copy {
@@ -11,7 +12,7 @@ impl Copy {
     /// Decide whether one generic type parameter copies by its bounds.
     pub fn of_parameter(tree: &Tree, generics: &[GenericParameter], index: u32) -> Copy {
         let Some(GenericParameter {
-            domain: ParameterDomain::Type { bounds },
+            domain: GenericParameterDomain::Type { bounds },
             ..
         }) = generics.get(index as usize)
         else {
@@ -63,7 +64,7 @@ mod tests {
     use destack_core::StringId;
 
     use crate::{
-        Copy, Field, GenericParameter, LanguageItem, ParameterDomain, Symbol, Tree, Type,
+        Copy, Field, GenericParameter, GenericParameterDomain, LanguageItem, Symbol, Tree, Type,
         TypeHeritage, TypeId,
     };
 
@@ -75,7 +76,7 @@ mod tests {
         extends: Vec<TypeId>,
     ) -> TypeId {
         let name = StringId::for_text(name);
-        let ty = tree.reserve_type(Symbol::named(name));
+        let ty = tree.reserve_type(Symbol::named(crate::TEST_MODULE, name));
         tree.define_type(
             ty,
             Type::Struct {
@@ -118,17 +119,17 @@ mod tests {
         let generics = vec![
             GenericParameter {
                 name: StringId::for_text("T"),
-                domain: ParameterDomain::Type { bounds: vec![copy] },
+                domain: GenericParameterDomain::Type { bounds: vec![copy] },
             },
             GenericParameter {
                 name: StringId::for_text("U"),
-                domain: ParameterDomain::Type {
+                domain: GenericParameterDomain::Type {
                     bounds: vec![integer],
                 },
             },
             GenericParameter {
                 name: StringId::for_text("V"),
-                domain: ParameterDomain::Type {
+                domain: GenericParameterDomain::Type {
                     bounds: vec![marker],
                 },
             },
@@ -164,11 +165,11 @@ mod tests {
         });
         let copying = vec![GenericParameter {
             name: StringId::for_text("T"),
-            domain: ParameterDomain::Type { bounds: vec![copy] },
+            domain: GenericParameterDomain::Type { bounds: vec![copy] },
         }];
         let moving = vec![GenericParameter {
             name: StringId::for_text("T"),
-            domain: ParameterDomain::Type { bounds: Vec::new() },
+            domain: GenericParameterDomain::Type { bounds: Vec::new() },
         }];
 
         assert_eq!(

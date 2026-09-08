@@ -355,6 +355,12 @@ impl MoveTable {
                 })
                 .collect(),
             Type::Newtype { inner, .. } => vec![(Projection::Field { index: 0 }, *inner)],
+            // expand each case's payload behind its discriminant
+            Type::Variant { cases, .. } => cases
+                .iter()
+                .enumerate()
+                .map(|(case, payload)| (Projection::Variant { case: case as u32 }, payload.ty))
+                .collect(),
             // expand the elements of a closed length, skipping an open one
             Type::FixedArray {
                 element, length, ..

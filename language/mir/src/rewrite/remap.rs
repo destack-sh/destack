@@ -16,8 +16,17 @@ pub trait IdRemap {
 impl Constant {
     /// Map every type id one constant names.
     pub fn map_ids(&mut self, remap: &mut dyn IdRemap) {
-        if let Constant::Layout { ty, .. } = self {
-            *ty = remap.map_type(*ty);
+        match self {
+            Constant::Layout { ty, .. } => *ty = remap.map_type(*ty),
+            Constant::Witness {
+                receiver,
+                interface,
+                ..
+            } => {
+                *receiver = remap.map_type(*receiver);
+                *interface = remap.map_type(*interface);
+            }
+            _ => {}
         }
     }
 }
@@ -172,8 +181,7 @@ impl Instruction {
             | Instruction::VectorCompare { .. }
             | Instruction::VectorConvert { .. }
             | Instruction::Drop { .. }
-            | Instruction::Free { .. }
-            | Instruction::Hold { .. }
+            | Instruction::Release { .. }
             | Instruction::BarrierWrite { .. }
             | Instruction::AtomicStore { .. }
             | Instruction::AtomicCompareExchange { .. }

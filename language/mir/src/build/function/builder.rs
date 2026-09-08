@@ -1,4 +1,4 @@
-use destack_source::Span;
+use destack_source::{ModuleId, Span};
 use indexmap::{IndexMap, IndexSet};
 
 use crate::build::{BuildError, BuildResult, FunctionHeader, Variable};
@@ -10,32 +10,15 @@ use crate::{
 
 /// The builder for one MIR function, constructing SSA as it goes.
 ///
-/// Implements the algorithm from
-///  - "Simple and Efficient Construction of Static Single Assignment Form" (Braun et al., 2013)
-///    <https://c9x.me/compile/bib/braun13cc.pdf>
-///  - Cranelift (<https://github.com/bytecodealliance/wasmtime/tree/main/cranelift>)
-///
-/// # Usage
-///
-/// 1. Create blocks with `block()`.
-/// 2. Switch to a block with `switch_to_block()`.
-/// 3. Add instructions (which return SSA values).
-/// 4. Use `define_variable()` / `use_variable()` for mutable bindings.
-/// 5. Seal blocks when all predecessors are known with `seal_block()`.
-/// 6. Call `finish()` to get the completed function.
-///
-/// # SSA Construction
-///
-/// The algorithm works by tracking variable definitions per-block and lazily constructing
-/// block parameters (phi-functions) when a variable is used. Key features:
-/// - **Local Value Numbering**: If a variable is defined in the current block, return that value.
-/// - **Global Value Numbering**: Otherwise, recursively look up the value from predecessors.
-/// - **Block Parameters**: Created at join points where different predecessors have different values.
-/// - **Trivial phi Removal**: If all predecessors have the same value, no block parameter is needed.
-/// - **Incomplete CFGs**: Blocks can be used before all predecessors are known (unsealed blocks).
+/// Follows "Simple and Efficient Construction of Static Single Assignment Form" (Braun et al.,
+/// 2013, <https://c9x.me/compile/bib/braun13cc.pdf>): each block tracks the value it defines per
+/// variable, a use looks the value up through the predecessors, and a join point that sees
+/// differing values takes a block parameter, added once the block is sealed.
 #[derive(Debug)]
 pub struct FunctionBuilder<'a> {
     // meta
+    /// The module the function belongs to.
+    pub(super) module: ModuleId,
     /// The tree this function is being built in.
     pub(super) tree: &'a mut Tree,
     /// The effect table for the call and function metadata this builder emits.
@@ -91,6 +74,7 @@ impl<'a> FunctionBuilder<'a> {
             parameters,
             result,
         } = header;
+        let module = symbol.declaring_module();
 
         // create parameter values
         let parameters = FunctionHeader::parameters_from_types(parameters);
@@ -101,6 +85,7 @@ impl<'a> FunctionBuilder<'a> {
             name,
             generics,
             arguments,
+            template: None,
             symbol,
             linkage: Linkage::Local,
             allocation: AllocationMode::Any,
@@ -114,6 +99,7 @@ impl<'a> FunctionBuilder<'a> {
         let function_id = tree.insert(function);
 
         Self {
+            module,
             tree,
             effects,
             pointer_bits,
@@ -151,8 +137,10 @@ impl<'a> FunctionBuilder<'a> {
 
             Function::parameter_state(&function.parameters)
         };
+        let module = tree.get(function_id).symbol.declaring_module();
 
         Ok(Self {
+            module,
             tree,
             effects,
             pointer_bits,
@@ -201,6 +189,11 @@ impl<'a> FunctionBuilder<'a> {
     /// Replace the source assigned to the emitted nodes.
     pub fn replace_source(&mut self, source: Option<(u32, Span)>) -> Option<(u32, Span)> {
         std::mem::replace(&mut self.source, source)
+    }
+
+    /// Return the source node and span anchoring the instructions inserted now.
+    pub fn source(&self) -> Option<(u32, Span)> {
+        self.source
     }
 
     /// Return the target pointer width in bits.

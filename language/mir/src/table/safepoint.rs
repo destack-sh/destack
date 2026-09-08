@@ -1,41 +1,26 @@
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{Point, Value};
+use crate::Point;
 
-/// The safepoints of verified MIR.
-///
-/// Each safepoint is one point where the collector may run, with the handles held live there.
+/// The safepoints of verified MIR: the points elaboration polls the runtime at.
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize, Reflect)]
 pub struct SafepointTable {
     /// The safepoints sorted by point.
     points: Vec<Safepoint>,
 }
 
-/// One point where the collector may run.
+/// One point elaboration polls the runtime at.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct Safepoint {
     /// The instruction point of the safepoint.
     pub point: Point,
-    /// How the collector gets to run at the point.
-    pub kind: SafepointKind,
-    /// The managed handles whose borrows are live at the point, held live past it.
-    pub live: Vec<Value>,
-}
-
-/// How the collector gets to run at one safepoint.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-pub enum SafepointKind {
-    /// A call that may park the fiber.
-    Park,
-    /// A point elaboration polls the runtime at.
-    Poll,
 }
 
 impl SafepointTable {
     /// Insert one safepoint.
-    pub fn insert(&mut self, point: Point, kind: SafepointKind, live: Vec<Value>) {
-        self.points.push(Safepoint { point, kind, live });
+    pub fn insert(&mut self, point: Point) {
+        self.points.push(Safepoint { point });
     }
 
     /// Append another safepoint table.

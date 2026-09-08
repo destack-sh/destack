@@ -19,3 +19,8 @@ pub use schema::*;
 pub use source::*;
 pub use table::*;
 pub use tree::*;
+
+/// The module test trees belong to.
+#[cfg(test)]
+pub(crate) const TEST_MODULE: destack_source::ModuleId =
+    destack_source::ModuleId::new(destack_source::PackageId::new(0), 0);

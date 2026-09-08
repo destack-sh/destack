@@ -165,6 +165,8 @@ fn test_format_polymorphic_function() {
         r#"
 type Clone = void;
 
+type Tagged = void;
+
 type Box<T> {
     value: T;
 }
@@ -202,6 +204,12 @@ entry:
     v1: usize = align.of T
     v2: usize = stride.of Box<T>
     return v2
+}
+
+function tag<T: Tagged>(): int32 {
+entry:
+    v0: int32 = witness T, Tagged, Tag
+    return v0
 }
 "#,
     );

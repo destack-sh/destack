@@ -246,17 +246,13 @@ impl<'a> FunctionEffectBuilder<'a> {
                 memory: mir::MemoryEffect::write_only(self.type_storage(result_type)),
                 behavior: mir::FunctionBehavior::none().with_allocates(),
             },
-            mir::Instruction::Free { value } => mir::FunctionEffect {
+            mir::Instruction::Release { value } => mir::FunctionEffect {
                 memory: mir::MemoryEffect::write_only(self.value_storage(*value)),
                 behavior: mir::FunctionBehavior::none().with_frees(),
             },
             mir::Instruction::Drop { .. } => mir::FunctionEffect {
                 memory: mir::MemoryEffect::unknown(),
                 behavior: mir::FunctionBehavior::none().with_frees(),
-            },
-            mir::Instruction::Hold { .. } => mir::FunctionEffect {
-                memory: mir::MemoryEffect::none(),
-                behavior: mir::FunctionBehavior::none().with_preserved_execution(),
             },
             mir::Instruction::Intrinsic { intrinsic, .. } => self.intrinsic_effect(*intrinsic),
             mir::Instruction::Breakpoint => mir::FunctionEffect {
@@ -571,7 +567,7 @@ entry(v0: int32):
 function allocate(): void {
 entry:
     v0: ref<int32, unique, mutable> = new.zeroed int32
-    free v0
+    release v0
     return
 }
 "#,

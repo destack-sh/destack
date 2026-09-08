@@ -367,11 +367,7 @@ impl CostTable {
             | mir::Instruction::NewSliceZeroed { .. }
             | mir::Instruction::NewSliceUninit { .. }
             | mir::Instruction::ContextBind { .. } => cost.allocate += 1,
-            // holding handles live costs nothing at runtime
-            mir::Instruction::Hold { .. } => {}
-            mir::Instruction::Free { .. } => {
-                cost.release += 1;
-            }
+            mir::Instruction::Release { .. } => cost.release += 1,
             mir::Instruction::BarrierWrite { .. } => cost.write_barrier += 1,
             mir::Instruction::Call { call, .. } => cost.add_call(call),
             mir::Instruction::Drop { .. } => cost.drop += 1,
@@ -513,7 +509,7 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutabl
     store v0, v3
     v4: ref<int32, unique, mutable> = new.zeroed int32
     barrier.write v4, v3, v3
-    free v4
+    release v4
     drop v2
     atomic.store v1, v3, sequentiallyConsistent
     return

@@ -214,12 +214,14 @@ impl Parser {
             let symbol = self.tree.get(function_id).symbol;
             let mut function = match linkage.is_import() {
                 true => Function::import(
+                    self.module,
                     name_id,
                     header.lifetimes.clone(),
                     header.parameters.clone(),
                     header.return_type,
                 ),
                 false => Function::declare(
+                    self.module,
                     name_id,
                     header.lifetimes.clone(),
                     header.parameters.clone(),

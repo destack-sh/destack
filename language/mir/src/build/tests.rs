@@ -24,7 +24,7 @@ fn format_test_mir(tree: &Tree, strings: &StringPool) -> String {
 #[test]
 fn test_build_empty_function() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let void_type = module.type_void();
 
     // build empty function
@@ -51,7 +51,7 @@ entry:
 #[test]
 fn test_build_function_with_parameters() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build add function
@@ -85,7 +85,7 @@ entry(v0: int32, v1: int32):
 #[test]
 fn test_build_function_with_locals() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i64_type = module.type_int(64, true);
 
     // build function with local
@@ -123,7 +123,7 @@ entry:
 #[test]
 fn test_build_function_with_branch() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -191,7 +191,7 @@ b3:
 #[test]
 fn test_build_function_with_invoke() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let callee_header = module
@@ -262,7 +262,7 @@ b2:
 #[test]
 fn test_build_calls_from_callee_and_signature() {
     // setup callable declarations
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let void_type = module.type_void();
     let i32_type = module.type_int(32, true);
     let identity_signature = module.type_function_signature(vec![i32_type], i32_type);
@@ -331,7 +331,7 @@ entry(v0: int32):
 #[test]
 fn test_build_function_with_panic_terminator() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let string_type = module.type_reference(
         ReferenceKind::Managed,
@@ -368,7 +368,7 @@ entry:
 #[test]
 fn test_ssa_define_use_single_block() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build function
@@ -406,7 +406,7 @@ entry:
 #[test]
 fn test_ssa_redefine_variable() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build function
@@ -447,7 +447,7 @@ entry:
 #[test]
 fn test_ssa_branch_with_phi() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -520,7 +520,7 @@ b3(v3: int32):
 #[test]
 fn test_ssa_trivial_phi_removal() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -590,7 +590,7 @@ b3:
 #[test]
 fn test_ssa_trivial_phi_unsealed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -659,7 +659,7 @@ b3:
 #[test]
 fn test_build_arithmetic_operations() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build function
@@ -702,7 +702,7 @@ entry(v0: int32, v1: int32):
 #[test]
 fn test_build_comparison_operations() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
@@ -746,7 +746,7 @@ fn test_type_construction() {
     use crate::Type;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
 
     // create various types
     let void_type = module.type_void();
@@ -808,7 +808,7 @@ fn test_type_construction() {
 #[test]
 fn test_seal_all_blocks() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let void_type = module.type_void();
 
     // build multi-block function
@@ -853,7 +853,7 @@ fn test_construct_reference_and_pointer_types() {
     use crate::Type;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
 
     // create managed reference types
     let i32_type = module.type_int(32, true);
@@ -912,7 +912,7 @@ fn test_construct_reference_and_pointer_types() {
 #[test]
 fn test_build_new_zeroed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let ref_type = module.type_reference(
         ReferenceKind::Managed,
@@ -948,7 +948,7 @@ entry:
 #[test]
 fn test_build_new_slice_zeroed() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let slice_type = module.type_slice(
@@ -989,7 +989,7 @@ entry(v0: int64):
 #[test]
 fn test_build_slice_view() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let source_type = module.type_slice(
@@ -1042,7 +1042,7 @@ fn test_build_intrinsics() {
     use crate::Intrinsic;
 
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let f64_type = module.type_float(FloatType::Float64);
 
     // build function with intrinsics
@@ -1082,7 +1082,7 @@ entry(v0: float64, v1: float64):
 #[test]
 fn test_build_void_intrinsic() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let void_type = module.type_void();
 
     // build function with void intrinsic
@@ -1116,7 +1116,7 @@ entry:
 #[test]
 fn test_build_struct_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let f64_type = module.type_float(FloatType::Float64);
 
@@ -1157,7 +1157,7 @@ entry(v0: int32, v1: float64):
 #[test]
 fn test_build_tuple_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
@@ -1194,7 +1194,7 @@ entry(v0: int32, v1: boolean):
 #[test]
 fn test_build_array_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let array_type = module.type_fixed_array(i32_type, 3);
 
@@ -1231,7 +1231,7 @@ entry:
 #[test]
 fn test_build_field_get_struct() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let f64_type = module.type_float(FloatType::Float64);
     let value0 = module.field(None, i32_type);
@@ -1269,7 +1269,7 @@ entry(v0: { int32, float64 }):
 #[test]
 fn test_build_field_get_tuple() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
     let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
@@ -1305,12 +1305,14 @@ entry(v0: (int32, boolean)):
 #[test]
 fn test_build_field_get_from_lifetime_applied_type() {
     // define the referenced user type
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let int32 = module.type_int(32, true);
     let user_field_name = module.strings().intern("id");
     let user_field = module.field(Some(user_field_name), int32);
     let user_name = module.strings().intern("User");
-    let user = module.tree_mut().reserve_type(Symbol::named(user_name));
+    let user = module
+        .tree_mut()
+        .reserve_type(Symbol::named(crate::TEST_MODULE, user_name));
     module.tree_mut().define_type(
         user,
         Type::Struct {
@@ -1339,7 +1341,9 @@ fn test_build_field_get_from_lifetime_applied_type() {
     let view_name = module.strings().intern("View");
     let lifetime_name = module.strings().intern("'a");
     let lifetime_parameters = vec![LifetimeParameter::new(Some(lifetime_name))];
-    let view = module.tree_mut().reserve_type(Symbol::named(view_name));
+    let view = module
+        .tree_mut()
+        .reserve_type(Symbol::named(crate::TEST_MODULE, view_name));
     module.tree_mut().define_type(
         view,
         Type::Struct {
@@ -1410,7 +1414,7 @@ entry(v0: View<'static>):
 #[test]
 fn test_build_element_get_array() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let array_type = module.type_fixed_array(i32_type, 3);
@@ -1455,7 +1459,7 @@ entry(v0: [int32; 3], v1: int64):
 #[test]
 fn test_ssa_passthrough_intermediate_block() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
@@ -1553,7 +1557,7 @@ b4:
 #[test]
 fn test_ssa_multiple_phis_at_merge() {
     // setup
-    let mut module = ModuleBuilder::new();
+    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 

@@ -1,26 +1,43 @@
 use destack_core::StringId;
 use destack_serde::Reflect;
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{GenericArgument, Tree};
 
 use super::fingerprint::TypeHasher;
 
-/// Persistent, mangled identity of a function, global, or type.
+/// Persistent identity of a function, global, or type.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]
-pub struct Symbol(u64);
+pub struct Symbol {
+    /// The module declaring the symbol, none for a declaration of the language.
+    module: Option<ModuleId>,
+    /// The stable bits of the mangled name.
+    hash: u64,
+}
 
 impl Symbol {
     /// Create the symbol of one resolved declaration name.
-    pub fn named(name: StringId) -> Self {
-        Self(name.raw())
+    pub fn named(module: ModuleId, name: StringId) -> Self {
+        Self {
+            module: Some(module),
+            hash: name.raw(),
+        }
+    }
+
+    /// Create the symbol of one declaration the language makes in every module.
+    pub fn language(name: StringId) -> Self {
+        Self {
+            module: None,
+            hash: name.raw(),
+        }
     }
 
     /// Create the symbol of one declaration, distinguished by its declaring identity.
-    pub fn declared(name: StringId, identity: u64) -> Self {
-        TypeHasher::declared(name, identity)
+    pub fn declared(module: ModuleId, name: StringId, identity: u64) -> Self {
+        TypeHasher::declared(module, name, identity)
     }
 
     /// Derive one generic instance symbol from its concrete arguments.
@@ -28,13 +45,29 @@ impl Symbol {
         TypeHasher::symbol(self, arguments, tree)
     }
 
-    /// Return the stable symbol bits.
-    pub fn raw(self) -> u64 {
-        self.0
+    /// Return the module declaring the symbol, none for a declaration of the language.
+    pub fn module(self) -> Option<ModuleId> {
+        self.module
     }
 
-    /// Restore a symbol from its persistent bits.
-    pub const fn from_raw(raw: u64) -> Self {
-        Self(raw)
+    /// Return the module declaring one symbol outside the language's own declarations.
+    pub fn declaring_module(self) -> ModuleId {
+        self.module
+            .unwrap_or_else(|| unreachable!("a declared symbol names its declaring module"))
+    }
+
+    /// Return whether one module's tree defines the symbol itself.
+    pub fn is_defined_in(self, module: ModuleId) -> bool {
+        self.module.is_none_or(|declaring| declaring == module)
+    }
+
+    /// Return the stable symbol bits.
+    pub fn raw(self) -> u64 {
+        self.hash
+    }
+
+    /// Restore a symbol from its declaring module and persistent bits.
+    pub const fn from_raw(module: Option<ModuleId>, raw: u64) -> Self {
+        Self { module, hash: raw }
     }
 }

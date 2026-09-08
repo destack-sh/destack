@@ -218,7 +218,7 @@ impl Parser {
                     }
 
                     let name_id = self.strings.intern(&name);
-                    let symbol = Symbol::named(name_id);
+                    let symbol = Symbol::named(self.module, name_id);
                     let type_id = self.tree.reserve_type(symbol);
                     self.type_declaration_map.insert(name, type_id);
 
@@ -270,12 +270,17 @@ impl Parser {
 
                 let name_id = self.strings.intern(&name);
                 let void_type = self.tree.intern_type(Type::Void);
-                let base = Symbol::named(name_id);
+                let base = Symbol::named(self.module, name_id);
                 let symbol = base.instantiate(&arguments, &self.tree);
-                let function =
-                    Function::declare(name_id, Vec::new(), Vec::new(), TypeId::from(void_type))
-                        .with_arguments(arguments)
-                        .with_symbol(symbol);
+                let function = Function::declare(
+                    self.module,
+                    name_id,
+                    Vec::new(),
+                    Vec::new(),
+                    TypeId::from(void_type),
+                )
+                .with_arguments(arguments)
+                .with_symbol(symbol);
                 let function_id = self.tree.insert(function);
                 self.function_map.insert(key, function_id);
 
@@ -283,6 +288,18 @@ impl Parser {
             }
 
             self.bump();
+        }
+
+        // link each specialization to the template its name and arguments apply
+        let specializations: Vec<_> = self
+            .function_map
+            .iter()
+            .filter(|((_, arguments), _)| !arguments.is_empty())
+            .map(|((name, _), id)| (name.clone(), *id))
+            .collect();
+        for (name, id) in specializations {
+            let template = self.function_map.get(&(name, Vec::new())).copied();
+            self.tree.get_mut(id).template = template;
         }
     }
 
@@ -390,7 +407,7 @@ impl Parser {
         let type_id = match self.type_declaration_map.get(&name).copied() {
             Some(existing) => existing,
             None => {
-                let symbol = Symbol::named(self.strings.intern(&name));
+                let symbol = Symbol::named(self.module, self.strings.intern(&name));
                 let reserved = self.tree.reserve_type(symbol);
                 self.type_declaration_map.insert(name.clone(), reserved);
                 reserved
@@ -610,7 +627,7 @@ impl Parser {
         let name_id = self.strings.intern(&name);
         let global = Global {
             name: name_id,
-            symbol: Symbol::named(name_id),
+            symbol: Symbol::named(self.module, name_id),
             ty,
             mutability,
             space,

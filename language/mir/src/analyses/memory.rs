@@ -1182,9 +1182,8 @@ impl<'a> MemoryAccessCollector<'a> {
             mir::Instruction::ContextCurrent { .. }
             | mir::Instruction::ContextReplace { .. }
             | mir::Instruction::ContextBind { .. }
-            | mir::Instruction::Free { .. }
+            | mir::Instruction::Release { .. }
             | mir::Instruction::Drop { .. }
-            | mir::Instruction::Hold { .. }
             | mir::Instruction::NewZeroed { .. }
             | mir::Instruction::NewUninit { .. }
             | mir::Instruction::NewSliceZeroed { .. }
@@ -2062,7 +2061,7 @@ b3:
 
     /// MemoryTable uses alias analysis to skip non aliasing defs.
     #[test]
-    fn test_memory_clobber_skips_exclusive_def() {
+    fn test_memory_clobber_skips_disjoint_def() {
         let test = TestProgram::new(
             r#"
 function test(): int32 {
@@ -2242,7 +2241,7 @@ entry:
             r#"
 function test(v0: ref<int32, unique, mutable>): int32 {
 entry(v0: ref<int32, unique, mutable>):
-    free v0
+    release v0
     v1: int32 = 0
     return v1
 }

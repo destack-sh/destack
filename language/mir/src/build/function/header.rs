@@ -1,4 +1,5 @@
 use destack_core::{StringId, StringPool};
+use destack_source::ModuleId;
 
 use crate::{
     Function, FunctionParameter, GenericArgument, GenericParameter, LifetimeParameter,
@@ -45,7 +46,7 @@ pub struct FunctionHeaderBuilder<'a> {
 
 impl<'a> FunctionHeaderBuilder<'a> {
     /// Create one function header builder.
-    pub fn new(strings: &'a StringPool, name: &str) -> Self {
+    pub fn new(strings: &'a StringPool, module: ModuleId, name: &str) -> Self {
         let name = strings.intern(name);
 
         Self {
@@ -53,7 +54,7 @@ impl<'a> FunctionHeaderBuilder<'a> {
             name,
             generics: Vec::new(),
             arguments: Vec::new(),
-            symbol: Symbol::named(name),
+            symbol: Symbol::named(module, name),
             lifetimes: Vec::new(),
             parameters: Vec::new(),
         }
@@ -139,8 +140,9 @@ impl FunctionHeader {
     /// Consume this header into a locally declared function.
     pub fn declared(self) -> Function {
         let parameters = Self::parameters_from_types(self.parameters);
+        let module = self.symbol.declaring_module();
 
-        Function::declare(self.name, self.lifetimes, parameters, self.result)
+        Function::declare(module, self.name, self.lifetimes, parameters, self.result)
             .with_generics(self.generics)
             .with_arguments(self.arguments)
             .with_symbol(self.symbol)
@@ -149,8 +151,9 @@ impl FunctionHeader {
     /// Consume this header into an imported function.
     pub fn imported(self) -> Function {
         let parameters = Self::parameters_from_types(self.parameters);
+        let module = self.symbol.declaring_module();
 
-        Function::import(self.name, self.lifetimes, parameters, self.result)
+        Function::import(module, self.name, self.lifetimes, parameters, self.result)
             .with_generics(self.generics)
             .with_arguments(self.arguments)
             .with_symbol(self.symbol)

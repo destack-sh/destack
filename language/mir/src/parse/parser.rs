@@ -1,14 +1,14 @@
 use destack_core::{Blob, FxIndexMap, FxIndexSet, StringPool};
 use destack_source::{
-    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, NodeSpanList,
-    NodeSpanType, Span,
+    DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, ModuleId,
+    NodeSpanList, NodeSpanType, PackageId, Span,
 };
 
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
     Access, AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, GenericArgument,
-    GenericParameter, Global, LayoutTable, LifetimeParameter, LifetimeSlot, Local, LocalNodeId,
-    Node, ParameterDomain, ProfileTable, Space, Static, TargetLayout, Tree, Type, Value,
+    GenericParameter, GenericParameterDomain, Global, LayoutTable, LifetimeParameter, LifetimeSlot,
+    Local, LocalNodeId, Node, ProfileTable, Space, Static, TargetLayout, Tree, Type, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -97,11 +97,16 @@ impl ParsedMir {
 pub struct ParseOptions {
     /// Pointer size in bytes.
     pub pointer_bytes: u8,
+    /// The module the parsed declarations belong to.
+    pub module: ModuleId,
 }
 
 impl Default for ParseOptions {
     fn default() -> Self {
-        Self { pointer_bytes: 8 }
+        Self {
+            pointer_bytes: 8,
+            module: ModuleId::new(PackageId::new(0), 0),
+        }
     }
 }
 
@@ -162,6 +167,8 @@ pub struct Parser {
     pub(super) lifetime_scopes: Vec<Vec<(String, LifetimeSlot)>>,
     /// Generic parameter names visible in the current signature/type body.
     pub(super) generic_scopes: Vec<Vec<(String, GenericParameter)>>,
+    /// The module the parsed declarations belong to.
+    pub(super) module: ModuleId,
 }
 
 impl Parser {
@@ -177,6 +184,7 @@ impl Parser {
         let target_layout = TargetLayout::for_pointer_bytes(options.pointer_bytes);
 
         Ok(Self {
+            module: options.module,
             pos: 0,
             tree,
             target_layout,
@@ -304,12 +312,12 @@ impl Parser {
             self.bump();
 
             return Ok(match domain {
-                ParameterDomain::Type { .. } => {
+                GenericParameterDomain::Type { .. } => {
                     GenericArgument::Type(self.intern_type(Type::Parameter { index })?)
                 }
-                ParameterDomain::Space => GenericArgument::Space(Space::Parameter(index)),
-                ParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
-                ParameterDomain::Value { .. } => {
+                GenericParameterDomain::Space => GenericArgument::Space(Space::Parameter(index)),
+                GenericParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
+                GenericParameterDomain::Value { .. } => {
                     GenericArgument::Value(self.tree.intern_static(Static::Parameter(index)))
                 }
             });
@@ -489,11 +497,11 @@ impl Parser {
 
         // read the domain keyword for a space, access, or value parameter
         let domain = match (kind, text.as_str()) {
-            (TokenType::Identifier, "space") => Some(ParameterDomain::Space),
-            (TokenType::Identifier, "access") => Some(ParameterDomain::Access),
+            (TokenType::Identifier, "space") => Some(GenericParameterDomain::Space),
+            (TokenType::Identifier, "access") => Some(GenericParameterDomain::Access),
             (TokenType::Const, _) => None,
             (TokenType::Identifier, _) if self.peek_declares_type_parameter(&text) => {
-                Some(ParameterDomain::Type { bounds: Vec::new() })
+                Some(GenericParameterDomain::Type { bounds: Vec::new() })
             }
             _ => return Ok(None),
         };
@@ -501,7 +509,7 @@ impl Parser {
 
         // read the parameter name
         let name_token = match domain {
-            Some(ParameterDomain::Type { .. }) => token,
+            Some(GenericParameterDomain::Type { .. }) => token,
             _ => self.eat_token(TokenType::Identifier)?,
         };
         let name = self.tree.source_text(name_token.span).to_string();
@@ -511,7 +519,7 @@ impl Parser {
 
         // read the bounds or the value type
         let domain = match domain {
-            Some(ParameterDomain::Type { .. }) => {
+            Some(GenericParameterDomain::Type { .. }) => {
                 let mut bounds = Vec::new();
                 if self.eat_token_if(TokenType::Colon) {
                     loop {
@@ -523,14 +531,14 @@ impl Parser {
                     }
                 }
 
-                ParameterDomain::Type { bounds }
+                GenericParameterDomain::Type { bounds }
             }
             Some(domain) => domain,
             None => {
                 self.eat_token(TokenType::Colon)?;
                 let (ty, _) = self.parse_type_use_part()?;
 
-                ParameterDomain::Value { ty }
+                GenericParameterDomain::Value { ty }
             }
         };
 

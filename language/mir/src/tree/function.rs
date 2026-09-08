@@ -1,9 +1,10 @@
 use destack_core::StringId;
 use destack_serde::Reflect;
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Binding, Block, FunctionParameter, GenericArgument, GenericParameter, Instruction,
+    Binding, Block, FunctionId, FunctionParameter, GenericArgument, GenericParameter, Instruction,
     LifetimeParameter, Linkage, Local, LocalNodeId, Node, NodeType, ReferenceKind, Storage, Symbol,
     Tree, Type, TypeId, Value,
 };
@@ -17,6 +18,8 @@ pub struct Function {
     pub generics: Vec<GenericParameter>,
     /// The generic arguments a specialization applies to its template.
     pub arguments: Vec<GenericArgument>,
+    /// The template a specialization applies at its arguments, in this tree.
+    pub template: Option<FunctionId>,
     /// The function's persistent mangled symbol: its linkable identity.
     pub symbol: Symbol,
     /// Linkage (local, export, or import).
@@ -505,6 +508,7 @@ impl Function {
 
     /// Create one function from its signature.
     fn with_signature(
+        module: ModuleId,
         name: StringId,
         lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
@@ -517,7 +521,8 @@ impl Function {
             name,
             generics: Vec::new(),
             arguments: Vec::new(),
-            symbol: Symbol::named(name),
+            template: None,
+            symbol: Symbol::named(module, name),
             linkage,
             allocation: AllocationMode::Any,
             parameters,
@@ -531,12 +536,14 @@ impl Function {
 
     /// Create a local function declaration without a body.
     pub fn declare(
+        module: ModuleId,
         name: StringId,
         lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
     ) -> Self {
         Self::with_signature(
+            module,
             name,
             lifetimes,
             parameters,
@@ -548,6 +555,7 @@ impl Function {
 
     /// Create a defined local function with an empty body.
     pub fn define(
+        module: ModuleId,
         name: StringId,
         lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
@@ -558,6 +566,7 @@ impl Function {
         let body = FunctionBody::empty(entry, value_types, next_value_id);
 
         Self::with_signature(
+            module,
             name,
             lifetimes,
             parameters,
@@ -569,12 +578,14 @@ impl Function {
 
     /// Create an imported function declaration (no body).
     pub fn import(
+        module: ModuleId,
         name: StringId,
         lifetimes: Vec<LifetimeParameter>,
         parameters: Vec<FunctionParameter>,
         return_type: TypeId,
     ) -> Self {
         Self::with_signature(
+            module,
             name,
             lifetimes,
             parameters,

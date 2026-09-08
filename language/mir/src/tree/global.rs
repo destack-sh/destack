@@ -1,5 +1,6 @@
 use destack_core::StringId;
 use destack_serde::Reflect;
+use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{Constant, FunctionId, GlobalId, Mutability, Node, NodeType, Space, Symbol, TypeId};
@@ -61,6 +62,7 @@ impl Node for Global {
 impl Global {
     /// Create a new local (private) global.
     pub fn new(
+        module: ModuleId,
         name: StringId,
         ty: TypeId,
         mutability: Mutability,
@@ -68,7 +70,7 @@ impl Global {
     ) -> Self {
         Self {
             name,
-            symbol: Symbol::named(name),
+            symbol: Symbol::named(module, name),
             ty,
             mutability,
             space: Space::Local,
@@ -78,23 +80,23 @@ impl Global {
     }
 
     /// Create a mutable global (variable), local by default.
-    pub fn variable(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
-        Self::new(name, ty, Mutability::Mutable, init)
+    pub fn variable(module: ModuleId, name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
+        Self::new(module, name, ty, Mutability::Mutable, init)
     }
 
     /// Create an immutable program constant.
-    pub fn constant(name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
-        let mut global = Self::new(name, ty, Mutability::Immutable, init);
+    pub fn constant(module: ModuleId, name: StringId, ty: TypeId, init: GlobalInitializer) -> Self {
+        let mut global = Self::new(module, name, ty, Mutability::Immutable, init);
         global.space = Space::Constant;
 
         global
     }
 
     /// Create an imported global declaration (no initializer).
-    pub fn import(name: StringId, ty: TypeId, mutability: Mutability) -> Self {
+    pub fn import(module: ModuleId, name: StringId, ty: TypeId, mutability: Mutability) -> Self {
         Self {
             name,
-            symbol: Symbol::named(name),
+            symbol: Symbol::named(module, name),
             ty,
             mutability,
             space: Space::Local,

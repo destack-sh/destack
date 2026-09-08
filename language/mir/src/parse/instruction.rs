@@ -49,7 +49,7 @@ impl Parser {
                 ) || (self.token_type(token) == TokenType::Identifier
                     && (matches!(
                         self.tree.source_text(token.span),
-                        "null" | "undefined" | "inf" | "-inf" | "NaN"
+                        "null" | "undefined" | "inf" | "-inf" | "NaN" | "witness"
                     ) || LayoutMeasure::from_keyword(self.tree.source_text(token.span))
                         .is_some()
                         || self
@@ -91,7 +91,7 @@ impl Parser {
                 "local.set"
                     | "store"
                     | "drop"
-                    | "free"
+                    | "release"
                     | "hold"
                     | "barrier.write"
                     | "atomic.store"
@@ -198,16 +198,9 @@ impl Parser {
             }
 
             // allocation protocol
-            "free" => {
+            "release" => {
                 let value = self.parse_value_segment(&mut segment_spans)?;
-                Instruction::Free { value }
-            }
-
-            // reachability
-            "hold" => {
-                let values = self.parse_call_argument_segments(&mut segment_spans)?;
-                let values = self.tree.add_values(&values);
-                Instruction::Hold { values }
+                Instruction::Release { value }
             }
 
             // collector protocol

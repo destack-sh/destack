@@ -2,7 +2,7 @@ use destack_core::FxIndexMap;
 
 use crate as mir;
 
-use crate::{AliasResult, TargetLayout};
+use crate::{AliasResult, PlaceOrigin, PlaceTable, Projection, TargetLayout};
 
 use super::DefinitionTable;
 
@@ -285,6 +285,13 @@ pub enum StorageRoot {
         /// The reference kind produced by the allocation.
         kind: mir::ReferenceKind,
     },
+    /// The storage a local's reference points to, whichever reference it holds.
+    Pointee {
+        /// The local holding the reference.
+        local: mir::LocalId,
+        /// The storage the reference names.
+        storage: mir::Storage,
+    },
     /// Function parameter.
     Parameter {
         /// Parameter index.
@@ -299,17 +306,6 @@ pub enum StorageRoot {
 }
 
 impl StorageRoot {
-    /// Return true if this parameter is exclusive.
-    pub fn is_exclusive_parameter(&self) -> bool {
-        matches!(
-            self,
-            StorageRoot::Parameter {
-                access: mir::Access::Exclusive,
-                ..
-            }
-        )
-    }
-
     /// Return whether two identified storage roots are disjoint.
     pub fn is_disjoint_from(&self, other: &StorageRoot) -> bool {
         match (self, other) {
@@ -326,27 +322,15 @@ impl StorageRoot {
                     instruction: right, ..
                 },
             ) => left != right,
+            (
+                StorageRoot::Pointee { local: left, .. },
+                StorageRoot::Pointee { local: right, .. },
+            ) => left != right,
+            (StorageRoot::Pointee { .. }, _) | (_, StorageRoot::Pointee { .. }) => true,
             (StorageRoot::Parameter { .. }, StorageRoot::Allocation { .. })
             | (StorageRoot::Allocation { .. }, StorageRoot::Parameter { .. }) => true,
             (StorageRoot::Parameter { .. }, _) | (_, StorageRoot::Parameter { .. }) => false,
             _ => true,
-        }
-    }
-
-    /// Return whether exclusive parameter constraints prove disjointness.
-    pub fn exclusive_parameters_are_disjoint(&self, other: &StorageRoot) -> bool {
-        match (self, other) {
-            (
-                StorageRoot::Parameter {
-                    access: mir::Access::Exclusive,
-                    ..
-                },
-                StorageRoot::Parameter {
-                    access: mir::Access::Exclusive,
-                    ..
-                },
-            ) => self != other,
-            _ => false,
         }
     }
 
@@ -356,7 +340,9 @@ impl StorageRoot {
             StorageRoot::LocalSlot(_) => mir::StorageSet::FRAME,
             StorageRoot::Global { space, .. } => mir::Storage::global(*space).storage_set(),
             StorageRoot::Allocation { space, .. } => space.space_set(),
-            StorageRoot::Parameter { storage, .. } => storage.storage_set(),
+            StorageRoot::Parameter { storage, .. } | StorageRoot::Pointee { storage, .. } => {
+                storage.storage_set()
+            }
         }
     }
 }
@@ -379,8 +365,8 @@ pub struct MemoryPlace {
     pub const_offset: i64,
     /// Indexed offsets with their scales.
     pub indexed_offsets: Vec<IndexedOffset>,
-    /// Field path from storage root.
-    pub fields: Vec<u32>,
+    /// Field indices and variant cases from the storage root, in projection order.
+    pub path: Vec<u32>,
 }
 
 impl MemoryPlace {
@@ -389,7 +375,7 @@ impl MemoryPlace {
         Self {
             root,
             const_offset: 0,
-            fields: Vec::new(),
+            path: Vec::new(),
             indexed_offsets: Vec::new(),
         }
     }
@@ -406,7 +392,12 @@ impl MemoryPlace {
 
     /// Add a field index to the path.
     pub fn add_field(&mut self, field_index: u32) {
-        self.fields.push(field_index);
+        self.path.push(field_index);
+    }
+
+    /// Add a variant case to the path, one case's payload disjoint from another's.
+    pub fn add_case(&mut self, case: u32) {
+        self.path.push(case);
     }
 
     /// Add an indexed offset.
@@ -421,8 +412,8 @@ impl MemoryPlace {
         other: &MemoryPlace,
         other_location: &MemoryLocation,
     ) -> AliasResult {
-        // disjoint field paths cannot alias
-        if self.fields_are_disjoint_from(other) {
+        // disjoint paths cannot alias
+        if self.path_is_disjoint_from(other) {
             return AliasResult::NoAlias;
         }
 
@@ -449,15 +440,15 @@ impl MemoryPlace {
         AliasResult::MayAlias
     }
 
-    /// Return whether two field paths are statically disjoint.
-    fn fields_are_disjoint_from(&self, other: &MemoryPlace) -> bool {
-        if self.fields.is_empty() || other.fields.is_empty() {
+    /// Return whether two paths are statically disjoint: a different field or case at one depth.
+    fn path_is_disjoint_from(&self, other: &MemoryPlace) -> bool {
+        if self.path.is_empty() || other.path.is_empty() {
             return false;
         }
 
-        self.fields
+        self.path
             .iter()
-            .zip(other.fields.iter())
+            .zip(other.path.iter())
             .any(|(left, right)| left != right)
     }
 
@@ -508,6 +499,8 @@ pub(super) struct MemoryRegionBuilder<'a> {
     tree: &'a mir::Tree,
     /// The MIR function.
     function: &'a mir::Function,
+    /// The canonical place of every value, a reference local's reads rooted at its pointee.
+    places: &'a PlaceTable,
     /// Layouts computed for the element types this walk indexes.
     layouts: mir::LayoutTable,
     /// Type context for layout sensitive operations.
@@ -519,6 +512,7 @@ impl<'a> MemoryRegionBuilder<'a> {
     pub(super) fn new(
         function: &'a mir::Function,
         definitions: &'a DefinitionTable,
+        places: &'a PlaceTable,
         tree: &'a mir::Tree,
         target_layout: TargetLayout,
     ) -> Self {
@@ -527,6 +521,7 @@ impl<'a> MemoryRegionBuilder<'a> {
             definitions,
             tree,
             function,
+            places,
             layouts: mir::LayoutTable::new(),
             target_layout,
         }
@@ -601,6 +596,26 @@ impl<'a> MemoryRegionBuilder<'a> {
                 MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::LocalSlot(*local)))
             }
 
+            // read a reference local: the one reference it holds, else its pointee root
+            mir::Instruction::LocalGet { destination, .. } if *destination == address => {
+                let place = self.places.get(address).clone();
+                match (place.origin, place.path.first()) {
+                    (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
+                        let ty = self.tree.get(local).ty;
+                        let Some(storage) = self.tree.get(ty).reference_storage() else {
+                            return self.any_region(address);
+                        };
+
+                        MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Pointee {
+                            local,
+                            storage,
+                        }))
+                    }
+                    (PlaceOrigin::Value(held), None) if held != address => self.region(held),
+                    _ => self.any_region(address),
+                }
+            }
+
             // extend precise region with a field path
             mir::Instruction::FieldAddr {
                 destination,
@@ -643,12 +658,21 @@ impl<'a> MemoryRegionBuilder<'a> {
                 region
             }
 
-            // preserve variant storage origin without claiming disjoint payloads
+            // extend precise region with the payload of one case
             mir::Instruction::VariantPayloadAddr {
                 destination,
                 variant,
+                case,
                 ..
-            } if *destination == address => self.region(*variant),
+            } if *destination == address => {
+                let variant = *variant;
+                let mut region = self.region(variant);
+                if let MemoryRegion::Place(place) = &mut region {
+                    place.add_case(*case);
+                }
+
+                region
+            }
 
             // casts preserve origin
             mir::Instruction::Cast {
@@ -921,39 +945,17 @@ mod tests {
         assert!(!place.is_constant_offset());
     }
 
-    /// Exclusive parameters are reported as exclusive.
-    #[test]
-    fn test_storage_is_exclusive_parameter() {
-        let exclusive_parameter = StorageRoot::Parameter {
-            index: 0,
-            storage: mir::Storage::Heap(mir::Space::Local),
-            kind: mir::ReferenceKind::Borrowed,
-            access: mir::Access::Exclusive,
-        };
-        let mutable_parameter = StorageRoot::Parameter {
-            index: 1,
-            storage: mir::Storage::Heap(mir::Space::Local),
-            kind: mir::ReferenceKind::Borrowed,
-            access: mir::Access::Mutable,
-        };
-        let local = StorageRoot::LocalSlot(mir::LocalNodeId::new(0));
-
-        assert!(exclusive_parameter.is_exclusive_parameter());
-        assert!(!mutable_parameter.is_exclusive_parameter());
-        assert!(!local.is_exclusive_parameter());
-    }
-
     /// Field paths are captured by memory places.
     #[test]
     fn test_memory_place_fields() {
         let mut place = MemoryPlace::from_root(StorageRoot::LocalSlot(mir::LocalNodeId::new(0)));
-        assert!(place.fields.is_empty());
+        assert!(place.path.is_empty());
 
         place.add_field(0);
-        assert_eq!(place.fields, vec![0]);
+        assert_eq!(place.path, vec![0]);
 
         place.add_field(2);
-        assert_eq!(place.fields, vec![0, 2]);
+        assert_eq!(place.path, vec![0, 2]);
 
         assert!(place.is_constant_offset());
     }

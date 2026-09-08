@@ -23,6 +23,27 @@ impl<'a> Format<'a, Formatter<'a>> for Constant {
             Constant::Layout { ty, measure } => {
                 write!(f, [token(measure.keyword()), space(), *ty])
             }
+            Constant::Witness {
+                receiver,
+                interface,
+                member,
+            } => {
+                let member = f.context().strings.get(*member).to_string();
+                write!(
+                    f,
+                    [
+                        token("witness"),
+                        space(),
+                        *receiver,
+                        token(","),
+                        space(),
+                        *interface,
+                        token(","),
+                        space(),
+                        copied_text(&member)
+                    ]
+                )
+            }
             Constant::Uninit => write!(f, [token("uninit")]),
             Constant::Zeroed => write!(f, [token("zeroed")]),
             Constant::Boolean { value } => {

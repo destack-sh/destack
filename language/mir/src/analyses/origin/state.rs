@@ -1,5 +1,5 @@
 use crate::analyses::LoanId;
-use crate::{Lattice, Path, Place, PlaceOrigin, ReferenceKind, TypeId, Value};
+use crate::{Lattice, LocalId, Path, Place, PlaceOrigin, Projection, ReferenceKind, TypeId, Value};
 
 use super::context::OriginContext;
 use super::region::{Origin, Region};
@@ -279,10 +279,25 @@ impl OriginState {
 
     /// Return origin of one place's storage itself.
     pub(super) fn storage_origin(&self, cx: &OriginContext<'_>, place: &Place) -> Origin {
-        match place.origin {
-            PlaceOrigin::Local(_) => Origin::one(Region::Frame),
-            PlaceOrigin::Global(_) => Origin::one(Region::Static),
-            PlaceOrigin::Value(value) => self.storage(cx, value, &place.path),
+        match (place.origin, place.path.first()) {
+            (PlaceOrigin::Local(local), Some(Projection::Deref)) => self
+                .get_place(&Place::local(local))
+                .cloned()
+                .unwrap_or_else(|| Self::local_reference_origin(cx, local)),
+            (PlaceOrigin::Local(_), _) => Origin::one(Region::Frame),
+            (PlaceOrigin::Global(_), _) => Origin::one(Region::Static),
+            (PlaceOrigin::Value(value), _) => self.storage(cx, value, &place.path),
+        }
+    }
+
+    /// Return the origin one reference local's type gives its storage before any store.
+    fn local_reference_origin(cx: &OriginContext<'_>, local: LocalId) -> Origin {
+        let ty = cx.tree.get(local).ty;
+        let ty = cx.tree.get(cx.tree.storage_type(TypeId::from(ty)));
+        match ty.reference_kind() {
+            Some(ReferenceKind::Managed | ReferenceKind::Borrowed) => Origin::from_reference(ty),
+            Some(ReferenceKind::Unique) => Origin::one(Region::Frame),
+            None => Origin::none(),
         }
     }
 

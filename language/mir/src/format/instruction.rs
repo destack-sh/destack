@@ -1091,13 +1091,7 @@ impl FormatNode for Instruction {
                 )
             }
 
-            Instruction::Free { value } => write!(f, [token("free"), space(), value]),
-
-            Instruction::Hold { values } => {
-                write!(f, [token("hold"), space()])?;
-                let values = f.context().tree.get_values(*values);
-                format_value_list(values, f)
-            }
+            Instruction::Release { value } => write!(f, [token("release"), space(), value]),
 
             Instruction::BarrierWrite {
                 object,

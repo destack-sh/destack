@@ -26,6 +26,8 @@ pub enum ConstantType {
     Storage,
     /// Layout measure constant type.
     Layout,
+    /// The type of an associated const read through a witness.
+    Witness,
 }
 
 /// Lookup interface for constant maps.
@@ -61,6 +63,7 @@ pub fn constant_type_of(constant: &mir::Constant) -> ConstantType {
         mir::Constant::Char { .. } => ConstantType::Char,
         mir::Constant::Uninit | mir::Constant::Zeroed => ConstantType::Storage,
         mir::Constant::Layout { .. } => ConstantType::Layout,
+        mir::Constant::Witness { .. } => ConstantType::Witness,
     }
 }
 

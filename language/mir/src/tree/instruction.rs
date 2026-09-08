@@ -594,22 +594,13 @@ pub enum Instruction {
         /// The result type of the allocation.
         result_type: TypeId,
     },
-    /// Release one unique representation's backing heap allocation (`free`).
+    /// Release one unique representation's backing allocation to the heap (`release`).
     ///
-    /// This is valid after drop elaboration has destroyed the allocation contents.
-    Free {
-        /// The unique heap representation whose backing allocation is released.
+    /// Emitted after drop elaboration has destroyed the allocation contents; the heap frees an
+    /// allocation the managed graph never retained and leaves the rest to the collector.
+    Release {
+        /// The unique heap representation whose backing allocation is returned.
         value: Value,
-    },
-
-    // reachability
-    /// Keep managed handles live through this point (`hold`).
-    ///
-    /// Placed after a safepoint, it keeps the handles in the frame state there, so the storage
-    /// their borrows point into stays reachable while the collector runs.
-    Hold {
-        /// The managed handles stored in the tree's value buffer.
-        values: ValueSlice,
     },
 
     // collector protocol
@@ -791,8 +782,7 @@ impl Instruction {
             | Instruction::NewComplete { destination, .. }
             | Instruction::NewSliceZeroed { destination, .. }
             | Instruction::NewSliceUninit { destination, .. } => Some(*destination),
-            Instruction::Free { .. } => None,
-            Instruction::Hold { .. } => None,
+            Instruction::Release { .. } => None,
             Instruction::BarrierWrite { .. } => None,
             Instruction::AtomicLoad { destination, .. } => Some(*destination),
             Instruction::AtomicStore { .. } => None,
@@ -902,8 +892,7 @@ impl Instruction {
             Instruction::NewComplete { value, .. } => smallvec![*value],
             Instruction::NewSliceZeroed { length, .. }
             | Instruction::NewSliceUninit { length, .. } => smallvec![*length],
-            Instruction::Free { value } => smallvec![*value],
-            Instruction::Hold { .. } => smallvec![],
+            Instruction::Release { value } => smallvec![*value],
             Instruction::BarrierWrite {
                 object,
                 offset,
@@ -944,7 +933,7 @@ impl Instruction {
             Instruction::LocalSet { value, .. }
             | Instruction::Store { value, .. }
             | Instruction::NewComplete { value, .. }
-            | Instruction::Free { value } => smallvec![*value],
+            | Instruction::Release { value } => smallvec![*value],
             Instruction::AtomicStore { value, .. } | Instruction::AtomicRmw { value, .. } => {
                 smallvec![*value]
             }
@@ -1015,7 +1004,7 @@ impl Instruction {
     /// Return the argument slice of the instructions that externalize their value lists.
     pub fn argument_slice(&self) -> Option<ValueSlice> {
         match self {
-            Instruction::Aggregate { values, .. } | Instruction::Hold { values } => Some(*values),
+            Instruction::Aggregate { values, .. } => Some(*values),
             Instruction::Call { call, .. } => Some(call.arguments),
             Instruction::Intrinsic { arguments, .. } => Some(*arguments),
             _ => None,

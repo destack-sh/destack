@@ -1,6 +1,7 @@
 use std::hash::Hasher;
 
 use destack_core::{StableHasher, StringId};
+use destack_source::ModuleId;
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Field,
@@ -49,17 +50,17 @@ impl TypeHasher {
             hasher.hash_argument(*argument, tree);
         }
 
-        Symbol::from_raw(hasher.hasher.finish_u64())
+        Symbol::from_raw(base.module(), hasher.hasher.finish_u64())
     }
 
     /// Derive one declaration symbol from its name and declaring identity.
-    pub(super) fn declared(name: StringId, identity: u64) -> Symbol {
+    pub(super) fn declared(module: ModuleId, name: StringId, identity: u64) -> Symbol {
         let mut hasher = StableHasher::new();
         hasher.update_len_prefixed(b"destack.mir.declaration.v1");
         hasher.write_u64(name.raw());
         hasher.write_u64(identity);
 
-        Symbol::from_raw(hasher.finish_u64())
+        Symbol::from_raw(Some(module), hasher.finish_u64())
     }
 
     /// Create a type fingerprint hasher.
@@ -316,6 +317,7 @@ impl TypeHasher {
                 for case in cases {
                     self.hash_constant(&case.discriminant, tree);
                     self.hash_type(case.ty, tree);
+                    self.hash_boolean(case.is_boxed);
                 }
                 self.hash_copy(*copy);
             }
@@ -359,6 +361,11 @@ impl TypeHasher {
             Type::FunctionPointer { signature } => {
                 self.hasher.write_u8(27);
                 self.hash_type(*signature, tree);
+            }
+            Type::Application {
+                base, arguments, ..
+            } if self.erase_lifetimes && arguments.is_empty() => {
+                self.hash_type(*base, tree);
             }
             Type::Application {
                 base,
@@ -541,7 +548,6 @@ impl TypeHasher {
         match access {
             Access::Readonly => self.hasher.write_u8(0),
             Access::Mutable => self.hasher.write_u8(1),
-            Access::Exclusive => self.hasher.write_u8(2),
             Access::Parameter(index) => {
                 self.hasher.write_u8(3);
                 self.hasher.write_u32(index);
@@ -674,6 +680,16 @@ impl TypeHasher {
                 self.hash_type(*ty, tree);
                 self.hasher.write_u8(*measure as u8);
             }
+            Constant::Witness {
+                receiver,
+                interface,
+                member,
+            } => {
+                self.hasher.write_u8(11);
+                self.hash_type(*receiver, tree);
+                self.hash_type(*interface, tree);
+                self.hasher.write_u64(member.raw());
+            }
         }
     }
 
@@ -702,7 +718,7 @@ mod tests {
     /// Structural instance symbols are independent of local type allocation order.
     #[test]
     fn test_mangle_structural_instances_across_trees() {
-        let base = Symbol::named(StringId::for_text("library.pick"));
+        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.pick"));
 
         let mut first = Tree::new();
         let first_int = first.intern_type(Type::INT32);
@@ -732,12 +748,12 @@ mod tests {
         );
     }
 
-    /// Nominal instance symbols depend on declaration identity rather than recursive layout.
+    /// Nominal instance symbols follow declaration identity, so recursive layout stays out.
     #[test]
     fn test_mangle_identified_instances_by_symbol() {
-        let base = Symbol::named(StringId::for_text("library.consume"));
-        let first_name = Symbol::named(StringId::for_text("library.First"));
-        let second_name = Symbol::named(StringId::for_text("library.Second"));
+        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.consume"));
+        let first_name = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.First"));
+        let second_name = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.Second"));
         let mut tree = Tree::new();
 
         let first = tree.reserve_type(first_name);
@@ -800,7 +816,7 @@ mod tests {
 
         let local = GenericArgument::Type(local);
         let static_ = GenericArgument::Type(static_);
-        let base = Symbol::named(StringId::for_text("library.inspect"));
+        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.inspect"));
 
         assert_eq!(
             base.instantiate(&[local], &tree),
@@ -812,7 +828,7 @@ mod tests {
     #[test]
     fn test_mangle_static_instances_by_value() {
         let mut tree = Tree::new();
-        let base = Symbol::named(StringId::for_text("library.take"));
+        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.take"));
         let first = GenericArgument::Value(tree.intern_static(Static::Integer(4)));
         let second = GenericArgument::Value(tree.intern_static(Static::Integer(8)));
 
@@ -825,7 +841,7 @@ mod tests {
     /// Static instance symbols are independent of local static allocation order.
     #[test]
     fn test_mangle_static_instances_across_trees() {
-        let base = Symbol::named(StringId::for_text("library.buffer"));
+        let base = Symbol::named(crate::TEST_MODULE, StringId::for_text("library.buffer"));
 
         let mut first = Tree::new();
         let first_length = GenericArgument::Value(first.intern_static(Static::Integer(64)));

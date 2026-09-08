@@ -4,8 +4,9 @@ use destack_core::BitSet;
 use smallvec::SmallVec;
 
 use crate::{
-    Block, BlockTarget, ControlTable, Edge, Function, Instruction, LocalNodeId, LocalNodeIdAny,
-    MovePathId, MoveTable, Place, PlaceTable, Projection, Terminator, Tree, Type, Value,
+    AddressKind, Block, BlockTarget, ControlTable, Edge, Function, Instruction, LocalNodeId,
+    LocalNodeIdAny, MovePathId, MoveTable, Place, PlaceTable, Projection, Terminator, Tree, Type,
+    Value,
 };
 
 use super::{Analysis, Dataflow, ForwardTransfer, FunctionCache, Lattice, Mutation};
@@ -103,9 +104,25 @@ impl InitializationTable {
                 let projection = Projection::Field { index: *field };
                 self.collect_projection(*aggregate, projection, state, &mut unavailable);
             }
-            // collect the aggregate an address names, since a later store initializes it
+            Instruction::FieldAddr {
+                aggregate,
+                field,
+                kind: AddressKind::Borrow,
+                ..
+            } => {
+                let projection = Projection::Field { index: *field };
+                let place = self.places.project(*aggregate, projection);
+                self.collect_moved_place(&place, state, &mut unavailable);
+            }
             Instruction::FieldAddr { aggregate, .. } => {
                 self.collect_value(*aggregate, state, &mut unavailable);
+            }
+            Instruction::LocalAddr {
+                local,
+                kind: AddressKind::Borrow,
+                ..
+            } => {
+                self.collect_moved_place(&Place::local(*local), state, &mut unavailable);
             }
             // require the owned storage a load reads
             Instruction::Load { pointer, .. } => {
@@ -116,8 +133,8 @@ impl InitializationTable {
                     unavailable.push(state.unavailability(path));
                 }
             }
-            // require the reference a free releases, down to its own storage
-            Instruction::Free { value } => {
+            // require the reference a release returns, down to its own storage
+            Instruction::Release { value } => {
                 if let Some(path) = self.paths.value(*value)
                     && let Some(path) = state.unavailable_shallow(path, &self.paths)
                 {
@@ -236,6 +253,26 @@ impl InitializationTable {
         let Some(path) = state.unavailable(path, &self.paths) else {
             return;
         };
+
+        unavailable.push(state.unavailability(path));
+    }
+
+    /// Collect one place a move made unavailable.
+    fn collect_moved_place(
+        &self,
+        place: &Place,
+        state: &InitializationState,
+        unavailable: &mut SmallVec<[Unavailability; 4]>,
+    ) {
+        let Some(path) = self.paths.containing(place) else {
+            return;
+        };
+        let Some(path) = state.unavailable(path, &self.paths) else {
+            return;
+        };
+        if state.moved_at(path).is_none() {
+            return;
+        }
 
         unavailable.push(state.unavailability(path));
     }
