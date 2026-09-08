@@ -5,8 +5,9 @@ date: "2026-09-14"
 author: "Florian"
 ---
 
-- there is a lot of software, and we're about to enter a cambrian explosion
-- this is great, except that it's is worth remembering that at the end of that period, most animals were dead, and the surviving species looked rather different from what had been dominant before.  
+- we're about to enter a cambrian explosion of software
+- this is great, except that it's is worth remembering that at the end of that period, most animals and plants had died, and the surviving species looked rather different from what had been dominant before.
+
 - it's not hard to see how the status quo of software - and its production process - kinda sucks.
 - we have evolved a slow artisinal process with uncertain non-repeatable step: 
 - dependency sprawl
@@ -20,6 +21,7 @@ author: "Florian"
 - we're not going to get _great_ software by averaging past software, or by merely "accelerating"  existing software production processes. 
 - we need _new_ processes
 - so, what does great software look like, and what does great software _production_ look like?
+
 <!--- and _now_ we're asking even _more_ from our software than ever before-->
 - ideally, I want software I can own.
 - Something fully hackable, debuggable, that I can myself whenever and however I please.
@@ -35,7 +37,8 @@ author: "Florian"
 <!--- what does higher order programming look like? what does it even mean?
 - what should higher order progrmaming _feel_ like?-->
 
-[that clip from that one game studio with that absurdly integrated stack](TODO)
+:::video src="https://www.youtube.com/watch?v=72y2EC5fkcE" title="Tomorrow Corporation Tech Demo" poster="https://i.ytimg.com/vi/72y2EC5fkcE/maxresdefault.jpg"
+:::
 
 <!--- beyond performance, the opportunities in a standardized, fully integrated computing stack are very interesting
 - now that the cost of writing and rewriting code is nearly zero, what can we do
@@ -130,7 +133,8 @@ author: "Florian"
 - if we didn't have to write code at all, nor trouble ourselves with any of the nuances and rigor imposed by formal languages!
 - one can only imagine the splendidness of an ecosystem of unconstrained creation!
 
-[insert clip of tiny glade](TODO)
+:::video src="https://www.youtube.com/watch?v=CdWpq2efN8Y" title="Tiny Glade — Release Date Trailer" poster="https://i.ytimg.com/vi/CdWpq2efN8Y/maxresdefault.jpg"
+:::
 
 - fortunately, magnificiently, we already have precedent to understand what that low-code, high volume engineering ends up.
 - unfortunately, it still involves quite a lot of problem solving and "programming", albeit at a different level.
@@ -140,7 +144,8 @@ author: "Florian"
 <!--- everyone has to wire up the pieces themselves, there are few standards, everyone is handrolling OSes and floppy drivers or whatever-->
 - then, eventually, the nerds figured out how to package the hard bits into reusable components and evolve more complete, higher level packages of reusable software components we call a "game engine". 
 
-[insert pic of ubiart engine](TODO)
+:::video src="https://www.youtube.com/watch?v=WFu1utKAZ18" title="Rayman Legends: The Design Process Within the UbiArt Framework" poster="https://i.ytimg.com/vi/WFu1utKAZ18/maxresdefault.jpg"
+:::
 
 - initially, when using an engine, maybe you didn't always get exactly the same level of control, or even hit _quite_ the same highs as the best hardcore engineers. 
 - but it was a lot more productive, and it enabled a scale of project
@@ -154,14 +159,16 @@ author: "Florian"
 
 # The System and The Meta System
 
-- a new kind of contributor is assisting with software production, and there is a lot of excitement about newly invented "agent first design" and "software factories"
+- we now have agents contributing to software production, and there is a lot of excitement about "software factories" building "agent native" software.
 <!--- a myriad of developer-adjacent tools are being rebuilt to become "agent native", while the other half are rebranding into "self-driving factories".-->
 - It's not entirely clear what "agent native" means, now where we're "self driving" _to_, but there sure is a lot of momentum in some general direction
 - software factory feels like a red herring? like it's inside out? 
-- why would we want to spend 
+- at first glance, agents seem to be an abstraction in _specification_ but I would argue it's a an sbtraction in _production_ of the specification, which points at a different class of product.
+
 - of course, we want good APIs, high performance, open standards ... but that mostly sounds like software the way we should have done anyway.
 - more generally, we want software systems that are fully homoiconic and we want systems to udnerstand the systems we're building
 - (we're already doing this, but inconsistently and at a small scale..s) 
+- unlike in the world of atoms, we get to keep the scaffolding around and just `#IF` it out for deployment!
 <!--- "agent native" makes for good marketing and pitch decks, but means little in practice-->
 <!--- most things that are good for agents - fast iteration, clean boundaries, programmable software - are good for humans too, we just haven't had the opportunity to the big rewrite until now-->
 <!--- like with every technological shift, what are the new abstractions, what is the new shape of software and how do we get there?-->
@@ -169,10 +176,14 @@ author: "Florian"
 
 [a building under construction with scaffolding](TODO)
 
-- fundamentally, there is not a single test, suite of tests, mathematical proof, or any other final gate that you can run to convince me that some non-trivial general program is correct
-- (mathematical proofs are ofc very useful for rigid and fully formalizable systems)
+- fundamentally, there is not a single test, suite of tests, mathematical proof, or any single definitive gate that you can run to convince me that some non-trivial general purpose program is correct
 - doesn't matter whether it's human written or not, software is just very complex
+- mathematical proofs are ofc very useful for rigid and fully formalizable systems, but 
+
 - and the only way to assess "correct" for any interesting software is to see it in motion under many different angles, over time
+- this is not an intelligence problem!
+- it _may_ be possible to "prove" some software to be correct, but I do not know what to prove 
+- merely interacting with software 
 <!--- correctness = alignment + visibility-->
 <!--- correctness is ultimately about alignment, and we can only align on what we can see-->
 - I don't know what I want until I see it, and I also don't know what I _don't_ want until I see that too
@@ -187,6 +198,7 @@ author: "Florian"
 - "oh just have the AI tell you if the code is right" but again what is right?
 - (in this sense, the "alignment problem" feels much more like a product and legibility problem, and certainly not _merely_ an intelligence problem, which is short term bearish but long term very bullish)
 - this does not magically go away with more abstractions or "smarter AI"
+
 - understand the shape of software and the space of all possible software
 - make a map
 - much better static and dynamic analysis
@@ -314,4 +326,8 @@ if we finally have the unique opportunity to build a completely new programming 
 
 - there are a lot of interesting details in making "TS++" actually work.
 - like how we coulds
-- you can read all about it at [LINK](TODO)
+- you can read all about it at [docs](/docs/language/)
+
+- TS++ is currently very much in alpha
+- you can play with it at .. 
+- rapidly build out the p90 set needed for most everyday software
