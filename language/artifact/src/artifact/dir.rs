@@ -231,6 +231,8 @@ pub struct DirElaborated {
     pub generics: Arc<dir::GenericSegment>,
     /// Definitions carrying derived constructor entries.
     pub definitions: Arc<dir::DefinitionSegment>,
+    /// The layout policies committed for the module's nominal declarations.
+    pub representations: Arc<dir::RepresentationSegment>,
     /// Selected and evaluated decorator applications.
     pub decorators: Arc<dir::DecoratorSegment>,
     /// Resolutions recorded while checking declarations and decorators.
@@ -268,8 +270,6 @@ pub struct DirChecked {
     pub decisions: Arc<dir::DecisionSegment>,
     /// New generic slots and the instantiations the bodies perform.
     pub generics: Arc<dir::GenericSegment>,
-    /// Refined declaration definitions.
-    pub definitions: Arc<dir::DefinitionSegment>,
     /// Member subjects and bindings settled while checking.
     pub members: Arc<dir::MemberSegment>,
     /// New implicit coercions.
@@ -293,8 +293,6 @@ pub struct DirMaterialized {
     pub types: Arc<dir::TypeSegment>,
     /// Closed generic instances and their materialized types.
     pub generics: Arc<dir::GenericSegment>,
-    /// Evaluated declaration definitions.
-    pub definitions: Arc<dir::DefinitionSegment>,
     /// Grounded node decisions.
     pub decisions: Arc<dir::DecisionSegment>,
     /// Grounded implicit coercions.
@@ -351,9 +349,10 @@ pub struct DirView {
     coercions: Option<dir::CoercionTable<'static>>,
     /// The capture table over the stages read, from the checked stage on.
     captures: Option<dir::CaptureTable<'static>>,
+    representations: Option<dir::RepresentationTable<'static>>,
 }
 
-/// Stack one table from the segments the read stages contribute, none without any.
+/// Stack one table from the segments the read stages contribute, absent when they contribute none.
 fn stacked<S, T>(segments: Vec<Arc<S>>, build: impl FnOnce(Vec<Arc<S>>) -> T) -> Option<T> {
     (!segments.is_empty()).then(|| build(segments))
 }
@@ -498,7 +497,6 @@ impl DirView {
             types.push(checked.types.clone());
             statics.push(checked.statics.clone());
             generics.push(checked.generics.clone());
-            definitions.push(checked.definitions.clone());
             members.push(checked.members.clone());
             decorators.push(checked.decorators.clone());
             resolutions.push(checked.resolutions.clone());
@@ -507,11 +505,13 @@ impl DirView {
             coercions.push(checked.coercions.clone());
             captures.push(checked.captures.clone());
         }
+        let representations = elaborated.as_ref().map(|elaborated| {
+            dir::RepresentationTable::from_segments(vec![elaborated.representations.clone()])
+        });
         if let Some(materialized) = &materialized {
             bindings.push(materialized.bindings.clone());
             types.push(materialized.types.clone());
             generics.push(materialized.generics.clone());
-            definitions.push(materialized.definitions.clone());
             resolutions.push(materialized.resolutions.clone());
             decisions.push(materialized.decisions.clone());
             coercions.push(materialized.coercions.clone());
@@ -540,6 +540,7 @@ impl DirView {
             flows: stacked(flows, dir::FlowTable::from_segments),
             coercions: stacked(coercions, dir::CoercionTable::from_segments),
             captures: stacked(captures, dir::CaptureTable::from_segments),
+            representations,
         }
     }
 
@@ -636,5 +637,12 @@ impl DirView {
         self.captures
             .as_ref()
             .unwrap_or_else(|| unreachable!("DIR view without a checked stage"))
+    }
+
+    /// Return the representation table.
+    pub fn representations(&self) -> &dir::RepresentationTable<'static> {
+        self.representations
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without an elaborated stage"))
     }
 }

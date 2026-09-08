@@ -44,7 +44,7 @@ impl MirLowered {
     /// Create a new lowered MIR payload.
     pub fn new() -> Self {
         Self {
-            tree: mir::Tree::new(),
+            tree: Arc::new(mir::Tree::new()),
             target: mir::TargetLayout::default(),
             initializer: None,
             layouts: mir::LayoutTable::default(),
@@ -133,7 +133,7 @@ impl Default for MirOptimized {
     }
 }
 
-/// Per-module link summary produced by program analysis.
+/// The symbol links one module contributes to whole-program analysis.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirAnalyzed {
     /// The module's symbol links.
@@ -141,7 +141,7 @@ pub struct MirAnalyzed {
 }
 
 impl MirAnalyzed {
-    /// Create a per-module analysis payload from its link table.
+    /// Create one module's analysis payload from its link table.
     pub fn new(links: LinkTable) -> Self {
         Self { links }
     }
@@ -158,7 +158,7 @@ pub struct ProgramAnalysis {
     references: Vec<u32>,
     /// Whether each symbol's address is taken anywhere in the program.
     address_taken: BitSet,
-    /// Whether each symbol is internal to the program (not an external root).
+    /// Whether each symbol is internal to the program.
     internal: BitSet,
     /// Strongly connected components of the whole-program call graph.
     components: CallComponentGraph,
@@ -187,7 +187,7 @@ impl ProgramAnalysis {
         self.symbols.is_empty()
     }
 
-    /// Return whether the whole program can reach a symbol.
+    /// Return whether a symbol stays live in the whole program.
     pub fn is_live(&self, symbol: Symbol) -> bool {
         self.live.contains(self.index_of(symbol))
     }
@@ -202,7 +202,7 @@ impl ProgramAnalysis {
         self.address_taken.contains(self.index_of(symbol))
     }
 
-    /// Return whether a symbol is internal to the program (not an external root).
+    /// Return whether a symbol is internal to the program.
     pub fn is_internal(&self, symbol: Symbol) -> bool {
         self.internal.contains(self.index_of(symbol))
     }

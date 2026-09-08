@@ -30,7 +30,7 @@ pub enum ArtifactKey {
 
     /// Parsed module DIR.
     DirParsed { module: ModuleId },
-    /// Parsed non-code module data.
+    /// Parsed contents of one data module.
     Data { module: ModuleId },
     /// Bound DIR.
     DirBound {
@@ -112,7 +112,7 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
-    /// Per-module link summary for whole-program analysis.
+    /// The symbol links one module contributes to whole-program analysis.
     MirAnalyzed {
         module: ModuleId,
         profile: ProfileId,
@@ -388,6 +388,21 @@ impl ArtifactKey {
     /// Build one materialized DIR artifact key.
     pub fn dir_materialized(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirMaterialized { module, profile }
+    }
+
+    /// Return every DIR stage of one module in stage order.
+    pub fn dir_stages(module: ModuleId, profile: ProfileId) -> [Self; 9] {
+        [
+            Self::dir_parsed(module),
+            Self::dir_bound(module, profile),
+            Self::dir_imported(module, profile),
+            Self::dir_resolved(module, profile),
+            Self::dir_expanded(module, profile),
+            Self::dir_declared(module, profile),
+            Self::dir_elaborated(module, profile),
+            Self::dir_checked(module, profile),
+            Self::dir_materialized(module, profile),
+        ]
     }
 
     /// Build one declared MIR artifact key.
