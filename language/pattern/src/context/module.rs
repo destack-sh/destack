@@ -1,10 +1,7 @@
 use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirParsed,
-    DirResolved,
-};
+use destack_artifact::{DirExpanded, DirExported, DirParsed, DirResolved, DirView};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -39,16 +36,11 @@ pub struct ModuleContext {
 
 impl ModuleContext {
     /// Build one module context from a coherent checked artifact set.
-    pub fn new(
-        parsed: Arc<DirParsed>,
-        bound: Arc<DirBound>,
-        expanded: Arc<DirExpanded>,
-        exported: Arc<DirExported>,
-        resolved: Arc<DirResolved>,
-        declared: Arc<DirDeclared>,
-        elaborated: Arc<DirElaborated>,
-        checked: Arc<DirChecked>,
-    ) -> Result<Self, ContextError> {
+    pub fn new(view: DirView, exported: Arc<DirExported>) -> Result<Self, ContextError> {
+        let bound = &view.bound;
+        let expanded = Arc::clone(&view.expanded);
+        let resolved = Arc::clone(view.resolved.as_ref().unwrap_or_else(|| unreachable!()));
+        let checked = view.checked.as_ref().unwrap_or_else(|| unreachable!());
         let module = checked.bindings.module_id;
         let artifact_modules = [
             bound.bindings.module_id,
@@ -79,25 +71,17 @@ impl ModuleContext {
             return Err(ContextError::MismatchedModule);
         }
 
-        // compose cumulative checked tables once
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
-        let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
-        let resolutions = checked.resolution_table(&declared, &elaborated);
-        let decisions = checked.decision_table(&declared, &elaborated);
-        let generics = checked.generic_table(&declared, &elaborated);
-
         Ok(Self {
-            parsed,
+            parsed: Arc::clone(&view.parsed),
             expanded,
             resolved,
             exported,
-            bindings,
-            types,
-            statics,
-            resolutions,
-            decisions,
-            generics,
+            bindings: view.bindings().clone(),
+            types: view.types().clone(),
+            statics: view.statics().clone(),
+            resolutions: view.resolutions().clone(),
+            decisions: view.decisions().clone(),
+            generics: view.generics().clone(),
             module,
         })
     }

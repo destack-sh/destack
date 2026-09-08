@@ -3,7 +3,7 @@ use std::sync::{Arc, OnceLock};
 
 use destack_artifact::{
     ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
-    DirExported, DirParsed, DirResolved,
+    DirExported, DirImported, DirParsed, DirResolved, DirView,
 };
 use destack_core::StringPool;
 use destack_repository::{
@@ -75,35 +75,20 @@ impl TestProgram {
         let contexts = modules
             .iter()
             .map(|(module, profile)| {
-                let parsed = artifacts
-                    .read::<DirParsed>(*module)
-                    .expect("read parsed test DIR");
-                let bound = artifacts
-                    .read::<DirBound>((*module, *profile))
-                    .expect("read bound test DIR");
-                let expanded = artifacts
-                    .read::<DirExpanded>((*module, *profile))
-                    .expect("read expanded test DIR");
-                let exported = artifacts
-                    .read::<DirExported>((*module, *profile))
-                    .expect("read exported test DIR");
-                let resolved = artifacts
-                    .read::<DirResolved>((*module, *profile))
-                    .expect("read resolved test DIR");
-                let declared = artifacts
-                    .read::<DirDeclared>((*module, *profile))
-                    .expect("read declared test DIR");
-                let elaborated = artifacts
-                    .read::<DirElaborated>((*module, *profile))
-                    .expect("read elaborated test DIR");
-                let checked = artifacts
-                    .read::<DirChecked>((*module, *profile))
-                    .expect("read checked test DIR");
+                let key = (*module, *profile);
+                let view = DirView::checked(
+                    artifacts.read::<DirParsed>(*module).unwrap_or_else(read),
+                    artifacts.read::<DirBound>(key).unwrap_or_else(read),
+                    artifacts.read::<DirImported>(key).unwrap_or_else(read),
+                    artifacts.read::<DirExpanded>(key).unwrap_or_else(read),
+                    artifacts.read::<DirResolved>(key).unwrap_or_else(read),
+                    artifacts.read::<DirDeclared>(key).unwrap_or_else(read),
+                    artifacts.read::<DirElaborated>(key).unwrap_or_else(read),
+                    artifacts.read::<DirChecked>(key).unwrap_or_else(read),
+                );
+                let exported = artifacts.read::<DirExported>(key).unwrap_or_else(read);
 
-                ModuleContext::new(
-                    parsed, bound, expanded, exported, resolved, declared, elaborated, checked,
-                )
-                .expect("build checked test module")
+                ModuleContext::new(view, exported).expect("build checked test module")
             })
             .collect::<Vec<_>>();
         let context = ProgramContext::new(contexts).expect("build checked test program");
@@ -228,4 +213,9 @@ fn executor() -> Arc<Executor> {
                 .expect("create checked test artifact executor")
         })
         .clone()
+}
+
+/// Fail one test DIR read.
+fn read<T>(error: destack_repository::ProviderError) -> T {
+    panic!("read test DIR: {error}")
 }
