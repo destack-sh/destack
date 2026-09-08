@@ -107,6 +107,7 @@ pub fn format_diff(expected: &str, actual: &str, options: &DiffOptions) -> Strin
     let mut pending_removals: Vec<(usize, &str)> = Vec::new();
     let mut pending_additions: Vec<(usize, &str)> = Vec::new();
     let mut in_hunk = false;
+    let mut trailing = 0;
 
     while i < expected_lines.len() || j < actual_lines.len() {
         // matching lines
@@ -124,22 +125,21 @@ pub fn format_diff(expected: &str, actual: &str, options: &DiffOptions) -> Strin
                     options,
                     &mut in_hunk,
                 );
+                trailing = 0;
             }
 
-            context_buffer.push((i + 1, expected_lines[i]));
-            if context_buffer.len() > options.context {
-                // print trailing context from previous hunk
-                if in_hunk && context_buffer.len() == options.context + 1 {
-                    let (line_no, line) = context_buffer.remove(0);
-                    print_context_line(&mut output, line_no, line, options);
-                } else {
+            // print trailing context after a change
+            if in_hunk && trailing < options.context {
+                print_context_line(&mut output, i + 1, expected_lines[i], options);
+                trailing += 1;
+            }
+            // keep leading context for the next change
+            else {
+                in_hunk = false;
+                context_buffer.push((i + 1, expected_lines[i]));
+                if context_buffer.len() > options.context {
                     context_buffer.remove(0);
                 }
-            }
-
-            // end hunk after enough context
-            if in_hunk && context_buffer.len() >= options.context {
-                in_hunk = false;
             }
 
             i += 1;
