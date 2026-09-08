@@ -205,18 +205,18 @@ entry(v0: Dropped):
     return
 }
 
-function dropDropped(v0: ref<Dropped, borrowed, exclusive, frame>): void {
-entry(v0: ref<Dropped, borrowed, exclusive, frame>):
+function dropDropped(v0: ref<Dropped, borrowed, mutable, frame>): void {
+entry(v0: ref<Dropped, borrowed, mutable, frame>):
     return
 }
 
-function dropAllocated(v0: ref<Allocated, borrowed, exclusive>): void {
-entry(v0: ref<Allocated, borrowed, exclusive>):
+function dropAllocated(v0: ref<Allocated, borrowed, mutable>): void {
+entry(v0: ref<Allocated, borrowed, mutable>):
     return
 }
 
-function dropDead(v0: ref<Dead, borrowed, exclusive, frame>): void {
-entry(v0: ref<Dead, borrowed, exclusive, frame>):
+function dropDead(v0: ref<Dead, borrowed, mutable, frame>): void {
+entry(v0: ref<Dead, borrowed, mutable, frame>):
     return
 }
 "#,

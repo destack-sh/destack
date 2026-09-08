@@ -1,4 +1,4 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::{FxIndexMap, FxIndexSet, StringId};
 
 use crate::optimize::declare_pass;
 use crate::optimize::passes::scalar::{
@@ -145,6 +145,8 @@ enum ConstantKey {
     Char(char),
     /// Layout measure constant.
     Layout(mir::TypeId, mir::LayoutMeasure),
+    /// The associated const one type answers an interface with.
+    Witness(mir::TypeId, mir::TypeId, StringId),
 }
 
 /// Run argument specialization over the module.
@@ -408,6 +410,11 @@ fn constant_key(constant: &mir::Constant) -> ConstantKey {
         mir::Constant::Uninit => ConstantKey::Uninit,
         mir::Constant::Zeroed => ConstantKey::Zeroed,
         mir::Constant::Layout { ty, measure } => ConstantKey::Layout(*ty, *measure),
+        mir::Constant::Witness {
+            receiver,
+            interface,
+            member,
+        } => ConstantKey::Witness(*receiver, *interface, *member),
         mir::Constant::Boolean { value } => ConstantKey::Boolean(*value),
         mir::Constant::Int {
             value,

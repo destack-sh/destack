@@ -390,6 +390,7 @@ fn clone_function(
     let impl_entry = block_map[&entry];
     let impl_blocks: Vec<_> = original.blocks().iter().map(|id| block_map[id]).collect();
     let mut impl_function = mir::Function::define(
+        original.symbol.declaring_module(),
         impl_name,
         original.lifetimes.clone(),
         original.parameters.clone(),

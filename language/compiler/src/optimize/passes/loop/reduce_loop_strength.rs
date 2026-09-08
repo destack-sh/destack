@@ -1326,7 +1326,8 @@ impl<'a> ScevMaterializer<'a> {
             | mir::Constant::Null
             | mir::Constant::Uninit
             | mir::Constant::Zeroed
-            | mir::Constant::Layout { .. } => return None,
+            | mir::Constant::Layout { .. }
+            | mir::Constant::Witness { .. } => return None,
             mir::Constant::Boolean { .. } => self.tree.boolean_type(),
             mir::Constant::Int {
                 width, is_signed, ..

@@ -445,7 +445,7 @@ fn def_fully_overwrites_store(
     if !place_is_constant(overwrite_place) || !place_is_constant(store_place) {
         return None;
     }
-    if overwrite_place.fields != store_place.fields {
+    if overwrite_place.path != store_place.path {
         return None;
     }
 

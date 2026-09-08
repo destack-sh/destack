@@ -468,8 +468,8 @@ fn process_block(
                 available.clear();
             }
 
+            // clear across storage returns
             mir::Instruction::Free { .. } => {
-                // clear across storage release boundaries
                 available.clear();
             }
 
