@@ -1,6 +1,6 @@
 use std::slice;
 
-use destack_artifact::{DirBound, DirExpanded, DirParsed};
+use destack_artifact::DirView;
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_repository::{ProviderError, ProviderResult};
@@ -27,12 +27,13 @@ pub(crate) struct SymbolIndexer<'a> {
 impl<'a> SymbolIndexer<'a> {
     /// Build the symbol index from expanded declarations.
     pub(crate) fn build(
-        parsed: &'a DirParsed,
-        bound: &DirBound,
-        expanded: &'a DirExpanded,
+        stages: &'a DirView,
         strings: &'a StringPool,
     ) -> ProviderResult<dir::SymbolIndex> {
-        let symbols = expanded.binding_table(bound);
+        let parsed = &stages.parsed;
+        let bound = &stages.bound;
+        let expanded = &stages.expanded;
+        let symbols = stages.bindings().clone();
         let mut indexer = Self {
             module_id: symbols.module_id,
             view: dir::View::with_patches(&parsed.tree, slice::from_ref(&expanded.patch)),

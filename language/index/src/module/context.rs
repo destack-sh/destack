@@ -1,9 +1,7 @@
 use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirParsed, DirResolved,
-};
+use destack_artifact::{DirExpanded, DirParsed, DirResolved, DirView};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, SourceIndex};
@@ -39,32 +37,19 @@ pub(crate) struct ModuleIndexContext<'a> {
 
 impl<'a> ModuleIndexContext<'a> {
     /// Build module index read state from exact DIR artifacts.
-    pub(crate) fn new(
-        strings: &'a StringPool,
-        module_id: ModuleId,
-        parsed: Arc<DirParsed>,
-        bound: &DirBound,
-        expanded: Arc<DirExpanded>,
-        resolved: Arc<DirResolved>,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> Self {
-        let bindings = checked.binding_table(bound, &expanded, declared, elaborated);
-        let types = checked.type_table(bound, &expanded, declared, elaborated);
-
+    pub(crate) fn new(strings: &'a StringPool, module_id: ModuleId, view: DirView) -> Self {
         Self {
             module_id,
-            parsed,
-            expanded,
-            bindings,
-            types,
-            decorators: checked.decorator_table(elaborated),
-            definitions: checked.definition_table(declared, elaborated),
-            resolutions: checked.resolution_table(declared, elaborated),
-            members: checked.member_table(declared, elaborated),
-            decisions: checked.decision_table(declared, elaborated),
-            resolved,
+            parsed: Arc::clone(&view.parsed),
+            expanded: Arc::clone(&view.expanded),
+            bindings: view.bindings().clone(),
+            types: view.types().clone(),
+            decorators: view.decorators().clone(),
+            definitions: view.definitions().clone(),
+            resolutions: view.resolutions().clone(),
+            members: view.members().clone(),
+            decisions: view.decisions().clone(),
+            resolved: Arc::clone(view.resolved.as_ref().unwrap_or_else(|| unreachable!())),
             strings,
         }
     }
