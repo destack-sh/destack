@@ -127,7 +127,7 @@ export extension<T> of Set<T> implements Default {
     }
 }
 
-export extension<T: Hash> of Set<T> implements Extend<T, "exclusive"> where T: Equal<T> {
+export extension<T: Hash> of Set<T> implements Extend<T, "mutable"> where T: Equal<T> {
     /// Create a set from values.
     static from(values: Iterable<T>): ^Set<T> {
         todo("Set.from")
@@ -154,48 +154,48 @@ export extension<T: Hash> of Set<T> implements Extend<T, "exclusive"> where T: E
     }
 
     /// Add `value` when absent.
-    add(&exclusive this, value: T): boolean {
+    add(&this, value: T): boolean {
         todo("Set.add")
     }
 
     /// Add all `values`.
-    extend(&exclusive this, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("Set.extend");
     }
 
     /// Remove `value`.
-    remove<Q: Hash>(&exclusive this, value: &readonly Q): T | undefined
+    remove<Q: Hash>(&this, value: &readonly Q): T | undefined
         where T: Borrow<Q>, Q: Equal<Q> {
         todo("Set.remove")
     }
 
     /// Remove all elements.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("Set.clear");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T) => boolean): void {
+    retain(&this, predicate: (value: &readonly T) => boolean): void {
         todo("Set.retain");
     }
 
     /// Remove all values and return them.
-    drain(&exclusive this): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("Set.drain")
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
         todo("Set.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("Set.reserve");
     }
 
     /// Shrink storage to fit the current values.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("Set.shrinkToFit");
     }
 

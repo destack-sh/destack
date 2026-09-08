@@ -54,7 +54,7 @@ export extension<'a, T> of Cow<'a, T> {
     }
 
     /// Borrow owned storage, cloning first if needed.
-    toExclusive(&exclusive this): &exclusive T where T: Clone {
+    toExclusive(&this): &T where T: Clone {
         todo("Cow.toExclusive")
     }
 

@@ -5,7 +5,7 @@ export { Access } from "./access.ds";
 export { Place, Space } from "./place.ds";
 export { Managed } from "./managed.ds";
 export { Owned } from "./owned.ds";
-export { Borrowed, ExclusiveBorrowed, ReadonlyBorrowed } from "./borrow.ds";
+export { Borrowed, MutableBorrowed, ReadonlyBorrowed } from "./borrow.ds";
 export { Dynamic } from "./dynamic.ds";
 export { AccessOf, Ownership, PlaceOf, WithAccess } from "./type.ds";
 export { Box } from "./box.ds";
@@ -21,7 +21,6 @@ export {
     Copy,
     Default,
     DynamicSafe,
-    OverwriteStable,
     SharedSafe,
     SuspendSafe,
     Unpin,

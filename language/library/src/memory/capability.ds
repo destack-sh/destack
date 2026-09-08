@@ -6,10 +6,6 @@ export newtype interface Concrete {}
 @languageItem("memory.DynamicSafe")
 export newtype interface DynamicSafe {}
 
-/// Mark a type as safe to overwrite through non-exclusive mutable access.
-@languageItem("memory.OverwriteStable")
-export newtype interface OverwriteStable {}
-
 /// Mark a type as safe to hold across a suspension point.
 @languageItem("memory.SuspendSafe")
 export newtype interface SuspendSafe {}
@@ -25,7 +21,7 @@ export newtype interface Clone {
     clone(&readonly this): ^this;
 
     /// Replace this value with a clone of `source`.
-    cloneFrom(&exclusive this, source: &readonly this): void {
+    cloneFrom(&this, source: &readonly this): void {
         *this = source.clone();
     }
 }

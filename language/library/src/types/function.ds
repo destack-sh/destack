@@ -1,15 +1,15 @@
 /// The mode a call takes its callable receiver in.
-export type ReceiverMode = "readonly" | "mutable" | "exclusive" | "once";
+export type ReceiverMode = "readonly" | "mutable" | "once";
 
 /// Callable value with a managed, owned, or borrowed environment.
 ///
-/// A call takes the callable in its receiver mode, exclusive when elided.
+/// A call takes the callable in its receiver mode, mutable when elided.
 /// An owned receiver consumes the callable.
 @languageItem("types.Function")
 export type Function<
     Parameters: readonly (...unknown[],) = (),
     Return = unknown,
-    const Receiver: ReceiverMode = "exclusive",
+    const Receiver: ReceiverMode = "mutable",
 > = intrinsic;
 
 /// Thin callable value type.

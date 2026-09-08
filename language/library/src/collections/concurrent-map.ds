@@ -73,7 +73,7 @@ export extension<K: Hash, V> of ConcurrentMapRead<K, V>
 }
 
 export extension<K: Hash, V> of ConcurrentMapWrite<K, V>
-    implements Dispose, Dereference<"exclusive">
+    implements Dispose, Dereference<"mutable">
 {
     /// The projected result form.
     type Output = V;
@@ -83,8 +83,8 @@ export extension<K: Hash, V> of ConcurrentMapWrite<K, V>
         todo("ConcurrentMapWrite.key")
     }
 
-    /// Borrow the entry value with exclusive access.
-    get value(): &exclusive V {
+    /// Borrow the entry value with mutable access.
+    get value(): &V {
         todo("ConcurrentMapWrite.value")
     }
 
@@ -99,7 +99,7 @@ export extension<K: Hash, V> of ConcurrentMapWrite<K, V>
     }
 
     /// Borrow the entry value.
-    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
+    dereference(&this): WithAccess<&this.Output, "mutable"> {
         todo("ConcurrentMapWrite.dereference")
     }
 }
@@ -120,23 +120,23 @@ export extension<K: Hash, V> of ConcurrentMapEntry<K, V> implements Dispose {
         todo("ConcurrentMapEntry.get")
     }
 
-    /// Borrow the current value with exclusive access.
-    get(&exclusive this): &exclusive V | undefined {
+    /// Borrow the current value with mutable access.
+    get(&this): &V | undefined {
         todo("ConcurrentMapEntry.get")
     }
 
     /// Insert `value` when this entry is vacant.
-    orInsert(&exclusive this, value: V): &exclusive V {
+    orInsert(&this, value: V): &V {
         todo("ConcurrentMapEntry.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this entry is vacant.
-    orInsertWith(&exclusive this, makeValue: () => V): &exclusive V {
+    orInsertWith(&this, makeValue: () => V): &V {
         todo("ConcurrentMapEntry.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&exclusive this, value: V): &exclusive V {
+    set(&this, value: V): &V {
         todo("ConcurrentMapEntry.set")
     }
 
@@ -232,8 +232,8 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
         todo("ConcurrentMap.with")
     }
 
-    /// Call `body` with exclusive access to one value.
-    update<Q: Hash, R>(&this, key: &readonly Q, body: (value: &exclusive V) => R): R | undefined
+    /// Call `body` with mutable access to one value.
+    update<Q: Hash, R>(&this, key: &readonly Q, body: (value: &V) => R): R | undefined
         where K: Borrow<Q>, Q: Equal<Q> {
         todo("ConcurrentMap.update")
     }
@@ -254,7 +254,7 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(&this, predicate: (key: &readonly K, value: &exclusive V) => boolean): void {
+    retain(&this, predicate: (key: &readonly K, value: &V) => boolean): void {
         todo("ConcurrentMap.retain");
     }
 
@@ -266,7 +266,7 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
         &this,
-        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+        predicate: (key: &readonly K, value: &V) => boolean,
     ): Iterator<(K, V)> {
         todo("ConcurrentMap.extractIf")
     }

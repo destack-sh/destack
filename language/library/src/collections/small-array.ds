@@ -74,7 +74,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
         IndexSet<isize, T>,
         From<Iterable<T>>,
         FromIterator<T>,
-        Extend<T, "exclusive">,
+        Extend<T, "mutable">,
         Default,
         From<T[]>,
         From<[T; N]>
@@ -175,75 +175,75 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Append `value`.
-    push(&exclusive this, value: T): void {
+    push(&this, value: T): void {
         todo("SmallArray.push");
     }
 
     /// Append all `values`.
-    extend(&exclusive this, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("SmallArray.extend");
     }
 
     /// Remove and return the last element.
-    pop(&exclusive this): T | undefined {
+    pop(&this): T | undefined {
         todo("SmallArray.pop")
     }
 
     /// Remove and return the last element when `predicate` accepts it.
-    popIf(&exclusive this, predicate: (value: &readonly T) => boolean): T | undefined {
+    popIf(&this, predicate: (value: &readonly T) => boolean): T | undefined {
         todo("SmallArray.popIf")
     }
 
     /// Insert `value` at `index`.
-    insert(&exclusive this, index: isize, value: T): void {
+    insert(&this, index: isize, value: T): void {
         todo("SmallArray.insert");
     }
 
     /// Remove and return the element at `index`.
-    removeAt(&exclusive this, index: isize): T {
+    removeAt(&this, index: isize): T {
         todo("SmallArray.removeAt")
     }
 
     /// Swap-remove the element at `index`.
-    swapRemove(&exclusive this, index: isize): T {
+    swapRemove(&this, index: isize): T {
         todo("SmallArray.swapRemove")
     }
 
     /// Remove all elements.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("SmallArray.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T, index: isize) => boolean): void {
+    retain(&this, predicate: (value: &readonly T, index: isize) => boolean): void {
         todo("SmallArray.retain");
     }
 
     /// Remove all elements and return them.
-    drain(&exclusive this): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("SmallArray.drain")
     }
 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
-        &exclusive this,
+        &this,
         predicate: (value: &readonly T, index: isize) => boolean,
     ): Iterator<T> {
         todo("SmallArray.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("SmallArray.reserve");
     }
 
     /// Move elements back inline when they fit.
-    shrinkToInline(&exclusive this): void {
+    shrinkToInline(&this): void {
         todo("SmallArray.shrinkToInline");
     }
 
     /// Shrink capacity to fit the current length.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("SmallArray.shrinkToFit");
     }
 
@@ -253,28 +253,28 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Reverse this array in place.
-    reverse(&exclusive this): this {
+    reverse(&this): this {
         todo("SmallArray.reverse")
     }
 
     /// Sort this array by its natural order.
-    sort(&exclusive this): this where T: Compare<T> {
+    sort(&this): this where T: Compare<T> {
         todo("SmallArray.sort")
     }
 
     /// Sort this array with borrowed values.
-    sort(&exclusive this, compare: (left: &readonly T, right: &readonly T) => Ordering): this {
+    sort(&this, compare: (left: &readonly T, right: &readonly T) => Ordering): this {
         todo("SmallArray.sort")
     }
 
     /// Sort this array by its natural order without preserving equal-element order.
-    sortUnstable(&exclusive this): this where T: Compare<T> {
+    sortUnstable(&this): this where T: Compare<T> {
         todo("SmallArray.sortUnstable")
     }
 
     /// Sort this array without preserving equal-element order.
     sortUnstable(
-        &exclusive this,
+        &this,
         compare: (left: &readonly T, right: &readonly T) => Ordering,
     ): this {
         todo("SmallArray.sortUnstable")

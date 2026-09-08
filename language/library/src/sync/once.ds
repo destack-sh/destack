@@ -45,7 +45,7 @@ export shared class OnceCell<T> {
     }
 
     /// Move the value out when initialized.
-    take(&exclusive this): T | undefined {
+    take(&this): T | undefined {
         todo("OnceCell.take")
     }
 }

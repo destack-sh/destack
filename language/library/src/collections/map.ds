@@ -19,7 +19,7 @@ export struct MapEntry<K, V> {
 /// Mutating access to one map entry.
 export struct MapEntryHandle<'a, K, V> {
     /// The borrowed map.
-    private map: &'a exclusive Map<K, V>;
+    private map: &'a Map<K, V>;
 
     /// The queried key.
     private entryKey: K;
@@ -157,27 +157,27 @@ export extension<'a, K: Hash, V> of MapEntryHandle<'a, K, V> where K: Equal<K> {
     }
 
     /// Borrow the current value.
-    get(&exclusive this): &exclusive V | undefined {
+    get(&this): &V | undefined {
         todo("MapEntryHandle.get")
     }
 
     /// Insert `value` when this handle is vacant.
-    orInsert(&exclusive this, value: V): &exclusive V {
+    orInsert(&this, value: V): &V {
         todo("MapEntryHandle.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this handle is vacant.
-    orInsertWith(&exclusive this, makeValue: () => V): &exclusive V {
+    orInsertWith(&this, makeValue: () => V): &V {
         todo("MapEntryHandle.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&exclusive this, value: V): &exclusive V {
+    set(&this, value: V): &V {
         todo("MapEntryHandle.set")
     }
 
     /// Remove the entry.
-    remove(&exclusive this): V | undefined {
+    remove(&this): V | undefined {
         todo("MapEntryHandle.remove")
     }
 }
@@ -200,7 +200,7 @@ export extension<K, V> of Map<K, V> implements Default {
 }
 
 export extension<K: Hash, V> of Map<K, V>
-    implements Index<K>, IndexSet<K, V>, Extend<(K, V), "exclusive">
+    implements Index<K>, IndexSet<K, V>, Extend<(K, V), "mutable">
     where K: Equal<K>
 {
     /// The indexed output type.
@@ -235,7 +235,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Return mutating access to the entry for `key`.
-    entry(&exclusive this, key: K): MapEntryHandle<K, V> {
+    entry(&this, key: K): MapEntryHandle<K, V> {
         todo("Map.entry")
     }
 
@@ -248,7 +248,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Replace a key-value pair through the index operator.
-    indexSet(&exclusive this, key: K, value: V): void {
+    indexSet(&this, key: K, value: V): void {
         this.set(key, value);
     }
 
@@ -258,66 +258,66 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Insert a key-value pair only when `key` is absent.
-    insert(&exclusive this, key: K, value: V): boolean {
+    insert(&this, key: K, value: V): boolean {
         todo("Map.insert")
     }
 
     /// Return the existing value or insert a new value.
-    getOrInsert(&exclusive this, key: K, value: V): &exclusive V {
+    getOrInsert(&this, key: K, value: V): &V {
         todo("Map.getOrInsert")
     }
 
     /// Return the existing value or insert a value produced by `makeValue`.
-    getOrInsertWith(&exclusive this, key: K, makeValue: () => V): &exclusive V {
+    getOrInsertWith(&this, key: K, makeValue: () => V): &V {
         todo("Map.getOrInsertWith")
     }
 
     /// Insert or replace a key-value pair.
-    set(&exclusive this, key: K, value: V): this {
+    set(&this, key: K, value: V): this {
         todo("Map.set")
     }
 
     /// Insert or replace all entries.
-    extend(&exclusive this, entries: Iterable<(K, V)>): void {
+    extend(&this, entries: Iterable<(K, V)>): void {
         todo("Map.extend");
     }
 
     /// Remove a key-value pair.
-    remove<Q: Hash>(&exclusive this, key: &readonly Q): V | undefined
+    remove<Q: Hash>(&this, key: &readonly Q): V | undefined
         where K: Borrow<Q>, Q: Equal<Q> {
         todo("Map.remove")
     }
 
     /// Remove all entries.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("Map.clear");
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(&exclusive this, predicate: (key: &readonly K, value: &exclusive V) => boolean): void {
+    retain(&this, predicate: (key: &readonly K, value: &V) => boolean): void {
         todo("Map.retain");
     }
 
     /// Remove all entries and return them.
-    drain(&exclusive this): Iterator<(K, V)> {
+    drain(&this): Iterator<(K, V)> {
         todo("Map.drain")
     }
 
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
-        &exclusive this,
-        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+        &this,
+        predicate: (key: &readonly K, value: &V) => boolean,
     ): Iterator<(K, V)> {
         todo("Map.extractIf")
     }
 
     /// Reserve room for at least `additional` more entries.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("Map.reserve");
     }
 
     /// Shrink storage to fit the current entries.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("Map.shrinkToFit");
     }
 }

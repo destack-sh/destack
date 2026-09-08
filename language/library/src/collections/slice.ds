@@ -119,7 +119,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Fill this slice with `value`.
-    fill(&exclusive this, value: T): void where T: Clone {
+    fill(&this, value: T): void where T: Clone {
         todo("Slice.fill");
     }
 
@@ -135,33 +135,33 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Swap two elements.
-    swap(&exclusive this, left: usize, right: usize): void {
+    swap(&this, left: usize, right: usize): void {
         todo("Slice.swap");
     }
 
     /// Reverse this slice in place.
-    reverse(&exclusive this): void {
+    reverse(&this): void {
         todo("Slice.reverse");
     }
 
     /// Sort this slice by its natural order.
-    sort(&exclusive this): void where T: Compare<T> {
+    sort(&this): void where T: Compare<T> {
         todo("Slice.sort");
     }
 
     /// Sort this slice with borrowed values.
-    sort(&exclusive this, compare: (left: &readonly T, right: &readonly T) => Ordering): void {
+    sort(&this, compare: (left: &readonly T, right: &readonly T) => Ordering): void {
         todo("Slice.sort");
     }
 
     /// Sort this slice by its natural order without preserving equal-element order.
-    sortUnstable(&exclusive this): void where T: Compare<T> {
+    sortUnstable(&this): void where T: Compare<T> {
         todo("Slice.sortUnstable");
     }
 
     /// Sort this slice without preserving equal-element order.
     sortUnstable(
-        &exclusive this,
+        &this,
         compare: (left: &readonly T, right: &readonly T) => Ordering,
     ): void {
         todo("Slice.sortUnstable");
@@ -268,7 +268,7 @@ export extension<T> of Slice<T> implements Index<isize>, IndexSet<isize, T> {
     }
 
     /// Replace the element at `index`.
-    indexSet(&exclusive this, index: isize, value: T): void {
+    indexSet(&this, index: isize, value: T): void {
         replace(this.index(index), value);
     }
 }

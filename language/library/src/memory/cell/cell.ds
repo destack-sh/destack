@@ -17,8 +17,8 @@ export extension<T> of UnsafeCell<T> {
         todo("UnsafeCell.get")
     }
 
-    /// Borrow the stored value with exclusive access.
-    getExclusive(&exclusive this): &exclusive T {
+    /// Borrow the stored value with mutable access.
+    getExclusive(&this): &T {
         todo("UnsafeCell.getExclusive")
     }
 
@@ -51,8 +51,8 @@ export extension<T> of Cell<T> {
         todo("Cell.asPointer")
     }
 
-    /// Borrow the stored value with exclusive access.
-    getExclusive(&exclusive this): &exclusive T {
+    /// Borrow the stored value with mutable access.
+    getExclusive(&this): &T {
         todo("Cell.getExclusive")
     }
 

@@ -60,42 +60,42 @@ export extension of StringBuilder implements Default {
     }
 
     /// Remove all text.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("StringBuilder.clear");
     }
 
     /// Reserve at least `additional` more UTF-16 code units.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("StringBuilder.reserve");
     }
 
     /// Reserve exactly `additional` more UTF-16 code units.
-    reserveExact(&exclusive this, additional: usize): void {
+    reserveExact(&this, additional: usize): void {
         todo("StringBuilder.reserveExact");
     }
 
     /// Try to reserve at least `additional` more UTF-16 code units.
-    tryReserve(&exclusive this, additional: usize): Result<void, AllocationError> {
+    tryReserve(&this, additional: usize): Result<void, AllocationError> {
         todo("StringBuilder.tryReserve")
     }
 
     /// Release capacity beyond the initialized UTF-16 code units.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("StringBuilder.shrinkToFit");
     }
 
     /// Append text.
-    append(&exclusive this, value: &readonly StringSlice): void {
+    append(&this, value: &readonly StringSlice): void {
         todo("StringBuilder.append");
     }
 
     /// Append one Unicode scalar value.
-    appendChar(&exclusive this, value: char): void {
+    appendChar(&this, value: char): void {
         todo("StringBuilder.appendChar");
     }
 
     /// Append one Unicode code point.
-    appendCodePoint(&exclusive this, value: uint32): void {
+    appendCodePoint(&this, value: uint32): void {
         todo("StringBuilder.appendCodePoint");
     }
 

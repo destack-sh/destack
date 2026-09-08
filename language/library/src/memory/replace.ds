@@ -2,9 +2,9 @@ import { Default } from "./capability.ds";
 
 /// Replace `destination` and return its previous value.
 @intrinsic("memory.ptr.replace")
-export declare function replace<T>(destination: &exclusive T, value: T): T;
+export declare function replace<T>(destination: &T, value: T): T;
 
 /// Replace `destination` with its default value and return its previous value.
-export function take<T: Default>(destination: &exclusive T): T {
+export function take<T: Default>(destination: &T): T {
     replace(destination, T.default())
 }

@@ -93,8 +93,8 @@ export extension<T, const A: Access = "readonly"> of Box<T>
         todo("Box.asReference")
     }
 
-    /// Borrow the boxed value with exclusive access.
-    asExclusive(&exclusive this): &exclusive T {
+    /// Borrow the boxed value with mutable access.
+    asExclusive(&this): &T {
         todo("Box.asExclusive")
     }
 
@@ -124,7 +124,7 @@ export extension<T> of Box<T> implements Clone where T: Clone {
     }
 
     /// Clone `source` into this allocation.
-    cloneFrom(&exclusive this, source: &readonly Box<T>): void {
+    cloneFrom(&this, source: &readonly Box<T>): void {
         this.asExclusive().cloneFrom(source.asReference());
     }
 }

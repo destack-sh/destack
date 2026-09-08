@@ -122,7 +122,7 @@ export newtype interface Iterator<T> {
     scan<S, U>(
         this,
         initial: S,
-        scan: (state: &exclusive S, value: T, index: isize) => U | undefined,
+        scan: (state: &S, value: T, index: isize) => U | undefined,
     ): ScanIterator<this, T, S, U> {
         todo("Iterator.scan")
     }
@@ -252,7 +252,7 @@ export newtype interface FromIterator<T> {
 
 /// Collection extended from an iterable sequence.
 @languageItem("iter.Extend")
-export newtype interface Extend<T, const A: Access = "exclusive"> {
+export newtype interface Extend<T, const A: Access = "mutable"> {
     /// Append `values`.
     extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
 }
@@ -523,7 +523,7 @@ export struct ScanIterator<I, T, S, U> {
     private state: S;
 
     /// The transformation applied to each yielded value.
-    private transform: (state: &exclusive S, value: T, index: isize) => U | undefined;
+    private transform: (state: &S, value: T, index: isize) => U | undefined;
 
     /// The index of the next source value.
     private index: isize = 0;

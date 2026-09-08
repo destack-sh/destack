@@ -72,7 +72,7 @@ export function load<T: Numeric | boolean, const N: usize>(source: &readonly [T]
 
 /// Store `value` into `destination`.
 export function store<T: Numeric | boolean, const N: usize>(
-    destination: &exclusive [T],
+    destination: &[T],
     value: Vector<T, N>,
 ): void {
     for (let lane: usize = 0; lane < N; lane += 1) {

@@ -33,13 +33,13 @@ export extension<T> of Pin<T> implements Dereference<"readonly">, As<T>, Borrow<
         todo("Pin.asReference")
     }
 
-    /// Project this pinned root into pinned exclusive access.
-    asPinnedExclusive(&exclusive this): Pin<&exclusive T> {
+    /// Project this pinned root into pinned mutable access.
+    asPinnedExclusive(&this): Pin<&T> {
         todo("Pin.asPinnedExclusive")
     }
 
-    /// Borrow the pinned root with exclusive access when it is movable.
-    asExclusive(&exclusive this): &exclusive T where T: Unpin {
+    /// Borrow the pinned root with mutable access when it is movable.
+    asExclusive(&this): &T where T: Unpin {
         todo("Pin.asExclusive")
     }
 

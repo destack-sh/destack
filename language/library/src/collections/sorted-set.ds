@@ -121,7 +121,7 @@ export extension<T> of SortedSet<T> implements Default {
     }
 }
 
-export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "exclusive"> {
+export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> {
     /// Create a sorted set from values.
     static from(values: Iterable<T>): ^SortedSet<T> {
         todo("SortedSet.from")
@@ -148,47 +148,47 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "exclusive"
     }
 
     /// Add `value` when absent.
-    add(&exclusive this, value: T): boolean {
+    add(&this, value: T): boolean {
         todo("SortedSet.add")
     }
 
     /// Add all `values`.
-    extend(&exclusive this, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("SortedSet.extend");
     }
 
     /// Remove `value`.
-    remove<Q: Compare<Q>>(&exclusive this, value: &readonly Q): T | undefined where T: Borrow<Q> {
+    remove<Q: Compare<Q>>(&this, value: &readonly Q): T | undefined where T: Borrow<Q> {
         todo("SortedSet.remove")
     }
 
     /// Remove all values.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("SortedSet.clear");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T) => boolean): void {
+    retain(&this, predicate: (value: &readonly T) => boolean): void {
         todo("SortedSet.retain");
     }
 
     /// Remove all values and return them.
-    drain(&exclusive this): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("SortedSet.drain")
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
         todo("SortedSet.extractIf")
     }
 
     /// Reserve room for at least `additional` more values.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("SortedSet.reserve");
     }
 
     /// Shrink node storage to fit the current values.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("SortedSet.shrinkToFit");
     }
 

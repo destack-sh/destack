@@ -21,7 +21,7 @@ export declare function initZeroed<T: Zeroable>(): MaybeUninit<T>;
 
 /// Initialize one storage with `value`.
 @intrinsic("memory.init.write")
-export declare function initWrite<T>(storage: &exclusive MaybeUninit<T>, value: T): &exclusive T;
+export declare function initWrite<T>(storage: &MaybeUninit<T>, value: T): &T;
 
 /// Return a raw pointer to one storage borrowed at any access.
 @intrinsic("memory.init.asPointer")
@@ -46,8 +46,8 @@ export declare function assumeInitRead<T>(storage: &MaybeUninit<T>): T;
 
 /// Drop one initialized storage in place.
 @unsafe
-export function assumeInitDrop<T>(storage: &exclusive MaybeUninit<T>): void {
-    dropInPlace<T>(initAsPointer<T, "exclusive">(storage));
+export function assumeInitDrop<T>(storage: &MaybeUninit<T>): void {
+    dropInPlace<T>(initAsPointer<T, "mutable">(storage));
 }
 
 export extension<T> of MaybeUninit<T> implements Default {
@@ -72,7 +72,7 @@ export extension<T> of MaybeUninit<T> implements Default {
     }
 
     /// Initialize this storage with `value`.
-    write(&exclusive this, value: T): &exclusive T {
+    write(&this, value: T): &T {
         return initWrite<T>(this, value);
     }
 
@@ -81,9 +81,9 @@ export extension<T> of MaybeUninit<T> implements Default {
         return initAsPointer<T>(this);
     }
 
-    /// Return an exclusive raw pointer to the storage.
-    asExclusivePointer(&exclusive this): *T {
-        return initAsPointer<T, "exclusive">(this);
+    /// Return a mutable raw pointer to the storage.
+    asExclusivePointer(&this): *T {
+        return initAsPointer<T, "mutable">(this);
     }
 
     /// Borrow initialized storage.
@@ -98,10 +98,10 @@ export extension<T> of MaybeUninit<T> implements Default {
         return assumeInitReference<T, "readonly">(this);
     }
 
-    /// Borrow initialized storage with exclusive access.
+    /// Borrow initialized storage with mutable access.
     @unsafe
-    assumeInitExclusiveReference(&exclusive this): &exclusive T {
-        return assumeInitReference<T, "exclusive">(this);
+    assumeInitExclusiveReference(&this): &T {
+        return assumeInitReference<T, "mutable">(this);
     }
 
     /// Move initialized storage out as `T`.
@@ -118,7 +118,7 @@ export extension<T> of MaybeUninit<T> implements Default {
 
     /// Drop initialized storage in place.
     @unsafe
-    assumeInitDrop(&exclusive this): void {
+    assumeInitDrop(&this): void {
         assumeInitDrop<T>(this);
     }
 }

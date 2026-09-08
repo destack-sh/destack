@@ -7,29 +7,29 @@ export newtype interface Serializer {
     type Error;
 
     /// Serialize a null value.
-    serializeNull(&exclusive this): Result<void, this.Error>;
+    serializeNull(&this): Result<void, this.Error>;
 
     /// Serialize an undefined value.
-    serializeUndefined(&exclusive this): Result<void, this.Error>;
+    serializeUndefined(&this): Result<void, this.Error>;
 
     /// Serialize a boolean value.
-    serializeBoolean(&exclusive this, value: boolean): Result<void, this.Error>;
+    serializeBoolean(&this, value: boolean): Result<void, this.Error>;
 
     /// Serialize a number value.
-    serializeNumber(&exclusive this, value: number): Result<void, this.Error>;
+    serializeNumber(&this, value: number): Result<void, this.Error>;
 
     /// Serialize a string value.
-    serializeString(&exclusive this, value: string): Result<void, this.Error>;
+    serializeString(&this, value: string): Result<void, this.Error>;
 
     /// Serialize an array value.
     serializeArray<T: Serialize<this>>(
-        &exclusive this,
+        &this,
         value: readonly T[],
     ): Result<void, this.Error>;
 
     /// Serialize an object field.
     serializeField<T: Serialize<this>>(
-        &exclusive this,
+        &this,
         key: string,
         value: &readonly T,
     ): Result<void, this.Error>;
@@ -42,23 +42,23 @@ export newtype interface Deserializer {
     type Error;
 
     /// Deserialize a null value.
-    deserializeNull(&exclusive this): Result<void, this.Error>;
+    deserializeNull(&this): Result<void, this.Error>;
 
     /// Deserialize a boolean value.
-    deserializeBoolean(&exclusive this): Result<boolean, this.Error>;
+    deserializeBoolean(&this): Result<boolean, this.Error>;
 
     /// Deserialize a number value.
-    deserializeNumber(&exclusive this): Result<number, this.Error>;
+    deserializeNumber(&this): Result<number, this.Error>;
 
     /// Deserialize a string value.
-    deserializeString(&exclusive this): Result<^string, this.Error>;
+    deserializeString(&this): Result<^string, this.Error>;
 
     /// Deserialize an array value.
-    deserializeArray<T: Deserialize<this>>(&exclusive this): Result<^T[], this.Error>;
+    deserializeArray<T: Deserialize<this>>(&this): Result<^T[], this.Error>;
 
     /// Deserialize an object field.
     deserializeField<T: Deserialize<this>>(
-        &exclusive this,
+        &this,
         key: string,
     ): Result<T | undefined, this.Error>;
 }
@@ -67,12 +67,12 @@ export newtype interface Deserializer {
 @languageItem("serde.Serialize")
 export newtype interface Serialize<S: Serializer> {
     /// Serialize this value.
-    serialize(&readonly this, serializer: &exclusive S): Result<void, S.Error>;
+    serialize(&readonly this, serializer: &S): Result<void, S.Error>;
 }
 
 /// Value that can be deserialized through `D`.
 @languageItem("serde.Deserialize")
 export newtype interface Deserialize<D: Deserializer> {
     /// Deserialize one value.
-    static deserialize(deserializer: &exclusive D): Result<this, D.Error>;
+    static deserialize(deserializer: &D): Result<this, D.Error>;
 }

@@ -63,7 +63,7 @@ export extension<T> of Array<T> implements Clone where T: Clone {
 
 export extension<T> of Array<T> implements Drop {
     /// Drop the initialized elements.
-    drop(&exclusive this): void {
+    drop(&this): void {
         this.clear();
     }
 }
@@ -402,7 +402,7 @@ export extension<T, 'a, const A: Access> of Borrowed<Array<T>, 'a, A>
 }
 
 export extension<T> of Array<T>
-    implements Default, Index<isize>, IndexSet<isize, T>, Extend<T, "exclusive">
+    implements Default, Index<isize>, IndexSet<isize, T>, Extend<T, "mutable">
 {
     /// The indexed output type.
     type Output = T;
@@ -510,24 +510,24 @@ export extension<T> of Array<T>
     }
 
     /// Replace the element at `index`, counting from the end when negative.
-    indexSet(&exclusive this, index: isize, value: T): void {
+    indexSet(&this, index: isize, value: T): void {
         replace(this.index(index), value);
     }
 
     /// Append `values` and return the new length.
-    push(&exclusive this, ...values: T[]): isize {
+    push(&this, ...values: T[]): isize {
         this.append(values);
 
         this.count
     }
 
     /// Append all `values`.
-    extend(&exclusive this, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("Array.extend");
     }
 
     /// Move all elements from `other` to the end of this array.
-    append(&exclusive this, other: &exclusive Array<T>): void {
+    append(&this, other: &Array<T>): void {
         let count = other.count;
 
         this.reserve(count.truncate<usize>());
@@ -544,7 +544,7 @@ export extension<T> of Array<T>
     }
 
     /// Remove and return the last element.
-    pop(&exclusive this): T | undefined {
+    pop(&this): T | undefined {
         if (this.count == 0) {
             return undefined;
         }
@@ -555,42 +555,42 @@ export extension<T> of Array<T>
     }
 
     /// Remove and return the last element when `predicate` accepts it.
-    popIf(&exclusive this, predicate: (value: &readonly T) => boolean): T | undefined {
+    popIf(&this, predicate: (value: &readonly T) => boolean): T | undefined {
         todo("Array.popIf")
     }
 
     /// Remove and return the first element.
-    shift(&exclusive this): T | undefined {
+    shift(&this): T | undefined {
         todo("Array.shift")
     }
 
     /// Prepend `values` and return the new length.
-    unshift(&exclusive this, ...values: T[]): isize {
+    unshift(&this, ...values: T[]): isize {
         todo("Array.unshift")
     }
 
     /// Insert `value` at `index`.
-    insert(&exclusive this, index: isize, value: T): void {
+    insert(&this, index: isize, value: T): void {
         todo("Array.insert");
     }
 
     /// Remove and return the element at `index`.
-    removeAt(&exclusive this, index: isize): T {
+    removeAt(&this, index: isize): T {
         todo("Array.removeAt")
     }
 
     /// Swap-remove the element at `index`.
-    swapRemove(&exclusive this, index: isize): T {
+    swapRemove(&this, index: isize): T {
         todo("Array.swapRemove")
     }
 
     /// Remove all elements.
-    clear(&exclusive this): void {
+    clear(&this): void {
         this.truncate(0);
     }
 
     /// Remove all elements after `length`.
-    truncate(&exclusive this, length: isize): void {
+    truncate(&this, length: isize): void {
         let kept = if (length < 0) { 0 } else { length };
         let count = this.count;
 
@@ -606,50 +606,50 @@ export extension<T> of Array<T>
     }
 
     /// Resize this array, cloning `value` when it grows.
-    resize(&exclusive this, length: isize, value: T): void where T: Copy {
+    resize(&this, length: isize, value: T): void where T: Copy {
         todo("Array.resize");
     }
 
     /// Resize this array, creating each new element with `makeValue`.
-    resizeWith(&exclusive this, length: isize, makeValue: () => T): void {
+    resizeWith(&this, length: isize, makeValue: () => T): void {
         todo("Array.resizeWith");
     }
 
     /// Move the elements after `index` into a new array.
-    splitOff(&exclusive this, index: isize): ^Array<T> {
+    splitOff(&this, index: isize): ^Array<T> {
         todo("Array.splitOff")
     }
 
     /// Overwrite a range with `value`.
-    fill(&exclusive this, value: T, start?: isize, end?: isize): this where T: Copy {
+    fill(&this, value: T, start?: isize, end?: isize): this where T: Copy {
         todo("Array.fill")
     }
 
     /// Copy a range within this array.
-    copyWithin(&exclusive this, target: isize, start: isize, end?: isize): this where T: Copy {
+    copyWithin(&this, target: isize, start: isize, end?: isize): this where T: Copy {
         todo("Array.copyWithin")
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T, index: isize) => boolean): void {
+    retain(&this, predicate: (value: &readonly T, index: isize) => boolean): void {
         todo("Array.retain");
     }
 
     /// Remove all elements and return them.
-    drain(&exclusive this): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("Array.drain")
     }
 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
-        &exclusive this,
+        &this,
         predicate: (value: &readonly T, index: isize) => boolean,
     ): Iterator<T> {
         todo("Array.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         let required = this.count.truncate<usize>() + additional;
 
         if (required <= this.allocated) {
@@ -663,7 +663,7 @@ export extension<T> of Array<T>
         for (let index: isize = 0; index < this.count; index += 1) {
             let value = elementSlot(this, index.truncate<usize>()).assumeInitRead();
 
-            sliceIndex<MaybeUninit<T>, "exclusive">(grown, index.truncate<usize>()).write(value);
+            sliceIndex<MaybeUninit<T>, "mutable">(grown, index.truncate<usize>()).write(value);
         }
 
         this.storage = grown;
@@ -671,12 +671,12 @@ export extension<T> of Array<T>
     }
 
     /// Try to reserve room for at least `additional` more elements.
-    tryReserve(&exclusive this, additional: usize): Result<void, AllocationError> {
+    tryReserve(&this, additional: usize): Result<void, AllocationError> {
         todo("Array.tryReserve")
     }
 
     /// Shrink capacity to fit the current length.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("Array.shrinkToFit");
     }
 
@@ -720,7 +720,7 @@ export extension<T> of Array<T>
     }
 
     /// Reverse this array in place.
-    reverse(&exclusive this): this {
+    reverse(&this): this {
         todo("Array.reverse")
     }
 
@@ -730,23 +730,23 @@ export extension<T> of Array<T>
     }
 
     /// Sort this array by its natural order.
-    sort(&exclusive this): this where T: Compare<T> {
+    sort(&this): this where T: Compare<T> {
         todo("Array.sort")
     }
 
     /// Sort this array with borrowed values.
-    sort(&exclusive this, compare: (left: &readonly T, right: &readonly T) => Ordering): this {
+    sort(&this, compare: (left: &readonly T, right: &readonly T) => Ordering): this {
         todo("Array.sort")
     }
 
     /// Sort this array without preserving the order of equal elements.
-    sortUnstable(&exclusive this): this where T: Compare<T> {
+    sortUnstable(&this): this where T: Compare<T> {
         todo("Array.sortUnstable")
     }
 
     /// Sort this array without preserving the order of equal elements.
     sortUnstable(
-        &exclusive this,
+        &this,
         compare: (left: &readonly T, right: &readonly T) => Ordering,
     ): this {
         todo("Array.sortUnstable")
@@ -779,7 +779,7 @@ export extension<T> of Array<T>
     }
 
     /// Splice this array.
-    splice(&exclusive this, start: isize, deleteCount?: isize, ...items: T[]): ^Array<T> {
+    splice(&this, start: isize, deleteCount?: isize, ...items: T[]): ^Array<T> {
         todo("Array.splice")
     }
 
@@ -877,7 +877,7 @@ export extension<T, 'a, const A: Access> of ArrayIterator<T, 'a, A>
     implements Iterator<Borrowed<T, 'a, A>>
 {
     /// Advance to the next borrowed element.
-    next(&exclusive this): IteratorResult<Borrowed<T, 'a, A>> {
+    next(&this): IteratorResult<Borrowed<T, 'a, A>> {
         let array = this.array;
 
         if (this.position >= array.length) {

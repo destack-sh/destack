@@ -59,7 +59,7 @@ export local struct Task<T> implements Awaitable<T>, Drop {
     }
 
     /// Request producer cancellation when this task is discarded.
-    drop(&exclusive this): void {
+    drop(&this): void {
         this.state.cancel();
     }
 }
@@ -82,7 +82,7 @@ local struct TaskProducer<T> implements Drop {
     }
 
     /// Complete this task through cancellation after cleanup.
-    drop(&exclusive this): void {
+    drop(&this): void {
         this.state.completeCancellation();
     }
 }
@@ -279,7 +279,7 @@ export local struct TaskScope implements AsyncDispose, Drop {
     }
 
     /// Spawn one task owned by this scope.
-    spawn<T>(&exclusive this, body: ^Function<(), T, "once">): Task<T> {
+    spawn<T>(&this, body: ^Function<(), T, "once">): Task<T> {
         todo("TaskScope.spawn")
     }
 
@@ -294,7 +294,7 @@ export local struct TaskScope implements AsyncDispose, Drop {
     }
 
     /// Cancel pending children without waiting for cleanup.
-    drop(&exclusive this): void {
+    drop(&this): void {
         todo("TaskScope.drop");
     }
 }

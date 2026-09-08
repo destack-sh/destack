@@ -292,52 +292,52 @@ export extension of PathBuilder implements Default, As<PathSlice>, Borrow<PathSl
     }
 
     /// Remove all path components.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("PathBuilder.clear");
     }
 
     /// Reserve at least `additional` more opaque encoded bytes.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("PathBuilder.reserve");
     }
 
     /// Reserve exactly `additional` more opaque encoded bytes.
-    reserveExact(&exclusive this, additional: usize): void {
+    reserveExact(&this, additional: usize): void {
         todo("PathBuilder.reserveExact");
     }
 
     /// Try to reserve at least `additional` more opaque encoded bytes.
-    tryReserve(&exclusive this, additional: usize): Result<void, AllocationError> {
+    tryReserve(&this, additional: usize): Result<void, AllocationError> {
         todo("PathBuilder.tryReserve")
     }
 
     /// Release capacity beyond the current path.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("PathBuilder.shrinkToFit");
     }
 
     /// Append a path using the current platform's component rules.
-    push(&exclusive this, path: &readonly PathSlice): void {
+    push(&this, path: &readonly PathSlice): void {
         todo("PathBuilder.push");
     }
 
     /// Remove the final path component.
-    pop(&exclusive this): boolean {
+    pop(&this): boolean {
         todo("PathBuilder.pop")
     }
 
     /// Replace the final path component.
-    setFileName(&exclusive this, name: &readonly OsStringSlice): void {
+    setFileName(&this, name: &readonly OsStringSlice): void {
         todo("PathBuilder.setFileName");
     }
 
     /// Replace the final path component extension.
-    setExtension(&exclusive this, extension: &readonly OsStringSlice): boolean {
+    setExtension(&this, extension: &readonly OsStringSlice): boolean {
         todo("PathBuilder.setExtension")
     }
 
     /// Append an extension to the final path component.
-    addExtension(&exclusive this, extension: &readonly OsStringSlice): boolean {
+    addExtension(&this, extension: &readonly OsStringSlice): boolean {
         todo("PathBuilder.addExtension")
     }
 

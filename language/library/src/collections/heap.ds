@@ -52,7 +52,7 @@ export extension<T> of BinaryHeap<T> implements Default {
 }
 
 export extension<T: Compare<T>> of BinaryHeap<T>
-    implements From<Iterable<T>>, FromIterator<T>, Extend<T, "exclusive">
+    implements From<Iterable<T>>, FromIterator<T>, Extend<T, "mutable">
 {
     /// Create a binary heap from values.
     static from(values: Iterable<T>): BinaryHeap<T> {
@@ -80,47 +80,47 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Push `value`.
-    push(&exclusive this, value: T): void {
+    push(&this, value: T): void {
         todo("BinaryHeap.push");
     }
 
     /// Push all `values`.
-    extend(&exclusive this, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("BinaryHeap.extend");
     }
 
     /// Remove and return the greatest element.
-    pop(&exclusive this): T | undefined {
+    pop(&this): T | undefined {
         todo("BinaryHeap.pop")
     }
 
     /// Remove all elements.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("BinaryHeap.clear");
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T) => boolean): void {
+    retain(&this, predicate: (value: &readonly T) => boolean): void {
         todo("BinaryHeap.retain");
     }
 
     /// Remove all values and return them.
-    drain(&exclusive this): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("BinaryHeap.drain")
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(&exclusive this, predicate: (value: &readonly T) => boolean): Iterator<T> {
+    extractIf(&this, predicate: (value: &readonly T) => boolean): Iterator<T> {
         todo("BinaryHeap.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("BinaryHeap.reserve");
     }
 
     /// Shrink capacity to fit current elements.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("BinaryHeap.shrinkToFit");
     }
 

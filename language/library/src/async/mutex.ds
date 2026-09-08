@@ -26,7 +26,7 @@ export local class AsyncMutex<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive T {
+    getExclusive(&this): &T {
         todo("AsyncMutex.getExclusive")
     }
 
@@ -49,7 +49,7 @@ export local struct AsyncMutexGuard<T> {
     mutex: *AsyncMutex<T>;
 }
 
-export extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"mutable"> {
     /// The projected result form.
     type Output = T;
 
@@ -59,7 +59,7 @@ export extension<T> of AsyncMutexGuard<T> implements Dispose, Dereference<"exclu
     }
 
     /// Borrow the protected value.
-    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
+    dereference(&this): WithAccess<&this.Output, "mutable"> {
         todo("AsyncMutexGuard.dereference")
     }
 }

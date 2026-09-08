@@ -144,13 +144,13 @@ export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T> {
         todo("Arc.intoRaw")
     }
 
-    /// Borrow the value exclusively when this is the only strong handle.
-    getExclusive(&exclusive this): &exclusive T | undefined {
+    /// Borrow the value mutably when this is the only strong handle.
+    getExclusive(&this): &T | undefined {
         todo("Arc.getExclusive")
     }
 
-    /// Borrow the value exclusively, cloning first if needed.
-    makeExclusive(&exclusive this): &exclusive T where T: Clone {
+    /// Borrow the value mutably, cloning first if needed.
+    makeExclusive(&this): &T where T: Clone {
         todo("Arc.makeExclusive")
     }
 

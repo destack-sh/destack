@@ -39,7 +39,7 @@ export shared class RwLock<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive T {
+    getExclusive(&this): &T {
         todo("RwLock.getExclusive")
     }
 
@@ -83,7 +83,7 @@ export local struct RwLockWriteGuard<T> {
     lock: *RwLock<T>;
 }
 
-export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"mutable"> {
     /// The projected result form.
     type Output = T;
 
@@ -93,7 +93,7 @@ export extension<T> of RwLockWriteGuard<T> implements Dispose, Dereference<"excl
     }
 
     /// Borrow the protected value.
-    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
+    dereference(&this): WithAccess<&this.Output, "mutable"> {
         todo("RwLockWriteGuard.dereference")
     }
 

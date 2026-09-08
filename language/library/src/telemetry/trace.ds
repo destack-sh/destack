@@ -88,12 +88,12 @@ export class Span {
     }
 
     /// Set this span status.
-    setStatus(&exclusive this, status: SpanStatus): void {
+    setStatus(&this, status: SpanStatus): void {
         this.status = status;
     }
 
     /// Mark this span as failed.
-    error(&exclusive this, error: unknown): void {
+    error(&this, error: unknown): void {
         this.status = SpanStatus.Error;
         writeTrace(this.sink, TraceEntry {
             kind: TraceEventKind.Error,
@@ -105,7 +105,7 @@ export class Span {
     }
 
     /// Finish this span.
-    end(&exclusive this, status?: SpanStatus): void {
+    end(&this, status?: SpanStatus): void {
         if (this.isEnded) {
             return;
         }

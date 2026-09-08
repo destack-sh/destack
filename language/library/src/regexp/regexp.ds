@@ -123,12 +123,12 @@ export class RegExp {
     }
 
     /// Execute the pattern against `input`.
-    exec(&exclusive this, input: string): RegExpMatch | null {
+    exec(&this, input: string): RegExpMatch | null {
         todo("RegExp.exec")
     }
 
     /// Return whether the pattern matches `input`.
-    test(&exclusive this, input: string): boolean {
+    test(&this, input: string): boolean {
         todo("RegExp.test")
     }
 

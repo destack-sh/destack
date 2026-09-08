@@ -1,3 +1,3 @@
 /// Access mode for qualified storage.
 @languageItem("memory.Access")
-export type Access = "readonly" | "mutable" | "exclusive";
+export type Access = "readonly" | "mutable";

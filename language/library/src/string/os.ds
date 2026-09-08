@@ -256,47 +256,47 @@ export extension of OsStringBuilder
     }
 
     /// Remove all native text.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("OsStringBuilder.clear");
     }
 
     /// Reserve at least `additional` more encoded bytes.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("OsStringBuilder.reserve");
     }
 
     /// Reserve exactly `additional` more encoded bytes.
-    reserveExact(&exclusive this, additional: usize): void {
+    reserveExact(&this, additional: usize): void {
         todo("OsStringBuilder.reserveExact");
     }
 
     /// Try to reserve at least `additional` more encoded bytes.
-    tryReserve(&exclusive this, additional: usize): Result<void, AllocationError> {
+    tryReserve(&this, additional: usize): Result<void, AllocationError> {
         todo("OsStringBuilder.tryReserve")
     }
 
     /// Release capacity beyond the initialized encoded bytes.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("OsStringBuilder.shrinkToFit");
     }
 
     /// Convert ASCII uppercase letters in place to lowercase.
-    makeAsciiLowercase(&exclusive this): void {
+    makeAsciiLowercase(&this): void {
         todo("OsStringBuilder.makeAsciiLowercase");
     }
 
     /// Convert ASCII lowercase letters in place to uppercase.
-    makeAsciiUppercase(&exclusive this): void {
+    makeAsciiUppercase(&this): void {
         todo("OsStringBuilder.makeAsciiUppercase");
     }
 
     /// Append Unicode text.
-    append(&exclusive this, value: string): void {
+    append(&this, value: string): void {
         todo("OsStringBuilder.append");
     }
 
     /// Append native text.
-    append(&exclusive this, value: &readonly OsStringSlice): void {
+    append(&this, value: &readonly OsStringSlice): void {
         todo("OsStringBuilder.append");
     }
 

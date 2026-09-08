@@ -24,24 +24,24 @@ export extension<const S: Space = "local"> of Bump<S> {
     }
 
     /// Allocate `value` in this bump arena.
-    alloc<T>(this: &exclusive Bump<S>, value: ^T): &exclusive T {
+    alloc<T>(this: &Bump<S>, value: ^T): &T {
         todo("Bump.alloc")
     }
 
     /// Try to allocate `value` in this bump arena.
-    tryAlloc<T>(this: &exclusive Bump<S>, value: ^T): Result<&exclusive T, AllocationError> {
+    tryAlloc<T>(this: &Bump<S>, value: ^T): Result<&T, AllocationError> {
         todo("Bump.tryAlloc")
     }
 
     /// Try to allocate uninitialized storage in this bump arena.
     tryAllocUninit<T>(
-        this: &exclusive Bump<S>,
-    ): Result<&exclusive MaybeUninit<T>, AllocationError> {
+        this: &Bump<S>,
+    ): Result<&MaybeUninit<T>, AllocationError> {
         todo("Bump.tryAllocUninit")
     }
 
     /// Release all bump allocations.
-    reset(&exclusive this): void {
+    reset(&this): void {
         todo("Bump.reset");
     }
 

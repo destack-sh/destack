@@ -52,32 +52,32 @@ export class ByteBuffer {
     }
 
     /// Reserve room for at least `additional` more bytes.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("ByteBuffer.reserve");
     }
 
     /// Remove all initialized bytes.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("ByteBuffer.clear");
     }
 
     /// Release unused capacity.
-    compact(&exclusive this): void {
+    compact(&this): void {
         todo("ByteBuffer.compact");
     }
 
     /// Append one byte.
-    writeByte(&exclusive this, value: uint8): void {
+    writeByte(&this, value: uint8): void {
         todo("ByteBuffer.writeByte");
     }
 
     /// Append bytes.
-    write(&exclusive this, bytes: &readonly [uint8]): void {
+    write(&this, bytes: &readonly [uint8]): void {
         todo("ByteBuffer.write");
     }
 
     /// Append `count` copies of `value`.
-    fill(&exclusive this, value: uint8, count: isize): void {
+    fill(&this, value: uint8, count: isize): void {
         todo("ByteBuffer.fill");
     }
 

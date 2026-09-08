@@ -6,7 +6,7 @@ import { WithAccess } from "./type.ds";
 @languageItem("memory.Drop")
 export newtype interface Drop {
     /// Drop this value.
-    drop(&exclusive this): void;
+    drop(&this): void;
 }
 
 /// Owned storage whose `Drop` does not run automatically.
@@ -24,8 +24,8 @@ export extension<T> of ManuallyDrop<T> {
         return intoManuallyDropInner<T>(this);
     }
 
-    /// Move the wrapped value out through an exclusive borrow.
-    take(&exclusive this): T {
+    /// Move the wrapped value out through a mutable borrow.
+    take(&this): T {
         return takeManuallyDrop<T>(this);
     }
 
@@ -39,9 +39,9 @@ export extension<T> of ManuallyDrop<T> {
         return manuallyDropReference<T, "readonly">(this);
     }
 
-    /// Borrow the wrapped value with exclusive access.
-    asExclusive(&exclusive this): &exclusive T {
-        return manuallyDropReference<T, "exclusive">(this);
+    /// Borrow the wrapped value with mutable access.
+    asExclusive(&this): &T {
+        return manuallyDropReference<T, "mutable">(this);
     }
 
     /// Drop the wrapped value.
@@ -58,9 +58,9 @@ export declare function newManuallyDrop<T>(value: T): ManuallyDrop<T>;
 @intrinsic("memory.manuallyDrop.intoInner")
 export declare function intoManuallyDropInner<T>(wrapped: ManuallyDrop<T>): T;
 
-/// Move one wrapped value out through an exclusive borrow.
+/// Move one wrapped value out through a mutable borrow.
 @intrinsic("memory.manuallyDrop.take")
-export declare function takeManuallyDrop<T>(wrapped: &exclusive ManuallyDrop<T>): T;
+export declare function takeManuallyDrop<T>(wrapped: &ManuallyDrop<T>): T;
 
 /// Borrow one wrapped value at the access of its borrow.
 @intrinsic("memory.manuallyDrop.asReference")

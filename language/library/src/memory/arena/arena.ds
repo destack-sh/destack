@@ -26,13 +26,13 @@ export extension<T, const R: Lifetime, const S: Space = "local"> of Arena<T, R, 
     }
 
     /// Allocate `value` in this arena.
-    alloc(&exclusive this, value: ^T): ReadonlyBorrowed<T, R & S> {
+    alloc(&this, value: ^T): ReadonlyBorrowed<T, R & S> {
         todo("Arena.alloc")
     }
 
     /// Try to allocate `value` in this arena.
     tryAlloc(
-        this: &exclusive Arena<T, R, S>,
+        this: &Arena<T, R, S>,
         value: ^T,
     ): Result<ReadonlyBorrowed<T, R & S>, AllocationError> {
         todo("Arena.tryAlloc")
@@ -44,7 +44,7 @@ export extension<T, const R: Lifetime, const S: Space = "local"> of Arena<T, R, 
     }
 
     /// Drop all values allocated in this arena.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("Arena.clear");
     }
 }

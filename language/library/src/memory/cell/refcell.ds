@@ -34,12 +34,12 @@ export extension<T> of RefCell<T> {
         todo("RefCell.tryBorrow")
     }
 
-    /// Borrow the value for exclusive access.
+    /// Borrow the value for mutable access.
     borrowExclusive(&readonly this): ExclusiveRef<T> {
         todo("RefCell.borrowExclusive")
     }
 
-    /// Try to borrow the value for exclusive access.
+    /// Try to borrow the value for mutable access.
     tryBorrowExclusive(&readonly this): ExclusiveRef<T> | undefined {
         todo("RefCell.tryBorrowExclusive")
     }
@@ -54,8 +54,8 @@ export extension<T> of RefCell<T> {
         todo("RefCell.swap");
     }
 
-    /// Borrow the stored value with exclusive access.
-    getExclusive(&exclusive this): &exclusive T {
+    /// Borrow the stored value with mutable access.
+    getExclusive(&this): &T {
         todo("RefCell.getExclusive")
     }
 
@@ -92,7 +92,7 @@ export struct ExclusiveRef<T> {
     cell: *RefCell<T>;
 }
 
-export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusive"> {
+export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"mutable"> {
     /// The projected result form.
     type Output = T;
 
@@ -102,7 +102,7 @@ export extension<T> of ExclusiveRef<T> implements Dispose, Dereference<"exclusiv
     }
 
     /// Borrow the protected value.
-    dereference(&exclusive this): WithAccess<&this.Output, "exclusive"> {
+    dereference(&this): WithAccess<&this.Output, "mutable"> {
         todo("ExclusiveRef.dereference")
     }
 }

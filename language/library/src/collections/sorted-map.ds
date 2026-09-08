@@ -22,7 +22,7 @@ export struct SortedMapEntry<K, V> {
 /// Mutating access to one sorted map entry.
 export struct SortedMapEntryHandle<'a, K, V> {
     /// The borrowed map.
-    private map: &'a exclusive SortedMap<K, V>;
+    private map: &'a SortedMap<K, V>;
 
     /// The queried key.
     private entryKey: K;
@@ -173,27 +173,27 @@ export extension<'a, K: Compare<K>, V> of SortedMapEntryHandle<'a, K, V> {
     }
 
     /// Borrow the current value.
-    get(&exclusive this): &exclusive V | undefined {
+    get(&this): &V | undefined {
         todo("SortedMapEntryHandle.get")
     }
 
     /// Insert `value` when this handle is vacant.
-    orInsert(&exclusive this, value: V): &exclusive V {
+    orInsert(&this, value: V): &V {
         todo("SortedMapEntryHandle.orInsert")
     }
 
     /// Insert a value produced by `makeValue` when this handle is vacant.
-    orInsertWith(&exclusive this, makeValue: () => V): &exclusive V {
+    orInsertWith(&this, makeValue: () => V): &V {
         todo("SortedMapEntryHandle.orInsertWith")
     }
 
     /// Insert or replace the value.
-    set(&exclusive this, value: V): &exclusive V {
+    set(&this, value: V): &V {
         todo("SortedMapEntryHandle.set")
     }
 
     /// Remove the entry.
-    remove(&exclusive this): V | undefined {
+    remove(&this): V | undefined {
         todo("SortedMapEntryHandle.remove")
     }
 }
@@ -216,7 +216,7 @@ export extension<K, V> of SortedMap<K, V> implements Default {
 }
 
 export extension<K: Compare<K>, V> of SortedMap<K, V>
-    implements Index<K>, IndexSet<K, V>, Extend<(K, V), "exclusive">
+    implements Index<K>, IndexSet<K, V>, Extend<(K, V), "mutable">
 {
     /// The indexed output type.
     type Output = V;
@@ -253,7 +253,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Replace a key-value pair through the index operator.
-    indexSet(&exclusive this, key: K, value: V): void {
+    indexSet(&this, key: K, value: V): void {
         this.set(key, value);
     }
 
@@ -263,60 +263,60 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Return mutating access to the entry for `key`.
-    entry(&exclusive this, key: K): SortedMapEntryHandle<K, V> {
+    entry(&this, key: K): SortedMapEntryHandle<K, V> {
         todo("SortedMap.entry")
     }
 
     /// Insert a key-value pair only when `key` is absent.
-    insert(&exclusive this, key: K, value: V): boolean {
+    insert(&this, key: K, value: V): boolean {
         todo("SortedMap.insert")
     }
 
     /// Insert or replace a key-value pair.
-    set(&exclusive this, key: K, value: V): this {
+    set(&this, key: K, value: V): this {
         todo("SortedMap.set")
     }
 
     /// Insert or replace all entries.
-    extend(&exclusive this, entries: Iterable<(K, V)>): void {
+    extend(&this, entries: Iterable<(K, V)>): void {
         todo("SortedMap.extend");
     }
 
     /// Remove a key-value pair.
-    remove<Q: Compare<Q>>(&exclusive this, key: &readonly Q): V | undefined where K: Borrow<Q> {
+    remove<Q: Compare<Q>>(&this, key: &readonly Q): V | undefined where K: Borrow<Q> {
         todo("SortedMap.remove")
     }
 
     /// Remove all entries.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("SortedMap.clear");
     }
 
     /// Retain only entries accepted by `predicate`.
-    retain(&exclusive this, predicate: (key: &readonly K, value: &exclusive V) => boolean): void {
+    retain(&this, predicate: (key: &readonly K, value: &V) => boolean): void {
         todo("SortedMap.retain");
     }
 
     /// Remove all entries and return them.
-    drain(&exclusive this): Iterator<(K, V)> {
+    drain(&this): Iterator<(K, V)> {
         todo("SortedMap.drain")
     }
 
     /// Remove entries accepted by `predicate` and return them.
     extractIf(
-        &exclusive this,
-        predicate: (key: &readonly K, value: &exclusive V) => boolean,
+        &this,
+        predicate: (key: &readonly K, value: &V) => boolean,
     ): Iterator<(K, V)> {
         todo("SortedMap.extractIf")
     }
 
     /// Reserve room for at least `additional` more entries.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("SortedMap.reserve");
     }
 
     /// Shrink node storage to fit the current entries.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("SortedMap.shrinkToFit");
     }
 }

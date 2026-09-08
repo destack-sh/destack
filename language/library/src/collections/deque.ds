@@ -91,7 +91,7 @@ export extension<T, 'a, const A: Access> of Borrowed<Deque<T>, 'a, A>
 }
 
 export extension<T> of Deque<T>
-    implements Default, Index<isize>, IndexSet<isize, T>, Extend<T, "exclusive">
+    implements Default, Index<isize>, IndexSet<isize, T>, Extend<T, "mutable">
 {
     /// The indexed output type.
     type Output = T;
@@ -150,60 +150,60 @@ export extension<T> of Deque<T>
     }
 
     /// Push `value` to the back.
-    pushBack(&exclusive this, value: T): void {
+    pushBack(&this, value: T): void {
         todo("Deque.pushBack");
     }
 
     /// Push `value` to the front.
-    pushFront(&exclusive this, value: T): void {
+    pushFront(&this, value: T): void {
         todo("Deque.pushFront");
     }
 
     /// Append all `values` to the back.
-    extend(&exclusive this, values: Iterable<T>): void {
+    extend(&this, values: Iterable<T>): void {
         todo("Deque.extend");
     }
 
     /// Remove and return the back element.
-    popBack(&exclusive this): T | undefined {
+    popBack(&this): T | undefined {
         todo("Deque.popBack")
     }
 
     /// Remove and return the front element.
-    popFront(&exclusive this): T | undefined {
+    popFront(&this): T | undefined {
         todo("Deque.popFront")
     }
 
     /// Remove all elements.
-    clear(&exclusive this): void {
+    clear(&this): void {
         todo("Deque.clear");
     }
 
     /// Retain only elements accepted by `predicate`.
-    retain(&exclusive this, predicate: (value: &readonly T, index: isize) => boolean): void {
+    retain(&this, predicate: (value: &readonly T, index: isize) => boolean): void {
         todo("Deque.retain");
     }
 
     /// Remove all elements and return them.
-    drain(&exclusive this): Iterator<T> {
+    drain(&this): Iterator<T> {
         todo("Deque.drain")
     }
 
     /// Remove elements accepted by `predicate` and return them.
     extractIf(
-        &exclusive this,
+        &this,
         predicate: (value: &readonly T, index: isize) => boolean,
     ): Iterator<T> {
         todo("Deque.extractIf")
     }
 
     /// Reserve room for at least `additional` more elements.
-    reserve(&exclusive this, additional: usize): void {
+    reserve(&this, additional: usize): void {
         todo("Deque.reserve");
     }
 
     /// Shrink capacity to fit the current length.
-    shrinkToFit(&exclusive this): void {
+    shrinkToFit(&this): void {
         todo("Deque.shrinkToFit");
     }
 }

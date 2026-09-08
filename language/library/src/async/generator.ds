@@ -97,7 +97,7 @@ export local struct GeneratorProducer<Y, R, N> {
 
     /// Yield one value, suspend the producer, and receive the next consumer request.
     @languageItem("async.Generator.yield")
-    yield(&exclusive this, value: Y): GeneratorRequest<R, N> {
+    yield(&this, value: Y): GeneratorRequest<R, N> {
         this.state.publish(value);
         Fiber.yield();
 
@@ -289,7 +289,7 @@ export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
 
     /// Yield one value, park the producer, and receive the next consumer request.
     @languageItem("async.AsyncGenerator.yield")
-    yield(&exclusive this, value: Y): GeneratorRequest<R, N> {
+    yield(&this, value: Y): GeneratorRequest<R, N> {
         this.state.publish(value);
         Fiber.park();
 
