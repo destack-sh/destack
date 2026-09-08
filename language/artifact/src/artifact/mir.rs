@@ -1,13 +1,24 @@
+use std::sync::Arc;
+
 use destack_core::BitSet;
 use destack_mir::{self as mir, CallComponentGraph, LinkSupergraph, LinkTable, Symbol};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
+/// The declarations one module lowers ahead of its bodies: its types and its headers.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
+pub struct MirDeclared {
+    /// The MIR tree holding the declarations.
+    pub tree: Arc<mir::Tree>,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+}
+
 /// MIR produced by lowering.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirLowered {
     /// The MIR tree.
-    pub tree: mir::Tree,
+    pub tree: Arc<mir::Tree>,
     /// Target ABI layout.
     pub target: mir::TargetLayout,
     /// The module initializer storing runtime bindings, when one exists.

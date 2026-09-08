@@ -105,35 +105,11 @@ pub struct DirBound {
     pub namespace_scope: dir::LocalScopeId,
 }
 
-impl DirBound {
-    /// Return the cumulative binding table for bound DIR.
-    pub fn binding_table(&self) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segment(self.bindings.clone())
-    }
-
-    /// Return the cumulative type table for bound DIR.
-    pub fn type_table(&self) -> dir::TypeTable<'static> {
-        dir::TypeTable::from_segment(self.types.clone())
-    }
-
-    /// Return the cumulative static table for bound DIR.
-    pub fn static_table(&self) -> dir::StaticTable<'static> {
-        dir::StaticTable::from_segment(self.statics.clone())
-    }
-}
-
 /// Source import resolution for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirImported {
     /// Resolved module imports.
     pub modules: Arc<dir::ModuleSegment>,
-}
-
-impl DirImported {
-    /// Return the cumulative module table for imported DIR.
-    pub fn module_table(&self) -> dir::ModuleTable<'static> {
-        dir::ModuleTable::from_segment(Arc::clone(&self.modules))
-    }
 }
 
 /// Fixed-point macro expansion segment for one module under one profile.
@@ -153,28 +129,6 @@ pub struct DirExpanded {
     pub macros: dir::MacroTable,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
-}
-
-impl DirExpanded {
-    /// Return the cumulative binding table for expanded DIR.
-    pub fn binding_table(&self, bound: &DirBound) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segments(vec![bound.bindings.clone(), self.bindings.clone()])
-    }
-
-    /// Return the cumulative module table for expanded DIR.
-    pub fn module_table(&self, imported: &DirImported) -> dir::ModuleTable<'static> {
-        dir::ModuleTable::from_segments(vec![imported.modules.clone(), self.modules.clone()])
-    }
-
-    /// Return the cumulative type table for expanded DIR.
-    pub fn type_table(&self, bound: &DirBound) -> dir::TypeTable<'static> {
-        dir::TypeTable::from_segments(vec![bound.types.clone(), self.types.clone()])
-    }
-
-    /// Return the cumulative static table for expanded DIR.
-    pub fn static_table(&self, bound: &DirBound) -> dir::StaticTable<'static> {
-        dir::StaticTable::from_segments(vec![bound.statics.clone(), self.statics.clone()])
-    }
 }
 
 /// Export table over the expanded view for one module under one profile.
@@ -260,58 +214,6 @@ pub struct DirDeclared {
     pub flows: Arc<dir::FlowSegment>,
 }
 
-impl DirDeclared {
-    /// Return the cumulative binding table for declared DIR.
-    pub fn binding_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-    ) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segments(vec![
-            bound.bindings.clone(),
-            expanded.bindings.clone(),
-            self.bindings.clone(),
-        ])
-    }
-
-    /// Return the cumulative type table for declared DIR.
-    pub fn type_table(&self, bound: &DirBound, expanded: &DirExpanded) -> dir::TypeTable<'static> {
-        dir::TypeTable::from_segments(vec![
-            bound.types.clone(),
-            expanded.types.clone(),
-            self.types.clone(),
-        ])
-    }
-
-    /// Return the cumulative static table for declared DIR.
-    pub fn static_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-    ) -> dir::StaticTable<'static> {
-        dir::StaticTable::from_segments(vec![
-            bound.statics.clone(),
-            expanded.statics.clone(),
-            self.statics.clone(),
-        ])
-    }
-
-    /// Return the cumulative generic table for declared DIR.
-    pub fn generic_table(&self) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segment(self.generics.clone())
-    }
-
-    /// Return the declared member table.
-    pub fn member_table(&self) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segment(self.members.clone())
-    }
-
-    /// Return the cumulative definition table for declared DIR.
-    pub fn definition_table(&self) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segment(self.definitions.clone())
-    }
-}
-
 /// Elaborated DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirElaborated {
@@ -341,71 +243,6 @@ pub struct DirElaborated {
     pub flows: Arc<dir::FlowSegment>,
     /// Diagnostic controls applied by decorators.
     pub controls: Arc<DiagnosticControlTable>,
-}
-
-impl DirElaborated {
-    /// Return the cumulative member table for elaborated DIR.
-    pub fn member_table(&self, declared: &DirDeclared) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segments(vec![declared.members.clone(), self.members.clone()])
-    }
-
-    /// Return the cumulative binding table for elaborated DIR.
-    pub fn binding_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-    ) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segments(vec![
-            bound.bindings.clone(),
-            expanded.bindings.clone(),
-            declared.bindings.clone(),
-            self.bindings.clone(),
-        ])
-    }
-
-    /// Return the cumulative type table for elaborated DIR.
-    pub fn type_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-    ) -> dir::TypeTable<'static> {
-        dir::TypeTable::from_segments(vec![
-            bound.types.clone(),
-            expanded.types.clone(),
-            declared.types.clone(),
-            self.types.clone(),
-        ])
-    }
-
-    /// Return the cumulative generic table for elaborated DIR.
-    pub fn generic_table(&self, declared: &DirDeclared) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segments(vec![declared.generics.clone(), self.generics.clone()])
-    }
-
-    /// Return the cumulative definition table for elaborated DIR.
-    pub fn definition_table(&self, declared: &DirDeclared) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segments(vec![
-            declared.definitions.clone(),
-            self.definitions.clone(),
-        ])
-    }
-
-    /// Return the cumulative static table for elaborated DIR.
-    pub fn static_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-    ) -> dir::StaticTable<'static> {
-        dir::StaticTable::from_segments(vec![
-            bound.statics.clone(),
-            expanded.statics.clone(),
-            declared.statics.clone(),
-            self.statics.clone(),
-        ])
-    }
 }
 
 /// Checked DIR for one module under one profile.
@@ -443,155 +280,6 @@ pub struct DirChecked {
     pub flows: Arc<dir::FlowSegment>,
 }
 
-impl DirChecked {
-    /// Return the cumulative definition table for checked DIR.
-    pub fn definition_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segments(vec![
-            declared.definitions.clone(),
-            elaborated.definitions.clone(),
-            self.definitions.clone(),
-        ])
-    }
-
-    /// Return the cumulative member table for checked DIR.
-    pub fn member_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::MemberTable<'static> {
-        dir::MemberTable::from_segments(vec![
-            declared.members.clone(),
-            elaborated.members.clone(),
-            self.members.clone(),
-        ])
-    }
-
-    /// Return the cumulative binding table for checked DIR.
-    pub fn binding_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segments(vec![
-            bound.bindings.clone(),
-            expanded.bindings.clone(),
-            declared.bindings.clone(),
-            elaborated.bindings.clone(),
-            self.bindings.clone(),
-        ])
-    }
-
-    /// Return the cumulative decorator table for checked DIR.
-    pub fn decorator_table(&self, elaborated: &DirElaborated) -> dir::DecoratorTable<'static> {
-        dir::DecoratorTable::from_segments(vec![
-            elaborated.decorators.clone(),
-            self.decorators.clone(),
-        ])
-    }
-
-    /// Return the cumulative type table for checked DIR.
-    pub fn type_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::TypeTable<'static> {
-        dir::TypeTable::from_segments(vec![
-            bound.types.clone(),
-            expanded.types.clone(),
-            declared.types.clone(),
-            elaborated.types.clone(),
-            self.types.clone(),
-        ])
-    }
-
-    /// Return the cumulative static table for checked DIR.
-    pub fn static_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::StaticTable<'static> {
-        dir::StaticTable::from_segments(vec![
-            bound.statics.clone(),
-            expanded.statics.clone(),
-            declared.statics.clone(),
-            elaborated.statics.clone(),
-            self.statics.clone(),
-        ])
-    }
-
-    /// Return the cumulative resolution table for checked DIR.
-    pub fn resolution_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::ResolutionTable<'static> {
-        dir::ResolutionTable::from_segments(vec![
-            declared.resolutions.clone(),
-            elaborated.resolutions.clone(),
-            self.resolutions.clone(),
-        ])
-    }
-
-    /// Return the cumulative decision table for checked DIR.
-    pub fn decision_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::DecisionTable<'static> {
-        dir::DecisionTable::from_segments(vec![
-            declared.decisions.clone(),
-            elaborated.decisions.clone(),
-            self.decisions.clone(),
-        ])
-    }
-
-    /// Return the cumulative generic table for checked DIR.
-    pub fn generic_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segments(vec![
-            declared.generics.clone(),
-            elaborated.generics.clone(),
-            self.generics.clone(),
-        ])
-    }
-
-    /// Return the cumulative coercion table for checked DIR.
-    pub fn coercion_table(&self) -> dir::CoercionTable<'static> {
-        dir::CoercionTable::from_segment(self.coercions.clone())
-    }
-
-    /// Return the cumulative capture table for checked DIR.
-    pub fn capture_table(&self) -> dir::CaptureTable<'static> {
-        dir::CaptureTable::from_segment(self.captures.clone())
-    }
-
-    /// Return the cumulative flow table for checked DIR.
-    pub fn flow_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-    ) -> dir::FlowTable<'static> {
-        dir::FlowTable::from_segments(vec![
-            declared.flows.clone(),
-            elaborated.flows.clone(),
-            self.flows.clone(),
-        ])
-    }
-}
-
 /// Materialized DIR for one module under one profile.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct DirMaterialized {
@@ -615,105 +303,338 @@ pub struct DirMaterialized {
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
 }
 
-impl DirMaterialized {
-    /// Return the cumulative binding table for materialized DIR.
-    pub fn binding_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        checked: &DirChecked,
-    ) -> dir::BindingTable<'static> {
-        dir::BindingTable::from_segments(vec![
-            bound.bindings.clone(),
-            expanded.bindings.clone(),
-            declared.bindings.clone(),
-            checked.bindings.clone(),
-            self.bindings.clone(),
-        ])
+/// The DIR stages of one module read up to one stage.
+#[derive(Debug, Clone)]
+pub struct DirView {
+    /// The parsed stage.
+    pub parsed: Arc<DirParsed>,
+    /// The bound stage.
+    pub bound: Arc<DirBound>,
+    /// The imported stage.
+    pub imported: Arc<DirImported>,
+    /// The expanded stage.
+    pub expanded: Arc<DirExpanded>,
+    /// The resolved stage.
+    pub resolved: Option<Arc<DirResolved>>,
+    /// The declared stage.
+    pub declared: Option<Arc<DirDeclared>>,
+    /// The elaborated stage.
+    pub elaborated: Option<Arc<DirElaborated>>,
+    /// The checked stage.
+    pub checked: Option<Arc<DirChecked>>,
+    /// The materialized stage.
+    pub materialized: Option<Arc<DirMaterialized>>,
+
+    /// The binding table over the stages read.
+    bindings: dir::BindingTable<'static>,
+    /// The module table over the stages read.
+    modules: dir::ModuleTable<'static>,
+    /// The type table over the stages read.
+    types: dir::TypeTable<'static>,
+    /// The static table over the stages read.
+    statics: dir::StaticTable<'static>,
+    /// The generic table over the stages read, from the declared stage on.
+    generics: Option<dir::GenericTable<'static>>,
+    /// The definition table over the stages read, from the declared stage on.
+    definitions: Option<dir::DefinitionTable<'static>>,
+    /// The member table over the stages read, from the declared stage on.
+    members: Option<dir::MemberTable<'static>>,
+    /// The decorator table over the stages read, from the declared stage on.
+    decorators: Option<dir::DecoratorTable<'static>>,
+    /// The resolution table over the stages read, from the declared stage on.
+    resolutions: Option<dir::ResolutionTable<'static>>,
+    /// The decision table over the stages read, from the declared stage on.
+    decisions: Option<dir::DecisionTable<'static>>,
+    /// The flow table over the stages read, from the declared stage on.
+    flows: Option<dir::FlowTable<'static>>,
+    /// The coercion table over the stages read, from the checked stage on.
+    coercions: Option<dir::CoercionTable<'static>>,
+    /// The capture table over the stages read, from the checked stage on.
+    captures: Option<dir::CaptureTable<'static>>,
+}
+
+/// Stack one table from the segments the read stages contribute, none without any.
+fn stacked<S, T>(segments: Vec<Arc<S>>, build: impl FnOnce(Vec<Arc<S>>) -> T) -> Option<T> {
+    (!segments.is_empty()).then(|| build(segments))
+}
+
+impl DirView {
+    /// Stack the stages read through expansion.
+    pub fn expanded(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        imported: Arc<DirImported>,
+        expanded: Arc<DirExpanded>,
+    ) -> Self {
+        Self::new(
+            parsed, bound, imported, expanded, None, None, None, None, None,
+        )
     }
 
-    /// Return the cumulative resolution table for materialized DIR.
-    pub fn resolution_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::ResolutionTable<'static> {
-        dir::ResolutionTable::from_segments(vec![
-            declared.resolutions.clone(),
-            elaborated.resolutions.clone(),
-            checked.resolutions.clone(),
-            self.resolutions.clone(),
-        ])
+    /// Stack the stages read through declaration.
+    pub fn declared(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        imported: Arc<DirImported>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+    ) -> Self {
+        Self::new(
+            parsed,
+            bound,
+            imported,
+            expanded,
+            Some(resolved),
+            Some(declared),
+            None,
+            None,
+            None,
+        )
     }
 
-    /// Return the cumulative type table for materialized DIR.
-    pub fn type_table(
-        &self,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::TypeTable<'static> {
-        dir::TypeTable::from_segments(vec![
-            bound.types.clone(),
-            expanded.types.clone(),
-            declared.types.clone(),
-            elaborated.types.clone(),
-            checked.types.clone(),
-            self.types.clone(),
-        ])
+    /// Stack the stages read through checking.
+    pub fn checked(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        imported: Arc<DirImported>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
+        checked: Arc<DirChecked>,
+    ) -> Self {
+        Self::new(
+            parsed,
+            bound,
+            imported,
+            expanded,
+            Some(resolved),
+            Some(declared),
+            Some(elaborated),
+            Some(checked),
+            None,
+        )
     }
 
-    /// Return the cumulative generic table for materialized DIR.
-    pub fn generic_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::GenericTable<'static> {
-        dir::GenericTable::from_segments(vec![
-            declared.generics.clone(),
-            elaborated.generics.clone(),
-            checked.generics.clone(),
-            self.generics.clone(),
-        ])
+    /// Stack the stages read through materialization.
+    pub fn materialized(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        imported: Arc<DirImported>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
+        checked: Arc<DirChecked>,
+        materialized: Arc<DirMaterialized>,
+    ) -> Self {
+        Self::new(
+            parsed,
+            bound,
+            imported,
+            expanded,
+            Some(resolved),
+            Some(declared),
+            Some(elaborated),
+            Some(checked),
+            Some(materialized),
+        )
     }
 
-    /// Return the cumulative definition table for materialized DIR.
-    pub fn definition_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::DefinitionTable<'static> {
-        dir::DefinitionTable::from_segments(vec![
-            declared.definitions.clone(),
-            elaborated.definitions.clone(),
-            checked.definitions.clone(),
-            self.definitions.clone(),
-        ])
+    /// Stack the stages read, each retained stage present from the first read on.
+    pub fn new(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        imported: Arc<DirImported>,
+        expanded: Arc<DirExpanded>,
+        resolved: Option<Arc<DirResolved>>,
+        declared: Option<Arc<DirDeclared>>,
+        elaborated: Option<Arc<DirElaborated>>,
+        checked: Option<Arc<DirChecked>>,
+        materialized: Option<Arc<DirMaterialized>>,
+    ) -> Self {
+        let mut bindings = vec![bound.bindings.clone(), expanded.bindings.clone()];
+        let modules = vec![imported.modules.clone(), expanded.modules.clone()];
+        let mut types = vec![bound.types.clone(), expanded.types.clone()];
+        let mut statics = vec![bound.statics.clone(), expanded.statics.clone()];
+        let mut generics = Vec::new();
+        let mut definitions = Vec::new();
+        let mut members = Vec::new();
+        let mut decorators = Vec::new();
+        let mut resolutions = Vec::new();
+        let mut decisions = Vec::new();
+        let mut flows = Vec::new();
+        let mut coercions = Vec::new();
+        let mut captures = Vec::new();
+
+        // append each retained stage's segments in stage order
+        if let Some(declared) = &declared {
+            bindings.push(declared.bindings.clone());
+            types.push(declared.types.clone());
+            statics.push(declared.statics.clone());
+            generics.push(declared.generics.clone());
+            definitions.push(declared.definitions.clone());
+            members.push(declared.members.clone());
+            decorators.push(declared.decorators.clone());
+            resolutions.push(declared.resolutions.clone());
+            decisions.push(declared.decisions.clone());
+            flows.push(declared.flows.clone());
+        }
+        if let Some(elaborated) = &elaborated {
+            bindings.push(elaborated.bindings.clone());
+            types.push(elaborated.types.clone());
+            statics.push(elaborated.statics.clone());
+            generics.push(elaborated.generics.clone());
+            definitions.push(elaborated.definitions.clone());
+            members.push(elaborated.members.clone());
+            decorators.push(elaborated.decorators.clone());
+            resolutions.push(elaborated.resolutions.clone());
+            decisions.push(elaborated.decisions.clone());
+            flows.push(elaborated.flows.clone());
+        }
+        if let Some(checked) = &checked {
+            bindings.push(checked.bindings.clone());
+            types.push(checked.types.clone());
+            statics.push(checked.statics.clone());
+            generics.push(checked.generics.clone());
+            definitions.push(checked.definitions.clone());
+            members.push(checked.members.clone());
+            decorators.push(checked.decorators.clone());
+            resolutions.push(checked.resolutions.clone());
+            decisions.push(checked.decisions.clone());
+            flows.push(checked.flows.clone());
+            coercions.push(checked.coercions.clone());
+            captures.push(checked.captures.clone());
+        }
+        if let Some(materialized) = &materialized {
+            bindings.push(materialized.bindings.clone());
+            types.push(materialized.types.clone());
+            generics.push(materialized.generics.clone());
+            definitions.push(materialized.definitions.clone());
+            resolutions.push(materialized.resolutions.clone());
+            decisions.push(materialized.decisions.clone());
+            coercions.push(materialized.coercions.clone());
+        }
+
+        Self {
+            parsed,
+            bound,
+            imported,
+            expanded,
+            resolved,
+            declared,
+            elaborated,
+            checked,
+            materialized,
+            bindings: dir::BindingTable::from_segments(bindings),
+            modules: dir::ModuleTable::from_segments(modules),
+            types: dir::TypeTable::from_segments(types),
+            statics: dir::StaticTable::from_segments(statics),
+            generics: stacked(generics, dir::GenericTable::from_segments),
+            definitions: stacked(definitions, dir::DefinitionTable::from_segments),
+            members: stacked(members, dir::MemberTable::from_segments),
+            decorators: stacked(decorators, dir::DecoratorTable::from_segments),
+            resolutions: stacked(resolutions, dir::ResolutionTable::from_segments),
+            decisions: stacked(decisions, dir::DecisionTable::from_segments),
+            flows: stacked(flows, dir::FlowTable::from_segments),
+            coercions: stacked(coercions, dir::CoercionTable::from_segments),
+            captures: stacked(captures, dir::CaptureTable::from_segments),
+        }
     }
 
-    /// Return the cumulative decision table for materialized DIR.
-    pub fn decision_table(
-        &self,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) -> dir::DecisionTable<'static> {
-        dir::DecisionTable::from_segments(vec![
-            declared.decisions.clone(),
-            elaborated.decisions.clone(),
-            checked.decisions.clone(),
-            self.decisions.clone(),
-        ])
+    /// Return the parsed stage.
+    pub fn parsed(&self) -> &Arc<DirParsed> {
+        &self.parsed
     }
 
-    /// Return the cumulative coercion table for materialized DIR.
-    pub fn coercion_table(&self, checked: &DirChecked) -> dir::CoercionTable<'static> {
-        dir::CoercionTable::from_segments(vec![checked.coercions.clone(), self.coercions.clone()])
+    /// Return the resolved stage.
+    pub fn resolved(&self) -> &Arc<DirResolved> {
+        self.resolved
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a resolved stage"))
+    }
+
+    /// Return the binding table.
+    pub fn bindings(&self) -> &dir::BindingTable<'static> {
+        &self.bindings
+    }
+
+    /// Return the module table.
+    pub fn modules(&self) -> &dir::ModuleTable<'static> {
+        &self.modules
+    }
+
+    /// Return the type table.
+    pub fn types(&self) -> &dir::TypeTable<'static> {
+        &self.types
+    }
+
+    /// Return the static table.
+    pub fn statics(&self) -> &dir::StaticTable<'static> {
+        &self.statics
+    }
+
+    /// Return the generic table.
+    pub fn generics(&self) -> &dir::GenericTable<'static> {
+        self.generics
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the definition table.
+    pub fn definitions(&self) -> &dir::DefinitionTable<'static> {
+        self.definitions
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the member table.
+    pub fn members(&self) -> &dir::MemberTable<'static> {
+        self.members
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the decorator table.
+    pub fn decorators(&self) -> &dir::DecoratorTable<'static> {
+        self.decorators
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the resolution table.
+    pub fn resolutions(&self) -> &dir::ResolutionTable<'static> {
+        self.resolutions
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the decision table.
+    pub fn decisions(&self) -> &dir::DecisionTable<'static> {
+        self.decisions
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the flow table.
+    pub fn flows(&self) -> &dir::FlowTable<'static> {
+        self.flows
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a declared stage"))
+    }
+
+    /// Return the coercion table.
+    pub fn coercions(&self) -> &dir::CoercionTable<'static> {
+        self.coercions
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a checked stage"))
+    }
+
+    /// Return the capture table.
+    pub fn captures(&self) -> &dir::CaptureTable<'static> {
+        self.captures
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("DIR view without a checked stage"))
     }
 }

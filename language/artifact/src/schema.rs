@@ -6,10 +6,10 @@ use crate::{
     Build, BuildLinkage, BuildManifest, BuildProfile, Bundle, BundleFile, BundleMode,
     BundleSection, Code, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
     DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound,
-    EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirElaborated,
-    MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted,
-    Output, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted,
-    Runtime, Script, SourceMap,
+    EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirDeclared,
+    MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleEdges, ModuleGraph, ModuleIndex,
+    ModuleLinted, Output, Platform, Product, ProductTarget, ProgramAnalysis, ProgramIndex,
+    ProgramLinted, Runtime, Script, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -49,6 +49,7 @@ pub fn schema(schema: &mut Schema) {
     schema.register::<DirChecked>();
     schema.register::<DirMaterialized>();
 
+    schema.register::<MirDeclared>();
     schema.register::<MirLowered>();
     schema.register::<MirVerified>();
     schema.register::<MirElaborated>();

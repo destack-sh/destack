@@ -88,6 +88,12 @@ pub enum ArtifactKey {
         profile: ProfileId,
     },
 
+    /// The declarations one module lowers ahead of its bodies.
+    MirDeclared {
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+    },
     /// Lowered MIR before optimization.
     MirLowered {
         module: ModuleId,
@@ -253,6 +259,7 @@ impl ArtifactKey {
             | Self::DirElaborated { .. }
             | Self::DirChecked { .. }
             | Self::DirMaterialized { .. }
+            | Self::MirDeclared { .. }
             | Self::MirLowered { .. }
             | Self::MirVerified { .. }
             | Self::MirElaborated { .. }
@@ -284,6 +291,7 @@ impl ArtifactKey {
             | Self::DirElaborated { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
+            | Self::MirDeclared { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirVerified { module, .. }
             | Self::MirElaborated { module, .. }
@@ -380,6 +388,15 @@ impl ArtifactKey {
     /// Build one materialized DIR artifact key.
     pub fn dir_materialized(module: ModuleId, profile: ProfileId) -> Self {
         Self::DirMaterialized { module, profile }
+    }
+
+    /// Build one declared MIR artifact key.
+    pub fn mir_declared(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirDeclared {
+            module,
+            profile,
+            target,
+        }
     }
 
     /// Build one lowered MIR artifact key.
@@ -503,7 +520,8 @@ impl ArtifactKey {
             Self::DirDeclared { .. } | Self::DirElaborated { .. } | Self::DirChecked { .. } => {
                 ArtifactStage::Check
             }
-            Self::MirLowered { .. }
+            Self::MirDeclared { .. }
+            | Self::MirLowered { .. }
             | Self::MirVerified { .. }
             | Self::MirElaborated { .. }
             | Self::MirAnalyzed { .. }
@@ -546,6 +564,7 @@ impl ArtifactKey {
             Self::DirElaborated { .. } => "dir.elaborate",
             Self::DirChecked { .. } => "dir.check",
             Self::DirMaterialized { .. } => "dir.materialize",
+            Self::MirDeclared { .. } => "mir.declare",
             Self::MirLowered { .. } => "mir.lower",
             Self::MirVerified { .. } => "mir.verify",
             Self::MirElaborated { .. } => "mir.elaborate",
@@ -583,6 +602,7 @@ impl ArtifactKey {
             Self::DirElaborated { .. } => "dir_elaborated",
             Self::DirChecked { .. } => "dir_checked",
             Self::DirMaterialized { .. } => "dir_materialized",
+            Self::MirDeclared { .. } => "mir_declared",
             Self::MirLowered { .. } => "mir_lowered",
             Self::MirVerified { .. } => "mir_verified",
             Self::MirElaborated { .. } => "mir_elaborated",
@@ -616,6 +636,7 @@ impl ArtifactKey {
             | Self::DirElaborated { module, .. }
             | Self::DirChecked { module, .. }
             | Self::DirMaterialized { module, .. }
+            | Self::MirDeclared { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirVerified { module, .. }
             | Self::MirElaborated { module, .. }
@@ -645,6 +666,7 @@ impl ArtifactKey {
     pub fn target_id(&self) -> Option<TargetId> {
         match self {
             Self::ProgramAnalysis { target, .. }
+            | Self::MirDeclared { target, .. }
             | Self::MirLowered { target, .. }
             | Self::MirVerified { target, .. }
             | Self::MirAnalyzed { target, .. }
@@ -685,6 +707,7 @@ impl ArtifactKey {
             | Self::DirElaborated { profile, .. }
             | Self::DirChecked { profile, .. }
             | Self::DirMaterialized { profile, .. }
+            | Self::MirDeclared { profile, .. }
             | Self::MirLowered { profile, .. }
             | Self::MirVerified { profile, .. }
             | Self::MirElaborated { profile, .. }

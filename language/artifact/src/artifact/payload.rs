@@ -11,8 +11,9 @@ use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
     Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared,
-    IndexKind, MirAnalyzed, MirElaborated, MirLowered, MirOptimized, MirVerified, ModuleGraph,
-    ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted, Script,
+    IndexKind, MirAnalyzed, MirDeclared, MirElaborated, MirLowered, MirOptimized, MirVerified,
+    ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted,
+    Script,
 };
 
 use ::serde::{Deserialize, Serialize};
@@ -50,6 +51,8 @@ pub enum ArtifactPayload {
     DirChecked(Arc<DirChecked>),
     /// Materialized DIR.
     DirMaterialized(Arc<DirMaterialized>),
+    /// The declarations one module lowers ahead of its bodies.
+    MirDeclared(Arc<MirDeclared>),
     /// Lowered MIR before optimization.
     MirLowered(Arc<MirLowered>),
     /// Verified MIR marker after required semantic verification.
@@ -117,6 +120,8 @@ pub enum ArtifactPayloadRef<'a> {
     DirChecked(&'a DirChecked),
     /// Materialized DIR.
     DirMaterialized(&'a DirMaterialized),
+    /// The declarations one module lowers ahead of its bodies.
+    MirDeclared(&'a MirDeclared),
     /// Lowered MIR before optimization.
     MirLowered(&'a MirLowered),
     /// Verified MIR marker after required semantic verification.
@@ -223,6 +228,10 @@ impl ArtifactPayload {
                         ArtifactPayload::DirMaterialized(_)
                     )
                     | (
+                        ArtifactKey::MirDeclared { .. },
+                        ArtifactPayload::MirDeclared(_)
+                    )
+                    | (
                         ArtifactKey::MirLowered { .. },
                         ArtifactPayload::MirLowered(_)
                     )
@@ -283,6 +292,7 @@ impl ArtifactPayload {
             Self::DirElaborated(payload) => ArtifactPayloadRef::DirElaborated(payload.as_ref()),
             Self::DirChecked(payload) => ArtifactPayloadRef::DirChecked(payload.as_ref()),
             Self::DirMaterialized(payload) => ArtifactPayloadRef::DirMaterialized(payload.as_ref()),
+            Self::MirDeclared(payload) => ArtifactPayloadRef::MirDeclared(payload.as_ref()),
             Self::MirLowered(payload) => ArtifactPayloadRef::MirLowered(payload.as_ref()),
             Self::MirVerified(payload) => ArtifactPayloadRef::MirVerified(payload.as_ref()),
             Self::MirElaborated(payload) => ArtifactPayloadRef::MirElaborated(payload.as_ref()),
@@ -320,6 +330,7 @@ impl ArtifactPayload {
             Self::DirElaborated(_) => "dir_elaborated",
             Self::DirChecked(_) => "dir_checked",
             Self::DirMaterialized(_) => "dir_materialized",
+            Self::MirDeclared(_) => "mir_declared",
             Self::MirLowered(_) => "mir_lowered",
             Self::MirVerified(_) => "mir_verified",
             Self::MirElaborated(_) => "mir_elaborated",
@@ -495,6 +506,12 @@ artifact!(
     DirMaterialized,
     (ModuleId, ProfileId),
     (module, profile) => ArtifactKey::dir_materialized(module, profile)
+);
+artifact!(
+    MirDeclared,
+    MirDeclared,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_declared(module, profile, target)
 );
 artifact!(
     MirLowered,
