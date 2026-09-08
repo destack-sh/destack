@@ -45,6 +45,8 @@ pub struct DirModule<'a> {
     pub generics: &'a dir::GenericTable<'static>,
     /// The definition table.
     pub definitions: &'a dir::DefinitionTable<'static>,
+    /// The member selections.
+    pub members: &'a dir::MemberTable<'static>,
     /// The coercion table.
     pub coercions: &'a dir::CoercionTable<'static>,
     /// The capture table.
@@ -94,6 +96,10 @@ pub(super) struct DirModuleStorage {
     pub(super) generics: dir::GenericTable<'static>,
     /// The definition table.
     pub(super) definitions: dir::DefinitionTable<'static>,
+    /// The member selections.
+    pub(super) members: dir::MemberTable<'static>,
+    /// The layout policies.
+    pub(super) representations: dir::RepresentationTable<'static>,
     /// The coercion table.
     coercions: dir::CoercionTable<'static>,
     /// The capture table.
@@ -130,6 +136,7 @@ impl<'a> DirModule<'a> {
             decisions: &storage.decisions,
             generics: &storage.generics,
             definitions: &storage.definitions,
+            members: &storage.members,
             coercions: &storage.coercions,
             captures: &storage.captures,
             flows: &storage.flows,
@@ -246,11 +253,11 @@ impl<'a> DirModule<'a> {
     ) -> Result<bool, ProviderError> {
         let children = self
             .dir
-            .read_declaration_tables(symbol.module_id, |_, definitions| {
-                let Some(definition) = definitions.definition(symbol) else {
+            .read_declaration_tables(symbol.module_id, |tables| {
+                let Some(definition) = tables.definitions.definition(symbol) else {
                     return Ok(None);
                 };
-                if !definition.copies() {
+                if !tables.representations.copies(symbol).unwrap_or(false) {
                     return Ok(None);
                 }
                 let children = match definition {
@@ -261,7 +268,7 @@ impl<'a> DirModule<'a> {
                             dir::DefinitionMember::Field(field)
                                 if field.space == dir::MemberSpace::Instance =>
                             {
-                                Some(field.ty)
+                                tables.types.get_symbol_type_id(field.symbol)
                             }
                             _ => None,
                         })
@@ -346,8 +353,8 @@ impl<'a> DirModule<'a> {
         // walk the interfaces the bound extends
         let extends = self
             .dir
-            .read_declaration_tables(symbol.module_id, |_, definitions| {
-                Ok(match definitions.definition(symbol) {
+            .read_declaration_tables(symbol.module_id, |tables| {
+                Ok(match tables.definitions.definition(symbol) {
                     Some(dir::Definition::Interface(interface)) => interface
                         .extends
                         .iter()
@@ -550,6 +557,8 @@ impl DirModuleStorage {
         let decisions = view.decisions().clone();
         let generics = view.generics().clone();
         let definitions = view.definitions().clone();
+        let members = view.members().clone();
+        let representations = view.representations().clone();
         let coercions = view.coercions().clone();
         let captures = view.captures().clone();
         let flows = view.flows().clone();
@@ -573,6 +582,8 @@ impl DirModuleStorage {
             decisions,
             generics,
             definitions,
+            members,
+            representations,
             coercions,
             captures,
             flows,

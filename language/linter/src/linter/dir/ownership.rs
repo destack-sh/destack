@@ -137,8 +137,8 @@ impl Dir<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::Ownership>, ProviderError> {
-        let definition = self.read_declaration_tables(symbol.module_id, |_, definitions| {
-            Ok(definitions.definition(symbol).cloned())
+        let definition = self.read_declaration_tables(symbol.module_id, |tables| {
+            Ok(tables.definitions.definition(symbol).cloned())
         })?;
 
         match definition {

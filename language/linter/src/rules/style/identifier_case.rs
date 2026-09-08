@@ -206,7 +206,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let mut output = LintOutput::default();
     let imposed = module
-        .definitions
+        .members
         .member_conformances()
         .filter(|conformance| conformance.member != conformance.requirement)
         .map(|conformance| conformance.member)

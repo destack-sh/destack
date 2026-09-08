@@ -14,8 +14,8 @@ impl Dir<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<Vec<dir::AutoInterface>>, ProviderError> {
-        self.read_declaration_tables(symbol.module_id, |_, definitions| {
-            let definition = definitions.definition(symbol).ok_or_else(|| {
+        self.read_declaration_tables(symbol.module_id, |tables| {
+            let definition = tables.definitions.definition(symbol).ok_or_else(|| {
                 ProviderError::internal(format!(
                     "nominal declaration {symbol:?} has no checked definition"
                 ))
@@ -103,9 +103,9 @@ impl Dir<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Option<dir::LanguageMember>, ProviderError> {
-        self.read_declaration_tables(symbol.module_id, |_, definitions| {
+        self.read_declaration_tables(symbol.module_id, |tables| {
             // locate the member in its checked definition
-            let Some((declaring, definition, member)) = definitions.member(symbol) else {
+            let Some((declaring, definition, member)) = tables.definitions.member(symbol) else {
                 return Ok(None);
             };
             let Some(key) = member.key() else {
@@ -130,12 +130,11 @@ impl Dir<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> Result<Vec<dir::LanguageMember>, ProviderError> {
         // collect the declarations this symbol satisfies
-        let declarations = self.read_declaration_tables(symbol.module_id, |_, definitions| {
-            let Some((_, definition, _)) = definitions.member(symbol) else {
-                return Ok(Vec::new());
-            };
-
-            Ok(definition.member_declarations(symbol).collect::<Vec<_>>())
+        let declarations = self.read_declaration_tables(symbol.module_id, |tables| {
+            Ok(tables
+                .members
+                .member_declarations(symbol)
+                .collect::<Vec<_>>())
         })?;
 
         // resolve each declaration to its canonical identity

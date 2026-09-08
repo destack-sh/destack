@@ -48,7 +48,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let occurrences = module.flows.access_occurrences().collect::<Vec<_>>();
     let implementations = module
-        .definitions
+        .members
         .member_conformances()
         .map(|conformance| conformance.member)
         .collect::<FxIndexSet<_>>();

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, EnvironmentBound, IndexKind,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
+    DirResolved, DirView, EnvironmentBound, IndexKind,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -282,12 +283,51 @@ impl<'a> Dir<'a> {
         &self,
         mut type_id: dir::GlobalTypeId,
     ) -> Result<dir::GlobalTypeId, ProviderError> {
-        // follow placement forms to their represented value
-        while let dir::Type::Form(form) = self.get_type(type_id)? {
-            type_id = form.value;
-        }
+        // follow placement forms and alias names to their represented value, each alias once
+        let mut expanded = FxIndexSet::default();
+        loop {
+            let symbol = match self.get_type(type_id)? {
+                dir::Type::Form(form) => {
+                    type_id = form.value;
 
-        Ok(type_id)
+                    continue;
+                }
+                dir::Type::Reference(reference) => reference.symbol,
+                dir::Type::Application(instance) if instance.arguments.is_empty() => {
+                    instance.symbol
+                }
+                _ => return Ok(type_id),
+            };
+            match self.alias_value(symbol)? {
+                Some(value) if expanded.insert(symbol) => type_id = value,
+                _ => return Ok(type_id),
+            }
+        }
+    }
+
+    /// Return the storage space one nominal declaration names.
+    pub fn declaration_space(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<Option<dir::Space>, ProviderError> {
+        self.read_declaration_tables(symbol.module_id, |tables| {
+            Ok(tables.representations.space(symbol))
+        })
+    }
+
+    /// Return the value one non-generic type alias names.
+    fn alias_value(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> Result<Option<dir::GlobalTypeId>, ProviderError> {
+        self.read_declaration_tables(symbol.module_id, |tables| {
+            Ok(match tables.definitions.definition(symbol) {
+                Some(dir::Definition::TypeAlias(alias)) if alias.template.is_none() => {
+                    Some(alias.value)
+                }
+                _ => None,
+            })
+        })
     }
 
     /// Return one nominal declaration's instance field keys in declaration order.
@@ -295,8 +335,8 @@ impl<'a> Dir<'a> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Vec<dir::StaticKey>, ProviderError> {
-        self.read_declaration_tables(symbol.module_id, |_, definitions| {
-            let definition = definitions.definition(symbol).ok_or_else(|| {
+        self.read_declaration_tables(symbol.module_id, |tables| {
+            let definition = tables.definitions.definition(symbol).ok_or_else(|| {
                 ProviderError::internal(format!(
                     "nominal field owner {symbol:?} has no checked definition"
                 ))
@@ -324,8 +364,8 @@ impl<'a> Dir<'a> {
                 continue;
             }
             let (has_instance_member, bases) =
-                self.read_declaration_tables(current.module_id, |_, definitions| {
-                    let definition = definitions.definition(current).ok_or_else(|| {
+                self.read_declaration_tables(current.module_id, |tables| {
+                    let definition = tables.definitions.definition(current).ok_or_else(|| {
                         ProviderError::internal(format!(
                             "nominal declaration {current:?} has no checked definition"
                         ))
@@ -394,8 +434,8 @@ impl<'a> Dir<'a> {
             return Ok(false);
         };
 
-        self.read_declaration_tables(symbol.module_id, |_, definitions| {
-            Ok(definitions.enum_definition(symbol).is_some())
+        self.read_declaration_tables(symbol.module_id, |tables| {
+            Ok(tables.definitions.enum_definition(symbol).is_some())
         })
     }
 
@@ -404,8 +444,9 @@ impl<'a> Dir<'a> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<bool, ProviderError> {
-        self.read_declaration_tables(symbol.module_id, |_, definitions| {
-            Ok(definitions
+        self.read_declaration_tables(symbol.module_id, |tables| {
+            Ok(tables
+                .definitions
                 .definition(symbol)
                 .is_some_and(dir::Definition::is_nominal))
         })
@@ -628,12 +669,15 @@ impl<'a> Dir<'a> {
         symbol: dir::GlobalSymbolId,
     ) -> Result<bool, ProviderError> {
         // resolve the declaration that owns the selected symbol
-        let declaration = self.read_declaration_tables(symbol.module_id, |bindings, _| {
-            let binding = bindings.get_symbol_maybe(symbol.local_id).ok_or_else(|| {
-                ProviderError::internal(format!(
-                    "selected symbol {symbol:?} is absent from its binding table"
-                ))
-            })?;
+        let declaration = self.read_declaration_tables(symbol.module_id, |tables| {
+            let binding = tables
+                .bindings
+                .get_symbol_maybe(symbol.local_id)
+                .ok_or_else(|| {
+                    ProviderError::internal(format!(
+                        "selected symbol {symbol:?} is absent from its binding table"
+                    ))
+                })?;
 
             binding.declaration.ok_or_else(|| {
                 ProviderError::internal(format!("selected symbol {symbol:?} has no declaration"))
@@ -712,15 +756,10 @@ impl<'a> Dir<'a> {
             return read(&module.generics);
         }
 
-        // compose the foreign table from its checked DIR
-        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self
-            .artifacts
-            .read::<DirElaborated>((module, self.profile))?;
-        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
-        let generics = checked.generic_table(&declared, &elaborated);
+        // read the foreign tables through the module's checked stages
+        let view = self.foreign_view(module)?;
 
-        read(&generics)
+        read(view.generics())
     }
 
     /// Read the type table that owns globally addressed DIR types.
@@ -734,17 +773,10 @@ impl<'a> Dir<'a> {
             return read(&module.types);
         }
 
-        // compose the foreign table from its checked DIR
-        let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
-        let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
-        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self
-            .artifacts
-            .read::<DirElaborated>((module, self.profile))?;
-        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
-        let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
+        // read the foreign tables through the module's checked stages
+        let view = self.foreign_view(module)?;
 
-        read(&types)
+        read(view.types())
     }
 
     /// Read the static table that owns globally addressed DIR values.
@@ -758,17 +790,10 @@ impl<'a> Dir<'a> {
             return read(&module.statics);
         }
 
-        // compose the foreign table from its checked DIR
-        let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
-        let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
-        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self
-            .artifacts
-            .read::<DirElaborated>((module, self.profile))?;
-        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
-        let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
+        // read the foreign tables through the module's checked stages
+        let view = self.foreign_view(module)?;
 
-        read(&statics)
+        read(view.statics())
     }
 
     /// Read the decorator table that owns globally addressed declarations.
@@ -782,38 +807,71 @@ impl<'a> Dir<'a> {
             return read(&module.decorators);
         }
 
-        // compose the foreign table from its checked DIR
-        let elaborated = self
-            .artifacts
-            .read::<DirElaborated>((module, self.profile))?;
-        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
-        let decorators = checked.decorator_table(&elaborated);
+        // read the foreign tables through the module's checked stages
+        let view = self.foreign_view(module)?;
 
-        read(&decorators)
+        read(view.decorators())
     }
 
     /// Read binding and definition tables for one globally addressed declaration.
     pub(super) fn read_declaration_tables<T>(
         &self,
         module: ModuleId,
-        read: impl FnOnce(&dir::BindingTable<'_>, &dir::DefinitionTable<'_>) -> Result<T, ProviderError>,
+        read: impl FnOnce(&DeclarationTables<'_>) -> Result<T, ProviderError>,
     ) -> Result<T, ProviderError> {
         // read the tables already loaded for direct inspection
         if let Some(module) = self.modules.get(&module) {
-            return read(&module.bindings, &module.definitions);
+            return read(&DeclarationTables {
+                bindings: &module.bindings,
+                types: &module.types,
+                definitions: &module.definitions,
+                members: &module.members,
+                representations: &module.representations,
+            });
         }
 
-        // compose the foreign tables from their checked DIR
-        let bound = self.artifacts.read::<DirBound>((module, self.profile))?;
-        let expanded = self.artifacts.read::<DirExpanded>((module, self.profile))?;
-        let declared = self.artifacts.read::<DirDeclared>((module, self.profile))?;
-        let elaborated = self
-            .artifacts
-            .read::<DirElaborated>((module, self.profile))?;
-        let checked = self.artifacts.read::<DirChecked>((module, self.profile))?;
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
-        let definitions = checked.definition_table(&declared, &elaborated);
+        // read the foreign tables through the module's checked stages
+        let view = self.foreign_view(module)?;
 
-        read(&bindings, &definitions)
+        read(&DeclarationTables {
+            bindings: view.bindings(),
+            types: view.types(),
+            definitions: view.definitions(),
+            members: view.members(),
+            representations: view.representations(),
+        })
     }
+}
+
+impl Dir<'_> {
+    /// Read one foreign module's checked stages with their tables stacked.
+    fn foreign_view(&self, module_id: ModuleId) -> Result<DirView, ProviderError> {
+        let reader = &self.artifacts;
+        let profile = self.profile;
+
+        Ok(DirView::checked(
+            reader.read::<DirParsed>(module_id)?,
+            reader.read::<DirBound>((module_id, profile))?,
+            reader.read::<DirImported>((module_id, profile))?,
+            reader.read::<DirExpanded>((module_id, profile))?,
+            reader.read::<DirResolved>((module_id, profile))?,
+            reader.read::<DirDeclared>((module_id, profile))?,
+            reader.read::<DirElaborated>((module_id, profile))?,
+            reader.read::<DirChecked>((module_id, profile))?,
+        ))
+    }
+}
+
+/// The declaration tables of one module, own or foreign.
+pub(super) struct DeclarationTables<'a> {
+    /// The binding table.
+    pub(super) bindings: &'a dir::BindingTable<'a>,
+    /// The type table.
+    pub(super) types: &'a dir::TypeTable<'a>,
+    /// The definition table.
+    pub(super) definitions: &'a dir::DefinitionTable<'a>,
+    /// The member selections.
+    pub(super) members: &'a dir::MemberTable<'a>,
+    /// The layout policies.
+    pub(super) representations: &'a dir::RepresentationTable<'a>,
 }

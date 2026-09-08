@@ -41,7 +41,7 @@ declare function format(value: string): string;
 fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     let view = module.view();
     let implementations = module
-        .definitions
+        .members
         .member_conformances()
         .map(|conformance| conformance.member)
         .collect::<FxIndexSet<_>>();
