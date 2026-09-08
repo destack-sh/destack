@@ -11,7 +11,7 @@ macro_rules! runtime_operations {
             AllocateRepeated = 0x0001 => allocate_repeated: AllocateRepeated -> Pointer,
             /// Destroy one erased unique value.
             Drop = 0x0002 => drop: Drop -> Void,
-            /// Release one unique heap value.
+            /// Return one unique heap value.
             Free = 0x0003 => free: Free -> Void,
             /// Record one managed reference write.
             WriteBarrier = 0x0004 => write_barrier: WriteBarrier -> Void,
@@ -104,7 +104,7 @@ pub type Drop = unsafe extern "C-unwind" fn(
     marker: *const u8,
 );
 
-/// Release one unique heap value through the runtime.
+/// Return one unique heap value through the runtime.
 pub type Free = unsafe extern "C-unwind" fn(activation: *mut Activation, owner: usize);
 
 /// Record one managed reference write through the runtime.
