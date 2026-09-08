@@ -22,8 +22,7 @@ impl<'context, 'index> MemberIndexer<'context, 'index> {
         indexer.collect_members();
 
         // retain member implementation edges
-        let definitions = module.definitions();
-        let implementations = definitions.member_implementations().collect();
+        let implementations = module.members().member_implementations().collect();
 
         dir::MemberIndex::new(indexer.entries, implementations)
     }

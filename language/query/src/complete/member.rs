@@ -21,14 +21,18 @@ impl CompletionCollector<'_, '_, '_> {
             )))?;
 
         // select each implemented interface satisfied by this declaration
+        let members = module.members()?;
         let interfaces = definition
             .implementations()
             .iter()
             .filter(|conformance| {
-                conformance
-                    .members
-                    .iter()
-                    .any(|member| member.member == declaration.symbol)
+                members
+                    .conformance_members(conformance.source)
+                    .is_some_and(|selected| {
+                        selected
+                            .iter()
+                            .any(|member| member.member == declaration.symbol)
+                    })
             })
             .map(|conformance| formatter.global_type(conformance.interface))
             .collect::<QueryResult<Vec<_>>>()?;

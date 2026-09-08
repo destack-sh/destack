@@ -110,7 +110,7 @@ export interface AsyncWriter {
             .collect::<Vec<_>>(),
         [
             "export interface AsyncWriter",
-            "export type BorrowedFields<T, const L: Lifetime> = { [K in keyof T]: Borrowed<T[K], L, \"mutable\"> }",
+            "export type BorrowedFields<T, const L: Lifetime> = {\n    [K in keyof T]: Borrowed<T[K], L>;\n}",
             "export enum DeliveryState",
             "export type Representation = `int${1..=128}` | `uint${1..=128}`",
             "export function increment(value: int64): int64",

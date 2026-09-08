@@ -151,15 +151,19 @@ impl CompletionCollector<'_, '_, '_> {
             .ok_or(QueryError::missing(format!(
                 "completion definition: {symbol:?}"
             )))?;
-        let dir::Definition::Newtype(definition) = definition else {
+        let dir::Definition::Newtype(_) = definition else {
             return Err(QueryError::invalid(format!(
                 "completion newtype definition: {symbol:?}"
             )));
         };
-        expanded.reserve(definition.constructors.len());
+        let constructors = module
+            .members()?
+            .newtype_constructors(symbol)
+            .unwrap_or_default();
+        expanded.reserve(constructors.len());
 
         // retain constructor identity for each overload
-        for constructor in &definition.constructors {
+        for constructor in constructors {
             let completion = completion
                 .clone()
                 .with_newtype_constructor(symbol, constructor.ty);

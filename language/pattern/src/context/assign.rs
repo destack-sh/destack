@@ -381,7 +381,16 @@ impl ModuleContext {
             return Err(ContextError::MissingGenericTemplate(symbol));
         };
         let template = module.generics().get_template(template);
-        if checked.len() != parsed.len() || checked.len() != template.parameters.len() {
+        let written = template
+            .parameters
+            .iter()
+            .filter(|parameter| {
+                let binding = module.generics().get_parameter(**parameter);
+
+                matches!(binding.key, dir::GenericParameterKey::Symbol(_))
+            })
+            .count();
+        if checked.len() != parsed.len() || checked.len() != written {
             return Err(ContextError::MismatchedGenericArguments(symbol));
         }
 

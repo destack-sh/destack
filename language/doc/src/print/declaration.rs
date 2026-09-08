@@ -46,8 +46,7 @@ impl Printer<'_, '_, '_> {
             }
             dir::Declaration::Type(declaration) => {
                 let generics = self.generics(&declaration.generic_parameters)?;
-                let value_id = declaration.value.into_global_any(self.module.module_id());
-                let value = self.node_type(value_id)?;
+                let value = self.type_expression(declaration.value)?;
                 let keyword = if declaration.is_nominal {
                     "newtype"
                 } else {

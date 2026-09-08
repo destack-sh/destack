@@ -11,7 +11,7 @@ use destack_artifact::{
     DirParsed,
 };
 use destack_core::Blob;
-use destack_source::{Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget};
+use destack_source::{Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId};
 use rustc_hash::{FxHashSet, FxHasher};
 
 impl Repository {
@@ -279,7 +279,8 @@ impl Repository {
         let mut merged = FxHashSet::default();
         let mut visited = FxHashSet::default();
         let mut is_terminal = true;
-        let mut pending = requested_keys;
+        let mut pending = requested_keys.clone();
+        let mut requested_files = Vec::new();
 
         // walk exact revision artifacts and their recorded dependencies
         while let Some(artifact_key) = pending.pop() {
@@ -292,7 +293,16 @@ impl Repository {
                 continue;
             };
             if merged.insert(version) {
+                let first = diagnostics.diagnostics.len();
                 self.merge_resolved_diagnostics(revision, version, &mut diagnostics)?;
+
+                // rank the requested artifacts' files ahead of the dependencies' files
+                if requested_keys.contains(&artifact_key) {
+                    let files = diagnostics.diagnostics[first..]
+                        .iter()
+                        .map(|diagnostic| diagnostic.primary.target.file());
+                    requested_files.extend(files);
+                }
             }
 
             let entry = self
@@ -308,6 +318,19 @@ impl Repository {
                 }
             }
         }
+
+        // order the closure by the requested artifacts' files, the dependencies' files after
+        let rank = |file: FileId| {
+            requested_files
+                .iter()
+                .position(|requested| *requested == file)
+        };
+        diagnostics.diagnostics.sort_by_key(|diagnostic| {
+            let file = diagnostic.primary.target.file();
+            let rank = rank(file);
+
+            (rank.is_none(), rank, file)
+        });
 
         // memoize only fully terminal closures, partial walks resolve further later
         if is_terminal {

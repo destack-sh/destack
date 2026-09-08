@@ -560,7 +560,7 @@ impl ModuleQueryContext<'_> {
             .ok_or(QueryError::missing(format!(
                 "newtype definition: {symbol_id:?}"
             )))?;
-        let dir::Definition::Newtype(definition) = definition else {
+        let dir::Definition::Newtype(_) = definition else {
             return Err(QueryError::invalid(format!(
                 "newtype definition: {symbol_id:?}"
             )));
@@ -568,7 +568,11 @@ impl ModuleQueryContext<'_> {
         // format a selected construction or the one declared constructor
         let signature = match call {
             Some(call) => Some(self.construct_call_signature(program, &name, call)?),
-            None => match definition.constructors.as_slice() {
+            None => match self
+                .members()?
+                .newtype_constructors(symbol_id)
+                .unwrap_or_default()
+            {
                 [constructor] => {
                     Some(Formatter::new(self, program).callable_signature(&name, constructor.ty)?)
                 }
