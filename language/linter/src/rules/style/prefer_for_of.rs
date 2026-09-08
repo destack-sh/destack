@@ -69,17 +69,18 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         let Some(array_access) = module.access_resolution(array) else {
             continue;
         };
-        let required = module.required_access_within(
+        // require every body use to be a direct index into the bounded array
+        let Some(reads) = index_reads(module, index, array, iteration.body, &occurrences)? else {
+            continue;
+        };
+
+        // preserve one stable array value throughout iteration, the element reads aside
+        if module.takes_mutable_within(
             array_access.path(),
             iteration.body.into_any(),
             &accesses,
-        )?;
-        if required == dir::Access::Mutable {
-            continue;
-        }
-
-        // require every body use to be a direct index into the bounded array
-        if !indexes_only(module, index, array, iteration.body, &occurrences)? {
+            &reads,
+        ) {
             continue;
         }
 
@@ -91,14 +92,15 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
     Ok(output)
 }
 
-/// Return whether one binding is used only to index one array within a loop body.
-fn indexes_only(
+/// Return the array operands read through one index binding used only to index that array
+/// within a loop body, none when the binding is used otherwise.
+fn index_reads(
     module: &DirModule<'_>,
     index: dir::GlobalSymbolId,
     array: dir::LocalNodeId<dir::Expression>,
     body: dir::LocalNodeId<dir::Block>,
     occurrences: &[dir::BindingOccurrence],
-) -> Result<bool, ProviderError> {
+) -> Result<Option<Vec<dir::LocalNodeIdAny>>, ProviderError> {
     let view = module.view();
     let uses = occurrences
         .iter()
@@ -111,19 +113,20 @@ fn indexes_only(
             .iter()
             .any(|occurrence| occurrence.uses != dir::BindingUse::READ)
     {
-        return Ok(false);
+        return Ok(None);
     }
 
-    // require each reference to be the complete index operand
+    // require each reference to be the complete index operand, keeping the array it reads
+    let mut reads = Vec::new();
     for reference in module.binding_references(index) {
         if !view.is_inside(reference.into_any(), body.into_any()) {
             continue;
         }
         let Some(parent) = view.get_parent_for(reference) else {
-            return Ok(false);
+            return Ok(None);
         };
         let Ok(access) = parent.try_into_typed::<dir::Expression>() else {
-            return Ok(false);
+            return Ok(None);
         };
         let dir::Expression::Index {
             left,
@@ -132,14 +135,15 @@ fn indexes_only(
             ..
         } = view.get(access)
         else {
-            return Ok(false);
+            return Ok(None);
         };
         if *selected != reference || !module.is_same_computation(*left, array)? {
-            return Ok(false);
+            return Ok(None);
         }
+        reads.push(left.into_any());
     }
 
-    Ok(true)
+    Ok(Some(reads))
 }
 
 #[cfg(test)]

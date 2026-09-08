@@ -190,9 +190,9 @@ function increment(values: Iterator<int32>): Iterator<int32> {
             r#"
 import { Iterator } from "destack:iter";
 
-declare function consume(value: string): void;
+declare function consume(value: ^string): void;
 
-function observe(values: Iterator<string>): Iterator<string> {
+function observe(values: Iterator<^string>): Iterator<^string> {
     return values.map((value) => {
         consume(value);
         value

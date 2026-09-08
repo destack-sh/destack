@@ -129,11 +129,12 @@ impl Dir<'_> {
         &self,
         symbol: dir::GlobalSymbolId,
     ) -> Result<Vec<dir::LanguageMember>, ProviderError> {
-        // collect the declarations this symbol satisfies
+        // collect the declarations this symbol satisfies, a default member standing for its own
         let declarations = self.read_declaration_tables(symbol.module_id, |tables| {
             Ok(tables
                 .members
                 .member_declarations(symbol)
+                .filter(|declaration| *declaration != symbol)
                 .collect::<Vec<_>>())
         })?;
 

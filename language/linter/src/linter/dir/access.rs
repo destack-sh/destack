@@ -82,13 +82,14 @@ impl DirModule<'_> {
     ) -> Result<bool, ProviderError> {
         let view = self.view();
 
-        // reject a mutable use or a capture of the replacement borrow
+        // reject a mutable use, a move, or a capture of the replacement borrow
         let has_incompatible_use = self.flows.binding_occurrences().any(|occurrence| {
             occurrence.symbol == symbol
                 && view.is_inside(occurrence.node, within)
                 && !excluded.is_some_and(|excluded| view.is_inside(occurrence.node, excluded))
                 && (occurrence.uses.may_mutate()
                     || occurrence.uses.contains(dir::BindingUse::MUTABLE)
+                    || occurrence.uses.contains(dir::BindingUse::MOVE)
                     || occurrence.uses.contains(dir::BindingUse::CAPTURE))
         });
         if has_incompatible_use {
@@ -212,6 +213,24 @@ impl DirModule<'_> {
         occurrences: &[dir::AccessOccurrence],
     ) -> Result<dir::Access, ProviderError> {
         self.required_access_within(&dir::AccessPath::symbol(symbol), within, occurrences)
+    }
+
+    /// Return whether one access path takes a mutable use beneath a node.
+    pub(crate) fn takes_mutable_within(
+        &self,
+        root: &dir::AccessPath,
+        within: dir::LocalNodeIdAny,
+        occurrences: &[dir::AccessOccurrence],
+        excluded: &[dir::LocalNodeIdAny],
+    ) -> bool {
+        let view = self.view();
+        occurrences.iter().any(|occurrence| {
+            view.is_inside(occurrence.node, within)
+                && occurrence.path.starts_with(root)
+                && !excluded.contains(&occurrence.node)
+                && (occurrence.uses.may_mutate()
+                    || occurrence.uses.contains(dir::BindingUse::MUTABLE))
+        })
     }
 
     /// Return the weakest access the uses of one access path beneath a node require.

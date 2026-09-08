@@ -745,23 +745,6 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Read the generic table that owns one module's templates and instances.
-    pub(super) fn read_generics<T>(
-        &self,
-        module: ModuleId,
-        read: impl FnOnce(&dir::GenericTable<'_>) -> Result<T, ProviderError>,
-    ) -> Result<T, ProviderError> {
-        // read the table already loaded for direct inspection
-        if let Some(module) = self.modules.get(&module) {
-            return read(&module.generics);
-        }
-
-        // read the foreign tables through the module's checked stages
-        let view = self.foreign_view(module)?;
-
-        read(view.generics())
-    }
-
     /// Read the type table that owns globally addressed DIR types.
     pub(super) fn read_types<T>(
         &self,
@@ -823,7 +806,6 @@ impl<'a> Dir<'a> {
         if let Some(module) = self.modules.get(&module) {
             return read(&DeclarationTables {
                 bindings: &module.bindings,
-                types: &module.types,
                 definitions: &module.definitions,
                 members: &module.members,
                 representations: &module.representations,
@@ -835,7 +817,6 @@ impl<'a> Dir<'a> {
 
         read(&DeclarationTables {
             bindings: view.bindings(),
-            types: view.types(),
             definitions: view.definitions(),
             members: view.members(),
             representations: view.representations(),
@@ -866,8 +847,6 @@ impl Dir<'_> {
 pub(super) struct DeclarationTables<'a> {
     /// The binding table.
     pub(super) bindings: &'a dir::BindingTable<'a>,
-    /// The type table.
-    pub(super) types: &'a dir::TypeTable<'a>,
     /// The definition table.
     pub(super) definitions: &'a dir::DefinitionTable<'a>,
     /// The member selections.

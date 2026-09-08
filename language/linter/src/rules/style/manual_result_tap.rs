@@ -234,9 +234,9 @@ function append(result: Result<int32[], string>): Result<int32[], string> {
             r#"
 class User {}
 
-declare function observe(user: User): void;
+declare function observe(user: ^User): void;
 
-function inspect(result: Result<User, string>): Result<User, string> {
+function inspect(result: Result<^User, string>): Result<^User, string> {
     return result.map((user) => {
         observe(user);
         user
