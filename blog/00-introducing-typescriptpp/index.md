@@ -178,7 +178,12 @@ author: "Florian"
 
 - fundamentally, there is not a single test, suite of tests, mathematical proof, or any single definitive gate that you can run to convince me that some non-trivial general purpose program is correct
 - doesn't matter whether it's human written or not, software is just very complex
-- mathematical proofs are ofc very useful for rigid and fully formalizable systems, but 
+- mathematical proofs are ofc very useful for rigid and fully formalizable systems, but insufficient
+
+- the fundamental problem I have with software is not "oh I wish I had mathematical proof  this program I specified works" it is "how do I know what software to build" and then "how do I know that the specificaiton does what I want"? 
+- I don't get any of this feedback from AI 
+- there is zero conceptual backpressure from AI
+- a "correct proof" or "passing test" means nothing if it's not what I want
 
 - and the only way to assess "correct" for any interesting software is to see it in motion under many different angles, over time
 - this is not an intelligence problem!
