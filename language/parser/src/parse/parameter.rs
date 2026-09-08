@@ -348,7 +348,7 @@ impl Parser {
 
         let has_access_modifier = matches!(
             self.peek_keyword_at(1),
-            Some(Keyword::Readonly | Keyword::Const | Keyword::Exclusive)
+            Some(Keyword::Readonly | Keyword::Const)
         );
         if has_access_modifier {
             return (self.peek_keyword_at(2) == Some(Keyword::This))

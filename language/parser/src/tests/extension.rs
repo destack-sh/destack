@@ -349,11 +349,11 @@ extension<T> of Slice<T> {
 }
 
 #[test]
-fn test_parse_extension_method_with_exclusive_this_parameter() {
+fn test_parse_extension_method_with_borrowed_this_parameter() {
     let test = TestParser::new(
         r###"
 extension<T> of Slice<T> {
-    indexSet(&exclusive this, i: number, value: T): void {
+    indexSet(&this, i: number, value: T): void {
         undefined!;
     }
 }
@@ -366,7 +366,7 @@ extension<T> of Slice<T> {
         .parse_extension(&start, DeclarationHeader::default())
         .unwrap();
 
-    // indexSet(&exclusive this, i: number, value: T): void
+    // indexSet(&this, i: number, value: T): void
     assert_node!(parser.tree, extension_id, Declaration::Extension(ExtensionDeclaration { members, .. }) => {
         assert_eq!(members.len(), 1);
         assert_node!(parser.tree, members[0], Member::Method { signature, .. } => {
@@ -377,7 +377,7 @@ extension<T> of Slice<T> {
             assert_node!(parser.tree, this_parameter, Parameter::Named { name, declared_type, .. } => {
                 assert_string!(parser, *name, "this");
                 assert_node!(parser.tree, declared_type.unwrap(), TypeExpression::BorrowedOf { mutability, target_type, .. } => {
-                    assert_eq!(*mutability, Some(Mutability::Exclusive));
+                    assert_eq!(*mutability, Some(Mutability::Mutable));
                     assert_node!(parser.tree, *target_type, TypeExpression::This);
                 });
             });

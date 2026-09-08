@@ -344,7 +344,6 @@ pub(crate) fn classify_keyword_bytes(bytes: &[u8]) -> Option<Keyword> {
         b"do" => Some(Keyword::Do),
         b"else" => Some(Keyword::Else),
         b"enum" => Some(Keyword::Enum),
-        b"exclusive" => Some(Keyword::Exclusive),
         b"export" => Some(Keyword::Export),
         b"extends" => Some(Keyword::Extends),
         b"extension" => Some(Keyword::Extension),

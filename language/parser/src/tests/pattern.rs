@@ -351,13 +351,13 @@ fn test_parse_pattern_dereference_before_borrow() {
 
 #[test]
 fn test_parse_pattern_dereference_before_move() {
-    let test = TestParser::new("*^exclusive item");
+    let test = TestParser::new("*^item");
     let mut parser = test.prepare();
     let pattern_id = parser.parse_pattern().unwrap();
 
     assert_node!(parser.tree, pattern_id, Pattern::DereferenceOf { right } => {
         assert_node!(parser.tree, *right, Pattern::MoveOf { mutability: Some(mutability), right } => {
-            assert_eq!(*mutability, Mutability::Exclusive);
+            assert_eq!(*mutability, Mutability::Mutable);
             assert_node!(parser.tree, *right, Pattern::Binding { name, pattern: None } => {
                 assert_string!(parser, *name, "item");
             });

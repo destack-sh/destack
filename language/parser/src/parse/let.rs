@@ -310,11 +310,6 @@ impl Parser {
             self.bump();
             Mutability::Immutable
         }
-        // exclusive
-        else if keyword == Keyword::Exclusive {
-            self.bump();
-            Mutability::Exclusive
-        }
         // mutable by default
         else {
             Mutability::Mutable
