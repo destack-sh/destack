@@ -138,7 +138,7 @@ impl Memory<'_> {
         address.checked_sub(self.base_address())
     }
 
-    /// Free one uniquely owned heap allocation.
+    /// Return one uniquely owned heap allocation, freed unless managed storage referenced it.
     pub fn free(&mut self, edge: HeapEdge) -> HeapResult<()> {
         match edge {
             HeapEdge::Local(reference) => self.local_heap.free(reference),

@@ -509,7 +509,6 @@ impl ReferenceLayout {
         let access = match access {
             Access::Readonly => 0,
             Access::Mutable => 1,
-            Access::Exclusive => 2,
             Access::Parameter(_) => unreachable!("program references close every access"),
         };
         let storage = u16::from(Self::storage_bits(storage));
@@ -542,7 +541,6 @@ impl ReferenceLayout {
         match (self.bits >> Self::ACCESS_SHIFT) & Self::ACCESS_MASK {
             0 => Some(Access::Readonly),
             1 => Some(Access::Mutable),
-            2 => Some(Access::Exclusive),
             _ => None,
         }
     }
@@ -621,7 +619,6 @@ impl PointerLayout {
         let bits = match access {
             Access::Readonly => 0,
             Access::Mutable => 1,
-            Access::Exclusive => 2,
             Access::Parameter(_) => unreachable!(),
         };
 
@@ -637,7 +634,6 @@ impl PointerLayout {
         match self.bits & Self::ACCESS_MASK {
             0 => Some(Access::Readonly),
             1 => Some(Access::Mutable),
-            2 => Some(Access::Exclusive),
             _ => None,
         }
     }
