@@ -347,8 +347,9 @@ impl VmSetup {
         }
         let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
             parsed.into_parts();
+        let tree = std::sync::Arc::new(tree);
         let lowered = MirLowered {
-            tree,
+            tree: std::sync::Arc::clone(&tree),
             target,
             layouts,
             dispatch,
@@ -368,7 +369,7 @@ impl VmSetup {
             .layout_reachable_types()
             .expect("footprint MIR layouts should build");
         let optimized = MirOptimized {
-            tree,
+            tree: (*tree).clone(),
             layouts,
             dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),
