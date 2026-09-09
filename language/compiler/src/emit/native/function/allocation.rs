@@ -19,6 +19,7 @@ impl<'a> FunctionEmitter<'a> {
         length: Option<mir::Value>,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // locate the allocation site
         let point = self.object.instruction_point(instruction);
         let site = self
             .object

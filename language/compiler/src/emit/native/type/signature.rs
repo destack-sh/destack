@@ -27,6 +27,7 @@ impl TypeEmitter<'_> {
         signature: mir::TypeId,
         has_environment: bool,
     ) -> Result<cir::Signature, EmitError> {
+        // read the callable parameters and result type
         let (_, parameters, result) = self
             .optimized
             .tree

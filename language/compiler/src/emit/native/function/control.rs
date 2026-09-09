@@ -40,6 +40,7 @@ impl<'a> FunctionEmitter<'a> {
         cases: mir::SwitchCaseSlice,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the scalar discriminant
         let value = self.scalar(value)?;
         let mut transfers = Vec::new();
         let default = self.switch_block(default, &mut transfers, builder)?;
@@ -177,6 +178,7 @@ impl<'a> FunctionEmitter<'a> {
         target_signed: bool,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // resolve integer widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
         let source = self.value_type(value)?;
         let (source_width, source_signed) = self

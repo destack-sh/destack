@@ -37,6 +37,7 @@ impl FunctionEmitter<'_> {
         call: &mir::Call,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Call, EmitError> {
+        // require a direct callee for the imported binding
         let mir::Callee::Direct { function, .. } = call.callee else {
             return Err(self.invalid("native indirect binding dispatch is not emitted yet"));
         };

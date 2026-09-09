@@ -1,4 +1,4 @@
-use destack_artifact::{MirLowered, MirOptimized};
+use destack_artifact::MirOptimized;
 use destack_bytecode as bytecode;
 use destack_core::StringId;
 use destack_mir as mir;
@@ -39,10 +39,9 @@ pub struct ObjectEmitter {
 }
 
 impl ObjectEmitter {
-    /// Collect engine-neutral object entries from lowered and optimized MIR.
+    /// Collect engine-neutral object entries from optimized MIR.
     pub fn new(
         module: ModuleId,
-        lowered: &MirLowered,
         optimized: &MirOptimized,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Result<Self, EmitError> {
@@ -148,14 +147,14 @@ impl ObjectEmitter {
         let allocation_points = sites.allocations.iter().map(|site| site.point).collect();
 
         // build the object state shared by every execution form
-        let object = ObjectBuilder::new(lowered.target)
+        let object = ObjectBuilder::new(optimized.target)
             .dependencies(dependencies)
             .types(types)
             .layouts(optimized.layouts.clone())
             .drops(optimized.drops.clone())
             .dispatch(optimized.dispatch.clone())
             .functions(functions)
-            .initializer(lowered.initializer)
+            .initializer(optimized.initializer)
             .globals(globals)
             .allocations(sites.allocations)
             .memory(sites.memory)

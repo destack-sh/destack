@@ -13,6 +13,7 @@ impl<'a> FunctionEmitter<'a> {
         aggregate: mir::Value,
         field: u32,
     ) -> Result<(), EmitError> {
+        // resolve the aggregate storage type and field offset
         let mut aggregate_type = self
             .optimized
             .tree
@@ -61,17 +62,18 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         value: mir::Value,
     ) -> Result<(), EmitError> {
+        // select the address representation from the storage type
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let source = match self.optimized.tree.get(ty) {
-            // direct references and pointers already contain address bits
+            // use the address from a reference or pointer
             mir::Type::Reference { .. } | mir::Type::Pointer { .. } => self.word(value)?,
 
-            // indexed fat pointers keep their backing reference in one representation word
+            // extract the backing reference from an indexed pointer
             mir::Type::Slice { .. } => {
                 self.representation_register(self.register(value)?, value)?
             }
 
-            // inline aggregates occupy stable bytecode frame registers
+            // address the aggregate through its frame registers
             mir::Type::FixedArray { .. }
             | mir::Type::Tuple { .. }
             | mir::Type::Struct { .. }
@@ -294,6 +296,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Return the addressing mode selected by one MIR reference.
     pub(super) fn address(&self, reference: mir::Value) -> Result<bytecode::Address, EmitError> {
+        // resolve the address storage type
         let ty = self
             .optimized
             .tree
@@ -314,6 +317,7 @@ impl<'a> FunctionEmitter<'a> {
         intrinsic: mir::Intrinsic,
         arguments: mir::ValueSlice,
     ) -> Result<(), EmitError> {
+        // read the intrinsic arguments
         let arguments = self.optimized.tree.get_values(arguments).to_vec();
         match intrinsic {
             mir::Intrinsic::Memcpy | mir::Intrinsic::Memmove => {
@@ -458,6 +462,7 @@ impl<'a> FunctionEmitter<'a> {
         value: bytecode::RegisterSpan,
         source: mir::Value,
     ) -> Result<bytecode::RegisterId, EmitError> {
+        // read the storage representation of the source value
         let ty = self.optimized.tree.storage_type(self.value_type(source)?);
         let offset = usize::from(matches!(
             self.optimized.tree.get(ty),

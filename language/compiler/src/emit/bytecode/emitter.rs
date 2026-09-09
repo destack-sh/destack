@@ -33,6 +33,7 @@ impl<'a> BytecodeEmitter<'a> {
 
     /// Emit one relocatable bytecode object.
     pub fn emit(&self) -> Result<bytecode::Object, EmitError> {
+        // allocate the bytecode object tables
         let mut frames = Vec::new();
         let mut registers = Vec::new();
         let mut operations = Vec::new();

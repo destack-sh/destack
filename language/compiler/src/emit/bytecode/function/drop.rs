@@ -8,6 +8,7 @@ use super::FunctionEmitter;
 impl<'a> FunctionEmitter<'a> {
     /// Emit one generated destructor call.
     pub(super) fn emit_drop(&mut self, value: mir::Value) -> Result<(), EmitError> {
+        // select the destructor for the value type
         let ty = self.value_type(value)?;
         let destructor = self.optimized.drops.destructor(ty, mir::Storage::Frame);
         let instruction = match destructor {

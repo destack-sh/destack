@@ -200,6 +200,7 @@ impl<'a> FunctionEmitter<'a> {
         node_type: mir::TypeId,
         value: mir::Value,
     ) -> Result<(u32, u32), EmitError> {
+        // read the physical context layout
         let layout = self
             .optimized
             .layouts

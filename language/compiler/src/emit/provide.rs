@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirLowered,
-    MirOptimized, Output,
+    ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirOptimized,
+    Output,
 };
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
@@ -11,6 +11,7 @@ use crate::{Compiler, CompilerError, CompilerResult, EmitError};
 
 use super::ObjectEmitter;
 use super::bytecode::BytecodeEmitter;
+
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
 use super::native::NativeEmitter;
 
@@ -23,7 +24,7 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        // the emit input depends on the resolved target pipeline
+        // read the target configuration
         let target_config =
             self.target_or_builtin(context, target)?
                 .ok_or_else(|| EmitError::Internal {
@@ -33,6 +34,7 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
+        // require a bundle target for script emission
         if target_config.output != Output::Bundle {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
@@ -61,7 +63,7 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        // the emit input depends on the resolved target pipeline
+        // read the target configuration
         let target_config =
             self.target_or_builtin(context, target)?
                 .ok_or_else(|| EmitError::Internal {
@@ -71,6 +73,7 @@ impl Compiler {
                 })?;
         let mut dependencies = ArtifactDependencySet::default();
 
+        // require a program target for object emission
         if target_config.output != Output::Program {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
@@ -80,11 +83,11 @@ impl Compiler {
             .into());
         }
 
-        // declare optimized code and its module dependency source
-        dependencies.require(ArtifactKey::mir_lowered(module, profile, target));
+        // require optimized MIR and resolved imports
         dependencies.require(ArtifactKey::mir_optimized(module, profile, target));
         dependencies.require(ArtifactKey::dir_resolved(module, profile));
 
+        // track changes to the target configuration
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
         Ok(dependencies)
@@ -123,6 +126,8 @@ impl Compiler {
                 })?;
         let target_name = self.target_name(context.revision(), target)?;
         let resolved_profile = self.profile_id_for_target(context.revision(), &target)?;
+
+        // require the profile selected by the target
         if resolved_profile != profile {
             return Err(EmitError::Internal {
                 anchor: module.into(),
@@ -134,6 +139,7 @@ impl Compiler {
             .into());
         }
 
+        // require a bundle target for script emission
         if target_config.output != Output::Bundle {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
@@ -168,6 +174,8 @@ impl Compiler {
                 })?;
         let target_name = self.target_name(context.revision(), target)?;
         let resolved_profile = self.profile_id_for_target(context.revision(), &target)?;
+
+        // require the profile selected by the target
         if resolved_profile != profile {
             return Err(EmitError::Internal {
                 anchor: module.into(),
@@ -178,6 +186,8 @@ impl Compiler {
             }
             .into());
         }
+
+        // require a program target for object emission
         if target_config.output != Output::Program {
             return Err(EmitError::UnsupportedTarget {
                 anchor: module.into(),
@@ -187,22 +197,21 @@ impl Compiler {
             .into());
         }
 
-        // preserve optimized MIR and its direct module dependencies
+        // read optimized MIR and resolved imports
         let artifacts = self.artifact_reader(context);
-        let lowered = artifacts
-            .read::<MirLowered>((module, profile, target))
-            .map_err(CompilerError::from)?;
         let optimized = artifacts
             .read::<MirOptimized>((module, profile, target))
             .map_err(CompilerError::from)?;
         let resolved = artifacts
             .read::<DirResolved>((module, profile))
             .map_err(CompilerError::from)?;
+
+        // collect imports and create the relocatable object
         let modules = resolved
             .target_modules()
             .filter(|target| *target != module)
             .collect::<Vec<_>>();
-        let mut object = ObjectEmitter::new(module, &lowered, &optimized, modules)?;
+        let mut object = ObjectEmitter::new(module, &optimized, modules)?;
 
         // emit every representation selected by this Program target
         for code in target_config.code.iter().copied() {
@@ -215,14 +224,9 @@ impl Compiler {
                 Code::Native => {
                     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
                     {
-                        let native = NativeEmitter::new(
-                            module,
-                            lowered.target,
-                            &optimized,
-                            &object,
-                            &target_config,
-                        )?
-                        .emit()?;
+                        let native =
+                            NativeEmitter::new(module, &optimized, &object, &target_config)?
+                                .emit()?;
 
                         object.native(native)
                     }

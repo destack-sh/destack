@@ -37,6 +37,7 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         values: mir::ValueSlice,
     ) -> Result<(), EmitError> {
+        // read the aggregate storage type
         let ty = self
             .function
             .value_type(destination)

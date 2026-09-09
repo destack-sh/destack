@@ -13,6 +13,7 @@ impl<'a> FunctionEmitter<'a> {
         intrinsic: mir::Intrinsic,
         arguments: mir::ValueSlice,
     ) -> Result<(), EmitError> {
+        // read the intrinsic arguments
         let arguments = self.optimized.tree.get_values(arguments).to_vec();
         match intrinsic {
             mir::Intrinsic::LeadingZeroCount

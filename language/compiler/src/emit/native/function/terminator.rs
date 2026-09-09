@@ -158,6 +158,7 @@ impl<'a> FunctionEmitter<'a> {
         &self,
         target: &mir::BlockTarget,
     ) -> Result<Vec<cir::BlockArg>, EmitError> {
+        // read the values passed to the destination block
         let values = self.optimized.tree.get_values(target.arguments);
         let mut arguments = Vec::with_capacity(values.len());
         for value in values {

@@ -171,6 +171,7 @@ impl FunctionEmitter<'_> {
         frame: &FrameMap,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Call, EmitError> {
+        // emit imported bindings through the binding call path
         if self.is_imported_binding(call)? {
             return self.binding_call(call, builder);
         }
@@ -330,6 +331,7 @@ impl FunctionEmitter<'_> {
         slot: mir::DispatchSlot,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // read the virtual method layout
         let layout = self
             .optimized
             .layouts
@@ -403,6 +405,7 @@ impl FunctionEmitter<'_> {
 
     /// Return whether one call selects an imported binding.
     fn is_imported_binding(&self, call: &mir::Call) -> Result<bool, EmitError> {
+        // select direct callees for binding lookup
         let mir::Callee::Direct { function, .. } = call.callee else {
             return Ok(false);
         };

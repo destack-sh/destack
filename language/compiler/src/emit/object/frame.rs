@@ -38,6 +38,7 @@ impl<'a> FrameEmitter<'a> {
 
     /// Emit every runtime-visible frame state in logical operation order.
     pub(super) fn emit(&self) -> Result<Vec<FrameState>, EmitError> {
+        // collect frame states from the emitted functions
         let mut states = Vec::new();
         let points = self.frame_points();
 
@@ -90,6 +91,7 @@ impl<'a> FrameEmitter<'a> {
 
     /// Collect canonical frame points in logical order.
     fn frame_points(&self) -> Vec<FramePoint> {
+        // collect the operations that require frame states
         let mut points = Vec::new();
 
         // retain runtime sites that may inspect or move the active frame
@@ -135,14 +137,15 @@ impl<'a> FrameEmitter<'a> {
 
     /// Return the frame point required by one MIR instruction.
     fn instruction_point(instruction: &mir::Instruction, point: Point) -> Option<FramePoint> {
+        // select the frame position for the instruction
         let point = match instruction {
             // retain callers before generated destruction
             mir::Instruction::Drop { .. } => point,
 
-            // runtime entry after the operation
+            // record runtime entry after the operation
             mir::Instruction::Poll | mir::Instruction::Breakpoint => point.next(),
 
-            // remaining runtime sites were selected from SiteEmitter
+            // defer other runtime sites to SiteEmitter
             _ => return None,
         };
 
@@ -156,6 +159,7 @@ impl<'a> FrameEmitter<'a> {
         values: impl IntoIterator<Item = mir::Value>,
         locals: impl IntoIterator<Item = mir::LocalId>,
     ) -> Result<Vec<FrameSlot>, EmitError> {
+        // collect and sort the live values
         let mut values = values.into_iter().collect::<Vec<_>>();
         values.sort_unstable();
         let mut locals = locals.into_iter().collect::<Vec<_>>();

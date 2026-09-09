@@ -62,6 +62,7 @@ impl FunctionEmitter<'_> {
         mask: mir::IndexSlice,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the vector type and shuffle indices
         let ty = self.vector_type(left)?;
         let lane_count = ty.lane_count();
         let mask = self.optimized.tree.get_indices(mask);
@@ -320,6 +321,7 @@ impl FunctionEmitter<'_> {
 
     /// Return one MIR vector's element type.
     fn vector_element(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
+        // resolve the vector storage type
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         match self.optimized.tree.get(ty) {
             mir::Type::Vector { element, .. } => Ok(*element),

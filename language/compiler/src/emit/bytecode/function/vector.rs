@@ -68,6 +68,7 @@ impl FunctionEmitter<'_> {
         right: mir::Value,
         mask: mir::IndexSlice,
     ) -> Result<(), EmitError> {
+        // read the vector type and shuffle indices
         let vector = self.vector_type(left)?;
         let inputs = [self.register(left)?, self.register(right)?];
         let mask = self

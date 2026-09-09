@@ -30,6 +30,7 @@ impl<'a> FunctionEmitter<'a> {
         default: &mir::BlockTarget,
         cases: mir::SwitchCaseSlice,
     ) -> Result<(), EmitError> {
+        // read the discriminant register
         let value = self.word(value)?;
         let mut branches = Vec::with_capacity(cases.len());
 
@@ -60,6 +61,7 @@ impl<'a> FunctionEmitter<'a> {
         default: Option<&mir::BlockTarget>,
         cases: mir::SwitchCaseSlice,
     ) -> Result<(), EmitError> {
+        // read the variant layout and encoding
         let variant_type = self.optimized.tree.storage_type(self.value_type(value)?);
         let discriminant = match self.optimized.tree.get(variant_type) {
             mir::Type::Variant { discriminant, .. } => *discriminant,
@@ -256,6 +258,7 @@ impl<'a> FunctionEmitter<'a> {
         successor: mir::Successor,
         target: &mir::BlockTarget,
     ) -> Result<bytecode::Label, EmitError> {
+        // read the destination block parameters
         let parameters = terminator
             .target_parameters(&self.optimized.tree, successor, target)
             .ok_or_else(|| self.internal("invalid block argument count"))?;
@@ -282,6 +285,7 @@ impl<'a> FunctionEmitter<'a> {
         successor: mir::Successor,
         target: &mir::BlockTarget,
     ) -> Result<Vec<bytecode::RegisterSpan>, EmitError> {
+        // read the successor parameter registers
         let block = self.optimized.tree.get(target.block);
         terminator
             .target_parameters(&self.optimized.tree, successor, target)
@@ -300,6 +304,7 @@ impl<'a> FunctionEmitter<'a> {
         target: &mir::BlockTarget,
         parameters: &[mir::Value],
     ) -> Result<(), EmitError> {
+        // read the arguments transferred to the successor
         let arguments = target.arguments(&self.optimized.tree);
         if arguments.len() != parameters.len() {
             return Err(self.internal("block argument count"));

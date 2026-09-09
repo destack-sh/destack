@@ -28,8 +28,6 @@ pub struct NativeEmitter<'a> {
     module: ModuleId,
     /// Optimized MIR being emitted.
     optimized: &'a MirOptimized,
-    /// Target ABI layout.
-    layout: mir::TargetLayout,
     /// Object-local identities and logical frame states.
     object: &'a ObjectEmitter,
     /// Native target ISA.
@@ -79,15 +77,17 @@ impl<'a> NativeEmitter<'a> {
     /// Create one native emitter for a target.
     pub fn new(
         module: ModuleId,
-        layout: mir::TargetLayout,
         optimized: &'a MirOptimized,
         object: &'a ObjectEmitter,
         target: &Target,
     ) -> Result<Self, EmitError> {
+        // select the instruction set and check the MIR target layout
         let triple = Self::triple(module, target)?;
         let isa = Self::isa(module, target, triple)?;
-        Self::require_host_abi(module, layout, isa.as_ref())?;
+        Self::require_host_abi(module, optimized.target, isa.as_ref())?;
         let features = Self::features(isa.as_ref());
+
+        // create the native object module
         let builder = ObjectBuilder::new(
             isa.clone(),
             format!("destack_{module}"),
@@ -95,12 +95,13 @@ impl<'a> NativeEmitter<'a> {
         )
         .map_err(|error| Self::internal(module, error.to_string()))?;
         let output = ObjectModule::new(builder);
+
+        // create the target's unwind emitter
         let unwind = UnwindEmitter::new(module, isa.as_ref())?;
 
         Ok(Self {
             module,
             optimized,
-            layout,
             object,
             isa,
             output,
@@ -137,7 +138,7 @@ impl<'a> NativeEmitter<'a> {
         let target = self.isa.triple().to_string();
         let unwind = self.unwind.build()?;
 
-        Ok(native::ObjectBuilder::new(target, self.layout)
+        Ok(native::ObjectBuilder::new(target, self.optimized.target)
             .features(self.features)
             .symbols(self.symbols.into_values())
             .blocks(blocks)
@@ -153,8 +154,14 @@ impl<'a> NativeEmitter<'a> {
 
     /// Declare every typed body and canonical entry.
     fn declare_functions(&mut self) -> Result<(), EmitError> {
+        // create the type emitter for function signatures
         let isa = self.isa.clone();
-        let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
+        let types = TypeEmitter::new(
+            self.module,
+            self.optimized.target,
+            self.optimized,
+            isa.as_ref(),
+        );
 
         // reserve stable function, definition, and block identities
         for index in 0..self.object.functions().len() {
@@ -169,7 +176,7 @@ impl<'a> NativeEmitter<'a> {
             self.functions.insert(id, function_id);
             self.function_indices.insert(function_id, index as u32);
 
-            // imported functions have no physical definition
+            // record an imported function
             if !function.is_defined() {
                 self.definitions.push(None);
                 continue;
@@ -195,6 +202,7 @@ impl<'a> NativeEmitter<'a> {
 
     /// Emit every defined body and canonical entry.
     fn emit_functions(&mut self) -> Result<(), EmitError> {
+        // compile each defined function
         for index in 0..self.object.functions().len() {
             let id = self.object.functions()[index];
             let function = self.optimized.tree.get(id);
@@ -235,12 +243,22 @@ impl<'a> NativeEmitter<'a> {
         function: &mir::Function,
         frame_base: u32,
     ) -> Result<(Context, Vec<StackMap>), EmitError> {
+        // read the declared function identity and signature
         let function_id = self.functions[&id];
         let isa = self.isa.clone();
-        let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
+        let types = TypeEmitter::new(
+            self.module,
+            self.optimized.target,
+            self.optimized,
+            isa.as_ref(),
+        );
+
+        // initialize the Cranelift function signature
         let mut context = Context::new();
         context.func.signature = types.signature(function)?;
         context.func.name = cir::UserFuncName::user(0, function_id.as_u32());
+
+        // lower the body and collect its stack maps
         let stack_maps = FunctionEmitter::new(
             self.module,
             self.optimized,
@@ -255,6 +273,8 @@ impl<'a> NativeEmitter<'a> {
             frame_base,
         )?
         .emit(&mut context.func)?;
+
+        // verify the generated Cranelift function
         self.verify(&context)?;
 
         Ok((context, stack_maps))
@@ -267,8 +287,14 @@ impl<'a> NativeEmitter<'a> {
         function_id: FuncId,
         function: &mir::Function,
     ) -> Result<Context, EmitError> {
+        // create the type emitter for the entry signature
         let isa = self.isa.clone();
-        let types = TypeEmitter::new(self.module, self.layout, self.optimized, isa.as_ref());
+        let types = TypeEmitter::new(
+            self.module,
+            self.optimized.target,
+            self.optimized,
+            isa.as_ref(),
+        );
         let mut context = Context::new();
         context.func.signature = types.entry_signature();
         context.func.name = cir::UserFuncName::user(1, index as u32);
@@ -280,6 +306,8 @@ impl<'a> NativeEmitter<'a> {
             function,
             &mut context.func,
         )?;
+
+        // verify the generated Cranelift function
         self.verify(&context)?;
 
         Ok(context)

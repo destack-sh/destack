@@ -130,6 +130,7 @@ impl TypeEmitter<'_> {
 
     /// Return one MIR value's native representation.
     pub(in crate::emit::native) fn value(&self, id: mir::TypeId) -> Result<ValueType, EmitError> {
+        // read the physical value layout
         let layout = self
             .optimized
             .layouts

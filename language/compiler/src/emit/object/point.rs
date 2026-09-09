@@ -19,6 +19,7 @@ pub(super) struct PointMap {
 impl PointMap {
     /// Map every MIR operation into canonical executable order.
     pub(super) fn build(optimized: &MirOptimized) -> Self {
+        // allocate instruction and terminator point maps
         let mut instructions = FxIndexMap::default();
         let mut blocks = FxIndexMap::default();
         let mut terminators = FxIndexMap::default();

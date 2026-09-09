@@ -100,6 +100,7 @@ impl<'a> FunctionEmitter<'a> {
         function_id: mir::FunctionId,
         function: &'a mir::Function,
     ) -> Result<Self, EmitError> {
+        // require a defined function body
         let body = function
             .body
             .as_ref()
@@ -148,6 +149,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Emit the complete function definition.
     pub(crate) fn emit(mut self) -> Result<FunctionEmission, EmitError> {
+        // read the function body and entry parameters
         let body = self
             .function
             .body

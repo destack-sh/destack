@@ -34,6 +34,7 @@ impl SiteEmitter {
         optimized: &MirOptimized,
         points: &PointMap,
     ) -> Result<Self, EmitError> {
+        // initialize the object site tables
         let mut sites = Self::default();
 
         // walk each defined function in object order
@@ -67,6 +68,7 @@ impl SiteEmitter {
         function: &mir::Function,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> Result<(), EmitError> {
+        // read the instruction and its object point
         let point = points.instruction(instruction_id);
         let instruction = optimized.tree.get(instruction_id);
 
@@ -212,6 +214,7 @@ impl SiteEmitter {
         function: &mir::Function,
         block_id: mir::BlockId,
     ) -> Result<(), EmitError> {
+        // read the block terminator and its object point
         let block = optimized.tree.get(block_id);
         let terminator = optimized.tree.get(block.terminator);
         let point = points.terminator(block_id);
@@ -310,6 +313,7 @@ impl SiteEmitter {
         storage_type: mir::TypeId,
         result_type: mir::TypeId,
     ) -> Result<AllocationSite, EmitError> {
+        // require a heap space for the allocation
         let space = Self::reference_storage(optimized, result_type)
             .and_then(mir::Storage::heap_space)
             .ok_or_else(|| ObjectEmitter::internal(module, "missing allocation space"))?;
@@ -330,6 +334,7 @@ impl SiteEmitter {
         point: Point,
         access: &mir::MemoryAccess,
     ) -> Result<MemorySite, EmitError> {
+        // resolve the accessed storage and value type
         let (storage, value_type) = match access.target {
             mir::MemoryTarget::Address(value) => {
                 let ty = function.value_type(value).ok_or_else(|| {
@@ -377,6 +382,7 @@ impl SiteEmitter {
         dynamic: mir::Value,
         result_type: mir::TypeId,
     ) -> Result<MemorySite, EmitError> {
+        // read the dynamic receiver type
         let dynamic_type = function
             .value_type(dynamic)
             .ok_or_else(|| ObjectEmitter::internal(module, "missing dynamic value type"))?;
@@ -401,6 +407,7 @@ impl SiteEmitter {
         mode: CallMode,
         call: &mir::Call,
     ) -> Result<CallSite, EmitError> {
+        // resolve the callee storage and dispatch type
         let (space, dispatch_type) = match call.callee {
             mir::Callee::Virtual {
                 receiver, class, ..

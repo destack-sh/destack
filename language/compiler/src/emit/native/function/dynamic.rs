@@ -16,6 +16,7 @@ impl FunctionEmitter<'_> {
         concrete: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the dynamic representation and its dispatch table
         let dynamic_type = self
             .optimized
             .tree
@@ -58,6 +59,7 @@ impl FunctionEmitter<'_> {
         result_type: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the dynamic storage type
         let dynamic_type = self.optimized.tree.storage_type(self.value_type(dynamic)?);
         let storage = self
             .optimized

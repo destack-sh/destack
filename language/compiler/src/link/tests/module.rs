@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{MirLowered, MirOptimized};
+use destack_artifact::MirOptimized;
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_program::{Object, Program};
@@ -29,11 +29,11 @@ impl TestModule {
         source: &str,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Self {
-        let (lowered, optimized, strings) = Self::parse(source);
+        let (optimized, strings) = Self::parse(source);
 
         // emit common metadata and relocatable bytecode
-        let object = ObjectEmitter::new(module, &lowered, &optimized, dependencies)
-            .expect("object emission failed");
+        let object =
+            ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
             .emit()
             .expect("MIR should emit bytecode");
@@ -52,17 +52,16 @@ impl TestModule {
         source: &str,
         dependencies: impl IntoIterator<Item = ModuleId>,
     ) -> Self {
-        let (lowered, optimized, strings) = Self::parse(source);
+        let (optimized, strings) = Self::parse(source);
 
         // emit common metadata with canonical bytecode beside native code
-        let object = ObjectEmitter::new(module, &lowered, &optimized, dependencies)
-            .expect("object emission failed");
+        let object =
+            ObjectEmitter::new(module, &optimized, dependencies).expect("object emission failed");
         let bytecode = BytecodeEmitter::new(module, &optimized, &object)
             .emit()
             .expect("MIR should emit bytecode");
         let native = NativeEmitter::new(
             module,
-            lowered.target,
             &optimized,
             &object,
             &destack_repository::Target::native(),
@@ -78,8 +77,8 @@ impl TestModule {
         }
     }
 
-    /// Parse one MIR source into lowered and optimized states.
-    fn parse(source: &str) -> (MirLowered, MirOptimized, StringPool) {
+    /// Parse one MIR source into an optimized module.
+    fn parse(source: &str) -> (MirOptimized, StringPool) {
         let file = File::from_text(
             FileId::new(0),
             "test.mir".to_string(),
@@ -100,19 +99,9 @@ impl TestModule {
         layout_builder
             .layout_reachable_types()
             .expect("test MIR layouts should lower");
-        let lowered = MirLowered {
-            tree: Arc::new(tree.clone()),
+        let optimized = MirOptimized {
             target,
             initializer: None,
-            layouts: layouts.clone(),
-            dispatch: dispatch.clone(),
-            drops: drops.clone(),
-            witnesses: mir::WitnessTable::default(),
-            accesses: accesses.clone(),
-            effects: effects.clone(),
-            profile: profile.clone(),
-        };
-        let optimized = MirOptimized {
             tree,
             layouts,
             dispatch,
@@ -122,7 +111,7 @@ impl TestModule {
             profile,
         };
 
-        (lowered, optimized, strings)
+        (optimized, strings)
     }
 
     /// Merge the strings referenced by a set of test modules.

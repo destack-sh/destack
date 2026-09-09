@@ -166,6 +166,7 @@ impl<'a> FunctionEmitter<'a> {
         global: mir::GlobalId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the global definition
         let definition = self.optimized.tree.get(global);
         let offset = self.index_pointer(native::Index::Global { global: global.id }, builder)?;
 
@@ -240,6 +241,7 @@ impl<'a> FunctionEmitter<'a> {
         reference: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // resolve the address storage type
         let ty = self
             .optimized
             .tree

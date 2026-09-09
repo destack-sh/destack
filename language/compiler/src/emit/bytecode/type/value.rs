@@ -147,21 +147,22 @@ impl TypeEmitter<'_> {
         layout: &mir::Layout,
         is_signed: bool,
     ) -> Result<bytecode::ValueType, EmitError> {
+        // require a scalar layout for the integer
         let mir::Representation::Scalar(scalar) = layout.representation else {
             return Err(self.unsupported_type());
         };
 
         let width = scalar.bit_width();
 
-        // widest integers get their own bytecode representations
+        // select the wide signed integer representation
         if width == 128 && is_signed {
             Ok(bytecode::ValueType::int128())
         }
-        // unsigned counterpart
+        // select the wide unsigned integer representation
         else if width == 128 {
             Ok(bytecode::ValueType::uint128())
         }
-        // everything narrower fits one scalar
+        // select a scalar for narrower integers
         else {
             Ok(bytecode::ValueType::scalar(
                 self.integer_scalar(width, is_signed)?,

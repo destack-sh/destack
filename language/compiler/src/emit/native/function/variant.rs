@@ -17,6 +17,7 @@ impl FunctionEmitter<'_> {
         result_type: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // resolve the variant storage type
         let result_type = self.optimized.tree.storage_type(result_type);
         let layout = self
             .optimized
@@ -62,6 +63,7 @@ impl FunctionEmitter<'_> {
         variant: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // resolve the variant storage type
         let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
         let layout = self
             .optimized
@@ -93,6 +95,7 @@ impl FunctionEmitter<'_> {
         variant: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the addressed variant type
         let variant_type = self.variant_pointee(variant)?;
         let layout = self
             .optimized
@@ -123,6 +126,7 @@ impl FunctionEmitter<'_> {
         case: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // resolve the variant storage type
         let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
         let layout = self
             .optimized
@@ -157,6 +161,7 @@ impl FunctionEmitter<'_> {
         case: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the addressed variant type
         let variant_type = self.variant_pointee(variant)?;
         let layout = self
             .optimized
@@ -181,6 +186,7 @@ impl FunctionEmitter<'_> {
 
     /// Return the variant addressed by one reference or pointer value.
     fn variant_pointee(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
+        // resolve the reference storage type
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let pointee = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,

@@ -85,7 +85,7 @@ impl TestProgram {
         let optimized = self.optimized();
 
         // emit and format the exact relocatable bytecode object
-        let object = ObjectEmitter::new(self.module_id(), &self.lowered, &optimized, Vec::new())
+        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
             .expect("test MIR should emit object metadata");
         let mut function_names = optimized
             .tree
@@ -121,11 +121,10 @@ impl TestProgram {
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
     pub(crate) fn assert_native(&self, expected: &str) -> destack_native::Object {
         let optimized = self.optimized();
-        let object = ObjectEmitter::new(self.module_id(), &self.lowered, &optimized, Vec::new())
+        let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new())
             .expect("test MIR should emit object metadata");
         let emitter = NativeEmitter::new(
             self.module_id(),
-            self.lowered.target,
             &optimized,
             &object,
             &destack_repository::Target::native(),
@@ -139,7 +138,6 @@ impl TestProgram {
         // compile and reload the complete zero-copy object
         let native = NativeEmitter::new(
             self.module_id(),
-            self.lowered.target,
             &optimized,
             &object,
             &destack_repository::Target::native(),
@@ -225,6 +223,8 @@ impl TestProgram {
             .expect("test MIR layouts should lower");
 
         MirOptimized {
+            target: self.lowered.target,
+            initializer: self.lowered.initializer,
             tree: mir::Tree::clone(&tree),
             layouts,
             dispatch: self.lowered.dispatch.clone(),

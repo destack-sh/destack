@@ -55,6 +55,7 @@ impl<'a> TypeEmitter<'a> {
         &self,
         ty: mir::TypeId,
     ) -> Result<bool, EmitError> {
+        // resolve the integer storage type
         let ty = self.optimized.tree.storage_type(ty);
 
         self.optimized
@@ -70,6 +71,7 @@ impl<'a> TypeEmitter<'a> {
         &self,
         ty: mir::TypeId,
     ) -> Result<u32, EmitError> {
+        // resolve the indexed storage type
         let ty = self.optimized.tree.storage_type(ty);
         let stride = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {

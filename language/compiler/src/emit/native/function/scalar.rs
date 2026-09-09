@@ -1,5 +1,6 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
+use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
 use destack_core::{FloatFormat, float_to_bits};
 use destack_mir as mir;
 use destack_native as native;
@@ -63,8 +64,6 @@ impl<'a> FunctionEmitter<'a> {
         ty: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        use cir::condcodes::{FloatCC, IntCC};
-
         // emit floating point operations directly
         if matches!(self.optimized.tree.get(ty), mir::Type::Float(_)) {
             let value = match operator {
@@ -262,6 +261,7 @@ impl<'a> FunctionEmitter<'a> {
         mode: mir::ConvertMode,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // resolve conversion widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
         let source = self.optimized.tree.storage_type(source);
         let target = self.optimized.tree.storage_type(target);
@@ -325,6 +325,7 @@ impl<'a> FunctionEmitter<'a> {
         target: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // resolve integer widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
         let source = self.optimized.tree.storage_type(source);
         let target = self.optimized.tree.storage_type(target);
@@ -364,6 +365,7 @@ impl<'a> FunctionEmitter<'a> {
         mode: mir::ConvertMode,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // read the source and target integer widths
         let (source_width, source_signed) = source;
         let (target_width, target_signed) = target;
         let source_type = cir::Type::int(source_width)
@@ -371,7 +373,7 @@ impl<'a> FunctionEmitter<'a> {
         let target_type = cir::Type::int(target_width)
             .ok_or_else(|| self.invalid("native conversion target width is unsupported"))?;
 
-        // saturating conversion clamps before changing width
+        // clamp the value before changing its width
         if mode == mir::ConvertMode::Saturate {
             return self.emit_integer_saturate_types(
                 value,
@@ -446,6 +448,7 @@ impl<'a> FunctionEmitter<'a> {
         mode: mir::ConvertMode,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // read the source integer width
         let source_type = builder.func.dfg.value_type(value);
         let target_type = self
             .types
@@ -458,7 +461,7 @@ impl<'a> FunctionEmitter<'a> {
             builder.ins().fcvt_from_uint(target_type, value)
         };
 
-        // exact conversion must survive a saturating round trip
+        // check that a saturating round trip preserves the value
         if mode == mir::ConvertMode::Exact {
             let restored = if is_signed {
                 builder.ins().fcvt_to_sint_sat(source_type, result)
@@ -483,6 +486,7 @@ impl<'a> FunctionEmitter<'a> {
         mode: mir::ConvertMode,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // read the source floating point format
         let source_type = builder.func.dfg.value_type(value);
         let target_type = self
             .types
@@ -511,7 +515,7 @@ impl<'a> FunctionEmitter<'a> {
             mir::ConvertMode::RoundCeil => builder.ins().ceil(value),
         };
 
-        // saturating conversion defines NaN and every overflow
+        // convert NaN and overflow using saturation
         if mode == mir::ConvertMode::Saturate {
             let result = if target_signed {
                 builder.ins().fcvt_to_sint_sat(target_type, rounded)
@@ -568,6 +572,7 @@ impl<'a> FunctionEmitter<'a> {
         mode: mir::ConvertMode,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // read the source floating point format
         let source_type = builder.func.dfg.value_type(value);
         let target_type = self
             .types
@@ -576,7 +581,7 @@ impl<'a> FunctionEmitter<'a> {
             .ok_or_else(|| self.invalid("native conversion target is not direct"))?;
         let result = self.convert_float_width(value, target_type, builder)?;
 
-        // exact conversion must preserve the original value
+        // check that the conversion preserves the original value
         if mode == mir::ConvertMode::Exact {
             let restored = self.convert_float_width(result, source_type, builder)?;
             let changed = builder

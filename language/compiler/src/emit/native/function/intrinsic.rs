@@ -17,6 +17,7 @@ impl FunctionEmitter<'_> {
         arguments: mir::ValueSlice,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the intrinsic arguments
         let arguments = self.optimized.tree.get_values(arguments).to_vec();
         if arguments.len() != usize::from(intrinsic.expected_arg_count()) {
             return Err(self.invalid("native intrinsic has the wrong argument count"));

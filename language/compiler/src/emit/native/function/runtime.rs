@@ -80,6 +80,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Return the heap space addressed by one reference-like type.
     pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<native::abi::Space, EmitError> {
+        // resolve the allocation storage type
         let ty = self.optimized.tree.storage_type(ty);
         let definition = self.optimized.tree.get(ty);
 

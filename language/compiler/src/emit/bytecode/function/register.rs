@@ -154,10 +154,11 @@ impl<'a> RegisterAllocator<'a> {
 
     /// Collect conservative live intervals in function layout order.
     fn collect_intervals(&self) -> Result<Vec<Interval>, EmitError> {
+        // allocate one interval per SSA value
         let mut intervals = vec![None; self.value_types.len()];
         let mut point = 0;
 
-        // function parameters enter together through the leading register window
+        // reserve the leading register window for function parameters
         for parameter in &self.function.parameters {
             self.touch(&mut intervals, parameter.value, point)?;
         }
@@ -167,7 +168,7 @@ impl<'a> RegisterAllocator<'a> {
         for block_id in blocks {
             let block = self.tree.get(block_id);
 
-            // block entry retains incoming values and receives block parameters
+            // retain incoming values and block parameters at block entry
             for value in self.liveness.value_live_in(block_id) {
                 self.touch(&mut intervals, value, point)?;
             }
@@ -176,7 +177,7 @@ impl<'a> RegisterAllocator<'a> {
             }
             point += 1;
 
-            // each instruction retains its simultaneous sources and destination
+            // retain each instruction's sources and destination together
             for &instruction_id in &block.instructions {
                 let instruction = self.tree.get(instruction_id);
                 for value in instruction.uses() {
@@ -193,7 +194,7 @@ impl<'a> RegisterAllocator<'a> {
                 point += 1;
             }
 
-            // block exit retains outgoing values and terminator operands
+            // retain outgoing values and terminator operands at block exit
             let terminator = self.tree.get(block.terminator);
             for value in terminator.uses(self.tree) {
                 self.touch(&mut intervals, value, point)?;

@@ -31,6 +31,7 @@ impl<'a> FunctionEmitter<'a> {
         target: &mir::BlockTarget,
         unwind: &mir::BlockTarget,
     ) -> Result<(), EmitError> {
+        // read the result type from the call signature
         let result = self
             .optimized
             .tree
@@ -38,14 +39,19 @@ impl<'a> FunctionEmitter<'a> {
             .function_signature_parts()
             .map(|(_, _, result)| result)
             .ok_or_else(|| self.internal("call has no callable signature"))?;
+
+        // select registers for the returned value
         let destinations = if matches!(self.optimized.tree.get(result), mir::Type::Void) {
             Vec::new()
         } else {
             self.successor_destinations(terminator, mir::Successor::InvokeNormal, target)?
         };
+
+        // resolve the normal and unwind continuation labels
         let target = self.edge_label(terminator, mir::Successor::InvokeNormal, target)?;
         let unwind = self.edge_label(terminator, mir::Successor::InvokeUnwind, unwind)?;
 
+        // select the invoke opcode for the callee
         let opcode = Self::call_opcode(true, &call.callee);
 
         self.emit_call_operation(call, opcode, &destinations, Some((target, unwind)))
@@ -74,6 +80,7 @@ impl<'a> FunctionEmitter<'a> {
         destinations: &[bytecode::RegisterSpan],
         branches: Option<(bytecode::Label, bytecode::Label)>,
     ) -> Result<(), EmitError> {
+        // move the call arguments into their registers
         let arguments = self.optimized.tree.get_values(call.arguments);
         let arguments = self.emit_arguments(arguments)?;
 

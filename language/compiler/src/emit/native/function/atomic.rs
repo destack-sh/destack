@@ -35,6 +35,7 @@ impl FunctionEmitter<'_> {
         _access: mir::AtomicAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // materialize the atomic address and stored value
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;
@@ -58,6 +59,7 @@ impl FunctionEmitter<'_> {
         _access: mir::CompareExchangeAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // materialize the atomic address and comparison values
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(expected)?);
         let expected = self.scalar(expected)?;
@@ -90,6 +92,7 @@ impl FunctionEmitter<'_> {
         _access: mir::AtomicAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // materialize the atomic address and operand
         let pointer = self.materialize_pointer(pointer, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;

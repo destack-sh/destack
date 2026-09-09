@@ -7,6 +7,7 @@ use super::TypeEmitter;
 impl TypeEmitter<'_> {
     /// Return the value addressed by one reference-like MIR type.
     pub(crate) fn pointee(&self, ty: mir::TypeId) -> Result<mir::TypeId, EmitError> {
+        // resolve the storage type before selecting its pointee
         let ty = self.optimized.tree.storage_type(ty);
         let pointee = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
@@ -19,6 +20,7 @@ impl TypeEmitter<'_> {
 
     /// Return the byte stride addressed by one indexed reference-like type.
     pub(crate) fn element_stride(&self, ty: mir::TypeId) -> Result<u32, EmitError> {
+        // resolve the indexed storage type
         let ty = self.optimized.tree.storage_type(ty);
         let stride = match self.optimized.tree.get(ty) {
             mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
@@ -63,6 +65,7 @@ impl TypeEmitter<'_> {
 
     /// Return one source-ordered aggregate placement.
     pub(crate) fn placement(&self, ty: mir::TypeId, index: u32) -> Result<(u32, u32), EmitError> {
+        // read the aggregate layout
         let layout = self.layout(ty)?;
 
         // project named and positional fields by source order
@@ -75,7 +78,7 @@ impl TypeEmitter<'_> {
             return self.element(ty, index);
         }
 
-        // transparent wrappers place their one backing value at byte zero
+        // place the newtype's backing value at byte zero
         if let mir::LayoutShape::Newtype(backing) = &layout.shape {
             if index != 0 {
                 return Err(self.missing("newtype placement"));

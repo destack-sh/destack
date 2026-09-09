@@ -17,6 +17,7 @@ impl FunctionEmitter<'_> {
         result_type: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // extract the source slice reference
         let Value::ScalarPair([reference, _]) = self.value(source)? else {
             return Err(self.invalid("native slice is not a scalar pair"));
         };

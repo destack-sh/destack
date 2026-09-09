@@ -14,6 +14,7 @@ impl<'a> FunctionEmitter<'a> {
         values: mir::ValueSlice,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the destination type and aggregate layout
         let ty = self.value_type(destination)?;
         let layout = self
             .optimized
@@ -79,6 +80,7 @@ impl<'a> FunctionEmitter<'a> {
         index: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the aggregate layout and value
         let aggregate_type = self.value_type(aggregate)?;
         let layout = self
             .optimized
@@ -141,6 +143,7 @@ impl<'a> FunctionEmitter<'a> {
         value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // resolve the field offset in the aggregate layout
         let aggregate_type = self.value_type(aggregate)?;
         let offset = self
             .optimized
@@ -162,6 +165,7 @@ impl<'a> FunctionEmitter<'a> {
         value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the indexed aggregate layout
         let aggregate_type = self.value_type(aggregate)?;
         let offset = self
             .optimized
@@ -231,17 +235,17 @@ impl<'a> FunctionEmitter<'a> {
         layout: &mir::Layout,
         index: u32,
     ) -> Result<(mir::TypeId, u32), EmitError> {
-        // named and tuple fields retain their source index
+        // select the named or tuple field by its source index
         if let Some(field) = layout.source_field(index) {
             return Ok((field.ty, field.offset));
         }
 
-        // fixed arrays place each source at one stride
+        // multiply the array index by the element stride
         if let Some(element) = layout.element().filter(|element| index < element.count) {
             return Ok((element.element, element.stride * index));
         }
 
-        // newtypes place their sole backing value at byte zero
+        // place the newtype's backing value at byte zero
         if let mir::LayoutShape::Newtype(newtype) = layout.shape
             && index == 0
         {
@@ -258,6 +262,7 @@ impl<'a> FunctionEmitter<'a> {
         layout: &mir::Layout,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // collect the occupied field ranges
         let mut fields = layout
             .shape
             .fields()
@@ -302,6 +307,7 @@ impl<'a> FunctionEmitter<'a> {
         field: u32,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // resolve the aggregate storage type
         let aggregate_type = self
             .optimized
             .tree
@@ -313,8 +319,7 @@ impl<'a> FunctionEmitter<'a> {
                 self.reference(aggregate, builder)?,
             ),
 
-            // owned aggregates live inline, so a field address offsets the
-            //  container's own storage
+            // offset the field from the aggregate storage
             _ => {
                 self.require_frame_reference(destination)?;
 
@@ -342,16 +347,17 @@ impl<'a> FunctionEmitter<'a> {
         index: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // resolve the indexed storage type
         let base_type = self.optimized.tree.storage_type(self.value_type(base)?);
         let address = match self.optimized.tree.get(base_type) {
-            // fixed arrays are canonical frame values
+            // offset the element from the array storage
             mir::Type::FixedArray { .. } => {
                 self.require_frame_reference(destination)?;
 
                 self.address(base)?
             }
 
-            // indexed references and fat pointers carry stable reference offsets
+            // offset the element from the indexed reference
             mir::Type::Reference { .. } | mir::Type::Pointer { .. } | mir::Type::Slice { .. } => {
                 self.reference(base, builder)?
             }
@@ -368,6 +374,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Require one frame-relative result reference.
     fn require_frame_reference(&self, destination: mir::Value) -> Result<(), EmitError> {
+        // resolve the value storage type
         let ty = self
             .optimized
             .tree

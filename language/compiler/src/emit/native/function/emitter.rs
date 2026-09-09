@@ -79,6 +79,7 @@ impl<'a> FunctionEmitter<'a> {
         function_index: u32,
         frame_base: u32,
     ) -> Result<Self, EmitError> {
+        // require a defined function body
         let body = function
             .body()
             .ok_or_else(|| Self::internal(module, "native function has no body"))?;
@@ -239,6 +240,7 @@ impl<'a> FunctionEmitter<'a> {
         &mut self,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the MIR entry block
         let entry = self
             .function
             .entry()
@@ -299,6 +301,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Return successors reached without deoptimization or stopping.
     fn successors(&self, block_id: mir::BlockId) -> Vec<mir::BlockId> {
+        // check whether a breakpoint stops the block
         let block = self.optimized.tree.get(block_id);
         let stops = block.instructions.iter().any(|instruction| {
             matches!(
@@ -309,6 +312,8 @@ impl<'a> FunctionEmitter<'a> {
         if stops {
             return Vec::new();
         }
+
+        // read the terminator after checking for a breakpoint
         let terminator = self.optimized.tree.get(block.terminator);
 
         terminator.successors(&self.optimized.tree).into_vec()
@@ -364,9 +369,11 @@ impl<'a> FunctionEmitter<'a> {
         &mut self,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // order the function blocks for emission
         let mut blocks = self.function.blocks().to_vec();
         self.object.order_blocks(&mut blocks);
 
+        // emit instructions and terminators in block order
         for block_id in blocks {
             let Some(&target) = self.blocks.get(&block_id) else {
                 continue;
@@ -401,6 +408,7 @@ impl<'a> FunctionEmitter<'a> {
 
             // terminate the block exactly once
             if is_active {
+                // read the terminator after checking for a breakpoint
                 let terminator = self.optimized.tree.get(block.terminator);
                 self.emit_terminator(block_id, terminator, builder)?;
             }

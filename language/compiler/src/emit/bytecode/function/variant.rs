@@ -14,6 +14,7 @@ impl<'a> FunctionEmitter<'a> {
         payload: Option<mir::Value>,
         result_type: mir::TypeId,
     ) -> Result<(), EmitError> {
+        // encode the variant tag and payload
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::VARIANT_NEW);
         let result_type = self.optimized.tree.storage_type(result_type);
         let result_type = self.types.type_id(result_type)?;
@@ -35,6 +36,7 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         variant: mir::Value,
     ) -> Result<(), EmitError> {
+        // read the variant storage type
         let ty = self
             .function
             .value_type(variant)
@@ -55,6 +57,7 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         variant: mir::Value,
     ) -> Result<(), EmitError> {
+        // read the variant layout
         let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
         let variant_type = self.types.pointee(variant_type)?;
         let opcode = bytecode::Opcode::variant_tag_load(self.address(variant)?);
@@ -74,6 +77,7 @@ impl<'a> FunctionEmitter<'a> {
         variant: mir::Value,
         case: u32,
     ) -> Result<(), EmitError> {
+        // read the variant payload layout
         let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
         let (byte_offset, byte_len) = self.types.variant(variant_type, case)?;
 

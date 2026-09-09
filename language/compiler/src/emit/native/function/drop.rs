@@ -16,6 +16,7 @@ impl FunctionEmitter<'_> {
         value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // select the destructor for the value type
         let ty = self.value_type(value)?;
         if let Some(destructor) = self.optimized.drops.destructor(ty, mir::Storage::Frame) {
             let function = self

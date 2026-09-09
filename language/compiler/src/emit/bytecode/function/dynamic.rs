@@ -13,6 +13,7 @@ impl<'a> FunctionEmitter<'a> {
         payload: mir::Value,
         concrete: mir::TypeId,
     ) -> Result<(), EmitError> {
+        // read the dynamic representation and its dispatch table
         let dynamic_type = self
             .optimized
             .tree

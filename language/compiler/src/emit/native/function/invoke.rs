@@ -19,6 +19,7 @@ impl FunctionEmitter<'_> {
         point: Point,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // build the call frame map
         let frame = self.stack_map(FramePoint::operation(point), builder)?;
         let call = self.call(call, &frame, builder)?;
         let returned = builder.create_block();

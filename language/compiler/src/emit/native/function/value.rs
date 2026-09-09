@@ -113,6 +113,7 @@ impl<'a> FunctionEmitter<'a> {
         &mut self,
         builder: &mut FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // allocate storage for each local
         for local_id in self.function.locals() {
             let local = self.optimized.tree.get(*local_id);
             let value_type = self.types.value(local.ty)?;
@@ -254,6 +255,7 @@ impl<'a> FunctionEmitter<'a> {
         value_type: ValueType,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        // read the physical layout of the stored value
         let layout = self
             .optimized
             .layouts
@@ -290,6 +292,7 @@ impl<'a> FunctionEmitter<'a> {
         scalar: mir::Scalar,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
+        // read the source scalar type
         let source = builder.func.dfg.value_type(value);
         let width = scalar.primitive.bit_width();
         let integer = cir::Type::int(width)
@@ -422,6 +425,7 @@ impl<'a> FunctionEmitter<'a> {
 
     /// Return the backing reference byte offset in one reference-like value.
     fn reference_offset(&self, value: mir::Value) -> Result<u32, EmitError> {
+        // resolve the reference storage type
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let offset = match self.optimized.tree.get(ty) {
             mir::Type::Function { .. } => self.types.pointer().bytes(),
