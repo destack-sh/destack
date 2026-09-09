@@ -42,15 +42,15 @@ type Box {
     value: int32;
 }
 
-function consume(v0: ref<Box, unique, mutable>): void {
-entry(v0: ref<Box, unique, mutable>):
+function consume(v0: ref<Box, unique, mutable, local>): void {
+entry(v0: ref<Box, unique, mutable, local>):
     return
 }
 
-function test(v0: ref<Box, unique, mutable>): void {
-entry(v0: ref<Box, unique, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
-    call consume(v0): (ref<Box, unique, mutable>) => void
+function test(v0: ref<Box, unique, mutable, local>): void {
+entry(v0: ref<Box, unique, mutable, local>):
+    v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+    call consume(v0): (ref<Box, unique, mutable, local>) => void
     v2: int32 = load v1
     return
 }
@@ -62,12 +62,12 @@ entry(v0: ref<Box, unique, mutable>):
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
   ──▶ <test.dsm>:14:5
    │
-11 │ function test(v0: ref<Box, unique, mutable>): void {
-12 │ entry(v0: ref<Box, unique, mutable>):
-13 │     v1: ref<int32, borrowed, mutable> = field.address v0, 0
-   │     ------------------------------------------------------- borrow starts here
-14 │     call consume(v0): (ref<Box, unique, mutable>) => void
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 │ function test(v0: ref<Box, unique, mutable, local>): void {
+12 │ entry(v0: ref<Box, unique, mutable, local>):
+13 │     v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
+   │     ---------------------------------------------------------------------- borrow starts here
+14 │     call consume(v0): (ref<Box, unique, mutable, local>) => void
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 15 │     v2: int32 = load v1
 16 │     return
    │
@@ -82,13 +82,13 @@ fn test_reject_move_out_through_reference() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
-    v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
-    v2: ref<int32, unique, mutable> = load v1
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, local>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, local> = field.address v0, 0
+    v2: ref<int32, unique, mutable, local> = load v1
     return
 }
 "#,
@@ -99,10 +99,10 @@ entry(v0: ref<Box, borrowed, exclusive>):
 error[move-out-of-reference]: cannot move out through a reference
   ──▶ <test.dsm>:9:5
    │
- 7 │ entry(v0: ref<Box, borrowed, exclusive>):
- 8 │     v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
- 9 │     v2: ref<int32, unique, mutable> = load v1
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 7 │ entry(v0: ref<Box, borrowed, 'a, mutable, local>):
+ 8 │     v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, local> = field.address v0, 0
+ 9 │     v2: ref<int32, unique, mutable, local> = load v1
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 10 │     return
 11 │ }
    │
@@ -112,54 +112,39 @@ for more information about an error, run `destack explain move-out-of-reference`
     );
 }
 
-/// A store over a move-only value through a mutable borrow is rejected, since the store frees the old value.
+/// A move-only value may be stored through a mutable borrow, the old value dropping deferred.
 #[test]
-fn test_reject_a_move_only_store_through_a_mutable_borrow() {
+fn test_allow_a_move_only_store_through_a_mutable_borrow() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>):
-    v2: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<int32, unique, mutable, local>):
+    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
 "#,
     );
 
-    program.assert_verify_errors(
-        r#"
-error[overwrite-without-exclusive]: cannot overwrite this storage without exclusive access
-  ──▶ <test.dsm>:9:5
-   │
- 7 │ entry(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>):
- 8 │     v2: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
- 9 │     store v2, v1
-   │     ^^^^^^^^^^^^
-10 │     return
-11 │ }
-   │
-
-for more information about an error, run `destack explain overwrite-without-exclusive`
-"#,
-    );
+    program.assert_verified();
 }
 
 /// A store over a move-only value through an exclusive borrow is allowed; elaboration drops the old value.
 #[test]
-fn test_allow_a_move_only_store_through_an_exclusive_borrow() {
+fn test_allow_a_move_only_store_through_an_mutable_borrow() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<Box, borrowed, exclusive>, v1: ref<int32, unique, mutable>):
-    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<int32, unique, mutable, local>):
+    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, local> = field.address v0, 0
     store v2, v1
     return
 }
@@ -174,16 +159,16 @@ fn test_reject_move_out_of_drop() {
     let mut program = TestProgram::mir(
         r#"
 type Row {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-external function dropRow(ref<Row, borrowed, exclusive>): void
+external function dropRow<'a>(ref<Row, borrowed, 'a, mutable, local>): void
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Row = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
     return
 }
 "#,
@@ -195,10 +180,10 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 error[move-out-of-drop]: cannot move out of a value that implements Drop
   ──▶ <test.dsm>:12:5
    │
-10 │ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+10 │ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
 11 │     v2: Row = aggregate (v0, v1)
-12 │     v3: ref<int32, unique, mutable> = field.get v2, 0
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 │     v3: ref<int32, unique, mutable, local> = field.get v2, 0
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 13 │     return
 14 │ }
    │
@@ -212,13 +197,13 @@ for more information about an error, run `destack explain move-out-of-drop`
 fn test_reject_move_out_of_variant_with_drop() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable, local>; };
 
-external function dropValue(ref<Value, borrowed, exclusive>): void
+external function dropValue<'a>(ref<Value, borrowed, 'a, mutable, local>): void
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable> = variant.payload v0, 0
+    v1: ref<int32, unique, mutable, local> = variant.payload v0, 0
     return
 }
 "#,
@@ -232,8 +217,8 @@ error[move-out-of-drop]: cannot move out of a value that implements Drop
    │
  6 │ function test(v0: Value): void {
  7 │ entry(v0: Value):
- 8 │     v1: ref<int32, unique, mutable> = variant.payload v0, 0
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 8 │     v1: ref<int32, unique, mutable, local> = variant.payload v0, 0
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  9 │     return
 10 │ }
    │
@@ -249,13 +234,13 @@ fn test_allow_taking_a_unique_pointee_before_its_free() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, unique, mutable>): Box {
-entry(v0: ref<Box, unique, mutable>):
+function test(v0: ref<Box, unique, mutable, local>): Box {
+entry(v0: ref<Box, unique, mutable, local>):
     v1: Box = load v0
-    free v0
+    release v0
     return v1
 }
 "#,
@@ -270,14 +255,14 @@ fn test_reject_a_second_load_of_a_taken_unique_pointee() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, unique, mutable>): Box {
-entry(v0: ref<Box, unique, mutable>):
+function test(v0: ref<Box, unique, mutable, local>): Box {
+entry(v0: ref<Box, unique, mutable, local>):
     v1: Box = load v0
     v2: Box = load v0
-    free v0
+    release v0
     return v2
 }
 "#,
@@ -288,26 +273,26 @@ entry(v0: ref<Box, unique, mutable>):
 error[use-after-move]: use of moved value
   ──▶ <test.dsm>:9:5
    │
- 6 │ function test(v0: ref<Box, unique, mutable>): Box {
- 7 │ entry(v0: ref<Box, unique, mutable>):
+ 6 │ function test(v0: ref<Box, unique, mutable, local>): Box {
+ 7 │ entry(v0: ref<Box, unique, mutable, local>):
  8 │     v1: Box = load v0
    │     ----------------- value moved here
  9 │     v2: Box = load v0
    │     ^^^^^^^^^^^^^^^^^
-10 │     free v0
+10 │     release v0
 11 │     return v2
    │
 
 error[use-after-move]: use of moved value
   ──▶ <test.dsm>:9:5
    │
- 6 │ function test(v0: ref<Box, unique, mutable>): Box {
- 7 │ entry(v0: ref<Box, unique, mutable>):
+ 6 │ function test(v0: ref<Box, unique, mutable, local>): Box {
+ 7 │ entry(v0: ref<Box, unique, mutable, local>):
  8 │     v1: Box = load v0
    │     ----------------- value moved here
  9 │     v2: Box = load v0
    │     ^^^^^^^^^^^^^^^^^
-10 │     free v0
+10 │     release v0
 11 │     return v2
    │
 
@@ -322,14 +307,14 @@ fn test_reject_a_free_of_a_freed_reference() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, unique, mutable>): Box {
-entry(v0: ref<Box, unique, mutable>):
+function test(v0: ref<Box, unique, mutable, local>): Box {
+entry(v0: ref<Box, unique, mutable, local>):
     v1: Box = load v0
-    free v0
-    free v0
+    release v0
+    release v0
     return v1
 }
 "#,
@@ -340,12 +325,12 @@ entry(v0: ref<Box, unique, mutable>):
 error[use-after-move]: use of moved value
   ──▶ <test.dsm>:10:5
    │
- 7 │ entry(v0: ref<Box, unique, mutable>):
+ 7 │ entry(v0: ref<Box, unique, mutable, local>):
  8 │     v1: Box = load v0
- 9 │     free v0
-   │     ------- value moved here
-10 │     free v0
-   │     ^^^^^^^
+ 9 │     release v0
+   │     ---------- value moved here
+10 │     release v0
+   │     ^^^^^^^^^^
 11 │     return v1
 12 │ }
    │
@@ -361,11 +346,11 @@ fn test_reject_a_move_out_through_a_managed_reference() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, managed, mutable>): Box {
-entry(v0: ref<Box, managed, mutable>):
+function test(v0: ref<Box, managed, mutable, local>): Box {
+entry(v0: ref<Box, managed, mutable, local>):
     v1: Box = load v0
     return v1
 }
@@ -377,8 +362,8 @@ entry(v0: ref<Box, managed, mutable>):
 error[move-out-of-reference]: cannot move out through a reference
   ──▶ <test.dsm>:8:5
    │
- 6 │ function test(v0: ref<Box, managed, mutable>): Box {
- 7 │ entry(v0: ref<Box, managed, mutable>):
+ 6 │ function test(v0: ref<Box, managed, mutable, local>): Box {
+ 7 │ entry(v0: ref<Box, managed, mutable, local>):
  8 │     v1: Box = load v0
    │     ^^^^^^^^^^^^^^^^^
  9 │     return v1
@@ -398,7 +383,7 @@ fn test_reject_a_destructuring_move_while_the_value_is_borrowed() {
 struct Token implements Drop {
     id: int32;
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 struct S {
@@ -431,7 +416,7 @@ fn test_reject_a_move_while_the_value_is_borrowed() {
 struct Token implements Drop {
     id: int32;
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 function take(token: Token): void {}

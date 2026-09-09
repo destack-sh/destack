@@ -140,16 +140,16 @@ type Slot<T> {
     value: T;
 }
 
-function copies(v0: ref<Slot<int32>, borrowed, readonly, local>): Slot<int32> {
-entry(v0: ref<Slot<int32>, borrowed, readonly, local>):
+function copies<'a>(v0: ref<Slot<int32>, borrowed, 'a, readonly, local>): Slot<int32> {
+entry(v0: ref<Slot<int32>, borrowed, 'a, readonly, local>):
     v1: Slot<int32> = load v0
     v2: Slot<int32> = load v0
     return v1
 }
 
-function moves(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, readonly, local>): Slot<ref<int32, unique, mutable>> {
-entry(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, readonly, local>):
-    v1: Slot<ref<int32, unique, mutable>> = load v0
+function moves<'a>(v0: ref<Slot<ref<int32, unique, mutable, local>>, borrowed, 'a, readonly, local>): Slot<ref<int32, unique, mutable, local>> {
+entry(v0: ref<Slot<ref<int32, unique, mutable, local>>, borrowed, 'a, readonly, local>):
+    v1: Slot<ref<int32, unique, mutable, local>> = load v0
     return v1
 }
 "#,
@@ -159,10 +159,10 @@ entry(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, readonly, local>):
 error[move-out-of-reference]: cannot move out through a reference
   ──▶ <test.dsm>:16:5
    │
-14 │ function moves(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, readonly, local>): Slot<ref<int3··
-15 │ entry(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, readonly, local>):
-16 │     v1: Slot<ref<int32, unique, mutable>> = load v0
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+14 │ function moves<'a>(v0: ref<Slot<ref<int32, unique, mutable, local>>, borrowed, 'a, readonly, local>)··
+15 │ entry(v0: ref<Slot<ref<int32, unique, mutable, local>>, borrowed, 'a, readonly, local>):
+16 │     v1: Slot<ref<int32, unique, mutable, local>> = load v0
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 17 │     return v1
 18 │ }
    │

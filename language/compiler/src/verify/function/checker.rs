@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use destack_mir::{
     Access, AliasTable, Block, Copy, EscapeTable, Function, FunctionCache, InitializationTable,
-    Lifetime, LiveSet, LivenessTable, LoanId, LocalNodeId, LocalNodeIdAny, LoopTable, MemoryTable,
+    LiveSet, LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, LoopTable, MemoryTable,
     MovePathId, MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable,
-    Point, Projection, RetentionTable, SafepointKind, SafepointTable, Terminator, Tree, Type,
+    Point, Projection, ReferenceKind, RetentionTable, SafepointTable, Terminator, Tree, Type,
     TypeId, Value,
 };
 
@@ -122,8 +122,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         self.reported.insert((loan, anchor))
     }
 
-    /// Check the function, answering what elaboration needs: moves first, so a moved value
-    /// reports before the borrows it breaks, then the constructor's initialization, then borrows.
+    /// Check the function: moves, then the constructor's initialization, then borrows.
     pub(in crate::verify) fn check(mut self) -> FunctionVerdict {
         self.check_moves();
         self.check_initialization();
@@ -172,8 +171,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
                 Some(&instruction) => Point::Instruction(instruction),
                 None => Point::Terminator(block_id),
             };
-            let handles = self.live_handles();
-            self.safepoints.insert(point, SafepointKind::Poll, handles);
+            self.safepoints.insert(point);
         }
 
         // check and transfer each instruction in execution order
@@ -208,9 +206,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
         // poll the runtime before a tail call
         if matches!(terminator, Terminator::TailCall { .. }) {
-            let handles = self.live_handles();
-            self.safepoints
-                .insert(Point::Terminator(block_id), SafepointKind::Poll, handles);
+            self.safepoints.insert(Point::Terminator(block_id));
         }
 
         self.check_terminator(block_id, block.terminator, terminator);
@@ -284,45 +280,55 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         (representation != origin).then_some(owner)
     }
 
-    /// Return one structural field type and its applied lifetimes.
-    pub(super) fn field_type(&self, aggregate: Value, field: u32) -> (TypeId, Vec<Lifetime>) {
+    /// Return one structural field type.
+    pub(super) fn field_type(&self, aggregate: Value, field: u32) -> TypeId {
         let ty = self.function.expect_value_type(aggregate);
-        let (ty, lifetimes) = self.tree.split_lifetime_application(ty);
-        let field = self
-            .tree
+        let ty = self.tree.represented(ty);
+
+        self.tree
             .get(ty)
             .field_type(field, self.tree)
-            .unwrap_or_else(|| unreachable!("aggregate has no field {field}"));
-
-        (field, lifetimes.to_vec())
+            .unwrap_or_else(|| unreachable!("aggregate has no field {field}"))
     }
 
-    /// Return one fixed-array element type and its applied lifetimes.
-    pub(super) fn element_type(&self, aggregate: Value) -> (TypeId, Vec<Lifetime>) {
+    /// Return one fixed-array element type.
+    pub(super) fn element_type(&self, aggregate: Value) -> TypeId {
         let ty = self.function.expect_value_type(aggregate);
-        let (ty, lifetimes) = self.tree.split_lifetime_application(ty);
+        let ty = self.tree.represented(ty);
         let Type::FixedArray { element, .. } = self.tree.get(ty) else {
             unreachable!("element.set aggregate has no fixed-array type")
         };
 
-        (*element, lifetimes.to_vec())
+        *element
     }
 
-    /// Return one aggregate slot type and its applied lifetimes.
-    pub(super) fn slot_type(&self, aggregate: Value, index: usize) -> (TypeId, Vec<Lifetime>) {
+    /// Return one aggregate slot type, a newtype over a variant taking its value at the case
+    /// the value fills.
+    pub(super) fn slot_type(&self, aggregate: Value, index: usize, value: Value) -> TypeId {
         let ty = self.function.expect_value_type(aggregate);
-        let (ty, lifetimes) = self.tree.split_lifetime_application(ty);
+        let ty = self.tree.represented(ty);
         let aggregate = self.tree.get(ty);
         let slot = match aggregate {
             Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
             Type::Tuple { elements, .. } => elements.get(index).copied(),
             Type::FixedArray { element, .. } => Some(*element),
-            Type::Newtype { inner, .. } if index == 0 => Some(*inner),
+            Type::Newtype { inner, .. } if index == 0 => {
+                let inner = self.tree.represented(*inner);
+                match self.tree.get(inner) {
+                    Type::Variant { cases, .. } => {
+                        let filled = TypeId::from(self.function.expect_value_type(value));
+                        cases
+                            .iter()
+                            .map(|case| case.ty)
+                            .find(|case| self.tree.same_representation(*case, filled))
+                    }
+                    _ => Some(inner),
+                }
+            }
             _ => None,
-        }
-        .unwrap_or_else(|| unreachable!("aggregate has no slot {index}"));
+        };
 
-        (slot, lifetimes.to_vec())
+        slot.unwrap_or_else(|| unreachable!("aggregate has no slot {index}"))
     }
 
     /// Return one callsite's statically resolved function.
@@ -354,7 +360,7 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         Copy::decide(self.tree, ty, &self.function.generics).is_no()
     }
 
-    /// Return whether one value stores a variant, whose case a store may change.
+    /// Return whether one value stores a variant, a store changing its case.
     pub(super) fn is_variant(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
@@ -368,11 +374,31 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         self.verification.drops.has_hook(ty)
     }
 
-    /// Return whether one reference grants exclusive access.
-    pub(super) fn is_exclusive(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
+    /// Return whether one loan excludes every other access: a write over owned storage, which
+    /// the borrow check proves exclusive.
+    pub(super) fn is_exclusive(&self, loan: &Loan) -> bool {
+        loan.writes() && loan.place().is_some_and(|place| self.owns_place(place))
+    }
 
-        self.tree.get(ty).reference_access() == Some(Access::Exclusive)
+    /// Return whether one address names owned storage.
+    pub(super) fn addresses_owned_storage(&self, pointer: Value) -> bool {
+        self.owns_place(self.places.get(pointer))
+    }
+
+    /// Return whether one place is owned storage.
+    fn owns_place(&self, place: &Place) -> bool {
+        match (place.origin, place.path.first()) {
+            (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
+                let ty = self.tree.get(local).ty;
+
+                self.tree.get(ty).reference_kind() == Some(ReferenceKind::Unique)
+            }
+            (PlaceOrigin::Local(_) | PlaceOrigin::Global(_), _) => true,
+            (PlaceOrigin::Value(value), _) => !matches!(
+                self.function.reference_kind(value, self.tree),
+                Some(ReferenceKind::Managed | ReferenceKind::Borrowed)
+            ),
+        }
     }
 
     /// Return whether one reference addresses uninitialized storage.

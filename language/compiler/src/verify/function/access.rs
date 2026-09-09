@@ -1,6 +1,6 @@
 use destack_mir::{
     Access, Block, Instruction, Lifetime, Loan, LoanId, LocalId, LocalNodeId, LocalNodeIdAny,
-    MemoryAccessEffect, MemoryLocation, MemoryRegion, Place, PlaceOrigin, Point, Projection,
+    MemoryAccessEffect, MemoryLocation, MemoryRegion, Place, PlaceOrigin, Projection,
     ReferenceKind, Storage, Terminator, Type, TypeId, Value,
 };
 
@@ -18,12 +18,6 @@ impl FunctionChecker<'_, '_> {
         instruction: &Instruction,
     ) {
         let anchor = instruction_id.into_any();
-
-        // hold the handles of managed borrows live across a parking call
-        if instruction.call_dispatch().is_some() {
-            let callsite = Point::Instruction(instruction_id);
-            self.hold_park(callsite, instruction.call_direct_target());
-        }
 
         // enforce every memory effect against active loans
         self.check_instruction_memory(instruction_id, instruction, anchor);
@@ -45,7 +39,7 @@ impl FunctionChecker<'_, '_> {
             Instruction::LocalSet { local, value } => {
                 self.check_invalidation(&Place::local(*local), anchor);
                 let ty = self.tree.get(*local).ty;
-                self.check_write(*value, ty, &[], anchor);
+                self.check_write(*value, ty, anchor);
             }
             Instruction::Store { pointer, value } => {
                 self.check_store(*pointer, *value, anchor);
@@ -55,8 +49,8 @@ impl FunctionChecker<'_, '_> {
                 values,
             } => {
                 for (index, value) in self.tree.get_values(*values).iter().copied().enumerate() {
-                    let (ty, lifetimes) = self.slot_type(*destination, index);
-                    self.check_write(value, ty, &lifetimes, anchor);
+                    let ty = self.slot_type(*destination, index, value);
+                    self.check_write(value, ty, anchor);
                 }
             }
             Instruction::FieldAddr {
@@ -110,14 +104,14 @@ impl FunctionChecker<'_, '_> {
                 value,
                 ..
             } => {
-                let (ty, lifetimes) = self.field_type(*aggregate, *field);
-                self.check_write(*value, ty, &lifetimes, anchor);
+                let ty = self.field_type(*aggregate, *field);
+                self.check_write(*value, ty, anchor);
             }
             Instruction::ElementSet {
                 aggregate, value, ..
             } => {
-                let (ty, lifetimes) = self.element_type(*aggregate);
-                self.check_write(*value, ty, &lifetimes, anchor);
+                let ty = self.element_type(*aggregate);
+                self.check_write(*value, ty, anchor);
             }
             Instruction::VariantNew {
                 payload: Some(payload),
@@ -125,16 +119,15 @@ impl FunctionChecker<'_, '_> {
                 result_type,
                 ..
             } => {
-                let (result_type, lifetimes) = self.tree.split_lifetime_application(*result_type);
-                let lifetimes = lifetimes.to_vec();
+                let result_type = self.tree.represented(*result_type);
                 let Type::Variant { cases, .. } = self.tree.get(result_type) else {
                     unreachable!("variant.new result has no variant type")
                 };
                 let ty = cases
                     .get(*case as usize)
-                    .map(|case| case.ty)
+                    .map(|case| case.payload(self.tree))
                     .unwrap_or_else(|| unreachable!("variant.new case is out of range"));
-                self.check_write(*payload, ty, &lifetimes, anchor);
+                self.check_write(*payload, ty, anchor);
             }
             Instruction::GlobalAddr { destination, .. } => {
                 self.check_loan(*destination, anchor);
@@ -175,29 +168,12 @@ impl FunctionChecker<'_, '_> {
         // enforce terminator memory effects against active loans
         self.check_terminator_memory(block_id, terminator, anchor);
 
-        // hold the handles of managed borrows live across a parking call
-        if terminator.call_dispatch().is_some() {
-            let callsite = Point::Terminator(block_id);
-            self.hold_park(callsite, terminator.call_direct_target());
-        }
-
         // check tail-call result retention against the function return lifetime
         self.check_tail_call_return(block_id, terminator, anchor);
 
         // invalidate loans rooted in consumed terminator values
         for value in terminator.consumes(self.tree) {
             self.invalidate_value(value, anchor);
-        }
-    }
-
-    /// Return whether one address names owned storage: a frame place or a unique pointee.
-    fn addresses_owned_storage(&self, pointer: Value) -> bool {
-        match self.places.get(pointer).origin {
-            PlaceOrigin::Local(_) => true,
-            PlaceOrigin::Global(_) => false,
-            PlaceOrigin::Value(_) => {
-                self.function.reference_kind(pointer, self.tree) == Some(ReferenceKind::Unique)
-            }
         }
     }
 
@@ -367,7 +343,7 @@ impl FunctionChecker<'_, '_> {
                     effect.region,
                     MemoryRegion::Local(_) | MemoryRegion::Address { .. }
                 );
-                let is_conflicting = (effect.writes && is_assignment) || loan.is_exclusive();
+                let is_conflicting = (effect.writes && is_assignment) || self.is_exclusive(loan);
                 if !is_conflicting || authorized.contains(loan_id.index()) {
                     continue;
                 }
@@ -430,10 +406,10 @@ impl FunctionChecker<'_, '_> {
                 .place()
                 .is_some_and(|place| self.alias.may_overlap(&Place::local(*local), place)),
             MemoryRegion::Address { location, .. } => {
-                let place = self.places.get(location.address.value()).clone();
+                let place = self.places.get(location.address.value());
 
                 loan.place()
-                    .is_some_and(|loan| self.alias.may_overlap(&place, loan))
+                    .is_some_and(|loan| self.alias.may_overlap(place, loan))
             }
             MemoryRegion::Place(_) | MemoryRegion::Any { .. } => {
                 let location = MemoryLocation::from_address(loan.representation);
@@ -478,28 +454,29 @@ impl FunctionChecker<'_, '_> {
             }
             _ => false,
         };
-        let is_shared_exclusive = !is_rejected
+        let is_shared_mutable = !is_rejected
             && !is_uninit
-            && loan.access.is_exclusive()
+            && loan.access.can_write()
             && storage.is_some_and(Storage::is_shared);
-        let conflict = if is_rejected || is_shared_exclusive {
+        let conflict = if is_rejected || is_shared_mutable {
             None
         } else {
-            self.origin
-                .loans()
-                .conflict(loan, &self.active_loans, |left, right| {
-                    self.alias.may_overlap(left, right)
-                })
+            self.origin.loans().conflict(
+                loan,
+                &self.active_loans,
+                |left, right| self.alias.may_overlap(left, right),
+                |loan| self.is_exclusive(loan),
+            )
         };
         let conflict = match conflict {
             Some(conflict) if !self.reports(conflict, anchor) => None,
             other => other.map(|conflict| self.origin.loans().get(conflict).issued_at),
         };
 
-        // reject exclusive access to shared storage
-        if is_shared_exclusive {
+        // reject mutable access to shared storage
+        if is_shared_mutable {
             self.verification
-                .emit_error(VerifyError::ExclusiveBorrowFromSharedStorage {
+                .emit_error(VerifyError::MutableBorrowFromSharedStorage {
                     anchor: self.verification.anchor(anchor),
                 });
             self.reject_loan(reference);
@@ -527,13 +504,12 @@ impl FunctionChecker<'_, '_> {
         }
 
         let pointer_type = self.function.expect_value_type(pointer);
-        let (pointer_type, lifetimes) = self.tree.split_lifetime_application(pointer_type);
-        let lifetimes = lifetimes.to_vec();
+        let pointer_type = self.tree.represented(pointer_type);
         let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
             unreachable!("safe store pointer has no reference type")
         };
 
-        self.check_write(value, *pointee, &lifetimes, anchor);
+        self.check_write(value, *pointee, anchor);
     }
 
     /// Check reference access granted to call arguments.
@@ -590,11 +566,11 @@ impl FunctionChecker<'_, '_> {
                 )
             });
 
-            // reject exclusive access to shared storage
+            // reject mutable access to shared storage
             let storage = loan.place().and_then(|place| self.alias.storage(place));
-            if !is_issued && loan.is_exclusive() && storage.is_some_and(Storage::is_shared) {
+            if !is_issued && loan.writes() && storage.is_some_and(Storage::is_shared) {
                 self.verification
-                    .emit_error(VerifyError::ExclusiveBorrowFromSharedStorage {
+                    .emit_error(VerifyError::MutableBorrowFromSharedStorage {
                         anchor: self.verification.anchor(anchor),
                     });
 
@@ -606,9 +582,12 @@ impl FunctionChecker<'_, '_> {
                 && let Some(conflict) = self
                     .origin
                     .loans()
-                    .conflict(&loan, &self.active_loans, |left, right| {
-                        self.alias.may_overlap(left, right)
-                    })
+                    .conflict(
+                        &loan,
+                        &self.active_loans,
+                        |left, right| self.alias.may_overlap(left, right),
+                        |loan| self.is_exclusive(loan),
+                    )
                     .map(|conflict| self.origin.loans().get(conflict).issued_at)
             {
                 let active_borrow = self.verification.anchor(conflict);
@@ -623,14 +602,14 @@ impl FunctionChecker<'_, '_> {
 
             // check arguments whose temporary loans overlap each other
             if loans.iter().any(|active: &Loan| {
-                (active.is_exclusive() || loan.is_exclusive())
+                (self.is_exclusive(active) || self.is_exclusive(&loan))
                     && active
                         .place()
                         .zip(loan.place())
                         .is_some_and(|(left, right)| self.alias.may_overlap(left, right))
             }) {
                 self.verification
-                    .emit_error(VerifyError::ExclusiveArgumentAlias {
+                    .emit_error(VerifyError::MutableArgumentAlias {
                         anchor: self.verification.anchor(anchor),
                     });
             }
@@ -656,24 +635,14 @@ impl FunctionChecker<'_, '_> {
     }
 
     /// Check one value against its declared destination type.
-    fn check_write(
-        &mut self,
-        value: Value,
-        destination: TypeId,
-        lifetimes: &[Lifetime],
-        anchor: LocalNodeIdAny,
-    ) {
-        let bindings = self.state.value_bindings(&self.context(), value);
+    fn check_write(&mut self, value: Value, destination: TypeId, anchor: LocalNodeIdAny) {
+        let bindings = self.state.value_borrows(&self.context(), value);
         if bindings.is_empty() {
             return;
         }
 
-        let paths = self
-            .tree
-            .type_borrowed_paths_with_lifetimes(destination, lifetimes, true);
-        let root = self
-            .tree
-            .type_lifetime_with_lifetimes(destination, lifetimes);
+        let paths = self.tree.type_origin_paths(destination);
+        let root = self.tree.type_lifetime(destination);
 
         // prove every stored borrow against its exact destination path
         for (path, origin) in bindings {
@@ -682,8 +651,7 @@ impl FunctionChecker<'_, '_> {
                 .find(|borrowed| borrowed.path == path)
                 .map(|borrowed| borrowed.lifetime.clone())
                 .or_else(|| path.is_root().then(|| root.clone()).flatten())
-                .filter(|lifetime| !lifetime.is_empty())
-                .unwrap_or_else(Lifetime::frame);
+                .unwrap_or_else(Lifetime::empty);
             if origin.is_empty() || !origin.is_covered_by(&required, &self.function.lifetimes) {
                 self.verification
                     .emit_error(VerifyError::BorrowOutlivesOrigin {

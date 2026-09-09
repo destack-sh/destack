@@ -8,14 +8,14 @@ type Box {
     value: int32;
 }
 
-function test(): ref<int32, borrowed, mutable> {
+function test<'a>(): ref<int32, borrowed, 'a, mutable, local> {
     local l0: Box
 entry:
     v0: int32 = 0
     v1: Box = aggregate (v0)
     local.set l0, v1
-    v2: ref<Box, borrowed, mutable, frame> = local.address l0
-    v3: ref<int32, borrowed, mutable> = field.address v2, 0
+    v2: ref<Box, borrowed, 'frame, mutable, frame> = local.address l0
+    v3: ref<int32, borrowed, 'frame, mutable, local> = field.address v2, 0
     return v3
 }
 "#,
@@ -26,8 +26,8 @@ entry:
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:14:5
    │
-12 │     v2: ref<Box, borrowed, mutable, frame> = local.address l0
-13 │     v3: ref<int32, borrowed, mutable> = field.address v2, 0
+12 │     v2: ref<Box, borrowed, 'frame, mutable, frame> = local.address l0
+13 │     v3: ref<int32, borrowed, 'frame, mutable, local> = field.address v2, 0
 14 │     return v3
    │     ^^^^^^^^^
 15 │ }
@@ -43,43 +43,14 @@ for more information about an error, run `destack explain borrow-outlives-origin
 fn test_allow_parameter_return_when_declared() {
     let mut program = TestProgram::mir(
         r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable>): ref<int32, borrowed, 'a, mutable> {
-entry(v0: ref<int32, borrowed, 'a, mutable>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): ref<int32, borrowed, 'a, mutable, local> {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     return v0
 }
 "#,
     );
 
     program.assert_verified();
-}
-
-#[test]
-fn test_reject_parameter_return_without_declared_lifetime() {
-    let mut program = TestProgram::mir(
-        r#"
-function test(v0: ref<int32, borrowed, mutable>): ref<int32, borrowed, mutable> {
-entry(v0: ref<int32, borrowed, mutable>):
-    return v0
-}
-"#,
-    );
-
-    program.assert_verify_errors(
-        r#"
-error[borrow-outlives-origin]: borrow does not live long enough
- ──▶ <test.dsm>:4:5
-  │
-2 │ function test(v0: ref<int32, borrowed, mutable>): ref<int32, borrowed, mutable> {
-3 │ entry(v0: ref<int32, borrowed, mutable>):
-4 │     return v0
-  │     ^^^^^^^^^
-5 │ }
-6 │
-  │
-
-for more information about an error, run `destack explain borrow-outlives-origin`
-"#,
-    );
 }
 
 #[test]
@@ -90,9 +61,9 @@ type User {
     id: int32;
 }
 
-function test<'a>(v0: ref<User, managed, 'a, mutable>): ref<int32, borrowed, 'a, readonly> {
-entry(v0: ref<User, managed, 'a, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test<'a>(v0: ref<User, managed, 'a, mutable, local>): ref<int32, borrowed, 'a, readonly, local> {
+entry(v0: ref<User, managed, 'a, mutable, local>):
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     return v1
 }
 "#,
@@ -105,10 +76,10 @@ entry(v0: ref<User, managed, 'a, mutable>):
 fn test_allow_managed_slice_return_with_declared_lifetime() {
     let mut program = TestProgram::mir(
         r#"
-function test<'a>(v0: slice<int32, managed, 'a, mutable>): ref<int32, borrowed, 'a, readonly> {
-entry(v0: slice<int32, managed, 'a, mutable>):
+function test<'a>(v0: slice<int32, managed, 'a, mutable, local>): ref<int32, borrowed, 'a, readonly, local> {
+entry(v0: slice<int32, managed, 'a, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, readonly> = element.address v0, v1
+    v2: ref<int32, borrowed, 'managed, readonly, local> = element.address v0, v1
     return v2
 }
 "#,
@@ -121,10 +92,10 @@ entry(v0: slice<int32, managed, 'a, mutable>):
 fn test_reject_unique_slice_borrow_return() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: slice<int32, unique, mutable>): ref<int32, borrowed, mutable> {
-entry(v0: slice<int32, unique, mutable>):
+function test<'a>(v0: slice<int32, unique, mutable, local>): ref<int32, borrowed, 'a, mutable, local> {
+entry(v0: slice<int32, unique, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, mutable> = element.address v0, v1
+    v2: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v1
     return v2
 }
 "#,
@@ -136,7 +107,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
  ──▶ <test.dsm>:6:5
   │
 4 │     v1: int64 = 0
-5 │     v2: ref<int32, borrowed, mutable> = element.address v0, v1
+5 │     v2: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v1
 6 │     return v2
   │     ^^^^^^^^^
 7 │ }
@@ -156,9 +127,9 @@ type User {
     id: int32;
 }
 
-function test(v0: ref<User, unique, mutable>): ref<int32, borrowed, mutable> {
-entry(v0: ref<User, unique, mutable>):
-    v1: ref<int32, borrowed, mutable> = field.address v0, 0
+function test<'a>(v0: ref<User, unique, mutable, local>): ref<int32, borrowed, 'a, mutable, local> {
+entry(v0: ref<User, unique, mutable, local>):
+    v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
     return v1
 }
 "#,
@@ -169,8 +140,8 @@ entry(v0: ref<User, unique, mutable>):
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:9:5
    │
- 7 │ entry(v0: ref<User, unique, mutable>):
- 8 │     v1: ref<int32, borrowed, mutable> = field.address v0, 0
+ 7 │ entry(v0: ref<User, unique, mutable, local>):
+ 8 │     v1: ref<int32, borrowed, 'frame, mutable, local> = field.address v0, 0
  9 │     return v1
    │     ^^^^^^^^^
 10 │ }
@@ -190,9 +161,9 @@ type User {
     id: int32;
 }
 
-function test<'a, 'b>(v0: ref<User, managed, 'a, mutable>, v1: ref<User, managed, 'b, mutable>): ref<int32, borrowed, 'a, readonly> {
-entry(v0: ref<User, managed, 'a, mutable>, v1: ref<User, managed, 'b, mutable>):
-    v2: ref<int32, borrowed, readonly> = field.address v1, 0
+function test<'a, 'b>(v0: ref<User, managed, 'a, mutable, local>, v1: ref<User, managed, 'b, mutable, local>): ref<int32, borrowed, 'a, readonly, local> {
+entry(v0: ref<User, managed, 'a, mutable, local>, v1: ref<User, managed, 'b, mutable, local>):
+    v2: ref<int32, borrowed, 'managed, readonly, local> = field.address v1, 0
     return v2
 }
 "#,
@@ -203,8 +174,8 @@ entry(v0: ref<User, managed, 'a, mutable>, v1: ref<User, managed, 'b, mutable>):
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:9:5
    │
- 7 │ entry(v0: ref<User, managed, 'a, mutable>, v1: ref<User, managed, 'b, mutable>):
- 8 │     v2: ref<int32, borrowed, readonly> = field.address v1, 0
+ 7 │ entry(v0: ref<User, managed, 'a, mutable, local>, v1: ref<User, managed, 'b, mutable, local>):
+ 8 │     v2: ref<int32, borrowed, 'managed, readonly, local> = field.address v1, 0
  9 │     return v2
    │     ^^^^^^^^^
 10 │ }
@@ -224,9 +195,9 @@ type User {
     id: int32;
 }
 
-function test(v0: ref<User, managed, mutable>): ref<int32, borrowed, 'static, readonly> {
-entry(v0: ref<User, managed, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<User, managed, mutable, local>): ref<int32, borrowed, 'static, readonly, local> {
+entry(v0: ref<User, managed, mutable, local>):
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     return v1
 }
 "#,
@@ -237,8 +208,8 @@ entry(v0: ref<User, managed, mutable>):
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:9:5
    │
- 7 │ entry(v0: ref<User, managed, mutable>):
- 8 │     v1: ref<int32, borrowed, readonly> = field.address v0, 0
+ 7 │ entry(v0: ref<User, managed, mutable, local>):
+ 8 │     v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
  9 │     return v1
    │     ^^^^^^^^^
 10 │ }
@@ -254,13 +225,13 @@ for more information about an error, run `destack explain borrow-outlives-origin
 fn test_reject_aggregate_borrow_return_as_static() {
     let mut program = TestProgram::mir(
         r#"
-type Box {
-    value: ref<int32, borrowed, mutable>;
+type Box<'a> {
+    value: ref<int32, borrowed, 'a, mutable>;
 }
 
-function test(v0: Box): ref<int32, borrowed, 'static, mutable> {
-entry(v0: Box):
-    v1: ref<int32, borrowed, mutable> = field.get v0, 0
+function test(v0: Box<'frame & local>): ref<int32, borrowed, 'static, mutable, local> {
+entry(v0: Box<'frame & local>):
+    v1: ref<int32, borrowed, 'frame, mutable, local> = field.get v0, 0
     return v1
 }
 "#,
@@ -271,8 +242,8 @@ entry(v0: Box):
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:9:5
    │
- 7 │ entry(v0: Box):
- 8 │     v1: ref<int32, borrowed, mutable> = field.get v0, 0
+ 7 │ entry(v0: Box<'frame & local>):
+ 8 │     v1: ref<int32, borrowed, 'frame, mutable, local> = field.get v0, 0
  9 │     return v1
    │     ^^^^^^^^^
 10 │ }
@@ -289,13 +260,13 @@ fn test_allow_aggregate_field_return_with_declared_lifetime() {
     let mut program = TestProgram::mir(
         r#"
 type Pair<'A, 'B> {
-    left: ref<int32, borrowed, 'A, readonly>;
-    right: ref<int32, borrowed, 'B, readonly>;
+    left: ref<int32, borrowed, 'A, readonly, local>;
+    right: ref<int32, borrowed, 'B, readonly, local>;
 }
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: Pair<'a, 'b>): ref<int32, borrowed, 'a, readonly> {
-entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: Pair<'a, 'b>):
-    v3: ref<int32, borrowed, 'a, readonly> = field.get v2, 0
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, readonly, local>, v2: Pair<'a & local, 'b & local>): ref<int32, borrowed, 'a, readonly, local> {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, readonly, local>, v2: Pair<'a & local, 'b & local>):
+    v3: ref<int32, borrowed, 'a, readonly, local> = field.get v2, 0
     return v3
 }
 "#,
@@ -309,13 +280,13 @@ fn test_reject_aggregate_field_return_with_wrong_lifetime() {
     let mut program = TestProgram::mir(
         r#"
 type Pair<'A, 'B> {
-    left: ref<int32, borrowed, 'A, readonly>;
-    right: ref<int32, borrowed, 'B, readonly>;
+    left: ref<int32, borrowed, 'A, readonly, local>;
+    right: ref<int32, borrowed, 'B, readonly, local>;
 }
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: Pair<'a, 'b>): ref<int32, borrowed, 'a, readonly> {
-entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: Pair<'a, 'b>):
-    v3: ref<int32, borrowed, 'b, readonly> = field.get v2, 1
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, readonly, local>, v2: Pair<'a & local, 'b & local>): ref<int32, borrowed, 'a, readonly, local> {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, readonly, local>, v2: Pair<'a & local, 'b & local>):
+    v3: ref<int32, borrowed, 'b, readonly, local> = field.get v2, 1
     return v3
 }
 "#,
@@ -325,8 +296,8 @@ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, reado
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:10:5
    │
- 8 │ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: Pair<'a, '··
- 9 │     v3: ref<int32, borrowed, 'b, readonly> = field.get v2, 1
+ 8 │ entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, readonly, local>, ··
+ 9 │     v3: ref<int32, borrowed, 'b, readonly, local> = field.get v2, 1
 10 │     return v3
    │     ^^^^^^^^^
 11 │ }
@@ -342,12 +313,12 @@ fn test_allow_aggregate_return_with_distinct_path_lifetimes() {
     let mut program = TestProgram::mir(
         r#"
 type Pair<'A, 'B> {
-    left: ref<int32, borrowed, 'A, readonly>;
-    right: ref<int32, borrowed, 'B, readonly>;
+    left: ref<int32, borrowed, 'A, readonly, local>;
+    right: ref<int32, borrowed, 'B, readonly, local>;
 }
 
-function test<'a, 'b>(v0: Pair<'a, 'b>): Pair<'a, 'b> {
-entry(v0: Pair<'a, 'b>):
+function test<'a, 'b>(v0: Pair<'a & local, 'b & local>): Pair<'a & local, 'b & local> {
+entry(v0: Pair<'a & local, 'b & local>):
     return v0
 }
 "#,
@@ -361,12 +332,12 @@ fn test_reject_aggregate_return_with_swapped_path_lifetimes() {
     let mut program = TestProgram::mir(
         r#"
 type Pair<'A, 'B> {
-    left: ref<int32, borrowed, 'A, readonly>;
-    right: ref<int32, borrowed, 'B, readonly>;
+    left: ref<int32, borrowed, 'A, readonly, local>;
+    right: ref<int32, borrowed, 'B, readonly, local>;
 }
 
-function test<'a, 'b>(v0: Pair<'a, 'b>): Pair<'b, 'a> {
-entry(v0: Pair<'a, 'b>):
+function test<'a, 'b>(v0: Pair<'a & local, 'b & local>): Pair<'b & local, 'a & local> {
+entry(v0: Pair<'a & local, 'b & local>):
     return v0
 }
 "#,
@@ -377,8 +348,8 @@ entry(v0: Pair<'a, 'b>):
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:9:5
    │
- 7 │ function test<'a, 'b>(v0: Pair<'a, 'b>): Pair<'b, 'a> {
- 8 │ entry(v0: Pair<'a, 'b>):
+ 7 │ function test<'a, 'b>(v0: Pair<'a & local, 'b & local>): Pair<'b & local, 'a & local> {
+ 8 │ entry(v0: Pair<'a & local, 'b & local>):
  9 │     return v0
    │     ^^^^^^^^^
 10 │ }
@@ -394,11 +365,11 @@ for more information about an error, run `destack explain borrow-outlives-origin
 fn test_reject_variant_borrow_return_as_static() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8> { 0uint8 = ref<int32, borrowed, mutable>; 1uint8 = int32; };
+type Value<'a> = variant<uint8> { 0uint8 = ref<int32, borrowed, 'a, mutable, local>; 1uint8 = int32; };
 
-function test(v0: Value): ref<int32, borrowed, 'static, mutable> {
-entry(v0: Value):
-    v1: ref<int32, borrowed, mutable> = field.get v0, 1
+function test<'a>(v0: Value<'a & local>): ref<int32, borrowed, 'static, mutable, local> {
+entry(v0: Value<'a & local>):
+    v1: ref<int32, borrowed, 'a, mutable, local> = field.get v0, 1
     return v1
 }
 "#,
@@ -409,8 +380,8 @@ entry(v0: Value):
 error[borrow-outlives-origin]: borrow does not live long enough
  ──▶ <test.dsm>:7:5
   │
-5 │ entry(v0: Value):
-6 │     v1: ref<int32, borrowed, mutable> = field.get v0, 1
+5 │ entry(v0: Value<'a & local>):
+6 │     v1: ref<int32, borrowed, 'a, mutable, local> = field.get v0, 1
 7 │     return v1
   │     ^^^^^^^^^
 8 │ }
@@ -428,10 +399,10 @@ fn test_allow_static_borrow_return() {
         r#"
 readonly global value: int32 = 1
 
-function test(): ref<int32, borrowed, 'static, mutable> {
+function test(): ref<int32, borrowed, 'static, mutable, local> {
 entry:
-    v0: ref<int32, borrowed, readonly> = global.address value
-    v1: ref<int32, borrowed, 'static, readonly> = cast.bit v0 -> ref<int32, borrowed, 'static, readonly>
+    v0: ref<int32, borrowed, 'static, readonly, local> = global.address value
+    v1: ref<int32, borrowed, 'static, readonly, local> = cast.bit v0 -> ref<int32, borrowed, 'static, readonly, local>
     return v1
 }
 "#,
@@ -444,8 +415,8 @@ entry:
 fn test_reject_wrong_parameter_lifetime_return() {
     let mut program = TestProgram::mir(
         r#"
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutable>): ref<int32, borrowed, 'a, mutable> {
-entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutable>):
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): ref<int32, borrowed, 'a, mutable, local> {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
     return v1
 }
 "#,
@@ -455,8 +426,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutabl
 error[borrow-outlives-origin]: borrow does not live long enough
  ──▶ <test.dsm>:4:5
   │
-2 │ function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutable>):··
-3 │ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutable>):
+2 │ function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mut··
+3 │ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
 4 │     return v1
   │     ^^^^^^^^^
 5 │ }
@@ -473,9 +444,9 @@ fn test_allow_static_return_at_slot_result() {
         r#"
 readonly global value: int32 = 1
 
-function test<'L>(): ref<int32, borrowed, 'L, readonly> {
+function test<'L>(): ref<int32, borrowed, 'L, readonly, local> {
 entry:
-    v0: ref<int32, borrowed, readonly> = global.address value
+    v0: ref<int32, borrowed, 'static, readonly, local> = global.address value
     return v0
 }
 "#,
@@ -584,4 +555,20 @@ function keep(world: World): &'static readonly Player {
 /// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
 /// @diagnostic.label line=15 column=5 span="return &readonly world.player" line_source="return &readonly world.player;"
 "#);
+}
+
+/// A unique allocation reinterpreted as a borrow leaks into the static region.
+#[test]
+fn test_allow_a_leaked_unique_allocation_as_a_static_borrow() {
+    let mut program = TestProgram::mir(
+        r#"
+function test(v0: ref<int32, unique, mutable, local>): ref<int32, borrowed, 'static, mutable, local> {
+entry(v0: ref<int32, unique, mutable, local>):
+    v1: ref<int32, borrowed, 'static, mutable, local> = intrinsic.memory.raw.transmute(v0)
+    return v1
+}
+"#,
+    );
+
+    program.assert_verified();
 }

@@ -20,7 +20,7 @@ function invokeBorrowed(run: &Function<(), void, "readonly">): void {
     run();
 }
 
-function invokeExclusive(run: &exclusive Function<(), void, "exclusive">): void {
+function invokeExclusive(run: &Function<(), void, "mutable">): void {
     run();
     run();
 }

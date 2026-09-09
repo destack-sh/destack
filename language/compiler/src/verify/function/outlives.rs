@@ -16,7 +16,7 @@ impl FunctionChecker<'_, '_> {
             return;
         }
 
-        let bindings = self.state.value_bindings(&self.context(), value);
+        let bindings = self.state.value_borrows(&self.context(), value);
 
         self.check_return_bindings(bindings, anchor);
     }
@@ -69,7 +69,6 @@ impl FunctionChecker<'_, '_> {
                 Some(required) => !origin.is_covered_by(required, &self.function.lifetimes),
                 None => true,
             };
-
             if is_unproven || is_uncovered {
                 self.verification
                     .emit_error(VerifyError::BorrowOutlivesOrigin {
@@ -150,7 +149,7 @@ impl FunctionChecker<'_, '_> {
     /// Check the arguments a tail call hands out of the frame it replaces.
     pub(super) fn check_tail_call(&mut self, arguments: &[Value], anchor: LocalNodeIdAny) {
         for argument in arguments.iter().copied() {
-            let bindings = self.state.value_bindings(&self.context(), argument);
+            let bindings = self.state.value_borrows(&self.context(), argument);
             self.check_frame_escape(&bindings, anchor);
         }
     }

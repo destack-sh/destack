@@ -11,7 +11,7 @@ type User {
 
 function test(v0: ref<User, managed, mutable, shared>): int32 {
 entry(v0: ref<User, managed, mutable, shared>):
-    v1: ref<int32, borrowed, readonly, shared> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, shared> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -23,7 +23,7 @@ entry(v0: ref<User, managed, mutable, shared>):
 
 /// An exclusive borrow of shared managed storage reports a diagnostic.
 #[test]
-fn test_reject_shared_managed_exclusive_borrow() {
+fn test_reject_shared_managed_mutable_borrow() {
     let mut program = TestProgram::mir(
         r#"
 type User {
@@ -32,7 +32,7 @@ type User {
 
 function test(v0: ref<User, managed, mutable, shared>): int32 {
 entry(v0: ref<User, managed, mutable, shared>):
-    v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, mutable, shared> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -41,32 +41,32 @@ entry(v0: ref<User, managed, mutable, shared>):
 
     program.assert_verify_errors(
         r#"
-error[exclusive-borrow-from-shared-storage]: cannot borrow shared storage exclusively
+error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
   ──▶ <test.dsm>:8:5
    │
  6 │ function test(v0: ref<User, managed, mutable, shared>): int32 {
  7 │ entry(v0: ref<User, managed, mutable, shared>):
- 8 │     v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 8 │     v1: ref<int32, borrowed, 'managed, mutable, shared> = field.address v0, 0
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
  9 │     v2: int32 = load v1
 10 │     return v2
    │
 
-for more information about an error, run `destack explain exclusive-borrow-from-shared-storage`
+for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
 "#,
     );
 }
 
 /// An exclusive borrow of a shared global reports a diagnostic.
 #[test]
-fn test_reject_shared_global_exclusive_borrow() {
+fn test_reject_shared_global_mutable_borrow() {
     let mut program = TestProgram::mir(
         r#"
 shared global value: int32 = 0
 
 function test(): int32 {
 entry:
-    v0: ref<int32, borrowed, exclusive, shared static> = global.address value
+    v0: ref<int32, borrowed, 'static, mutable, shared static> = global.address value
     v1: int32 = load v0
     return v1
 }
@@ -75,36 +75,36 @@ entry:
 
     program.assert_verify_errors(
         r#"
-error[exclusive-borrow-from-shared-storage]: cannot borrow shared storage exclusively
+error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
  ──▶ <test.dsm>:6:5
   │
 4 │ function test(): int32 {
 5 │ entry:
-6 │     v0: ref<int32, borrowed, exclusive, shared static> = global.address value
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6 │     v0: ref<int32, borrowed, 'static, mutable, shared static> = global.address value
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 7 │     v1: int32 = load v0
 8 │     return v1
   │
 
-for more information about an error, run `destack explain exclusive-borrow-from-shared-storage`
+for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
 "#,
     );
 }
 
 /// Passing shared storage to an exclusive parameter reports a diagnostic.
 #[test]
-fn test_reject_shared_storage_passed_exclusively() {
+fn test_reject_shared_storage_passed_mutably() {
     let mut program = TestProgram::mir(
         r#"
 type User {
     id: int32;
 }
 
-external function update(ref<User, borrowed, exclusive, shared>): void
+external function update<'a>(ref<User, borrowed, 'a, mutable, shared>): void
 
 function test(v0: ref<User, managed, mutable, shared>): void {
 entry(v0: ref<User, managed, mutable, shared>):
-    call update(v0): (ref<User, borrowed, exclusive, shared>) => void
+    call update(v0): <'a>(ref<User, borrowed, 'a, mutable, shared>) => void
     return
 }
 "#,
@@ -112,18 +112,18 @@ entry(v0: ref<User, managed, mutable, shared>):
 
     program.assert_verify_errors(
         r#"
-error[exclusive-borrow-from-shared-storage]: cannot borrow shared storage exclusively
+error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
   ──▶ <test.dsm>:10:5
    │
  8 │ function test(v0: ref<User, managed, mutable, shared>): void {
  9 │ entry(v0: ref<User, managed, mutable, shared>):
-10 │     call update(v0): (ref<User, borrowed, exclusive, shared>) => void
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 │     call update(v0): <'a>(ref<User, borrowed, 'a, mutable, shared>) => void
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 11 │     return
 12 │ }
    │
 
-for more information about an error, run `destack explain exclusive-borrow-from-shared-storage`
+for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
 "#,
     );
 }
@@ -138,13 +138,13 @@ type Owner {
 }
 
 type View<'a> {
-    value: ref<int32, borrowed, 'a, readonly>;
+    value: ref<int32, borrowed, 'a, readonly, local>;
 }
 
-function test<'a>(v0: ref<Owner, unique, mutable>, v1: ref<View<'a>, managed, mutable>): void {
-entry(v0: ref<Owner, unique, mutable>, v1: ref<View<'a>, managed, mutable>):
-    v2: ref<int32, borrowed, frame, readonly> = field.address v0, 0
-    v3: ref<ref<int32, borrowed, 'a, readonly>, borrowed, exclusive> = field.address v1, 0
+function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'a & local>, managed, mutable, local>): void {
+entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'a & local>, managed, mutable, local>):
+    v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
+    v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'managed, mutable, local> = field.address v1, 0
     store v3, v2
     return
 }
@@ -156,8 +156,8 @@ entry(v0: ref<Owner, unique, mutable>, v1: ref<View<'a>, managed, mutable>):
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:14:5
    │
-12 │     v2: ref<int32, borrowed, frame, readonly> = field.address v0, 0
-13 │     v3: ref<ref<int32, borrowed, 'a, readonly>, borrowed, exclusive> = field.address v1, 0
+12 │     v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
+13 │     v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'managed, mutable, local> = field.a··
 14 │     store v3, v2
    │     ^^^^^^^^^^^^
 15 │     return
@@ -180,10 +180,10 @@ type Box {
     value: int32;
 }
 
-function test(v0: ref<Box, borrowed, mutable>): int32 {
-entry(v0: ref<Box, borrowed, mutable>):
-    v1: ref<int32, borrowed, exclusive> = field.address v0, 0
-    v2: ref<int32, borrowed, exclusive> = global.address value
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<Box, borrowed, 'a, mutable, local>):
+    v1: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
+    v2: ref<int32, borrowed, 'static, mutable, local> = global.address value
     v3: int32 = load v1
     v4: int32 = load v2
     v5: int32 = add v3, v4
@@ -197,7 +197,7 @@ entry(v0: ref<Box, borrowed, mutable>):
 
 /// Exclusive borrows of fields in distinct allocations verify together.
 #[test]
-fn test_allow_exclusive_borrows_from_distinct_allocations() {
+fn test_allow_mutable_borrows_from_distinct_allocations() {
     let mut program = TestProgram::mir(
         r#"
 @copy
@@ -207,10 +207,10 @@ type Box {
 
 function test(): int32 {
 entry:
-    v0: ref<Box, managed, mutable> = new.zeroed Box
-    v1: ref<Box, managed, mutable> = new.zeroed Box
-    v2: ref<int32, borrowed, exclusive> = field.address v0, 0
-    v3: ref<int32, borrowed, exclusive> = field.address v1, 0
+    v0: ref<Box, managed, mutable, local> = new.zeroed Box
+    v1: ref<Box, managed, mutable, local> = new.zeroed Box
+    v2: ref<int32, borrowed, 'managed, mutable, local> = field.address v0, 0
+    v3: ref<int32, borrowed, 'managed, mutable, local> = field.address v1, 0
     v4: int32 = load v2
     v5: int32 = load v3
     v6: int32 = add v4, v5

@@ -17,16 +17,16 @@ ok   async/abort.ds
 ok   async/awaitable.ds
 ok   async/channel.ds
 ok   async/fiber.ds
-FAIL async/generator.ds :: error[unsupported-lower-construct]: unsupported construct: a must on a try implementor
+ok   async/generator.ds
 ok   async/index.ds
 ok   async/iterator.ds
 ok   async/mutex.ds
 ok   async/notify.ds
 ok   async/once.ds
-FAIL async/poll.ds :: error[unsupported-lower-construct]: unsupported construct: a match over an indirect scrutinee
-FAIL async/promise.ds :: a union conversion requiring a missing source discriminant
+ok   async/poll.ds
+ok   async/promise.ds
 ok   async/reader.ds
-FAIL async/result.ds :: error[unsupported-lower-construct]: unsupported construct: a match over an indirect scrutinee
+ok   async/result.ds
 ok   async/rwlock.ds
 ok   async/seek.ds
 ok   async/semaphore.ds
@@ -46,7 +46,7 @@ ok   channel/mpsc.ds
 ok   channel/oneshot.ds
 ok   channel/watch.ds
 ok   collections/array.ds
-FAIL collections/concurrent-map.ds :: error[unsupported-lower-construct]: unsupported construct: a defaulted or spread intrinsic argument
+ok   collections/concurrent-map.ds
 ok   collections/concurrent-queue.ds
 ok   collections/concurrent-set.ds
 ok   collections/deque.ds
@@ -58,13 +58,13 @@ ok   collections/map.ds
 ok   collections/sequence.ds
 ok   collections/set.ds
 ok   collections/slab.ds
-FAIL collections/slice.ds :: error[overwrite-without-exclusive]: cannot overwrite this storage without exclusive access
+ok   collections/slice.ds
 ok   collections/small-array.ds
 ok   collections/sorted-map.ds
 ok   collections/sorted-set.ds
 ok   console/console.ds
 ok   console/index.ds
-FAIL context/context.ds :: error[unsupported-lower-construct]: unsupported construct: 'Try' statements
+ok   context/context.ds
 ok   context/index.ds
 ok   context/variable.ds
 ok   convert/borrow.ds
@@ -92,7 +92,7 @@ ok   error/index.ds
 ok   error/io.ds
 ok   error/panic.ds
 ok   error/report.ds
-FAIL error/result.ds :: error[unsupported-lower-construct]: unsupported construct: a match over an indirect scrutinee
+ok   error/result.ds
 ok   error/stack.ds
 ok   fs/binding/attribute.ds
 ok   fs/binding/directory.ds
@@ -129,7 +129,7 @@ ok   intl/plural-rules.ds
 ok   intl/relative-time-format.ds
 ok   intl/segmenter.ds
 ok   iter/index.ds
-FAIL iter/iterator.ds :: error[unsupported-lower-construct]: unsupported construct: a generic type of 'Iterator' outside its template
+ok   iter/iterator.ds
 ok   json/codec.ds
 ok   json/error.ds
 ok   json/index.ds
@@ -143,14 +143,14 @@ ok   math/float.ds
 ok   math/identity.ds
 ok   math/index.ds
 ok   math/integer.ds
-FAIL math/linear.ds :: an equality type outside a supported representation
+ok   math/linear.ds
 ok   math/math.ds
-FAIL math/matrix.ds :: an equality type outside a supported representation
+ok   math/matrix.ds
 ok   math/number.ds
 ok   math/numeric.ds
 ok   math/quaternion.ds
-FAIL math/vector.ds :: error[unsupported-lower-construct]: unsupported construct: the 'math.Vector' intrinsic representation
-FAIL math/wrapping.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Parameter' type
+ok   math/vector.ds
+ok   math/wrapping.ds
 ok   memory/access.ds
 ok   memory/arc/arc.ds
 ok   memory/arc/index.ds
@@ -166,8 +166,7 @@ ok   memory/binding/map.ds
 ok   memory/binding/memory.ds
 ok   memory/binding/virtual.ds
 ok   memory/borrow.ds
-FAIL memory/box.ds :: error[unsupported-lower-construct]: unsupported construct: the 'memory.unique.leak' intrinsic
-FAIL memory/box.ds :: error[unsupported-lower-construct]: unsupported construct: the 'Application' type
+ok   memory/box.ds
 ok   memory/capability.ds
 ok   memory/cell/cell.ds
 ok   memory/cell/index.ds
@@ -175,16 +174,15 @@ ok   memory/cell/refcell.ds
 ok   memory/cow/cow.ds
 ok   memory/cow/index.ds
 ok   memory/dispose.ds
-FAIL memory/drop.ds :: error[unsupported-lower-construct]: unsupported construct: the 'memory.ManuallyDrop' intrinsic representation
-FAIL memory/dynamic.ds :: error[unsupported-lower-construct]: unsupported construct: the 'memory.dynamic.type' intrinsic
-FAIL memory/dynamic.ds :: error[unsupported-lower-construct]: unsupported construct: the 'memory.dynamic.payload' intrinsic
+ok   memory/drop.ds
+ok   memory/dynamic.ds
 ok   memory/error.ds
 ok   memory/index.ds
 ok   memory/init.ds
 ok   memory/lifetime.ds
 ok   memory/managed.ds
-FAIL memory/owned.ds :: error[unsupported-lower-construct]: unsupported construct: the 'memory.owned.intoManaged' intrinsic
-FAIL memory/phantom.ds :: error[unsupported-lower-construct]: unsupported construct: the 'memory.phantom.new' intrinsic
+ok   memory/owned.ds
+ok   memory/phantom.ds
 ok   memory/pin.ds
 ok   memory/place.ds
 ok   memory/raw.ds
@@ -267,16 +265,16 @@ ok   signal/accessor.ds
 ok   signal/action.ds
 ok   signal/control.ds
 ok   signal/derive.ds
-FAIL signal/effect.ds :: a union without its recorded canonical members
+ok   signal/effect.ds
 ok   signal/index.ds
-FAIL signal/map.ds :: a union without its recorded canonical members
-FAIL signal/memo.ds :: a union without its recorded canonical members
-FAIL signal/optimistic.ds :: a union without its recorded canonical members
+ok   signal/map.ds
+ok   signal/memo.ds
+ok   signal/optimistic.ds
 ok   signal/options.ds
 ok   signal/owner.ds
 ok   signal/reaction.ds
 ok   signal/setter.ds
-FAIL signal/signal.ds :: a union without its recorded canonical members
+ok   signal/signal.ds
 ok   stream/index.ds
 ok   stream/stream.ds
 ok   string/builder.ds
@@ -308,9 +306,9 @@ ok   telemetry/record.ds
 ok   telemetry/trace.ds
 ok   test/artifact.ds
 ok   test/body.ds
-FAIL test/case.ds :: an unreduced value intersection
+ok   test/case.ds
 ok   test/context.ds
-FAIL test/expect.ds :: an equality type outside a supported representation
+FAIL test/expect.ds :: a 'null' literal outside its representation
 ok   test/fixture.ds
 ok   test/hook.ds
 ok   test/id.ds
@@ -344,8 +342,8 @@ ok   topology/binding/entity.ds
 ok   topology/binding/index.ds
 ok   topology/binding/topology.ds
 ok   topology/decorator.ds
-FAIL topology/edge.ds :: error[unsupported-lower-construct]: unsupported construct: a 'symbol' member read
-FAIL topology/entity.ds :: error[unsupported-lower-construct]: unsupported construct: a 'symbol' member read
+ok   topology/edge.ds
+ok   topology/entity.ds
 ok   topology/index.ds
 ok   topology/label.ds
 ok   topology/topology.ds

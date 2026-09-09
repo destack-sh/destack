@@ -5,16 +5,16 @@ fn test_reject_projected_move_use_after_move() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Pair = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
-    v4: ref<int32, unique, mutable> = field.get v2, 0
-    v5: ref<int32, unique, mutable> = field.get v2, 1
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
+    v4: ref<int32, unique, mutable, local> = field.get v2, 0
+    v5: ref<int32, unique, mutable, local> = field.get v2, 1
     return
 }
 "#,
@@ -25,13 +25,13 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 error[use-after-move]: use of moved value
   ──▶ <test.dsm>:11:5
    │
- 8 │ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+ 8 │ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
  9 │     v2: Pair = aggregate (v0, v1)
-10 │     v3: ref<int32, unique, mutable> = field.get v2, 0
-   │     ------------------------------------------------- value moved here
-11 │     v4: ref<int32, unique, mutable> = field.get v2, 0
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-12 │     v5: ref<int32, unique, mutable> = field.get v2, 1
+10 │     v3: ref<int32, unique, mutable, local> = field.get v2, 0
+   │     -------------------------------------------------------- value moved here
+11 │     v4: ref<int32, unique, mutable, local> = field.get v2, 0
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+12 │     v5: ref<int32, unique, mutable, local> = field.get v2, 1
 13 │     return
    │
 
@@ -45,15 +45,15 @@ fn test_allow_complete_struct_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Pair = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
-    v4: ref<int32, unique, mutable> = field.get v2, 1
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
+    v4: ref<int32, unique, mutable, local> = field.get v2, 1
     return
 }
 "#,
@@ -66,11 +66,11 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 fn test_allow_complete_tuple_decomposition() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: { ref<int32, unique, mutable>, ref<int32, unique, mutable> } = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
-    v4: ref<int32, unique, mutable> = field.get v2, 1
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
+    v2: { ref<int32, unique, mutable, local>, ref<int32, unique, mutable, local> } = aggregate (v0, v1)
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
+    v4: ref<int32, unique, mutable, local> = field.get v2, 1
     return
 }
 "#,
@@ -83,11 +83,11 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 fn test_allow_complete_array_decomposition() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
-    v2: [ref<int32, unique, mutable>; 2] = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = element.get v2, 0
-    v4: ref<int32, unique, mutable> = element.get v2, 1
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
+    v2: [ref<int32, unique, mutable, local>; 2] = aggregate (v0, v1)
+    v3: ref<int32, unique, mutable, local> = element.get v2, 0
+    v4: ref<int32, unique, mutable, local> = element.get v2, 1
     return
 }
 "#,
@@ -101,23 +101,23 @@ fn test_allow_complete_nested_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
 type Outer {
     pair: Pair;
-    tail: ref<int32, unique, mutable>;
+    tail: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
     v3: Pair = aggregate (v0, v1)
     v4: Outer = aggregate (v3, v2)
     v5: Pair = field.get v4, 0
-    v6: ref<int32, unique, mutable> = field.get v4, 1
-    v7: ref<int32, unique, mutable> = field.get v5, 0
-    v8: ref<int32, unique, mutable> = field.get v5, 1
+    v6: ref<int32, unique, mutable, local> = field.get v4, 1
+    v7: ref<int32, unique, mutable, local> = field.get v5, 0
+    v8: ref<int32, unique, mutable, local> = field.get v5, 1
     return
 }
 "#,
@@ -131,8 +131,8 @@ fn test_allow_aggregate_move_through_block_parameter() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
 function test(v0: Pair): void {
@@ -140,8 +140,8 @@ entry(v0: Pair):
     jump next(v0)
 
 next(v1: Pair):
-    v2: ref<int32, unique, mutable> = field.get v1, 0
-    v3: ref<int32, unique, mutable> = field.get v1, 1
+    v2: ref<int32, unique, mutable, local> = field.get v1, 0
+    v3: ref<int32, unique, mutable, local> = field.get v1, 1
     return
 }
 "#,
@@ -155,14 +155,14 @@ fn test_allow_partial_move_before_return() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Pair = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
     return
 }
 "#,
@@ -176,20 +176,20 @@ fn test_allow_partial_move_before_call() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Pair = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
-    call consume(v3): (ref<int32, unique, mutable>) => void
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
+    call consume(v3): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,
@@ -203,20 +203,20 @@ fn test_allow_sibling_use_after_partial_move() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
 function test(v0: Pair): void {
 entry(v0: Pair):
-    v1: ref<int32, unique, mutable> = field.get v0, 0
-    call consume(v1): (ref<int32, unique, mutable>) => void
-    v2: ref<int32, unique, mutable> = field.get v0, 1
+    v1: ref<int32, unique, mutable, local> = field.get v0, 0
+    call consume(v1): (ref<int32, unique, mutable, local>) => void
+    v2: ref<int32, unique, mutable, local> = field.get v0, 1
     return
 }
 "#,
@@ -230,19 +230,19 @@ fn test_allow_reinitialization_after_partial_move() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(v0: Pair, v1: ref<int32, unique, mutable>): void {
-entry(v0: Pair, v1: ref<int32, unique, mutable>):
-    v2: ref<int32, unique, mutable> = field.get v0, 0
-    call consume(v2): (ref<int32, unique, mutable>) => void
+function test(v0: Pair, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
+    v2: ref<int32, unique, mutable, local> = field.get v0, 0
+    call consume(v2): (ref<int32, unique, mutable, local>) => void
     v3: Pair = field.set v0, 0, v1
     return
 }
@@ -257,14 +257,14 @@ fn test_allow_partial_move_across_branch() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: boolean): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: boolean):
     v3: Pair = aggregate (v0, v1)
-    v4: ref<int32, unique, mutable> = field.get v3, 0
+    v4: ref<int32, unique, mutable, local> = field.get v3, 0
     branch v2 => b1 | b2
 
 b1:
@@ -284,14 +284,14 @@ fn test_allow_partial_move_before_panic() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, managed, readonly>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, managed, readonly>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: ref<int32, managed, readonly, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: ref<int32, managed, readonly, local>):
     v3: Pair = aggregate (v0, v1)
-    v4: ref<int32, unique, mutable> = field.get v3, 0
+    v4: ref<int32, unique, mutable, local> = field.get v3, 0
     panic v2
 }
 "#,
@@ -304,11 +304,11 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<
 fn test_reject_variant_use_after_payload_move() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
+type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable, local>; 1uint8 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable> = variant.payload v0, 0
+    v1: ref<int32, unique, mutable, local> = variant.payload v0, 0
     v2: uint8 = variant.tag v0
     return
 }
@@ -322,8 +322,8 @@ error[use-after-move]: use of moved value
   │
 4 │ function test(v0: Value): void {
 5 │ entry(v0: Value):
-6 │     v1: ref<int32, unique, mutable> = variant.payload v0, 0
-  │     ------------------------------------------------------- value moved here
+6 │     v1: ref<int32, unique, mutable, local> = variant.payload v0, 0
+  │     -------------------------------------------------------------- value moved here
 7 │     v2: uint8 = variant.tag v0
   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^
 8 │     return
@@ -341,8 +341,8 @@ fn test_allow_a_field_move_out_of_a_local_through_its_address() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
 function test(v0: Pair): void {
@@ -350,11 +350,11 @@ function test(v0: Pair): void {
 
 entry(v0: Pair):
     local.set l0, v0
-    v1: ref<Pair, borrowed, exclusive, frame> = local.project l0
-    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.project v1, 0
-    v3: ref<int32, unique, mutable> = load v2
-    v4: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.project v1, 1
-    v5: ref<int32, unique, mutable> = load v4
+    v1: ref<Pair, borrowed, 'frame, mutable, frame> = local.project l0
+    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = field.project v1, 0
+    v3: ref<int32, unique, mutable, local> = load v2
+    v4: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = field.project v1, 1
+    v5: ref<int32, unique, mutable, local> = load v4
     return
 }
 "#,
@@ -369,8 +369,8 @@ fn test_reject_a_whole_read_of_a_local_after_a_field_moved_out() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
 function test(v0: Pair): Pair {
@@ -378,9 +378,9 @@ function test(v0: Pair): Pair {
 
 entry(v0: Pair):
     local.set l0, v0
-    v1: ref<Pair, borrowed, exclusive, frame> = local.project l0
-    v2: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.project v1, 0
-    v3: ref<int32, unique, mutable> = load v2
+    v1: ref<Pair, borrowed, 'frame, mutable, frame> = local.project l0
+    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = field.project v1, 0
+    v3: ref<int32, unique, mutable, local> = load v2
     v4: Pair = local.get l0
     return v4
 }
@@ -392,10 +392,10 @@ entry(v0: Pair):
 error[use-after-move]: use of moved value
   ──▶ <test.dsm>:15:5
    │
-12 │     v1: ref<Pair, borrowed, exclusive, frame> = local.project l0
-13 │     v2: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.project v1, 0
-14 │     v3: ref<int32, unique, mutable> = load v2
-   │     ----------------------------------------- value moved here
+12 │     v1: ref<Pair, borrowed, 'frame, mutable, frame> = local.project l0
+13 │     v2: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = field.project v1··
+14 │     v3: ref<int32, unique, mutable, local> = load v2
+   │     ------------------------------------------------ value moved here
 15 │     v4: Pair = local.get l0
    │     ^^^^^^^^^^^^^^^^^^^^^^^
 16 │     return v4
@@ -413,18 +413,18 @@ fn test_allow_a_store_reinitializing_a_moved_field() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: Pair, v1: ref<int32, unique, mutable>): Pair {
+function test(v0: Pair, v1: ref<int32, unique, mutable, local>): Pair {
     local l0: Pair
 
-entry(v0: Pair, v1: ref<int32, unique, mutable>):
+entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
     local.set l0, v0
-    v2: ref<Pair, borrowed, exclusive, frame> = local.project l0
-    v3: ref<ref<int32, unique, mutable>, borrowed, exclusive, frame> = field.project v2, 0
-    v4: ref<int32, unique, mutable> = load v3
+    v2: ref<Pair, borrowed, 'frame, mutable, frame> = local.project l0
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = field.project v2, 0
+    v4: ref<int32, unique, mutable, local> = load v3
     store v3, v1
     v5: Pair = local.get l0
     return v5
@@ -443,7 +443,7 @@ fn test_allow_a_field_move_out_of_an_owned_value() {
 struct Token implements Drop {
     id: int32;
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 struct Buffer {
@@ -472,7 +472,7 @@ fn test_track_moves_and_borrows_per_field() {
 struct Token implements Drop {
     id: int32;
 
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 struct Pair {
@@ -508,16 +508,16 @@ export function moveAfterBorrow(): void {
 
 export function mutBorrowAfterMutBorrow(): void {
     let x = Pair { a: 1, b: Token { id: 2 } };
-    const p = &exclusive x.a;
-    const q = &exclusive x.a;
+    const p = &x.a;
+    const q = &x.a;
     read(p);
     read(q);
 }
 
 export function disjointFields(): void {
     let x = Pair { a: 1, b: Token { id: 2 } };
-    const p = &exclusive x.a;
-    const q = &exclusive x.b;
+    const p = &x.a;
+    const q = &x.b;
     read(p);
     readToken(q);
 }
@@ -535,7 +535,7 @@ export function disjointFields(): void {
 /// @diagnostic.label line=35 column=13 span="x.b" line_source="consume(x.b);"
 /// @diagnostic.related line=34 column=15 span="&readonly x.b" line_source="const p = &readonly x.b;" message="borrow starts here"
 /// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
-/// @diagnostic.label line=42 column=15 span="&exclusive x.a" line_source="const q = &exclusive x.a;"
-/// @diagnostic.related line=41 column=15 span="&exclusive x.a" line_source="const p = &exclusive x.a;" message="borrow starts here"
+/// @diagnostic.label line=42 column=15 span="&x.a" line_source="const q = &x.a;"
+/// @diagnostic.related line=41 column=15 span="&x.a" line_source="const p = &x.a;" message="borrow starts here"
 "#);
 }

@@ -11,8 +11,8 @@ type Box {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function effectful(): void
 
-function dropBox(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
+function dropBox<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, local>):
     call effectful(): () => void
     return
 }
@@ -27,10 +27,10 @@ error[drop-effect]: this drop may park
    │
  7 │ external function effectful(): void
  8 │
- 9 │ function dropBox(v0: ref<Box, borrowed, exclusive>): void {
-   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-10 │ entry(v0: ref<Box, borrowed, exclusive>):
-   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 │ function dropBox<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+10 │ entry(v0: ref<Box, borrowed, 'a, mutable, local>):
+   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 11 │     call effectful(): () => void
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 12 │     return
@@ -54,8 +54,8 @@ type Box {
     value: int32;
 }
 
-function dropBox(v0: ref<Box, borrowed, exclusive>): void {
-entry(v0: ref<Box, borrowed, exclusive>):
+function dropBox<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, local>):
     return
 }
 "#,

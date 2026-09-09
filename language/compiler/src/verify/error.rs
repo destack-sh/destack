@@ -136,7 +136,7 @@ pub enum VerifyError {
     ///     right: ref<int32, unique, mutable>;
     /// }
     ///
-    /// external function dropRow(ref<Row, borrowed, exclusive>): void // Row drop hook
+    /// external function dropRow(ref<Row, borrowed, mutable>): void // Row drop hook
     ///
     /// function test(v0: Row): ref<int32, unique, mutable> {
     /// entry(v0: Row):
@@ -160,9 +160,9 @@ pub enum VerifyError {
     ///     value: ref<int32, unique, mutable>;
     /// }
     ///
-    /// function test(v0: ref<Box, borrowed, exclusive>): void {
-    /// entry(v0: ref<Box, borrowed, exclusive>):
-    ///     v1: ref<ref<int32, unique, mutable>, borrowed, exclusive> = field.address v0, 0
+    /// function test(v0: ref<Box, borrowed, mutable>): void {
+    /// entry(v0: ref<Box, borrowed, mutable>):
+    ///     v1: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
     ///     v2: ref<int32, unique, mutable> = load v1
     ///     return
     /// }
@@ -173,29 +173,6 @@ pub enum VerifyError {
     )]
     MoveOutOfReference {
         /// The invalid load.
-        anchor: DiagnosticAnchor,
-    },
-
-    /// A store that frees the old value or changes a variant's case lacks exclusive access.
-    ///
-    /// ```mir
-    /// type Box {
-    ///     value: ref<int32, unique, mutable>;
-    /// }
-    ///
-    /// function test(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>): void {
-    /// entry(v0: ref<Box, borrowed, mutable>, v1: ref<int32, unique, mutable>):
-    ///     v2: ref<ref<int32, unique, mutable>, borrowed, mutable> = field.address v0, 0
-    ///     store v2, v1
-    ///     return
-    /// }
-    /// ```
-    #[diagnostic(
-        id = "overwrite-without-exclusive",
-        message = "cannot overwrite this storage without exclusive access"
-    )]
-    OverwriteWithoutExclusive {
-        /// The invalid store.
         anchor: DiagnosticAnchor,
     },
 
@@ -223,6 +200,26 @@ pub enum VerifyError {
         field: String,
     },
 
+    /// A constructor reads its receiver as the constructed object before every field initializes.
+    #[diagnostic(
+        id = "receiver-before-initialization",
+        message = "'this' escapes before every field initializes"
+    )]
+    ReceiverBeforeInitialization {
+        /// The escaping read.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// A constructor delegates to its base constructor twice.
+    #[diagnostic(
+        id = "super-called-twice",
+        message = "constructor delegates to its base constructor twice"
+    )]
+    SuperCalledTwice {
+        /// The repeated delegation.
+        anchor: DiagnosticAnchor,
+    },
+
     // borrow checking
     /// A new borrow conflicts with an active borrow.
     ///
@@ -234,7 +231,7 @@ pub enum VerifyError {
     /// function test(v0: ref<Box, borrowed, mutable>): int32 {
     /// entry(v0: ref<Box, borrowed, mutable>):
     ///     v1: ref<int32, borrowed, readonly> = field.address v0, 0
-    ///     v2: ref<int32, borrowed, exclusive> = field.address v0, 0
+    ///     v2: ref<int32, borrowed, mutable> = field.address v0, 0
     ///     v3: int32 = load v1
     ///     return v3
     /// }
@@ -259,7 +256,7 @@ pub enum VerifyError {
     ///
     /// function test(v0: ref<Box, borrowed, readonly>): void {
     /// entry(v0: ref<Box, borrowed, readonly>):
-    ///     v1: ref<int32, borrowed, exclusive> = field.address v0, 0
+    ///     v1: ref<int32, borrowed, mutable> = field.address v0, 0
     ///     return
     /// }
     /// ```
@@ -275,19 +272,19 @@ pub enum VerifyError {
     /// Exclusive call arguments overlap.
     ///
     /// ```mir
-    /// external function update(ref<int32, borrowed, exclusive>, ref<int32, borrowed, exclusive>): void
+    /// external function update(ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>): void
     ///
     /// function test(v0: ref<int32, borrowed, mutable>): void {
     /// entry(v0: ref<int32, borrowed, mutable>):
-    ///     call update(v0, v0): (ref<int32, borrowed, exclusive>, ref<int32, borrowed, exclusive>) => void
+    ///     call update(v0, v0): (ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>) => void
     ///     return
     /// }
     /// ```
     #[diagnostic(
-        id = "exclusive-argument-alias",
-        message = "exclusive call arguments may refer to the same storage"
+        id = "mutable-argument-alias",
+        message = "mutable call arguments may refer to the same owned storage"
     )]
-    ExclusiveArgumentAlias {
+    MutableArgumentAlias {
         /// The invalid call.
         anchor: DiagnosticAnchor,
     },
@@ -317,7 +314,7 @@ pub enum VerifyError {
         borrowed_at: DiagnosticAnchor,
     },
 
-    /// A place cannot be read through another reference during an exclusive borrow.
+    /// A place cannot be read through another reference during a mutable borrow of it.
     ///
     /// ```mir
     /// function test(v0: int32): int32 {
@@ -325,19 +322,19 @@ pub enum VerifyError {
     ///
     /// entry(v0: int32):
     ///     local.set l0, v0
-    ///     v1: ref<int32, borrowed, exclusive, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
     ///     v2: int32 = local.get l0
     ///     return v2
     /// }
     /// ```
     #[diagnostic(
-        id = "use-of-exclusively-borrowed-place",
-        message = "cannot use exclusively borrowed place"
+        id = "use-of-mutably-borrowed-place",
+        message = "cannot use mutably borrowed place"
     )]
     UseOfExclusivelyBorrowedPlace {
         /// The conflicting read.
         anchor: DiagnosticAnchor,
-        /// The exclusive borrow.
+        /// The mutable borrow.
         borrowed_at: DiagnosticAnchor,
     },
 
@@ -368,17 +365,17 @@ pub enum VerifyError {
     ///
     /// function test(v0: ref<User, managed, mutable, shared>): int32 {
     /// entry(v0: ref<User, managed, mutable, shared>):
-    ///     v1: ref<int32, borrowed, exclusive, shared> = field.address v0, 0
+    ///     v1: ref<int32, borrowed, mutable, shared> = field.address v0, 0
     ///     v2: int32 = load v1
     ///     return v2
     /// }
     /// ```
     #[diagnostic(
-        id = "exclusive-borrow-from-shared-storage",
-        message = "cannot borrow shared storage exclusively"
+        id = "mutable-borrow-from-shared-storage",
+        message = "cannot borrow shared storage mutably"
     )]
-    ExclusiveBorrowFromSharedStorage {
-        /// The exclusive borrow.
+    MutableBorrowFromSharedStorage {
+        /// The mutable borrow.
         anchor: DiagnosticAnchor,
     },
 
@@ -411,8 +408,8 @@ pub enum VerifyError {
     ///
     /// external function effectful(): void
     ///
-    /// function dropBox(v0: ref<Box, borrowed, exclusive>): void {
-    /// entry(v0: ref<Box, borrowed, exclusive>):
+    /// function dropBox(v0: ref<Box, borrowed, mutable>): void {
+    /// entry(v0: ref<Box, borrowed, mutable>):
     ///     call effectful(): () => void
     ///     return
     /// }

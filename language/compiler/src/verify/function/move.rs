@@ -92,17 +92,6 @@ impl FunctionChecker<'_, '_> {
                         anchor: self.verification.anchor(anchor),
                     });
             }
-            Instruction::Store { pointer, value }
-                if !self.is_pointer(*pointer)
-                    && (self.is_move_only(*value) || self.is_variant(*value))
-                    && !self.points_to_uninitialized(*pointer)
-                    && !self.is_exclusive(*pointer) =>
-            {
-                self.verification
-                    .emit_error(VerifyError::OverwriteWithoutExclusive {
-                        anchor: self.verification.anchor(anchor),
-                    });
-            }
             _ => {}
         }
     }

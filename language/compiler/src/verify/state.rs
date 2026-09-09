@@ -112,11 +112,7 @@ impl<'a> VerifyState<'a> {
     /// Check every authored drop hook for forbidden effects.
     fn check_drop_effects(&mut self) {
         // collect each hook once across its registered storages
-        let hooks: FxIndexSet<_> = self
-            .drops
-            .hooks()
-            .map(|(_, _, function)| function)
-            .collect();
+        let hooks: FxIndexSet<_> = self.drops.hooks().map(|(_, function)| function).collect();
         let effects = self.effects.clone();
 
         for function in hooks {
