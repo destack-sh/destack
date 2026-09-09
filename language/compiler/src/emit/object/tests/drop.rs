@@ -7,14 +7,14 @@ fn test_emit_indirect_drop() {
         r#"
 type Writer { }
 
-export function release(v0: dynamic<Writer, unique, mutable>): void {
-entry(v0: dynamic<Writer, unique, mutable>):
+export function release(v0: dynamic<Writer, unique, mutable, local>): void {
+entry(v0: dynamic<Writer, unique, mutable, local>):
     drop v0
     return
 }
 
-export function releaseFunction(v0: function<() => void, once, unique, mutable>): void {
-entry(v0: function<() => void, once, unique, mutable>):
+export function releaseFunction(v0: function<() => void, once, unique, mutable, local>): void {
+entry(v0: function<() => void, once, unique, mutable, local>):
     drop v0
     return
 }
@@ -108,8 +108,8 @@ type Resource {
     value: int32;
 }
 
-function destroy(v0: ref<Resource, borrowed, mutable, frame>): void {
-entry(v0: ref<Resource, borrowed, mutable, frame>):
+function destroy<'a>(v0: ref<Resource, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Resource, borrowed, 'a, mutable, frame>):
     return
 }
 

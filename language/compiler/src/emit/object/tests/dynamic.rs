@@ -8,10 +8,10 @@ fn test_emit_dynamic() {
 type Writer { }
 type FileWriter { }
 
-export function inspect(v0: ref<FileWriter, managed, readonly>): typeId {
-entry(v0: ref<FileWriter, managed, readonly>):
-    v1: dynamic<Writer, managed, readonly> = dynamic.bind v0, FileWriter
-    v2: ref<void, managed, readonly> = dynamic.payload v1
+export function inspect(v0: ref<FileWriter, managed, readonly, local>): typeId {
+entry(v0: ref<FileWriter, managed, readonly, local>):
+    v1: dynamic<Writer, managed, readonly, local> = dynamic.bind v0, FileWriter
+    v2: ref<void, managed, readonly, local> = dynamic.payload v1
     v3: typeId = dynamic.type v1
     return v3
 }
@@ -69,8 +69,8 @@ fn test_emit_dynamic_read() {
 type Writer { value: int32 }
 type FileWriter { value: int32 }
 
-export function read(v0: dynamic<Writer, managed, readonly>): int32 {
-entry(v0: dynamic<Writer, managed, readonly>):
+export function read(v0: dynamic<Writer, managed, readonly, local>): int32 {
+entry(v0: dynamic<Writer, managed, readonly, local>):
     v1: int32 = dynamic.read v0, 0
     return v1
 }

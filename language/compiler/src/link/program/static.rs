@@ -1079,7 +1079,6 @@ impl<'a> GlobalLinker<'a> {
                 | mir::Type::Isize
                 | mir::Type::Usize
                 | mir::Type::Float(_)
-                | mir::Type::TypeDescriptor
                 | mir::Type::TypeId
                 | mir::Type::Reference { .. }
                 | mir::Type::Pointer { .. }

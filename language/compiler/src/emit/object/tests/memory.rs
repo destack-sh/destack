@@ -11,7 +11,7 @@ export function roundtrip(v0: int32): int32 {
 entry(v0: int32):
     local.set l0, v0
     v1: int32 = local.get l0
-    v2: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     store v2, v1
     v3: int32 = load v2
     return v3
@@ -71,9 +71,9 @@ shared global sharedValue: int32 = zeroinit
 
 export function globals(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<int32, borrowed, readonly, constant> = global.address constantValue
-    v2: ref<int32, borrowed, mutable, static> = global.address localValue
-    v3: ref<int32, borrowed, mutable, shared static> = global.address sharedValue
+    v1: ref<int32, borrowed, 'static, readonly, constant> = global.address constantValue
+    v2: ref<int32, borrowed, 'static, mutable, static> = global.address localValue
+    v3: ref<int32, borrowed, 'static, mutable, shared static> = global.address sharedValue
     v4: int32 = load v1
     store v2, v0
     store v3, v4
@@ -147,11 +147,8 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_heap_memory() {
     let program = TestProgram::mir(
         r#"
-export function transfer(
-    v0: ref<int32, borrowed, readonly>,
-    v1: ref<int32, borrowed, mutable, shared>,
-): int32 {
-entry(v0: ref<int32, borrowed, readonly>, v1: ref<int32, borrowed, mutable, shared>):
+export function transfer<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, mutable, shared>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'b, mutable, shared>):
     v2: int32 = load v0
     store v1, v2
     return v2
@@ -202,8 +199,8 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_a_barrier() {
     let program = TestProgram::mir(
         r#"
-export function update(v0: ref<int32, managed, mutable>): void {
-entry(v0: ref<int32, managed, mutable>):
+export function update(v0: ref<int32, managed, mutable, local>): void {
+entry(v0: ref<int32, managed, mutable, local>):
     v1: usize = 0
     v2: usize = 8
     barrier.write v0, v1, v2
@@ -264,14 +261,14 @@ type Triple {
 
 export function second(v0: Triple): int64 {
 entry(v0: Triple):
-    v1: ref<int64, borrowed, readonly, frame> = field.address v0, 1
+    v1: ref<int64, borrowed, 'frame, readonly, frame> = field.address v0, 1
     v2: int64 = load v1
     return v2
 }
 
-export function secondReference(v0: ref<Triple, borrowed, readonly>): int64 {
-entry(v0: ref<Triple, borrowed, readonly>):
-    v1: ref<int64, borrowed, readonly> = field.address v0, 1
+export function secondReference<'a>(v0: ref<Triple, borrowed, 'a, readonly, local>): int64 {
+entry(v0: ref<Triple, borrowed, 'a, readonly, local>):
+    v1: ref<int64, borrowed, 'a, readonly, local> = field.address v0, 1
     v2: int64 = load v1
     return v2
 }
@@ -349,14 +346,14 @@ fn test_emit_fixed_array_address() {
         r#"
 export function select(v0: [int32; 3], v1: usize): int32 {
 entry(v0: [int32; 3], v1: usize):
-    v2: ref<int32, borrowed, mutable, frame> = element.address v0, v1
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }
 
-export function selectReference(v0: ref<[int32; 3], borrowed, readonly>, v1: usize): int32 {
-entry(v0: ref<[int32; 3], borrowed, readonly>, v1: usize):
-    v2: ref<int32, borrowed, readonly> = element.address v0, v1
+export function selectReference<'a>(v0: ref<[int32; 3], borrowed, 'a, readonly, local>, v1: usize): int32 {
+entry(v0: ref<[int32; 3], borrowed, 'a, readonly, local>, v1: usize):
+    v2: ref<int32, borrowed, 'a, readonly, local> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }
@@ -436,9 +433,9 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_slice_address() {
     let program = TestProgram::mir(
         r#"
-export function select(v0: slice<int32, borrowed, readonly>, v1: usize): int32 {
-entry(v0: slice<int32, borrowed, readonly>, v1: usize):
-    v2: ref<int32, borrowed, readonly> = element.address v0, v1
+export function select<'a>(v0: slice<int32, borrowed, 'a, readonly, local>, v1: usize): int32 {
+entry(v0: slice<int32, borrowed, 'a, readonly, local>, v1: usize):
+    v2: ref<int32, borrowed, 'a, readonly, local> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }

@@ -16,7 +16,7 @@ fn test_link_static_global_address() {
         module,
         r#"
 constant answer: int32 = 42
-shared global answerReference: ref<int32, borrowed, readonly, constant> = globalAddress answer
+shared global answerReference: ref<int32, borrowed, 'static, readonly, constant> = globalAddress answer
 "#,
         [],
     );
@@ -67,7 +67,7 @@ fn test_link_string_value_constant() {
         r#"
 @languageItem("string.String")
 type String {
-    codeUnits: slice<uint16, managed, mutable>;
+    codeUnits: slice<uint16, managed, mutable, local>;
 }
 
 constant string.0: String = "hi"

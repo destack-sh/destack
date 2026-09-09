@@ -22,9 +22,7 @@ impl TypeEmitter<'_> {
             mir::Type::Character => bytecode::ValueType::scalar(bytecode::Scalar::Uint32),
             mir::Type::Int { is_signed, .. } => self.integer(layout, *is_signed)?,
             mir::Type::Isize => bytecode::ValueType::scalar(self.scalar(representation)?),
-            mir::Type::Usize | mir::Type::TypeDescriptor => {
-                bytecode::ValueType::scalar(self.scalar(representation)?)
-            }
+            mir::Type::Usize => bytecode::ValueType::scalar(self.scalar(representation)?),
             mir::Type::Float(format) => bytecode::ValueType::scalar(self.float(*format)),
             mir::Type::TypeId => bytecode::ValueType::type_id(),
             mir::Type::Reference { kind, storage, .. } => {
@@ -109,9 +107,7 @@ impl TypeEmitter<'_> {
             mir::Type::Character => Ok(bytecode::Scalar::Uint32),
             mir::Type::Int { is_signed, .. } => self.integer_scalar(scalar.bit_width(), *is_signed),
             mir::Type::Isize => self.integer_scalar(scalar.bit_width(), true),
-            mir::Type::Usize | mir::Type::TypeDescriptor => {
-                self.integer_scalar(scalar.bit_width(), false)
-            }
+            mir::Type::Usize => self.integer_scalar(scalar.bit_width(), false),
             mir::Type::Float(format) => Ok(self.float(*format)),
             mir::Type::TypeId => Ok(bytecode::Scalar::Uint32),
             _ => Err(self.unsupported_type()),

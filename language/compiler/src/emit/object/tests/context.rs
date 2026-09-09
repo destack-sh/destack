@@ -10,18 +10,18 @@ type Context { }
 type Variable { }
 
 type ContextNode {
-    parent: ref<Context, managed, readonly>;
-    variable: ref<Variable, managed, readonly>;
+    parent: ref<Context, managed, readonly, local>;
+    variable: ref<Variable, managed, readonly, local>;
     value: int32;
 }
 
-export function scope(v0: ref<Variable, managed, readonly>, v1: int32): int32 {
-entry(v0: ref<Variable, managed, readonly>, v1: int32):
-    v2: ref<Context, managed, readonly> = context.current
-    v3: ref<Context, managed, readonly> = context.bind v2, v0, v1, ContextNode
-    v4: ref<Context, managed, readonly> = context.replace v3
+export function scope(v0: ref<Variable, managed, readonly, local>, v1: int32): int32 {
+entry(v0: ref<Variable, managed, readonly, local>, v1: int32):
+    v2: ref<Context, managed, readonly, local> = context.current
+    v3: ref<Context, managed, readonly, local> = context.bind v2, v0, v1, ContextNode
+    v4: ref<Context, managed, readonly, local> = context.replace v3
     v5: int32 = context.get v3, v0, v1, ContextNode
-    v6: ref<Context, managed, readonly> = context.replace v4
+    v6: ref<Context, managed, readonly, local> = context.replace v4
     return v5
 }
 "#,
@@ -126,9 +126,9 @@ fn test_emit_context_current() {
         r#"
 type Context { }
 
-export function current(): ref<Context, managed, readonly> {
+export function current(): ref<Context, managed, readonly, local> {
 entry:
-    v0: ref<Context, managed, readonly> = context.current
+    v0: ref<Context, managed, readonly, local> = context.current
     return v0
 }
 "#,
@@ -172,10 +172,10 @@ fn test_emit_context_replace() {
 type Context { }
 
 export function replace(
-    v0: ref<Context, managed, readonly>,
-): ref<Context, managed, readonly> {
-entry(v0: ref<Context, managed, readonly>):
-    v1: ref<Context, managed, readonly> = context.replace v0
+    v0: ref<Context, managed, readonly, local>,
+): ref<Context, managed, readonly, local> {
+entry(v0: ref<Context, managed, readonly, local>):
+    v1: ref<Context, managed, readonly, local> = context.replace v0
     return v1
 }
 "#,
@@ -223,18 +223,18 @@ type Context { }
 type Variable { }
 
 type ContextNode {
-    parent: ref<Context, managed, readonly>;
-    variable: ref<Variable, managed, readonly>;
+    parent: ref<Context, managed, readonly, local>;
+    variable: ref<Variable, managed, readonly, local>;
     value: int32;
 }
 
 export function bind(
-    v0: ref<Context, managed, readonly>,
-    v1: ref<Variable, managed, readonly>,
+    v0: ref<Context, managed, readonly, local>,
+    v1: ref<Variable, managed, readonly, local>,
     v2: int32,
-): ref<Context, managed, readonly> {
-entry(v0: ref<Context, managed, readonly>, v1: ref<Variable, managed, readonly>, v2: int32):
-    v3: ref<Context, managed, readonly> = context.bind v0, v1, v2, ContextNode
+): ref<Context, managed, readonly, local> {
+entry(v0: ref<Context, managed, readonly, local>, v1: ref<Variable, managed, readonly, local>, v2: int32):
+    v3: ref<Context, managed, readonly, local> = context.bind v0, v1, v2, ContextNode
     return v3
 }
 "#,
@@ -306,17 +306,17 @@ type Context { }
 type Variable { }
 
 type ContextNode {
-    parent: ref<Context, managed, readonly>;
-    variable: ref<Variable, managed, readonly>;
+    parent: ref<Context, managed, readonly, local>;
+    variable: ref<Variable, managed, readonly, local>;
     value: int32;
 }
 
 export function get(
-    v0: ref<Context, managed, readonly>,
-    v1: ref<Variable, managed, readonly>,
+    v0: ref<Context, managed, readonly, local>,
+    v1: ref<Variable, managed, readonly, local>,
     v2: int32,
 ): int32 {
-entry(v0: ref<Context, managed, readonly>, v1: ref<Variable, managed, readonly>, v2: int32):
+entry(v0: ref<Context, managed, readonly, local>, v1: ref<Variable, managed, readonly, local>, v2: int32):
     v3: int32 = context.get v0, v1, v2, ContextNode
     return v3
 }

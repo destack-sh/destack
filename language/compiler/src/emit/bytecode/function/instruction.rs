@@ -286,7 +286,7 @@ impl<'a> FunctionEmitter<'a> {
                 bytecode::Initialization::Uninit,
                 Some(*length),
             ),
-            mir::Instruction::Free { value } => self.emit_free(*value),
+            mir::Instruction::Release { value } => self.emit_free(*value),
             mir::Instruction::BarrierWrite {
                 object,
                 offset,

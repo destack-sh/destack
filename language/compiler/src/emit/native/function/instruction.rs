@@ -349,9 +349,9 @@ impl<'a> FunctionEmitter<'a> {
                 Some(*length),
                 builder,
             )?,
-            mir::Instruction::Free { value } => {
+            mir::Instruction::Release { value } => {
                 let reference = self.reference(*value, builder)?;
-                self.emit_runtime(native::abi::Operation::Free, &[reference], builder)?;
+                self.emit_runtime(native::abi::Operation::Release, &[reference], builder)?;
             }
             mir::Instruction::BarrierWrite {
                 object,

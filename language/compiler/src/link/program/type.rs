@@ -280,7 +280,7 @@ impl<'a> ObjectTypes<'a> {
         match ty {
             mir::Type::Int { width, is_signed } => Some(ScalarFormat::int(*width, *is_signed)),
             mir::Type::Isize => Some(ScalarFormat::int(u16::from(self.pointer_bytes()) * 8, true)),
-            mir::Type::Usize | mir::Type::TypeDescriptor => Some(ScalarFormat::int(
+            mir::Type::Usize => Some(ScalarFormat::int(
                 u16::from(self.pointer_bytes()) * 8,
                 false,
             )),

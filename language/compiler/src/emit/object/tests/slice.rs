@@ -5,13 +5,9 @@ use crate::tests::TestProgram;
 fn test_emit_slice() {
     let program = TestProgram::mir(
         r#"
-export function subview(
-    v0: slice<int32, borrowed, readonly>,
-    v1: uint64,
-    v2: uint64,
-): uint64 {
-entry(v0: slice<int32, borrowed, readonly>, v1: uint64, v2: uint64):
-    v3: slice<int32, borrowed, readonly> = slice.view v0, v1, v2
+export function subview<'a>(v0: slice<int32, borrowed, 'a, readonly, local>, v1: uint64, v2: uint64): uint64 {
+entry(v0: slice<int32, borrowed, 'a, readonly, local>, v1: uint64, v2: uint64):
+    v3: slice<int32, borrowed, 'a, readonly, local> = slice.view v0, v1, v2
     v4: uint64 = slice.length v3
     return v4
 }

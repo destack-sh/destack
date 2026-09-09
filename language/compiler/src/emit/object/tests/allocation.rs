@@ -5,14 +5,14 @@ use crate::tests::TestProgram;
 fn test_emit_allocation_forms() {
     let program = TestProgram::mir(
         r#"
-export function allocate(v0: int64): slice<int32, unique, mutable> {
+export function allocate(v0: int64): slice<int32, unique, mutable, local> {
 entry(v0: int64):
-    v1: ref<int32, unique, mutable> = new.zeroed int32
-    v2: uninit<ref<int32, unique, mutable>> = new.uninit int32
-    v3: ref<int32, unique, mutable> = new.complete v2
-    v4: slice<int32, unique, mutable> = new.slice.zeroed int32, v0
-    v5: uninit<slice<int32, unique, mutable>> = new.slice.uninit int32, v0
-    v6: slice<int32, unique, mutable> = new.complete v5
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v2: uninit<ref<int32, unique, mutable, local>> = new.uninit int32
+    v3: ref<int32, unique, mutable, local> = new.complete v2
+    v4: slice<int32, unique, mutable, local> = new.slice.zeroed int32, v0
+    v5: uninit<slice<int32, unique, mutable, local>> = new.slice.uninit int32, v0
+    v6: slice<int32, unique, mutable, local> = new.complete v5
     return v6
 }
 "#,
@@ -96,11 +96,11 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_allocation_and_free() {
     let program = TestProgram::mir(
         r#"
-export function allocate(v0: int64): slice<int32, unique, mutable> {
+export function allocate(v0: int64): slice<int32, unique, mutable, local> {
 entry(v0: int64):
-    v1: ref<int32, unique, mutable> = new.zeroed int32
-    v2: slice<int32, unique, mutable> = new.slice.zeroed int32, v0
-    free v1
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v2: slice<int32, unique, mutable, local> = new.slice.zeroed int32, v0
+    release v1
     return v2
 }
 "#,
@@ -167,13 +167,13 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_uninitialized_allocation() {
     let program = TestProgram::mir(
         r#"
-export function allocate(v0: int64): slice<int32, unique, mutable> {
+export function allocate(v0: int64): slice<int32, unique, mutable, local> {
 entry(v0: int64):
-    v1: uninit<ref<int32, unique, mutable>> = new.uninit int32
-    v2: ref<int32, unique, mutable> = new.complete v1
-    v3: uninit<slice<int32, unique, mutable>> = new.slice.uninit int32, v0
-    v4: slice<int32, unique, mutable> = new.complete v3
-    free v2
+    v1: uninit<ref<int32, unique, mutable, local>> = new.uninit int32
+    v2: ref<int32, unique, mutable, local> = new.complete v1
+    v3: uninit<slice<int32, unique, mutable, local>> = new.slice.uninit int32, v0
+    v4: slice<int32, unique, mutable, local> = new.complete v3
+    release v2
     return v4
 }
 "#,

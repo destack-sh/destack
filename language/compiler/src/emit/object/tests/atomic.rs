@@ -5,8 +5,8 @@ use crate::tests::TestProgram;
 fn test_emit_atomic_operations() {
     let program = TestProgram::mir(
         r#"
-export function atomics(v0: ref<atomic<uint32>, borrowed, mutable, frame>): uint32 {
-entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
+export function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): uint32 {
+entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
     v1: uint32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     v2: uint32 = 2
@@ -66,11 +66,8 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_float_atomic_operations() {
     let program = TestProgram::mir(
         r#"
-export function atomics(
-    v0: ref<atomic<float32>, borrowed, mutable, frame>,
-    v1: float32,
-): float32 {
-entry(v0: ref<atomic<float32>, borrowed, mutable, frame>, v1: float32):
+export function atomics<'a>(v0: ref<atomic<float32>, borrowed, 'a, mutable, frame>, v1: float32): float32 {
+entry(v0: ref<atomic<float32>, borrowed, 'a, mutable, frame>, v1: float32):
     v2: float32 = atomic.rmw.xchg v0, v1, relaxed
     v3: float32 = atomic.rmw.sub v0, v2, relaxed
     return v3

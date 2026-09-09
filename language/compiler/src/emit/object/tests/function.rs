@@ -11,12 +11,12 @@ entry(v0: int32, v1: int32):
     return v2
 }
 
-export function identity(v0: slice<int32, managed, mutable>): slice<int32, managed, mutable> {
-entry(v0: slice<int32, managed, mutable>):
+export function identity(v0: slice<int32, managed, mutable, local>): slice<int32, managed, mutable, local> {
+entry(v0: slice<int32, managed, mutable, local>):
     return v0
 }
 
-@environment(ref<void, managed, mutable>)
+@environment(ref<void, managed, mutable, local>)
 export function closure(v0: int32): int32 {
 entry(v0: int32):
     return v0
@@ -111,7 +111,7 @@ entry(v0: int32):
     return v2
 }
 
-@environment(ref<void, managed, mutable>)
+@environment(ref<void, managed, mutable, local>)
 function captured(v0: int32): int32 {
 entry(v0: int32):
     return v0
@@ -123,14 +123,14 @@ entry:
     return v0
 }
 
-@environment(ref<void, managed, mutable>)
+@environment(ref<void, managed, mutable, local>)
 export function environment(
-    v0: ref<void, managed, mutable>,
-): ref<void, managed, mutable> {
-entry(v0: ref<void, managed, mutable>):
-    v1: ref<void, managed, mutable> = function.environment.current
-    v2: function<(int32) => int32, repeatable, managed, mutable> = function.bind captured, v0
-    v3: ref<void, managed, mutable> = function.environment v2
+    v0: ref<void, managed, mutable, local>,
+): ref<void, managed, mutable, local> {
+entry(v0: ref<void, managed, mutable, local>):
+    v1: ref<void, managed, mutable, local> = function.environment.current
+    v2: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind captured, v0
+    v3: ref<void, managed, mutable, local> = function.environment v2
     return v3
 }
 "#,
@@ -438,10 +438,10 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_environment_abi() {
     let program = TestProgram::mir(
         r#"
-@environment(ref<void, managed, mutable>)
-export function captured(v0: int32): ref<void, managed, mutable> {
+@environment(ref<void, managed, mutable, local>)
+export function captured(v0: int32): ref<void, managed, mutable, local> {
 entry(v0: int32):
-    v1: ref<void, managed, mutable> = function.environment.current
+    v1: ref<void, managed, mutable, local> = function.environment.current
     return v1
 }
 "#,
@@ -490,7 +490,7 @@ entry(v0: int32):
     return v2
 }
 
-@environment(ref<void, managed, mutable>)
+@environment(ref<void, managed, mutable, local>)
 function captured(v0: int32): int32 {
 entry(v0: int32):
     return v0
@@ -503,11 +503,11 @@ entry:
 }
 
 export function environment(
-    v0: ref<void, managed, mutable>,
-): ref<void, managed, mutable> {
-entry(v0: ref<void, managed, mutable>):
-    v1: function<(int32) => int32, repeatable, managed, mutable> = function.bind captured, v0
-    v2: ref<void, managed, mutable> = function.environment v1
+    v0: ref<void, managed, mutable, local>,
+): ref<void, managed, mutable, local> {
+entry(v0: ref<void, managed, mutable, local>):
+    v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind captured, v0
+    v2: ref<void, managed, mutable, local> = function.environment v1
     return v2
 }
 "#,

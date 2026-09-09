@@ -382,20 +382,20 @@ block0(v0: i64, v1: i64, v2: i64):
 fn test_emit_closure_call() {
     let program = TestProgram::mir(
         r#"
-@environment(ref<void, managed, readonly>)
-function captured(v0: int32): ref<void, managed, readonly> {
+@environment(ref<void, managed, readonly, local>)
+function captured(v0: int32): ref<void, managed, readonly, local> {
 entry(v0: int32):
-    v1: ref<void, managed, readonly> = function.environment.current
+    v1: ref<void, managed, readonly, local> = function.environment.current
     return v1
 }
 
 export function dispatch(
-    v0: ref<void, managed, readonly>,
+    v0: ref<void, managed, readonly, local>,
     v1: int32,
-): ref<void, managed, readonly> {
-entry(v0: ref<void, managed, readonly>, v1: int32):
-    v2: function<(int32) => ref<void, managed, readonly>, repeatable, managed, readonly> = function.bind captured, v0
-    v3: ref<void, managed, readonly> = call.indirect v2(v1): (int32) => ref<void, managed, readonly>
+): ref<void, managed, readonly, local> {
+entry(v0: ref<void, managed, readonly, local>, v1: int32):
+    v2: function<(int32) => ref<void, managed, readonly, local>, repeatable, managed, readonly, local> = function.bind captured, v0
+    v3: ref<void, managed, readonly, local> = call.indirect v2(v1): (int32) => ref<void, managed, readonly, local>
     return v3
 }
 "#,
