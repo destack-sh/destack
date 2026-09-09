@@ -43,19 +43,9 @@ impl<N: Node, T> NodeTable<N, T> {
         }
     }
 
-    /// Return whether this table has no dense entries.
-    pub(crate) fn is_empty(&self) -> bool {
-        self.values.is_empty()
-    }
-
     /// Return all dense values in this table.
     pub(crate) fn values(&self) -> &[T] {
         self.values.as_slice()
-    }
-
-    /// Iterate over node ids and values.
-    pub(crate) fn iter_nodes(&self) -> impl Iterator<Item = (LocalNodeId<N>, &T)> {
-        self.nodes.iter().copied().zip(&self.values)
     }
 
     /// Return one table entry.

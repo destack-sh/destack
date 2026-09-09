@@ -4,29 +4,10 @@ use crate as mir;
 use crate::EffectTable;
 
 use super::{
-    AliasTable, CallTable, ConstantTable, ControlTable, CostTable, CostWeights, DefinitionTable,
-    DominatorTable, EscapeTable, EvolutionTable, ExpressionTable, FrequencyTable,
-    InitializationTable, LinkTable, LivenessTable, LoopTable, MemoryTable, MoveTable, Mutation,
-    OriginTable, PlaceTable, PostdominatorTable, RangeTable, ResolutionTable, UseTable,
+    AliasTable, CallTable, ConstantTable, ControlTable, DefinitionTable, DominatorTable,
+    EscapeTable, InitializationTable, LinkTable, LivenessTable, LoopTable, MemoryTable, MoveTable,
+    Mutation, OriginTable, PlaceTable, PostdominatorTable, ResolutionTable, UseTable,
 };
-
-/// Largest loop scale for profile frequency analysis.
-const DEFAULT_MAX_LOOP_SCALE: f64 = 4096.0;
-
-/// Minimum execution count for a hot operation.
-const DEFAULT_HOT_COUNT: u64 = 50;
-
-/// Maximum execution count for a cold operation.
-const DEFAULT_COLD_COUNT: u64 = 8;
-
-/// Minimum caller relative count for a hot operation.
-const DEFAULT_HOT_RATIO: f64 = 0.10;
-
-/// Maximum caller relative count for a cold operation.
-const DEFAULT_COLD_RATIO: f64 = 0.01;
-
-/// Range refinement iterations before widening.
-const DEFAULT_RANGE_WIDEN_THRESHOLD: u32 = 32;
 
 /// Cached analyses for one MIR module.
 #[derive(Debug)]
@@ -54,18 +35,12 @@ pub struct FunctionCache {
     constant: Option<Arc<ConstantTable>>,
     /// The cached control flow.
     control: Option<Arc<ControlTable>>,
-    /// The cached operation costs.
-    cost: Option<Arc<CostTable>>,
     /// The cached value definitions.
     definition: Option<Arc<DefinitionTable>>,
     /// The cached dominators.
     dominator: Option<Arc<DominatorTable>>,
     /// The cached escapes.
     escape: Option<Arc<EscapeTable>>,
-    /// The cached available expressions.
-    expression: Option<Arc<ExpressionTable>>,
-    /// The cached execution frequencies.
-    frequency: Option<Arc<FrequencyTable>>,
     /// The cached move-path initialization.
     initialization: Option<Arc<InitializationTable>>,
     /// The cached liveness table.
@@ -82,126 +57,23 @@ pub struct FunctionCache {
     postdominator: Option<Arc<PostdominatorTable>>,
     /// The cached borrow origin.
     origin: Option<Arc<OriginTable>>,
-    /// The cached value ranges.
-    range: Option<Arc<RangeTable>>,
-    /// The cached scalar evolution.
-    evolution: Option<Arc<EvolutionTable>>,
     /// The cached value uses.
     uses: Option<Arc<UseTable>>,
     /// The analysis options.
     options: Arc<AnalysisOptions>,
 }
 
-/// Options for MIR execution frequency analysis.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ExecutionFrequencyOptions {
-    /// Maximum loop scale for near-certain back edges.
-    pub max_loop_scale: f64,
-}
-
-impl Default for ExecutionFrequencyOptions {
-    fn default() -> Self {
-        Self {
-            max_loop_scale: DEFAULT_MAX_LOOP_SCALE,
-        }
-    }
-}
-
-/// Thresholds for classifying profiled operations as hot or cold.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct HotnessThresholds {
-    /// Minimum execution count for a hot operation.
-    pub hot_count: u64,
-    /// Maximum execution count for a cold operation.
-    pub cold_count: u64,
-    /// Minimum caller-relative count for a hot operation.
-    pub hot_ratio: f64,
-    /// Maximum caller-relative count for a cold operation.
-    pub cold_ratio: f64,
-}
-
-impl Default for HotnessThresholds {
-    fn default() -> Self {
-        Self {
-            hot_count: DEFAULT_HOT_COUNT,
-            cold_count: DEFAULT_COLD_COUNT,
-            hot_ratio: DEFAULT_HOT_RATIO,
-            cold_ratio: DEFAULT_COLD_RATIO,
-        }
-    }
-}
-
-/// Options for MIR range analysis.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RangeOptions {
-    /// Block refinement iterations before widening.
-    pub widen_threshold: u32,
-}
-
-impl Default for RangeOptions {
-    fn default() -> Self {
-        Self {
-            widen_threshold: DEFAULT_RANGE_WIDEN_THRESHOLD,
-        }
-    }
-}
-
-/// Options used by MIR analyses.
+/// Inputs shared by MIR analyses.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct AnalysisOptions {
-    /// Target layout for layout sensitive analyses.
+    /// Target layout used by layout sensitive analyses.
     pub target_layout: mir::TargetLayout,
-    /// Cost weights for MIR cost analysis.
-    pub cost_weights: CostWeights,
-    /// Options for MIR execution frequency analysis.
-    pub execution_frequency: ExecutionFrequencyOptions,
-    /// Thresholds for profile hotness classification.
-    pub hotness: HotnessThresholds,
-    /// Options for MIR range analysis.
-    pub range: RangeOptions,
 }
 
 impl AnalysisOptions {
-    /// Create MIR analysis options.
+    /// Create analysis options for one target.
     pub fn new(target_layout: mir::TargetLayout) -> Self {
-        Self {
-            target_layout,
-            cost_weights: CostWeights::default(),
-            execution_frequency: ExecutionFrequencyOptions::default(),
-            hotness: HotnessThresholds::default(),
-            range: RangeOptions::default(),
-        }
-    }
-
-    /// Create MIR analysis options with cost weights.
-    pub fn with_cost_weights(mut self, cost_weights: CostWeights) -> Self {
-        self.cost_weights = cost_weights;
-
-        self
-    }
-
-    /// Create MIR analysis options with execution frequency options.
-    pub fn with_execution_frequency_options(
-        mut self,
-        execution_frequency: ExecutionFrequencyOptions,
-    ) -> Self {
-        self.execution_frequency = execution_frequency;
-
-        self
-    }
-
-    /// Create MIR analysis options with hotness thresholds.
-    pub fn with_hotness_thresholds(mut self, hotness: HotnessThresholds) -> Self {
-        self.hotness = hotness;
-
-        self
-    }
-
-    /// Create MIR analysis options with range options.
-    pub fn with_range_options(mut self, range: RangeOptions) -> Self {
-        self.range = range;
-
-        self
+        Self { target_layout }
     }
 }
 
@@ -319,12 +191,9 @@ impl FunctionCache {
             alias: None,
             constant: None,
             control: None,
-            cost: None,
             definition: None,
             dominator: None,
             escape: None,
-            expression: None,
-            frequency: None,
             initialization: None,
             liveness: None,
             loops: None,
@@ -333,8 +202,6 @@ impl FunctionCache {
             place: None,
             postdominator: None,
             origin: None,
-            range: None,
-            evolution: None,
             uses: None,
             options,
         }
@@ -363,7 +230,6 @@ impl FunctionCache {
         ControlTable,
         "Return the control-flow graph."
     );
-    function_analysis!(cost, cost, CostTable, "Return the cost model.");
     function_analysis!(
         definition,
         definition,
@@ -377,18 +243,6 @@ impl FunctionCache {
         "Return the dominator tree."
     );
     function_analysis!(escape, escape, EscapeTable, "Return escape analysis.");
-    function_analysis!(
-        expression,
-        expression,
-        ExpressionTable,
-        "Return available expressions."
-    );
-    function_analysis!(
-        frequency,
-        frequency,
-        FrequencyTable,
-        "Return execution frequencies."
-    );
     function_analysis!(liveness, liveness, LivenessTable, "Return value liveness.");
     function_analysis!(
         initialization,
@@ -420,13 +274,6 @@ impl FunctionCache {
         PostdominatorTable,
         "Return postdominators."
     );
-    function_analysis!(range, range, RangeTable, "Return value range.");
-    function_analysis!(
-        evolution,
-        evolution,
-        EvolutionTable,
-        "Return scalar evolution."
-    );
     function_analysis!(uses, uses, UseTable, "Return value uses.");
 
     /// Drop every analysis the given mutation invalidates.
@@ -440,9 +287,6 @@ impl FunctionCache {
         if ControlTable::INVALIDATED_BY.intersects(mutation) {
             self.control = None;
         }
-        if CostTable::INVALIDATED_BY.intersects(mutation) {
-            self.cost = None;
-        }
         if DefinitionTable::INVALIDATED_BY.intersects(mutation) {
             self.definition = None;
         }
@@ -451,12 +295,6 @@ impl FunctionCache {
         }
         if EscapeTable::INVALIDATED_BY.intersects(mutation) {
             self.escape = None;
-        }
-        if ExpressionTable::INVALIDATED_BY.intersects(mutation) {
-            self.expression = None;
-        }
-        if FrequencyTable::INVALIDATED_BY.intersects(mutation) {
-            self.frequency = None;
         }
         if LivenessTable::INVALIDATED_BY.intersects(mutation) {
             self.liveness = None;
@@ -481,12 +319,6 @@ impl FunctionCache {
         }
         if OriginTable::INVALIDATED_BY.intersects(mutation) {
             self.origin = None;
-        }
-        if RangeTable::INVALIDATED_BY.intersects(mutation) {
-            self.range = None;
-        }
-        if EvolutionTable::INVALIDATED_BY.intersects(mutation) {
-            self.evolution = None;
         }
         if UseTable::INVALIDATED_BY.intersects(mutation) {
             self.uses = None;
@@ -567,7 +399,6 @@ impl AnalysisCache {
         ControlTable,
         "Return the function control-flow graph."
     );
-    function_analysis_through_module!(cost, CostTable, "Return the function cost model.");
     function_analysis_through_module!(
         definition,
         DefinitionTable,
@@ -579,16 +410,6 @@ impl AnalysisCache {
         "Return the function dominator tree."
     );
     function_analysis_through_module!(escape, EscapeTable, "Return function escape analysis.");
-    function_analysis_through_module!(
-        expression,
-        ExpressionTable,
-        "Return function available expressions."
-    );
-    function_analysis_through_module!(
-        frequency,
-        FrequencyTable,
-        "Return function execution frequencies."
-    );
     function_analysis_through_module!(liveness, LivenessTable, "Return function value liveness.");
     function_analysis_through_module!(loops, LoopTable, "Return function loop analysis.");
     function_analysis_through_module!(
@@ -610,12 +431,6 @@ impl AnalysisCache {
         postdominator,
         PostdominatorTable,
         "Return function postdominators."
-    );
-    function_analysis_through_module!(range, RangeTable, "Return function value range.");
-    function_analysis_through_module!(
-        evolution,
-        EvolutionTable,
-        "Return function scalar evolution."
     );
     function_analysis_through_module!(
         initialization,

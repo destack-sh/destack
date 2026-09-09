@@ -71,16 +71,6 @@ impl<S> Dataflow<S> {
     pub fn set_exit(&mut self, block: mir::LocalNodeId<mir::Block>, state: S) {
         *self.block_exit.get_mut(block) = Some(state);
     }
-
-    /// Split into entry and exit tables.
-    pub(crate) fn into_parts(
-        self,
-    ) -> (
-        NodeTable<mir::Block, Option<S>>,
-        NodeTable<mir::Block, Option<S>>,
-    ) {
-        (self.block_entry, self.block_exit)
-    }
 }
 
 impl<S> Default for Dataflow<S> {

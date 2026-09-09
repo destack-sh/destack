@@ -192,7 +192,7 @@ impl FunctionProfile {
 /// Profile data for one global, addressed by its persistent symbol.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
 pub struct GlobalProfile {
-    /// Writes observed after initialization; zero means effectively constant.
+    /// Writes observed after initialization, with zero indicating no observed writes.
     pub writes: Count,
     /// Read accesses observed, for layout and colocation.
     pub reads: Count,
