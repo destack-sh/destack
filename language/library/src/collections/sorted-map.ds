@@ -230,7 +230,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Create a sorted map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^SortedMap<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^SortedMap<K, V> {
         todo("SortedMap.fromIterator")
     }
 
@@ -278,7 +278,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Insert or replace all entries.
-    extend(&this, entries: Iterable<(K, V)>): void {
+    extend<I: Iterable<(K, V)>>(&this, entries: I): void {
         todo("SortedMap.extend");
     }
 
@@ -330,7 +330,7 @@ export extension<K: Compare<K>, V> of SortedMap<K, V>
     }
 
     /// Create a managed sorted map from `entries`.
-    static fromIterator(entries: Iterator<(K, V)>): SortedMap<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): SortedMap<K, V> {
         SortedMap.fromIterator(entries)
     }
 }
@@ -344,7 +344,7 @@ export extension<K: Compare<K>, V> of ^SortedMap<K, V>
     }
 
     /// Create an owned sorted map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^SortedMap<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^SortedMap<K, V> {
         SortedMap.fromIterator(entries)
     }
 }

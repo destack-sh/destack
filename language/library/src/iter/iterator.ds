@@ -247,14 +247,14 @@ export extension<T, I: Iterator<T>> of I implements Iterable<T> {
 @languageItem("iter.FromIterator")
 export newtype interface FromIterator<T> {
     /// Build this value from `values`.
-    static fromIterator(values: Iterator<T>): this;
+    static fromIterator<I: Iterator<T>>(values: I): this;
 }
 
 /// Collection extended from an iterable sequence.
 @languageItem("iter.Extend")
 export newtype interface Extend<T, const A: Access = "mutable"> {
     /// Append `values`.
-    extend(this: WithAccess<&this, A>, values: Iterable<T>): void;
+    extend<I: Iterable<T>>(this: WithAccess<&this, A>, values: I): void;
 }
 
 /// Iterator that pairs each yielded value with its index.

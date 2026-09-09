@@ -108,7 +108,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Create a small array from `values`.
-    static fromIterator(values: Iterator<T>): SmallArray<T, N> {
+    static fromIterator<I: Iterator<T>>(values: I): SmallArray<T, N> {
         todo("SmallArray.fromIterator")
     }
 
@@ -180,7 +180,7 @@ export extension<T, const N: usize> of SmallArray<T, N>
     }
 
     /// Append all `values`.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("SmallArray.extend");
     }
 

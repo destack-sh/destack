@@ -449,7 +449,7 @@ export extension<T> of Array<T>
     }
 
     /// Create an array from `values`.
-    static fromIterator(values: Iterator<T>): ^Array<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^Array<T> {
         todo("Array.fromIterator")
     }
 
@@ -522,7 +522,7 @@ export extension<T> of Array<T>
     }
 
     /// Append all `values`.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("Array.extend");
     }
 
@@ -847,7 +847,7 @@ export extension<T> of Array<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create a managed array from `values`.
-    static fromIterator(values: Iterator<T>): Array<T> {
+    static fromIterator<I: Iterator<T>>(values: I): Array<T> {
         Array.fromIterator(values)
     }
 }
@@ -859,7 +859,7 @@ export extension<T> of ^Array<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned array from `values`.
-    static fromIterator(values: Iterator<T>): ^Array<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^Array<T> {
         Array.fromIterator(values)
     }
 }

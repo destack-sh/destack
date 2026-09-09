@@ -60,7 +60,7 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Create a binary heap from `values`.
-    static fromIterator(values: Iterator<T>): BinaryHeap<T> {
+    static fromIterator<I: Iterator<T>>(values: I): BinaryHeap<T> {
         todo("BinaryHeap.fromIterator")
     }
 
@@ -85,7 +85,7 @@ export extension<T: Compare<T>> of BinaryHeap<T>
     }
 
     /// Push all `values`.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("BinaryHeap.extend");
     }
 

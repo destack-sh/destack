@@ -139,7 +139,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to be null.
-    toBeNull(this): void {
+    toBeNull(this): void where T: StrictEqual<null> {
         this.check(
             *this.value === null,
             "expected value to be null",
@@ -148,7 +148,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to be undefined.
-    toBeUndefined(this): void {
+    toBeUndefined(this): void where T: StrictEqual<undefined> {
         this.check(
             *this.value === undefined,
             "expected value to be undefined",
@@ -157,7 +157,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to be defined.
-    toBeDefined(this): void {
+    toBeDefined(this): void where T: StrictEqual<undefined> {
         this.check(
             *this.value !== undefined,
             "expected value to be defined",
@@ -166,7 +166,7 @@ export struct Expectation<'a, T> {
     }
 
     /// Require the value to be null or undefined.
-    toBeNullable(this): void {
+    toBeNullable(this): void where T: StrictEqual<null>, T: StrictEqual<undefined> {
         const isNullable = *this.value === null || *this.value === undefined;
 
         this.check(

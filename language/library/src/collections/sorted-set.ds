@@ -128,7 +128,7 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> 
     }
 
     /// Create a sorted set from `values`.
-    static fromIterator(values: Iterator<T>): ^SortedSet<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^SortedSet<T> {
         todo("SortedSet.fromIterator")
     }
 
@@ -153,7 +153,7 @@ export extension<T: Compare<T>> of SortedSet<T> implements Extend<T, "mutable"> 
     }
 
     /// Add all `values`.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("SortedSet.extend");
     }
 
@@ -236,7 +236,7 @@ export extension<T: Compare<T>> of SortedSet<T> implements From<Iterable<T>>, Fr
     }
 
     /// Create a managed sorted set from `values`.
-    static fromIterator(values: Iterator<T>): SortedSet<T> {
+    static fromIterator<I: Iterator<T>>(values: I): SortedSet<T> {
         SortedSet.fromIterator(values)
     }
 }
@@ -248,7 +248,7 @@ export extension<T: Compare<T>> of ^SortedSet<T> implements From<Iterable<T>>, F
     }
 
     /// Create an owned sorted set from `values`.
-    static fromIterator(values: Iterator<T>): ^SortedSet<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^SortedSet<T> {
         SortedSet.fromIterator(values)
     }
 }

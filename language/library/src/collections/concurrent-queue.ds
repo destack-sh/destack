@@ -23,7 +23,7 @@ export extension<T> of ConcurrentQueue<T> implements Default, Extend<T, "mutable
     }
 
     /// Create a concurrent queue from `values`.
-    static fromIterator(values: Iterator<T>): ^ConcurrentQueue<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^ConcurrentQueue<T> {
         todo("ConcurrentQueue.fromIterator")
     }
 
@@ -43,7 +43,7 @@ export extension<T> of ConcurrentQueue<T> implements Default, Extend<T, "mutable
     }
 
     /// Append all `values` to the back of the queue.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("ConcurrentQueue.extend");
     }
 
@@ -65,7 +65,7 @@ export extension<T> of ConcurrentQueue<T> implements From<Iterable<T>>, FromIter
     }
 
     /// Create a managed concurrent queue from `values`.
-    static fromIterator(values: Iterator<T>): ConcurrentQueue<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ConcurrentQueue<T> {
         ConcurrentQueue.fromIterator(values)
     }
 }
@@ -77,7 +77,7 @@ export extension<T> of ^ConcurrentQueue<T> implements From<Iterable<T>>, FromIte
     }
 
     /// Create an owned concurrent queue from values.
-    static fromIterator(values: Iterator<T>): ^ConcurrentQueue<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^ConcurrentQueue<T> {
         ConcurrentQueue.fromIterator(values)
     }
 }

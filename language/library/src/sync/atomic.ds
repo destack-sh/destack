@@ -106,7 +106,7 @@ export extension<T: AtomicSafe> of Atomic<T> {
 
     /// Load the current value.
     @intrinsic("sync.atomic.load")
-    declare load(&readonly this, order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent): T;
+    declare load(&readonly this, order: MemoryOrdering): T;
 
     /// Store a new value.
     store(

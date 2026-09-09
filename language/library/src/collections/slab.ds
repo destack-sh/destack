@@ -106,7 +106,7 @@ export extension<T> of Slab<T>
     }
 
     /// Create a slab from `values`.
-    static fromIterator(values: Iterator<T>): Slab<T> {
+    static fromIterator<I: Iterator<T>>(values: I): Slab<T> {
         todo("Slab.fromIterator")
     }
 
@@ -136,7 +136,7 @@ export extension<T> of Slab<T>
     }
 
     /// Insert all `values`.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("Slab.extend");
     }
 

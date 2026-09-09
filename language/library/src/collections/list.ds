@@ -130,7 +130,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "mutable"> {
     }
 
     /// Create a linked list from `values`.
-    static fromIterator(values: Iterator<T>): ^LinkedList<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^LinkedList<T> {
         todo("LinkedList.fromIterator")
     }
 
@@ -165,7 +165,7 @@ export extension<T> of LinkedList<T> implements Default, Extend<T, "mutable"> {
     }
 
     /// Append all `values` to the back.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("LinkedList.extend");
     }
 
@@ -220,7 +220,7 @@ export extension<T> of LinkedList<T> implements From<Iterable<T>>, FromIterator<
     }
 
     /// Create a managed linked list from `values`.
-    static fromIterator(values: Iterator<T>): LinkedList<T> {
+    static fromIterator<I: Iterator<T>>(values: I): LinkedList<T> {
         LinkedList.fromIterator(values)
     }
 }
@@ -232,7 +232,7 @@ export extension<T> of ^LinkedList<T> implements From<Iterable<T>>, FromIterator
     }
 
     /// Create an owned linked list from values.
-    static fromIterator(values: Iterator<T>): ^LinkedList<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^LinkedList<T> {
         LinkedList.fromIterator(values)
     }
 }

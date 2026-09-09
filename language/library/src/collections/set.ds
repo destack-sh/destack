@@ -134,7 +134,7 @@ export extension<T: Hash> of Set<T> implements Extend<T, "mutable"> where T: Equ
     }
 
     /// Create a set from `values`.
-    static fromIterator(values: Iterator<T>): ^Set<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^Set<T> {
         todo("Set.fromIterator")
     }
 
@@ -159,7 +159,7 @@ export extension<T: Hash> of Set<T> implements Extend<T, "mutable"> where T: Equ
     }
 
     /// Add all `values`.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("Set.extend");
     }
 
@@ -245,7 +245,7 @@ export extension<T: Hash> of Set<T>
     }
 
     /// Create a managed set from `values`.
-    static fromIterator(values: Iterator<T>): Set<T> {
+    static fromIterator<I: Iterator<T>>(values: I): Set<T> {
         Set.fromIterator(values)
     }
 }
@@ -260,7 +260,7 @@ export extension<T: Hash> of ^Set<T>
     }
 
     /// Create an owned set from `values`.
-    static fromIterator(values: Iterator<T>): ^Set<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^Set<T> {
         Set.fromIterator(values)
     }
 }

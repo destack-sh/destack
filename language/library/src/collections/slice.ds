@@ -50,7 +50,7 @@ export extension<T> of Slice<T> implements Default {
     }
 
     /// Create a slice from `values`.
-    static fromIterator(values: Iterator<T>): ^[T] {
+    static fromIterator<I: Iterator<T>>(values: I): ^[T] {
         todo("Slice.fromIterator")
     }
 
@@ -210,7 +210,7 @@ export extension<T> of ^Slice<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create a slice from `values`.
-    static fromIterator(values: Iterator<T>): ^[T] {
+    static fromIterator<I: Iterator<T>>(values: I): ^[T] {
         Slice.fromIterator(values)
     }
 }

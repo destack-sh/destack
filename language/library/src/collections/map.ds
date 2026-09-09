@@ -220,7 +220,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Create a map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^Map<K, V> {
         todo("Map.fromIterator")
     }
 
@@ -278,7 +278,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Insert or replace all entries.
-    extend(&this, entries: Iterable<(K, V)>): void {
+    extend<I: Iterable<(K, V)>>(&this, entries: I): void {
         todo("Map.extend");
     }
 
@@ -332,7 +332,7 @@ export extension<K: Hash, V> of Map<K, V>
     }
 
     /// Create a managed map from `entries`.
-    static fromIterator(entries: Iterator<(K, V)>): Map<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): Map<K, V> {
         Map.fromIterator(entries)
     }
 }
@@ -347,7 +347,7 @@ export extension<K: Hash, V> of ^Map<K, V>
     }
 
     /// Create an owned map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^Map<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^Map<K, V> {
         Map.fromIterator(entries)
     }
 }

@@ -112,7 +112,7 @@ export extension<T> of Deque<T>
     }
 
     /// Create a deque from `values`.
-    static fromIterator(values: Iterator<T>): ^Deque<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^Deque<T> {
         todo("Deque.fromIterator")
     }
 
@@ -160,7 +160,7 @@ export extension<T> of Deque<T>
     }
 
     /// Append all `values` to the back.
-    extend(&this, values: Iterable<T>): void {
+    extend<I: Iterable<T>>(&this, values: I): void {
         todo("Deque.extend");
     }
 
@@ -215,7 +215,7 @@ export extension<T> of Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create a managed deque from `values`.
-    static fromIterator(values: Iterator<T>): Deque<T> {
+    static fromIterator<I: Iterator<T>>(values: I): Deque<T> {
         Deque.fromIterator(values)
     }
 }
@@ -227,7 +227,7 @@ export extension<T> of ^Deque<T> implements From<Iterable<T>>, FromIterator<T> {
     }
 
     /// Create an owned deque from values.
-    static fromIterator(values: Iterator<T>): ^Deque<T> {
+    static fromIterator<I: Iterator<T>>(values: I): ^Deque<T> {
         Deque.fromIterator(values)
     }
 }

@@ -3,7 +3,7 @@ import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
 import { Clone, Default, Dispose, WithAccess } from "destack:memory";
 import { Dereference, Equal, Hash } from "destack:ops";
-import { Atomic, RwLock, RwLockReadGuard, RwLockWriteGuard } from "destack:sync";
+import { Atomic, MemoryOrdering, RwLock, RwLockReadGuard, RwLockWriteGuard } from "destack:sync";
 
 import { Array } from "./array.ds";
 import { Map } from "./map.ds";
@@ -175,18 +175,18 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
     }
 
     /// Create a concurrent map from `entries`.
-    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^ConcurrentMap<K, V> {
         todo("ConcurrentMap.fromIterator")
     }
 
     /// Return the number of entries.
     get size(): usize {
-        this.count.load()
+        this.count.load(MemoryOrdering.SequentiallyConsistent)
     }
 
     /// Return whether this map has no entries.
     get isEmpty(): boolean {
-        this.count.load() == 0
+        this.count.load(MemoryOrdering.SequentiallyConsistent) == 0
     }
 
     /// Clone and return a value by key.
@@ -249,7 +249,7 @@ export extension<K: Hash, V> of ConcurrentMap<K, V> implements Extend<(K, V), "m
     }
 
     /// Insert or replace all entries.
-    extend(&this, entries: Iterable<(K, V)>): void {
+    extend<I: Iterable<(K, V)>>(&this, entries: I): void {
         todo("ConcurrentMap.extend");
     }
 
@@ -297,7 +297,7 @@ export extension<K: Hash, V> of ConcurrentMap<K, V>
     }
 
     /// Create a managed concurrent map from `entries`.
-    static fromIterator(entries: Iterator<(K, V)>): ConcurrentMap<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ConcurrentMap<K, V> {
         ConcurrentMap.fromIterator(entries)
     }
 }
@@ -311,7 +311,7 @@ export extension<K: Hash, V> of ^ConcurrentMap<K, V>
     }
 
     /// Create an owned concurrent map from entries.
-    static fromIterator(entries: Iterator<(K, V)>): ^ConcurrentMap<K, V> {
+    static fromIterator<I: Iterator<(K, V)>>(entries: I): ^ConcurrentMap<K, V> {
         ConcurrentMap.fromIterator(entries)
     }
 }
