@@ -1,50 +1,35 @@
-use std::any::Any;
+use destack_artifact::{MirElaborated, MirOptimized};
+use destack_mir::{AnalysisCache, AnalysisOptions};
 
-use crate::optimize::{
-    MirOptimized, PackagePipelineContext, PackageWorkset, PipelineContext, ProgramPipelineContext,
-    ProgramWorkset,
-};
+use crate::CompilerResult;
+use crate::optimize::passes::{InsertSafepoints, InsertWriteBarriers};
 
-/// A composable pipeline element.
-///
-/// Pipelines can be nested and combined to create complex optimization strategies.
-pub trait Pipeline: Send + Sync {
-    /// Run the pipeline on a module.
-    ///
-    /// Returns true if any changes were made.
-    fn run(&self, mir: &mut MirOptimized, ctx: &mut PipelineContext<'_>) -> bool;
+use super::Step;
 
-    /// Get the name of this pipeline.
-    fn name(&self) -> &'static str;
+/// Required runtime transformations, in execution order.
+const STEPS: &[Step<'_>] = &[Step::Functions(&[&InsertSafepoints, &InsertWriteBarriers])];
 
-    /// Return this pipeline as a dynamic value for downcasting.
-    fn as_any(&self) -> &dyn Any;
-}
+/// Optimize elaborated MIR and insert the required runtime operations.
+pub(crate) fn optimize(elaborated: &MirElaborated) -> CompilerResult<MirOptimized> {
+    // copy the elaborated module for transformation
+    let mut optimized = MirOptimized {
+        tree: elaborated.tree.clone(),
+        target: elaborated.target,
+        initializer: elaborated.initializer,
+        layouts: elaborated.layouts.clone(),
+        dispatch: elaborated.dispatch.clone(),
+        drops: elaborated.drops.clone(),
+        accesses: elaborated.accesses.clone(),
+        effects: elaborated.effects.clone(),
+        profile: elaborated.profile.clone(),
+    };
 
-/// A composable package pipeline element.
-pub trait PackagePipeline: Send + Sync {
-    /// Run the pipeline on a package.
-    ///
-    /// Returns true if any changes were made.
-    fn run(&self, workset: &mut PackageWorkset, ctx: &mut PackagePipelineContext) -> bool;
+    // execute module transformations and function groups
+    let options = AnalysisOptions::new(optimized.target);
+    let mut analyses = AnalysisCache::with_options(options);
+    for step in STEPS {
+        step.run(&mut optimized, &mut analyses)?;
+    }
 
-    /// Get the pipeline name.
-    fn name(&self) -> &'static str;
-
-    /// Return this pipeline as a dynamic value for downcasting.
-    fn as_any(&self) -> &dyn Any;
-}
-
-/// A composable program pipeline element.
-pub trait ProgramPipeline: Send + Sync {
-    /// Run the pipeline on a program.
-    ///
-    /// Returns true if any changes were made.
-    fn run(&self, workset: &mut ProgramWorkset, ctx: &mut ProgramPipelineContext) -> bool;
-
-    /// Get the pipeline name.
-    fn name(&self) -> &'static str;
-
-    /// Return this pipeline as a dynamic value for downcasting.
-    fn as_any(&self) -> &dyn Any;
+    Ok(optimized)
 }

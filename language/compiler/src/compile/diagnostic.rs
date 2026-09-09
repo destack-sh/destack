@@ -5,8 +5,7 @@ use crate::{
     AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, Compiler,
     ElaborateError, ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning,
     ExportError, ExportWarning, ImportError, InstantiateError, LinkError, LinkWarning, LowerError,
-    LowerWarning, MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning,
-    ResolveError, ResolveWarning, VerifyError,
+    LowerWarning, MaterializeError, MaterializeWarning, ResolveError, ResolveWarning, VerifyError,
 };
 use destack_core::{NameMatch, NameMatchTier};
 use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
@@ -34,8 +33,6 @@ const COMPILER_DIAGNOSTICS: &[&[DiagnosticDefinition]] = &[
     InstantiateError::ALL,
     AnalyzeError::ALL,
     AnalyzeWarning::ALL,
-    OptimizeError::ALL,
-    OptimizeWarning::ALL,
     EmitError::ALL,
     EmitWarning::ALL,
     LinkError::ALL,

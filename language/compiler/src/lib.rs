@@ -1,4 +1,3 @@
-#![feature(default_field_values)]
 #![allow(clippy::result_large_err)]
 #![allow(clippy::too_many_arguments)]
 
@@ -30,7 +29,6 @@ pub use import::*;
 pub use instantiate::*;
 pub use link::*;
 pub use lower::*;
-pub use optimize::*;
 pub use resolve::*;
 pub use sema::*;
 pub use verify::*;

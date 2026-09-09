@@ -98,7 +98,7 @@ impl Compiler {
                 module,
                 profile,
                 target,
-            } => self.collect_mir_optimized(module, profile, target, context),
+            } => self.collect_mir_optimized(module, profile, target),
             ArtifactKey::Script { module, target } => {
                 let profile = self.profile_id_for_target(context.revision(), &target)?;
 
