@@ -115,7 +115,7 @@ export extension<T: Float> of Complex<T>
 
     /// Return the square root.
     sqrt(): Complex<T> {
-        Complex.polar(this.magnitude().sqrt(), this.phase() / 2)
+        Complex.polar(this.magnitude().sqrt(), this.phase() / (T.one() + T.one()))
     }
 
     /// Raise this value to `exponent`.

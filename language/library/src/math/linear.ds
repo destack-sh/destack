@@ -258,7 +258,7 @@ export extension<T: Float> of Vector2<T> {
 
     /// Return this vector reflected around `normal`.
     reflect(normal: Vector2<T>): Vector2<T> {
-        let scale = this.dot(normal) * 2;
+        let scale = this.dot(normal) * (T.one() + T.one());
 
         Vector2 {
             x: this.x - normal.x * scale,
@@ -496,7 +496,7 @@ export extension<T: Float> of Vector3<T> {
 
     /// Return this vector reflected around `normal`.
     reflect(normal: Vector3<T>): Vector3<T> {
-        let scale = this.dot(normal) * 2;
+        let scale = this.dot(normal) * (T.one() + T.one());
 
         Vector3 {
             x: this.x - normal.x * scale,
@@ -722,7 +722,7 @@ export extension<T: Float> of Vector4<T> {
 
     /// Return this vector reflected around `normal`.
     reflect(normal: Vector4<T>): Vector4<T> {
-        let scale = this.dot(normal) * 2;
+        let scale = this.dot(normal) * (T.one() + T.one());
 
         Vector4 {
             x: this.x - normal.x * scale,

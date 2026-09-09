@@ -31,6 +31,10 @@ export declare function asReference<T, const A: Access = "mutable">(
     pointer: *T,
 ): Borrowed<T, 'static, A>;
 
+/// Return the raw pointer `reference` points to.
+@intrinsic("memory.ptr.fromReference")
+export declare function fromReference<T>(reference: &readonly T): *T;
+
 /// Read a value from `source`.
 @unsafe
 @intrinsic("memory.ptr.read")

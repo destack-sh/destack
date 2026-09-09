@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Clone, Concrete, Copy } from "destack:memory";
 import { PartialEqual } from "destack:ops";
 
-import { FromFloatLiteral, FromIntegerLiteral, One, Zero } from "./identity.ds";
+import { One, Zero } from "./identity.ds";
 import { Integer } from "./integer.ds";
 
 /// Marker for float literals and builtin float types.
@@ -11,7 +11,7 @@ export newtype interface FloatDomain {}
 
 /// Marker for the builtin float formats of any width.
 @languageItem("math.Float")
-export newtype interface Float extends Concrete, Copy, FloatDomain, Zero, One, FromIntegerLiteral, FromFloatLiteral {}
+export newtype interface Float extends Concrete, Copy, FloatDomain, Zero, One {}
 
 /// Methods shared by every builtin float format.
 export extension<T: Float> of T implements Clone, PartialEqual<T> {
@@ -101,12 +101,12 @@ export extension<T: Float> of T implements Clone, PartialEqual<T> {
 
     /// Return the hyperbolic sine.
     sinh(): T {
-        (this.exp() - (-this).exp()) / 2
+        (this.exp() - (-this).exp()) / (T.one() + T.one())
     }
 
     /// Return the hyperbolic cosine.
     cosh(): T {
-        (this.exp() + (-this).exp()) / 2
+        (this.exp() + (-this).exp()) / (T.one() + T.one())
     }
 
     /// Return the hyperbolic tangent.
@@ -131,17 +131,17 @@ export extension<T: Float> of T implements Clone, PartialEqual<T> {
 
     /// Return the inverse hyperbolic sine.
     asinh(): T {
-        (this + (this * this + 1).sqrt()).log()
+        (this + (this * this + T.one()).sqrt()).log()
     }
 
     /// Return the inverse hyperbolic cosine.
     acosh(): T {
-        (this + (this * this - 1).sqrt()).log()
+        (this + (this * this - T.one()).sqrt()).log()
     }
 
     /// Return the inverse hyperbolic tangent.
     atanh(): T {
-        ((1 + this) / (1 - this)).log() / 2
+        ((T.one() + this) / (T.one() - this)).log() / (T.one() + T.one())
     }
 
     /// Return the natural exponential.

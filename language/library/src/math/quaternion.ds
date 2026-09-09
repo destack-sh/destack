@@ -38,7 +38,8 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Create a rotation from an axis and angle in radians.
     static fromAxisAngle(axis: Vector3<T>, angle: T): Quaternion<T> {
-        let half = angle / 2;
+        let two = T.one() + T.one();
+        let half = angle / two;
         let sin = half.sin();
 
         Quaternion { x: axis.x * sin, y: axis.y * sin, z: axis.z * sin, w: half.cos() }
@@ -46,12 +47,13 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Create a rotation from Euler angles in radians.
     static fromEuler(euler: Vector3<T>): Quaternion<T> {
-        let rollCos = (euler.x / 2).cos();
-        let rollSin = (euler.x / 2).sin();
-        let pitchCos = (euler.y / 2).cos();
-        let pitchSin = (euler.y / 2).sin();
-        let yawCos = (euler.z / 2).cos();
-        let yawSin = (euler.z / 2).sin();
+        let two = T.one() + T.one();
+        let rollCos = (euler.x / two).cos();
+        let rollSin = (euler.x / two).sin();
+        let pitchCos = (euler.y / two).cos();
+        let pitchSin = (euler.y / two).sin();
+        let yawCos = (euler.z / two).cos();
+        let yawSin = (euler.z / two).sin();
 
         Quaternion {
             x: rollSin * pitchCos * yawCos - rollCos * pitchSin * yawSin,
@@ -79,27 +81,28 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Create a rotation looking in `forward` with `up` as vertical reference.
     static lookRotation(forward: Vector3<T>, up: Vector3<T>): Quaternion<T> {
+        let two = T.one() + T.one();
         let ahead = forward.normalized();
         let right = up.cross(ahead).normalized();
         let above = ahead.cross(right);
         let trace = right.x + above.y + ahead.z;
 
         if (trace > T.zero()) {
-            let scale = (trace + T.one()).sqrt() * 2;
+            let scale = (trace + T.one()).sqrt() * (T.one() + T.one());
 
             return Quaternion {
                 x: (above.z - ahead.y) / scale,
                 y: (ahead.x - right.z) / scale,
                 z: (right.y - above.x) / scale,
-                w: scale / 4,
+                w: scale / (two + two),
             };
         }
 
         if (right.x > above.y && right.x > ahead.z) {
-            let scale = (T.one() + right.x - above.y - ahead.z).sqrt() * 2;
+            let scale = (T.one() + right.x - above.y - ahead.z).sqrt() * two;
 
             return Quaternion {
-                x: scale / 4,
+                x: scale / (two + two),
                 y: (above.x + right.y) / scale,
                 z: (ahead.x + right.z) / scale,
                 w: (above.z - ahead.y) / scale,
@@ -107,22 +110,22 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
         }
 
         if (above.y > ahead.z) {
-            let scale = (T.one() + above.y - right.x - ahead.z).sqrt() * 2;
+            let scale = (T.one() + above.y - right.x - ahead.z).sqrt() * two;
 
             return Quaternion {
                 x: (above.x + right.y) / scale,
-                y: scale / 4,
+                y: scale / (two + two),
                 z: (ahead.y + above.z) / scale,
                 w: (ahead.x - right.z) / scale,
             };
         }
 
-        let scale = (T.one() + ahead.z - right.x - above.y).sqrt() * 2;
+        let scale = (T.one() + ahead.z - right.x - above.y).sqrt() * two;
 
         Quaternion {
             x: (ahead.x + right.z) / scale,
             y: (ahead.y + above.z) / scale,
-            z: scale / 4,
+            z: scale / (two + two),
             w: (right.y - above.x) / scale,
         }
     }
@@ -194,27 +197,31 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Return the rotation angle in radians.
     angle(): T {
+        let two = T.one() + T.one();
         let sin = (this.x * this.x + this.y * this.y + this.z * this.z).sqrt();
 
-        sin.atan2(this.w) * 2
+        sin.atan2(this.w) * two
     }
 
     /// Return the angle to `other` in radians.
     angleTo(other: Quaternion<T>): T {
-        this.dot(other).abs().min(T.one()).acos() * 2
+        let two = T.one() + T.one();
+
+        this.dot(other).abs().min(T.one()).acos() * two
     }
 
     /// Convert this rotation to Euler angles in radians.
     toEuler(): Vector3<T> {
-        let pitchSin = (this.w * this.y - this.x * this.z) * 2;
+        let two = T.one() + T.one();
+        let pitchSin = (this.w * this.y - this.x * this.z) * two;
 
         Vector3 {
-            x: ((this.w * this.x + this.y * this.z) * 2).atan2(
-                T.one() - (this.x * this.x + this.y * this.y) * 2,
+            x: ((this.w * this.x + this.y * this.z) * two).atan2(
+                T.one() - (this.x * this.x + this.y * this.y) * two,
             ),
             y: pitchSin.min(T.one()).max(-T.one()).asin(),
-            z: ((this.w * this.z + this.x * this.y) * 2).atan2(
-                T.one() - (this.y * this.y + this.z * this.z) * 2,
+            z: ((this.w * this.z + this.x * this.y) * two).atan2(
+                T.one() - (this.y * this.y + this.z * this.z) * two,
             ),
         }
     }
@@ -226,25 +233,26 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Convert this rotation to a matrix.
     toMatrix(): Matrix3<T> {
+        let two = T.one() + T.one();
         let xx = this.x * this.x;
         let yy = this.y * this.y;
         let zz = this.z * this.z;
 
         Matrix3 {
             x: Vector3 {
-                x: T.one() - (yy + zz) * 2,
-                y: (this.x * this.y - this.w * this.z) * 2,
-                z: (this.x * this.z + this.w * this.y) * 2,
+                x: T.one() - (yy + zz) * two,
+                y: (this.x * this.y - this.w * this.z) * two,
+                z: (this.x * this.z + this.w * this.y) * two,
             },
             y: Vector3 {
-                x: (this.x * this.y + this.w * this.z) * 2,
-                y: T.one() - (xx + zz) * 2,
-                z: (this.y * this.z - this.w * this.x) * 2,
+                x: (this.x * this.y + this.w * this.z) * two,
+                y: T.one() - (xx + zz) * two,
+                z: (this.y * this.z - this.w * this.x) * two,
             },
             z: Vector3 {
-                x: (this.x * this.z - this.w * this.y) * 2,
-                y: (this.y * this.z + this.w * this.x) * 2,
-                z: T.one() - (xx + yy) * 2,
+                x: (this.x * this.z - this.w * this.y) * two,
+                y: (this.y * this.z + this.w * this.x) * two,
+                z: T.one() - (xx + yy) * two,
             },
         }
     }
@@ -261,11 +269,12 @@ export extension<T: Float> of Quaternion<T> implements Multiply<Quaternion<T>> {
 
     /// Rotate `vector`.
     rotate(vector: Vector3<T>): Vector3<T> {
+        let two = T.one() + T.one();
         let axis = Vector3 { x: this.x, y: this.y, z: this.z };
         let cross = axis.cross(vector);
         let scale = this.w * this.w - axis.dot(axis);
-        let along = axis.dot(vector) * 2;
-        let twist = this.w * 2;
+        let along = axis.dot(vector) * two;
+        let twist = this.w * two;
 
         Vector3 {
             x: vector.x * scale + axis.x * along + cross.x * twist,

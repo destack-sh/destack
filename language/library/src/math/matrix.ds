@@ -338,8 +338,8 @@ export extension<T: Numeric> of Matrix4<T>
         let depth = near - far;
 
         Matrix4 {
-            x: Vector4 { x: 2 / width, y: T.zero(), z: T.zero(), w: -(left + right) / width },
-            y: Vector4 { x: T.zero(), y: 2 / height, z: T.zero(), w: -(bottom + top) / height },
+            x: Vector4 { x: (T.one() + T.one()) / width, y: T.zero(), z: T.zero(), w: -(left + right) / width },
+            y: Vector4 { x: T.zero(), y: (T.one() + T.one()) / height, z: T.zero(), w: -(bottom + top) / height },
             z: Vector4 { x: T.zero(), y: T.zero(), z: T.one() / depth, w: near / depth },
             w: Vector4 { x: T.zero(), y: T.zero(), z: T.zero(), w: T.one() },
         }
@@ -454,7 +454,7 @@ export extension<T: Numeric> of Matrix4<T>
 export extension<T: Float> of Matrix4<T> {
     /// Return a perspective projection matrix.
     static perspective(fovY: T, aspect: T, near: T, far: T): Matrix4<T> {
-        let height = T.one() / (fovY / 2).tan();
+        let height = T.one() / (fovY / (T.one() + T.one())).tan();
         let width = height / aspect;
         let depth = far / (near - far);
 

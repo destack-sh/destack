@@ -14,11 +14,11 @@ export newtype interface Step<T = this> extends Compare<T> {
 export extension<T: Integer> of T implements Step<T> where T: Compare<T> {
     /// Return the successor, or `undefined` at the maximum.
     next(this): T | undefined {
-        this.checkedAdd(1)
+        this.checkedAdd(T.one())
     }
 
     /// Return the predecessor, or `undefined` at the minimum.
     previous(this): T | undefined {
-        this.checkedSubtract(1)
+        this.checkedSubtract(T.one())
     }
 }

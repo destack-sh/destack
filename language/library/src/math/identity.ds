@@ -12,16 +12,3 @@ export newtype interface One {
     static one(): this;
 }
 
-/// Numeric type constructible from an integer literal.
-@languageItem("math.FromIntegerLiteral")
-export newtype interface FromIntegerLiteral {
-    /// Return the value one integer literal denotes.
-    static fromIntegerLiteral(value: int64): this;
-}
-
-/// Numeric type constructible from a float literal.
-@languageItem("math.FromFloatLiteral")
-export newtype interface FromFloatLiteral {
-    /// Return the value one float literal denotes.
-    static fromFloatLiteral(value: float64): this;
-}
