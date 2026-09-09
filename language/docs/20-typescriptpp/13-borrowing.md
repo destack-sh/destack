@@ -16,8 +16,7 @@ description: As soon as we pass and store references, we need to make sure those
 -  (inference only locally within functions, no induced generics beyond that)
 - fortunately, we barely write code by hand anymore unless we want to, most use cases for this will be in libraries most users will never see, so whatever. it works, we know it works, it's safe.
 
-- `&readonly T` and `&T` may overlap; `&exclusive T` cannot overlap another live loan of the same place
-- writing through non-exclusive borrowed access requires an overwrite-stable place: the old value needs no destruction, the layout is fixed, and every concurrently observable representation is valid
+- a `&T` borrow of owned storage is exclusive by structural proof, as in Rust; borrows of managed storage may alias, and writes through them stay safe because managed memory is only freed at parks and replaced owned values drop deferred
 
 - borrows into managed storage retain and pin every managed object in the borrowed path until the borrow's last use
 

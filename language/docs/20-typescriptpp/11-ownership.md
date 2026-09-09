@@ -15,7 +15,7 @@ import { Copy, Drop } from "destack:memory";
 
 struct Plain { value: int32; }
 struct Guard implements Drop {
-    drop(&exclusive this): void {}
+    drop(&this): void {}
 }
 
 declare function duplicate<T: Copy>(value: T): void;
@@ -35,7 +35,7 @@ duplicate(plain);
 - there are basically four axes to model for memory, and TS++ supports them explicitly:
 - (with the defaults being TS shaped as always)
 -  owneship (managed, owned, borrowed, or raw)
--  access (readonly, mutable, or exclusive)
+-  access (readonly or mutable)
 -  region: space/place (local, shared, inline, or another defined space) + lifetime
 
 - Value Types, wooo
@@ -58,9 +58,8 @@ duplicate(plain);
 | --- | --- | --- | --- |
 | `T` | direct value for value types, managed reference for reference types | mutable | depends on representation |
 | `^T` | uniquely owned value | mutable | yes |
-| `&T` | borrowed access | mutable | no |
+| `&T` | borrowed access | mutable | on owned storage, by the borrow check |
 | `&readonly T` | borrowed readonly access | readonly | no |
-| `&exclusive T` | borrowed exclusive access | mutable | yes |
 | `*T` | inert unchecked pointer | unchecked | unchecked |
 
 - the owner keeps the value alive and destroys it when the owner's own lifetime ends

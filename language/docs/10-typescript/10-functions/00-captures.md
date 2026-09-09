@@ -39,5 +39,5 @@ return (message) => {
 - lambdas (fat pointers with env)
 - `Function`, `^Function`, and `&Function` use managed, owned, and borrowed environments
 - repeatable calls require `&Function` or stronger access and preserve the environment
-- `&readonly Function` cannot be called; `&exclusive Function` grants the required mutable access
+- `&readonly Function` cannot be called; `&Function` grants the required mutable access
 - only `^Function<Parameters, Return, "once">` is valid; its call consumes the callable

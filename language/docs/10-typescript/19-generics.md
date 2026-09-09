@@ -25,7 +25,7 @@ any (trivially) statically decidable predicate
 - generalised `const` parameter for value generics (literal types with a fixed cardinality of one, measured by usage like with variance)
 
 - mutable arrays are invariant, readonly array views are covariant, and explicit copies may widen element values
-- managed values follow derived variance under aliasing; owned and readonly storage may be covariant; mutable borrows, exclusive borrows, and raw pointers are exact
+- managed values follow derived variance under aliasing; owned and readonly storage may be covariant; mutable borrows and raw pointers are exact
 
 ```ds:src/generics.ds
 function identity<T>(value: T): T {

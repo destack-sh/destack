@@ -16,7 +16,7 @@ description: Drop is for "infallible" memory management, using is for actual res
 ```ds
 export newtype interface Drop {
     /// Drop this value.
-    drop(&exclusive this): void;
+    drop(&this): void;
 }
 ```
 

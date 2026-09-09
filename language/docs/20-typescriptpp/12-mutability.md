@@ -8,17 +8,14 @@ description: let / const preserve TS meaning
 - let / const preserve TS meaning
 - const does *not* imply deep readonly
 - "as const" _is_ deep readonly
-- can take &exclusive only on managed types for const
 - readonly, readonly modifier, readonly T
 
 - &T default to mutable
 - &readonly for explicit readonly
 - Rust only has mutable vs immutable
-- "third rung" on the mutability ladder
-- overwrite stability
-- we can now distinguish "readonly, non-exclusive", "mutable, non-exclusive", "mutable, exclusive"
+- two rungs: readonly and mutable; exclusivity is a property of owned storage, not of the reference
 - (what about data races..? lints / DST / ...)
-- exclusive ownership
+- unique ownership
 - worker-local, borrowing
 
 - WithAccess

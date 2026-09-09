@@ -11,7 +11,7 @@ description: Fixed no overhead shapes.
 - no embedding (unlike Go, Jai)
 - no constructors, getters or setters
 
-- `this` = `&exclusive T` for value types (more on that soon)
+- `this` = `&T` for value types (more on that soon)
 
 ```ds:src/point.ds
 struct Point {
