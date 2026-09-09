@@ -1,4 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
+import type { JSX } from "solid-js";
 
 import { installCommand } from "../content/site";
 import { tokens } from "../style/tokens.stylex";
@@ -137,23 +138,36 @@ export function Cover() {
                         preserveAspectRatio="none"
                     >
                         <path
-                            d="M0 60 Q450 -30 900 60 V100 H0Z"
+                            d="M0 60 Q450 -5 900 60 V100 H0Z"
                             fill="#0a222c"
                         />
                         <path
-                            d="M0 60 Q450 -30 900 60"
+                            d="M0 60 Q450 -5 900 60"
                             fill="none"
                             stroke="#39717a"
                         />
                         <path
-                            d="M0 83 Q450 0 900 83"
+                            d="M0 83 Q450 22 900 83"
                             fill="none"
                             stroke="#1d414c"
                         />
                     </svg>
+
+                    {/* draw the near side of the ring in front of the horizon */}
+                    <SceneLayer>
+                        <g {...stylex.attrs(posterStyles.planet)}>
+                            <g transform={ringTilt}>
+                                <Ring path="M174 254 A306 82 0 0 0 786 254" />
+                            </g>
+                        </g>
+                    </SceneLayer>
                 </div>
 
                 <div {...stylex.attrs(posterStyles.actions)}>
+                    <p {...stylex.attrs(posterStyles.fineLine)}>
+                        Own your software stack
+                    </p>
+
                     <div {...stylex.attrs(posterStyles.actionRow)}>
                         <Installation />
                         <a
@@ -173,8 +187,8 @@ export function Cover() {
     );
 }
 
-/// Render the planet, its illuminated rings, and the foreground horizon.
-function Scene() {
+/// Align each scene layer to the same viewport and pointer movement.
+function SceneLayer(props: { children: JSX.Element }) {
     return (
         <svg
             aria-hidden="true"
@@ -183,6 +197,15 @@ function Scene() {
             viewBox="60 45 780 420"
             xmlns="http://www.w3.org/2000/svg"
         >
+            {props.children}
+        </svg>
+    );
+}
+
+/// Render the stars, moon, globe, and far side of the ring.
+function Scene() {
+    return (
+        <SceneLayer>
             <defs>
                 <clipPath id="poster-globe">
                     <circle cx="480" cy="254" r="176" />
@@ -219,7 +242,7 @@ function Scene() {
                 />
             </g>
 
-            {/* move the globe and both halves of the ring together */}
+            {/* use the same planet animation as the foreground ring */}
             <g {...stylex.attrs(posterStyles.planet)}>
                 <g transform={ringTilt}>
                     <Ring path="M174 254 A306 82 0 0 1 786 254" />
@@ -280,12 +303,8 @@ function Scene() {
                     stroke-width="1.5"
                     opacity=".7"
                 />
-
-                <g transform={ringTilt}>
-                    <Ring path="M174 254 A306 82 0 0 0 786 254" />
-                </g>
             </g>
-        </svg>
+        </SceneLayer>
     );
 }
 
@@ -518,6 +537,7 @@ const posterStyles = stylex.create({
         },
     },
     planet: {
+        translate: "0 16px",
         animationDuration: "42s",
         animationIterationCount: "infinite",
         animationName: driftPlanet,
@@ -557,7 +577,7 @@ const posterStyles = stylex.create({
         position: "absolute",
         bottom: 0,
         width: "100%",
-        height: "15%",
+        height: "calc(15% + 3rem)",
         pointerEvents: "none",
     },
     starOne: {
