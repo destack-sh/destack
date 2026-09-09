@@ -106,6 +106,15 @@ pub enum ArtifactKey {
         profile: ProfileId,
         target: TargetId,
     },
+    /// Instantiated MIR.
+    MirInstantiated {
+        /// The module containing the MIR.
+        module: ModuleId,
+        /// The semantic profile used to compile the module.
+        profile: ProfileId,
+        /// The compilation target.
+        target: TargetId,
+    },
     /// MIR after required elaboration.
     MirElaborated {
         module: ModuleId,
@@ -120,8 +129,11 @@ pub enum ArtifactKey {
     },
     /// Optimized MIR.
     MirOptimized {
+        /// The module containing the MIR.
         module: ModuleId,
+        /// The semantic profile used to compile the module.
         profile: ProfileId,
+        /// The compilation target.
         target: TargetId,
     },
 
@@ -262,6 +274,7 @@ impl ArtifactKey {
             | Self::MirDeclared { .. }
             | Self::MirLowered { .. }
             | Self::MirVerified { .. }
+            | Self::MirInstantiated { .. }
             | Self::MirElaborated { .. }
             | Self::MirAnalyzed { .. }
             | Self::MirOptimized { .. }
@@ -294,6 +307,7 @@ impl ArtifactKey {
             | Self::MirDeclared { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirVerified { module, .. }
+            | Self::MirInstantiated { module, .. }
             | Self::MirElaborated { module, .. }
             | Self::MirAnalyzed { module, .. }
             | Self::MirOptimized { module, .. }
@@ -432,6 +446,15 @@ impl ArtifactKey {
         }
     }
 
+    /// Build one instantiated MIR artifact key.
+    pub fn mir_instantiated(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
+        Self::MirInstantiated {
+            module,
+            profile,
+            target,
+        }
+    }
+
     /// Build one elaborated MIR artifact key.
     pub fn mir_elaborated(module: ModuleId, profile: ProfileId, target: TargetId) -> Self {
         Self::MirElaborated {
@@ -538,10 +561,11 @@ impl ArtifactKey {
             Self::MirDeclared { .. }
             | Self::MirLowered { .. }
             | Self::MirVerified { .. }
+            | Self::MirInstantiated { .. }
             | Self::MirElaborated { .. }
             | Self::MirAnalyzed { .. }
-            | Self::ProgramAnalysis { .. }
-            | Self::MirOptimized { .. } => ArtifactStage::Lower,
+            | Self::MirOptimized { .. }
+            | Self::ProgramAnalysis { .. } => ArtifactStage::Lower,
             Self::Script { .. } | Self::Object { .. } | Self::Asset { .. } => ArtifactStage::Emit,
             Self::Build { .. } => ArtifactStage::Init,
             Self::Bundle { .. } | Self::Program { .. } | Self::Product { .. } => {
@@ -582,6 +606,7 @@ impl ArtifactKey {
             Self::MirDeclared { .. } => "mir.declare",
             Self::MirLowered { .. } => "mir.lower",
             Self::MirVerified { .. } => "mir.verify",
+            Self::MirInstantiated { .. } => "mir.instantiate",
             Self::MirElaborated { .. } => "mir.elaborate",
             Self::MirAnalyzed { .. } => "mir.analyze",
             Self::MirOptimized { .. } => "mir.optimize",
@@ -620,6 +645,7 @@ impl ArtifactKey {
             Self::MirDeclared { .. } => "mir_declared",
             Self::MirLowered { .. } => "mir_lowered",
             Self::MirVerified { .. } => "mir_verified",
+            Self::MirInstantiated { .. } => "mir_instantiated",
             Self::MirElaborated { .. } => "mir_elaborated",
             Self::MirAnalyzed { .. } => "mir_analyzed",
             Self::MirOptimized { .. } => "mir_optimized",
@@ -654,6 +680,7 @@ impl ArtifactKey {
             | Self::MirDeclared { module, .. }
             | Self::MirLowered { module, .. }
             | Self::MirVerified { module, .. }
+            | Self::MirInstantiated { module, .. }
             | Self::MirElaborated { module, .. }
             | Self::MirAnalyzed { module, .. }
             | Self::MirOptimized { module, .. }
@@ -684,6 +711,8 @@ impl ArtifactKey {
             | Self::MirDeclared { target, .. }
             | Self::MirLowered { target, .. }
             | Self::MirVerified { target, .. }
+            | Self::MirInstantiated { target, .. }
+            | Self::MirElaborated { target, .. }
             | Self::MirAnalyzed { target, .. }
             | Self::MirOptimized { target, .. }
             | Self::Script { target, .. }
@@ -725,6 +754,7 @@ impl ArtifactKey {
             | Self::MirDeclared { profile, .. }
             | Self::MirLowered { profile, .. }
             | Self::MirVerified { profile, .. }
+            | Self::MirInstantiated { profile, .. }
             | Self::MirElaborated { profile, .. }
             | Self::MirAnalyzed { profile, .. }
             | Self::MirOptimized { profile, .. }

@@ -69,30 +69,65 @@ impl Default for MirLowered {
 pub struct MirVerified {
     /// Ownership retention required by drop elaboration.
     pub retention: mir::RetentionTable,
-    /// The safepoints elaboration pins and polls at.
-    pub safepoints: mir::SafepointTable,
 }
 
-/// MIR produced by drop elaboration.
+/// MIR with the requested instance bodies filled.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct MirInstantiated {
+    /// The MIR tree.
+    pub tree: Arc<mir::Tree>,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+    /// The module initializer, when one exists.
+    pub initializer: Option<mir::FunctionId>,
+    /// Type layouts.
+    pub layouts: mir::LayoutTable,
+    /// Dispatch tables.
+    pub dispatch: mir::DispatchTable,
+    /// Drop hooks by type.
+    pub drops: mir::DropTable,
+    /// Memory accesses by instruction.
+    pub accesses: mir::AccessTable,
+    /// Function and call effects.
+    pub effects: mir::EffectTable,
+    /// Static profile counters.
+    pub profile: mir::ProfileTable,
+    /// Required ownership retention in this tree.
+    pub retention: mir::RetentionTable,
+}
+
+/// MIR with explicit ownership and concrete representations.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirElaborated {
     /// The elaborated MIR tree.
     pub tree: mir::Tree,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+    /// The module initializer, when one exists.
+    pub initializer: Option<mir::FunctionId>,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
+    /// Canonical MIR dispatch table.
+    pub dispatch: mir::DispatchTable,
     /// Canonical MIR drop table.
     pub drops: mir::DropTable,
     /// Explicit MIR memory access table.
     pub accesses: mir::AccessTable,
     /// Function and call effect table.
     pub effects: mir::EffectTable,
+    /// Static profile counter table.
+    pub profile: mir::ProfileTable,
 }
 
-/// MIR produced by optimization.
+/// MIR prepared for emission.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct MirOptimized {
     /// The optimized MIR tree.
     pub tree: mir::Tree,
+    /// Target ABI layout.
+    pub target: mir::TargetLayout,
+    /// The module initializer, when one exists.
+    pub initializer: Option<mir::FunctionId>,
     /// Canonical MIR layout table.
     pub layouts: mir::LayoutTable,
     /// Canonical MIR dispatch table.
@@ -112,6 +147,8 @@ impl MirOptimized {
     pub fn new() -> Self {
         Self {
             tree: mir::Tree::new(),
+            target: mir::TargetLayout::default(),
+            initializer: None,
             layouts: mir::LayoutTable::default(),
             dispatch: mir::DispatchTable::default(),
             drops: mir::DropTable::default(),
@@ -138,13 +175,8 @@ impl Default for MirOptimized {
 pub struct MirAnalyzed {
     /// The module's symbol links.
     pub links: LinkTable,
-}
-
-impl MirAnalyzed {
-    /// Create one module's analysis payload from its link table.
-    pub fn new(links: LinkTable) -> Self {
-        Self { links }
-    }
+    /// The module initializer called by the runtime, when one exists.
+    pub initializer: Option<Symbol>,
 }
 
 /// Whole-program analysis columns shared across the optimization of every module.

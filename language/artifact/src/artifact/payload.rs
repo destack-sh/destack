@@ -11,9 +11,9 @@ use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,
     Bundle, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound, EnvironmentDeclared,
-    IndexKind, MirAnalyzed, MirDeclared, MirElaborated, MirLowered, MirOptimized, MirVerified,
-    ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex, ProgramLinted,
-    Script,
+    IndexKind, MirAnalyzed, MirDeclared, MirElaborated, MirInstantiated, MirLowered, MirOptimized,
+    MirVerified, ModuleGraph, ModuleIndex, ModuleLinted, Product, ProgramAnalysis, ProgramIndex,
+    ProgramLinted, Script,
 };
 
 use ::serde::{Deserialize, Serialize};
@@ -57,6 +57,8 @@ pub enum ArtifactPayload {
     MirLowered(Arc<MirLowered>),
     /// Verified MIR marker after required semantic verification.
     MirVerified(Arc<MirVerified>),
+    /// Instantiated MIR.
+    MirInstantiated(Arc<MirInstantiated>),
     /// MIR after required elaboration.
     MirElaborated(Arc<MirElaborated>),
     /// Per-module link graph for whole-program analysis.
@@ -126,6 +128,8 @@ pub enum ArtifactPayloadRef<'a> {
     MirLowered(&'a MirLowered),
     /// Verified MIR marker after required semantic verification.
     MirVerified(&'a MirVerified),
+    /// Instantiated MIR.
+    MirInstantiated(&'a MirInstantiated),
     /// MIR after required elaboration.
     MirElaborated(&'a MirElaborated),
     /// Per-module link graph for whole-program analysis.
@@ -240,6 +244,10 @@ impl ArtifactPayload {
                         ArtifactPayload::MirVerified(_)
                     )
                     | (
+                        ArtifactKey::MirInstantiated { .. },
+                        ArtifactPayload::MirInstantiated(_)
+                    )
+                    | (
                         ArtifactKey::MirElaborated { .. },
                         ArtifactPayload::MirElaborated(_)
                     )
@@ -295,6 +303,7 @@ impl ArtifactPayload {
             Self::MirDeclared(payload) => ArtifactPayloadRef::MirDeclared(payload.as_ref()),
             Self::MirLowered(payload) => ArtifactPayloadRef::MirLowered(payload.as_ref()),
             Self::MirVerified(payload) => ArtifactPayloadRef::MirVerified(payload.as_ref()),
+            Self::MirInstantiated(payload) => ArtifactPayloadRef::MirInstantiated(payload.as_ref()),
             Self::MirElaborated(payload) => ArtifactPayloadRef::MirElaborated(payload.as_ref()),
             Self::MirAnalyzed(payload) => ArtifactPayloadRef::MirAnalyzed(payload.as_ref()),
             Self::MirOptimized(payload) => ArtifactPayloadRef::MirOptimized(payload.as_ref()),
@@ -333,6 +342,7 @@ impl ArtifactPayload {
             Self::MirDeclared(_) => "mir_declared",
             Self::MirLowered(_) => "mir_lowered",
             Self::MirVerified(_) => "mir_verified",
+            Self::MirInstantiated(_) => "mir_instantiated",
             Self::MirElaborated(_) => "mir_elaborated",
             Self::MirAnalyzed(_) => "mir_analyzed",
             Self::MirOptimized(_) => "mir_optimized",
@@ -524,6 +534,12 @@ artifact!(
     MirVerified,
     (ModuleId, ProfileId, TargetId),
     (module, profile, target) => ArtifactKey::mir_verified(module, profile, target)
+);
+artifact!(
+    MirInstantiated,
+    MirInstantiated,
+    (ModuleId, ProfileId, TargetId),
+    (module, profile, target) => ArtifactKey::mir_instantiated(module, profile, target)
 );
 artifact!(
     MirElaborated,
