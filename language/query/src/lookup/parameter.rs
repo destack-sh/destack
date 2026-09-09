@@ -3,6 +3,40 @@ use destack_dir as dir;
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 impl ModuleQueryContext<'_> {
+    /// Read the signature recorded by one callable type.
+    pub(crate) fn read_signature<R>(
+        &self,
+        type_id: dir::GlobalTypeId,
+        read: impl FnOnce(&dir::FunctionSignatureType, &ModuleQueryContext<'_>) -> QueryResult<R>,
+        program: &ProgramQueryContext<'_>,
+    ) -> QueryResult<R> {
+        // follow callable types to their recorded signature
+        let mut type_id = type_id;
+        loop {
+            // resolve a module only when a signature link crosses into it
+            if type_id.module_id != self.module_id() {
+                let module = program.module(type_id.module_id)?;
+
+                return module.read_signature(type_id, read, program);
+            }
+
+            // follow local signature links through the current type table
+            let types = self.types()?;
+            match types.get_type(type_id.local_id) {
+                dir::Type::FunctionSignature(signature) => {
+                    return read(types.signature(signature), self);
+                }
+                dir::Type::Function(function) => type_id = function.signature,
+                dir::Type::FunctionPointer(function) => type_id = function.signature,
+                _ => {
+                    return Err(QueryError::invalid(format!(
+                        "callable signature: {type_id:?}"
+                    )));
+                }
+            }
+        }
+    }
+
     /// Return the exact display name for one parameter.
     pub(crate) fn parameter_name(&self, parameter: &dir::Parameter) -> QueryResult<String> {
         match parameter {

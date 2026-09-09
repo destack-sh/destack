@@ -2,7 +2,9 @@ use destack_dir as dir;
 
 use super::CompletionCollector;
 use super::membership::{membership_member, membership_members};
-use crate::{CompletionCandidate, CompletionOrigin, Formatter, QueryError, QueryResult};
+use crate::{
+    CompletionCandidate, CompletionInsertion, CompletionOrigin, Formatter, QueryError, QueryResult,
+};
 
 impl CompletionCollector<'_, '_, '_> {
     /// Format the interfaces whose requirements one member declaration satisfies.
@@ -138,17 +140,21 @@ impl CompletionCollector<'_, '_, '_> {
 
         // insert shared callable members without choosing one declaration
         if is_callable && declaration.is_none() {
-            let snippet =
-                super::call::CallSnippet::positional(&completion.label, type_id, self.program)?;
+            completion.insertion = self.module.read_signature(
+                type_id,
+                |function, module| {
+                    let parameters = module.types()?.parameters(function.parameters);
 
-            if snippet.is_snippet {
-                Ok(completion.with_snippet(snippet.text))
-            } else {
-                Ok(completion.with_insert_text(snippet.text))
-            }
-        } else {
-            Ok(completion)
+                    Ok(CompletionInsertion::call(
+                        &completion.label,
+                        parameters.iter().map(|_| None),
+                    ))
+                },
+                self.program,
+            )?;
         }
+
+        Ok(completion)
     }
 
     /// Resolve one contextual object field.

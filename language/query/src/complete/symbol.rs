@@ -2,7 +2,6 @@ use destack_dir as dir;
 use destack_source::Span;
 
 use super::CompletionCollector;
-use super::call::CallSnippet;
 use crate::source::ImportDeclarations;
 use crate::{
     CompletionCandidate, CompletionEntry, CompletionInsertion, CompletionMember, ConstructorFamily,
@@ -24,12 +23,10 @@ impl CompletionCollector<'_, '_, '_> {
                     "completion parameters: {symbol:?}"
                 )))?;
 
-        let snippet = CallSnippet::named(&completion.label, &parameter_names);
-        completion = if snippet.is_snippet {
-            completion.with_snippet(snippet.text)
-        } else {
-            completion.with_insert_text(snippet.text)
-        };
+        completion.insertion = CompletionInsertion::call(
+            &completion.label,
+            parameter_names.iter().map(|name| Some(name.as_str())),
+        );
 
         Ok(completion)
     }

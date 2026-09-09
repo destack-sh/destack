@@ -10,8 +10,10 @@ mod membership;
 mod object;
 mod rank;
 mod slot;
+mod snippet;
 mod statement;
 mod symbol;
 
 pub(crate) use collector::*;
 pub(crate) use context::*;
+pub(crate) use import::*;

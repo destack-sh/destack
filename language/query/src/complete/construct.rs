@@ -1,8 +1,7 @@
 use destack_dir as dir;
 
 use super::CompletionCollector;
-use super::call::CallSnippet;
-use crate::{CompletionCandidate, Formatter, QueryError, QueryResult};
+use crate::{CompletionCandidate, CompletionInsertion, Formatter, QueryError, QueryResult};
 
 impl CompletionCollector<'_, '_, '_> {
     /// Expand one ranked class into its constructor overloads.
@@ -66,14 +65,13 @@ impl CompletionCollector<'_, '_, '_> {
         };
         let suffix = Formatter::new(&module, self.program)
             .callable_suffix(type_id, Some(&parameter_names))?;
-        let snippet = CallSnippet::named(&completion.label, &parameter_names);
-        let completion = completion.with_label_suffix(suffix);
+        let mut completion = completion.with_label_suffix(suffix);
+        completion.insertion = CompletionInsertion::call(
+            &completion.label,
+            parameter_names.iter().map(|name| Some(name.as_str())),
+        );
 
-        if snippet.is_snippet {
-            Ok(completion.with_snippet(snippet.text))
-        } else {
-            Ok(completion.with_insert_text(snippet.text))
-        }
+        Ok(completion)
     }
 
     /// Resolve one struct expression candidate.
@@ -94,6 +92,7 @@ impl CompletionCollector<'_, '_, '_> {
                 "completion struct definition: {symbol:?}"
             )));
         };
+        let formatter = Formatter::new(&module, self.program);
         let mut fields = Vec::new();
 
         // retain required instance fields in declaration order
@@ -108,33 +107,17 @@ impl CompletionCollector<'_, '_, '_> {
                 continue;
             }
 
-            let dir::StaticKey::Name(field_name) = field.key else {
-                return Err(QueryError::invalid(format!(
-                    "completion struct field: {:?}",
-                    field.symbol
-                )));
-            };
-            fields.push(module.strings().get(field_name).to_string());
+            fields.push(formatter.property_key(field.key));
         }
 
         // render the exact struct expression
-        let insert_text = if fields.is_empty() {
-            format!("{} {{}}", completion.label)
-        } else {
-            let fields = fields
-                .iter()
-                .enumerate()
-                .map(|(index, field)| format!("{field}: ${{{}}}", index + 1))
-                .collect::<Vec<_>>()
-                .join(", ");
+        let mut completion = completion;
+        completion.insertion = CompletionInsertion::struct_expression(
+            &completion.label,
+            fields.iter().map(String::as_str),
+        );
 
-            format!("{} {{ {fields} }}$0", completion.label)
-        };
-        if fields.is_empty() {
-            Ok(completion.with_insert_text(insert_text))
-        } else {
-            Ok(completion.with_snippet(insert_text))
-        }
+        Ok(completion)
     }
 
     /// Expand one ranked newtype into its constructor overloads.
@@ -184,13 +167,20 @@ impl CompletionCollector<'_, '_, '_> {
 
         // render the selected constructor signature and insertion
         let suffix = Formatter::new(&module, self.program).callable_suffix(type_id, None)?;
-        let snippet = CallSnippet::positional(&completion.label, type_id, self.program)?;
-        let completion = completion.with_label_suffix(suffix);
+        let mut completion = completion.with_label_suffix(suffix);
+        completion.insertion = module.read_signature(
+            type_id,
+            |function, module| {
+                let parameters = module.types()?.parameters(function.parameters);
 
-        if snippet.is_snippet {
-            Ok(completion.with_snippet(snippet.text))
-        } else {
-            Ok(completion.with_insert_text(snippet.text))
-        }
+                Ok(CompletionInsertion::call(
+                    &completion.label,
+                    parameters.iter().map(|_| None),
+                ))
+            },
+            self.program,
+        )?;
+
+        Ok(completion)
     }
 }

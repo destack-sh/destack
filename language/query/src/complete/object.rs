@@ -1,12 +1,12 @@
 use destack_dir as dir;
-use destack_source::FileId;
 use rustc_hash::FxHashSet;
 
 use super::membership::membership_members;
-use super::{CompletionCollector, CompletionContext};
+use super::{CompletionCollector, CompletionPosition};
+use crate::cursor::Cursor;
 use crate::{
-    CompletionCandidate, CompletionItemKind, CompletionOrigin, ModuleQueryContext, QueryError,
-    QueryResult,
+    CompletionCandidate, CompletionInsertion, CompletionItemKind, CompletionOrigin, Formatter,
+    ModuleQueryContext, QueryError, QueryResult,
 };
 
 /// Source spans owned by one object literal.
@@ -19,28 +19,30 @@ struct ObjectLiteralSpans<'a> {
     properties: &'a [dir::LocalNodeId<dir::Property>],
 }
 
-impl ModuleQueryContext<'_> {
+impl Cursor<'_, '_> {
     /// Classify object literal completion at one offset.
-    pub(super) fn classify_object_literal(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
+    pub(super) fn classify_object_literal(&self) -> QueryResult<Option<CompletionPosition>> {
+        let offset = self.offset;
+
         // resolve enclosing spans from innermost to outermost
-        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset)?;
+        let mut enclosing = self
+            .enclosing()
+            .iter()
+            .filter(|span| span.span.contains(offset))
+            .peekable();
 
         // bail out early when there are no enclosing spans
-        if enclosing.is_empty() {
+        if enclosing.peek().is_none() {
             return Ok(None);
         }
 
         // resolve visible DIR for object literal context
-        let view = self.view()?;
+        let view = self.module.view()?;
 
         let mut literal = None;
 
         // select the innermost object expression by its complete source span
-        for enclosing_span in &enclosing {
+        for enclosing_span in enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
@@ -52,7 +54,7 @@ impl ModuleQueryContext<'_> {
             else {
                 continue;
             };
-            let span = self.node_span(view, expression_id.into())?;
+            let span = self.module.node_span(view, expression_id.into())?;
             if !span.owns_cursor(offset) {
                 continue;
             }
@@ -64,21 +66,24 @@ impl ModuleQueryContext<'_> {
         let Some((_, expression_id, properties)) = literal else {
             return Ok(None);
         };
-        let Some(scope) = self.expression_scope_at_offset(expression_id)? else {
+        let Some(scope) = self.module.expression_scope(expression_id)? else {
             return Ok(None);
         };
         let object_spans = ObjectLiteralSpans {
-            module: self,
+            module: self.module,
             view,
             properties,
         };
 
         // property values stay in the surrounding expression scope
         if !object_spans.owns_key_cursor(offset)? {
-            return Ok(Some(CompletionContext::ObjectLiteralValue { scope }));
+            return Ok(Some(CompletionPosition::Value {
+                scope,
+                expected_type: None,
+            }));
         }
 
-        Ok(Some(CompletionContext::ObjectLiteralKey {
+        Ok(Some(CompletionPosition::ObjectLiteralKey {
             literal: expression_id,
             scope,
         }))
@@ -196,6 +201,7 @@ impl CompletionCollector<'_, '_, '_> {
         };
 
         // overlay missing contextual fields onto visible shorthands
+        let formatter = Formatter::new(self.module, self.program);
         let mut results = Vec::new();
         if let Some(expected) = expected.as_ref() {
             for entry in expected {
@@ -213,13 +219,11 @@ impl CompletionCollector<'_, '_, '_> {
                     continue;
                 }
 
-                // omit keys without identifier text
-                let dir::StaticKey::Name(name) = member.key else {
-                    continue;
+                // collect the missing contextual field by its exact key
+                let label = match member.key {
+                    dir::StaticKey::Name(name) => self.module.strings().get(name).to_string(),
+                    dir::StaticKey::Index(index) => index.to_string(),
                 };
-
-                // collect the missing contextual field
-                let label = self.module.strings().get(name).to_string();
                 let completion = CompletionCandidate::new(
                     &label,
                     CompletionItemKind::Field,
@@ -236,7 +240,10 @@ impl CompletionCollector<'_, '_, '_> {
                 if shorthands.shift_remove(&member.key).is_some() {
                     results.push(completion);
                 } else {
-                    results.push(completion.with_snippet(format!("{label}: ${{1}}")));
+                    let mut completion = completion;
+                    let key = formatter.property_key(member.key);
+                    completion.insertion = CompletionInsertion::field(&key);
+                    results.push(completion);
                 }
             }
         }

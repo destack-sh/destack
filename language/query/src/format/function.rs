@@ -10,37 +10,28 @@ impl Formatter<'_, '_, '_> {
         &self,
         type_id: dir::GlobalTypeId,
     ) -> QueryResult<Vec<Option<String>>> {
-        self.read_type(type_id, |type_value, formatter| {
-            let function = match type_value {
-                dir::Type::FunctionSignature(function) => formatter.types()?.signature(*function),
-                dir::Type::Function(function) => {
-                    return formatter.callable_parameter_labels(function.signature);
-                }
-                dir::Type::FunctionPointer(function) => {
-                    return formatter.callable_parameter_labels(function.signature);
-                }
-                _ => {
-                    return Err(QueryError::invalid(format!(
-                        "callable parameter labels: {type_id:?}"
-                    )));
-                }
-            };
-            let parameters = formatter.types()?.parameters(function.parameters);
-            let strings = formatter.module.strings();
-            let labels = parameters
-                .iter()
-                .map(|parameter| {
-                    parameter.name.map(|name| {
-                        let rest = if parameter.is_rest { "..." } else { "" };
-                        let optional = if parameter.is_optional { "?" } else { "" };
+        self.module.read_signature(
+            type_id,
+            |function, module| {
+                let formatter = Formatter::new(module, self.program).with_reopening(self.reopening);
+                let parameters = formatter.types()?.parameters(function.parameters);
+                let strings = formatter.module.strings();
+                let labels = parameters
+                    .iter()
+                    .map(|parameter| {
+                        parameter.name.map(|name| {
+                            let rest = if parameter.is_rest { "..." } else { "" };
+                            let optional = if parameter.is_optional { "?" } else { "" };
 
-                        format!("{rest}{}{optional}", strings.get(name))
+                            format!("{rest}{}{optional}", strings.get(name))
+                        })
                     })
-                })
-                .collect();
+                    .collect();
 
-            Ok(labels)
-        })
+                Ok(labels)
+            },
+            self.program,
+        )
     }
 
     /// Format one callable type with optional parameter names.
@@ -49,18 +40,15 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         parameter_names: Option<&[String]>,
     ) -> QueryResult<String> {
-        self.read_type(type_id, |type_value, formatter| match type_value {
-            dir::Type::FunctionSignature(function) => {
-                formatter.function_type(formatter.types()?.signature(*function), parameter_names)
-            }
-            dir::Type::Function(function) => {
-                formatter.callable_type(function.signature, parameter_names)
-            }
-            dir::Type::FunctionPointer(function) => {
-                formatter.callable_type(function.signature, parameter_names)
-            }
-            _ => Err(QueryError::invalid(format!("callable type: {type_id:?}"))),
-        })
+        self.module.read_signature(
+            type_id,
+            |function, module| {
+                let formatter = Formatter::new(module, self.program).with_reopening(self.reopening);
+
+                formatter.function_type(function, parameter_names)
+            },
+            self.program,
+        )
     }
 
     /// Format one callable as a completion label suffix.
@@ -69,20 +57,15 @@ impl Formatter<'_, '_, '_> {
         type_id: dir::GlobalTypeId,
         parameter_names: Option<&[String]>,
     ) -> QueryResult<String> {
-        self.read_type(type_id, |type_value, formatter| match type_value {
-            dir::Type::FunctionSignature(function) => {
-                formatter.function_suffix(formatter.types()?.signature(*function), parameter_names)
-            }
-            dir::Type::Function(function) => {
-                formatter.callable_suffix(function.signature, parameter_names)
-            }
-            dir::Type::FunctionPointer(function) => {
-                formatter.callable_suffix(function.signature, parameter_names)
-            }
-            _ => Err(QueryError::invalid(format!(
-                "callable completion suffix: {type_id:?}"
-            ))),
-        })
+        self.module.read_signature(
+            type_id,
+            |function, module| {
+                let formatter = Formatter::new(module, self.program).with_reopening(self.reopening);
+
+                formatter.function_suffix(function, parameter_names)
+            },
+            self.program,
+        )
     }
 
     /// Format one named callable signature.
@@ -91,40 +74,21 @@ impl Formatter<'_, '_, '_> {
         name: &str,
         type_id: dir::GlobalTypeId,
     ) -> QueryResult<String> {
-        self.read_type(type_id, |type_value, formatter| {
-            let function = match type_value {
-                dir::Type::FunctionSignature(function) => formatter.types()?.signature(*function),
-                dir::Type::Function(function) => {
-                    return formatter.callable_signature(name, function.signature);
-                }
-                dir::Type::FunctionPointer(function) => {
-                    return formatter.callable_signature(name, function.signature);
-                }
-                _ => {
-                    return Err(QueryError::invalid(format!(
-                        "callable signature type: {type_id:?}"
-                    )));
-                }
-            };
-            let parameters = formatter.types()?.parameters(function.parameters);
-            let mut formatted_parameters = Vec::with_capacity(parameters.len());
+        self.module.read_signature(
+            type_id,
+            |function, module| {
+                let formatter = Formatter::new(module, self.program).with_reopening(self.reopening);
+                let parameters = formatter.function_parameters(function, None)?;
+                let return_type = formatter.function_return_type(function)?;
+                let prefix = match function.asynchrony {
+                    dir::Asynchrony::Sync => "",
+                    dir::Asynchrony::Async => "async ",
+                };
 
-            // format positional constructor parameters in declaration order
-            for parameter in parameters {
-                formatted_parameters.push(formatter.parameter_type(parameter, None)?);
-            }
-            let parameters = formatted_parameters.join(", ");
-            let return_type = match function.return_type {
-                Some(return_type) => formatter.global_type(return_type)?,
-                None => "void".to_string(),
-            };
-            let prefix = match function.asynchrony {
-                dir::Asynchrony::Sync => "",
-                dir::Asynchrony::Async => "async ",
-            };
-
-            Ok(format!("{prefix}{name}({parameters}): {return_type}"))
-        })
+                Ok(format!("{prefix}{name}({parameters}): {return_type}"))
+            },
+            self.program,
+        )
     }
 
     /// Format one function signature type.
