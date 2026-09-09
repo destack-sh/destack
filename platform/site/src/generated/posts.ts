@@ -42,7 +42,7 @@ export type TableOfContentsEntry = {
 export const posts = [
     {
         author: "Florian",
-        contentRoute: "/_content/html/a7bf4ef19af8004d96c637e50d413c995d482bb434cf14a60f22c15b4266de47.html",
+        contentRoute: "/_content/html/3e00757e3faceedacd048118c953935365ebebc89bea7659b4e0a5b42b64bdf0.html",
         date: "2026-09-14",
         markdownRoute: "/blog/introducing-typescriptpp.md",
         route: "/blog/introducing-typescriptpp/",
@@ -51,7 +51,7 @@ export const posts = [
         tableOfContents: [{"depth":1,"id":"long-live-code","text":"Long Live Code"},{"depth":1,"id":"higher-order-programming","text":"Higher Order Programming"},{"depth":1,"id":"the-system-and-the-meta-system","text":"The System and The Meta System"},{"depth":1,"id":"boring-software","text":"Boring Software"},{"depth":1,"id":"typescript","text":"TypeScript++"}],
         textRoute: "/blog/introducing-typescriptpp.txt",
         title: "Introducing TypeScript++",
-        tokens: 4556,
+        tokens: 4910,
     }
 ] as const satisfies readonly Post[];
 

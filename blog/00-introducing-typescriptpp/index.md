@@ -5,22 +5,31 @@ date: "2026-09-14"
 author: "Florian"
 ---
 
-- we're about to enter a cambrian explosion of software
-- this is great, except that it's is worth remembering that at the end of that period, most animals and plants had died, and the surviving species looked rather different from what had been dominant before.
-
-- it's not hard to see how the status quo of software - and its production process - kinda sucks.
-- we have evolved a slow artisinal process with uncertain non-repeatable step: 
-- dependency sprawl
-- uncertain timelines
-- supply chain attacks
-- and if lucky, at the end of this process, we are rewarded with slow, buggy, clunky software!
-<!--- very hard to run software locally-->
+- The Cambrian explosion of software is beginning, and, it is important to remember, that means most known lifeforms are going extinct, and the surviving species will look decidedly different from what has been dominant hitherto.
+- Both software products and their production processes will come under increasingly intense evolutionary pressure, with soon-to-be-free-and-instant migrations paving the way to relentlessly exploring the full loss landscape of all conceivable software shapes and lifecyles, until, eventually, bitterly, we are left with some new final form, resembling the familiar old only in name. 
+- (and, perhaps, sidebar placement).
 
 [illustration of cambrian explosion carnage](TODO)
 
-- we're not going to get _great_ software by averaging past software, or by merely "accelerating"  existing software production processes. 
-- we need _new_ processes
-- so, what does great software look like, and what does great software _production_ look like?
+- indeed, it is not hard to see how the status quo of software writ large - SDLC included - is .. suboptimal.
+- we have evolved a slow artisinal process with uncertain steps and non-repeatable outcomes: 
+- dependency sprawl
+- uncertain timelines
+- supply chain attacks
+- and if lucky, if this does work roughly on budget and roughly on time, at the end of this process, we are rewarded with slow, buggy, clunky software!
+
+- for examples of software issues we need merly look at a day in the life.
+- it takes a good 7 seconds to load my e-banking app, even though it takes only about 200ms to roundtrip the entire earth, and a 10-year-old CPU can run 2 billion cycles per second, per core.
+- then, my notes taking app freezes for a few seconds, before logging me out again, reminding me that it's annoyingly difficult to even get to _my_ data on a service that I pay for, nevermind customising the app to my desires.
+- these are not isolated or cherrypicked examples, and the root causes go far deeper than "bad engineering". 
+<!--- if we're going to have thousand times software, why not make it good?-->
+
+<!--- very hard to run software locally-->
+- it is now abdundantly clear that we're not going to get to the promised land of _great_ software by vaguely gesturing at the computer to spraypaint a blend of past software, nor by blindly "accelerating" familiar software production processes in "self-driving software factories". 
+<!--- (if for no other reason than that competitive pressures will demand it)-->
+- no. if we want _new_ software, good software, beautiful software, fast software, _great_ software, we also need _new_ processes.
+- so, first: what does great software even look like, and what does great software _production_ look like?
+- where will the evolutionary pressures lead us?
 
 <!--- and _now_ we're asking even _more_ from our software than ever before-->
 - ideally, I want software I can own.
@@ -30,35 +39,21 @@ author: "Florian"
 - not standardized in any useful way
 - above all, we want software we can just forget about.
 <!--- (which components do I need to run this software? vendor sprawl, ..)-->
-- if software is so cheap, why can't we make it really good?
-- how do we build correct, optimal, integrated software?
-- what is the ideal process?
-<!--- with exciting new capabilities that are even harder to get right-->
-<!--- what does higher order programming look like? what does it even mean?
-- what should higher order progrmaming _feel_ like?-->
 
 :::video src="https://www.youtube.com/watch?v=72y2EC5fkcE" title="Tomorrow Corporation Tech Demo" poster="https://i.ytimg.com/vi/72y2EC5fkcE/maxresdefault.jpg"
 :::
 
-<!--- beyond performance, the opportunities in a standardized, fully integrated computing stack are very interesting
-- now that the cost of writing and rewriting code is nearly zero, what can we do
-- how can we build better, correct, integrated software systems
--->
-
 <!--homoiconic software-->
-- if we're going to manufacture high quality software with precision, we must first put the "engineering" into "software engineering"
-- figure out the system that builds the system, without vague "prompt in a loop" fantasies.
+- scaling the high quality manufacture of any product requires first understanding, with considerable precision, the dynamics of the process
+- aerodynamics for software engineering, if you will 
+- in other words, we must first put the "engineering" into "software engineering".
+- our medium is purely digital and - if done right - fully testable, there is no excuse for software being _less_ than perfectly reliably and maximally fast, seven nines included. 
+<!--- figure out the system that builds the system, without vague "prompt in a loop" fantasies.-->
 <!--- The _raison d'être_ of Destack is to enable the precise manufacture of high quality software at scale-->
 <!--- we could finally put the "engineering" into "software engineering"-->
-- 50 years in, there's a thousand ways to do any given thing, and we _still_ haven't solved "works on my machine"
-- fortunately, there is now a way out: over the past decade, opinionated formatters have standardized the appearence of code
-- now, we should apply the same standardization to the logic of codeb.
-<!--- to a lesser degree, pedantic linters have also standardized software somewhat-->
-<!--- how far could we go? -->
-<!--- what does standardized logic look like? -->
-- what are the decisions we can where we can settle on one set of good, coherent options, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
-- the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
-<!--- (hint: agents are just software, too)-->
+<!--- 50 years in, there's a thousand ways to do any given thing, and we _still_ haven't solved "works on my machine"-->
+
+[wind tunnel simulation thingy..?](TODO)
 
 # Long Live Code
 
@@ -74,15 +69,15 @@ author: "Florian"
 - Programming is about problem solving, about iterating to understand a problem and specifying its solution.
 - In the olden days of 12 months ago, we used to solve problems with artisinal human-directed next-character-prediction of symbolic code.
 - Now, we can usually work at a higher level, a bit like a rich text editor abstracts pencil and parchment.
-- And at the next level, instead of one character at a time, I want to understand _everything_: what is the space of all possible software programs to solve my program, and how do I most efficiently get there, where do I go when I'm there, how do I stay in the right place, and so on
+- The ideal level is not a specific "higher level" at all"; instead of one character at a time, I want to understand _everything_ at all granularities: what is the space of all possible software programs to solve my program, and how do I most efficiently get there, where do I go when I'm there, how do I stay in the right place?
 
 [multidimensional software production thingy?](TODO)
 
-- unconstrained software produciton produces a strange sort of software, one that exists purely in linimal space, untethered from and unbothered by reality.
-- the tests pass, the screenshots look good, and nothing works.
-- somehow, this brand of slop is almost always immediately obvious.
+- Unconstrained software produciton produces a strange sort of software, one that exists purely in linimal space, untethered from and unbothered by reality.
+- The tests pass, the screenshots look good, and nothing works.
+- Left to its own devices, the software factory lands _perfectly_ in the middle of the uncanny valley of software.
+<!--- somehow, this brand of slop is almost always immediately obvious.-->
 - even with the purple gradients polished away, untethered software never quite solves the right proble, and it's never solved in quite the right way
-- smack in the middle of the uncanny valley of software production
 
 - the disconnect of between reality and some  
 - to connect software with reality, we need to actually understand and align the problem and its solution with what we want 
@@ -109,6 +104,16 @@ author: "Florian"
 <!---  fine tuning a character controller? better control every bit of entropy. building an email sender? just plop in a framework, we already do this.)-->
 <!--- abstracting coding away is in itself a "lossy abstraction"-->
 - every attempt to put something _purely_ "above" code and then have it define the behavior of the software with sufficient specificity ends up reinventing code in a worse way (config languages, Gherkin tests, drag and drop coding tools, "APIs will replace everything", etc.)
+
+- over the past decade, opinionated formatters have standardized the _appearence_ of code.
+- can we also standardize the _shape_ of code?
+- apply the same standardization to software at all granularities?
+<!--- to a lesser degree, pedantic linters have also standardized software somewhat-->
+<!--- how far could we go? -->
+<!--- what does standardized logic look like? -->
+- what are the decisions we can where we can settle on one set of good, coherent options, sort of like how the advent of opinionated formatters put an end to a whole series of unproductive discussions?
+- the world is going to run on software, even more so than now, how do we make sure that software is doing what we want?
+<!--- (hint: agents are just software, too)-->
 
 # Higher Order Programming
 
