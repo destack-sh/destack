@@ -7,10 +7,11 @@ use super::path::GENERATED_ROOT;
 
 /// Format generated TypeScript client files.
 pub(in crate::generate) fn format(root: &Path) -> Result<()> {
+    // format the generated TypeScript files
     let status = Command::new("bun")
         .current_dir(root)
         .arg("x")
-        .arg("biome")
+        .arg("@biomejs/biome")
         .arg("format")
         .arg("--write")
         .arg(GENERATED_ROOT)

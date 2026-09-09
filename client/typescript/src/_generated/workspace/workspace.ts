@@ -40,10 +40,15 @@ const artifactMethodResponse: Decoder<artifactPayload.ArtifactPayload> = {
 };
 
 /** Descriptor for the artifact RPC method. */
-const artifactMethod: Method<workspaceServiceArtifact.ArtifactRequest, artifactPayload.ArtifactPayload, never, never> = {
+const artifactMethod: Method<
+    workspaceServiceArtifact.ArtifactRequest,
+    artifactPayload.ArtifactPayload,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 110733720148697540250468363272127227854n,
+    fingerprint: 246886523982020204524834753860211878146n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
@@ -66,7 +71,7 @@ const blobMethodResponse: Decoder<coreBlob.Blob> = {
 const blobMethod: Method<workspaceServiceArtifact.ArtifactRequest, coreBlob.Blob, never, never> = {
     service: 5221210015570525267n,
     method: 14685706198550658862n,
-    fingerprint: 115201304907033697200484258056820815429n,
+    fingerprint: 263747966515585013167073654773466133940n,
     kind: "unary",
     idempotency: "idempotent",
     request: blobMethodRequest,
@@ -86,7 +91,12 @@ const branchRevisionMethodResponse: Decoder<repositoryRevision.Revision> = {
 };
 
 /** Descriptor for the branchRevision RPC method. */
-const branchRevisionMethod: Method<workspaceServiceBranch.BranchRevisionRequest, repositoryRevision.Revision, never, never> = {
+const branchRevisionMethod: Method<
+    workspaceServiceBranch.BranchRevisionRequest,
+    repositoryRevision.Revision,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 13969339521289274186n,
     fingerprint: 129870114750861729930342146225432051446n,
@@ -115,10 +125,15 @@ const buildMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the build RPC method. */
-const buildMethod: Method<workspaceServiceCommand.BuildRequest, workspaceCommandOutput.BuildOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const buildMethod: Method<
+    workspaceServiceCommand.BuildRequest,
+    workspaceCommandOutput.BuildOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 1211703523183514908n,
-    fingerprint: 114653128186640560973183755965556228998n,
+    fingerprint: 102400533154146184341849810784790283833n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: buildMethodRequest,
@@ -145,7 +160,12 @@ const checkMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the check RPC method. */
-const checkMethod: Method<workspaceServiceCommand.CheckRequest, workspaceCommandOutput.CheckOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const checkMethod: Method<
+    workspaceServiceCommand.CheckRequest,
+    workspaceCommandOutput.CheckOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 15001419742258424467n,
     fingerprint: 33306755617625853179134536535056860626n,
@@ -175,7 +195,12 @@ const cleanMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the clean RPC method. */
-const cleanMethod: Method<workspaceServiceCommand.CleanRequest, workspaceCommandOutput.CleanOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const cleanMethod: Method<
+    workspaceServiceCommand.CleanRequest,
+    workspaceCommandOutput.CleanOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 14468233596833065246n,
     fingerprint: 218057126349143510622927808090356843795n,
@@ -199,7 +224,12 @@ const createBranchMethodResponse: Decoder<workspaceBranch.Branch> = {
 };
 
 /** Descriptor for the createBranch RPC method. */
-const createBranchMethod: Method<workspaceServiceBranch.CreateBranchRequest, workspaceBranch.Branch, never, never> = {
+const createBranchMethod: Method<
+    workspaceServiceBranch.CreateBranchRequest,
+    workspaceBranch.Branch,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 9400579566653796994n,
     fingerprint: 69177570852998194326568370043156360330n,
@@ -215,14 +245,28 @@ const diagnoseMethodRequest: Encoder<workspaceServiceDiagnostic.DiagnoseRequest>
     },
 };
 
-const diagnoseMethodResponse: Decoder<ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>> = {
+const diagnoseMethodResponse: Decoder<
+    ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>
+> = {
     decode(reader): ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<workspaceServiceDiagnostic.FileDiagnosticsResponse> = []; for (let index = 0; index < length0; index += 1) { items0.push(workspaceServiceDiagnostic.decodeFileDiagnosticsResponse(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<workspaceServiceDiagnostic.FileDiagnosticsResponse> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(workspaceServiceDiagnostic.decodeFileDiagnosticsResponse(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the diagnose RPC method. */
-const diagnoseMethod: Method<workspaceServiceDiagnostic.DiagnoseRequest, ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>, never, never> = {
+const diagnoseMethod: Method<
+    workspaceServiceDiagnostic.DiagnoseRequest,
+    ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 13419783841159185504n,
     fingerprint: 332463918250330295175229784385539235416n,
@@ -240,12 +284,24 @@ const diffMethodRequest: Encoder<workspaceServiceSource.DiffRequest> = {
 
 const diffMethodResponse: Decoder<ReadonlyArray<repositoryChange.Change>> = {
     decode(reader): ReadonlyArray<repositoryChange.Change> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<repositoryChange.Change> = []; for (let index = 0; index < length0; index += 1) { items0.push(repositoryChange.decodeChange(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<repositoryChange.Change> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(repositoryChange.decodeChange(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the diff RPC method. */
-const diffMethod: Method<workspaceServiceSource.DiffRequest, ReadonlyArray<repositoryChange.Change>, never, never> = {
+const diffMethod: Method<
+    workspaceServiceSource.DiffRequest,
+    ReadonlyArray<repositoryChange.Change>,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 13155802525718792728n,
     fingerprint: 172517040427599994688765820913079044030n,
@@ -274,7 +330,12 @@ const docMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the doc RPC method. */
-const docMethod: Method<workspaceServiceCommand.DocRequest, workspaceCommandOutput.DocOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const docMethod: Method<
+    workspaceServiceCommand.DocRequest,
+    workspaceCommandOutput.DocOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 10422189475993358627n,
     fingerprint: 86316599047241426023518819208082489392n,
@@ -304,7 +365,12 @@ const doctorMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the doctor RPC method. */
-const doctorMethod: Method<workspaceServiceCommand.DoctorRequest, workspaceCommandOutput.DoctorOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const doctorMethod: Method<
+    workspaceServiceCommand.DoctorRequest,
+    workspaceCommandOutput.DoctorOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 5777790815235300089n,
     fingerprint: 89605533119069943768989835781444790346n,
@@ -328,7 +394,12 @@ const editMethodResponse: Decoder<repositoryCommit.Commit> = {
 };
 
 /** Descriptor for the edit RPC method. */
-const editMethod: Method<workspaceServiceSource.EditRequest, repositoryCommit.Commit, never, never> = {
+const editMethod: Method<
+    workspaceServiceSource.EditRequest,
+    repositoryCommit.Commit,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 10905061298224076908n,
     fingerprint: 210750986813027663775722258870616828076n,
@@ -351,7 +422,12 @@ const editBranchMethodResponse: Decoder<repositoryCommit.Commit> = {
 };
 
 /** Descriptor for the editBranch RPC method. */
-const editBranchMethod: Method<workspaceServiceSource.EditBranchRequest, repositoryCommit.Commit, never, never> = {
+const editBranchMethod: Method<
+    workspaceServiceSource.EditBranchRequest,
+    repositoryCommit.Commit,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 7206140320714118099n,
     fingerprint: 183121473935123294640005264183855999084n,
@@ -374,10 +450,15 @@ const exportMethodResponse: Decoder<workspaceArtifactExport.ExportResult> = {
 };
 
 /** Descriptor for the export RPC method. */
-const exportMethod: Method<workspaceServiceArtifact.ExportRequest, workspaceArtifactExport.ExportResult, never, never> = {
+const exportMethod: Method<
+    workspaceServiceArtifact.ExportRequest,
+    workspaceArtifactExport.ExportResult,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 3979786105473524246n,
-    fingerprint: 190276788171995413790853145567365395199n,
+    fingerprint: 169167066059390130414578371041499969505n,
     kind: "unary",
     idempotency: "unknown",
     request: exportMethodRequest,
@@ -403,7 +484,12 @@ const formatMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the format RPC method. */
-const formatMethod: Method<workspaceServiceCommand.FormatRequest, workspaceCommandOutput.FormatOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const formatMethod: Method<
+    workspaceServiceCommand.FormatRequest,
+    workspaceCommandOutput.FormatOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 14423415753390415257n,
     fingerprint: 277978901275600904286214099957820241923n,
@@ -427,7 +513,12 @@ const formatFileMethodResponse: Decoder<workspaceServiceSource.FileEditResponse 
 };
 
 /** Descriptor for the formatFile RPC method. */
-const formatFileMethod: Method<workspaceServiceSource.FormatFileRequest, workspaceServiceSource.FileEditResponse | undefined, never, never> = {
+const formatFileMethod: Method<
+    workspaceServiceSource.FormatFileRequest,
+    workspaceServiceSource.FileEditResponse | undefined,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 14816125004502085684n,
     fingerprint: 270789436586379329696157780060567396168n,
@@ -456,7 +547,12 @@ const infoMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the info RPC method. */
-const infoMethod: Method<workspaceServiceCommand.InfoRequest, workspaceCommandOutput.InfoOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const infoMethod: Method<
+    workspaceServiceCommand.InfoRequest,
+    workspaceCommandOutput.InfoOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 1708681934132943172n,
     fingerprint: 231229714345700387583590870661370619611n,
@@ -475,12 +571,24 @@ const listBranchesMethodRequest: Encoder<workspaceServiceBranch.ListBranchesRequ
 
 const listBranchesMethodResponse: Decoder<ReadonlyArray<workspaceBranch.Branch>> = {
     decode(reader): ReadonlyArray<workspaceBranch.Branch> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<workspaceBranch.Branch> = []; for (let index = 0; index < length0; index += 1) { items0.push(workspaceBranch.decodeBranch(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<workspaceBranch.Branch> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(workspaceBranch.decodeBranch(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the listBranches RPC method. */
-const listBranchesMethod: Method<workspaceServiceBranch.ListBranchesRequest, ReadonlyArray<workspaceBranch.Branch>, never, never> = {
+const listBranchesMethod: Method<
+    workspaceServiceBranch.ListBranchesRequest,
+    ReadonlyArray<workspaceBranch.Branch>,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 15166113853412736279n,
     fingerprint: 271145875421846890265658644077414971051n,
@@ -498,12 +606,24 @@ const listFilesMethodRequest: Encoder<workspaceServiceSource.ListFilesRequest> =
 
 const listFilesMethodResponse: Decoder<ReadonlyArray<repositoryFile.File>> = {
     decode(reader): ReadonlyArray<repositoryFile.File> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<repositoryFile.File> = []; for (let index = 0; index < length0; index += 1) { items0.push(repositoryFile.decodeFile(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<repositoryFile.File> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(repositoryFile.decodeFile(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the listFiles RPC method. */
-const listFilesMethod: Method<workspaceServiceSource.ListFilesRequest, ReadonlyArray<repositoryFile.File>, never, never> = {
+const listFilesMethod: Method<
+    workspaceServiceSource.ListFilesRequest,
+    ReadonlyArray<repositoryFile.File>,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 691965371636273585n,
     fingerprint: 110365476511709634768763001635697987720n,
@@ -532,7 +652,12 @@ const queryMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the query RPC method. */
-const queryMethod: Method<workspaceServiceCommand.QueryRequest, workspaceCommandOutput.QueryOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const queryMethod: Method<
+    workspaceServiceCommand.QueryRequest,
+    workspaceCommandOutput.QueryOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 16064438385159633581n,
     fingerprint: 287423492937854818240873988923322080457n,
@@ -551,12 +676,24 @@ const readFilesMethodRequest: Encoder<workspaceServiceSource.ReadFilesRequest> =
 
 const readFilesMethodResponse: Decoder<ReadonlyArray<workspaceFileImage.FileImage>> = {
     decode(reader): ReadonlyArray<workspaceFileImage.FileImage> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<workspaceFileImage.FileImage> = []; for (let index = 0; index < length0; index += 1) { items0.push(workspaceFileImage.decodeFileImage(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<workspaceFileImage.FileImage> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(workspaceFileImage.decodeFileImage(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the readFiles RPC method. */
-const readFilesMethod: Method<workspaceServiceSource.ReadFilesRequest, ReadonlyArray<workspaceFileImage.FileImage>, never, never> = {
+const readFilesMethod: Method<
+    workspaceServiceSource.ReadFilesRequest,
+    ReadonlyArray<workspaceFileImage.FileImage>,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 2633134189807995343n,
     fingerprint: 74343167553370377313787671981660737773n,
@@ -579,7 +716,12 @@ const reloadMethodResponse: Decoder<repositoryCommit.Commit | undefined> = {
 };
 
 /** Descriptor for the reload RPC method. */
-const reloadMethod: Method<workspaceServicePhysical.ReloadRequest, repositoryCommit.Commit | undefined, never, never> = {
+const reloadMethod: Method<
+    workspaceServicePhysical.ReloadRequest,
+    repositoryCommit.Commit | undefined,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 9885445168389074513n,
     fingerprint: 300457283810395849478055105563046272443n,
@@ -618,14 +760,20 @@ const resolveQueryFileMethodRequest: Encoder<workspaceServiceQuery.ResolveQueryF
     },
 };
 
-const resolveQueryFileMethodResponse: Decoder<workspaceServiceQuery.QueryFileResponse | undefined> = {
-    decode(reader): workspaceServiceQuery.QueryFileResponse | undefined {
-        return reader.readOption(() => workspaceServiceQuery.decodeQueryFileResponse(reader));
-    },
-};
+const resolveQueryFileMethodResponse: Decoder<workspaceServiceQuery.QueryFileResponse | undefined> =
+    {
+        decode(reader): workspaceServiceQuery.QueryFileResponse | undefined {
+            return reader.readOption(() => workspaceServiceQuery.decodeQueryFileResponse(reader));
+        },
+    };
 
 /** Descriptor for the resolveQueryFile RPC method. */
-const resolveQueryFileMethod: Method<workspaceServiceQuery.ResolveQueryFileRequest, workspaceServiceQuery.QueryFileResponse | undefined, never, never> = {
+const resolveQueryFileMethod: Method<
+    workspaceServiceQuery.ResolveQueryFileRequest,
+    workspaceServiceQuery.QueryFileResponse | undefined,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 7867554958004844305n,
     fingerprint: 21302530661815602352440049916357102078n,
@@ -648,7 +796,12 @@ const restoreBranchMethodResponse: Decoder<repositoryCommit.Commit> = {
 };
 
 /** Descriptor for the restoreBranch RPC method. */
-const restoreBranchMethod: Method<workspaceServiceSource.RestoreBranchRequest, repositoryCommit.Commit, never, never> = {
+const restoreBranchMethod: Method<
+    workspaceServiceSource.RestoreBranchRequest,
+    repositoryCommit.Commit,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 1543520928177584828n,
     fingerprint: 166801268090933794770673626063487780511n,
@@ -671,7 +824,12 @@ const revisionMethodResponse: Decoder<repositoryRevision.Revision> = {
 };
 
 /** Descriptor for the revision RPC method. */
-const revisionMethod: Method<workspaceServicePhysical.RevisionRequest, repositoryRevision.Revision, never, never> = {
+const revisionMethod: Method<
+    workspaceServicePhysical.RevisionRequest,
+    repositoryRevision.Revision,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 12403220366225518594n,
     fingerprint: 181329573633521760619289857970295758822n,
@@ -700,7 +858,12 @@ const rewriteMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the rewrite RPC method. */
-const rewriteMethod: Method<workspaceServiceCommand.RewriteRequest, workspaceCommandOutput.RewriteOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const rewriteMethod: Method<
+    workspaceServiceCommand.RewriteRequest,
+    workspaceCommandOutput.RewriteOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 10843689805677276623n,
     fingerprint: 121362357519866564950663312123954894692n,
@@ -724,10 +887,15 @@ const runQueryMethodResponse: Decoder<workspaceQuery.RunQueryResponse> = {
 };
 
 /** Descriptor for the runQuery RPC method. */
-const runQueryMethod: Method<workspaceServiceQuery.RunQueryRequest, workspaceQuery.RunQueryResponse, never, never> = {
+const runQueryMethod: Method<
+    workspaceServiceQuery.RunQueryRequest,
+    workspaceQuery.RunQueryResponse,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 3642248314147070001n,
-    fingerprint: 103597081150896725429736711792167451728n,
+    fingerprint: 200176785118675089239836091789277936433n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: runQueryMethodRequest,
@@ -747,7 +915,12 @@ const saveBranchMethodResponse: Decoder<repositoryCommit.Commit> = {
 };
 
 /** Descriptor for the saveBranch RPC method. */
-const saveBranchMethod: Method<workspaceServiceSource.SaveBranchRequest, repositoryCommit.Commit, never, never> = {
+const saveBranchMethod: Method<
+    workspaceServiceSource.SaveBranchRequest,
+    repositoryCommit.Commit,
+    never,
+    never
+> = {
     service: 5221210015570525267n,
     method: 9659528592542225065n,
     fingerprint: 70055651892930113833025527142205829265n,
@@ -776,7 +949,12 @@ const settingsMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the settings RPC method. */
-const settingsMethod: Method<workspaceServiceCommand.SettingsRequest, workspaceCommandOutput.SettingsOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const settingsMethod: Method<
+    workspaceServiceCommand.SettingsRequest,
+    workspaceCommandOutput.SettingsOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 15716122537260110462n,
     fingerprint: 186805041152560388768458308719306247334n,
@@ -806,7 +984,12 @@ const targetsMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the targets RPC method. */
-const targetsMethod: Method<workspaceServiceCommand.TargetsRequest, workspaceCommandOutput.TargetsOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const targetsMethod: Method<
+    workspaceServiceCommand.TargetsRequest,
+    workspaceCommandOutput.TargetsOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 7181125733442239067n,
     fingerprint: 72454753802412023123159413590237315334n,
@@ -836,7 +1019,12 @@ const taskMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the task RPC method. */
-const taskMethod: Method<workspaceServiceCommand.TaskRequest, workspaceCommandOutput.TaskOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const taskMethod: Method<
+    workspaceServiceCommand.TaskRequest,
+    workspaceCommandOutput.TaskOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 2143769546875386330n,
     fingerprint: 306454264570854341328999170306229929485n,
@@ -866,7 +1054,12 @@ const testMethodOutput: Decoder<workspaceCommandCommon.ProgressEvent> = {
 };
 
 /** Descriptor for the test RPC method. */
-const testMethod: Method<workspaceServiceCommand.TestRequest, workspaceCommandOutput.TestOutput, never, workspaceCommandCommon.ProgressEvent> = {
+const testMethod: Method<
+    workspaceServiceCommand.TestRequest,
+    workspaceCommandOutput.TestOutput,
+    never,
+    workspaceCommandCommon.ProgressEvent
+> = {
     service: 5221210015570525267n,
     method: 12720248006254262126n,
     fingerprint: 78956394007576009721210038785374513347n,
@@ -896,7 +1089,12 @@ const watchMethodOutput: Decoder<workspaceWatchEvent.WatchEvent> = {
 };
 
 /** Descriptor for the watch RPC method. */
-const watchMethod: Method<workspaceServiceWatch.WatchRequest, null, never, workspaceWatchEvent.WatchEvent> = {
+const watchMethod: Method<
+    workspaceServiceWatch.WatchRequest,
+    null,
+    never,
+    workspaceWatchEvent.WatchEvent
+> = {
     service: 5221210015570525267n,
     method: 15428617339126698985n,
     fingerprint: 146301976061167781558265844359898197710n,
@@ -926,7 +1124,12 @@ const watchBranchMethodOutput: Decoder<workspaceWatchEvent.WatchEvent> = {
 };
 
 /** Descriptor for the watchBranch RPC method. */
-const watchBranchMethod: Method<workspaceServiceWatch.WatchBranchRequest, null, never, workspaceWatchEvent.WatchEvent> = {
+const watchBranchMethod: Method<
+    workspaceServiceWatch.WatchBranchRequest,
+    null,
+    never,
+    workspaceWatchEvent.WatchEvent
+> = {
     service: 5221210015570525267n,
     method: 5536776039085681825n,
     fingerprint: 51182264100155015619256348096716348079n,
@@ -982,177 +1185,247 @@ export class WorkspaceClient {
     }
 
     /** Call the artifact workspace method. */
-    artifact(request: RequestValue<workspaceServiceArtifact.ArtifactRequest>): Promise<RpcResponse<artifactPayload.ArtifactPayload>> {
+    artifact(
+        request: RequestValue<workspaceServiceArtifact.ArtifactRequest>,
+    ): Promise<RpcResponse<artifactPayload.ArtifactPayload>> {
         return this.#connection.call(artifactMethod, request);
     }
 
     /** Call the blob workspace method. */
-    blob(request: RequestValue<workspaceServiceArtifact.ArtifactRequest>): Promise<RpcResponse<coreBlob.Blob>> {
+    blob(
+        request: RequestValue<workspaceServiceArtifact.ArtifactRequest>,
+    ): Promise<RpcResponse<coreBlob.Blob>> {
         return this.#connection.call(blobMethod, request);
     }
 
     /** Call the branchRevision workspace method. */
-    branchRevision(request: RequestValue<workspaceServiceBranch.BranchRevisionRequest>): Promise<RpcResponse<repositoryRevision.Revision>> {
+    branchRevision(
+        request: RequestValue<workspaceServiceBranch.BranchRevisionRequest>,
+    ): Promise<RpcResponse<repositoryRevision.Revision>> {
         return this.#connection.call(branchRevisionMethod, request);
     }
 
     /** Call the build workspace method. */
-    build(request: RequestValue<workspaceServiceCommand.BuildRequest>): Call<workspaceCommandOutput.BuildOutput, never, workspaceCommandCommon.ProgressEvent> {
+    build(
+        request: RequestValue<workspaceServiceCommand.BuildRequest>,
+    ): Call<workspaceCommandOutput.BuildOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(buildMethod, request);
     }
 
     /** Call the check workspace method. */
-    check(request: RequestValue<workspaceServiceCommand.CheckRequest>): Call<workspaceCommandOutput.CheckOutput, never, workspaceCommandCommon.ProgressEvent> {
+    check(
+        request: RequestValue<workspaceServiceCommand.CheckRequest>,
+    ): Call<workspaceCommandOutput.CheckOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(checkMethod, request);
     }
 
     /** Call the clean workspace method. */
-    clean(request: RequestValue<workspaceServiceCommand.CleanRequest>): Call<workspaceCommandOutput.CleanOutput, never, workspaceCommandCommon.ProgressEvent> {
+    clean(
+        request: RequestValue<workspaceServiceCommand.CleanRequest>,
+    ): Call<workspaceCommandOutput.CleanOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(cleanMethod, request);
     }
 
     /** Call the createBranch workspace method. */
-    createBranch(request: RequestValue<workspaceServiceBranch.CreateBranchRequest>): Promise<RpcResponse<workspaceBranch.Branch>> {
+    createBranch(
+        request: RequestValue<workspaceServiceBranch.CreateBranchRequest>,
+    ): Promise<RpcResponse<workspaceBranch.Branch>> {
         return this.#connection.call(createBranchMethod, request);
     }
 
     /** Call the diagnose workspace method. */
-    diagnose(request: RequestValue<workspaceServiceDiagnostic.DiagnoseRequest>): Promise<RpcResponse<ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>>> {
+    diagnose(
+        request: RequestValue<workspaceServiceDiagnostic.DiagnoseRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<workspaceServiceDiagnostic.FileDiagnosticsResponse>>> {
         return this.#connection.call(diagnoseMethod, request);
     }
 
     /** Call the diff workspace method. */
-    diff(request: RequestValue<workspaceServiceSource.DiffRequest>): Promise<RpcResponse<ReadonlyArray<repositoryChange.Change>>> {
+    diff(
+        request: RequestValue<workspaceServiceSource.DiffRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<repositoryChange.Change>>> {
         return this.#connection.call(diffMethod, request);
     }
 
     /** Call the doc workspace method. */
-    doc(request: RequestValue<workspaceServiceCommand.DocRequest>): Call<workspaceCommandOutput.DocOutput, never, workspaceCommandCommon.ProgressEvent> {
+    doc(
+        request: RequestValue<workspaceServiceCommand.DocRequest>,
+    ): Call<workspaceCommandOutput.DocOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(docMethod, request);
     }
 
     /** Call the doctor workspace method. */
-    doctor(request: RequestValue<workspaceServiceCommand.DoctorRequest>): Call<workspaceCommandOutput.DoctorOutput, never, workspaceCommandCommon.ProgressEvent> {
+    doctor(
+        request: RequestValue<workspaceServiceCommand.DoctorRequest>,
+    ): Call<workspaceCommandOutput.DoctorOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(doctorMethod, request);
     }
 
     /** Call the edit workspace method. */
-    edit(request: RequestValue<workspaceServiceSource.EditRequest>): Promise<RpcResponse<repositoryCommit.Commit>> {
+    edit(
+        request: RequestValue<workspaceServiceSource.EditRequest>,
+    ): Promise<RpcResponse<repositoryCommit.Commit>> {
         return this.#connection.call(editMethod, request);
     }
 
     /** Call the editBranch workspace method. */
-    editBranch(request: RequestValue<workspaceServiceSource.EditBranchRequest>): Promise<RpcResponse<repositoryCommit.Commit>> {
+    editBranch(
+        request: RequestValue<workspaceServiceSource.EditBranchRequest>,
+    ): Promise<RpcResponse<repositoryCommit.Commit>> {
         return this.#connection.call(editBranchMethod, request);
     }
 
     /** Call the export workspace method. */
-    export(request: RequestValue<workspaceServiceArtifact.ExportRequest>): Promise<RpcResponse<workspaceArtifactExport.ExportResult>> {
+    export(
+        request: RequestValue<workspaceServiceArtifact.ExportRequest>,
+    ): Promise<RpcResponse<workspaceArtifactExport.ExportResult>> {
         return this.#connection.call(exportMethod, request);
     }
 
     /** Call the format workspace method. */
-    format(request: RequestValue<workspaceServiceCommand.FormatRequest>): Call<workspaceCommandOutput.FormatOutput, never, workspaceCommandCommon.ProgressEvent> {
+    format(
+        request: RequestValue<workspaceServiceCommand.FormatRequest>,
+    ): Call<workspaceCommandOutput.FormatOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(formatMethod, request);
     }
 
     /** Call the formatFile workspace method. */
-    formatFile(request: RequestValue<workspaceServiceSource.FormatFileRequest>): Promise<RpcResponse<workspaceServiceSource.FileEditResponse | undefined>> {
+    formatFile(
+        request: RequestValue<workspaceServiceSource.FormatFileRequest>,
+    ): Promise<RpcResponse<workspaceServiceSource.FileEditResponse | undefined>> {
         return this.#connection.call(formatFileMethod, request);
     }
 
     /** Call the info workspace method. */
-    info(request: RequestValue<workspaceServiceCommand.InfoRequest>): Call<workspaceCommandOutput.InfoOutput, never, workspaceCommandCommon.ProgressEvent> {
+    info(
+        request: RequestValue<workspaceServiceCommand.InfoRequest>,
+    ): Call<workspaceCommandOutput.InfoOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(infoMethod, request);
     }
 
     /** Call the listBranches workspace method. */
-    listBranches(request: RequestValue<workspaceServiceBranch.ListBranchesRequest>): Promise<RpcResponse<ReadonlyArray<workspaceBranch.Branch>>> {
+    listBranches(
+        request: RequestValue<workspaceServiceBranch.ListBranchesRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<workspaceBranch.Branch>>> {
         return this.#connection.call(listBranchesMethod, request);
     }
 
     /** Call the listFiles workspace method. */
-    listFiles(request: RequestValue<workspaceServiceSource.ListFilesRequest>): Promise<RpcResponse<ReadonlyArray<repositoryFile.File>>> {
+    listFiles(
+        request: RequestValue<workspaceServiceSource.ListFilesRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<repositoryFile.File>>> {
         return this.#connection.call(listFilesMethod, request);
     }
 
     /** Call the query workspace method. */
-    query(request: RequestValue<workspaceServiceCommand.QueryRequest>): Call<workspaceCommandOutput.QueryOutput, never, workspaceCommandCommon.ProgressEvent> {
+    query(
+        request: RequestValue<workspaceServiceCommand.QueryRequest>,
+    ): Call<workspaceCommandOutput.QueryOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(queryMethod, request);
     }
 
     /** Call the readFiles workspace method. */
-    readFiles(request: RequestValue<workspaceServiceSource.ReadFilesRequest>): Promise<RpcResponse<ReadonlyArray<workspaceFileImage.FileImage>>> {
+    readFiles(
+        request: RequestValue<workspaceServiceSource.ReadFilesRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<workspaceFileImage.FileImage>>> {
         return this.#connection.call(readFilesMethod, request);
     }
 
     /** Call the reload workspace method. */
-    reload(request: RequestValue<workspaceServicePhysical.ReloadRequest>): Promise<RpcResponse<repositoryCommit.Commit | undefined>> {
+    reload(
+        request: RequestValue<workspaceServicePhysical.ReloadRequest>,
+    ): Promise<RpcResponse<repositoryCommit.Commit | undefined>> {
         return this.#connection.call(reloadMethod, request);
     }
 
     /** Call the removeBranch workspace method. */
-    removeBranch(request: RequestValue<workspaceServiceBranch.RemoveBranchRequest>): Promise<RpcResponse<null>> {
+    removeBranch(
+        request: RequestValue<workspaceServiceBranch.RemoveBranchRequest>,
+    ): Promise<RpcResponse<null>> {
         return this.#connection.call(removeBranchMethod, request);
     }
 
     /** Call the resolveQueryFile workspace method. */
-    resolveQueryFile(request: RequestValue<workspaceServiceQuery.ResolveQueryFileRequest>): Promise<RpcResponse<workspaceServiceQuery.QueryFileResponse | undefined>> {
+    resolveQueryFile(
+        request: RequestValue<workspaceServiceQuery.ResolveQueryFileRequest>,
+    ): Promise<RpcResponse<workspaceServiceQuery.QueryFileResponse | undefined>> {
         return this.#connection.call(resolveQueryFileMethod, request);
     }
 
     /** Call the restoreBranch workspace method. */
-    restoreBranch(request: RequestValue<workspaceServiceSource.RestoreBranchRequest>): Promise<RpcResponse<repositoryCommit.Commit>> {
+    restoreBranch(
+        request: RequestValue<workspaceServiceSource.RestoreBranchRequest>,
+    ): Promise<RpcResponse<repositoryCommit.Commit>> {
         return this.#connection.call(restoreBranchMethod, request);
     }
 
     /** Call the revision workspace method. */
-    revision(request: RequestValue<workspaceServicePhysical.RevisionRequest>): Promise<RpcResponse<repositoryRevision.Revision>> {
+    revision(
+        request: RequestValue<workspaceServicePhysical.RevisionRequest>,
+    ): Promise<RpcResponse<repositoryRevision.Revision>> {
         return this.#connection.call(revisionMethod, request);
     }
 
     /** Call the rewrite workspace method. */
-    rewrite(request: RequestValue<workspaceServiceCommand.RewriteRequest>): Call<workspaceCommandOutput.RewriteOutput, never, workspaceCommandCommon.ProgressEvent> {
+    rewrite(
+        request: RequestValue<workspaceServiceCommand.RewriteRequest>,
+    ): Call<workspaceCommandOutput.RewriteOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(rewriteMethod, request);
     }
 
     /** Call the runQuery workspace method. */
-    runQuery(request: RequestValue<workspaceServiceQuery.RunQueryRequest>): Promise<RpcResponse<workspaceQuery.RunQueryResponse>> {
+    runQuery(
+        request: RequestValue<workspaceServiceQuery.RunQueryRequest>,
+    ): Promise<RpcResponse<workspaceQuery.RunQueryResponse>> {
         return this.#connection.call(runQueryMethod, request);
     }
 
     /** Call the saveBranch workspace method. */
-    saveBranch(request: RequestValue<workspaceServiceSource.SaveBranchRequest>): Promise<RpcResponse<repositoryCommit.Commit>> {
+    saveBranch(
+        request: RequestValue<workspaceServiceSource.SaveBranchRequest>,
+    ): Promise<RpcResponse<repositoryCommit.Commit>> {
         return this.#connection.call(saveBranchMethod, request);
     }
 
     /** Call the settings workspace method. */
-    settings(request: RequestValue<workspaceServiceCommand.SettingsRequest>): Call<workspaceCommandOutput.SettingsOutput, never, workspaceCommandCommon.ProgressEvent> {
+    settings(
+        request: RequestValue<workspaceServiceCommand.SettingsRequest>,
+    ): Call<workspaceCommandOutput.SettingsOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(settingsMethod, request);
     }
 
     /** Call the targets workspace method. */
-    targets(request: RequestValue<workspaceServiceCommand.TargetsRequest>): Call<workspaceCommandOutput.TargetsOutput, never, workspaceCommandCommon.ProgressEvent> {
+    targets(
+        request: RequestValue<workspaceServiceCommand.TargetsRequest>,
+    ): Call<workspaceCommandOutput.TargetsOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(targetsMethod, request);
     }
 
     /** Call the task workspace method. */
-    task(request: RequestValue<workspaceServiceCommand.TaskRequest>): Call<workspaceCommandOutput.TaskOutput, never, workspaceCommandCommon.ProgressEvent> {
+    task(
+        request: RequestValue<workspaceServiceCommand.TaskRequest>,
+    ): Call<workspaceCommandOutput.TaskOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(taskMethod, request);
     }
 
     /** Call the test workspace method. */
-    test(request: RequestValue<workspaceServiceCommand.TestRequest>): Call<workspaceCommandOutput.TestOutput, never, workspaceCommandCommon.ProgressEvent> {
+    test(
+        request: RequestValue<workspaceServiceCommand.TestRequest>,
+    ): Call<workspaceCommandOutput.TestOutput, never, workspaceCommandCommon.ProgressEvent> {
         return this.#connection.start(testMethod, request);
     }
 
     /** Call the watch workspace method. */
-    watch(request: RequestValue<workspaceServiceWatch.WatchRequest>): Call<null, never, workspaceWatchEvent.WatchEvent> {
+    watch(
+        request: RequestValue<workspaceServiceWatch.WatchRequest>,
+    ): Call<null, never, workspaceWatchEvent.WatchEvent> {
         return this.#connection.start(watchMethod, request);
     }
 
     /** Call the watchBranch workspace method. */
-    watchBranch(request: RequestValue<workspaceServiceWatch.WatchBranchRequest>): Call<null, never, workspaceWatchEvent.WatchEvent> {
+    watchBranch(
+        request: RequestValue<workspaceServiceWatch.WatchBranchRequest>,
+    ): Call<null, never, workspaceWatchEvent.WatchEvent> {
         return this.#connection.start(watchBranchMethod, request);
     }
 }

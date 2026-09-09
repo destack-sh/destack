@@ -51,7 +51,12 @@ const captureMethodResponse: Decoder<runtimeWorldLineageImage.Image> = {
 };
 
 /** Descriptor for the capture RPC method. */
-const captureMethod: Method<runtimeServiceWorld.CaptureRequest, runtimeWorldLineageImage.Image, never, never> = {
+const captureMethod: Method<
+    runtimeServiceWorld.CaptureRequest,
+    runtimeWorldLineageImage.Image,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 11182217923498675742n,
     fingerprint: 48759819813271109635626144552744908874n,
@@ -74,7 +79,12 @@ const forkMethodResponse: Decoder<runtimeServiceWorld.WorldId> = {
 };
 
 /** Descriptor for the fork RPC method. */
-const forkMethod: Method<runtimeServiceWorld.ForkRequest, runtimeServiceWorld.WorldId, never, never> = {
+const forkMethod: Method<
+    runtimeServiceWorld.ForkRequest,
+    runtimeServiceWorld.WorldId,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 2652691812122200119n,
     fingerprint: 326048868285123192384524836571760330121n,
@@ -115,12 +125,24 @@ const listBranchesMethodRequest: Encoder<runtimeServiceWorld.ListBranchesRequest
 
 const listBranchesMethodResponse: Decoder<ReadonlyArray<runtimeWorldLineageBranch.Branch>> = {
     decode(reader): ReadonlyArray<runtimeWorldLineageBranch.Branch> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<runtimeWorldLineageBranch.Branch> = []; for (let index = 0; index < length0; index += 1) { items0.push(runtimeWorldLineageBranch.decodeBranch(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<runtimeWorldLineageBranch.Branch> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(runtimeWorldLineageBranch.decodeBranch(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the listBranches RPC method. */
-const listBranchesMethod: Method<runtimeServiceWorld.ListBranchesRequest, ReadonlyArray<runtimeWorldLineageBranch.Branch>, never, never> = {
+const listBranchesMethod: Method<
+    runtimeServiceWorld.ListBranchesRequest,
+    ReadonlyArray<runtimeWorldLineageBranch.Branch>,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 2373008041350153572n,
     fingerprint: 57050226660708434787813565800138085835n,
@@ -138,12 +160,24 @@ const listImagesMethodRequest: Encoder<runtimeServiceWorld.ListImagesRequest> = 
 
 const listImagesMethodResponse: Decoder<ReadonlyArray<runtimeWorldLineageImage.Image>> = {
     decode(reader): ReadonlyArray<runtimeWorldLineageImage.Image> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<runtimeWorldLineageImage.Image> = []; for (let index = 0; index < length0; index += 1) { items0.push(runtimeWorldLineageImage.decodeImage(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<runtimeWorldLineageImage.Image> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(runtimeWorldLineageImage.decodeImage(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the listImages RPC method. */
-const listImagesMethod: Method<runtimeServiceWorld.ListImagesRequest, ReadonlyArray<runtimeWorldLineageImage.Image>, never, never> = {
+const listImagesMethod: Method<
+    runtimeServiceWorld.ListImagesRequest,
+    ReadonlyArray<runtimeWorldLineageImage.Image>,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 163092561838403783n,
     fingerprint: 280097867821029819683431310129503552903n,
@@ -166,10 +200,15 @@ const listObservationsMethodResponse: Decoder<runtimeServiceWorld.ObservationPag
 };
 
 /** Descriptor for the listObservations RPC method. */
-const listObservationsMethod: Method<runtimeServiceWorld.ListObservationsRequest, runtimeServiceWorld.ObservationPage, never, never> = {
+const listObservationsMethod: Method<
+    runtimeServiceWorld.ListObservationsRequest,
+    runtimeServiceWorld.ObservationPage,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 1437261528243189898n,
-    fingerprint: 272509569346154754700573340635633096004n,
+    fingerprint: 325931103109042931214627586925882634969n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: listObservationsMethodRequest,
@@ -184,12 +223,24 @@ const listRuntimesMethodRequest: Encoder<runtimeServiceWorld.ListRuntimesRequest
 
 const listRuntimesMethodResponse: Decoder<ReadonlyArray<runtimeServiceWorld.Runtime>> = {
     decode(reader): ReadonlyArray<runtimeServiceWorld.Runtime> {
-        return (() => { const length0 = reader.readNumber(); const items0: Array<runtimeServiceWorld.Runtime> = []; for (let index = 0; index < length0; index += 1) { items0.push(runtimeServiceWorld.decodeRuntime(reader)); } return items0; })();
+        return (() => {
+            const length0 = reader.readNumber();
+            const items0: Array<runtimeServiceWorld.Runtime> = [];
+            for (let index = 0; index < length0; index += 1) {
+                items0.push(runtimeServiceWorld.decodeRuntime(reader));
+            }
+            return items0;
+        })();
     },
 };
 
 /** Descriptor for the listRuntimes RPC method. */
-const listRuntimesMethod: Method<runtimeServiceWorld.ListRuntimesRequest, ReadonlyArray<runtimeServiceWorld.Runtime>, never, never> = {
+const listRuntimesMethod: Method<
+    runtimeServiceWorld.ListRuntimesRequest,
+    ReadonlyArray<runtimeServiceWorld.Runtime>,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 13494924740849884462n,
     fingerprint: 45321481429562301031830588537398316973n,
@@ -212,7 +263,12 @@ const readBranchMethodResponse: Decoder<runtimeWorldLineageBranch.Branch> = {
 };
 
 /** Descriptor for the readBranch RPC method. */
-const readBranchMethod: Method<runtimeServiceWorld.ReadBranchRequest, runtimeWorldLineageBranch.Branch, never, never> = {
+const readBranchMethod: Method<
+    runtimeServiceWorld.ReadBranchRequest,
+    runtimeWorldLineageBranch.Branch,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 5100498846830395152n,
     fingerprint: 88366026657187008521592506507650442808n,
@@ -235,7 +291,12 @@ const readImageMethodResponse: Decoder<runtimeWorldLineageImage.Image> = {
 };
 
 /** Descriptor for the readImage RPC method. */
-const readImageMethod: Method<runtimeServiceWorld.ReadImageRequest, runtimeWorldLineageImage.Image, never, never> = {
+const readImageMethod: Method<
+    runtimeServiceWorld.ReadImageRequest,
+    runtimeWorldLineageImage.Image,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 15194909508147954389n,
     fingerprint: 43229248524954850860655006300666111632n,
@@ -258,7 +319,12 @@ const readMomentMethodResponse: Decoder<runtimeWorldLineageMoment.Moment> = {
 };
 
 /** Descriptor for the readMoment RPC method. */
-const readMomentMethod: Method<runtimeServiceWorld.ReadMomentRequest, runtimeWorldLineageMoment.Moment, never, never> = {
+const readMomentMethod: Method<
+    runtimeServiceWorld.ReadMomentRequest,
+    runtimeWorldLineageMoment.Moment,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 2410310895136447511n,
     fingerprint: 154655505560452303974766809802575291263n,
@@ -281,7 +347,12 @@ const readPolicyMethodResponse: Decoder<runtimeWorldPolicyPolicy.Policy> = {
 };
 
 /** Descriptor for the readPolicy RPC method. */
-const readPolicyMethod: Method<runtimeServiceWorld.ReadPolicyRequest, runtimeWorldPolicyPolicy.Policy, never, never> = {
+const readPolicyMethod: Method<
+    runtimeServiceWorld.ReadPolicyRequest,
+    runtimeWorldPolicyPolicy.Policy,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 13141633833561005040n,
     fingerprint: 248257480969639072663504896170794113641n,
@@ -304,7 +375,12 @@ const readRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 };
 
 /** Descriptor for the readRuntime RPC method. */
-const readRuntimeMethod: Method<runtimeServiceWorld.ReadRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
+const readRuntimeMethod: Method<
+    runtimeServiceWorld.ReadRuntimeRequest,
+    runtimeServiceWorld.Runtime,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 17741785525402478019n,
     fingerprint: 24922639987985381247612971306165206471n,
@@ -327,7 +403,12 @@ const readTopologyMethodResponse: Decoder<runtimeServiceWorld.Topology> = {
 };
 
 /** Descriptor for the readTopology RPC method. */
-const readTopologyMethod: Method<runtimeServiceWorld.ReadTopologyRequest, runtimeServiceWorld.Topology, never, never> = {
+const readTopologyMethod: Method<
+    runtimeServiceWorld.ReadTopologyRequest,
+    runtimeServiceWorld.Topology,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 5898525338051739497n,
     fingerprint: 190875849260047021389224639393756360699n,
@@ -350,7 +431,12 @@ const reloadRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 };
 
 /** Descriptor for the reloadRuntime RPC method. */
-const reloadRuntimeMethod: Method<runtimeServiceWorld.ReloadRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
+const reloadRuntimeMethod: Method<
+    runtimeServiceWorld.ReloadRuntimeRequest,
+    runtimeServiceWorld.Runtime,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 15811933204709298131n,
     fingerprint: 285643143227981126098204435173488981573n,
@@ -488,7 +574,12 @@ const runMethodResponse: Decoder<runtimeWorldWorldRun.RunOutcome> = {
 };
 
 /** Descriptor for the run RPC method. */
-const runMethod: Method<runtimeServiceWorld.RunRequest, runtimeWorldWorldRun.RunOutcome, never, never> = {
+const runMethod: Method<
+    runtimeServiceWorld.RunRequest,
+    runtimeWorldWorldRun.RunOutcome,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 8347472428907038394n,
     fingerprint: 123245864749993294852278115174885127472n,
@@ -511,7 +602,12 @@ const snapshotMethodResponse: Decoder<runtimeWorldWorldSnapshot.Snapshot> = {
 };
 
 /** Descriptor for the snapshot RPC method. */
-const snapshotMethod: Method<runtimeServiceWorld.SnapshotRequest, runtimeWorldWorldSnapshot.Snapshot, never, never> = {
+const snapshotMethod: Method<
+    runtimeServiceWorld.SnapshotRequest,
+    runtimeWorldWorldSnapshot.Snapshot,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 13989801677051429942n,
     fingerprint: 143107235256137586653405553907337432258n,
@@ -534,7 +630,12 @@ const spawnRuntimeMethodResponse: Decoder<runtimeServiceWorld.Runtime> = {
 };
 
 /** Descriptor for the spawnRuntime RPC method. */
-const spawnRuntimeMethod: Method<runtimeServiceWorld.SpawnRuntimeRequest, runtimeServiceWorld.Runtime, never, never> = {
+const spawnRuntimeMethod: Method<
+    runtimeServiceWorld.SpawnRuntimeRequest,
+    runtimeServiceWorld.Runtime,
+    never,
+    never
+> = {
     service: 10634146378307930274n,
     method: 18276151310101957786n,
     fingerprint: 137515482418325670644189671660328325807n,
@@ -563,10 +664,15 @@ const watchObservationsMethodOutput: Decoder<runtimeWorldObservationEntry.Observ
 };
 
 /** Descriptor for the watchObservations RPC method. */
-const watchObservationsMethod: Method<runtimeServiceWorld.WatchObservationsRequest, null, never, runtimeWorldObservationEntry.ObservationEntry> = {
+const watchObservationsMethod: Method<
+    runtimeServiceWorld.WatchObservationsRequest,
+    null,
+    never,
+    runtimeWorldObservationEntry.ObservationEntry
+> = {
     service: 10634146378307930274n,
     method: 13237122242148560062n,
-    fingerprint: 5023174407084334668625432590631530649n,
+    fingerprint: 184903265338375434049542648740436045917n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: watchObservationsMethodRequest,
@@ -613,92 +719,128 @@ export class WorldClient {
     }
 
     /** Call the capture world method. */
-    capture(request: RequestValue<runtimeServiceWorld.CaptureRequest>): Promise<RpcResponse<runtimeWorldLineageImage.Image>> {
+    capture(
+        request: RequestValue<runtimeServiceWorld.CaptureRequest>,
+    ): Promise<RpcResponse<runtimeWorldLineageImage.Image>> {
         return this.#connection.call(captureMethod, request);
     }
 
     /** Call the fork world method. */
-    fork(request: RequestValue<runtimeServiceWorld.ForkRequest>): Promise<RpcResponse<runtimeServiceWorld.WorldId>> {
+    fork(
+        request: RequestValue<runtimeServiceWorld.ForkRequest>,
+    ): Promise<RpcResponse<runtimeServiceWorld.WorldId>> {
         return this.#connection.call(forkMethod, request);
     }
 
     /** Call the invoke world method. */
-    invoke(request: RequestValue<runtimeServiceWorld.InvokeRequest>): Promise<RpcResponse<programValue.Value>> {
+    invoke(
+        request: RequestValue<runtimeServiceWorld.InvokeRequest>,
+    ): Promise<RpcResponse<programValue.Value>> {
         return this.#connection.call(invokeMethod, request);
     }
 
     /** Call the listBranches world method. */
-    listBranches(request: RequestValue<runtimeServiceWorld.ListBranchesRequest>): Promise<RpcResponse<ReadonlyArray<runtimeWorldLineageBranch.Branch>>> {
+    listBranches(
+        request: RequestValue<runtimeServiceWorld.ListBranchesRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<runtimeWorldLineageBranch.Branch>>> {
         return this.#connection.call(listBranchesMethod, request);
     }
 
     /** Call the listImages world method. */
-    listImages(request: RequestValue<runtimeServiceWorld.ListImagesRequest>): Promise<RpcResponse<ReadonlyArray<runtimeWorldLineageImage.Image>>> {
+    listImages(
+        request: RequestValue<runtimeServiceWorld.ListImagesRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<runtimeWorldLineageImage.Image>>> {
         return this.#connection.call(listImagesMethod, request);
     }
 
     /** Call the listObservations world method. */
-    listObservations(request: RequestValue<runtimeServiceWorld.ListObservationsRequest>): Promise<RpcResponse<runtimeServiceWorld.ObservationPage>> {
+    listObservations(
+        request: RequestValue<runtimeServiceWorld.ListObservationsRequest>,
+    ): Promise<RpcResponse<runtimeServiceWorld.ObservationPage>> {
         return this.#connection.call(listObservationsMethod, request);
     }
 
     /** Call the listRuntimes world method. */
-    listRuntimes(request: RequestValue<runtimeServiceWorld.ListRuntimesRequest>): Promise<RpcResponse<ReadonlyArray<runtimeServiceWorld.Runtime>>> {
+    listRuntimes(
+        request: RequestValue<runtimeServiceWorld.ListRuntimesRequest>,
+    ): Promise<RpcResponse<ReadonlyArray<runtimeServiceWorld.Runtime>>> {
         return this.#connection.call(listRuntimesMethod, request);
     }
 
     /** Call the readBranch world method. */
-    readBranch(request: RequestValue<runtimeServiceWorld.ReadBranchRequest>): Promise<RpcResponse<runtimeWorldLineageBranch.Branch>> {
+    readBranch(
+        request: RequestValue<runtimeServiceWorld.ReadBranchRequest>,
+    ): Promise<RpcResponse<runtimeWorldLineageBranch.Branch>> {
         return this.#connection.call(readBranchMethod, request);
     }
 
     /** Call the readImage world method. */
-    readImage(request: RequestValue<runtimeServiceWorld.ReadImageRequest>): Promise<RpcResponse<runtimeWorldLineageImage.Image>> {
+    readImage(
+        request: RequestValue<runtimeServiceWorld.ReadImageRequest>,
+    ): Promise<RpcResponse<runtimeWorldLineageImage.Image>> {
         return this.#connection.call(readImageMethod, request);
     }
 
     /** Call the readMoment world method. */
-    readMoment(request: RequestValue<runtimeServiceWorld.ReadMomentRequest>): Promise<RpcResponse<runtimeWorldLineageMoment.Moment>> {
+    readMoment(
+        request: RequestValue<runtimeServiceWorld.ReadMomentRequest>,
+    ): Promise<RpcResponse<runtimeWorldLineageMoment.Moment>> {
         return this.#connection.call(readMomentMethod, request);
     }
 
     /** Call the readPolicy world method. */
-    readPolicy(request: RequestValue<runtimeServiceWorld.ReadPolicyRequest>): Promise<RpcResponse<runtimeWorldPolicyPolicy.Policy>> {
+    readPolicy(
+        request: RequestValue<runtimeServiceWorld.ReadPolicyRequest>,
+    ): Promise<RpcResponse<runtimeWorldPolicyPolicy.Policy>> {
         return this.#connection.call(readPolicyMethod, request);
     }
 
     /** Call the readRuntime world method. */
-    readRuntime(request: RequestValue<runtimeServiceWorld.ReadRuntimeRequest>): Promise<RpcResponse<runtimeServiceWorld.Runtime>> {
+    readRuntime(
+        request: RequestValue<runtimeServiceWorld.ReadRuntimeRequest>,
+    ): Promise<RpcResponse<runtimeServiceWorld.Runtime>> {
         return this.#connection.call(readRuntimeMethod, request);
     }
 
     /** Call the readTopology world method. */
-    readTopology(request: RequestValue<runtimeServiceWorld.ReadTopologyRequest>): Promise<RpcResponse<runtimeServiceWorld.Topology>> {
+    readTopology(
+        request: RequestValue<runtimeServiceWorld.ReadTopologyRequest>,
+    ): Promise<RpcResponse<runtimeServiceWorld.Topology>> {
         return this.#connection.call(readTopologyMethod, request);
     }
 
     /** Call the reloadRuntime world method. */
-    reloadRuntime(request: RequestValue<runtimeServiceWorld.ReloadRuntimeRequest>): Promise<RpcResponse<runtimeServiceWorld.Runtime>> {
+    reloadRuntime(
+        request: RequestValue<runtimeServiceWorld.ReloadRuntimeRequest>,
+    ): Promise<RpcResponse<runtimeServiceWorld.Runtime>> {
         return this.#connection.call(reloadRuntimeMethod, request);
     }
 
     /** Call the removeRule world method. */
-    removeRule(request: RequestValue<runtimeServiceWorld.RemoveRuleRequest>): Promise<RpcResponse<null>> {
+    removeRule(
+        request: RequestValue<runtimeServiceWorld.RemoveRuleRequest>,
+    ): Promise<RpcResponse<null>> {
         return this.#connection.call(removeRuleMethod, request);
     }
 
     /** Call the removeRuntime world method. */
-    removeRuntime(request: RequestValue<runtimeServiceWorld.RemoveRuntimeRequest>): Promise<RpcResponse<null>> {
+    removeRuntime(
+        request: RequestValue<runtimeServiceWorld.RemoveRuntimeRequest>,
+    ): Promise<RpcResponse<null>> {
         return this.#connection.call(removeRuntimeMethod, request);
     }
 
     /** Call the replacePolicy world method. */
-    replacePolicy(request: RequestValue<runtimeServiceWorld.ReplacePolicyRequest>): Promise<RpcResponse<null>> {
+    replacePolicy(
+        request: RequestValue<runtimeServiceWorld.ReplacePolicyRequest>,
+    ): Promise<RpcResponse<null>> {
         return this.#connection.call(replacePolicyMethod, request);
     }
 
     /** Call the replaceRule world method. */
-    replaceRule(request: RequestValue<runtimeServiceWorld.ReplaceRuleRequest>): Promise<RpcResponse<null>> {
+    replaceRule(
+        request: RequestValue<runtimeServiceWorld.ReplaceRuleRequest>,
+    ): Promise<RpcResponse<null>> {
         return this.#connection.call(replaceRuleMethod, request);
     }
 
@@ -708,22 +850,30 @@ export class WorldClient {
     }
 
     /** Call the run world method. */
-    run(request: RequestValue<runtimeServiceWorld.RunRequest>): Promise<RpcResponse<runtimeWorldWorldRun.RunOutcome>> {
+    run(
+        request: RequestValue<runtimeServiceWorld.RunRequest>,
+    ): Promise<RpcResponse<runtimeWorldWorldRun.RunOutcome>> {
         return this.#connection.call(runMethod, request);
     }
 
     /** Call the snapshot world method. */
-    snapshot(request: RequestValue<runtimeServiceWorld.SnapshotRequest>): Promise<RpcResponse<runtimeWorldWorldSnapshot.Snapshot>> {
+    snapshot(
+        request: RequestValue<runtimeServiceWorld.SnapshotRequest>,
+    ): Promise<RpcResponse<runtimeWorldWorldSnapshot.Snapshot>> {
         return this.#connection.call(snapshotMethod, request);
     }
 
     /** Call the spawnRuntime world method. */
-    spawnRuntime(request: RequestValue<runtimeServiceWorld.SpawnRuntimeRequest>): Promise<RpcResponse<runtimeServiceWorld.Runtime>> {
+    spawnRuntime(
+        request: RequestValue<runtimeServiceWorld.SpawnRuntimeRequest>,
+    ): Promise<RpcResponse<runtimeServiceWorld.Runtime>> {
         return this.#connection.call(spawnRuntimeMethod, request);
     }
 
     /** Call the watchObservations world method. */
-    watchObservations(request: RequestValue<runtimeServiceWorld.WatchObservationsRequest>): Call<null, never, runtimeWorldObservationEntry.ObservationEntry> {
+    watchObservations(
+        request: RequestValue<runtimeServiceWorld.WatchObservationsRequest>,
+    ): Call<null, never, runtimeWorldObservationEntry.ObservationEntry> {
         return this.#connection.start(watchObservationsMethod, request);
     }
 }
