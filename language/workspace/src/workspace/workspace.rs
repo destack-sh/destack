@@ -6,9 +6,7 @@ use destack_artifact::{
     ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
 };
 use destack_core::Blob;
-use destack_repository::{
-    Repository, Revision, RootKind, Trace, TraceLevel, TraceSnapshot, TraceView,
-};
+use destack_repository::{Repository, Revision, RootKind, Trace, TraceLevel};
 use destack_session::{Executor, Session};
 use destack_source::{File, FileId};
 use futures::future::BoxFuture;
@@ -117,28 +115,6 @@ impl Workspace {
     /// Start one trace configured for this workspace executor.
     pub fn start_trace(&self, level: TraceLevel) -> Arc<Trace> {
         self.session.start_trace(level)
-    }
-
-    /// Snapshot one workspace operation trace with repository display names.
-    pub fn snapshot_trace(
-        &self,
-        revision: Revision,
-        trace: &Trace,
-        view: TraceView,
-    ) -> Result<TraceSnapshot, Error> {
-        trace.snapshot(
-            view,
-            |key| {
-                self.repository
-                    .artifact_display(revision, *key)
-                    .map_err(Error::from)
-            },
-            |target| {
-                self.repository
-                    .target_display(revision, target)
-                    .map_err(Error::from)
-            },
-        )
     }
 
     /// Execute one command operation.

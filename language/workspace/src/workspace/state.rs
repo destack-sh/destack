@@ -1,9 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_repository::{Commit, Revision, RevisionPin};
-use destack_session::{ArtifactPriority, ArtifactRun, Session};
+use destack_repository::{Commit, Revision, RevisionPin, Trace};
+use destack_session::{
+    ArtifactCancellation, ArtifactPriority, ArtifactRun, Session, SessionEventHandler,
+};
 use parking_lot::MutexGuard;
 
 use crate::{Error, Watch, Workspace};
@@ -31,7 +32,7 @@ pub(crate) enum Lifecycle {
 /// One proactive artifact run pinned to its exact workspace revision.
 pub(crate) struct BackgroundRun {
     /// Scheduled proactive artifact work.
-    artifacts: ArtifactRun,
+    artifacts: ArtifactCancellation,
     /// Workspace revision receiving completed artifacts.
     revision: super::WorkspacePin,
 }
@@ -40,7 +41,7 @@ impl BackgroundRun {
     /// Create one proactive artifact run.
     fn new(artifacts: ArtifactRun, revision: super::WorkspacePin) -> Self {
         Self {
-            artifacts,
+            artifacts: artifacts.detach(),
             revision,
         }
     }
@@ -52,7 +53,7 @@ impl BackgroundRun {
 
     /// Cancel unfinished work and persist its completed artifacts.
     fn finish(self) {
-        drop(self.artifacts);
+        self.artifacts.cancel();
         self.revision.persist_artifacts();
     }
 }
@@ -121,47 +122,48 @@ impl Workspace {
     }
 
     /// Prime diagnostic and program index artifacts for one revision.
-    pub fn prime(&self, revision: Revision) -> Result<(), Error> {
-        let session = self.pin(revision)?;
-        let repository = session.repository();
-        let module_ids = repository.module_ids(revision)?;
-        let modules = session.selected_modules(&module_ids)?;
-        let mut artifacts = session.diagnostic_artifacts(&modules);
-        artifacts.extend(session.program_indexes()?);
-        artifacts.sort_unstable();
-        artifacts.dedup();
-
-        self.provide_background(revision, &artifacts)
-    }
-
-    /// Publish one committed transition to workspace watches.
-    pub(crate) fn publish(&self, branch: Option<&str>, commit: &Commit, after: RevisionPin) {
-        if commit.before != commit.after {
-            self.watch.lock().publish(branch, commit, after);
-        }
-    }
-
-    /// Provide proactive editor artifacts for one revision.
-    pub(crate) fn provide_background(
+    pub fn prime(
         &self,
         revision: Revision,
-        artifacts: &[ArtifactKey],
+        trace: Arc<Trace>,
+        events: Option<SessionEventHandler>,
     ) -> Result<(), Error> {
         // install the new run while the workspace remains open
         let previous = {
             let _state = self.lock()?;
+            let mut background = self.background_run.lock();
+            if background
+                .as_ref()
+                .is_some_and(|run| run.revision() == revision)
+            {
+                return Ok(());
+            }
+
+            // collect roots only when this revision needs a new run
+            let session = self.pin(revision)?;
+            let repository = session.repository();
+            let module_ids = repository.module_ids(revision)?;
+            let modules = session.selected_modules(&module_ids)?;
+            let mut artifacts = session.diagnostic_artifacts(&modules);
+            artifacts.extend(session.program_indexes()?);
+            artifacts.sort_unstable();
+            artifacts.dedup();
+
             let run = if artifacts.is_empty() {
                 None
             } else {
-                let session = self.pin(revision)?;
-                let run = self
-                    .session
-                    .provide(revision, artifacts, ArtifactPriority::Background);
+                let run = self.session.provide_traced(
+                    revision,
+                    &artifacts,
+                    ArtifactPriority::Background,
+                    trace,
+                    events,
+                );
 
                 Some(BackgroundRun::new(run, session))
             };
 
-            std::mem::replace(&mut *self.background_run.lock(), run)
+            std::mem::replace(&mut *background, run)
         };
 
         // finish obsolete work after releasing workspace state
@@ -170,6 +172,13 @@ impl Workspace {
         }
 
         Ok(())
+    }
+
+    /// Publish one committed transition to workspace watches.
+    pub(crate) fn publish(&self, branch: Option<&str>, commit: &Commit, after: RevisionPin) {
+        if commit.before != commit.after {
+            self.watch.lock().publish(branch, commit, after);
+        }
     }
 
     /// Fail workspace watches after one host watch failure.
