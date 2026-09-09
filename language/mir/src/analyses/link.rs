@@ -5,8 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use super::{Analysis, AnalysisCache, Mutation};
 use crate::{
-    DispatchTable, DropTable, EffectTable, Function, FunctionBehavior, Global, GlobalInitializer,
-    Instruction, Linkage, MemoryEffect, Storage, Symbol, Terminator, Tree, TypeId,
+    CallTable, DispatchTable, DropTable, EffectTable, Function, FunctionBehavior, Global,
+    GlobalInitializer, Instruction, Linkage, MemoryEffect, Storage, Symbol, Terminator, Tree,
+    TypeId,
 };
 
 /// Symbol references for one module.
@@ -573,10 +574,9 @@ impl LinkSupergraph {
 }
 
 impl Analysis for LinkTable {
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL
-        .union(Mutation::VALUE)
+    const INVALIDATED_BY: Mutation = CallTable::INVALIDATED_BY
         .union(Mutation::EFFECT)
-        .union(Mutation::SYMBOL);
+        .union(Mutation::DROP);
 }
 
 impl LinkTable {

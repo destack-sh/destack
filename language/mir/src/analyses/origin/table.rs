@@ -60,7 +60,9 @@ impl OriginTable {
 impl Analysis for OriginTable {
     const INVALIDATED_BY: Mutation = Mutation::VALUE
         .union(Mutation::CONTROL)
-        .union(Mutation::LAYOUT);
+        .union(Mutation::LAYOUT)
+        .union(Mutation::DISPATCH)
+        .union(Mutation::SYMBOL);
 }
 
 /// The per-function analyses one origin table is built from.

@@ -61,7 +61,11 @@ impl ResolutionTable {
 }
 
 impl Analysis for ResolutionTable {
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL
+        .union(Mutation::VALUE)
+        .union(Mutation::LAYOUT)
+        .union(Mutation::DISPATCH)
+        .union(Mutation::SYMBOL);
 }
 
 impl ResolutionTable {
@@ -327,6 +331,81 @@ entry(v0: int32):
         let resolution = analyses.resolution(&program.tree, &program.dispatch);
 
         assert_eq!(resolution.target(callsite), Some(callee));
+    }
+
+    /// Recompute dispatch targets and call edges after receiver types change.
+    #[test]
+    fn test_invalidate_receiver_types() {
+        let mut program = TestProgram::new(
+            r#"
+function first(): int32 {
+entry:
+    v0: int32 = 1
+    return v0
+}
+function second(): int32 {
+entry:
+    v0: int32 = 2
+    return v0
+}
+function test(v0: int32): int32 {
+entry(v0: int32):
+    v1: int32 = call.dynamic v0, int32, 0(): () => int32
+    return v1
+}
+"#,
+        );
+        let first = program.function_id_by_name("first");
+        let second = program.function_id_by_name("second");
+        let function = program.entry_function_id();
+        let (callsite, concrete, constraint) = first_dynamic_call(&program, function);
+        let receiver_type = program.tree.intern_type(mir::Type::Boolean);
+
+        // select different callees for the two receiver types
+        for (concrete, callee) in [(concrete, first), (receiver_type, second)] {
+            program.dispatch.insert_dynamic_table(mir::DynamicTable {
+                concrete,
+                constraint,
+                entries: vec![mir::DynamicEntry::Function { function: callee }],
+                names: Vec::new(),
+            });
+        }
+        let mut analyses = program.module_analyses();
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
+        let calls = analyses.call(&program.tree, &program.dispatch);
+        assert_eq!(resolution.target(callsite), Some(first));
+        assert_eq!(
+            calls
+                .outgoing(function)
+                .iter()
+                .map(|edge| edge.callee)
+                .collect::<Vec<_>>(),
+            vec![first]
+        );
+
+        // change the receiver's declared and recorded types
+        let body = program.tree.get_mut(function);
+        let receiver = body.parameters[0].value;
+        body.parameters[0].ty = receiver_type;
+        let mut value_types = body.value_types().to_vec();
+        value_types[receiver.id() as usize] = Some(receiver_type);
+        body.replace_value_types(value_types);
+        let entry = body.entry().expect("function entry");
+        program.tree.get_mut(entry).parameters[0].ty = receiver_type;
+        analyses.invalidate(mir::Mutation::LAYOUT);
+
+        // require both analyses to select the new receiver's implementation
+        let resolution = analyses.resolution(&program.tree, &program.dispatch);
+        let calls = analyses.call(&program.tree, &program.dispatch);
+        assert_eq!(resolution.target(callsite), Some(second));
+        assert_eq!(
+            calls
+                .outgoing(function)
+                .iter()
+                .map(|edge| edge.callee)
+                .collect::<Vec<_>>(),
+            vec![second]
+        );
     }
 
     /// Dynamic calls do not resolve against field-offset slots.

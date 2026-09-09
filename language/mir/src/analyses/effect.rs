@@ -74,8 +74,7 @@ impl mir::EffectTable {
 }
 
 impl Analysis for mir::EffectTable {
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL
-        .union(Mutation::VALUE)
+    const INVALIDATED_BY: Mutation = mir::CallTable::INVALIDATED_BY
         .union(Mutation::MEMORY)
         .union(Mutation::EFFECT);
 }

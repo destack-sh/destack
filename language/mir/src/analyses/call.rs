@@ -309,7 +309,7 @@ impl CallTable {
 }
 
 impl Analysis for CallTable {
-    const INVALIDATED_BY: mir::Mutation = mir::Mutation::CONTROL.union(mir::Mutation::VALUE);
+    const INVALIDATED_BY: mir::Mutation = ResolutionTable::INVALIDATED_BY;
 }
 
 impl CallTable {

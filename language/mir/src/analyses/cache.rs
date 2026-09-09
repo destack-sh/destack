@@ -155,18 +155,7 @@ macro_rules! function_analysis_through_module {
             tree: &mir::Tree,
             $($parameter: $parameter_type,)*
         ) -> Arc<$analysis> {
-            let index = self
-                .functions
-                .binary_search_by_key(&function_id, |(function, _)| *function);
-            let index = match index {
-                Ok(index) => index,
-                Err(index) => {
-                    let analyses = FunctionCache::from_options(self.options.clone());
-                    self.functions.insert(index, (function_id, analyses));
-                    index
-                }
-            };
-            let analyses = &mut self.functions[index].1;
+            let analyses = self.function(function_id);
             let function = tree.get(function_id);
 
             analyses.$method(function, tree, $($parameter,)*)
@@ -276,50 +265,87 @@ impl FunctionCache {
     );
     function_analysis!(uses, uses, UseTable, "Return value uses.");
 
+    /// Discard results that accept body-dependent module analyses as inputs.
+    ///
+    /// Call this before running function passes with access restricted to this cache.
+    pub fn invalidate_module_dependencies(&mut self) {
+        self.memory = None;
+        self.origin = None;
+    }
+
     /// Drop every analysis the given mutation invalidates.
     pub fn invalidate(&mut self, mutation: Mutation) {
+        // invalidate aliases
         if AliasTable::INVALIDATED_BY.intersects(mutation) {
             self.alias = None;
         }
+
+        // invalidate constants
         if ConstantTable::INVALIDATED_BY.intersects(mutation) {
             self.constant = None;
         }
+
+        // invalidate control flow
         if ControlTable::INVALIDATED_BY.intersects(mutation) {
             self.control = None;
         }
+
+        // invalidate definitions
         if DefinitionTable::INVALIDATED_BY.intersects(mutation) {
             self.definition = None;
         }
+
+        // invalidate dominators
         if DominatorTable::INVALIDATED_BY.intersects(mutation) {
             self.dominator = None;
         }
+
+        // invalidate escapes
         if EscapeTable::INVALIDATED_BY.intersects(mutation) {
             self.escape = None;
         }
+
+        // invalidate liveness
         if LivenessTable::INVALIDATED_BY.intersects(mutation) {
             self.liveness = None;
         }
+
+        // invalidate initialization
         if InitializationTable::INVALIDATED_BY.intersects(mutation) {
             self.initialization = None;
         }
+
+        // invalidate loops
         if LoopTable::INVALIDATED_BY.intersects(mutation) {
             self.loops = None;
         }
+
+        // invalidate memory versions
         if MemoryTable::INVALIDATED_BY.intersects(mutation) {
             self.memory = None;
         }
+
+        // invalidate move paths
         if MoveTable::INVALIDATED_BY.intersects(mutation) {
             self.moves = None;
         }
+
+        // invalidate places
         if PlaceTable::INVALIDATED_BY.intersects(mutation) {
             self.place = None;
         }
+
+        // invalidate postdominators
         if PostdominatorTable::INVALIDATED_BY.intersects(mutation) {
             self.postdominator = None;
         }
+
+        // invalidate borrow origins
         if OriginTable::INVALIDATED_BY.intersects(mutation) {
             self.origin = None;
         }
+
+        // invalidate uses
         if UseTable::INVALIDATED_BY.intersects(mutation) {
             self.uses = None;
         }
@@ -439,23 +465,106 @@ impl AnalysisCache {
     );
     function_analysis_through_module!(uses, UseTable, "Return function value uses.");
 
-    /// Drop every analysis the given mutation invalidates.
+    /// Get or create the analysis cache for one function.
+    pub fn function(&mut self, function_id: mir::FunctionId) -> &mut FunctionCache {
+        // maintain function caches in id order
+        let index = self
+            .functions
+            .binary_search_by_key(&function_id, |(function, _)| *function);
+        let index = match index {
+            Ok(index) => index,
+            Err(index) => {
+                let analyses = FunctionCache::from_options(self.options.clone());
+                self.functions.insert(index, (function_id, analyses));
+
+                index
+            }
+        };
+
+        &mut self.functions[index].1
+    }
+
+    /// Invalidate one changed body and all analyses affected through module dependencies.
+    pub fn invalidate_function(&mut self, function_id: mir::FunctionId, mutation: Mutation) {
+        // invalidate module analyses and their function dependencies
+        self.invalidate_module(mutation);
+        let shared = mutation.intersection(
+            Mutation::MEMORY
+                .union(Mutation::EFFECT)
+                .union(Mutation::LAYOUT)
+                .union(Mutation::SYMBOL)
+                .union(Mutation::DISPATCH)
+                .union(Mutation::DROP),
+        );
+
+        // apply body changes to the selected function and shared input changes to the others
+        for (cached_function, analyses) in &mut self.functions {
+            // invalidate every changed input in the selected function
+            if *cached_function == function_id {
+                analyses.invalidate(mutation);
+            }
+            // invalidate shared inputs in the remaining functions
+            else {
+                analyses.invalidate(shared);
+            }
+        }
+    }
+
+    /// Invalidate analyses after a rewrite that may affect any function in the module.
     pub fn invalidate(&mut self, mutation: Mutation) {
+        // invalidate module analyses and their function dependencies
+        self.invalidate_module(mutation);
+
+        // invalidate changed inputs in every function cache
+        for (_, analyses) in &mut self.functions {
+            analyses.invalidate(mutation);
+        }
+    }
+
+    /// Invalidate module analyses and the function analyses that consume them.
+    ///
+    /// Invalidate each changed body separately before completing a group of function passes.
+    pub fn invalidate_module(&mut self, mutation: Mutation) {
+        // preserve every cached result when the module is unchanged
+        if mutation.is_none() {
+            return;
+        }
+
+        // determine which shared results need recomputation
+        let resolution_changed = ResolutionTable::INVALIDATED_BY.intersects(mutation);
+        let effects_changed = EffectTable::INVALIDATED_BY.intersects(mutation);
+
+        // invalidate the module's call graph
         if CallTable::INVALIDATED_BY.intersects(mutation) {
             self.call = None;
         }
-        if ResolutionTable::INVALIDATED_BY.intersects(mutation) {
+
+        // invalidate dispatch resolution
+        if resolution_changed {
             self.resolution = None;
         }
-        if EffectTable::INVALIDATED_BY.intersects(mutation) {
+
+        // invalidate function effects
+        if effects_changed {
             self.effect = None;
         }
-        if LinkTable::INVALIDATED_BY.intersects(mutation) {
+
+        // invalidate symbol links and their copied effect results
+        if LinkTable::INVALIDATED_BY.intersects(mutation) || effects_changed {
             self.link = None;
         }
 
+        // invalidate function analyses that consume changed module results
         for (_, analyses) in &mut self.functions {
-            analyses.invalidate(mutation);
+            // invalidate borrow origins after dispatch resolution changes
+            if resolution_changed {
+                analyses.origin = None;
+            }
+
+            // invalidate memory versions after function effects change
+            if effects_changed {
+                analyses.memory = None;
+            }
         }
     }
 }
@@ -463,5 +572,157 @@ impl AnalysisCache {
 impl Default for AnalysisCache {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::analyses::tests::TestProgram;
+
+    /// Preserve unrelated body analyses while rebuilding shared effects and memory dependencies.
+    #[test]
+    fn test_invalidate_one_function() {
+        let mut test = TestProgram::new(
+            r#"
+function first(): int32 {
+entry:
+    v0: int32 = 1
+    return v0
+}
+function second(): int32 {
+entry:
+    v0: int32 = 2
+    return v0
+}
+"#,
+        );
+        let functions: Vec<_> = test
+            .tree
+            .iter_nodes::<mir::Function>()
+            .map(|(id, _)| id)
+            .collect();
+
+        // compute the analyses whose reuse is checked below
+        let mut cache = AnalysisCache::new();
+        let first_control = cache.control(functions[0], &test.tree);
+        let second_control = cache.control(functions[1], &test.tree);
+        let first_constant = cache.constant(functions[0], &test.tree);
+        let second_constant = cache.constant(functions[1], &test.tree);
+        let effects = cache.effect(&test.tree, &test.accesses, &test.effects, &test.dispatch);
+        let second_memory = cache.memory(functions[1], &test.tree, &test.accesses, &effects);
+
+        // replace the first function's constant before invalidating its cached answer
+        let block = test.tree.get(functions[0]).entry().expect("function entry");
+        let instruction = test.tree.get(block).instructions[0];
+        let mir::Instruction::Const { destination, value } = test.tree.get_mut(instruction) else {
+            panic!("expected constant instruction");
+        };
+        let destination = *destination;
+        assert_eq!(
+            first_constant.constant(destination),
+            Some(&mir::Constant::int32(1))
+        );
+        *value = mir::Constant::int32(3);
+
+        // preserve both control graphs and the unchanged function's constants
+        cache.invalidate_function(functions[0], Mutation::VALUE);
+        assert!(Arc::ptr_eq(
+            &first_control,
+            &cache.control(functions[0], &test.tree)
+        ));
+        assert!(Arc::ptr_eq(
+            &second_control,
+            &cache.control(functions[1], &test.tree)
+        ));
+        assert!(!Arc::ptr_eq(
+            &first_constant,
+            &cache.constant(functions[0], &test.tree)
+        ));
+        assert!(Arc::ptr_eq(
+            &second_constant,
+            &cache.constant(functions[1], &test.tree)
+        ));
+
+        // require the rebuilt analysis to observe the rewritten constant
+        let constants = cache.constant(functions[0], &test.tree);
+        assert_eq!(
+            constants.constant(destination),
+            Some(&mir::Constant::int32(3))
+        );
+
+        // invalidate shared effects and dependent memory analyses after an operand change
+        let new_effects = cache.effect(&test.tree, &test.accesses, &test.effects, &test.dispatch);
+        assert!(!Arc::ptr_eq(&effects, &new_effects));
+        assert!(!Arc::ptr_eq(
+            &second_memory,
+            &cache.memory(functions[1], &test.tree, &test.accesses, &new_effects)
+        ));
+
+        // preserve the unchanged function's control graph after a branch change
+        cache.invalidate_function(functions[0], Mutation::CONTROL);
+        assert!(!Arc::ptr_eq(
+            &first_control,
+            &cache.control(functions[0], &test.tree)
+        ));
+        assert!(Arc::ptr_eq(
+            &second_control,
+            &cache.control(functions[1], &test.tree)
+        ));
+
+        // invalidate memory analyses after a layout change
+        let memory = cache.memory(functions[1], &test.tree, &test.accesses, &new_effects);
+        cache.invalidate_function(functions[0], Mutation::LAYOUT);
+        assert!(!Arc::ptr_eq(
+            &memory,
+            &cache.memory(functions[1], &test.tree, &test.accesses, &new_effects),
+        ));
+        assert!(Arc::ptr_eq(
+            &second_control,
+            &cache.control(functions[1], &test.tree)
+        ));
+    }
+
+    /// Invalidate dispatch-dependent module and function analyses together.
+    #[test]
+    fn test_invalidate_dispatch_dependencies() {
+        let test = TestProgram::new(
+            r#"
+function test(): int32 {
+entry:
+    v0: int32 = 1
+    return v0
+}
+"#,
+        );
+        let function = test.entry_function_id();
+
+        // compute the analyses whose reuse is checked below
+        let mut cache = AnalysisCache::new();
+        let control = cache.control(function, &test.tree);
+        let resolution = cache.resolution(&test.tree, &test.dispatch);
+        let origin = cache.origin(function, &test.tree, &resolution);
+        let calls = cache.call(&test.tree, &test.dispatch);
+        let effects = cache.effect(&test.tree, &test.accesses, &test.effects, &test.dispatch);
+
+        // invalidate the dispatch table and its dependent analyses
+        cache.invalidate(Mutation::DISPATCH);
+        let new_resolution = cache.resolution(&test.tree, &test.dispatch);
+        assert!(!Arc::ptr_eq(&resolution, &new_resolution));
+        assert!(!Arc::ptr_eq(
+            &origin,
+            &cache.origin(function, &test.tree, &new_resolution)
+        ));
+        assert!(!Arc::ptr_eq(
+            &calls,
+            &cache.call(&test.tree, &test.dispatch)
+        ));
+        assert!(!Arc::ptr_eq(
+            &effects,
+            &cache.effect(&test.tree, &test.accesses, &test.effects, &test.dispatch)
+        ));
+
+        // check that dispatch changes preserve the control graph
+        assert!(Arc::ptr_eq(&control, &cache.control(function, &test.tree)));
     }
 }

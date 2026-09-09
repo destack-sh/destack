@@ -884,7 +884,8 @@ impl Analysis for MemoryTable {
     const INVALIDATED_BY: Mutation = Mutation::CONTROL
         .union(Mutation::VALUE)
         .union(Mutation::MEMORY)
-        .union(Mutation::EFFECT);
+        .union(Mutation::EFFECT)
+        .union(Mutation::LAYOUT);
 }
 
 impl MemoryTable {

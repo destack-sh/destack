@@ -408,7 +408,9 @@ impl PlaceTable {
 }
 
 impl Analysis for PlaceTable {
-    const INVALIDATED_BY: Mutation = Mutation::CONTROL.union(Mutation::VALUE);
+    const INVALIDATED_BY: Mutation = Mutation::CONTROL
+        .union(Mutation::VALUE)
+        .union(Mutation::LAYOUT);
 }
 
 impl PlaceTable {
