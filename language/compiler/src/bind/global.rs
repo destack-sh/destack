@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use destack_artifact::ArtifactDependency;
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -20,9 +21,15 @@ impl Compiler {
 
         // resolve package specifiers through their package exports
         for entry in &profile.key.globals {
-            let specifier = self
-                .repository
-                .builtin_module_uri_for_specifier(context.revision(), entry)?;
+            let mut observations = Vec::new();
+            let specifier = self.repository.builtin_module_uri_for_specifier(
+                context.revision(),
+                entry,
+                &mut observations,
+            )?;
+            for observation in observations {
+                context.observe(ArtifactDependency::Source(observation));
+            }
             let module_id = match specifier {
                 Some(uri) => self.module_id_for_uri(context.revision(), &uri)?,
                 None => self.module_id_for_path(context.revision(), Path::new(entry))?,
@@ -79,9 +86,15 @@ impl Compiler {
                 message: format!("tree builder '{entry}' is missing its '#Export' selector"),
             });
         };
-        let uri = self
-            .repository
-            .builtin_module_uri_for_specifier(context.revision(), specifier)?;
+        let mut observations = Vec::new();
+        let uri = self.repository.builtin_module_uri_for_specifier(
+            context.revision(),
+            specifier,
+            &mut observations,
+        )?;
+        for observation in observations {
+            context.observe(ArtifactDependency::Source(observation));
+        }
         let module_id = match uri {
             Some(uri) => self.module_id_for_uri(context.revision(), &uri)?,
             None => self.module_id_for_path(context.revision(), Path::new(specifier))?,

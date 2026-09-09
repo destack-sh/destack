@@ -1,9 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirParsed,
-    SourceDependency,
-};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirParsed};
 use destack_dir as dir;
 use destack_repository::{ProfileId, ProviderContext};
 use destack_source::ModuleId;
@@ -44,17 +41,6 @@ impl Compiler {
         let module = self.module(context.revision(), module)?;
         let package = self.package(context.revision(), module.package_id)?;
         let environment = self.environment(context.revision())?;
-
-        // observe the package set backing dependency discovery
-        let packages = self
-            .repository
-            .package_ids(context.revision())
-            .map_err(|error| CompilerError::Internal {
-                message: format!("failed to load package ids: {error}"),
-            })?;
-        context.observe(ArtifactDependency::Source(SourceDependency::packages(
-            &packages,
-        )));
 
         // build local module table
         let view = dir::View::new(&parsed.tree);

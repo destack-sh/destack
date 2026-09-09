@@ -25,9 +25,13 @@ impl Compiler {
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to build package node {package_id:?}: {error}"),
             })?;
-        for source in self.package_config_sources(state.revision, package_id)? {
-            state.observe(source);
-        }
+        let source = self
+            .repository
+            .package_dependency(state.revision, package_id)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("failed to observe package {package_id:?}: {error}"),
+            })?;
+        state.observe(source);
         let node = node.map(Arc::new);
         state.packages.insert(package_id, node.clone());
 

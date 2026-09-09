@@ -77,10 +77,16 @@ impl Compiler {
         specifier_parts: ImportSpecifier,
     ) -> CompilerResult<Option<ModuleId>> {
         // resolve absolute builtin specifier
-        if let Some(uri) = self
-            .repository
-            .builtin_module_uri_for_internal_specifier(state.revision, specifier)?
-        {
+        let mut observations = Vec::new();
+        let uri = self.repository.builtin_module_uri_for_internal_specifier(
+            state.revision,
+            specifier,
+            &mut observations,
+        )?;
+        for observation in observations {
+            state.observe(observation);
+        }
+        if let Some(uri) = uri {
             return self.resolve_module_uri(state, anchor, specifier, &uri);
         }
 
@@ -88,11 +94,16 @@ impl Compiler {
             // resolve relative builtin specifier
             ImportSpecifier::Relative(specifier_parts) => {
                 let specifier = specifier_parts.path();
+                let mut observations = Vec::new();
                 let uri = self.repository.builtin_module_uri_for_relative_specifier(
                     state.revision,
                     state.module.uri.as_ref(),
                     specifier,
+                    &mut observations,
                 )?;
+                for observation in observations {
+                    state.observe(observation);
+                }
 
                 // relative builtin module exists
                 if let Some(uri) = uri {
@@ -131,10 +142,16 @@ impl Compiler {
         loader: Option<Loader>,
     ) -> CompilerResult<Option<ModuleId>> {
         // resolve internal package specifier
-        if let Some(uri) = self
-            .repository
-            .builtin_module_uri_for_specifier(state.revision, specifier)?
-        {
+        let mut observations = Vec::new();
+        let uri = self.repository.builtin_module_uri_for_specifier(
+            state.revision,
+            specifier,
+            &mut observations,
+        )?;
+        for observation in observations {
+            state.observe(observation);
+        }
+        if let Some(uri) = uri {
             self.resolve_module_uri(state, anchor, specifier, &uri)
         }
         // resolve source graph specifier
