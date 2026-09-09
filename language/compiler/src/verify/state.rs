@@ -6,7 +6,7 @@ use destack_core::FxIndexSet;
 use destack_mir::{
     AccessTable, AnalysisCache, AnalysisOptions, DispatchTable, DropTable, EffectTable, Function,
     FunctionBehavior, FunctionCache, FunctionId, LocalNodeId, LocalNodeIdAny, ResolutionTable,
-    RetentionTable, SafepointTable, TargetLayout, Tree,
+    RetentionTable, TargetLayout, Tree,
 };
 
 use crate::DiagnosticAnchor;
@@ -30,8 +30,6 @@ pub(crate) struct VerifyState<'a> {
 
     /// Verified ownership retention.
     retention: RetentionTable,
-    /// The safepoints of every verified function.
-    safepoints: SafepointTable,
     /// Accumulated errors.
     errors: Vec<DiagnosticBuilder<VerifyError>>,
 }
@@ -70,7 +68,6 @@ impl<'a> VerifyState<'a> {
             effects,
             resolution,
             retention: RetentionTable::default(),
-            safepoints: SafepointTable::default(),
             errors: Vec::new(),
         }
     }
@@ -97,13 +94,11 @@ impl<'a> VerifyState<'a> {
 
             let options = AnalysisOptions::new(self.target);
             let mut analyses = FunctionCache::with_options(options);
-            let verdict = FunctionChecker::new(function, tree, self, &mut analyses).check();
-            self.retention.extend(verdict.retention);
-            self.safepoints.extend(verdict.safepoints);
+            let retention = FunctionChecker::new(function, tree, self, &mut analyses).check();
+            self.retention.extend(retention);
         }
 
         self.retention.sort();
-        self.safepoints.sort();
 
         // check drop hooks for forbidden effects
         self.check_drop_effects();
@@ -154,11 +149,6 @@ impl<'a> VerifyState<'a> {
     /// Take verified ownership retention.
     pub(crate) fn take_retention(&mut self) -> RetentionTable {
         mem::take(&mut self.retention)
-    }
-
-    /// Take the safepoints of every verified function.
-    pub(crate) fn take_safepoints(&mut self) -> SafepointTable {
-        mem::take(&mut self.safepoints)
     }
 
     /// Take accumulated errors.

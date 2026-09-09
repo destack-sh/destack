@@ -44,11 +44,9 @@ impl Compiler {
         let mut errors = state.take_errors();
         let Some(error) = errors.pop() else {
             let retention = state.take_retention();
-            let safepoints = state.take_safepoints();
 
             return Ok(ArtifactPayload::MirVerified(Arc::new(MirVerified {
                 retention,
-                safepoints,
             })));
         };
         for error in errors {

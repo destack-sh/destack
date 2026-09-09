@@ -2,10 +2,9 @@ use std::sync::Arc;
 
 use destack_mir::{
     Access, AliasTable, Block, Copy, EscapeTable, Function, FunctionCache, InitializationTable,
-    LiveSet, LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, LoopTable, MemoryTable,
-    MovePathId, MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable,
-    Point, Projection, ReferenceKind, RetentionTable, SafepointTable, Terminator, Tree, Type,
-    TypeId, Value,
+    LiveSet, LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryTable, MovePathId,
+    MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable, Point,
+    Projection, ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
 };
 
 use destack_artifact::DiagnosticAnchor;
@@ -39,8 +38,6 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     pub(super) escape: Arc<EscapeTable>,
     /// Verified ownership retention.
     retention: RetentionTable,
-    /// The loops of the function.
-    loops: Arc<LoopTable>,
     /// Origin at the current operation.
     pub(super) state: OriginState,
     /// Loans live at the current operation.
@@ -49,19 +46,6 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     pub(super) rejected_loans: BitSet,
     /// Access errors already reported, one per loan and source anchor.
     reported: FxIndexSet<(LoanId, DiagnosticAnchor)>,
-    /// The safepoints of this function.
-    pub(super) safepoints: SafepointTable,
-}
-
-/// What one verified function hands to elaboration.
-pub(in crate::verify) struct FunctionVerdict {
-    /// Verified ownership retention.
-    pub(in crate::verify) retention: RetentionTable,
-    /// The safepoints of every verified function.
-    ///
-    /// A parking call holds its live handles past the call.
-    /// A loop header or tail call polls and holds its live handles past the poll.
-    pub(in crate::verify) safepoints: SafepointTable,
 }
 
 impl<'a, 'b> FunctionChecker<'a, 'b> {
@@ -80,7 +64,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         let memory = analyses.memory(function, tree, verification.accesses, &verification.effects);
         let origin = analyses.origin(function, tree, &verification.resolution);
         let escape = analyses.escape(function, tree);
-        let loops = analyses.loops(function, tree);
         let loan_count = origin.loans().len();
 
         Self {
@@ -100,8 +83,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
             rejected_loans: BitSet::new(loan_count),
             reported: FxIndexSet::default(),
             retention: RetentionTable::default(),
-            loops,
-            safepoints: SafepointTable::default(),
         }
     }
 
@@ -123,15 +104,12 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
     }
 
     /// Check the function: moves, then the constructor's initialization, then borrows.
-    pub(in crate::verify) fn check(mut self) -> FunctionVerdict {
+    pub(in crate::verify) fn check(mut self) -> RetentionTable {
         self.check_moves();
         self.check_initialization();
         self.check_borrows();
 
-        FunctionVerdict {
-            retention: self.retention,
-            safepoints: self.safepoints,
-        }
+        self.retention
     }
 
     /// Check borrow legality across the function.
@@ -159,20 +137,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
         // activate loans live at block entry
         self.activate_loans(&live);
-
-        // poll the runtime at a loop header
-        let is_header = self
-            .loops
-            .loops()
-            .iter()
-            .any(|entry| entry.header == block_id);
-        if is_header {
-            let point = match block.instructions.first() {
-                Some(&instruction) => Point::Instruction(instruction),
-                None => Point::Terminator(block_id),
-            };
-            self.safepoints.insert(point);
-        }
 
         // check and transfer each instruction in execution order
         for &instruction_id in &block.instructions {
@@ -203,11 +167,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
         // activate loans live before the terminator
         self.activate_loans(&live);
-
-        // poll the runtime before a tail call
-        if matches!(terminator, Terminator::TailCall { .. }) {
-            self.safepoints.insert(Point::Terminator(block_id));
-        }
 
         self.check_terminator(block_id, block.terminator, terminator);
     }
