@@ -13,17 +13,13 @@ async fn test_rename_an_export_through_its_import_selector() {
 
 const doubled = answer + answer;
 "#;
-    let mut server = TestServer::new("selector-chain-rename");
-    server.write("destack.json", MANIFEST);
-    let library = server.write("src/library.ds", library);
-    let document = server.write("src/main.ds", source);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
-    server.open(&document, 1, source).await;
-    server.assert_diagnostics(&document, 1, Vec::new()).await;
+    let (mut server, document) = TestServer::open_workspace(
+        "selector-chain-rename",
+        &[("src/library.ds", library), ("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+    let library = server.document("src/library.ds");
 
     // identify the exact editable range and current name
     let prepared = Some(lsp::PrepareRenameResponse::RangeWithPlaceholder {
@@ -46,20 +42,12 @@ const doubled = answer + answer;
             ),
             (
                 document.uri().clone(),
-                vec![
-                    lsp::TextEdit {
-                        range: range(0, 9, 0, 15),
+                [range(0, 9, 0, 15), range(2, 16, 2, 22), range(2, 25, 2, 31)]
+                    .map(|range| lsp::TextEdit {
+                        range,
                         new_text: "result".to_string(),
-                    },
-                    lsp::TextEdit {
-                        range: range(2, 16, 2, 22),
-                        new_text: "result".to_string(),
-                    },
-                    lsp::TextEdit {
-                        range: range(2, 25, 2, 31),
-                        new_text: "result".to_string(),
-                    },
-                ],
+                    })
+                    .to_vec(),
             ),
         ])),
         ..lsp::WorkspaceEdit::default()
@@ -75,8 +63,13 @@ const doubled = answer + answer;
 /// Defer and resolve one auto import code action.
 #[tokio::test]
 async fn test_resolve_auto_import_code_action() {
-    let library = "export function greet(): void {}\n";
-    let source = "\nfunction main(): void {\n    greet();\n}\n";
+    let library = r#"export function greet(): void {}
+"#;
+    let source = r#"
+function main(): void {
+    greet();
+}
+"#;
     let mut server = TestServer::new("resolved-code-action");
     server.write("destack.json", MANIFEST);
     server.write("src/library.ds", library);
@@ -164,20 +157,20 @@ async fn test_resolve_auto_import_code_action() {
 /// Update relative imports before one workspace file rename.
 #[tokio::test]
 async fn test_rename_imported_file() {
-    let library = "export const value = 1;\n";
-    let source = "import { value } from \"./source/value\";\n\nconst result = value;\n";
-    let mut server = TestServer::new("rename-imported-file");
-    server.write("destack.json", MANIFEST);
-    let old_document = server.write("src/source/value.ds", library);
+    let library = r#"export const value = 1;
+"#;
+    let source = r#"import { value } from "./source/value";
+
+const result = value;
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "rename-imported-file",
+        &[("src/source/value.ds", library), ("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+    let old_document = server.document("src/source/value.ds");
     let new_document = server.document("src/source/result.ds");
-    let document = server.write("src/main.ds", source);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
-    server.open(&document, 1, source).await;
-    server.assert_diagnostics(&document, 1, Vec::new()).await;
 
     // rewrite the exact authored module specifier before the physical rename
     let expected = Some(lsp::WorkspaceEdit {

@@ -5,7 +5,9 @@ use super::tests::{MANIFEST, TestServer, range, replace, replace_document};
 /// Move diagnostic labels with their source edits.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_move_diagnostic_labels_after_source_edits() {
-    let library = "export const helper: int32 = 1;\nexport const sibling: int32 = 2;\n";
+    let library = r#"export const helper: int32 = 1;
+export const sibling: int32 = 2;
+"#;
     let source = r#"import { helper } from "./library.ds";
 
 const first = helper;
@@ -84,8 +86,15 @@ const second = sibling;
 /// Publish parser diagnostics when checking fails.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_publish_parser_diagnostics_before_check_failure() {
-    let valid = "struct Report {}\nclass Foo {}\n";
-    let invalid = "struct Report {}\nclass Foo {\n    @;\n    like\n}\n";
+    let valid = r#"struct Report {}
+class Foo {}
+"#;
+    let invalid = r#"struct Report {}
+class Foo {
+    @;
+    like
+}
+"#;
     let mut server = TestServer::new("parser-diagnostics-before-check-failure");
     let document = server.write("main.ds", valid);
     server
@@ -122,7 +131,8 @@ async fn test_publish_parser_diagnostics_before_check_failure() {
 /// Return one complete workspace diagnostic report.
 #[tokio::test]
 async fn test_return_workspace_diagnostics() {
-    let source = "const value = missing;\n";
+    let source = r#"const value = missing;
+"#;
     let mut server = TestServer::new("workspace-diagnostics");
     let document = server.write("main.ds", source);
     let capabilities = lsp::ClientCapabilities {

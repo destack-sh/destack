@@ -144,8 +144,10 @@ async fn test_reconcile_removed_nested_path() {
 /// Reload changed filesystem source through the advertised command.
 #[tokio::test]
 async fn test_reload_workspace_source() {
-    let initial = "export function answer(): float64 { return 1; }\n";
-    let changed = "export function answer(): string { return \"changed\"; }\n";
+    let initial = r#"export function answer(): float64 { return 1; }
+"#;
+    let changed = r#"export function answer(): string { return "changed"; }
+"#;
     let mut server = TestServer::new("reload-workspace-source");
     let document = server.write("main.ds", initial);
     server
@@ -174,7 +176,8 @@ async fn test_reload_workspace_source() {
 /// Clear diagnostics after a file rename notification.
 #[tokio::test]
 async fn test_clear_renamed_file_diagnostics() {
-    let source = "const value = missing;\n";
+    let source = r#"const value = missing;
+"#;
     let mut server = TestServer::new("renamed-file-diagnostics");
     let renamed = server.write("renamed.ds", source);
     let renamed_target = server.document("renamed-again.ds");
@@ -214,7 +217,8 @@ async fn test_clear_renamed_file_diagnostics() {
 /// Clear diagnostics after a file delete notification.
 #[tokio::test]
 async fn test_clear_deleted_file_diagnostics() {
-    let source = "const value = missing;\n";
+    let source = r#"const value = missing;
+"#;
     let mut server = TestServer::new("deleted-file-diagnostics");
     let deleted = server.write("deleted.ds", source);
     let deleted_error = deleted.error(

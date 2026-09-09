@@ -36,34 +36,31 @@ extension of Robot implements Greeter {}
     let library = server.document("src/library.ds");
 
     // navigate the imported call to its authored function
-    let definition = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
-        origin_selection_range: Some(range(3, 15, 3, 21)),
-        target_uri: library.uri().clone(),
-        target_range: range(1, 0, 3, 1),
-        target_selection_range: range(1, 16, 1, 22),
-    }]));
+    let definition = Some(lsp::GotoDefinitionResponse::Link(vec![library.link(
+        range(3, 15, 3, 21),
+        range(1, 0, 3, 1),
+        range(1, 16, 1, 22),
+    )]));
     server
         .assert_request(document.definition(position(3, 15)), Ok(definition))
         .await;
 
     // navigate the same call to its local import declaration
-    let declaration = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
-        origin_selection_range: Some(range(3, 15, 3, 21)),
-        target_uri: document.uri().clone(),
-        target_range: range(0, 17, 0, 23),
-        target_selection_range: range(0, 17, 0, 23),
-    }]));
+    let declaration = Some(lsp::GotoDefinitionResponse::Link(vec![document.link(
+        range(3, 15, 3, 21),
+        range(0, 17, 0, 23),
+        range(0, 17, 0, 23),
+    )]));
     server
         .assert_request(document.declaration(position(3, 15)), Ok(declaration))
         .await;
 
     // navigate one value reference to its nominal type
-    let type_definition = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
-        origin_selection_range: Some(range(3, 22, 3, 27)),
-        target_uri: library.uri().clone(),
-        target_range: range(0, 0, 0, 22),
-        target_selection_range: range(0, 13, 0, 19),
-    }]));
+    let type_definition = Some(lsp::GotoDefinitionResponse::Link(vec![library.link(
+        range(3, 22, 3, 27),
+        range(0, 0, 0, 22),
+        range(0, 13, 0, 19),
+    )]));
     server
         .assert_request(
             document.type_definition(position(3, 22)),
@@ -73,14 +70,8 @@ extension of Robot implements Greeter {}
 
     // return the exact declaration and reference locations
     let references = Some(vec![
-        lsp::Location {
-            uri: document.uri().clone(),
-            range: range(2, 6, 2, 11),
-        },
-        lsp::Location {
-            uri: document.uri().clone(),
-            range: range(3, 22, 3, 27),
-        },
+        document.location(range(2, 6, 2, 11)),
+        document.location(range(3, 22, 3, 27)),
     ]);
     server
         .assert_request(document.references(position(3, 22), true), Ok(references))
@@ -102,12 +93,11 @@ extension of Robot implements Greeter {}
         .await;
 
     // navigate an interface method to its implementing declaration
-    let implementations = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
-        origin_selection_range: Some(range(6, 4, 6, 9)),
-        target_uri: document.uri().clone(),
-        target_range: range(10, 4, 12, 5),
-        target_selection_range: range(10, 4, 10, 9),
-    }]));
+    let implementations = Some(lsp::GotoDefinitionResponse::Link(vec![document.link(
+        range(6, 4, 6, 9),
+        range(10, 4, 12, 5),
+        range(10, 4, 10, 9),
+    )]));
     server
         .assert_request(
             document.implementations(position(6, 4)),

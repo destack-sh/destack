@@ -50,38 +50,29 @@ const sent = send(1, "ok");
         .await;
 
     // return the inferred binding type and both parameter labels
-    let hints = Some(vec![
-        lsp::InlayHint {
-            position: position(6, 10),
-            label: lsp::InlayHintLabel::String(": boolean".to_string()),
-            kind: Some(lsp::InlayHintKind::TYPE),
-            text_edits: None,
-            tooltip: None,
-            padding_left: Some(false),
-            padding_right: Some(false),
-            data: None,
-        },
-        lsp::InlayHint {
-            position: position(6, 18),
-            label: lsp::InlayHintLabel::String("code:".to_string()),
-            kind: Some(lsp::InlayHintKind::PARAMETER),
-            text_edits: None,
-            tooltip: None,
-            padding_left: Some(false),
-            padding_right: Some(true),
-            data: None,
-        },
-        lsp::InlayHint {
-            position: position(6, 21),
-            label: lsp::InlayHintLabel::String("message:".to_string()),
-            kind: Some(lsp::InlayHintKind::PARAMETER),
-            text_edits: None,
-            tooltip: None,
-            padding_left: Some(false),
-            padding_right: Some(true),
-            data: None,
-        },
-    ]);
+    let binding = lsp::InlayHint {
+        position: position(6, 10),
+        label: lsp::InlayHintLabel::String(": boolean".to_string()),
+        kind: Some(lsp::InlayHintKind::TYPE),
+        text_edits: None,
+        tooltip: None,
+        padding_left: Some(false),
+        padding_right: Some(false),
+        data: None,
+    };
+    let parameter = lsp::InlayHint {
+        position: position(6, 18),
+        label: lsp::InlayHintLabel::String("code:".to_string()),
+        kind: Some(lsp::InlayHintKind::PARAMETER),
+        padding_right: Some(true),
+        ..binding.clone()
+    };
+    let message = lsp::InlayHint {
+        position: position(6, 21),
+        label: lsp::InlayHintLabel::String("message:".to_string()),
+        ..parameter.clone()
+    };
+    let hints = Some(vec![binding, parameter, message]);
     server
         .assert_request(document.inlay_hints(range(0, 0, 6, 27)), Ok(hints))
         .await;
@@ -187,14 +178,17 @@ const sent = context.send(1);
                 label_detail: Some("(code: int32): string"),
                 description: None,
                 detail: Some("HostErrorContextProcess.send(code: int32): string"),
-                documentation: Some(concat!(
-                    "```ds\n",
-                    "HostErrorContextProcess.send(code: int32): string\n",
-                    "```\n\n",
-                    "Send one code.\n\n",
-                    "## Parameters\n\n",
-                    "- `code`: The code to send.",
-                )),
+                documentation: Some(
+                    r#"```ds
+HostErrorContextProcess.send(code: int32): string
+```
+
+Send one code.
+
+## Parameters
+
+- `code`: The code to send."#,
+                ),
             },
         )
         .await;
@@ -206,8 +200,14 @@ const sent = context.send(1);
             "HostErrorContextProcess",
         )
         .await;
-    let edited =
-        format!("{source}\nfunction completeImport(): void {{\n    greetFix;\n    retur\n}}\n");
+    let edited = format!(
+        r#"{source}
+function completeImport(): void {{
+    greetFix;
+    retur
+}}
+"#
+    );
     server
         .change(&document, 2, [replace_document(edited)])
         .await;
@@ -240,12 +240,17 @@ const sent = context.send(1);
 /// Return complete auto-import entries to clients without lazy resolution.
 #[tokio::test]
 async fn test_return_eager_completion_details() {
-    let source = "function main(): void {\n    greetFix;\n}\n";
+    let source = r#"function main(): void {
+    greetFix;
+}
+"#;
     let mut server = TestServer::new("eager-completion-details");
     server.write("destack.json", MANIFEST);
     server.write(
         "src/library.ds",
-        "/// Greet one fixture.\nexport function greetFixture(): void {}\n",
+        r#"/// Greet one fixture.
+export function greetFixture(): void {}
+"#,
     );
     let document = server.write("src/main.ds", source);
     server.initialize_completion(&["detail"], false).await;

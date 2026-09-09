@@ -5,7 +5,8 @@ use super::tests::{TestServer, position, range};
 /// Return exact edits for whole document, range, and on type formatting.
 #[tokio::test]
 async fn test_format_document_source() {
-    let source = "function greet():string{return \"hi\";}\n";
+    let source = r#"function greet():string{return "hi";}
+"#;
     let (mut server, document) = TestServer::open_workspace(
         "document-formatting",
         &[("src/main.ds", source)],

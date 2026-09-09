@@ -2,7 +2,7 @@ use destack_lsp_types as lsp;
 
 use serde_json::json;
 
-use super::tests::{MANIFEST, TestDocument, TestServer, position, range};
+use super::tests::{TestDocument, TestServer, position, range};
 
 /// Function index in the advertised semantic token legend.
 const FUNCTION_TOKEN: u32 = 11;
@@ -225,19 +225,17 @@ async fn test_classify_parameter_uses_as_parameter_tokens() {
 async fn test_return_resolved_document_links() {
     let source = r#"import { value } from "./library.ds";
 "#;
-    let mut server = TestServer::new("resolved-document-links");
-    server.write("destack.json", MANIFEST);
-    let library = server.write("src/library.ds", "export const value = 1;\n");
-    let document = server.write("src/main.ds", source);
-    server
-        .initialize(lsp::ClientCapabilities::default(), None)
-        .await
-        .unwrap();
-    server.initialized().await;
+    let library = r#"export const value = 1;
+"#;
+    let (mut server, document) = TestServer::open_workspace(
+        "resolved-document-links",
+        &[("src/library.ds", library), ("src/main.ds", source)],
+        "src/main.ds",
+    )
+    .await;
+    let library = server.document("src/library.ds");
 
-    // map the authored specifier to its exact source identity
-    server.open(&document, 1, source).await;
-    server.assert_diagnostics(&document, 1, Vec::new()).await;
+    // link the authored specifier to its source file
     let expected = Some(vec![lsp::DocumentLink {
         range: range(0, 22, 0, 36),
         target: Some(library.uri().clone()),
@@ -343,12 +341,11 @@ log("ready");
         .await;
 
     // navigate one builtin type reference
-    let definition = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
-        origin_selection_range: Some(range(20, 26, 20, 40)),
-        target_uri: console.uri().clone(),
-        target_range: range(5, 0, 14, 1),
-        target_selection_range: range(5, 17, 5, 31),
-    }]));
+    let definition = Some(lsp::GotoDefinitionResponse::Link(vec![console.link(
+        range(20, 26, 20, 40),
+        range(5, 0, 14, 1),
+        range(5, 17, 5, 31),
+    )]));
     server
         .assert_request(console.definition(position(20, 27)), Ok(definition.clone()))
         .await;
@@ -364,7 +361,8 @@ log("ready");
 /// Keep builtin document identities distinct across editor workspace folders.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_distinguish_builtin_documents_by_project() {
-    let source = "import { log } from \"destack:console\";\n";
+    let source = r#"import { log } from "destack:console";
+"#;
     let mut server = TestServer::new_editor_folder("builtin-project-identity");
     server.create_package("first");
     server.create_package("second");
@@ -438,10 +436,7 @@ quartz();
             kind: lsp::SymbolKind::FUNCTION,
             tags: None,
             deprecated: None,
-            location: lsp::Location {
-                uri: document.uri().clone(),
-                range: range(0, 0, 0, 33),
-            },
+            location: document.location(range(0, 0, 0, 33)),
             container_name: None,
         },
     ]));
@@ -469,7 +464,8 @@ quartz();
 /// Complete concurrent semantic document requests over shared artifacts.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_run_concurrent_document_queries() {
-    let source = "export function answer(): number { return 1; }\n";
+    let source = r#"export function answer(): number { return 1; }
+"#;
     let mut server = TestServer::new("concurrent-document-queries");
     let document = server.write("main.ds", source);
     server

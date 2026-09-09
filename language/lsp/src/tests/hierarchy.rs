@@ -16,10 +16,10 @@ function source(): void {
 
     // prepare both ends of the call edge
     let target = server
-        .prepare_call_hierarchy(document.call_hierarchy(position(0, 9)))
+        .request_one(document.call_hierarchy(position(0, 9)))
         .await;
     let source = server
-        .prepare_call_hierarchy(document.call_hierarchy(position(1, 9)))
+        .request_one(document.call_hierarchy(position(1, 9)))
         .await;
 
     // compare the complete visible items and retain their continuations
@@ -87,10 +87,10 @@ class Derived extends Base {}
 
     // prepare both ends of the inheritance edge
     let base = server
-        .prepare_type_hierarchy(document.type_hierarchy(position(0, 6)))
+        .request_one(document.type_hierarchy(position(0, 6)))
         .await;
     let derived = server
-        .prepare_type_hierarchy(document.type_hierarchy(position(1, 6)))
+        .request_one(document.type_hierarchy(position(1, 6)))
         .await;
 
     // compare the complete visible items and retain their continuations

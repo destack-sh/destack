@@ -138,7 +138,8 @@ async fn test_publish_latest_document_revision() {
 /// Serve overlapping editor queries while one declaration is typed character by character.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn test_query_successive_typed_revisions() {
-    let initial = "// module\n";
+    let initial = r#"// module
+"#;
     let prefix = "declare const x";
     let suffix = ": Clone;";
     let (mut server, document) = TestServer::open_workspace(
@@ -378,7 +379,10 @@ async fn test_retain_project_for_open_document() {
 /// Build one answer function.
 fn answer(return_type: &str, value: &str) -> String {
     format!(
-        "export function answer(): {return_type} {{\n  const value: {return_type} = {value};\n  \
-         return value;\n}}\n"
+        r#"export function answer(): {return_type} {{
+  const value: {return_type} = {value};
+  return value;
+}}
+"#
     )
 }

@@ -3,18 +3,21 @@ use std::env;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use destack_artifact::BuildId;
+use destack_artifact::{ArtifactKey, ArtifactOutcome, BuildId};
 use destack_lsp_server::jsonrpc::{self, Id};
 use destack_lsp_server::{ExitedError, LspService, ResponseSink};
 use destack_lsp_types as lsp;
 use destack_lsp_types::notification::Notification;
-use destack_repository::{Environment, Execution, Host};
-use destack_session::Executor;
+use destack_repository::{
+    DestackLayoutOverride, Environment, Execution, Host, Repository, RevisionPin, Settings,
+};
+use destack_session::{ArtifactPriority, Executor, Session};
 use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri};
 use futures::channel::mpsc::{UnboundedReceiver, unbounded};
+use futures::executor::block_on;
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde_json::{Value, from_value, to_value};
 use tower::{Service, ServiceExt};
@@ -41,6 +44,11 @@ const CLIENT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(15);
 const SERVER_CALL_TIMEOUT: Duration = Duration::from_secs(15);
 /// Environment variable enabling timing output.
 const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
+/// Environment variable selecting the shared artifact worker count.
+const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
+
+/// Library prerequisites retained for all protocol fixtures in this process.
+static LIBRARY: OnceLock<TestLibrary> = OnceLock::new();
 
 /// Package configuration used by LSP integration tests.
 const DESTACK_JSON: &str = r#"{
@@ -53,6 +61,103 @@ const DESTACK_JSON: &str = r#"{
   "defaultTarget": "default"
 }
 "#;
+
+/// Checked library artifacts shared by isolated protocol sessions.
+struct TestLibrary {
+    /// Session retaining the shared host and executor.
+    session: Session,
+    /// Source revision retaining the checked library artifacts.
+    revision: RevisionPin,
+    /// Physical sources retained for the suite.
+    _files: TemporaryPhysicalFileSystem,
+}
+
+impl TestLibrary {
+    /// Return the checked library shared by this process.
+    fn shared() -> &'static Self {
+        LIBRARY.get_or_init(Self::new)
+    }
+
+    /// Check the embedded library under the profiles used by protocol fixtures.
+    fn new() -> Self {
+        // import the ordinary fixture package and embedded library
+        let files = TemporaryPhysicalFileSystem::new_with_prefix("lsp-library");
+        files.write_text_or_error("destack.json", DESTACK_JSON);
+        files.write_text_or_error("main.ds", "export const value = 1;\n");
+        let host = Host::new(
+            BuildId::test(),
+            Environment::capture_process(),
+            Arc::new(PhysicalFileSystem::new()),
+        );
+        let (repository, revision) = Repository::open(
+            files.root().to_path_buf(),
+            host,
+            Settings::default(),
+            DestackLayoutOverride::default(),
+        )
+        .unwrap();
+        let repository = Arc::new(repository);
+        let revision = repository.pin(revision).unwrap();
+
+        // use the same artifact worker configuration as query fixtures
+        let worker_count = match env::var(WORKERS_ENV) {
+            Ok(value) => value.parse::<usize>().unwrap_or_else(|error| {
+                panic!("invalid {WORKERS_ENV} value '{value}': {error}");
+            }),
+            Err(env::VarError::NotPresent) => Executor::default_worker_count(),
+            Err(env::VarError::NotUnicode(_)) => panic!("{WORKERS_ENV} is not valid UTF-8"),
+        };
+        let executor = Executor::new(Execution::Threaded, worker_count).unwrap();
+        let session = Session::new(repository.clone(), executor).unwrap();
+
+        // retain one checked result per library module and selected profile
+        let mut profiles = Vec::new();
+        for package in repository.package_ids(revision.revision()).unwrap() {
+            if let Some((target, _)) = repository
+                .package_default_target(revision.revision(), package)
+                .unwrap()
+            {
+                profiles.push(
+                    repository
+                        .profile_for_target(revision.revision(), target)
+                        .unwrap()
+                        .id(),
+                );
+            }
+        }
+        profiles.sort_unstable();
+        profiles.dedup();
+        let modules = repository.builtin_module_ids(revision.revision()).unwrap();
+        let mut artifacts = Vec::new();
+        for profile in profiles {
+            artifacts.extend(
+                modules
+                    .iter()
+                    .map(|module| ArtifactKey::dir_checked(*module, profile)),
+            );
+        }
+        let run = session.provide(
+            revision.revision(),
+            &artifacts,
+            ArtifactPriority::Foreground,
+        );
+        block_on(run.wait()).unwrap();
+        for key in artifacts {
+            assert_eq!(
+                repository
+                    .current_artifact_outcome(revision.revision(), &key)
+                    .unwrap(),
+                Some(ArtifactOutcome::Ok)
+            );
+        }
+
+        Self {
+            session,
+            revision,
+            _files: files,
+        }
+    }
+}
 
 /// One isolated language server and physical workspace.
 pub(super) struct TestServer {
@@ -501,30 +606,16 @@ impl TestServer {
 
     // hierarchy
 
-    /// Prepare one call hierarchy item.
-    pub(super) async fn prepare_call_hierarchy(
-        &mut self,
-        request: TestRequest<lsp::request::CallHierarchyPrepare>,
-    ) -> lsp::CallHierarchyItem {
+    /// Require exactly one response item.
+    pub(super) async fn request_one<R, T>(&mut self, request: TestRequest<R>) -> T
+    where
+        R: lsp::request::Request<Result = Option<Vec<T>>>,
+        T: Debug,
+    {
         let items = self.request(request).await.unwrap().unwrap();
-        let [item] = items.as_slice() else {
-            panic!("expected one call hierarchy item, found {items:?}");
-        };
+        let [item]: [T; 1] = items.try_into().expect("expected one response item");
 
-        item.clone()
-    }
-
-    /// Prepare one type hierarchy item.
-    pub(super) async fn prepare_type_hierarchy(
-        &mut self,
-        request: TestRequest<lsp::request::TypeHierarchyPrepare>,
-    ) -> lsp::TypeHierarchyItem {
-        let items = self.request(request).await.unwrap().unwrap();
-        let [item] = items.as_slice() else {
-            panic!("expected one type hierarchy item, found {items:?}");
-        };
-
-        item.clone()
+        item
     }
 
     /// Return incoming calls for one prepared hierarchy item.
@@ -908,9 +999,14 @@ impl TestServer {
         // create isolated process capabilities
         let mut environment = Environment::capture_process();
         environment.cwd = Some(file_system.root().to_path_buf());
-        let physical = Arc::new(PhysicalFileSystem::new());
-        let host = Host::new(BuildId::test(), environment, physical);
-        let executor = Executor::new(Execution::Threaded, 1).unwrap();
+        let library = TestLibrary::shared();
+        let host = library
+            .revision
+            .repository()
+            .host()
+            .clone()
+            .with_environment(environment);
+        let executor = library.session.executor();
 
         // create one server over the isolated host
         let (service, socket) = LspService::new(move |client| {
@@ -966,6 +1062,29 @@ impl TestDocument {
         &self.uri
     }
 
+    /// Build a location in this document.
+    pub(super) fn location(&self, range: lsp::Range) -> lsp::Location {
+        lsp::Location {
+            uri: self.uri.clone(),
+            range,
+        }
+    }
+
+    /// Link an origin selection to a declaration in this document.
+    pub(super) fn link(
+        &self,
+        origin: lsp::Range,
+        range: lsp::Range,
+        selection: lsp::Range,
+    ) -> lsp::LocationLink {
+        lsp::LocationLink {
+            origin_selection_range: Some(origin),
+            target_uri: self.uri.clone(),
+            target_range: range,
+            target_selection_range: selection,
+        }
+    }
+
     /// Build one exact error diagnostic for this document.
     pub(super) fn error(&self, range: lsp::Range, code: &str, message: &str) -> lsp::Diagnostic {
         lsp::Diagnostic {
@@ -985,10 +1104,7 @@ impl TestDocument {
         message: &str,
     ) -> lsp::DiagnosticRelatedInformation {
         lsp::DiagnosticRelatedInformation {
-            location: lsp::Location {
-                uri: self.uri.clone(),
-                range,
-            },
+            location: self.location(range),
             message: message.to_string(),
         }
     }
