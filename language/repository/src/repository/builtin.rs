@@ -1,6 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
+use destack_artifact::SourceDependency;
 use destack_core::{Blob, BlobId, BlobMemory, BlobStore};
 use destack_source::{
     File, FileId, FileMetadata, FileType, LanguageType, Loader, ModuleId, PackageId, TargetId, Uri,
@@ -423,6 +424,7 @@ impl Repository {
         &self,
         revision: Revision,
         specifier: &str,
+        observations: &mut Vec<SourceDependency>,
     ) -> Result<Option<Uri>, RepositoryError> {
         let Some(path) = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
@@ -432,6 +434,7 @@ impl Repository {
         };
         let export_key = builtin_export_key(path);
         let package = self.builtin_package(revision)?;
+        observations.push(self.package_dependency(revision, package.id)?);
         let Some(export) = package.export(&export_key) else {
             return Ok(None);
         };
@@ -450,6 +453,9 @@ impl Repository {
         let uri = self
             .embedded_builtin()
             .module_uri_for_path(&export_path, package_root)?;
+        let file = self.file_id(&export_path);
+        let module = self.module_id_for_file(revision, file)?;
+        observations.push(SourceDependency::module_path(file, module));
 
         Ok(Some(uri))
     }
@@ -459,6 +465,7 @@ impl Repository {
         &self,
         revision: Revision,
         specifier: &str,
+        observations: &mut Vec<SourceDependency>,
     ) -> Result<Option<Uri>, RepositoryError> {
         let Some(path) = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
@@ -467,15 +474,16 @@ impl Repository {
             return Ok(None);
         };
         let package = self.builtin_package(revision)?;
+        observations.push(self.package_dependency(revision, package.id)?);
 
         // embedded sources resolve through their generated file table
-        if package.path.is_none() {
+        let Some(package_root) = package.path.as_deref() else {
             return Ok(self
                 .embedded_builtin()
                 .module_uri_for_internal_specifier(specifier));
-        }
+        };
 
-        self.authored_builtin_module_uri(revision, path)
+        self.authored_builtin_module_uri(revision, package_root, path, observations)
     }
 
     /// Resolve one relative specifier through the Builtin Package selected for one revision.
@@ -484,8 +492,10 @@ impl Repository {
         revision: Revision,
         base_uri: &str,
         specifier: &str,
+        observations: &mut Vec<SourceDependency>,
     ) -> Result<Option<Uri>, RepositoryError> {
         let package = self.builtin_package(revision)?;
+        observations.push(self.package_dependency(revision, package.id)?);
         let Some(uri) = self
             .embedded_builtin()
             .module_uri_for_relative_specifier(base_uri, specifier)
@@ -494,32 +504,40 @@ impl Repository {
         };
 
         // embedded sources resolve through their generated file table
-        if package.path.is_none() {
+        let Some(package_root) = package.path.as_deref() else {
             return Ok(Some(uri));
-        }
+        };
 
         let Some(path) = uri.as_ref().strip_prefix(BUILTIN_PACKAGE_URI) else {
             return Ok(None);
         };
 
-        self.authored_builtin_module_uri(revision, path)
+        self.authored_builtin_module_uri(revision, package_root, path, observations)
     }
 
     /// Resolve one extensionless authored builtin path to its loaded module URI.
     fn authored_builtin_module_uri(
         &self,
         revision: Revision,
+        package_root: &Path,
         path: &str,
+        observations: &mut Vec<SourceDependency>,
     ) -> Result<Option<Uri>, RepositoryError> {
+        // enumerate extensionless source candidates in resolution order
         let path = canonical_builtin_path(path);
         let candidates = [
-            format!("{BUILTIN_PACKAGE_URI}{path}"),
-            format!("{BUILTIN_PACKAGE_URI}{path}.ds"),
-            format!("{BUILTIN_PACKAGE_URI}{path}/index.ds"),
+            path.to_string(),
+            format!("{path}.ds"),
+            format!("{path}/index.ds"),
         ];
+        let source_root = package_root.join(BUILTIN_SOURCE_DIRECTORY);
 
+        // observe each candidate, including paths that do not exist
         for candidate in candidates {
-            let candidate = Uri::from_string(candidate);
+            let file = self.file_id(&source_root.join(&candidate));
+            let module = self.module_id_for_file(revision, file)?;
+            observations.push(SourceDependency::module_path(file, module));
+            let candidate = Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{candidate}"));
             if self.module_id_for_uri(revision, &candidate)?.is_some() {
                 return Ok(Some(candidate));
             }

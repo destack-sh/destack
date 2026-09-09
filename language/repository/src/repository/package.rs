@@ -1,12 +1,13 @@
 use std::collections::HashSet;
+use std::hash::Hash;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
 use destack_artifact::{
     ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageNode,
-    PackageSetFingerprint,
+    PackageSetFingerprint, SourceDependency,
 };
-use destack_core::{TreapRoot, stable_hash_value_128};
+use destack_core::{StableHasher, TreapRoot, stable_hash_value_128};
 use destack_source::{PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
@@ -16,6 +17,49 @@ use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
 
 impl Repository {
+    /// Return a dependency on one package configuration and its resolved dependency targets.
+    pub fn package_dependency(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<SourceDependency, RepositoryError> {
+        // distinguish absent, embedded, and authored packages
+        let package = self.package(revision, package_id)?;
+        let mut hasher = StableHasher::new();
+        package.is_some().hash(&mut hasher);
+        if let Some(package) = package {
+            package.path.hash(&mut hasher);
+
+            // observe inherited configuration files in their declared order
+            if let Some(configuration) = &package.configuration {
+                for file in &configuration.file_ids {
+                    file.hash(&mut hasher);
+                    let blob = self.file_blob(revision, *file)?;
+                    blob.map(|blob| blob.id).hash(&mut hasher);
+                }
+            }
+
+            // include unavailable dependencies so later discovery invalidates imports
+            let dependencies = package.dependencies.iter().chain(
+                package
+                    .conditional_dependencies
+                    .iter()
+                    .flat_map(|group| group.dependencies.iter()),
+            );
+            for (name, dependency) in dependencies {
+                name.hash(&mut hasher);
+                dependency.hash(&mut hasher);
+                let target = self.dependency_package(revision, &package, name, dependency)?;
+                target.map(|package| package.id).hash(&mut hasher);
+            }
+        }
+
+        Ok(SourceDependency::Package {
+            package: package_id,
+            fingerprint: hasher.finish_u128(),
+        })
+    }
+
     /// Build one Package from an authored package root.
     fn build_package(
         &self,

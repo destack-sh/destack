@@ -5,7 +5,7 @@ use std::sync::Arc;
 use destack_artifact::{
     ArtifactCache, ArtifactCacheError, ArtifactCacheManifest, ArtifactCachePublication,
     ArtifactDependency, ArtifactEntry, ArtifactOutcome, ArtifactPack, ArtifactPackReference,
-    ArtifactPackVersion, ArtifactVersion, SourceDependency,
+    ArtifactPackVersion, ArtifactVersion,
 };
 use destack_core::{BlobStore, StringPool, stable_hash_value};
 use destack_source::PackageId;
@@ -395,35 +395,5 @@ impl Repository {
         self.host
             .flush_artifact_cache()
             .map_err(RepositoryError::from)
-    }
-
-    /// Return whether one exact source observation still holds.
-    fn source_dependency_holds(
-        &self,
-        revision: Revision,
-        source: SourceDependency,
-    ) -> Result<bool, RepositoryError> {
-        match source {
-            SourceDependency::File { file, blob } => {
-                let current = self.file(revision, file)?.map(|file| file.blob.id);
-
-                Ok(current == Some(blob))
-            }
-            SourceDependency::Packages { .. } => {
-                let packages = self.package_ids(revision)?;
-
-                Ok(SourceDependency::packages(&packages) == source)
-            }
-            SourceDependency::Modules { .. } => {
-                let modules = self.module_ids(revision)?;
-
-                Ok(SourceDependency::modules(&modules) == source)
-            }
-            SourceDependency::ModulePath { file, .. } => {
-                let module = self.module_id_for_file(revision, file)?;
-
-                Ok(SourceDependency::module_path(file, module) == source)
-            }
-        }
     }
 }

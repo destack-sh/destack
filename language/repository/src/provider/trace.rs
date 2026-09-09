@@ -536,6 +536,20 @@ impl Trace {
 }
 
 impl Repository {
+    /// Snapshot one operation trace with repository display names.
+    pub fn snapshot_trace(
+        &self,
+        revision: Revision,
+        trace: &Trace,
+        view: TraceView,
+    ) -> Result<TraceSnapshot, RepositoryError> {
+        trace.snapshot(
+            view,
+            |key| self.artifact_display(revision, *key),
+            |target| self.target_display(revision, target),
+        )
+    }
+
     /// Return the display label for one traced artifact.
     pub fn artifact_display(
         &self,

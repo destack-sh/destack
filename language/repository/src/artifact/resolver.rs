@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactEntry, ArtifactKey, ArtifactOutcome, ArtifactVersion,
-    SourceDependency, SourceDependencyKey,
+    SourceDependency,
 };
 use rustc_hash::{FxHashMap, FxHashSet};
 
@@ -42,6 +42,38 @@ struct ArtifactResolver<'a> {
 }
 
 impl Repository {
+    /// Return whether one exact source observation still holds.
+    pub(crate) fn source_dependency_holds(
+        &self,
+        revision: Revision,
+        source: SourceDependency,
+    ) -> Result<bool, RepositoryError> {
+        match source {
+            SourceDependency::Package { package, .. } => {
+                Ok(self.package_dependency(revision, package)? == source)
+            }
+            SourceDependency::Module { module, .. } => {
+                Ok(self.module_dependency(revision, module)? == source)
+            }
+            SourceDependency::File { file, blob } => {
+                let current = self.file_blob(revision, file)?.map(|blob| blob.id);
+
+                Ok(current == Some(blob))
+            }
+            SourceDependency::Packages { fingerprint } => {
+                Ok(self.packages_fingerprint(revision)? == fingerprint)
+            }
+            SourceDependency::Modules { fingerprint } => {
+                Ok(self.modules_fingerprint(revision)? == fingerprint)
+            }
+            SourceDependency::ModulePath { file, .. } => {
+                let module = self.module_id_for_file(revision, file)?;
+
+                Ok(SourceDependency::module_path(file, module) == source)
+            }
+        }
+    }
+
     /// Resolve one artifact in a repository revision.
     pub fn resolve_artifact(
         &self,
@@ -112,25 +144,61 @@ impl<'a> ArtifactResolver<'a> {
         }
     }
 
-    /// Resolve one artifact from its inherited candidate.
+    /// Resolve one artifact from inherited or shared candidates.
     fn resolve(&mut self, key: ArtifactKey) -> Result<ArtifactResolution, RepositoryError> {
+        // reuse decisions made during this resolution
         if let Some(resolution) = self.resolutions.get(&key) {
             return Ok(resolution.clone());
         }
-        let Some((candidate, dirty)) = self.revision_state.artifacts.read().candidate(key) else {
-            return Ok(ArtifactResolution::Stale);
-        };
-        if dirty.is_empty() {
-            return Ok(Self::terminal(&candidate));
+        let inherited = self.revision_state.artifacts.read().candidate(key);
+        if let Some((candidate, dirty)) = &inherited
+            && dirty.is_empty()
+        {
+            return Ok(Self::terminal(candidate));
         }
         if !self.resolving.insert(key) {
             return Err(RepositoryError::CircularArtifactDependency { key });
         }
 
-        // prove only observations reached by the edit
+        // validate inherited candidates only along dependencies changed by edits
+        let mut resolution = ArtifactResolution::Stale;
+        if let Some((candidate, dirty)) = &inherited {
+            resolution = self.resolve_candidate(candidate, dirty.iter().copied())?;
+        }
+
+        // validate complete dependencies before selecting another revision's result
+        if matches!(resolution, ArtifactResolution::Stale) {
+            for candidate in self.repository.artifact_table().candidates(key) {
+                if inherited
+                    .as_ref()
+                    .is_some_and(|(entry, _)| entry.version == candidate.version)
+                {
+                    continue;
+                }
+                let dependencies = 0..candidate.dependencies.len() as u32;
+                resolution = self.resolve_candidate(&candidate, dependencies)?;
+                if !matches!(resolution, ArtifactResolution::Stale) {
+                    break;
+                }
+            }
+        }
+        self.resolving.remove(&key);
+        self.resolutions.insert(key, resolution.clone());
+
+        Ok(resolution)
+    }
+
+    /// Validate the selected dependency observations of one retained result.
+    fn resolve_candidate(
+        &mut self,
+        candidate: &Arc<ArtifactEntry>,
+        dependencies: impl Iterator<Item = u32>,
+    ) -> Result<ArtifactResolution, RepositoryError> {
+        // resolve every observed input before selecting the result
+        let key = candidate.version.key;
         let mut frontier = Vec::new();
         let mut is_stale = false;
-        for dependency in dirty {
+        for dependency in dependencies {
             let dependency = candidate.dependencies.get(dependency as usize).ok_or_else(|| {
                 RepositoryError::InvalidArtifact {
                     message: format!(
@@ -140,7 +208,9 @@ impl<'a> ArtifactResolver<'a> {
             })?;
             match dependency {
                 ArtifactDependency::Source(source) => {
-                    is_stale = !self.source_matches(source)?;
+                    is_stale = !self
+                        .repository
+                        .source_dependency_holds(self.revision, *source)?;
                 }
                 ArtifactDependency::Artifact(version) => match self.resolve(version.key)? {
                     ArtifactResolution::Terminal {
@@ -201,7 +271,6 @@ impl<'a> ArtifactResolver<'a> {
                 break;
             }
         }
-        self.resolving.remove(&key);
 
         // select the candidate after every reached observation matches
         let resolution = if is_stale {
@@ -212,14 +281,13 @@ impl<'a> ArtifactResolver<'a> {
                 .write()
                 .select(candidate.clone())?;
 
-            Self::terminal(&candidate)
+            Self::terminal(candidate)
         } else {
             frontier.sort_unstable();
             frontier.dedup();
 
             ArtifactResolution::Pending { frontier }
         };
-        self.resolutions.insert(key, resolution.clone());
 
         Ok(resolution)
     }
@@ -230,36 +298,6 @@ impl<'a> ArtifactResolver<'a> {
             version: entry.version,
             outcome: entry.outcome(),
         }
-    }
-
-    /// Return whether one primitive source observation matches this revision.
-    fn source_matches(&self, dependency: &SourceDependency) -> Result<bool, RepositoryError> {
-        let current = match dependency.key() {
-            SourceDependencyKey::File(file) => {
-                let Some(blob) = self.repository.file_blob(self.revision, file)? else {
-                    return Ok(false);
-                };
-
-                SourceDependency::file(file, blob.id)
-            }
-            SourceDependencyKey::Packages => {
-                let fingerprint = self.repository.packages_fingerprint(self.revision)?;
-
-                SourceDependency::Packages { fingerprint }
-            }
-            SourceDependencyKey::Modules => {
-                let fingerprint = self.repository.modules_fingerprint(self.revision)?;
-
-                SourceDependency::Modules { fingerprint }
-            }
-            SourceDependencyKey::ModulePath(file) => {
-                let module = self.repository.module_id_for_file(self.revision, file)?;
-
-                SourceDependency::module_path(file, module)
-            }
-        };
-
-        Ok(current == *dependency)
     }
 
     /// Return whether one module artifact belongs to a removed module.

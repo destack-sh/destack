@@ -68,6 +68,17 @@ pub enum ModulePathOutcome {
 }
 
 impl Repository {
+    /// Return a dependency on one module's contributing files and loader configuration.
+    pub fn module_dependency(
+        &self,
+        revision: Revision,
+        module: ModuleId,
+    ) -> Result<SourceDependency, RepositoryError> {
+        let modules = self.module_index(revision)?;
+
+        Ok(modules.dependency(module))
+    }
+
     /// Build modules from editable revision files.
     pub(crate) fn build_modules(
         &self,

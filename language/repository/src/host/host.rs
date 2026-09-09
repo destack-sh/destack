@@ -98,6 +98,13 @@ impl Host {
         &self.environment
     }
 
+    /// Return this host with one invocation environment.
+    pub fn with_environment(mut self, environment: Environment) -> Self {
+        self.environment = environment;
+
+        self
+    }
+
     /// Return the file system backing repository discovery and loads.
     pub fn files(&self) -> &Arc<dyn FileSystem> {
         &self.files

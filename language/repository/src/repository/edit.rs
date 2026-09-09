@@ -93,7 +93,8 @@ impl Repository {
             });
         }
 
-        // invalidate repository discovery observations only when their values changed
+        // identify discovery observations that need revalidation
+        let mut invalidated = Vec::new();
         match delta.discovery() {
             Discovery::None => {}
             Discovery::Paths => {
@@ -103,6 +104,17 @@ impl Repository {
                 let listing = self.file_tree.entries(after_files);
                 let after_modules =
                     self.module_index_for_files(before, &listing, &after_packages)?;
+
+                // invalidate observations of changed module descriptions
+                for module in &before_modules {
+                    let dependency = self.module_dependency(before, *module)?;
+                    let after_dependency = after_modules.dependency(*module);
+                    if dependency != after_dependency {
+                        invalidated.push(dependency);
+                    }
+                }
+
+                // compare package and module membership separately from module descriptions
                 let mut after_packages = after_packages.package_ids().collect::<Vec<_>>();
                 let mut after_modules = after_modules.module_ids().collect::<Vec<_>>();
                 after_packages.sort_unstable();
@@ -111,20 +123,33 @@ impl Repository {
                 after_modules.dedup();
 
                 if before_packages != after_packages {
-                    delta.extend([SourceDependency::packages(&before_packages)]);
+                    invalidated.push(SourceDependency::packages(&before_packages));
                 }
                 if before_modules != after_modules {
-                    delta.extend([SourceDependency::modules(&before_modules)]);
+                    invalidated.push(SourceDependency::modules(&before_modules));
                 }
             }
             Discovery::Config => {
                 let packages = self.package_ids(before)?;
                 let modules = self.module_ids(before)?;
-                delta.extend([
+                invalidated.extend([
                     SourceDependency::packages(&packages),
                     SourceDependency::modules(&modules),
                 ]);
+                for module in modules {
+                    invalidated.push(self.module_dependency(before, module)?);
+                }
             }
+        }
+
+        // revalidate package resolution when discovery changes
+        if !matches!(delta.discovery(), Discovery::None) {
+            for package in self.package_ids(before)? {
+                invalidated.push(self.package_dependency(before, package)?);
+            }
+        }
+        if !invalidated.is_empty() {
+            delta.extend(invalidated);
         }
 
         // fork candidates and mark only observations reached by this edit

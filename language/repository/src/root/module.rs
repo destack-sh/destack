@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use destack_artifact::SourceDependency;
+use destack_core::stable_hash_value_128;
 use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use rustc_hash::FxHashMap;
@@ -8,7 +10,7 @@ use rustc_hash::FxHashMap;
 use crate::{ConditionGate, ConditionSet};
 
 /// One source module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct Module {
     /// The module id.
     pub id: ModuleId,
@@ -81,7 +83,7 @@ impl Module {
 }
 
 /// One source file that contributes to a module.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash)]
 pub struct ModuleFile {
     /// The source file id.
     pub file_id: FileId,
@@ -171,6 +173,17 @@ impl ModuleIndex {
     /// Return one module by ID.
     pub(crate) fn module(&self, module_id: ModuleId) -> Option<Arc<Module>> {
         self.modules.get(&module_id).cloned()
+    }
+
+    /// Return a dependency on one module description, including an absent module.
+    pub(crate) fn dependency(&self, module: ModuleId) -> SourceDependency {
+        let selected = self.modules.get(&module);
+        let fingerprint = stable_hash_value_128(&selected);
+
+        SourceDependency::Module {
+            module,
+            fingerprint,
+        }
     }
 
     /// Return all module IDs.
