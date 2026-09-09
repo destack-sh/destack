@@ -158,8 +158,8 @@ class Box<T> {
         let session = TestSession::dir(
             &NO_REDUNDANT_TYPE_CONSTRAINT,
             r#"
-function double<T: number>(value: T): number {
-    return value * 2;
+function widen<T: number>(value: T): number {
+    return value;
 }
 "#,
         );
