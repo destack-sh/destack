@@ -1,6 +1,8 @@
 use destack_dir as dir;
 use destack_source::EnclosingSpan;
 
+use super::CompletionPosition;
+use crate::cursor::Cursor;
 use crate::{ModuleQueryContext, QueryResult};
 
 impl ModuleQueryContext<'_> {
@@ -93,5 +95,65 @@ impl ModuleQueryContext<'_> {
         };
 
         Ok(has_hole)
+    }
+}
+
+impl Cursor<'_, '_> {
+    /// Classify statement completion at one offset.
+    pub(super) fn classify_statement(&self) -> QueryResult<Option<CompletionPosition>> {
+        // treat the start of the file as a statement position
+        if self.offset == 0 {
+            let scope = self.module.module_start_scope()?;
+
+            return Ok(Some(CompletionPosition::Statement { scope }));
+        }
+
+        // skip declarator initializer holes
+        if self.is_declarator_value_hole()? {
+            return Ok(None);
+        }
+
+        // check block based statement gaps first
+        if let Some(scope) = self.statement_scope_in_block()? {
+            return Ok(Some(CompletionPosition::Statement { scope }));
+        }
+
+        // use token based statement boundaries
+        if let Some(token) = self
+            .module
+            .previous_significant_token(self.file_id, self.offset)?
+        {
+            let opens_statement = matches!(
+                token.token.ty(),
+                dir::TokenType::Semicolon | dir::TokenType::OpenBrace | dir::TokenType::CloseBrace
+            );
+            if opens_statement {
+                let Some(scope) = self.scope()? else {
+                    return Ok(None);
+                };
+
+                return Ok(Some(CompletionPosition::Statement { scope }));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Resolve a statement position inside a block expression.
+    fn statement_scope_in_block(&self) -> QueryResult<Option<dir::LocalScope>> {
+        let offset = self.offset;
+        let enclosing = self.enclosing();
+
+        // scan for the nearest block that opens one statement position
+        for enclosing_span in enclosing {
+            if self
+                .module
+                .block_owns_statement_cursor(enclosing_span, offset)?
+            {
+                return self.scope();
+            }
+        }
+
+        Ok(None)
     }
 }

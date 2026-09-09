@@ -129,7 +129,9 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<TypeItemResponse> {
         let position = request.position;
-        let Some(symbol_at) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        let Some(symbol_at) = self
+            .cursor(position.file_id, position.offset)?
+            .symbol(program)?
         else {
             return Ok(TypeItemResponse { item: None });
         };

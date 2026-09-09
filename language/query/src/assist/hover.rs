@@ -56,8 +56,9 @@ impl ModuleQueryContext<'_> {
         let position = request.position;
         let file_id = position.file_id;
         let offset = position.offset;
-        let documentation = self.documentation_at_offset(program, file_id, offset)?;
-        let occurrence = self.symbol_at_offset(program, file_id, offset)?;
+        let cursor = self.cursor(file_id, offset)?;
+        let documentation = cursor.documentation()?;
+        let occurrence = cursor.symbol(program)?;
         if occurrence.is_none() && documentation.is_none() {
             return Ok(HoverResponse { hover: None });
         }
@@ -102,6 +103,7 @@ impl ModuleQueryContext<'_> {
             return Ok(HoverResponse { hover: None });
         }
 
+        // select the response range and format any remaining documentation
         let range = match (&occurrence, &documentation) {
             (Some(occurrence), _) => occurrence.span,
             (None, Some(documentation)) => documentation.span,
@@ -109,7 +111,10 @@ impl ModuleQueryContext<'_> {
         };
         let documentation = documentation
             .filter(|_| !is_documentation_in_items)
-            .map(|documentation| documentation.markdown);
+            .map(|documentation| {
+                Formatter::new(self, program).documentation(documentation.documentation)
+            })
+            .transpose()?;
 
         let hover = Hover {
             items,

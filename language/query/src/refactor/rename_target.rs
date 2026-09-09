@@ -75,8 +75,9 @@ impl RenameSelection {
         module: &ModuleQueryContext<'_>,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<Option<Self>> {
-        let Some(occurrence) =
-            module.reference_at_offset(program, position.file_id, position.offset)?
+        let Some(occurrence) = module
+            .cursor(position.file_id, position.offset)?
+            .reference(program)?
         else {
             return Ok(None);
         };

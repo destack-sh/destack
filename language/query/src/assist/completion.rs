@@ -5,7 +5,7 @@ use destack_serde::Reflect;
 use destack_source::{FileId, Patch, Span};
 use serde::{Deserialize, Serialize};
 
-use crate::complete::{CompletionCollector, CompletionCursor};
+use crate::complete::CompletionCollector;
 use crate::source::ImportBinding;
 use crate::{
     Formatter, ImportOrder, Module, ModuleQueryContext, ProgramQueryContext, QueryError,
@@ -253,9 +253,8 @@ impl ModuleQueryContext<'_> {
         let details_mode = request.details;
         let file_id = position.file_id;
         let offset = position.offset;
-        let Some(CompletionCursor { context, token }) =
-            self.classify_completion(file_id, offset)?
-        else {
+        let cursor = self.cursor(file_id, offset)?;
+        let Some(context) = cursor.classify_completion()? else {
             return Ok(CompletionResponse {
                 entries: Vec::new(),
                 is_incomplete: false,
@@ -263,17 +262,13 @@ impl ModuleQueryContext<'_> {
         };
 
         // exclude bindings declared by the pattern under initialization
-        let initializing_pattern = self.initializing_pattern_at_offset(file_id, offset)?;
+        let initializing_pattern = cursor.initializing_pattern()?;
 
         // collect and rank candidates for the selected context
         let collector = CompletionCollector::new(self, program, initializing_pattern);
-        let completions = collector.collect(
-            request.trigger,
-            &context,
-            token.as_ref(),
-            request.include_auto_imports,
-        )?;
-        let completions = completions.rank(&context, token.as_ref());
+        let completions =
+            collector.collect(request.trigger, &context, request.include_auto_imports)?;
+        let completions = completions.rank(&context);
         let mut is_incomplete = completions.is_incomplete;
 
         // collect authored imports once for auto import planning
@@ -285,8 +280,11 @@ impl ModuleQueryContext<'_> {
             .transpose()?;
 
         // resolve only candidates returned to the editor
-        let replacement_start = token.as_ref().map_or(offset, |token| token.start);
-        let replacement_end = token.as_ref().map_or(offset, |token| token.end);
+        let replacement_start = context
+            .prefix
+            .as_ref()
+            .map_or(offset, |prefix| prefix.start);
+        let replacement_end = context.prefix.as_ref().map_or(offset, |prefix| prefix.end);
         let replacement = Span::new(file_id, replacement_start, replacement_end);
         let capacity = completions.items.len().min(MAX_COMPLETION_ITEMS);
         let mut entries = Vec::with_capacity(capacity);
@@ -412,7 +410,7 @@ pub(crate) struct CompletionCandidate {
     /// The declaration owner or import source.
     pub(crate) description: Option<String>,
     /// The insertion produced when this candidate is selected.
-    insertion: CompletionInsertion,
+    pub(crate) insertion: CompletionInsertion,
     /// Stable text used to order otherwise equal candidates.
     pub(crate) ordering_text: Option<String>,
     /// Whether to preselect this item.

@@ -33,7 +33,7 @@ impl ModuleQueryContext<'_> {
         let file_id = position.file_id;
 
         // resolve one exact local symbol
-        let Some(occurrence) = self.symbol_at_offset(program, file_id, position.offset)? else {
+        let Some(occurrence) = self.cursor(file_id, position.offset)?.symbol(program)? else {
             return Ok(InlineResponse { edit: None });
         };
         let Some(symbol) = occurrence.symbol() else {

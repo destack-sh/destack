@@ -30,7 +30,9 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<GotoImplementationResponse> {
         let position = request.position;
-        let Some(symbol) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        let Some(symbol) = self
+            .cursor(position.file_id, position.offset)?
+            .symbol(program)?
         else {
             return Ok(GotoImplementationResponse {
                 targets: Vec::new(),

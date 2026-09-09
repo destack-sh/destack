@@ -8,54 +8,45 @@ impl ModuleQueryContext<'_> {
         &self,
         node_id: dir::GlobalNodeIdAny,
     ) -> QueryResult<Option<Vec<dir::GlobalSymbolId>>> {
-        let mut selections = Vec::new();
-
-        // collect every exact symbol selection recorded for this node
-        if let Some(resolution) = self.decisions()?.member_decision(node_id) {
-            selections.push(resolution.target_symbols());
-        }
-        if let Some(resolution) = self.decisions()?.subscript_decision(node_id) {
-            selections.push(resolution.target_symbols());
-        }
-
-        // prefer a selected function value over the name resolution it decides
-        let function_targets = self
-            .decisions()?
-            .function_decision(node_id)
-            .map(|resolution| {
-                resolution
+        // select symbols from the single checked decision
+        let decision = self.decisions()?.decision(node_id);
+        let targets = match decision {
+            Some(dir::Decision::Member(selection)) => Some(selection.target_symbols()),
+            Some(dir::Decision::Subscript(selection)) => Some(selection.target_symbols()),
+            Some(dir::Decision::Function(selection)) => {
+                let targets = selection
                     .arms()
                     .iter()
                     .filter_map(|value| value.target.symbol())
-                    .collect::<Vec<_>>()
-            })
-            .filter(|targets| !targets.is_empty());
-        if let Some(targets) = function_targets {
-            selections.push(targets);
-        } else if let Some(resolution) = self.resolutions()?.name_resolution(node_id)
-            && resolution.denoted_type().is_none()
-        {
-            selections.push(resolution.symbols().to_vec());
+                    .collect::<Vec<_>>();
+
+                (!targets.is_empty()).then_some(targets)
+            }
+            Some(dir::Decision::Receiver(selection)) => Some(vec![selection.declaration]),
+            Some(dir::Decision::Transfer(_)) => self
+                .transfer_label_symbol(node_id)?
+                .map(|symbol| vec![symbol]),
+            _ => None,
+        };
+
+        // a selected function determines which declaration its name denotes
+        if matches!(decision, Some(dir::Decision::Function(_))) && targets.is_some() {
+            return Ok(targets);
         }
 
-        // collect the implicit receiver an unqualified member read decided
-        if let Some(resolution) = self.decisions()?.receiver_decision(node_id) {
-            selections.push(vec![resolution.declaration]);
-        }
-
-        // collect the label a control transfer explicitly names
-        if let Some(symbol) = self.transfer_label_symbol(node_id)? {
-            selections.push(vec![symbol]);
-        }
-
-        // require one authoritative resolution column
-        if selections.len() > 1 {
-            return Err(QueryError::conflict(format!(
+        // other recorded names must identify a single source of symbol targets
+        let name = self
+            .resolutions()?
+            .name_resolution(node_id)
+            .filter(|resolution| resolution.denoted_type().is_none());
+        match (targets, name) {
+            (Some(_), Some(_)) => Err(QueryError::conflict(format!(
                 "symbol resolution columns: {node_id:?}"
-            )));
+            ))),
+            (Some(targets), None) => Ok(Some(targets)),
+            (None, Some(name)) => Ok(Some(name.symbols().to_vec())),
+            (None, None) => Ok(None),
         }
-
-        Ok(selections.pop())
     }
 
     /// Return the label symbol explicitly named by one control transfer.

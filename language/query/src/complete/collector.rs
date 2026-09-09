@@ -2,7 +2,7 @@ use destack_core::FxIndexMap;
 use destack_dir as dir;
 
 use super::builtin::{keyword_completions, primitive_type_completions};
-use super::{CompletionContext, CompletionReceiver, CursorToken};
+use super::{CompletionContext, CompletionPosition, CompletionReceiver};
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
     CompletionTrigger, ModuleQueryContext, ProgramQueryContext, QueryResult, SymbolUse,
@@ -49,48 +49,45 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         &self,
         trigger: CompletionTrigger,
         context: &CompletionContext,
-        token: Option<&CursorToken>,
         include_auto_imports: bool,
     ) -> QueryResult<CompletionCandidates> {
         // derive prefix rules from the request
-        let prefix = token.map_or("", |token| token.text.as_str());
+        let prefix = context
+            .prefix
+            .as_ref()
+            .map_or("", |prefix| prefix.text.as_str());
+        let position = &context.position;
         let allow_short_prefix = matches!(
             trigger,
             CompletionTrigger::Invoked | CompletionTrigger::Incomplete
         );
 
         // collect candidates for the exact cursor context
-        let mut items = match context {
-            CompletionContext::MemberAccess {
+        let mut items = match position {
+            CompletionPosition::MemberAccess {
                 receiver: CompletionReceiver::Access { site },
             } => self.collect_members(*site)?,
-            CompletionContext::MemberAccess {
+            CompletionPosition::MemberAccess {
                 receiver: CompletionReceiver::Namespace { module_id },
             } => self.collect_namespace_members(*module_id)?,
-            CompletionContext::TypePosition { scope } => self.collect_types(*scope, prefix)?,
-            CompletionContext::ValuePosition { scope } => {
+            CompletionPosition::Type { scope } => self.collect_types(*scope, prefix)?,
+            CompletionPosition::Value { scope, .. } => {
                 self.collect_values(*scope, prefix, false)?
             }
-            CompletionContext::StatementPosition { scope } => self.collect_values(
+            CompletionPosition::Statement { scope } => self.collect_values(
                 *scope,
                 prefix,
                 matches!(trigger, CompletionTrigger::Invoked),
             )?,
-            CompletionContext::ObjectLiteralKey { literal, scope } => {
+            CompletionPosition::ObjectLiteralKey { literal, scope } => {
                 self.collect_object_literal(*literal, *scope, prefix)?
             }
-            CompletionContext::ObjectLiteralValue { scope } => {
-                self.collect_values(*scope, prefix, false)?
+            CompletionPosition::Constructor { scope } => {
+                self.collect_constructors(*scope, prefix)?
             }
-            CompletionContext::CallArgument { scope, .. } => {
-                self.collect_values(*scope, prefix, false)?
-            }
-            CompletionContext::NewExpression { scope } => {
-                self.collect_new_expression(*scope, prefix)?
-            }
-            CompletionContext::ControlLabel { labels } => self.collect_labels(labels, prefix),
-            CompletionContext::ImportPath { path } => self.collect_import_paths(path)?,
-            CompletionContext::ImportClause {
+            CompletionPosition::ControlLabel { labels } => self.collect_labels(labels, prefix),
+            CompletionPosition::ImportPath { path } => self.collect_import_paths(path)?,
+            CompletionPosition::ImportClause {
                 target_module,
                 existing_names,
                 use_filter,
@@ -100,7 +97,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         let mut is_incomplete = false;
 
         // add auto imports when this context supports them
-        if include_auto_imports && let Some(auto_import) = context.auto_import_context() {
+        if include_auto_imports && let Some(auto_import) = position.auto_import_context() {
             let auto_imports =
                 self.collect_auto_imports(prefix, auto_import, allow_short_prefix)?;
             items.extend(auto_imports.items);
@@ -108,7 +105,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
         }
 
         // resolve value types required by call argument ranking
-        if context.expected_type().is_some() {
+        if position.expected_type().is_some() {
             for completion in &mut items {
                 completion.type_id = self.resolve_type(completion)?;
             }
@@ -346,7 +343,7 @@ impl<'owner, 'module, 'program> CompletionCollector<'owner, 'module, 'program> {
     }
 
     /// Collect constructable symbols for a new expression.
-    fn collect_new_expression(
+    fn collect_constructors(
         &self,
         scope: dir::LocalScope,
         prefix: &str,

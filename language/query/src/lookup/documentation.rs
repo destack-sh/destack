@@ -1,47 +1,6 @@
 use destack_dir as dir;
-use destack_source::{FileId, Span};
 
-use crate::{Formatter, ModuleQueryContext, ProgramQueryContext, QueryResult};
-
-/// Documentation attached to one source node at a position.
-pub(crate) struct DocumentationOccurrence {
-    /// The visible node that owns the documentation.
-    pub(crate) node_id: dir::GlobalNodeIdAny,
-    /// The rendered Markdown.
-    pub(crate) markdown: String,
-    /// The source owner span.
-    pub(crate) span: Span,
-}
-
-impl ModuleQueryContext<'_> {
-    /// Return documentation owned by the innermost source node at a position.
-    pub(crate) fn documentation_at_offset(
-        &self,
-        program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<DocumentationOccurrence>> {
-        // select the innermost source owner with documentation
-        let view = self.view()?;
-        for enclosing in self.enclosing_spans_at_cursor(file_id, offset)? {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
-                continue;
-            };
-            let Some(documentation) = view.get_documentation_any(node_id) else {
-                continue;
-            };
-            let markdown = Formatter::new(self, program).documentation(documentation)?;
-
-            return Ok(Some(DocumentationOccurrence {
-                node_id: node_id.into_global(self.module_id()),
-                markdown,
-                span: enclosing.span,
-            }));
-        }
-
-        Ok(None)
-    }
-}
+use crate::{Formatter, ProgramQueryContext, QueryResult};
 
 impl ProgramQueryContext<'_> {
     /// Return the documentation for one symbol declaration.

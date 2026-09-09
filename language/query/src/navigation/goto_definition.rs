@@ -28,7 +28,9 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<GotoDefinitionResponse> {
         let position = request.position;
-        let Some(occurrence) = self.symbol_at_offset(program, position.file_id, position.offset)?
+        let Some(occurrence) = self
+            .cursor(position.file_id, position.offset)?
+            .symbol(program)?
         else {
             return Ok(GotoDefinitionResponse {
                 targets: Vec::new(),

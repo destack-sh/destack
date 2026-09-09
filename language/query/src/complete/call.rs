@@ -1,394 +1,155 @@
 use destack_dir as dir;
-use destack_source::{EnclosingSpan, FileId, Span};
 
-use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
+use crate::cursor::{CallOccurrence, Cursor};
+use crate::{ModuleQueryContext, QueryResult};
 
-use super::CompletionContext;
+use super::CompletionPosition;
 
-/// One generated call completion insertion.
-pub(super) struct CallSnippet {
-    /// The insertion text.
-    pub(super) text: String,
-    /// Whether the insertion text contains snippet placeholders.
-    pub(super) is_snippet: bool,
-}
-
-/// One call expression and its argument nodes.
-struct CallExpression<'a> {
-    /// The call expression.
-    id: dir::LocalNodeId<dir::Expression>,
-    /// The callee expression on the left side.
-    left: dir::LocalNodeId<dir::Expression>,
-    /// The argument nodes in source order.
-    arguments: &'a [dir::LocalNodeId<dir::Argument>],
-}
-
-impl CallSnippet {
-    /// Build a call insertion from named parameters.
-    pub(super) fn named(function_name: &str, parameter_names: &[String]) -> Self {
-        if parameter_names.is_empty() {
-            Self {
-                text: format!("{function_name}()"),
-                is_snippet: false,
-            }
-        } else {
-            let parameters = parameter_names
-                .iter()
-                .enumerate()
-                .map(|(index, parameter_name)| format!("${{{}:{}}}", index + 1, parameter_name))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            Self {
-                text: format!("{function_name}({parameters})$0"),
-                is_snippet: true,
-            }
-        }
-    }
-
-    /// Build a call insertion from positional placeholders.
-    fn placeholders(function_name: &str, parameter_count: usize) -> Self {
-        if parameter_count == 0 {
-            Self {
-                text: format!("{function_name}()"),
-                is_snippet: false,
-            }
-        } else {
-            let parameters = (1..=parameter_count)
-                .map(|index| format!("${{{index}}}"))
-                .collect::<Vec<_>>()
-                .join(", ");
-
-            Self {
-                text: format!("{function_name}({parameters})$0"),
-                is_snippet: true,
-            }
-        }
-    }
-
-    /// Build a positional call insertion from one callable type.
-    pub(super) fn positional(
-        function_name: &str,
-        type_id: dir::GlobalTypeId,
-        program: &ProgramQueryContext<'_>,
-    ) -> QueryResult<Self> {
-        program.read_type(type_id, |type_value, module| match type_value {
-            dir::Type::FunctionSignature(function) => {
-                let types = module.types()?;
-                let parameter_count = types
-                    .parameters(types.signature(*function).parameters)
-                    .len();
-
-                Ok(Self::placeholders(function_name, parameter_count))
-            }
-            dir::Type::Function(function) => {
-                Self::positional(function_name, function.signature, program)
-            }
-            dir::Type::FunctionPointer(function) => {
-                Self::positional(function_name, function.signature, program)
-            }
-            _ => Err(QueryError::invalid(format!("callable type: {type_id:?}"))),
-        })
-    }
-}
-
-impl<'a> CallExpression<'a> {
-    /// Resolve one call expression from an enclosing span.
-    fn from_span(view: dir::View<'a>, span: &EnclosingSpan) -> Option<Self> {
-        let node_id = view.get_node_id_by_source_id(span.source_id)?;
-        if node_id.ty != dir::NodeType::Expression {
-            return None;
-        }
-
-        let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
-        let expression = view.get::<dir::Expression>(expression_id);
-        let dir::Expression::Call {
-            left, arguments, ..
-        } = expression
-        else {
-            return None;
-        };
-        let call = Self {
-            id: expression_id,
-            left: *left,
-            arguments,
-        };
-
-        Some(call)
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Classify new expression completion at one offset.
-    pub(super) fn classify_new_expression(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
-        // search the spans enclosing the cursor
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
-
-        // scan spans for a new expression containing the cursor
-        for enclosing_span in &enclosing {
-            if let Some(context) =
-                self.classify_new_expression_span(file_id, enclosing_span, offset)?
-            {
-                return Ok(Some(context));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Classify call argument completion at one offset.
-    pub(super) fn classify_call_argument(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
-        // resolve enclosing spans at the cursor
-        let enclosing = self.sorted_enclosing_spans(file_id, offset, offset)?;
-
-        // bail out when there are no spans
-        if enclosing.is_empty() {
-            return Ok(None);
-        }
-
-        let view = self.view()?;
-
-        // scan spans for a call or new expression argument list
-        for enclosing_span in &enclosing {
-            if let Some(context) = self.classify_call_argument_span(view, enclosing_span, offset)? {
-                return Ok(Some(context));
-            }
-        }
-
-        // use separator ownership inside a call
-        if let Some(separator) = self.previous_significant_token(file_id, offset)? {
-            let is_separator = matches!(
-                separator.token.ty(),
-                dir::TokenType::OpenParenthesis | dir::TokenType::Comma
-            );
-            if is_separator
-                && let Some(context) = self.classify_call_argument_separator(
-                    file_id,
-                    view,
-                    separator.span.start,
-                    offset,
-                )?
-            {
-                return Ok(Some(context));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Classify new expression completion from one enclosing span.
-    fn classify_new_expression_span(
-        &self,
-        file_id: FileId,
-        enclosing_span: &EnclosingSpan,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
-        // only expression spans can own one `new` constructor region
-        let view = self.view()?;
-        let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
-            return Ok(None);
-        };
-        if node_id.ty != dir::NodeType::Expression {
-            return Ok(None);
-        }
-
-        let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
-        let expression = view.get(expression_id);
-        let dir::Expression::New {
-            ty: type_expression,
-            ..
-        } = expression
-        else {
-            return Ok(None);
-        };
-
-        // only explicit constructor text belongs to this path
-        if matches!(view.get(*type_expression), dir::TypeExpression::Missing) {
-            return Ok(None);
-        }
-
-        // only the constructor side should classify as one `new` completion position
-        let type_span = view.get_span(*type_expression);
-        if !type_span.owns_cursor(offset) {
-            return Ok(None);
-        }
-
-        let Some(scope) = self.scope_at_offset(file_id, offset)? else {
-            return Ok(None);
-        };
-
-        Ok(Some(CompletionContext::NewExpression { scope }))
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Classify call argument completion from one enclosing span.
-    fn classify_call_argument_span(
-        &self,
-        view: dir::View<'_>,
-        enclosing_span: &EnclosingSpan,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
-        let Some(call) = CallExpression::from_span(view, enclosing_span) else {
-            return Ok(None);
-        };
-        let left_span = self.left_expression_span(view, call.left)?;
-        let call_span = self.source_index()?.get(enclosing_span.source_id);
-
-        // only the argument list belongs to this path
-        if !self.cursor_in_argument_list(view, call.arguments, left_span, call_span, offset)? {
-            return Ok(None);
-        }
-
-        let Some(scope) = self.expression_scope_at_offset(call.id)? else {
-            return Ok(None);
-        };
-        let expected_type = self.expected_argument_type(call.id, call.arguments, offset)?;
-
-        Ok(Some(CompletionContext::CallArgument {
-            scope,
-            expected_type,
-        }))
-    }
-
-    /// Classify call argument completion after one separator.
-    fn classify_call_argument_separator(
-        &self,
-        file_id: FileId,
-        view: dir::View<'_>,
-        separator_position: u32,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
-        let Some(lookup_position) = separator_position.checked_sub(1) else {
-            return Ok(None);
-        };
-        let enclosing = self.sorted_enclosing_spans(file_id, lookup_position, lookup_position)?;
-
-        // read the exact authored call and its bound lexical scope
-        for enclosing_span in &enclosing {
-            let Some(call) = CallExpression::from_span(view, enclosing_span) else {
-                continue;
-            };
-            let left_span = self.left_expression_span(view, call.left)?;
-            if separator_position <= left_span.end {
-                continue;
-            }
-            let Some(scope) = self.expression_scope_at_offset(call.id)? else {
-                continue;
-            };
-            let expected_type = self.expected_argument_type(call.id, call.arguments, offset)?;
-
-            return Ok(Some(CompletionContext::CallArgument {
-                scope,
-                expected_type,
-            }));
-        }
-
-        Ok(None)
-    }
-
+impl CallOccurrence<'_> {
     /// Return the argument type selected at one cursor position.
-    fn expected_argument_type(
+    fn expected_type(
         &self,
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
         offset: u32,
+        module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<dir::GlobalTypeId>> {
-        let call_id = expression_id.into_global_any(self.module_id());
-        let call = self.decisions()?.call_decision(call_id);
-        let construct = self.decisions()?.construct_decision(call_id);
+        // read the exact decision for this authored call
+        let call_id = self.id.into_global_any(module.module_id());
+        let decisions = module.decisions()?;
+        match decisions.decision(call_id) {
+            Some(dir::Decision::Construct(selection)) => {
+                let parameter =
+                    module.active_parameter(self.arguments, &selection.arguments, offset)?;
 
-        // require one resolution column for this source expression
-        if call.is_some() && construct.is_some() {
-            return Err(QueryError::conflict(format!(
-                "completion resolution columns: {call_id:?}"
-            )));
-        }
+                Ok(parameter.map(|parameter| selection.arguments[parameter].argument_type))
+            }
+            Some(dir::Decision::Call(selection)) => {
+                let mut expected_type = None;
 
-        // unresolved calls have no expected argument type
-        if call.is_none() && construct.is_none() {
-            return Ok(None);
-        }
+                // require every selected call arm to agree
+                for call in selection.arms() {
+                    let Some(parameter) =
+                        module.active_parameter(self.arguments, &call.arguments, offset)?
+                    else {
+                        return Ok(None);
+                    };
+                    let argument_type = call.arguments[parameter].argument_type;
+                    if expected_type.is_some_and(|expected| expected != argument_type) {
+                        return Ok(None);
+                    }
+                    expected_type = Some(argument_type);
+                }
 
-        // collect the type selected by every call arm
-        let mut types = Vec::new();
-        for selection in call.into_iter().flat_map(dir::CallDecision::arms) {
-            let Some(parameter) = self.active_parameter(arguments, &selection.arguments, offset)?
-            else {
-                return Ok(None);
-            };
-
-            types.push(selection.arguments[parameter].argument_type);
-        }
-        if let Some(selection) = construct
-            && let Some(parameter) =
-                self.active_parameter(arguments, &selection.arguments, offset)?
-        {
-            types.push(selection.arguments[parameter].argument_type);
-        }
-
-        // retain an expectation only when every selected arm agrees
-        types.sort();
-        types.dedup();
-
-        match types.as_slice() {
-            [] => Ok(None),
-            [type_id] => Ok(Some(*type_id)),
+                Ok(expected_type)
+            }
             _ => Ok(None),
         }
     }
 }
 
-impl ModuleQueryContext<'_> {
-    /// Resolve the source span for one call target expression.
-    fn left_expression_span(
-        &self,
-        view: dir::View<'_>,
-        left: dir::LocalNodeId<dir::Expression>,
-    ) -> QueryResult<Span> {
-        let left_node_id: dir::LocalNodeIdAny = left.into();
-
-        self.node_span(view, left_node_id)
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Check whether the cursor is inside a call argument list.
-    fn cursor_in_argument_list(
-        &self,
-        view: dir::View<'_>,
-        arguments: &[dir::LocalNodeId<dir::Argument>],
-        left_span: Span,
-        call_span: Span,
-        offset: u32,
-    ) -> QueryResult<bool> {
-        // check the exact authored argument bounds when arguments are present
-        if let Some((first, rest)) = arguments.split_first() {
-            let first_node_id: dir::LocalNodeIdAny = (*first).into();
-            let first_span = self.node_span(view, first_node_id)?;
-            let mut min_start = first_span.start;
-            let mut max_end = first_span.end;
-
-            for argument_id in rest {
-                let argument_node_id: dir::LocalNodeIdAny = (*argument_id).into();
-                let span = self.node_span(view, argument_node_id)?;
-                min_start = min_start.min(span.start);
-                max_end = max_end.max(span.end);
+impl Cursor<'_, '_> {
+    /// Classify completion in the target of an explicit construction.
+    pub(super) fn classify_constructor(&self) -> QueryResult<Option<CompletionPosition>> {
+        // select an enclosing construction with an authored target type
+        let view = self.module.view()?;
+        for enclosing in self.enclosing() {
+            let Some(call) = CallOccurrence::select(enclosing, self.module)? else {
+                continue;
+            };
+            if call.target.ty != dir::NodeType::TypeExpression {
+                continue;
+            }
+            let target = dir::LocalNodeId::<dir::TypeExpression>::new(call.target.id);
+            if matches!(view.get(target), dir::TypeExpression::Missing) {
+                continue;
             }
 
-            if offset >= min_start && offset <= max_end {
-                return Ok(true);
+            // classify insertion points within the constructor name
+            if view.get_span(target).owns_cursor(self.offset) {
+                let Some(scope) = self.scope()? else {
+                    return Ok(None);
+                };
+
+                return Ok(Some(CompletionPosition::Constructor { scope }));
             }
         }
 
-        Ok(offset > left_span.end && offset <= call_span.end)
+        Ok(None)
+    }
+
+    /// Classify completion in an authored argument list.
+    pub(super) fn classify_call_argument(&self) -> QueryResult<Option<CompletionPosition>> {
+        // retain exact source containment for argument completion
+        let mut enclosing = self
+            .enclosing()
+            .iter()
+            .filter(|span| span.span.contains(self.offset))
+            .peekable();
+        if enclosing.peek().is_none() {
+            return Ok(None);
+        }
+
+        // select the innermost argument list with a recorded scope
+        for enclosing in enclosing {
+            let Some(call) = CallOccurrence::select(enclosing, self.module)? else {
+                continue;
+            };
+            if call.is_argument_position(self.offset, self.module)?
+                && let Some(context) = self.classify_argument(&call)?
+            {
+                return Ok(Some(context));
+            }
+        }
+
+        // select the argument list preceding an authored separator
+        let Some(separator) = self
+            .module
+            .previous_significant_token(self.file_id, self.offset)?
+        else {
+            return Ok(None);
+        };
+        if !matches!(
+            separator.token.ty(),
+            dir::TokenType::OpenParenthesis | dir::TokenType::Comma
+        ) {
+            return Ok(None);
+        }
+        let Some(previous) = separator.span.start.checked_sub(1) else {
+            return Ok(None);
+        };
+
+        // inspect the exact source position before the separator
+        let enclosing = self
+            .module
+            .sorted_enclosing_spans(self.file_id, previous, previous)?;
+        let view = self.module.view()?;
+        for enclosing in &enclosing {
+            let Some(call) = CallOccurrence::select(enclosing, self.module)? else {
+                continue;
+            };
+            let target = self.module.node_span(view, call.target)?;
+            if separator.span.start > target.end
+                && let Some(context) = self.classify_argument(&call)?
+            {
+                return Ok(Some(context));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Read the lexical scope and expected argument type for one call.
+    fn classify_argument(
+        &self,
+        call: &CallOccurrence<'_>,
+    ) -> QueryResult<Option<CompletionPosition>> {
+        let Some(scope) = self.module.expression_scope(call.id)? else {
+            return Ok(None);
+        };
+        let expected_type = call.expected_type(self.offset, self.module)?;
+
+        Ok(Some(CompletionPosition::Value {
+            scope,
+            expected_type,
+        }))
     }
 }

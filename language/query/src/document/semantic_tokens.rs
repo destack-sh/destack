@@ -1620,9 +1620,10 @@ impl<'owner, 'module, 'program> SemanticTokens<'owner, 'module, 'program> {
 
             // collect only segments carrying exact symbol targets
             for span in spans {
-                let Some(occurrence) =
-                    self.module
-                        .symbol_at_offset(self.program, span.file, span.start)?
+                let Some(occurrence) = self
+                    .module
+                    .cursor(span.file, span.start)?
+                    .symbol(self.program)?
                 else {
                     continue;
                 };

@@ -43,8 +43,9 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<FindReferencesResponse> {
         // read the exact local alias or selected identities at the cursor
         let position = request.position;
-        let Some(occurrence) =
-            self.reference_at_offset(program, position.file_id, position.offset)?
+        let Some(occurrence) = self
+            .cursor(position.file_id, position.offset)?
+            .reference(program)?
         else {
             return Ok(FindReferencesResponse {
                 references: Vec::new(),

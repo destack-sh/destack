@@ -29,10 +29,11 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<GotoTypeDefinitionResponse> {
         let position = request.position;
-        let occurrence = self.symbol_at_offset(program, position.file_id, position.offset)?;
+        let cursor = self.cursor(position.file_id, position.offset)?;
+        let occurrence = cursor.symbol(program)?;
         let (span, symbols, type_id) = if let Some(occurrence) = occurrence {
             (occurrence.span, occurrence.symbols, occurrence.type_id)
-        } else if let Some(occurrence) = self.type_at_offset(position.file_id, position.offset)? {
+        } else if let Some(occurrence) = cursor.ty()? {
             (occurrence.span, Vec::new(), Some(occurrence.type_id))
         } else {
             return Ok(GotoTypeDefinitionResponse {

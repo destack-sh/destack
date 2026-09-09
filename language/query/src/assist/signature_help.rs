@@ -1,3 +1,5 @@
+use std::slice;
+
 use destack_dir as dir;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
@@ -59,93 +61,63 @@ impl ModuleQueryContext<'_> {
         request: SignatureHelpRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<SignatureHelpResponse> {
+        // select the innermost authored call
         let position = request.position;
         let file_id = position.file_id;
         let offset = position.offset;
-        let view = self.view()?;
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
+        let cursor = self.cursor(file_id, offset)?;
+        let Some(call) = cursor.call()? else {
+            return Ok(SignatureHelpResponse { help: None });
+        };
 
-        // select the innermost call with one recorded resolution
-        for enclosing in enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing.source_id) else {
-                continue;
-            };
-            if node_id.ty != dir::NodeType::Expression {
-                continue;
+        // read the recorded decision for the selected call
+        let global_id = call.id.into_global_any(self.module_id());
+        let decisions = self.decisions()?;
+        let (signatures, bindings) = match decisions.decision(global_id) {
+            Some(dir::Decision::Construct(selection)) => {
+                let signatures = self.construct_signature_items(program, selection)?;
+
+                (signatures, Some(selection.arguments.as_slice()))
             }
+            Some(dir::Decision::Call(selection)) => {
+                let signatures =
+                    self.call_signature_items(program, call.target, selection.arms())?;
 
-            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
-            let global_id = expression_id.into_global_any(self.module_id());
-            let (signatures, arguments, bindings) = match view.get(expression_id) {
-                dir::Expression::Call {
-                    left, arguments, ..
-                } => {
-                    let call = self.decisions()?.selected_calls(global_id);
-                    let construct = self.decisions()?.construct_decision(global_id);
-                    if call.is_some() && construct.is_some() {
-                        return Err(QueryError::conflict(format!(
-                            "signature resolution columns: {global_id:?}"
-                        )));
-                    }
+                (signatures, decisions.agreed_call_arguments(global_id))
+            }
+            Some(dir::Decision::Attempted(selection)) => {
+                let signatures = self.call_signature_items(
+                    program,
+                    call.target,
+                    slice::from_ref(selection.as_ref()),
+                )?;
 
-                    if let Some(resolution) = construct {
-                        let signatures = self.construct_signature_items(program, resolution)?;
+                (signatures, Some(selection.arguments.as_slice()))
+            }
+            _ => return Ok(SignatureHelpResponse { help: None }),
+        };
 
-                        (
-                            signatures,
-                            arguments.as_slice(),
-                            Some(resolution.arguments.as_slice()),
-                        )
-                    } else {
-                        let Some(calls) = call else {
-                            return Ok(SignatureHelpResponse { help: None });
-                        };
-                        let signatures = self.call_signature_items(program, *left, calls)?;
+        // select the active parameter from the recorded argument bindings
+        let active_parameter = match bindings {
+            Some(bindings) => self.active_parameter(call.arguments, bindings, offset)?,
+            None => None,
+        };
 
-                        (
-                            signatures,
-                            arguments.as_slice(),
-                            self.decisions()?.agreed_call_arguments(global_id),
-                        )
-                    }
-                }
-                dir::Expression::New { arguments, .. } => {
-                    let Some(resolution) = self.decisions()?.construct_decision(global_id) else {
-                        return Ok(SignatureHelpResponse { help: None });
-                    };
-                    let signatures = self.construct_signature_items(program, resolution)?;
+        // return the formatted signatures and active parameter
+        let help = SignatureHelp {
+            signatures,
+            active_signature: 0,
+            active_parameter,
+        };
 
-                    (
-                        signatures,
-                        arguments.as_slice(),
-                        Some(resolution.arguments.as_slice()),
-                    )
-                }
-                _ => continue,
-            };
-
-            let active_parameter = match bindings {
-                Some(bindings) => self.active_parameter(arguments, bindings, offset)?,
-                None => None,
-            };
-
-            let help = SignatureHelp {
-                signatures,
-                active_signature: 0,
-                active_parameter,
-            };
-
-            return Ok(SignatureHelpResponse { help: Some(help) });
-        }
-
-        Ok(SignatureHelpResponse { help: None })
+        Ok(SignatureHelpResponse { help: Some(help) })
     }
 
     /// Format every statically selected symbol call target.
     fn call_signature_items(
         &self,
         program: &ProgramQueryContext<'_>,
-        callee_id: dir::LocalNodeId<dir::Expression>,
+        callee_id: dir::LocalNodeIdAny,
         calls: &[dir::Call],
     ) -> QueryResult<Vec<SignatureItem>> {
         let mut signatures = Vec::new();
@@ -249,14 +221,14 @@ impl ModuleQueryContext<'_> {
     fn expression_signature_item(
         &self,
         program: &ProgramQueryContext<'_>,
-        callee_id: dir::LocalNodeId<dir::Expression>,
+        callee_id: dir::LocalNodeIdAny,
         callable_type: dir::GlobalTypeId,
         generic_arguments: &[dir::GenericArgumentBinding],
         bindings: &[dir::ArgumentBinding],
         return_type: dir::GlobalTypeId,
     ) -> QueryResult<SignatureItem> {
         // format the authored callee and exact checked parameter types
-        let span = self.node_span(self.view()?, callee_id.into())?;
+        let span = self.node_span(self.view()?, callee_id)?;
         let name = self.source_text(span)?;
         let formatter = Formatter::new(self, program);
         let parameter_names = formatter.callable_parameter_labels(callable_type)?;
@@ -301,14 +273,13 @@ impl ModuleQueryContext<'_> {
                 "dynamic signature parameters: {node:?}"
             )));
         };
-        let parameters = parameters.to_vec();
 
         self.selected_signature_item(
             program,
             &module,
             Some(node.local_id),
             name,
-            &parameters,
+            parameters,
             generic_arguments,
             bindings,
             return_type,

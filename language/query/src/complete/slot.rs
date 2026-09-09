@@ -1,18 +1,126 @@
 use destack_dir as dir;
-use destack_source::FileId;
 
-use crate::{ModuleQueryContext, QueryResult};
+use crate::QueryResult;
+use crate::cursor::Cursor;
 
 /// The structural owner for one expression slot.
 #[derive(Debug, Clone, Copy)]
 enum ExpressionSlotOwner {
     /// The slot is the value side of a declarator.
-    DeclaratorValue(dir::LocalNodeId<dir::Declarator>),
+    DeclaratorValue,
     /// The slot expects a value expression.
     Value,
 }
 
+impl Cursor<'_, '_> {
+    /// Return whether the cursor occupies a parser-authored expression slot.
+    pub(super) fn is_expression_slot(&self) -> QueryResult<bool> {
+        let owner = self.expression_slot_owner()?;
+
+        Ok(owner.is_some())
+    }
+
+    /// Check whether the cursor sits in a declarator initializer hole.
+    pub(super) fn is_declarator_value_hole(&self) -> QueryResult<bool> {
+        Ok(matches!(
+            self.expression_slot_owner()?,
+            Some(ExpressionSlotOwner::DeclaratorValue)
+        ))
+    }
+
+    /// Resolve the structural owner for the innermost expression slot at the cursor.
+    fn expression_slot_owner(&self) -> QueryResult<Option<ExpressionSlotOwner>> {
+        let Some(expression) = self.expression_hole()? else {
+            return Ok(None);
+        };
+
+        Ok(ExpressionSlotOwner::select(self.module.view()?, expression))
+    }
+
+    /// Resolve the binding pattern being initialized at one cursor offset.
+    pub(crate) fn initializing_pattern(
+        &self,
+    ) -> QueryResult<Option<dir::LocalNodeId<dir::Pattern>>> {
+        let view = self.module.view()?;
+        let enclosing = self.enclosing();
+        let node_id = enclosing
+            .iter()
+            .find_map(|span| view.get_node_id_by_source_id(span.source_id));
+        let Some(node_id) = node_id else {
+            return Ok(None);
+        };
+
+        // select a destructuring default initialized at the cursor
+        if let Some(default_id) = view.ancestor::<dir::Pattern>(node_id)
+            && let dir::Pattern::Default { pattern, value } = view.get(default_id)
+            && view.is_inside(node_id, (*value).into_any())
+        {
+            return Ok(Some(*pattern));
+        }
+
+        // select a declarator initialized at the cursor
+        if let Some(declarator_id) = view.ancestor::<dir::Declarator>(node_id) {
+            let declarator = view.get(declarator_id);
+            if declarator
+                .value
+                .is_some_and(|value| view.is_inside(node_id, value.into_any()))
+            {
+                return Ok(Some(declarator.pattern));
+            }
+        }
+
+        Ok(None)
+    }
+}
+
 impl ExpressionSlotOwner {
+    /// Resolve the structural context for one expression hole.
+    fn select(
+        view: dir::View<'_>,
+        expression_id: dir::LocalNodeId<dir::Expression>,
+    ) -> Option<ExpressionSlotOwner> {
+        let parent_id = view.get_parent_for(expression_id)?;
+
+        match parent_id.ty {
+            dir::NodeType::Declarator => {
+                let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id.id);
+                let declarator = view.get(declarator_id);
+
+                if declarator.value == Some(expression_id) {
+                    return Some(ExpressionSlotOwner::DeclaratorValue);
+                }
+
+                None
+            }
+            dir::NodeType::Parameter => {
+                let parameter = view.get(dir::LocalNodeId::<dir::Parameter>::new(parent_id.id));
+                ExpressionSlotOwner::parameter_owns(parameter, expression_id)
+                    .then_some(ExpressionSlotOwner::Value)
+            }
+            dir::NodeType::Argument => {
+                let argument = view.get(dir::LocalNodeId::<dir::Argument>::new(parent_id.id));
+                ExpressionSlotOwner::argument_owns(argument, expression_id)
+                    .then_some(ExpressionSlotOwner::Value)
+            }
+            dir::NodeType::Property => {
+                let property = view.get(dir::LocalNodeId::<dir::Property>::new(parent_id.id));
+                ExpressionSlotOwner::property_owns(property, expression_id)
+                    .then_some(ExpressionSlotOwner::Value)
+            }
+            dir::NodeType::Member => {
+                let member = view.get(dir::LocalNodeId::<dir::Member>::new(parent_id.id));
+                ExpressionSlotOwner::member_owns(member, expression_id)
+                    .then_some(ExpressionSlotOwner::Value)
+            }
+            dir::NodeType::Expression => {
+                let parent = view.get(dir::LocalNodeId::<dir::Expression>::new(parent_id.id));
+                ExpressionSlotOwner::expression_owns(view, parent, expression_id)
+                    .then_some(ExpressionSlotOwner::Value)
+            }
+            _ => None,
+        }
+    }
+
     /// Return whether a parameter owns this expression child.
     fn parameter_owns(
         parameter: &dir::Parameter,
@@ -151,138 +259,5 @@ impl ExpressionSlotOwner {
             }),
             dir::AssignPatternField::Elision => false,
         }
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Return whether the cursor occupies a parser-authored expression slot.
-    pub(super) fn is_expression_slot_at_offset(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<bool> {
-        let owner = self.expression_slot_owner(file_id, offset)?;
-
-        Ok(owner.is_some())
-    }
-
-    /// Check whether the cursor sits in a declarator initializer hole.
-    pub(super) fn is_declarator_value_hole(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<bool> {
-        let view = self.view()?;
-        let Some(ExpressionSlotOwner::DeclaratorValue(declarator_id)) =
-            self.expression_slot_owner(file_id, offset)?
-        else {
-            return Ok(false);
-        };
-
-        let declarator = view.get(declarator_id);
-        let Some(value_id) = declarator.value else {
-            return Ok(false);
-        };
-
-        Ok(matches!(view.get(value_id), dir::Expression::Missing))
-    }
-
-    /// Resolve the structural owner for the innermost expression slot at the cursor.
-    fn expression_slot_owner(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<ExpressionSlotOwner>> {
-        let Some(expression) = self.expression_hole_at_offset(file_id, offset)? else {
-            return Ok(None);
-        };
-
-        Ok(expression_hole_owner(self.view()?, expression))
-    }
-}
-
-/// Resolve the structural context for one expression hole.
-fn expression_hole_owner(
-    view: dir::View<'_>,
-    expression_id: dir::LocalNodeId<dir::Expression>,
-) -> Option<ExpressionSlotOwner> {
-    let parent_id = view.get_parent_for(expression_id)?;
-
-    match parent_id.ty {
-        dir::NodeType::Declarator => {
-            let declarator_id = dir::LocalNodeId::<dir::Declarator>::new(parent_id.id);
-            let declarator = view.get(declarator_id);
-
-            if declarator.value == Some(expression_id) {
-                return Some(ExpressionSlotOwner::DeclaratorValue(declarator_id));
-            }
-
-            None
-        }
-        dir::NodeType::Parameter => {
-            let parameter = view.get(dir::LocalNodeId::<dir::Parameter>::new(parent_id.id));
-            ExpressionSlotOwner::parameter_owns(parameter, expression_id)
-                .then_some(ExpressionSlotOwner::Value)
-        }
-        dir::NodeType::Argument => {
-            let argument = view.get(dir::LocalNodeId::<dir::Argument>::new(parent_id.id));
-            ExpressionSlotOwner::argument_owns(argument, expression_id)
-                .then_some(ExpressionSlotOwner::Value)
-        }
-        dir::NodeType::Property => {
-            let property = view.get(dir::LocalNodeId::<dir::Property>::new(parent_id.id));
-            ExpressionSlotOwner::property_owns(property, expression_id)
-                .then_some(ExpressionSlotOwner::Value)
-        }
-        dir::NodeType::Member => {
-            let member = view.get(dir::LocalNodeId::<dir::Member>::new(parent_id.id));
-            ExpressionSlotOwner::member_owns(member, expression_id)
-                .then_some(ExpressionSlotOwner::Value)
-        }
-        dir::NodeType::Expression => {
-            let parent = view.get(dir::LocalNodeId::<dir::Expression>::new(parent_id.id));
-            ExpressionSlotOwner::expression_owns(view, parent, expression_id)
-                .then_some(ExpressionSlotOwner::Value)
-        }
-        _ => None,
-    }
-}
-
-impl ModuleQueryContext<'_> {
-    /// Resolve the binding pattern being initialized at one cursor offset.
-    pub(crate) fn initializing_pattern_at_offset(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<dir::LocalNodeId<dir::Pattern>>> {
-        let view = self.view()?;
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
-        let node_id = enclosing
-            .into_iter()
-            .find_map(|span| view.get_node_id_by_source_id(span.source_id));
-        let Some(node_id) = node_id else {
-            return Ok(None);
-        };
-
-        // select a destructuring default initialized at the cursor
-        if let Some(default_id) = view.ancestor::<dir::Pattern>(node_id)
-            && let dir::Pattern::Default { pattern, value } = view.get(default_id)
-            && view.is_inside(node_id, (*value).into_any())
-        {
-            return Ok(Some(*pattern));
-        }
-
-        // select a declarator initialized at the cursor
-        if let Some(declarator_id) = view.ancestor::<dir::Declarator>(node_id) {
-            let declarator = view.get(declarator_id);
-            if declarator
-                .value
-                .is_some_and(|value| view.is_inside(node_id, value.into_any()))
-            {
-                return Ok(Some(declarator.pattern));
-            }
-        }
-
-        Ok(None)
     }
 }

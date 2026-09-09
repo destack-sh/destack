@@ -64,7 +64,9 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<HighlightResponse> {
         let position = request.position;
         let file_id = position.file_id;
-        let Some(occurrence) = self.declaration_at_offset(program, file_id, position.offset)?
+        let Some(occurrence) = self
+            .cursor(file_id, position.offset)?
+            .declaration(program)?
         else {
             return Ok(HighlightResponse {
                 highlights: Vec::new(),

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
 
+use crate::cursor::Cursor;
 use crate::{
     Formatter, ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult,
     Target,
@@ -57,18 +57,19 @@ impl ModuleQueryContext<'_> {
         request: CallItemRequest,
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<CallItemResponse> {
+        // select the authored position once for call and symbol lookup
         let position = request.position;
+        let cursor = self.cursor(position.file_id, position.offset)?;
 
         // use only the exact callable key at a call head
-        if let Some(key) = self.selected_callable_at_offset(position.file_id, position.offset)? {
+        if let Some(key) = cursor.callable()? {
             let item = CallItem::from_selection(program, key)?;
 
             return Ok(CallItemResponse { item });
         }
 
         // otherwise classify the exact symbol occurrence
-        let Some(symbol_at) = self.symbol_at_offset(program, position.file_id, position.offset)?
-        else {
+        let Some(symbol_at) = cursor.symbol(program)? else {
             return Ok(CallItemResponse { item: None });
         };
         let Some(symbol_id) = symbol_at.symbol() else {
@@ -260,34 +261,6 @@ impl CallItem {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Return one exact callable selected at an authored call head.
-    fn selected_callable_at_offset(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<CallableSelection<'_>>> {
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
-        let view = self.view()?;
-
-        // inspect authored owners from the narrowest span outward
-        for enclosing_span in enclosing {
-            let Some(main) = self.source_index()?.get_main(enclosing_span.source_id) else {
-                continue;
-            };
-            if !main.owns_cursor(offset) {
-                continue;
-            }
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
-                continue;
-            };
-            if let Some(key) = self.selected_callable_at_node(view, node_id)? {
-                return Ok(Some(key));
-            }
-        }
-
-        Ok(None)
-    }
-
     /// Return the callable selected by the call expression owning one head node.
     fn selected_callable_at_node(
         &self,
@@ -316,7 +289,7 @@ impl ModuleQueryContext<'_> {
                     ty: type_expression,
                     ..
                 } if type_expression.into_any() == current => {
-                    return CallableSelection::from_construct(expression_id, self).map(Some);
+                    return CallableSelection::from_call(expression_id, self).map(Some);
                 }
                 _ => return Ok(None),
             }
@@ -331,43 +304,17 @@ impl CallableSelection<'_> {
         module: &'a ModuleQueryContext<'_>,
     ) -> QueryResult<CallableSelection<'a>> {
         let node_id = expression_id.into_global_any(module.module_id());
-        let call = module.decisions()?.call_decision(node_id);
-        let construct = module.decisions()?.construct_decision(node_id);
-        if call.is_some() && construct.is_some() {
-            return Err(QueryError::conflict(format!(
-                "call item resolution columns: {node_id:?}"
-            )));
+
+        // select one declaration from the recorded call or construction
+        match module.decisions()?.decision(node_id) {
+            Some(dir::Decision::Construct(selection)) => Self::from_resolution(selection),
+            Some(dir::Decision::Call(selection)) => match selection.target_symbols().as_slice() {
+                [] => Ok(CallableSelection::DeclarationFree),
+                [symbol_id] => Ok(CallableSelection::Symbol(*symbol_id)),
+                _ => Ok(CallableSelection::Multiple),
+            },
+            _ => Err(QueryError::missing(format!("call item key: {node_id:?}"))),
         }
-        if let Some(resolution) = construct {
-            return Self::from_resolution(resolution);
-        }
-
-        // otherwise require the ordinary call key
-        let resolution = call.ok_or(QueryError::missing(format!("call item key: {node_id:?}")))?;
-
-        // represent only one singular declaration as an item
-        match resolution.target_symbols().as_slice() {
-            [] => Ok(CallableSelection::DeclarationFree),
-            [symbol_id] => Ok(CallableSelection::Symbol(*symbol_id)),
-            _ => Ok(CallableSelection::Multiple),
-        }
-    }
-
-    /// Return the declaration-backed callable selected by one construction.
-    fn from_construct<'a>(
-        expression_id: dir::LocalNodeId<dir::Expression>,
-        module: &'a ModuleQueryContext<'_>,
-    ) -> QueryResult<CallableSelection<'a>> {
-        let node_id = expression_id.into_global_any(module.module_id());
-        let resolution =
-            module
-                .decisions()?
-                .construct_decision(node_id)
-                .ok_or(QueryError::missing(format!(
-                    "call item construction: {node_id:?}"
-                )))?;
-
-        Self::from_resolution(resolution)
     }
 
     /// Return the callable represented by one construction.
@@ -653,5 +600,35 @@ impl ModuleQueryContext<'_> {
             )))?;
 
         Target::new(self.module(), range).with_selection_span(key)
+    }
+}
+
+impl Cursor<'_, '_> {
+    /// Return one exact callable selected at an authored call head.
+    fn callable(&self) -> QueryResult<Option<CallableSelection<'_>>> {
+        let enclosing = self.enclosing();
+        let view = self.module.view()?;
+
+        // inspect authored owners from the narrowest span outward
+        for enclosing_span in enclosing {
+            let Some(main) = self
+                .module
+                .source_index()?
+                .get_main(enclosing_span.source_id)
+            else {
+                continue;
+            };
+            if !main.owns_cursor(self.offset) {
+                continue;
+            }
+            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+                continue;
+            };
+            if let Some(key) = self.module.selected_callable_at_node(view, node_id)? {
+                return Ok(Some(key));
+            }
+        }
+
+        Ok(None)
     }
 }

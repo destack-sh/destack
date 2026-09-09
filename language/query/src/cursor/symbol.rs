@@ -1,6 +1,7 @@
 use destack_dir as dir;
-use destack_source::{FileId, NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
+use crate::cursor::Cursor;
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
 /// One symbol occurrence at an authored source span.
@@ -34,28 +35,23 @@ impl SymbolOccurrence {
     }
 }
 
-impl ModuleQueryContext<'_> {
+impl Cursor<'_, '_> {
     /// Return the recorded symbol occurrence at an authored span.
-    pub(crate) fn symbol_at_offset(
+    pub(crate) fn symbol(
         &self,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
-            self.symbol_occurrence(program, view, node_id, span, offset)
+        self.occurrence(|view, node_id, span, offset| {
+            self.module
+                .symbol_occurrence(program, view, node_id, span, offset)
         })
     }
 
     /// Return the type occurrence at an authored span.
-    pub(crate) fn type_at_offset(
-        &self,
-        file_id: FileId,
-        offset: u32,
-    ) -> QueryResult<Option<TypeOccurrence>> {
-        self.occurrence_at_offset(file_id, offset, |_view, node_id, span, _offset| {
-            let node_id = node_id.into_global(self.module_id());
-            let Some(type_id) = self.types()?.get_node_type_id(node_id) else {
+    pub(crate) fn ty(&self) -> QueryResult<Option<TypeOccurrence>> {
+        self.occurrence(|_view, node_id, span, _offset| {
+            let node_id = node_id.into_global(self.module.module_id());
+            let Some(type_id) = self.module.types()?.get_node_type_id(node_id) else {
                 return Ok(None);
             };
 
@@ -64,29 +60,28 @@ impl ModuleQueryContext<'_> {
     }
 
     /// Return the recorded declaration occurrence at an authored span.
-    pub(crate) fn declaration_at_offset(
+    pub(crate) fn declaration(
         &self,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
-            self.declaration_occurrence(program, view, node_id, span, offset)
+        self.occurrence(|view, node_id, span, offset| {
+            self.module
+                .declaration_occurrence(program, view, node_id, span, offset)
         })
     }
 
     /// Return the identity used by a reference search at an authored span.
-    pub(crate) fn reference_at_offset(
+    pub(crate) fn reference(
         &self,
         program: &ProgramQueryContext<'_>,
-        file_id: FileId,
-        offset: u32,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        self.occurrence_at_offset(file_id, offset, |view, node_id, span, offset| {
+        self.occurrence(|view, node_id, span, offset| {
             // explicit import aliases retain their local declaration identity
-            let declaration = self.declaration_occurrence(program, view, node_id, span, offset)?;
+            let declaration = self
+                .module
+                .declaration_occurrence(program, view, node_id, span, offset)?;
             let is_local_alias = match declaration.as_ref().and_then(SymbolOccurrence::symbol) {
-                Some(symbol) => self.is_local_import_alias(symbol)?,
+                Some(symbol) => self.module.is_local_import_alias(symbol)?,
                 None => false,
             };
             let is_definition_member = match declaration.as_ref().and_then(SymbolOccurrence::symbol)
@@ -103,15 +98,14 @@ impl ModuleQueryContext<'_> {
             }
 
             // all other occurrences use their selected targets
-            self.symbol_occurrence(program, view, node_id, span, offset)
+            self.module
+                .symbol_occurrence(program, view, node_id, span, offset)
         })
     }
 
     /// Find one occurrence by visiting authored source owners at an offset.
-    fn occurrence_at_offset<T>(
+    fn occurrence<T>(
         &self,
-        file_id: FileId,
-        offset: u32,
         mut occurrence_at_node: impl FnMut(
             dir::View<'_>,
             dir::LocalNodeIdAny,
@@ -121,43 +115,48 @@ impl ModuleQueryContext<'_> {
     ) -> QueryResult<Option<T>> {
         // exclude comments from symbol occurrences
         let is_comment = self
-            .comments(file_id)?
+            .module
+            .comments(self.file_id)?
             .iter()
-            .any(|comment| comment.span.contains(offset));
+            .any(|comment| comment.span.contains(self.offset));
         if is_comment {
             return Ok(None);
         }
 
         // visit authored source owners from smallest to largest
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
-        let view = self.view()?;
+        let enclosing = self.enclosing();
+        let view = self.module.view()?;
+        let index = self.module.source_index()?;
         for enclosing_span in enclosing {
             let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
                 continue;
             };
-            let main_span = self
-                .source_index()?
-                .get_main_or_enclosing(enclosing_span.source_id);
+            let main_span = index.get_main_or_enclosing(enclosing_span.source_id);
 
             // select the authored name inside nodes that own several names
             let span = if node_id.ty == dir::NodeType::DependencyItem {
                 main_span
             } else {
-                let Some(span) = self.name_span(view, node_id, main_span, offset)? else {
+                let Some(span) = self
+                    .module
+                    .name_span(view, node_id, main_span, self.offset)?
+                else {
                     continue;
                 };
 
                 span
             };
 
-            if let Some(occurrence) = occurrence_at_node(view, node_id, span, offset)? {
+            if let Some(occurrence) = occurrence_at_node(view, node_id, span, self.offset)? {
                 return Ok(Some(occurrence));
             }
         }
 
         Ok(None)
     }
+}
 
+impl ModuleQueryContext<'_> {
     /// Return the authored name span selected inside one DIR node.
     fn name_span(
         &self,
@@ -703,39 +702,26 @@ impl ModuleQueryContext<'_> {
         call_id: dir::GlobalNodeIdAny,
         span: Span,
     ) -> QueryResult<Option<SymbolOccurrence>> {
-        let construct = self.decisions()?.construct_decision(call_id);
-        let call = self.decisions()?.call_decision(call_id);
-
-        // require one authoritative call selection
-        if construct.is_some() && call.is_some() {
-            return Err(QueryError::conflict(format!(
-                "call resolution columns: {call_id:?}"
-            )));
-        }
-
-        // read nominal calls from their exact checked construction
-        if let Some(resolution) = construct {
-            return Ok(Some(SymbolOccurrence {
-                symbols: resolution.target.symbol().into_iter().collect(),
-                type_id: Some(resolution.return_type),
+        match self.decisions()?.decision(call_id) {
+            Some(dir::Decision::Construct(selection)) => Ok(Some(SymbolOccurrence {
+                symbols: selection.target.symbol().into_iter().collect(),
+                type_id: Some(selection.return_type),
                 span,
-            }));
-        }
+            })),
+            Some(dir::Decision::Call(selection)) => {
+                let symbols = selection.target_symbols();
+                if symbols.is_empty() {
+                    return Ok(None);
+                }
 
-        // otherwise read an ordinary checked call selection
-        let Some(resolution) = call else {
-            return Ok(None);
-        };
-        let symbols = resolution.target_symbols();
-        if symbols.is_empty() {
-            return Ok(None);
+                Ok(Some(SymbolOccurrence {
+                    symbols,
+                    type_id: selection.agreed_callable_type(),
+                    span,
+                }))
+            }
+            _ => Ok(None),
         }
-
-        Ok(Some(SymbolOccurrence {
-            symbols,
-            type_id: resolution.agreed_callable_type(),
-            span,
-        }))
     }
 
     /// Return the recorded dependency symbol at one authored dependency name.

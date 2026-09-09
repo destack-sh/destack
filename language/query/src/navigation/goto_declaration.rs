@@ -28,8 +28,9 @@ impl ModuleQueryContext<'_> {
         program: &ProgramQueryContext<'_>,
     ) -> QueryResult<GotoDeclarationResponse> {
         let position = request.position;
-        let Some(occurrence) =
-            self.declaration_at_offset(program, position.file_id, position.offset)?
+        let Some(occurrence) = self
+            .cursor(position.file_id, position.offset)?
+            .declaration(program)?
         else {
             return Ok(GotoDeclarationResponse {
                 targets: Vec::new(),

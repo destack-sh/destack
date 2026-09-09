@@ -226,7 +226,8 @@ impl ExtractionTarget {
         // resolve the insertion scope
         let statement = self.site.statement;
         let scope = module
-            .scope_at_offset(statement.file, statement.start)?
+            .cursor(statement.file, statement.start)?
+            .scope()?
             .ok_or(QueryError::missing(format!(
                 "extraction scope: {statement:?}"
             )))?;

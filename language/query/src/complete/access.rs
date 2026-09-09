@@ -1,47 +1,54 @@
 use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Span};
 
+use crate::cursor::Cursor;
 use crate::{ModuleQueryContext, QueryError, QueryResult};
 
-use super::{CompletionContext, CompletionReceiver, CursorToken};
+use super::{CompletionPosition, CompletionPrefix, CompletionReceiver};
 
-impl ModuleQueryContext<'_> {
+impl Cursor<'_, '_> {
     /// Classify member access completion near the cursor.
     pub(super) fn classify_member_access(
         &self,
-        file_id: FileId,
-        token: &Option<CursorToken>,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
+        prefix: Option<&CompletionPrefix>,
+    ) -> QueryResult<Option<CompletionPosition>> {
         // detect member access inside an existing member name token
-        if let Some(cursor_position) = offset.checked_sub(1)
-            && let Some(context) = self.classify_member_access_name(file_id, cursor_position)?
+        if let Some(cursor_position) = self.offset.checked_sub(1)
+            && let Some(context) = self
+                .module
+                .classify_member_access_name(self.file_id, cursor_position)?
         {
             return Ok(Some(context));
         }
 
         // resolve member access context immediately after a dot
-        if let Some(context) = self.classify_member_access_dot(file_id, offset)? {
+        if let Some(context) = self
+            .module
+            .classify_member_access_dot(self.file_id, self.offset)?
+        {
             return Ok(Some(context));
         }
 
         // resolve member access when the cursor is inside a member name
-        if let Some(token_at_cursor) = token.as_ref()
-            && let Some(context) =
-                self.classify_member_access_dot(file_id, token_at_cursor.start)?
+        if let Some(token_at_cursor) = prefix
+            && let Some(context) = self
+                .module
+                .classify_member_access_dot(self.file_id, token_at_cursor.start)?
         {
             return Ok(Some(context));
         }
 
         Ok(None)
     }
+}
 
+impl ModuleQueryContext<'_> {
     /// Classify member access from an existing member name.
     fn classify_member_access_name(
         &self,
         file_id: FileId,
         cursor_position: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
+    ) -> QueryResult<Option<CompletionPosition>> {
         let Some(token_at_cursor) = self.token_span_at_offset(file_id, cursor_position)? else {
             return Ok(None);
         };
@@ -73,7 +80,7 @@ impl ModuleQueryContext<'_> {
             else {
                 continue;
             };
-            let context = CompletionContext::MemberAccess { receiver };
+            let context = CompletionPosition::MemberAccess { receiver };
 
             return Ok(Some(context));
         }
@@ -86,7 +93,7 @@ impl ModuleQueryContext<'_> {
         &self,
         file_id: FileId,
         receiver_position: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
+    ) -> QueryResult<Option<CompletionPosition>> {
         let enclosing =
             self.sorted_enclosing_spans(file_id, receiver_position, receiver_position)?;
         let view = self.view()?;
@@ -100,7 +107,7 @@ impl ModuleQueryContext<'_> {
                 continue;
             };
 
-            return Ok(Some(CompletionContext::MemberAccess { receiver }));
+            return Ok(Some(CompletionPosition::MemberAccess { receiver }));
         }
 
         Ok(None)
@@ -111,7 +118,7 @@ impl ModuleQueryContext<'_> {
         &self,
         file_id: FileId,
         offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
+    ) -> QueryResult<Option<CompletionPosition>> {
         let Some(dot) = self.member_access_dot_before_offset(file_id, offset)? else {
             return Ok(None);
         };

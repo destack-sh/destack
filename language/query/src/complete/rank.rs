@@ -5,12 +5,12 @@ use crate::{
     match_quality,
 };
 
-use super::{CompletionContext, CursorToken};
+use super::{CompletionContext, CompletionPosition};
 
 /// The ranker for one completion query.
 struct CompletionRanker<'a> {
     /// The completion context being ranked.
-    context: &'a CompletionContext,
+    position: &'a CompletionPosition,
     /// The typed lexical prefix.
     prefix: &'a str,
 }
@@ -27,8 +27,8 @@ struct CompletionMatch {
 
 impl CompletionRanker<'_> {
     /// Build one completion ranker.
-    fn new<'a>(context: &'a CompletionContext, prefix: &'a str) -> CompletionRanker<'a> {
-        CompletionRanker { context, prefix }
+    fn new<'a>(position: &'a CompletionPosition, prefix: &'a str) -> CompletionRanker<'a> {
+        CompletionRanker { position, prefix }
     }
 
     /// Match one completion candidate against the typed prefix.
@@ -48,7 +48,7 @@ impl CompletionRanker<'_> {
 
     /// Compare two matched completion candidates.
     fn compare(&self, left: &CompletionMatch, right: &CompletionMatch) -> Ordering {
-        let expected_type = self.context.expected_type();
+        let expected_type = self.position.expected_type();
         let left_type_order =
             u8::from(expected_type.is_some() && left.candidate.type_id != expected_type);
         let right_type_order =
@@ -91,7 +91,7 @@ impl CompletionRanker<'_> {
 
     /// Return whether this candidate has the exact expected type.
     fn is_exact_type_match(&self, candidate: &CompletionCandidate) -> bool {
-        let expected_type = self.context.expected_type();
+        let expected_type = self.position.expected_type();
 
         expected_type.is_some() && candidate.type_id == expected_type
     }
@@ -119,21 +119,21 @@ impl CompletionRanker<'_> {
                 CompletionOrigin::Builtin | CompletionOrigin::Keyword
             )
             || matches!(
-                self.context,
-                CompletionContext::ImportPath { .. } | CompletionContext::ImportClause { .. }
+                self.position,
+                CompletionPosition::ImportPath { .. } | CompletionPosition::ImportClause { .. }
             )
     }
 
     /// Return the item-kind order for the active context.
     fn kind_order(&self, completion: &CompletionCandidate) -> u8 {
-        match self.context {
-            CompletionContext::TypePosition { .. } => completion.kind.type_position_order(),
-            CompletionContext::NewExpression { .. } => completion.kind.new_expression_order(),
-            CompletionContext::ObjectLiteralKey { .. } => completion.kind.object_literal_order(),
-            CompletionContext::ImportClause { .. } => completion.kind.import_clause_order(),
-            CompletionContext::MemberAccess { .. } => completion.kind.member_access_order(),
-            CompletionContext::ImportPath { .. } => completion.kind.import_path_order(),
-            CompletionContext::ControlLabel { .. } => {
+        match self.position {
+            CompletionPosition::Type { .. } => completion.kind.type_position_order(),
+            CompletionPosition::Constructor { .. } => completion.kind.constructor_order(),
+            CompletionPosition::ObjectLiteralKey { .. } => completion.kind.object_literal_order(),
+            CompletionPosition::ImportClause { .. } => completion.kind.import_clause_order(),
+            CompletionPosition::MemberAccess { .. } => completion.kind.member_access_order(),
+            CompletionPosition::ImportPath { .. } => completion.kind.import_path_order(),
+            CompletionPosition::ControlLabel { .. } => {
                 u8::from(completion.kind != CompletionItemKind::Label)
             }
             _ => completion.kind.value_position_order(),
@@ -162,7 +162,7 @@ impl CompletionItemKind {
     }
 
     /// Return the item-kind order for new-expression completions.
-    fn new_expression_order(self) -> u8 {
+    fn constructor_order(self) -> u8 {
         match self {
             CompletionItemKind::Struct => 0,
             CompletionItemKind::Class => 1,
@@ -274,9 +274,12 @@ impl CompletionItemKind {
 
 impl CompletionCandidates {
     /// Rank these candidates by lexical and contextual relevance.
-    pub(crate) fn rank(self, context: &CompletionContext, token: Option<&CursorToken>) -> Self {
-        let prefix = token.map_or("", |token| token.text.as_str());
-        let ranker = CompletionRanker::new(context, prefix);
+    pub(crate) fn rank(self, context: &CompletionContext) -> Self {
+        let prefix = context
+            .prefix
+            .as_ref()
+            .map_or("", |prefix| prefix.text.as_str());
+        let ranker = CompletionRanker::new(&context.position, prefix);
         let mut matches = self
             .items
             .into_iter()

@@ -5,6 +5,7 @@ use destack_dir as dir;
 use destack_source::{FileId, ModuleId, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 
+use crate::cursor::Cursor;
 use crate::source::extract_string_literal_prefix;
 use crate::{
     CompletionCandidate, CompletionCandidates, CompletionItemKind, CompletionOrigin,
@@ -12,11 +13,20 @@ use crate::{
     ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult, SymbolUse, match_quality,
 };
 
-use super::{AutoImportContext, CompletionCollector, CompletionContext, PartialImportPath};
+use super::{AutoImportContext, CompletionCollector, CompletionPosition, CompletionPrefix};
 
 // auto import completion thresholds
 const AUTO_IMPORT_MIN_PREFIX: usize = 2;
 const AUTO_IMPORT_SHORT_PREFIX_LIMIT: usize = 50;
+
+/// One partially authored import path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PartialImportPath {
+    /// The authored path before the cursor.
+    text: String,
+    /// The byte offset of the editable path segment.
+    segment_start: usize,
+}
 
 /// One unresolved export and import path considered for auto import.
 struct AutoImportCandidate {
@@ -28,6 +38,72 @@ struct AutoImportCandidate {
     specifier: String,
     /// The structural order of the import path.
     path_order: ImportPathOrder,
+}
+
+impl Cursor<'_, '_> {
+    /// Classify import completion at one offset.
+    pub(super) fn classify_import(&self, source: &str) -> QueryResult<Option<CompletionPosition>> {
+        // read source spans for the selected import position
+        let file_id = self.file_id;
+        let offset = self.offset;
+        let enclosing = self.enclosing();
+        let view = self.module.view()?;
+        let index = self.module.source_index()?;
+
+        // scan enclosing expressions for import nodes under the cursor
+        for enclosing_span in enclosing {
+            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
+                continue;
+            };
+            if node_id.ty != dir::NodeType::Expression {
+                continue;
+            }
+            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
+            let expression = view.get(expression_id);
+
+            if !matches!(expression, dir::Expression::Import { .. }) {
+                continue;
+            }
+
+            // detect path completions inside the import string
+            let import_span = index.get(enclosing_span.source_id);
+            let main_span = index.get_main(enclosing_span.source_id);
+            if let Some(span) = main_span
+                && span.contains(offset)
+            {
+                let partial_path = extract_string_literal_prefix(source, span, offset)?;
+                let path = PartialImportPath::new(partial_path);
+
+                return Ok(Some(CompletionPosition::ImportPath { path }));
+            }
+
+            if let Some(span) = self
+                .module
+                .import_path_token_span(file_id, import_span, offset)?
+            {
+                let partial_path = extract_string_literal_prefix(source, span, offset)?;
+                let path = PartialImportPath::new(partial_path);
+
+                return Ok(Some(CompletionPosition::ImportPath { path }));
+            }
+
+            // detect import clause completions inside the brace list
+            if let Some(existing_names) =
+                self.module
+                    .import_clause_names(expression, offset, import_span, main_span)?
+            {
+                let target_module = self.module.resolved_import_target_module(expression_id)?;
+
+                return Ok(Some(CompletionPosition::ImportClause {
+                    target_module,
+                    existing_names,
+                    use_filter: None,
+                }));
+            }
+        }
+
+        Ok(None)
+    }
 }
 
 impl ExportDeclaration {
@@ -49,72 +125,6 @@ impl ExportDeclaration {
 }
 
 impl ModuleQueryContext<'_> {
-    /// Classify import completion at one offset.
-    pub(super) fn classify_import(
-        &self,
-        file_id: FileId,
-        source: &str,
-        offset: u32,
-    ) -> QueryResult<Option<CompletionContext>> {
-        // resolve enclosing spans from innermost to outermost
-        let enclosing = self.enclosing_spans_at_cursor(file_id, offset)?;
-        let view = self.view()?;
-
-        // scan enclosing expressions for import nodes under the cursor
-        for enclosing_span in &enclosing {
-            let Some(node_id) = view.get_node_id_by_source_id(enclosing_span.source_id) else {
-                continue;
-            };
-            if node_id.ty != dir::NodeType::Expression {
-                continue;
-            }
-            let expression_id = dir::LocalNodeId::<dir::Expression>::new(node_id.id);
-            let expression = view.get(expression_id);
-
-            if !matches!(expression, dir::Expression::Import { .. }) {
-                continue;
-            }
-
-            // detect path completions inside the import string
-            let import_span = self.source_index()?.get(enclosing_span.source_id);
-            let main_span = self.source_index()?.get_main(enclosing_span.source_id);
-            if let Some(span) = main_span
-                && span.contains(offset)
-            {
-                let partial_path = extract_string_literal_prefix(source, span, offset)?;
-                let path = PartialImportPath::new(partial_path);
-
-                return Ok(Some(CompletionContext::ImportPath { path }));
-            }
-
-            if let Some(span) = self.import_path_token_span(file_id, import_span, offset)? {
-                let partial_path = extract_string_literal_prefix(source, span, offset)?;
-                let path = PartialImportPath::new(partial_path);
-
-                return Ok(Some(CompletionContext::ImportPath { path }));
-            }
-
-            // detect import clause completions inside the brace list
-            if let Some(existing_names) =
-                self.import_clause_names(expression, offset, import_span, main_span)?
-            {
-                let dir::Expression::Import { .. } = expression else {
-                    continue;
-                };
-
-                let target_module = self.resolved_import_target_module(expression_id)?;
-
-                return Ok(Some(CompletionContext::ImportClause {
-                    target_module,
-                    existing_names,
-                    use_filter: None,
-                }));
-            }
-        }
-
-        Ok(None)
-    }
-
     /// Resolve a string literal span for an import path at the cursor.
     fn import_path_token_span(
         &self,
@@ -555,5 +565,118 @@ impl AutoImportCandidate {
             .then(self.specifier.cmp(&other.specifier))
             .then(self.export.binding.name().cmp(other.export.binding.name()))
             .then(self.export.target.cmp(&other.export.target))
+    }
+}
+
+impl PartialImportPath {
+    /// Parse one authored import path prefix.
+    pub(crate) fn new(text: String) -> Self {
+        let slash_count = text.bytes().filter(|byte| *byte == b'/').count();
+        let root_is_incomplete = text.starts_with('@') && slash_count <= 1;
+        let separator = if text.starts_with("destack:") {
+            text.rfind([':', '/'])
+        } else if root_is_incomplete {
+            None
+        } else {
+            text.rfind('/')
+        };
+        let segment_start = separator.map_or(0, |index| index + 1);
+
+        Self {
+            text,
+            segment_start,
+        }
+    }
+
+    /// Build the editable path segment at one source offset.
+    pub(crate) fn prefix(&self, offset: u32) -> QueryResult<CompletionPrefix> {
+        let text = self.text[self.segment_start..].to_string();
+        let start = offset
+            .checked_sub(text.len() as u32)
+            .ok_or(QueryError::invalid("import path completion range"))?;
+
+        Ok(CompletionPrefix {
+            text,
+            start,
+            end: offset,
+        })
+    }
+
+    /// Project one addressable specifier to its next completion.
+    pub(crate) fn completion(&self, specifier: &str) -> Option<(String, CompletionItemKind)> {
+        // project relative paths one segment at a time
+        if specifier.starts_with("./") || specifier.starts_with("../") {
+            if !self.text.is_empty()
+                && !self.text.starts_with("./")
+                && !self.text.starts_with("../")
+            {
+                return None;
+            }
+
+            return self.segment_completion(specifier);
+        }
+
+        // project the builtin root before its public subpaths
+        if specifier.starts_with("destack:") {
+            return self.package_completion("destack:", specifier);
+        }
+
+        // project an external package root before its public subpaths
+        let package_end = if specifier.starts_with('@') {
+            let scope_end = specifier.find('/')?;
+            specifier[scope_end + 1..]
+                .find('/')
+                .map_or(specifier.len(), |index| scope_end + index + 1)
+        } else {
+            specifier.find('/').unwrap_or(specifier.len())
+        };
+        let package = &specifier[..package_end];
+
+        self.package_completion(package, specifier)
+    }
+
+    /// Project one package root or subpath.
+    fn package_completion(
+        &self,
+        package: &str,
+        specifier: &str,
+    ) -> Option<(String, CompletionItemKind)> {
+        // complete an unfinished package root as one lexical unit
+        if package.starts_with(&self.text) {
+            let is_module = package == specifier;
+            let mut label = package.to_string();
+            if !is_module && !label.ends_with(':') {
+                label.push('/');
+            }
+            let kind = if is_module {
+                CompletionItemKind::Module
+            } else {
+                CompletionItemKind::Folder
+            };
+
+            return Some((label, kind));
+        }
+
+        // complete only subpaths below the exact package root
+        let subpath = self.text.strip_prefix(package)?;
+        if !subpath.starts_with('/') && !(package.ends_with(':') && !subpath.is_empty()) {
+            return None;
+        }
+
+        self.segment_completion(specifier)
+    }
+
+    /// Project one specifier through the current path directory.
+    fn segment_completion(&self, specifier: &str) -> Option<(String, CompletionItemKind)> {
+        let directory = &self.text[..self.segment_start];
+        let remainder = specifier.strip_prefix(directory)?;
+        if remainder.is_empty() {
+            return None;
+        }
+
+        match remainder.split_once('/') {
+            Some((segment, _)) => Some((format!("{segment}/"), CompletionItemKind::Folder)),
+            None => Some((remainder.to_string(), CompletionItemKind::Module)),
+        }
     }
 }
