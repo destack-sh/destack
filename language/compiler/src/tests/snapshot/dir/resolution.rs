@@ -412,6 +412,7 @@ fn add_residual_decision_row(
             .node_main_source(target.into_any())
             .expect("residual target has no source label"),
         dir::ResidualTarget::Callable => "callable".to_string(),
+        dir::ResidualTarget::Trap => "trap".to_string(),
     };
     let row = SnapshotRow::new(builder.anchor_node(node_id), "resolution", "residual")
         .optional_field("source", builder.node_source(node_id))
@@ -794,6 +795,7 @@ fn add_call_fields(
         builder.argument_bindings_label(&call.arguments),
     )
     .type_field("return", builder.global_type_label(call.return_type))
+    .optional_field("regions", builder.generic_arguments_label(&call.regions))
 }
 
 /// Add fields for one selected call target.
@@ -1401,6 +1403,7 @@ fn call_label(builder: &DirSnapshotBuilder<'_>, call: &dir::Call) -> String {
         call_target_label(builder, &call.target),
         &call.arguments,
         call.return_type,
+        &call.regions,
     )
 }
 
@@ -1433,6 +1436,7 @@ fn direct_call_label(
     target: String,
     arguments: &[dir::ArgumentBinding],
     return_type: dir::GlobalTypeId,
+    regions: &[dir::GenericArgumentBinding],
 ) -> String {
     let parameters = arguments
         .iter()
@@ -1443,8 +1447,14 @@ fn direct_call_label(
         .argument_bindings_label(arguments)
         .unwrap_or_else(|| "()".to_string());
     let return_type = builder.global_type_label(return_type);
+    let regions = match builder.generic_arguments_label(regions) {
+        Some(regions) => format!(", regions={regions}"),
+        None => String::new(),
+    };
 
-    format!("{target}(parameters=({parameters}), arguments={arguments}, return={return_type})")
+    format!(
+        "{target}(parameters=({parameters}), arguments={arguments}, return={return_type}{regions})"
+    )
 }
 
 /// Return one range condition snapshot label.
@@ -1504,7 +1514,11 @@ fn add_construct_decision_row(
             "arguments",
             builder.argument_bindings_label(&resolution.arguments),
         )
-        .type_field("return", builder.global_type_label(resolution.return_type));
+        .type_field("return", builder.global_type_label(resolution.return_type))
+        .optional_field(
+            "regions",
+            builder.generic_arguments_label(&resolution.regions),
+        );
 
     let row = match &resolution.target {
         dir::ConstructTarget::Class { key, constructor } => {

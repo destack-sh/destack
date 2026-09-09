@@ -33,6 +33,7 @@ destack_serde = { workspace = true }
 
 # general
 dashmap = { workspace = true }
+elsa = { workspace = true }
 filetime = { workspace = true }
 indexmap = { workspace = true }
 mime_guess = { workspace = true }

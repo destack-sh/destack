@@ -15,8 +15,8 @@ pub(crate) struct DirRows {
     pub(super) type_references: bool,
     /// Whether to render static table rows.
     pub(super) statics: bool,
-    /// Whether to render conformance rows.
-    pub(super) conformances: bool,
+    /// Whether to render copy policy rows.
+    pub(super) copy: bool,
     /// Whether to render resolution table rows.
     pub(super) resolution: bool,
     /// Whether to render generic table rows.
@@ -39,6 +39,8 @@ pub(crate) struct DirRows {
     pub(super) macros: bool,
     /// Whether to render summary rows.
     pub(super) summaries: bool,
+    /// Whether to render the witness rows the generic tables record.
+    pub(super) witnesses: bool,
 }
 
 impl DirRows {
@@ -52,9 +54,10 @@ impl DirRows {
             type_nodes: false,
             type_references: false,
             statics: false,
-            conformances: false,
+            copy: false,
             resolution: false,
             generics: false,
+            witnesses: false,
             definitions: false,
             coercion: false,
             module: false,
@@ -112,6 +115,13 @@ impl DirRows {
         }
     }
 
+    /// Include the witness rows the generic tables record.
+    pub(crate) const fn with_witnesses(mut self) -> Self {
+        self.witnesses = true;
+
+        self
+    }
+
     /// Include binding node scope rows.
     pub(crate) const fn with_binding_nodes(mut self) -> Self {
         self.binding = true;
@@ -125,9 +135,9 @@ impl DirRows {
         self
     }
 
-    /// Include conformance rows.
-    pub(crate) const fn with_conformances(mut self) -> Self {
-        self.conformances = true;
+    /// Include copy policy rows.
+    pub(crate) const fn with_copy(mut self) -> Self {
+        self.copy = true;
         self
     }
 

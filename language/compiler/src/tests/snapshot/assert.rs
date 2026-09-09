@@ -92,11 +92,29 @@ fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
         .find("\nfn ")
         .map(|at| region_start + header.len() + at)
         .unwrap_or(source.len());
-    let range = select_snapshot_range(&source, region_start, region_end, expected)
+    // count the literals ahead of the call
+    let original_region_start = original.find(&header).unwrap_or_else(|| {
+        panic!(
+            "snapshot function {name} is missing from the original {}",
+            path.display()
+        )
+    });
+    let ordinal = raw_strings(&original)
+        .into_iter()
+        .filter(|(start, _)| *start >= original_region_start && *start < call_offset)
+        .count();
+    // name later literals of one call by content
+    let literals = region_raw_strings(&source, region_start, region_end);
+    let matches =
+        |(start, end): &(usize, usize)| source[*start..*end].trim_matches('\n') == expected;
+    let range = literals
+        .get(ordinal)
+        .copied()
+        .filter(matches)
+        .or_else(|| literals.iter().copied().find(matches))
         .unwrap_or_else(|| {
-            let candidates = raw_strings(&source)
+            let candidates = region_raw_strings(&source, region_start, region_end)
                 .into_iter()
-                .filter(|(start, end)| *start >= region_start && *end <= region_end)
                 .map(|(start, end)| {
                     let content = source[start..end].trim_matches('\n');
                     format!("  [{}..{}] {:?}", start, end, &content[..content.len().min(60)])
@@ -104,7 +122,7 @@ fn bless_snapshot(file: &str, line: u32, expected: &str, actual: &str) {
                 .collect::<Vec<_>>()
                 .join("\n");
             panic!(
-                "snapshot at {}:{line} must be one raw string in {name}\nexpected {:?}\nregion candidates:\n{candidates}",
+                "snapshot at {}:{line} must be raw string {ordinal} of {name}\nexpected {:?}\nregion candidates:\n{candidates}",
                 path.display(),
                 &expected[..expected.len().min(60)],
             )
@@ -140,18 +158,12 @@ fn source_path(file: &str) -> PathBuf {
         .join(path)
 }
 
-/// Return the expected raw string one test region owns.
-fn select_snapshot_range(
-    source: &str,
-    region_start: usize,
-    region_end: usize,
-    expected: &str,
-) -> Option<(usize, usize)> {
+/// Return the raw string literals inside one test region, in source order.
+fn region_raw_strings(source: &str, region_start: usize, region_end: usize) -> Vec<(usize, usize)> {
     raw_strings(source)
         .into_iter()
         .filter(|(start, end)| *start >= region_start && *end <= region_end)
-        .filter(|(start, end)| source[*start..*end].trim_matches('\n') == expected)
-        .min_by_key(|(start, _)| *start)
+        .collect()
 }
 
 /// Return the byte offset of one-based source line.
@@ -170,7 +182,10 @@ fn raw_strings(source: &str) -> Vec<(usize, usize)> {
 
     // scan raw string delimiters without interpreting Rust tokens
     while cursor < bytes.len() {
-        if bytes[cursor] != b'r' {
+        // a raw string prefix must start its own token
+        let continues_identifier =
+            cursor > 0 && (bytes[cursor - 1].is_ascii_alphanumeric() || bytes[cursor - 1] == b'_');
+        if bytes[cursor] != b'r' || continues_identifier {
             cursor += 1;
 
             continue;
@@ -222,11 +237,11 @@ fn raw_string_end(bytes: &[u8], mut cursor: usize, hashes: usize) -> Option<usiz
 
 #[cfg(test)]
 mod tests {
-    use super::{raw_strings, select_snapshot_range};
+    use super::{raw_strings, region_raw_strings};
 
     /// Skip an identical literal that belongs to another test region.
     #[test]
-    fn test_select_the_expected_literal_inside_the_region() {
+    fn test_select_the_region_literals_in_order() {
         let source = r####"
 first(r#"
 "#);
@@ -234,20 +249,21 @@ second(r#"
 "#);
 "####;
         let region_start = source.find("second").unwrap();
-        let range = select_snapshot_range(source, region_start, source.len(), "").unwrap();
+        let ranges = region_raw_strings(source, region_start, source.len());
 
-        assert!(range.0 > region_start);
+        assert_eq!(ranges.len(), 1);
+        assert!(ranges[0].0 > region_start);
     }
 
     /// Find ordinary and hash-delimited raw string contents.
     #[test]
     fn test_find_raw_strings() {
-        let source = r####"let a = r"one"; let b = r###"two "# three"###;"####;
+        let source = r####"let a = r"one"; let b = r###"two "# three"###; bar"; r"four""####;
         let contents = raw_strings(source)
             .into_iter()
             .map(|(start, end)| &source[start..end])
             .collect::<Vec<_>>();
 
-        assert_eq!(contents, ["one", "two \"# three"]);
+        assert_eq!(contents, ["one", "two \"# three", "four"]);
     }
 }

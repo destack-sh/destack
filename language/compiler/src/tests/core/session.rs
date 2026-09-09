@@ -6,7 +6,7 @@ use std::{env, thread};
 use destack_artifact::{
     Artifact, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion, BuildId, DirBound,
     DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported, DirMaterialized,
-    DirParsed, DirResolved, EnvironmentBound, MirLowered, ModuleGraph,
+    DirParsed, DirResolved, DirView, EnvironmentBound, MirElaborated, MirLowered, ModuleGraph,
 };
 use destack_core::BlobStore;
 use destack_dir as dir;
@@ -265,6 +265,14 @@ impl TestSession {
         ArtifactKey::mir_lowered(entry.module.id, entry.profile, target)
     }
 
+    /// Return the elaborated MIR key for one module on the native target.
+    pub(crate) fn mir_elaborated_key(&self, path: &str) -> ArtifactKey {
+        let entry = self.module_entry(path);
+        let target = TargetId::new(entry.module.package_id, "native");
+
+        ArtifactKey::mir_elaborated(entry.module.id, entry.profile, target)
+    }
+
     /// Render diagnostics produced by one artifact key.
     pub(crate) fn diagnostic_snapshot(&self, key: ArtifactKey) -> String {
         let diagnostics = self
@@ -406,6 +414,37 @@ impl TestSession {
         self.assert_mir(path, expected, Self::mir_lowered_key);
     }
 
+    /// Assert the elaborated MIR snapshot for one module.
+    #[track_caller]
+    pub(crate) fn assert_mir_elaborated(&self, path: &str, expected: &str) {
+        self.assert_mir(path, expected, Self::mir_elaborated_key);
+    }
+
+    /// Assert one lowered MIR function by name with the type declarations it mentions.
+    #[track_caller]
+    pub(crate) fn assert_mir_function(&self, path: &str, name: &str, expected: &str) {
+        let key = self.mir_lowered_key(path);
+        let mir = self.render_mir_function_snapshot(key, name);
+
+        assert_snapshot(mir, expected);
+    }
+
+    /// Assert the elaborated MIR of one function by its formatted reference.
+    #[track_caller]
+    pub(crate) fn assert_mir_elaborated_function(&self, path: &str, name: &str, expected: &str) {
+        let lowered = self.require_mir_lowered(self.mir_lowered_key(path));
+        let elaborated: Arc<MirElaborated> = self.require_mir(self.mir_elaborated_key(path));
+        let mir = self.render_function_snapshot(
+            &elaborated.tree,
+            lowered.target,
+            &elaborated.layouts,
+            self.module_entry(path).module.id,
+            name,
+        );
+
+        assert_snapshot(mir, expected);
+    }
+
     /// Assert the diagnostics of one module whose lowering fails.
     #[track_caller]
     pub(crate) fn assert_mir_diagnostics(&self, path: &str, expected: &str) {
@@ -447,42 +486,146 @@ impl TestSession {
         assert_snapshot(mir, expected);
     }
 
-    /// Render one MIR artifact as formatted MIR.
+    /// Render one function of a MIR artifact with the type declarations it mentions.
     #[track_caller]
-    pub(crate) fn render_mir_snapshot(&self, key: ArtifactKey) -> String {
-        // build through the provider, failing loudly with rendered diagnostics
-        let version = match self.require_artifact_result(key) {
-            Ok(version) => version,
-            Err(error) => panic!(
-                "test MIR artifact failed: {error}\n{}",
-                self.diagnostic_snapshot(key)
-            ),
-        };
-        let lowered: Arc<MirLowered> = self.artifact(version);
+    fn render_mir_function_snapshot(&self, key: ArtifactKey, name: &str) -> String {
+        let module = key.module_id().expect("MIR artifact keys name a module");
+        let lowered = self.require_mir_lowered(key);
 
-        // format the MIR tree against the repository names
-        let strings = self.repository.string_pool();
-
-        let formatted = Formatter::new(
-            &lowered.tree,
-            lowered.target,
-            strings.as_ref(),
-            FormatOptions::default(),
-        )
-        .format()
-        .expect("test MIR should format");
-
-        // append the aggregate layouts under their declared names
-        let layouts = Self::render_mir_layouts(
+        self.render_function_snapshot(
             &lowered.tree,
             lowered.target,
             &lowered.layouts,
-            strings.as_ref(),
-        );
-        let dispatch = Self::render_mir_dispatch(&lowered.dispatch, strings.as_ref());
+            module,
+            name,
+        )
+    }
 
+    /// Render one function of a MIR tree by its formatted reference.
+    fn render_function_snapshot(
+        &self,
+        tree: &destack_mir::Tree,
+        target: destack_mir::TargetLayout,
+        layouts: &destack_mir::LayoutTable,
+        module: ModuleId,
+        name: &str,
+    ) -> String {
+        let strings = self.repository.string_pool();
+
+        // find the function by its rendered reference, listing the module's on a miss
+        let formatter = Formatter::new(tree, target, strings.as_ref(), FormatOptions::default());
+        let mut names = Vec::new();
+        let function = tree
+            .iter_nodes::<destack_mir::Function>()
+            .find_map(|(id, _)| {
+                let candidate = formatter
+                    .format_function(id)
+                    .expect("test MIR function reference should format");
+                let found = candidate == name;
+                names.push(candidate);
+                found.then_some(id)
+            })
+            .unwrap_or_else(|| panic!("missing MIR function {name}, the module has {names:?}"));
+
+        // format the function and the layouts of the types it mentions
+        let types = destack_mir::mentioned_types(tree, &[function]);
+        let formatted = Formatter::new(tree, target, strings.as_ref(), FormatOptions::default())
+            .format_functions(&[function], module)
+            .expect("test MIR should format");
+        let layouts = Self::render_mir_layouts(
+            tree,
+            target,
+            layouts,
+            strings.as_ref(),
+            Some(function),
+            |ty| {
+                // an application belongs to its template's module
+                let owner = match tree.get(ty) {
+                    destack_mir::Type::Application { base, .. } => *base,
+                    _ => ty,
+                };
+                let is_imported = tree
+                    .type_symbol(owner)
+                    .is_some_and(|symbol| !symbol.is_defined_in(module));
+
+                types.contains(&ty) && !is_imported
+            },
+        );
+
+        Self::join_mir_rows(formatted, [&layouts])
+    }
+
+    /// Require one lowered MIR artifact, failing loudly with rendered diagnostics.
+    #[track_caller]
+    fn require_mir_lowered(&self, key: ArtifactKey) -> Arc<MirLowered> {
+        self.require_mir(key)
+    }
+
+    /// Require one MIR artifact of any stage, panicking with its diagnostics when it fails.
+    #[track_caller]
+    fn require_mir<A: Artifact>(&self, key: ArtifactKey) -> Arc<A> {
+        match self.require_artifact_result(key) {
+            Ok(version) => self.artifact(version),
+            Err(error) => {
+                // follow a failed requirement chain down to the artifact that failed first
+                let mut failed = key;
+                let mut error = error;
+                while let SessionError::ArtifactFailed { failure, .. } = &error
+                    && let destack_artifact::ArtifactFailure::Requirement { key } = failure.as_ref()
+                {
+                    failed = *key;
+                    let Err(cause) = self.require_artifact_result(failed) else {
+                        break;
+                    };
+                    error = cause;
+                }
+
+                panic!(
+                    "test MIR artifact failed: {error}\n{}",
+                    self.diagnostic_snapshot(failed)
+                )
+            }
+        }
+    }
+
+    /// Return the tree and layouts one MIR stage holds, the lowered stage lending its target.
+    #[track_caller]
+    fn require_mir_stage(
+        &self,
+        key: ArtifactKey,
+    ) -> (destack_mir::Tree, destack_mir::LayoutTable, Arc<MirLowered>) {
+        let (module, profile, target) = match key {
+            ArtifactKey::MirLowered {
+                module,
+                profile,
+                target,
+            }
+            | ArtifactKey::MirElaborated {
+                module,
+                profile,
+                target,
+            } => (module, profile, target),
+            other => panic!("test MIR snapshot over a non-MIR key {other:?}"),
+        };
+        let lowered = self.require_mir_lowered(ArtifactKey::mir_lowered(module, profile, target));
+        match key {
+            ArtifactKey::MirElaborated { .. } => {
+                let elaborated = self.require_mir::<MirElaborated>(key);
+                (elaborated.tree.clone(), elaborated.layouts.clone(), lowered)
+            }
+            _ => (
+                destack_mir::Tree::clone(&lowered.tree),
+                lowered.layouts.clone(),
+                lowered,
+            ),
+        }
+    }
+
+    /// Append rendered row blocks under formatted MIR, each separated by one empty line.
+    fn join_mir_rows<'a>(formatted: String, rows: impl IntoIterator<Item = &'a String>) -> String {
+        // append each block after one empty line
         let mut formatted = formatted;
-        for rows in [&layouts, &dispatch] {
+        for rows in rows {
             if !rows.is_empty() {
                 if !formatted.ends_with('\n') {
                     formatted.push('\n');
@@ -493,6 +636,37 @@ impl TestSession {
         }
 
         formatted
+    }
+
+    /// Render one MIR artifact as formatted MIR.
+    #[track_caller]
+    pub(crate) fn render_mir_snapshot(&self, key: ArtifactKey) -> String {
+        // load the stage's tree with the lowered artifact it formats against
+        let (tree, layouts, lowered) = self.require_mir_stage(key);
+        let strings = self.repository.string_pool();
+
+        // format the MIR tree
+        let formatted = Formatter::new(
+            &tree,
+            lowered.target,
+            strings.as_ref(),
+            FormatOptions::default(),
+        )
+        .format()
+        .expect("test MIR should format");
+
+        // append the aggregate layouts under their declared names
+        let layouts = Self::render_mir_layouts(
+            &tree,
+            lowered.target,
+            &layouts,
+            strings.as_ref(),
+            None,
+            |_| true,
+        );
+        let dispatch = Self::render_mir_dispatch(&lowered.dispatch, strings.as_ref());
+
+        Self::join_mir_rows(formatted, [&layouts, &dispatch])
     }
 
     /// Render the dynamic dispatch rows of one MIR module.
@@ -554,32 +728,44 @@ impl TestSession {
         target: destack_mir::TargetLayout,
         layouts: &destack_mir::LayoutTable,
         strings: &destack_core::StringPool,
+        function: Option<destack_mir::FunctionId>,
+        keeps: impl Fn(destack_mir::TypeId) -> bool,
     ) -> String {
         let formatter = Formatter::new(tree, target, strings, FormatOptions::default());
+        let format = |ty| match function {
+            Some(function) => formatter.format_type_in(function, ty),
+            None => formatter.format_type(ty),
+        };
 
         // order named layouts by their declarations
         let mut named_types = BTreeSet::new();
         let mut owners = Vec::new();
         for (_, declaration) in tree.iter_nodes::<destack_mir::TypeDeclaration>() {
             named_types.insert(declaration.ty);
-            let name = formatter
-                .format_type(declaration.ty)
-                .expect("test MIR type should format");
+            if !keeps(declaration.ty) {
+                continue;
+            }
+            let name = format(declaration.ty).expect("test MIR type should format");
             owners.push((declaration.ty, name));
         }
 
-        // follow named layouts with anonymous types in node order
+        // follow named layouts with applications and anonymous types in node order
         let mut anonymous: Vec<_> = layouts
             .types()
             .map(|(ty, _)| ty)
-            .filter(|ty| !named_types.contains(ty))
+            .filter(|ty| !named_types.contains(ty) && keeps(*ty))
             .collect();
         anonymous.sort_by_key(|ty| ty.id);
-        owners.extend(
-            anonymous
-                .into_iter()
-                .map(|ty| (ty, format!("type@{}", ty.id))),
-        );
+        owners.extend(anonymous.into_iter().map(|ty| {
+            let name = match tree.get(ty) {
+                destack_mir::Type::Application { .. } => {
+                    format(ty).expect("test MIR type should format")
+                }
+                _ => format!("type@{}", ty.id),
+            };
+
+            (ty, name)
+        }));
 
         // render one owner and its independently asserted components
         let mut rows = String::new();
@@ -589,7 +775,8 @@ impl TestSession {
             };
             let (size, alignment) = (layout.size, layout.alignment);
 
-            match (&layout.shape, tree.get(ty)) {
+            // render an application through the definition it represents
+            match (&layout.shape, tree.get(tree.represented(ty))) {
                 // render one struct row followed by its fields
                 (destack_mir::LayoutShape::Struct(shape), destack_mir::Type::Struct { .. }) => {
                     rows.push_str(&format!(
@@ -892,11 +1079,16 @@ impl TestSession {
     fn render_module_snapshot(&self, entry: &TestModule, selection: DirRows) -> String {
         let parsed = self.dir_parsed(entry);
         let bound = self.dir_bound(entry);
-        let bindings = bound.binding_table();
+        let bindings = dir::BindingTable::from_segment(Arc::clone(&bound.bindings));
         let foreign_artifacts = self.foreign_artifacts_for(entry, selection.includes_import());
         let foreign_bindings = foreign_artifacts
             .iter()
-            .map(|(bound, expanded)| expanded.binding_table(bound))
+            .map(|(bound, expanded)| {
+                dir::BindingTable::from_segments(vec![
+                    Arc::clone(&bound.bindings),
+                    Arc::clone(&expanded.bindings),
+                ])
+            })
             .collect::<Vec<_>>();
         let mut builder = DirSnapshotBuilder::new(
             &entry.source,
@@ -1013,18 +1205,20 @@ impl TestSession {
         materialized: bool,
     ) -> String {
         let parsed = self.dir_parsed(entry);
-        let bound = self.dir_bound(entry);
         let expanded = self.dir_expanded(entry);
-        let declared = self.dir_declared_module(entry.module.id, entry.profile);
-        let elaborated_version =
-            self.require_artifact(ArtifactKey::dir_elaborated(entry.module.id, entry.profile));
-        let elaborated = self.artifact(elaborated_version);
-        let checked = self.dir_checked(entry);
-        let bindings = checked.binding_table(&bound, &expanded, &declared, &elaborated);
+        let checked = self.dir_view(entry.module.id, entry.profile, false);
+        let materialized =
+            materialized.then(|| self.dir_view(entry.module.id, entry.profile, true));
+        let bindings = materialized.as_ref().unwrap_or(&checked).bindings();
         let foreign_artifacts = self.foreign_artifacts_for(entry, true);
         let foreign_bindings = foreign_artifacts
             .iter()
-            .map(|(bound, expanded)| expanded.binding_table(bound))
+            .map(|(bound, expanded)| {
+                dir::BindingTable::from_segments(vec![
+                    Arc::clone(&bound.bindings),
+                    Arc::clone(&expanded.bindings),
+                ])
+            })
             .collect::<Vec<_>>();
         let foreign_tables = if selection.uses_type_labels() {
             self.foreign_checked_tables_for(entry)
@@ -1036,7 +1230,7 @@ impl TestSession {
             &parsed.tree,
             self.repository.string_pool().as_ref(),
         )
-        .with_bindings(&bindings)
+        .with_bindings(bindings)
         .with_module_paths(&self.module_path_by_id)
         .with_foreign_bindings(foreign_bindings)
         .with_foreign_tables(foreign_tables);
@@ -1057,42 +1251,15 @@ impl TestSession {
             builder.add_language_items(&resolved.imports);
         }
 
-        let elaborated_version =
-            self.require_artifact(ArtifactKey::dir_elaborated(entry.module.id, entry.profile));
-        let elaborated = self.artifact(elaborated_version);
-
         // install the final cumulative table so stage rows dedup against overrides
-        if materialized {
-            let materialized = self.dir_materialized(entry);
-            builder.set_effective_types(materialized.type_table(
-                &bound,
-                &expanded,
-                &declared,
-                &elaborated,
-                &checked,
-            ));
+        if let Some(materialized) = &materialized {
+            builder.set_effective_types(materialized.types().clone());
         }
-        builder.add_checked(
-            selection,
-            &bound,
-            &expanded,
-            &declared,
-            &elaborated,
-            &checked,
-        );
+        builder.add_checked(selection, &checked);
 
         // layer the materialized tail over the checked rows
-        if materialized {
-            let materialized = self.dir_materialized(entry);
-            builder.add_materialized(
-                selection,
-                &bound,
-                &expanded,
-                &declared,
-                &elaborated,
-                &checked,
-                &materialized,
-            );
+        if let Some(materialized) = &materialized {
+            builder.add_materialized(selection, materialized);
         }
 
         if let Some(resolved) = &resolved
@@ -1172,9 +1339,28 @@ impl TestSession {
         self.artifact(version)
     }
 
-    /// Return checked DIR for one module entry.
-    fn dir_checked(&self, entry: &TestModule) -> Arc<DirChecked> {
-        self.dir_checked_module(entry.module.id, entry.profile)
+    /// Return one module's stages stacked through checked, or through materialized.
+    fn dir_view(&self, module_id: ModuleId, profile: ProfileId, materialized: bool) -> DirView {
+        let key = (module_id, profile);
+        self.require_artifact(match materialized {
+            true => ArtifactKey::dir_materialized(module_id, profile),
+            false => ArtifactKey::dir_checked(module_id, profile),
+        });
+        let reader = self.repository.artifact_reader(self.revision());
+        DirView::new(
+            reader.read::<DirParsed>(module_id).unwrap_or_else(read),
+            reader.read::<DirBound>(key).unwrap_or_else(read),
+            reader.read::<DirImported>(key).unwrap_or_else(read),
+            reader.read::<DirExpanded>(key).unwrap_or_else(read),
+            Some(reader.read::<DirResolved>(key).unwrap_or_else(read)),
+            Some(reader.read::<DirDeclared>(key).unwrap_or_else(read)),
+            Some(reader.read::<DirElaborated>(key).unwrap_or_else(read)),
+            Some(reader.read::<DirChecked>(key).unwrap_or_else(read)),
+            match materialized {
+                true => Some(reader.read::<DirMaterialized>(key).unwrap_or_else(read)),
+                false => None,
+            },
+        )
     }
 
     /// Return checked DIR for one module id.
@@ -1485,23 +1671,14 @@ impl TestSession {
         externals
             .into_iter()
             .map(|module_id| {
-                let bound_version =
-                    self.require_artifact(ArtifactKey::dir_bound(module_id, entry.profile));
-                let bound = self.artifact(bound_version);
-                let expanded_version =
-                    self.require_artifact(ArtifactKey::dir_expanded(module_id, entry.profile));
-                let expanded = self.artifact(expanded_version);
-                let declared = self.dir_declared_module(module_id, entry.profile);
-                let elaborated_version =
-                    self.require_artifact(ArtifactKey::dir_elaborated(module_id, entry.profile));
-                let elaborated = self.artifact(elaborated_version);
-                let checked = self.dir_checked_module(module_id, entry.profile);
-                let generics = checked.generic_table(&declared, &elaborated);
-                let definitions = checked.definition_table(&declared, &elaborated);
-                let types = checked.type_table(&bound, &expanded, &declared, &elaborated);
-                let statics = checked.static_table(&bound, &expanded, &declared, &elaborated);
+                let checked = self.dir_view(module_id, entry.profile, false);
 
-                (Some(generics), definitions, types, statics)
+                (
+                    Some(checked.generics().clone()),
+                    checked.definitions().clone(),
+                    checked.types().clone(),
+                    checked.statics().clone(),
+                )
             })
             .collect()
     }
@@ -1734,14 +1911,14 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
             .expect("workspace target profile should resolve")
             .id();
 
-        // check every builtin module under both profiles once so test
-        //  forks inherit warm bindings for whichever world they build
+        // materialize every builtin module under both profiles once so test
+        //  forks inherit warm bindings and instances for whichever world they build
         let keys = package
             .module_ids()
             .flat_map(|module| {
                 [
-                    ArtifactKey::dir_checked(module, library_profile),
-                    ArtifactKey::dir_checked(module, workspace_profile),
+                    ArtifactKey::dir_materialized(module, library_profile),
+                    ArtifactKey::dir_materialized(module, workspace_profile),
                 ]
             })
             .collect::<Vec<_>>();
@@ -1846,4 +2023,9 @@ fn shared_blob_store() -> Arc<BlobStore> {
     static STORE: OnceLock<Arc<BlobStore>> = OnceLock::new();
 
     STORE.get_or_init(|| Arc::new(BlobStore::new())).clone()
+}
+
+/// Fail one test DIR read.
+fn read<T>(error: destack_repository::ProviderError) -> T {
+    panic!("read test DIR: {error}")
 }

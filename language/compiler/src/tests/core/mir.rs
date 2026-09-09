@@ -58,12 +58,12 @@ impl TestProgram {
 
         Self {
             lowered: MirLowered {
-                tree,
+                tree: Arc::new(tree),
                 target,
                 layouts,
-                language: mir::LanguageTable::default(),
                 dispatch,
                 drops,
+                witnesses: mir::WitnessTable::default(),
                 accesses,
                 effects,
                 profile,
@@ -182,11 +182,7 @@ impl TestProgram {
     pub(crate) fn mark_drop_hook(&mut self, name: &str, function_name: &str) {
         let ty = self.type_by_name(name);
         let function = self.function_by_name(function_name);
-        let parameter = self.lowered.tree.get(function).parameters[0].ty;
-        let mir::Type::Reference { storage, .. } = self.lowered.tree.get(parameter) else {
-            panic!("drop hook {function_name} has no reference receiver");
-        };
-        self.lowered.drops.set_hook(ty, *storage, function);
+        self.lowered.drops.set_hook(ty, function);
         *self.lowered.effects.upsert_function(function) = mir::FunctionEffect::none();
     }
 
@@ -229,7 +225,7 @@ impl TestProgram {
             .expect("test MIR layouts should lower");
 
         MirOptimized {
-            tree,
+            tree: mir::Tree::clone(&tree),
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),

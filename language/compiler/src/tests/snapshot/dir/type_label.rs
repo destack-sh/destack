@@ -965,12 +965,14 @@ impl DirSnapshotBuilder<'_> {
                     self.symbol_path_label(symbol)
                 }
             }
-            dir::GenericParameterKey::Generated(name) => {
+            dir::GenericParameterKey::Anonymous => {
                 let owner = match template.symbol {
                     Some(symbol) => self.symbol_path_label(symbol),
                     None => self.node_label(template.source),
                 };
-                let name = self.strings.get(name);
+                let position = generics.parameter_position(parameter.local_id);
+                let regions = self.region_names_before(generics, parameter.local_id);
+                let name = generic.canonical_name(position, regions.iter().map(String::as_str));
 
                 format!("{owner}.{name}")
             }

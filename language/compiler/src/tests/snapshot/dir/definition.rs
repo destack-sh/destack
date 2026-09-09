@@ -37,7 +37,6 @@ fn add_definition_rows(
         }
         dir::Definition::Struct(definition) => {
             let row = declaration_row(builder, symbol, "struct", source, definition.template);
-            let row = add_representation_fields(row, definition.representation);
             builder.push(row);
             add_conformances(builder, symbol, &definition.implements);
             add_members(builder, symbol, &definition.members);
@@ -49,7 +48,6 @@ fn add_definition_rows(
                     definition.is_abstract.then(|| "true".to_string()),
                 )
                 .optional_field("final", definition.is_final.then(|| "true".to_string()));
-            let row = add_representation_fields(row, definition.representation);
             builder.push(row);
             add_optional_heritage(builder, symbol, "extends", definition.extends.as_ref());
             add_conformances(builder, symbol, &definition.implements);
@@ -96,7 +94,6 @@ fn add_enum_row(
         .then(|| enum_backing_label(definition.backing));
     let row = declaration_row(builder, symbol, "enum", source, definition.template)
         .optional_field("backing", backing);
-    let row = add_representation_fields(row, definition.representation);
 
     builder.push(row);
 }
@@ -151,40 +148,23 @@ fn add_newtype_row(
             "backing_visibility",
             visibility_label(definition.backing_visibility),
         );
-    let row = add_representation_fields(row, definition.representation);
-    let row = if definition.constructors.is_empty() {
-        row
-    } else {
-        row.list_field(
+    let constructors = builder
+        .members
+        .as_ref()
+        .and_then(|members| members.newtype_constructors(symbol))
+        .map(<[_]>::to_vec)
+        .unwrap_or_default();
+    let row = match constructors.is_empty() {
+        true => row,
+        false => row.list_field(
             "constructors",
-            definition
-                .constructors
+            constructors
                 .iter()
                 .map(|constructor| builder.global_type_label(constructor.ty)),
-        )
+        ),
     };
 
     builder.push(row);
-}
-
-/// Add non-default representation fields to one definition row.
-fn add_representation_fields(row: SnapshotRow, representation: dir::Representation) -> SnapshotRow {
-    let kind = match representation.kind {
-        dir::RepresentationKind::Destack => None,
-        dir::RepresentationKind::C => Some("C".to_string()),
-        dir::RepresentationKind::Transparent => Some("transparent".to_string()),
-        dir::RepresentationKind::Integer(integer) => Some(integer.as_str()),
-    };
-
-    row.optional_field("representation", kind)
-        .optional_field(
-            "alignment",
-            representation.alignment.map(|value| value.to_string()),
-        )
-        .optional_field(
-            "packing",
-            representation.packing.map(|value| value.to_string()),
-        )
 }
 
 /// Build one definition declaration row.
@@ -257,7 +237,13 @@ fn add_conformances(
             .field("target", builder.global_type_label(conformance.interface));
         builder.push(row);
 
-        for member in &conformance.members {
+        let members = builder
+            .members
+            .as_ref()
+            .and_then(|members| members.conformance_members(conformance.source))
+            .map(<[_]>::to_vec)
+            .unwrap_or_default();
+        for member in &members {
             let row = SnapshotRow::new(builder.anchor_symbol(owner), "definition", "conformance")
                 .field("symbol", builder.symbol_path_label(owner))
                 .field("member", builder.symbol_path_label(member.member))
@@ -389,12 +375,6 @@ fn add_field(
         .optional_field("visibility", visibility_label(field.visibility))
         .optional_field("abstract", field.is_abstract.then(|| "true".to_string()))
         .optional_field("override", field.is_override.then(|| "true".to_string()))
-        .optional_field(
-            "overrides",
-            field
-                .overrides
-                .map(|symbol| builder.symbol_path_label(symbol)),
-        )
         .type_field("type", builder.global_symbol_type_label(field.symbol));
 
     builder.push(row);
@@ -420,12 +400,6 @@ fn add_method(
         .optional_field("role", method.role.map(DirSnapshotBuilder::variant_label))
         .optional_field("abstraction", abstraction)
         .optional_field("override", method.is_override.then(|| "true".to_string()))
-        .optional_field(
-            "overrides",
-            method
-                .overrides
-                .map(|symbol| builder.symbol_path_label(symbol)),
-        )
         .type_field("type", builder.global_symbol_type_label(method.symbol));
 
     builder.push(row);

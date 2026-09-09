@@ -81,10 +81,13 @@ fn binding_use_label(binding_use: dir::BindingUse) -> String {
         labels.push("captured");
     }
     if binding_use.contains(dir::BindingUse::MUTATE) {
+        labels.push("mutated");
+    }
+    if binding_use.contains(dir::BindingUse::MUTABLE) {
         labels.push("mutable");
     }
-    if binding_use.contains(dir::BindingUse::EXCLUSIVE) {
-        labels.push("exclusive");
+    if binding_use.contains(dir::BindingUse::MOVE) {
+        labels.push("moved");
     }
 
     labels.join("+")

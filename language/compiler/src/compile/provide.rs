@@ -1,6 +1,7 @@
 use destack_artifact::{ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload};
 use destack_repository::{ProviderContext, ProviderError, ProviderResult};
 
+use crate::sema::provide::Pass;
 use crate::{Compiler, CompilerError, CompilerResult};
 
 impl Compiler {
@@ -52,17 +53,22 @@ impl Compiler {
                 self.collect_dir_resolved(module, profile)
             }
             ArtifactKey::DirDeclared { module, profile } => {
-                self.collect_dir_declared(module, profile, context)
+                self.collect_dir_stage(module, profile, Pass::Declare)
             }
             ArtifactKey::DirElaborated { module, profile } => {
-                self.collect_dir_elaborated(module, profile, context)
+                self.collect_dir_stage(module, profile, Pass::Elaborate)
             }
             ArtifactKey::DirChecked { module, profile } => {
-                self.collect_dir_checked(module, profile, context)
+                self.collect_dir_stage(module, profile, Pass::Check)
             }
             ArtifactKey::DirMaterialized { module, profile } => {
-                self.collect_dir_materialized(module, profile, context)
+                self.collect_dir_stage(module, profile, Pass::Materialize)
             }
+            ArtifactKey::MirDeclared {
+                module,
+                profile,
+                target,
+            } => self.collect_mir_declared(module, profile, target, context),
             ArtifactKey::MirLowered {
                 module,
                 profile,
@@ -77,7 +83,7 @@ impl Compiler {
                 module,
                 profile,
                 target,
-            } => self.collect_mir_elaborated(module, profile, target, context),
+            } => self.collect_mir_elaborated(module, profile, target),
             ArtifactKey::MirAnalyzed {
                 module,
                 profile,
@@ -168,17 +174,22 @@ impl Compiler {
                 self.provide_dir_resolved(module, profile, context)
             }
             ArtifactKey::DirDeclared { module, profile } => {
-                self.provide_dir_declared(module, profile, context)
+                self.provide_dir_stage(module, profile, context, Pass::Declare)
             }
             ArtifactKey::DirElaborated { module, profile } => {
-                self.provide_dir_elaborated(module, profile, context)
+                self.provide_dir_stage(module, profile, context, Pass::Elaborate)
             }
             ArtifactKey::DirChecked { module, profile } => {
-                self.provide_dir_checked(module, profile, context)
+                self.provide_dir_stage(module, profile, context, Pass::Check)
             }
             ArtifactKey::DirMaterialized { module, profile } => {
-                self.provide_dir_materialized(module, profile, context)
+                self.provide_dir_stage(module, profile, context, Pass::Materialize)
             }
+            ArtifactKey::MirDeclared {
+                module,
+                profile,
+                target,
+            } => self.provide_mir_declared(module, profile, target, context),
             ArtifactKey::MirLowered {
                 module,
                 profile,

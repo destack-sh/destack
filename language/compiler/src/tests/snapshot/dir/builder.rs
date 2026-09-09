@@ -2,10 +2,7 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
-use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirMaterialized, DirResolved,
-};
+use destack_artifact::{DirBound, DirExpanded, DirExported, DirImported, DirResolved, DirView};
 use destack_core::{StringId, StringPool};
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -37,6 +34,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) generics: Option<dir::GenericTable<'static>>,
     /// The checked definition table.
     pub(super) definitions: Option<dir::DefinitionTable<'static>>,
+    /// The member selections labels read through.
+    pub(super) members: Option<dir::MemberTable<'static>>,
     /// The visible type table used by layout anchors.
     pub(super) types: Option<dir::TypeTable<'static>>,
     /// The lexical resolution table used by place labels.
@@ -70,6 +69,8 @@ pub(crate) struct DirSnapshotBuilder<'a> {
     pub(super) decorator_statics: BTreeSet<dir::GlobalStaticId>,
     /// Whether to render dense binding node rows.
     pub(super) binding_nodes: bool,
+    /// Whether to render the witness rows the generic tables record.
+    pub(super) witnesses: bool,
     /// Whether to render expression node type rows.
     pub(super) type_nodes: bool,
     /// Whether to render identifier type rows.
@@ -91,6 +92,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             binding_names: None,
             generics: None,
             definitions: None,
+            members: None,
             types: None,
             names: None,
             statics: None,
@@ -107,6 +109,7 @@ impl<'a> DirSnapshotBuilder<'a> {
             static_labels: BTreeMap::new(),
             decorator_statics: BTreeSet::new(),
             binding_nodes: false,
+            witnesses: false,
             type_nodes: false,
             type_references: false,
             summaries: true,
@@ -210,6 +213,7 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Add selected rows for a bound DIR artifact.
     pub(crate) fn add_bound(&mut self, selection: DirRows, bound: &DirBound) {
         self.binding_nodes = selection.binding_nodes;
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
 
         if selection.types {
@@ -232,6 +236,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add selected rows for an imported DIR artifact.
     pub(crate) fn add_imported(&mut self, selection: DirRows, imported: &DirImported) {
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
 
         if selection.module {
@@ -241,6 +246,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add selected rows for a resolved DIR artifact.
     pub(crate) fn add_resolved(&mut self, selection: DirRows, resolved: &DirResolved) {
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
         self.add_global_names(&resolved.imports);
         self.add_language_items(&resolved.imports);
@@ -254,6 +260,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add selected rows for an expanded DIR artifact.
     pub(crate) fn add_expanded(&mut self, selection: DirRows, expanded: &DirExpanded) {
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
 
         if selection.module {
@@ -267,6 +274,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Add selected rows for an exported DIR artifact.
     pub(crate) fn add_exported(&mut self, selection: DirRows, exported: &DirExported) {
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
 
         if selection.export {
@@ -276,25 +284,31 @@ impl<'a> DirSnapshotBuilder<'a> {
     }
 
     /// Add selected rows for a checked DIR artifact.
-    pub(crate) fn add_checked(
-        &mut self,
-        selection: DirRows,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-    ) {
+    pub(crate) fn add_checked(&mut self, selection: DirRows, view: &DirView) {
+        let declared = view
+            .declared
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("a checked view without its declared stage"));
+        let elaborated = view
+            .elaborated
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("a checked view without its elaborated stage"));
+        let checked = view
+            .checked
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("a checked view without its checked stage"));
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
         self.type_nodes = selection.type_nodes;
         self.type_references = selection.type_references;
 
         if selection.uses_type_labels() {
-            self.generics = Some(checked.generic_table(declared, elaborated));
-            self.definitions = Some(checked.definition_table(declared, elaborated));
+            self.generics = Some(view.generics().clone());
+            self.definitions = Some(view.definitions().clone());
+            self.members = Some(view.members().clone());
 
-            let types = checked.type_table(bound, expanded, declared, elaborated);
-            let statics = checked.static_table(bound, expanded, declared, elaborated);
+            let types = view.types().clone();
+            let statics = view.statics().clone();
             // keep an installed final table, which stage rows dedup against
             if self.types.is_none() {
                 self.types = Some(types.clone());
@@ -330,9 +344,9 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         if selection.resolution {
             // stack the layers so instance rows derive from winning rows only
-            self.names = Some(checked.resolution_table(declared, elaborated));
-            self.add_table(&checked.resolution_table(declared, elaborated));
-            self.add_table(&checked.decision_table(declared, elaborated));
+            self.names = Some(view.resolutions().clone());
+            self.add_table(view.resolutions());
+            self.add_table(view.decisions());
         }
 
         if selection.generics {
@@ -342,7 +356,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.definitions {
-            self.add_table(elaborated.definitions.as_ref());
+            self.add_table(declared.definitions.as_ref());
         }
 
         if selection.coercion {
@@ -354,93 +368,49 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.flow {
-            self.add_table(&checked.flow_table(declared, elaborated));
+            self.add_table(view.flows());
         }
 
-        if selection.conformances {
-            self.add_conformance_rows(
-                &checked.definition_table(declared, elaborated),
-                &checked.generic_table(declared, elaborated),
-            );
+        if selection.copy {
+            self.add_copy_rows(view.definitions(), view.representations());
         }
     }
 
-    /// Add committed conformance rows for definitions, instances, and parameters.
-    fn add_conformance_rows(
+    /// Add the copy row of each nominal declaration deriving Copy.
+    fn add_copy_rows(
         &mut self,
         definitions: &dir::DefinitionTable<'_>,
-        generics: &dir::GenericTable<'_>,
+        representations: &dir::RepresentationTable<'_>,
     ) {
-        // render the committed set of each nominal declaration
-        for (symbol, definition) in definitions.iter_definitions() {
-            let Some(conformances) = definition.conformances() else {
-                continue;
-            };
-            if conformances.is_empty() {
+        for (symbol, _) in definitions.iter_definitions() {
+            if !representations.derives_copy(symbol).unwrap_or(false) {
                 continue;
             }
-            let row = SnapshotRow::new(self.anchor_symbol(symbol), "conformance", "definition")
-                .field("symbol", self.symbol_path_label(symbol))
-                .verbatim_field("conformances", conformance_label(conformances));
-            self.push(row);
-        }
-
-        // render the committed set of each closed nominal instance
-        for (_, instance) in generics.iter_instances() {
-            if instance.conformances.is_empty() {
-                continue;
-            }
-            let arguments: Vec<_> =
-                dir::GenericArgumentBinding::values(&instance.key.arguments).collect();
-            let row =
-                SnapshotRow::new(self.anchor_node(instance.source), "conformance", "instance")
-                    .field(
-                        "id",
-                        self.generic_instance_label(instance.key.symbol, &arguments),
-                    )
-                    .verbatim_field("conformances", conformance_label(&instance.conformances));
-            self.push(row);
-        }
-
-        // render the assumed set of each constrained parameter
-        for (_, binding) in generics.iter_parameters() {
-            if binding.conformances.is_empty() {
-                continue;
-            }
-            let name = match binding.symbol {
-                Some(symbol) => self.symbol_label(symbol),
-                None => continue,
-            };
-            let row =
-                SnapshotRow::new(self.anchor_node(binding.source), "conformance", "parameter")
-                    .field("parameter", name)
-                    .verbatim_field("conformances", conformance_label(&binding.conformances));
+            let row = SnapshotRow::new(self.anchor_symbol(symbol), "copy", "definition")
+                .field("symbol", self.symbol_path_label(symbol));
             self.push(row);
         }
     }
 
     /// Add selected rows for a materialized DIR artifact.
-    pub(crate) fn add_materialized(
-        &mut self,
-        selection: DirRows,
-        bound: &DirBound,
-        expanded: &DirExpanded,
-        declared: &DirDeclared,
-        elaborated: &DirElaborated,
-        checked: &DirChecked,
-        materialized: &DirMaterialized,
-    ) {
+    pub(crate) fn add_materialized(&mut self, selection: DirRows, view: &DirView) {
+        let materialized = view
+            .materialized
+            .as_ref()
+            .unwrap_or_else(|| unreachable!("a materialized view without its materialized stage"));
+        self.witnesses = selection.witnesses;
         self.summaries = selection.summaries;
         self.type_nodes = selection.type_nodes;
         self.type_references = selection.type_references;
 
         // label rows through the whole stack, up to and including the materialized tail
         if selection.uses_type_labels() {
-            self.generics = Some(materialized.generic_table(declared, elaborated, checked));
-            self.definitions = Some(materialized.definition_table(declared, elaborated, checked));
+            self.generics = Some(view.generics().clone());
+            self.definitions = Some(view.definitions().clone());
+            self.members = Some(view.members().clone());
 
-            let types = materialized.type_table(bound, expanded, declared, elaborated, checked);
-            let statics = checked.static_table(bound, expanded, declared, elaborated);
+            let types = view.types().clone();
+            let statics = view.statics().clone();
             self.types = Some(types.clone());
             self.statics = Some(statics.clone());
             self.add_static_labels(&statics);
@@ -453,7 +423,7 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.resolution {
-            self.names = Some(checked.resolution_table(declared, elaborated));
+            self.names = Some(view.resolutions().clone());
         }
 
         if selection.generics {
@@ -461,14 +431,15 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
 
         if selection.definitions {
-            self.add_table(materialized.definitions.as_ref());
+            let declared = view
+                .declared
+                .as_ref()
+                .unwrap_or_else(|| unreachable!("a checked view without its declared stage"));
+            self.add_table(declared.definitions.as_ref());
         }
 
-        if selection.conformances {
-            self.add_conformance_rows(
-                &materialized.definition_table(declared, elaborated, checked),
-                &materialized.generic_table(declared, elaborated, checked),
-            );
+        if selection.copy {
+            self.add_copy_rows(view.definitions(), view.representations());
         }
     }
 
@@ -530,12 +501,13 @@ impl<'a> DirSnapshotBuilder<'a> {
         }
     }
 
-    /// Return the debug label for one checked generic parameter selection.
-    pub(super) fn generic_parameter_key_label(&self, key: dir::GenericParameterKey) -> String {
-        match key {
-            dir::GenericParameterKey::Symbol(symbol) => self.symbol_path_label(symbol),
-            dir::GenericParameterKey::Generated(name) => self.strings.get(name).to_string(),
-        }
+    /// Return the region names one template declares ahead of one parameter.
+    pub(super) fn region_names_before(
+        &self,
+        generics: &dir::GenericTable<'_>,
+        parameter: dir::LocalGenericParameterId,
+    ) -> Vec<String> {
+        generics.region_names_before(parameter, |symbol| self.symbol_label(symbol))
     }
 
     /// Return the source anchor for one DIR node.
@@ -1433,14 +1405,4 @@ impl<'a> DirSnapshotBuilder<'a> {
 
         result
     }
-}
-
-/// Render one committed conformance set label.
-fn conformance_label(conformances: &dir::AutoInterfaceSet) -> String {
-    let names: Vec<_> = conformances
-        .iter()
-        .map(|interface| interface.name())
-        .collect();
-
-    format!("({})", names.join(", "))
 }

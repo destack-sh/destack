@@ -81,7 +81,7 @@ impl SnapshotTable for dir::CaptureSegment {
             }
 
             // render directive state as explicit rows
-            if let Some(directive) = &capture.directive {
+            if let Some(directive) = self.capture_directive(*symbol_id) {
                 let row = SnapshotRow::new(anchor, "capture", "directive")
                     .field("function", builder.symbol_path_label(*symbol_id))
                     .field(

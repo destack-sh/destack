@@ -4,9 +4,9 @@ pub use destack_source::DiagnosticDefinition;
 use crate::{
     AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, Compiler,
     ElaborateError, ElaborateWarning, EmitError, EmitWarning, ExpandError, ExpandWarning,
-    ExportError, ExportWarning, ImportError, LinkError, LinkWarning, LowerError, LowerWarning,
-    MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning, ResolveError,
-    ResolveWarning, VerifyError,
+    ExportError, ExportWarning, ImportError, InstantiateError, LinkError, LinkWarning, LowerError,
+    LowerWarning, MaterializeError, MaterializeWarning, OptimizeError, OptimizeWarning,
+    ResolveError, ResolveWarning, VerifyError,
 };
 use destack_core::{NameMatch, NameMatchTier};
 use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
@@ -31,6 +31,7 @@ const COMPILER_DIAGNOSTICS: &[&[DiagnosticDefinition]] = &[
     VerifyError::ALL,
     ElaborateError::ALL,
     ElaborateWarning::ALL,
+    InstantiateError::ALL,
     AnalyzeError::ALL,
     AnalyzeWarning::ALL,
     OptimizeError::ALL,

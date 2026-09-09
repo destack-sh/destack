@@ -47,6 +47,18 @@ impl SnapshotTable for dir::GenericSegment {
                         )
                     }),
                 );
+            let dependents = template
+                .symbol
+                .and_then(|symbol| self.symbol_dependents(symbol.local_id));
+            let row = match dependents {
+                Some(dependents) if !dependents.is_empty() => row.tuple_field(
+                    "dependents",
+                    dependents
+                        .iter()
+                        .map(|dependent| builder.global_type_label(*dependent)),
+                ),
+                _ => row,
+            };
 
             builder.push(row);
         }
@@ -85,33 +97,65 @@ impl SnapshotTable for dir::GenericSegment {
         }
 
         // render the instances this segment closed, with the types they evaluated
-        for (instance_id, instance) in self.iter_instances() {
+        for (_, instance) in self.iter_instances() {
+            // render the instances this module's own instantiations and applications close
+            if instance.origin == dir::InstanceOrigin::Reached {
+                continue;
+            }
             let arguments = selection_arguments(&instance.key);
-            let mut row =
-                SnapshotRow::new(builder.anchor_node(instance.source), "generic", "instance")
-                    .field("id", instance_label(builder, instance))
-                    .field("template", builder.symbol_path_label(instance.key.symbol))
-                    .verbatim_field(
-                        "arguments",
-                        builder.generic_instance_arguments_label(&arguments),
-                    );
+            let row = SnapshotRow::new(builder.anchor_node(instance.source), "generic", "instance")
+                .field("id", instance_label(builder, instance))
+                .field("template", builder.symbol_path_label(instance.key.symbol))
+                .verbatim_field(
+                    "arguments",
+                    builder.generic_instance_arguments_label(&arguments),
+                );
+            let row = match instance.key.dependents.is_empty() {
+                true => row,
+                false => row.verbatim_field(
+                    "dependents",
+                    builder.generic_instance_arguments_label(&instance.key.dependents),
+                ),
+            };
 
-            // fold the types evaluation moved beyond substitution into the row
-            let evaluated = self
-                .iter_instance_types()
-                .filter(|(id, _, _, is_evaluated)| *id == instance_id && *is_evaluated)
-                .map(|(_, source, resolved, _)| {
+            builder.push(row);
+        }
+
+        // render the witnesses this segment recorded when selected
+        for (ty, interface, witness) in self.iter_witnesses() {
+            if !builder.witnesses {
+                break;
+            }
+            let functions = witness
+                .functions
+                .iter()
+                .map(|function| {
+                    let key = &function.function;
+                    let answer = builder.generic_instance_label(key.symbol, &selection_types(key));
+
+                    format!("{}: {answer}", builder.symbol_path_label(function.member))
+                })
+                .collect::<Vec<_>>();
+            let types = witness
+                .types
+                .iter()
+                .map(|witness| {
                     format!(
-                        "{} => {}",
-                        builder.global_type_label(source),
-                        builder.global_type_label(resolved)
+                        "{}: {}",
+                        builder.static_key(witness.member),
+                        builder.global_type_label(witness.ty)
                     )
                 })
                 .collect::<Vec<_>>();
-            if !evaluated.is_empty() {
-                row = row.verbatim_field("evaluated", format!("({})", evaluated.join(", ")));
+            let mut row = SnapshotRow::new(SnapshotAnchor::End, "generic", "witness")
+                .field("type", builder.global_type_label(ty))
+                .field("interface", builder.global_type_label(interface));
+            if !functions.is_empty() {
+                row = row.verbatim_field("functions", format!("({})", functions.join(", ")));
             }
-
+            if !types.is_empty() {
+                row = row.verbatim_field("types", format!("({})", types.join(", ")));
+            }
             builder.push(row);
         }
 
@@ -157,7 +201,19 @@ pub(super) fn generic_template_parameter_label(
     builder: &DirSnapshotBuilder<'_>,
 ) -> String {
     // print the parameter head with its modifiers
-    let name = generic_parameter_name(parameter.key, builder);
+    let name = match parameter.key {
+        dir::GenericParameterKey::Symbol(symbol) => builder.symbol_label(symbol),
+        dir::GenericParameterKey::Anonymous => {
+            let generics = builder
+                .generics
+                .as_ref()
+                .unwrap_or_else(|| unreachable!("a template parameter without its generics"));
+            let position = generics.parameter_position(parameter_id);
+            let regions = builder.region_names_before(generics, parameter_id);
+
+            parameter.canonical_name(position, regions.iter().map(String::as_str))
+        }
+    };
 
     // print tick parameters bare, their kind is implied
     if builder.is_tick_parameter(parameter, &name) {
@@ -186,17 +242,6 @@ pub(super) fn generic_template_parameter_label(
         .unwrap_or_default();
 
     format!("{name}{constraint}{default}")
-}
-
-/// Return one generic parameter source name.
-fn generic_parameter_name(
-    key: dir::GenericParameterKey,
-    builder: &DirSnapshotBuilder<'_>,
-) -> String {
-    match key {
-        dir::GenericParameterKey::Symbol(symbol) => builder.symbol_label(symbol),
-        dir::GenericParameterKey::Generated(_) => builder.generic_parameter_key_label(key),
-    }
 }
 
 impl DirSnapshotBuilder<'_> {
