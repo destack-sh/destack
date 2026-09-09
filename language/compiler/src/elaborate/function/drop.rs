@@ -2,7 +2,7 @@ use destack_core::FxIndexMap;
 
 use destack_mir as mir;
 
-use super::{BlockDrop, DeferredDrop, DropEmitter, DropPlan, EdgeDrop};
+use crate::elaborate::drop::{BlockDrop, DeferredDrop, DropEmitter, DropPlan, EdgeDrop};
 
 /// Inserter for planned MIR drops.
 pub(in crate::elaborate) struct DropInserter<'a> {
@@ -125,10 +125,9 @@ impl<'a> DropInserter<'a> {
         let cell_type = self.tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Managed,
             lifetime: mir::Lifetime::empty(),
-            storage: mir::Storage::LocalHeap,
+            storage: mir::Storage::Heap(mir::Space::Local),
             access: mir::Access::Mutable,
             pointee,
-            nullability: mir::Nullability::None,
         });
 
         // reserve the loaded value and the cell receiving it

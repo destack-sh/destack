@@ -6,19 +6,15 @@ use crate::tests::TestProgram;
 fn test_generate_distinct_destructors_for_generic_instances() {
     let mut program = TestProgram::mir(
         r#"
-type Box<int32> {
-    value: ref<int32, unique, mutable>;
-}
-
-type Box<float64> {
-    value: ref<float64, unique, mutable>;
+type Box<T> {
+    value: ref<T, unique, mutable, local>;
 }
 
 function test(
-    v0: ref<int32, unique, mutable>,
-    v1: ref<float64, unique, mutable>,
+    v0: ref<int32, unique, mutable, local>,
+    v1: ref<float64, unique, mutable, local>,
 ): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<float64, unique, mutable>):
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<float64, unique, mutable, local>):
     v2: Box<int32> = aggregate (v0)
     v3: Box<float64> = aggregate (v1)
     return

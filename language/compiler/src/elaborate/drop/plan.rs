@@ -6,24 +6,24 @@ use destack_mir as mir;
 /// Planned destruction for one function.
 pub(in crate::elaborate) struct DropPlan {
     /// The function receiving explicit drops.
-    pub(super) function: mir::FunctionId,
+    pub(in crate::elaborate) function: mir::FunctionId,
     /// Independently movable ownership paths.
-    pub(super) paths: Arc<mir::MoveTable>,
+    pub(in crate::elaborate) paths: Arc<mir::MoveTable>,
     /// Planned drops inside each block.
-    pub(super) block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
+    pub(in crate::elaborate) block_drops: FxIndexMap<mir::BlockId, Vec<BlockDrop>>,
     /// Planned edge-specific drops.
-    pub(super) edge_drops: Vec<EdgeDrop>,
+    pub(in crate::elaborate) edge_drops: Vec<EdgeDrop>,
     /// Planned drops handed to the collector inside each block.
-    pub(super) deferred_drops: FxIndexMap<mir::BlockId, Vec<DeferredDrop>>,
+    pub(in crate::elaborate) deferred_drops: FxIndexMap<mir::BlockId, Vec<DeferredDrop>>,
 }
 
 /// Destruction handed to the collector before one store overwrites storage through a reference.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct DeferredDrop {
+pub(in crate::elaborate) struct DeferredDrop {
     /// Index of the overwriting store inside the block's instructions.
-    pub(super) store: usize,
+    pub(in crate::elaborate) store: usize,
     /// The pointer the store writes through.
-    pub(super) pointer: mir::Value,
+    pub(in crate::elaborate) pointer: mir::Value,
 }
 
 /// Ownership analyses used to build one drop plan.
@@ -55,20 +55,20 @@ struct DropAnalysis<'a> {
 
 /// Destruction planned at one instruction boundary.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct BlockDrop {
+pub(in crate::elaborate) struct BlockDrop {
     /// Instruction index where destruction is inserted.
-    pub(super) index: usize,
+    pub(in crate::elaborate) index: usize,
     /// Maximal initialized path to destroy.
-    pub(super) path: mir::MovePathId,
+    pub(in crate::elaborate) path: mir::MovePathId,
 }
 
 /// Destruction inserted on one control-flow edge.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(super) struct EdgeDrop {
+pub(in crate::elaborate) struct EdgeDrop {
     /// The control-flow edge.
-    pub(super) edge: mir::Edge,
+    pub(in crate::elaborate) edge: mir::Edge,
     /// Maximal initialized paths to destroy.
-    pub(super) paths: Vec<mir::MovePathId>,
+    pub(in crate::elaborate) paths: Vec<mir::MovePathId>,
 }
 
 impl DropPlan {

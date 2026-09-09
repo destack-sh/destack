@@ -25,7 +25,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         storage: mir::Storage,
     ) {
         // run the user hook before destroying owned children
-        if let Some(hook) = self.drops.hook(ty, storage) {
+        if let Some(hook) = self.drops.hook(ty) {
             self.call_hook(pointer, hook);
         }
 
@@ -34,6 +34,8 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
 
     /// Emit drop for one inline value at its storage address.
     fn drop_inline(&mut self, ty: mir::TypeId, pointer: mir::Value, storage: mir::Storage) {
+        // drop an application through the type it stands for
+        let ty = self.builder.tree().represented(ty);
         match self.builder.tree().get(ty).clone() {
             // type Pair { left: File; right: File; }
             mir::Type::Struct { fields, .. } => {
@@ -81,6 +83,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 let element_pointer_type = self.intern_pointer(element, storage);
 
                 // drop elements from the last index to the first
+                let length = self
+                    .builder
+                    .tree()
+                    .static_value(length)
+                    .length()
+                    .unwrap_or_else(|| unreachable!("drop bodies close every array length"));
                 for index in (0..length).rev() {
                     let index = self.builder.usize_const(u128::from(index));
                     let element_pointer = self.builder.element_addr(
@@ -114,13 +122,8 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
     ) {
         // build loop state
         let usize_type = self.builder.tree_mut().intern_type(mir::Type::Usize);
-        let element_pointer = self.intern_reference(
-            mir::ReferenceKind::Unique,
-            element,
-            access,
-            storage,
-            mir::Nullability::None,
-        );
+        let element_pointer =
+            self.intern_reference(mir::ReferenceKind::Unique, element, access, storage);
         let index = self.builder.variable(usize_type);
         let header = self.builder.block();
         let body = self.builder.block();
@@ -254,7 +257,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             } => {
                 let value = self.builder.load(pointer, ty);
                 self.drop_unique(value, pointee, storage);
-                self.builder.free(value);
+                self.builder.release(value);
             }
             // slice<File, unique, mutable>
             mir::Type::Slice {
@@ -268,7 +271,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 if Self::emits(self.drops, self.builder.tree(), element, storage) {
                     self.drop_slice(element, storage, access, value);
                 }
-                self.builder.free(value);
+                self.builder.release(value);
             }
             // dynamic<Writer, unique, mutable> or function<() => void, once, unique, mutable>
             mir::Type::Dynamic {
@@ -281,7 +284,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             } => {
                 let value = self.builder.load(pointer, ty);
                 self.builder.drop_value(value);
-                self.builder.free(value);
+                self.builder.release(value);
             }
             // Pair and other inline values
             _ => self.drop_inline(ty, pointer, storage),
@@ -305,9 +308,17 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             self.builder.bitcast(pointer, parameter)
         };
         let signature = self.builder.tree_mut().intern_type(signature);
+        let result = self.builder.signature_result(signature);
 
-        self.builder
-            .call(mir::Callee::Direct { function }, signature, vec![receiver]);
+        self.builder.call(
+            mir::Callee::Direct {
+                function,
+                arguments: Vec::new(),
+            },
+            signature,
+            vec![receiver],
+            result,
+        );
     }
 
     /// Call one generated destructor.
@@ -327,9 +338,17 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             self.builder.bitcast(pointer, parameter)
         };
         let signature = self.builder.tree_mut().intern_type(signature);
+        let result = self.builder.signature_result(signature);
 
-        self.builder
-            .call(mir::Callee::Direct { function }, signature, vec![pointer]);
+        self.builder.call(
+            mir::Callee::Direct {
+                function,
+                arguments: Vec::new(),
+            },
+            signature,
+            vec![pointer],
+            result,
+        );
     }
 
     /// Intern one exclusive borrowed reference for generated destruction code.
@@ -337,28 +356,30 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         self.intern_reference(
             mir::ReferenceKind::Borrowed,
             pointee,
-            mir::Access::Exclusive,
+            mir::Access::Mutable,
             storage,
-            mir::Nullability::None,
         )
     }
 
-    /// Intern one reference type for generated destruction code.
+    /// Intern one reference type for generated destruction code, a borrow reborrowing the
+    /// destructor's own parameter.
     fn intern_reference(
         &mut self,
         kind: mir::ReferenceKind,
         pointee: mir::TypeId,
         access: mir::Access,
         storage: mir::Storage,
-        nullability: mir::Nullability,
     ) -> mir::TypeId {
+        let lifetime = match kind {
+            mir::ReferenceKind::Borrowed => mir::Lifetime::slot(0),
+            _ => mir::Lifetime::empty(),
+        };
         let reference = mir::Type::Reference {
             kind,
-            lifetime: mir::Lifetime::empty(),
+            lifetime,
             storage,
             access,
             pointee,
-            nullability,
         };
 
         self.builder.tree_mut().intern_type(reference)
@@ -379,9 +400,17 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         };
         let pointer = self.builder.bitcast(value, parameter);
         let signature = self.builder.tree_mut().intern_type(signature);
+        let result = self.builder.signature_result(signature);
 
-        self.builder
-            .call(mir::Callee::Direct { function }, signature, vec![pointer]);
+        self.builder.call(
+            mir::Callee::Direct {
+                function,
+                arguments: Vec::new(),
+            },
+            signature,
+            vec![pointer],
+            result,
+        );
     }
 
     /// Return whether dropping a value of this type emits MIR.

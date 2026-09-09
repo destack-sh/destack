@@ -6,12 +6,12 @@ fn test_generate_struct_destructor() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Pair = aggregate (v0, v1)
     return
 }
@@ -32,14 +32,14 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
     return
 }
 
-function drop.frame<Pair>(v0: ref<Pair, borrowed, exclusive, frame>): void {
-entry(v0: ref<Pair, borrowed, exclusive, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 1
+function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Pair, borrowed, 'a, mutable, frame>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 1
     v2: ref<int32, unique, mutable, local> = load v1
-    free v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+    release v2
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
     v4: ref<int32, unique, mutable, local> = load v3
-    free v4
+    release v4
     return
 }
 "#,
@@ -94,11 +94,11 @@ fn test_generate_struct_destructor_with_unique_slice_field() {
     let mut program = TestProgram::mir(
         r#"
 type Buffer {
-    items: slice<int32, unique, mutable>;
+    items: slice<int32, unique, mutable, local>;
 }
 
-function test(v0: slice<int32, unique, mutable>): void {
-entry(v0: slice<int32, unique, mutable>):
+function test(v0: slice<int32, unique, mutable, local>): void {
+entry(v0: slice<int32, unique, mutable, local>):
     v1: Buffer = aggregate (v0)
     return
 }
@@ -118,11 +118,11 @@ entry(v0: slice<int32, unique, mutable, local>):
     return
 }
 
-function drop.frame<Buffer>(v0: ref<Buffer, borrowed, exclusive, frame>): void {
-entry(v0: ref<Buffer, borrowed, exclusive, frame>):
-    v1: ref<slice<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Buffer, borrowed, 'a, mutable, frame>):
+    v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
     v2: slice<int32, unique, mutable, local> = load v1
-    free v2
+    release v2
     return
 }
 "#,

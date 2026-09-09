@@ -80,7 +80,7 @@ type User {
 
 function test(v0: ref<User, managed, mutable, local>): int32 {
 entry(v0: ref<User, managed, mutable, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -96,7 +96,7 @@ type User {
 
 function test(v0: ref<User, managed, mutable, local>): int32 {
 entry(v0: ref<User, managed, mutable, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }
@@ -111,7 +111,7 @@ fn test_skip_drop_for_borrow_into_managed_slice() {
 function test(v0: slice<int32, managed, mutable, local>): int32 {
 entry(v0: slice<int32, managed, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, readonly, local> = element.address v0, v1
+    v2: ref<int32, borrowed, 'managed, readonly, local> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }
@@ -123,7 +123,7 @@ entry(v0: slice<int32, managed, mutable, local>):
 function test(v0: slice<int32, managed, mutable, local>): int32 {
 entry(v0: slice<int32, managed, mutable, local>):
     v1: int64 = 0
-    v2: ref<int32, borrowed, readonly, local> = element.address v0, v1
+    v2: ref<int32, borrowed, 'managed, readonly, local> = element.address v0, v1
     v3: int32 = load v2
     return v3
 }
@@ -216,14 +216,14 @@ entry(v0: ref<int32, unique, mutable, local>):
 fn test_skip_drop_after_owned_call() {
     let mut program = TestProgram::mir(
         r#"
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
-    call consume(v0): (ref<int32, unique, mutable>) => void
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
+    call consume(v0): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,
@@ -233,7 +233,7 @@ entry(v0: ref<int32, unique, mutable>):
         r#"
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     return
 }
 

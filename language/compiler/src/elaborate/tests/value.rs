@@ -4,8 +4,8 @@ use crate::tests::TestProgram;
 fn test_insert_drop_for_unused_owned_parameter() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 "#,
@@ -15,7 +15,7 @@ entry(v0: ref<int32, unique, mutable>):
         r#"
 function test(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     return
 }
 "#,
@@ -29,7 +29,7 @@ fn test_insert_drop_for_unique_slice_allocation() {
 function test(): void {
 entry:
     v0: int64 = 4
-    v1: slice<int32, unique, mutable> = new.slice.zeroed int32, v0
+    v1: slice<int32, unique, mutable, local> = new.slice.zeroed int32, v0
     return
 }
 "#,
@@ -41,7 +41,7 @@ function test(): void {
 entry:
     v0: int64 = 4
     v1: slice<int32, unique, mutable, local> = new.slice.zeroed int32, v0
-    free v1
+    release v1
     return
 }
 "#,
@@ -57,8 +57,8 @@ type Writer {
     write: fn() => void;
 }
 
-function test(v0: dynamic<Writer, unique, mutable>): void {
-entry(v0: dynamic<Writer, unique, mutable>):
+function test(v0: dynamic<Writer, unique, mutable, local>): void {
+entry(v0: dynamic<Writer, unique, mutable, local>):
     return
 }
 "#,
@@ -74,7 +74,7 @@ type Writer {
 function test(v0: dynamic<Writer, unique, mutable, local>): void {
 entry(v0: dynamic<Writer, unique, mutable, local>):
     drop v0
-    free v0
+    release v0
     return
 }
 "#,
@@ -85,8 +85,8 @@ entry(v0: dynamic<Writer, unique, mutable, local>):
 fn test_insert_runtime_drop_for_unique_function() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: function<() => void, once, unique, mutable>): void {
-entry(v0: function<() => void, once, unique, mutable>):
+function test(v0: function<() => void, once, unique, mutable, local>): void {
+entry(v0: function<() => void, once, unique, mutable, local>):
     return
 }
 "#,
@@ -97,7 +97,28 @@ entry(v0: function<() => void, once, unique, mutable>):
 function test(v0: function<() => void, once, unique, mutable, local>): void {
 entry(v0: function<() => void, once, unique, mutable, local>):
     drop v0
-    free v0
+    release v0
+    return
+}
+"#,
+    );
+}
+
+/// A template body stays as lowered, its instances planning their own destruction.
+#[test]
+fn test_leave_a_template_body_to_its_instances() {
+    let mut program = TestProgram::mir(
+        r#"
+function hold<T>(v0: T): void {
+entry(v0: T):
+    return
+}
+"#,
+    );
+    program.assert_elaborated(
+        r#"
+function hold<T>(v0: T): void {
+entry(v0: T):
     return
 }
 "#,

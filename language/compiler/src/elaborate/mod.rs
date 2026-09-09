@@ -1,7 +1,7 @@
 mod drop;
 mod error;
+mod function;
 mod provide;
-mod safepoint;
 mod state;
 mod warning;
 

@@ -1,7 +1,7 @@
 use destack_mir as mir;
 
 /// MIR instruction emitter for one planned drop.
-pub(super) struct DropEmitter<'a> {
+pub(in crate::elaborate) struct DropEmitter<'a> {
     /// The MIR tree receiving generated values and types.
     tree: &'a mut mir::Tree,
     /// Canonical MIR drop table.
@@ -18,7 +18,7 @@ pub(super) struct DropEmitter<'a> {
 
 impl<'a> DropEmitter<'a> {
     /// Create an emitter at one function block.
-    pub(super) fn new(
+    pub(in crate::elaborate) fn new(
         tree: &'a mut mir::Tree,
         drops: &'a mir::DropTable,
         function: mir::LocalNodeId<mir::Function>,
@@ -36,7 +36,7 @@ impl<'a> DropEmitter<'a> {
     }
 
     /// Emit destruction for one initialized move path.
-    pub(super) fn emit(mut self, path: mir::MovePathId) -> Vec<mir::Instruction> {
+    pub(in crate::elaborate) fn emit(mut self, path: mir::MovePathId) -> Vec<mir::Instruction> {
         // select the value that carries the planned path
         let root = self.paths.root(path);
         let origin = self.paths.get(root).place.origin;
@@ -163,7 +163,7 @@ impl<'a> DropEmitter<'a> {
                     });
                 }
                 mir::Projection::Element { index } => {
-                    let index_type = self.tree.usize_type();
+                    let index_type = self.tree.intern_type(mir::Type::Usize);
                     let index_value = self.allocate_value(index_type);
                     self.instructions.push(mir::Instruction::Const {
                         destination: index_value,
@@ -210,15 +210,15 @@ impl<'a> DropEmitter<'a> {
 
     /// Emit destruction for one concrete SSA value.
     fn emit_value(&mut self, value: mir::Value, ty: mir::TypeId) {
-        // detect whether Drop releases this representation
+        // detect whether Drop returns this representation
         let requires_destructor =
             self.drops
                 .requires_destructor(ty, mir::Storage::Frame, self.tree);
         self.emit_contents(value, ty);
 
-        // release trivial unique storage after its contents
+        // return trivial unique storage after its contents
         if self.tree.get(ty).is_unique_storage() && !requires_destructor {
-            self.instructions.push(mir::Instruction::Free { value });
+            self.instructions.push(mir::Instruction::Release { value });
         }
     }
 
@@ -268,6 +268,9 @@ impl<'a> DropEmitter<'a> {
             (parameter.ty, function.signature())
         };
 
+        // borrow the pointee for the call, filling the destructor's binder with the frame
+        let parameter = mir::instantiate_slots(self.tree, parameter, &[mir::Lifetime::frame()]);
+
         // enter the storage-specific destructor at the allocation address
         let value_type = self.tree.get(self.function).expect_value_type(value);
         let pointer = if value_type == parameter {
@@ -287,7 +290,14 @@ impl<'a> DropEmitter<'a> {
         let arguments = self.tree.add_values(&[pointer]);
         self.instructions.push(mir::Instruction::Call {
             destination: None,
-            call: mir::Call::new(mir::Callee::Direct { function }, arguments, signature),
+            call: mir::Call::new(
+                mir::Callee::Direct {
+                    function,
+                    arguments: Vec::new(),
+                },
+                arguments,
+                signature,
+            ),
         });
     }
 
@@ -295,11 +305,10 @@ impl<'a> DropEmitter<'a> {
     fn intern_reference(&mut self, pointee: mir::TypeId) -> mir::TypeId {
         self.tree.intern_type(mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
+            lifetime: mir::Lifetime::frame(),
             storage: mir::Storage::Frame,
-            access: mir::Access::Exclusive,
+            access: mir::Access::Mutable,
             pointee,
-            nullability: mir::Nullability::None,
         })
     }
 

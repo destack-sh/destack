@@ -6,19 +6,19 @@ fn test_drop_sibling_after_partial_move() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
 function test(v0: Pair): void {
 entry(v0: Pair):
-    v1: ref<int32, unique, mutable> = field.get v0, 0
-    call consume(v1): (ref<int32, unique, mutable>) => void
+    v1: ref<int32, unique, mutable, local> = field.get v0, 0
+    call consume(v1): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,
@@ -33,7 +33,7 @@ type Pair {
 
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     return
 }
 
@@ -41,7 +41,7 @@ function test(v0: Pair): void {
 entry(v0: Pair):
     v1: ref<int32, unique, mutable, local> = field.get v0, 0
     v2: ref<int32, unique, mutable, local> = field.get v0, 1
-    free v2
+    release v2
     call consume(v1): (ref<int32, unique, mutable, local>) => void
     return
 }
@@ -55,12 +55,12 @@ fn test_drop_replaced_field_before_reconstruction() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: Pair, v1: ref<int32, unique, mutable>): void {
-entry(v0: Pair, v1: ref<int32, unique, mutable>):
+function test(v0: Pair, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
     v2: Pair = field.set v0, 0, v1
     return
 }
@@ -77,20 +77,20 @@ type Pair {
 function test(v0: Pair, v1: ref<int32, unique, mutable, local>): void {
 entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
     v3: ref<int32, unique, mutable, local> = field.get v0, 0
-    free v3
+    release v3
     v2: Pair = field.set v0, 0, v1
     drop v2
     return
 }
 
-function drop.frame<Pair>(v0: ref<Pair, borrowed, exclusive, frame>): void {
-entry(v0: ref<Pair, borrowed, exclusive, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 1
+function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Pair, borrowed, 'a, mutable, frame>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 1
     v2: ref<int32, unique, mutable, local> = load v1
-    free v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+    release v2
+    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
     v4: ref<int32, unique, mutable, local> = load v3
-    free v4
+    release v4
     return
 }
 "#,
@@ -102,10 +102,10 @@ entry(v0: ref<Pair, borrowed, exclusive, frame>):
 fn test_drop_path_dependent_local_before_join() {
     let mut program = TestProgram::mir(
         r#"
-function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
-    local l0: ref<int32, unique, mutable>
+function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
+    local l0: ref<int32, unique, mutable, local>
 
-entry(v0: ref<int32, unique, mutable>, v1: boolean):
+entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
     branch v1 => initialize | skip
 
 initialize:
@@ -132,11 +132,11 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
 b1:
     local.set l0, v0
     v2: ref<int32, unique, mutable, local> = local.get l0
-    free v2
+    release v2
     jump b3
 
 b2:
-    free v0
+    release v0
     jump b3
 
 b3:
@@ -151,17 +151,17 @@ b3:
 fn test_drop_edge_dependent_values_before_join() {
     let mut program = TestProgram::mir(
         r#"
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: boolean): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: boolean):
     branch v2 => done(v0) | done(v1)
 
-done(v3: ref<int32, unique, mutable>):
-    call consume(v3): (ref<int32, unique, mutable>) => void
+done(v3: ref<int32, unique, mutable, local>):
+    call consume(v3): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,
@@ -171,7 +171,7 @@ done(v3: ref<int32, unique, mutable>):
         r#"
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     return
 }
 
@@ -180,11 +180,11 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
     branch v2 => b2(v0) | b1(v1)
 
 b1(v5: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     jump b3(v5)
 
 b2(v4: ref<int32, unique, mutable, local>):
-    free v1
+    release v1
     jump b3(v4)
 
 b3(v3: ref<int32, unique, mutable, local>):
@@ -204,14 +204,14 @@ type Owner {
     value: int32;
 }
 
-type View {
-    value: ref<int32, borrowed, readonly, frame>;
+type View<'a> {
+    value: ref<int32, borrowed, 'a, readonly, frame>;
 }
 
-function test(v0: ref<Owner, unique, mutable>, v1: ref<View, borrowed, mutable, frame>): void {
-entry(v0: ref<Owner, unique, mutable>, v1: ref<View, borrowed, mutable, frame>):
-    v2: ref<int32, borrowed, readonly, frame> = field.address v0, 0
-    v3: ref<ref<int32, borrowed, readonly, frame>, borrowed, exclusive> = field.address v1, 0
+function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>):
+    v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
+    v3: ref<ref<int32, borrowed, 'frame, readonly, frame>, borrowed, 'a, mutable, frame> = field.address v1, 0
     store v3, v2
     return
 }
@@ -224,16 +224,16 @@ type Owner {
     value: int32;
 }
 
-type View {
-    value: ref<int32, borrowed, readonly, frame>;
+type View<'a> {
+    value: ref<int32, borrowed, 'a, readonly, frame>;
 }
 
-function test(v0: ref<Owner, unique, mutable, local>, v1: ref<View, borrowed, mutable, frame>): void {
-entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View, borrowed, mutable, frame>):
-    v2: ref<int32, borrowed, readonly, frame> = field.address v0, 0
-    v3: ref<ref<int32, borrowed, readonly, frame>, borrowed, exclusive, local> = field.address v1, 0
+function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borrowed, 'a, mutable, frame>):
+    v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
+    v3: ref<ref<int32, borrowed, 'frame, readonly, frame>, borrowed, 'a, mutable, frame> = field.address v1, 0
     store v3, v2
-    free v0
+    release v0
     return
 }
 "#,
@@ -246,13 +246,13 @@ fn test_drop_a_taken_unique_pointee_after_its_free() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function test(v0: ref<Box, unique, mutable>): void {
-entry(v0: ref<Box, unique, mutable>):
+function test(v0: ref<Box, unique, mutable, local>): void {
+entry(v0: ref<Box, unique, mutable, local>):
     v1: Box = load v0
-    free v0
+    release v0
     return
 }
 "#,
@@ -268,15 +268,15 @@ function test(v0: ref<Box, unique, mutable, local>): void {
 entry(v0: ref<Box, unique, mutable, local>):
     v1: Box = load v0
     drop v1
-    free v0
+    release v0
     return
 }
 
-function drop.frame<Box>(v0: ref<Box, borrowed, exclusive, frame>): void {
-entry(v0: ref<Box, borrowed, exclusive, frame>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, frame>):
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
-    free v2
+    release v2
     return
 }
 "#,

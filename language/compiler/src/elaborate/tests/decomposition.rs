@@ -6,21 +6,21 @@ fn test_insert_drop_after_complete_struct_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
     v2: Pair = aggregate (v0, v1)
-    v3: ref<int32, unique, mutable> = field.get v2, 0
-    v4: ref<int32, unique, mutable> = field.get v2, 1
-    call consume(v3): (ref<int32, unique, mutable>) => void
+    v3: ref<int32, unique, mutable, local> = field.get v2, 0
+    v4: ref<int32, unique, mutable, local> = field.get v2, 1
+    call consume(v3): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,
@@ -35,7 +35,7 @@ type Pair {
 
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     return
 }
 
@@ -44,7 +44,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
     v2: Pair = aggregate (v0, v1)
     v3: ref<int32, unique, mutable, local> = field.get v2, 0
     v4: ref<int32, unique, mutable, local> = field.get v2, 1
-    free v4
+    release v4
     call consume(v3): (ref<int32, unique, mutable, local>) => void
     return
 }
@@ -58,29 +58,29 @@ fn test_insert_drop_after_complete_nested_decomposition() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable>;
-    right: ref<int32, unique, mutable>;
+    left: ref<int32, unique, mutable, local>;
+    right: ref<int32, unique, mutable, local>;
 }
 
 type Outer {
     pair: Pair;
-    tail: ref<int32, unique, mutable>;
+    tail: ref<int32, unique, mutable, local>;
 }
 
-function consume(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function consume(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
     v3: Pair = aggregate (v0, v1)
     v4: Outer = aggregate (v3, v2)
     v5: Pair = field.get v4, 0
-    v7: ref<int32, unique, mutable> = field.get v4, 1
-    v6: ref<int32, unique, mutable> = field.get v5, 0
-    v8: ref<int32, unique, mutable> = field.get v5, 1
-    call consume(v6): (ref<int32, unique, mutable>) => void
+    v7: ref<int32, unique, mutable, local> = field.get v4, 1
+    v6: ref<int32, unique, mutable, local> = field.get v5, 0
+    v8: ref<int32, unique, mutable, local> = field.get v5, 1
+    call consume(v6): (ref<int32, unique, mutable, local>) => void
     return
 }
 "#,
@@ -100,7 +100,7 @@ type Outer {
 
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
-    free v0
+    release v0
     return
 }
 
@@ -110,10 +110,10 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
     v4: Outer = aggregate (v3, v2)
     v5: Pair = field.get v4, 0
     v7: ref<int32, unique, mutable, local> = field.get v4, 1
-    free v7
+    release v7
     v6: ref<int32, unique, mutable, local> = field.get v5, 0
     v8: ref<int32, unique, mutable, local> = field.get v5, 1
-    free v8
+    release v8
     call consume(v6): (ref<int32, unique, mutable, local>) => void
     return
 }
@@ -126,11 +126,11 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
 fn test_variant_payload_move_consumes_variant() {
     let mut program = TestProgram::mir(
         r#"
-type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable>; 1uint8 = int32; };
+type Value = variant<uint1> { 0uint1 = ref<int32, unique, mutable, local>; 1uint1 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
-    v1: ref<int32, unique, mutable> = field.get v0, 1
+    v1: ref<int32, unique, mutable, local> = field.get v0, 1
     return
 }
 "#,
@@ -138,12 +138,12 @@ entry(v0: Value):
 
     program.assert_elaborated(
         r#"
-type Value = variant<uint8> { 0uint8 = ref<int32, unique, mutable, local>; 1uint8 = int32; };
+type Value = variant<uint1> { 0uint1 = ref<int32, unique, mutable, local>; 1uint1 = int32; };
 
 function test(v0: Value): void {
 entry(v0: Value):
     v1: ref<int32, unique, mutable, local> = field.get v0, 1
-    free v1
+    release v1
     return
 }
 "#,

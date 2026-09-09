@@ -1,10 +1,13 @@
 use destack_core::StringPool;
 use destack_mir as mir;
+use destack_source::ModuleId;
 
 use super::DestructorBody;
 
 /// Builder for generated MIR destructor functions.
 pub(in crate::elaborate) struct DestructorBuilder<'a> {
+    /// The module the destructors belong to.
+    module: ModuleId,
     /// The MIR tree receiving generated functions.
     tree: &'a mut mir::Tree,
     /// Target ABI layout.
@@ -20,6 +23,7 @@ pub(in crate::elaborate) struct DestructorBuilder<'a> {
 impl<'a> DestructorBuilder<'a> {
     /// Create one destructor builder.
     pub(in crate::elaborate) fn new(
+        module: ModuleId,
         tree: &'a mut mir::Tree,
         target: mir::TargetLayout,
         drops: &'a mut mir::DropTable,
@@ -27,6 +31,7 @@ impl<'a> DestructorBuilder<'a> {
         strings: &'a StringPool,
     ) -> Self {
         Self {
+            module,
             tree,
             target,
             drops,
@@ -57,7 +62,7 @@ impl<'a> DestructorBuilder<'a> {
         roots.dedup();
 
         for ty in roots {
-            self.build_destructor(ty, mir::Storage::LocalHeap);
+            self.build_destructor(ty, mir::Storage::Heap(mir::Space::Local));
         }
     }
 
@@ -189,24 +194,28 @@ impl<'a> DestructorBuilder<'a> {
         ty: mir::LocalNodeId<mir::Type>,
         storage: mir::Storage,
     ) -> mir::LocalNodeId<mir::Function> {
-        let name = self.strings.intern(&format!("drop.{}", storage.segment()));
-        let argument = self.tree.intern_static(mir::Static::Type(ty));
-        let arguments = vec![argument];
-        let symbol = mir::Symbol::named(name).instantiate(&arguments, self.tree);
+        let Some(segment) = storage.segment() else {
+            unreachable!("destructors close every storage space");
+        };
+        let name = self.strings.intern(&format!("drop.{segment}"));
+        let arguments = vec![mir::GenericArgument::Type(mir::TypeId::from(ty))];
+        let symbol = mir::Symbol::named(self.module, name).instantiate(&arguments, self.tree);
+        // borrow the dropped storage for the destructor's own binder
+        let binder = self.strings.intern("'a");
+        let lifetimes = vec![mir::LifetimeParameter::new(Some(binder))];
         let pointer_type = mir::Type::Reference {
             kind: mir::ReferenceKind::Borrowed,
-            lifetime: mir::Lifetime::empty(),
+            lifetime: mir::Lifetime::slot(0),
             storage,
-            access: mir::Access::Exclusive,
+            access: mir::Access::Mutable,
             pointee: ty,
-            nullability: mir::Nullability::None,
         };
         let pointer = self.tree.intern_type(pointer_type);
         let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), pointer)];
         let void = self.tree.void_type();
 
         // register a bodyless function first so recursive drops can call it
-        let function = mir::Function::declare(name, Vec::new(), parameters, void)
+        let function = mir::Function::declare(self.module, name, lifetimes, parameters, void)
             .with_arguments(arguments)
             .with_symbol(symbol);
 
@@ -239,7 +248,7 @@ impl<'a> DestructorBuilder<'a> {
             mir::Type::FixedArray {
                 element, length, ..
             } => {
-                if length > 0 {
+                if self.tree.static_value(length).length() != Some(0) {
                     self.build_destructor(element, storage);
                 }
             }
@@ -257,6 +266,13 @@ impl<'a> DestructorBuilder<'a> {
                 // build every payload destructor
                 for case in cases {
                     self.build_destructor(case.ty, storage);
+                }
+            }
+            // build the children of the type an application stands for, like Box<int32>
+            mir::Type::Application { .. } => {
+                let applied = self.tree.represented(ty);
+                if applied != ty {
+                    self.build_child_destructors(applied, storage);
                 }
             }
             // scalar and indirection types have no inline children

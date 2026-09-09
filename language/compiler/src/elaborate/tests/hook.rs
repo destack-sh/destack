@@ -6,13 +6,13 @@ fn test_insert_drop_calls_destructor_for_hook() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-external function dropBox(ref<Box, borrowed, exclusive, frame>): void
+external function dropBox<'a>(ref<Box, borrowed, 'a, mutable, frame>): void
 
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     v1: Box = aggregate (v0)
     return
 }
@@ -26,7 +26,7 @@ type Box {
     value: ref<int32, unique, mutable, local>;
 }
 
-external function dropBox(ref<Box, borrowed, exclusive, frame>): void
+external function dropBox<'a>(ref<Box, borrowed, 'a, mutable, frame>): void
 
 function test(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -35,12 +35,12 @@ entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function drop.frame<Box>(v0: ref<Box, borrowed, exclusive, frame>): void {
-entry(v0: ref<Box, borrowed, exclusive, frame>):
-    call dropBox(v0): (ref<Box, borrowed, exclusive, frame>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, frame>):
+    call dropBox(v0): <'a>(ref<Box, borrowed, 'a, mutable, frame>) => void
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
-    free v2
+    release v2
     return
 }
 "#,
@@ -53,16 +53,16 @@ fn test_insert_drop_skips_receiver_inside_hook() {
     let mut program = TestProgram::mir(
         r#"
 type Box {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
-function dropBox(v0: ref<Box, borrowed, exclusive, frame>): void {
-entry(v0: ref<Box, borrowed, exclusive, frame>):
+function dropBox<'a>(v0: ref<Box, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, frame>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     v1: Box = aggregate (v0)
     return
 }
@@ -76,8 +76,8 @@ type Box {
     value: ref<int32, unique, mutable, local>;
 }
 
-function dropBox(v0: ref<Box, borrowed, exclusive, frame>): void {
-entry(v0: ref<Box, borrowed, exclusive, frame>):
+function dropBox<'a>(v0: ref<Box, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, frame>):
     return
 }
 
@@ -88,12 +88,12 @@ entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
-function drop.frame<Box>(v0: ref<Box, borrowed, exclusive, frame>): void {
-entry(v0: ref<Box, borrowed, exclusive, frame>):
-    call dropBox(v0): (ref<Box, borrowed, exclusive, frame>) => void
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, exclusive, frame> = field.project v0, 0
+function drop.frame<Box, 'a>(v0: ref<Box, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable, frame>):
+    call dropBox(v0): <'a>(ref<Box, borrowed, 'a, mutable, frame>) => void
+    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a, mutable, frame> = field.project v0, 0
     v2: ref<int32, unique, mutable, local> = load v1
-    free v2
+    release v2
     return
 }
 "#,

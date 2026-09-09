@@ -1,6 +1,9 @@
+use std::sync::Arc;
+
 use destack_mir as mir;
 
 use crate::elaborate::ElaborateState;
+use crate::instantiate::Instantiated;
 use crate::tests::{TestProgram, assert_snapshot};
 use crate::verify::VerifyState;
 
@@ -17,12 +20,24 @@ impl TestProgram {
         );
         let retention = state.take_retention();
         let safepoints = state.take_safepoints();
-        let mut state = ElaborateState::new(&self.lowered, &self.strings);
+        let mut state = ElaborateState::new(
+            Instantiated {
+                module: self.module_id(),
+                layout: self.lowered.target,
+                tree: mir::Tree::clone(&self.lowered.tree),
+                layouts: self.lowered.layouts.clone(),
+                drops: self.lowered.drops.clone(),
+                accesses: self.lowered.accesses.clone(),
+                effects: self.lowered.effects.clone(),
+                specializations: Vec::new(),
+            },
+            &self.strings,
+        );
         state
             .elaborate(&retention, &safepoints)
             .expect("elaboration layouts should build");
         let elaborated = state.finish();
-        self.lowered.tree = elaborated.tree;
+        self.lowered.tree = Arc::new(elaborated.tree);
         self.lowered.layouts = elaborated.layouts;
         self.lowered.drops = elaborated.drops;
         self.lowered.effects = elaborated.effects;

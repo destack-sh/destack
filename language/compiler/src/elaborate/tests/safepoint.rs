@@ -53,9 +53,9 @@ type Box {
     value: int32;
 }
 
-function test(v0: ref<Box, managed, mutable>, v1: boolean): int32 {
-entry(v0: ref<Box, managed, mutable>, v1: boolean):
-    v2: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, managed, mutable, local>, v1: boolean): int32 {
+entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
+    v2: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     jump next
 
 next:
@@ -80,12 +80,11 @@ type Box {
 
 function test(v0: ref<Box, managed, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
-    v2: ref<int32, borrowed, readonly, local> = field.address v0, 0
+    v2: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     jump b1
 
 b1:
     poll
-    hold (v0)
     branch v1 => b2 | b3
 
 b2:
@@ -139,9 +138,9 @@ type Box {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test(v0: ref<Box, managed, mutable>): int32 {
-entry(v0: ref<Box, managed, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, managed, mutable, local>): int32 {
+entry(v0: ref<Box, managed, mutable, local>):
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     call park(): () => void
     v2: int32 = load v1
     return v2
@@ -161,9 +160,8 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     call park(): () => void
-    hold (v0)
     v2: int32 = load v1
     return v2
 }
@@ -184,9 +182,9 @@ type Box {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): int32
 
-function test(v0: ref<Box, managed, mutable>): int32 {
-entry(v0: ref<Box, managed, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, managed, mutable, local>): int32 {
+entry(v0: ref<Box, managed, mutable, local>):
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     invoke park(): () => int32 => resume | cleanup
 
 resume(v2: int32):
@@ -211,16 +209,14 @@ external function park(): int32
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     invoke park(): () => int32 => b1 | b2
 
 b1(v2: int32):
-    hold (v0)
     v3: int32 = load v1
     return v3
 
 b2:
-    hold (v0)
     unwind.resume
 }
 "#,
@@ -240,9 +236,9 @@ type Box {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test(v0: ref<Box, managed, mutable>): int32 {
-entry(v0: ref<Box, managed, mutable>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function test(v0: ref<Box, managed, mutable, local>): int32 {
+entry(v0: ref<Box, managed, mutable, local>):
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     call park(): () => void
     return v2
@@ -262,7 +258,7 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     call park(): () => void
     return v2
@@ -281,8 +277,8 @@ fn test_hold_nothing_for_a_borrowed_parameter_across_a_park() {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test(v0: ref<int32, borrowed, readonly>): int32 {
-entry(v0: ref<int32, borrowed, readonly>):
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
     call park(): () => void
     v1: int32 = load v0
     return v1
@@ -295,8 +291,8 @@ entry(v0: ref<int32, borrowed, readonly>):
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test(v0: ref<int32, borrowed, readonly, local>): int32 {
-entry(v0: ref<int32, borrowed, readonly, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
     call park(): () => void
     v1: int32 = load v0
     return v1
