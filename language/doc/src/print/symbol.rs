@@ -13,16 +13,20 @@ impl Printer<'_, '_, '_> {
         parameter: dir::GlobalGenericParameterId,
     ) -> DocResult<String> {
         let module = self.program.module(parameter.module_id)?;
-        let parameter = module.generics().get_parameter(parameter.local_id);
+        let binding = module.generics().get_parameter(parameter.local_id);
 
-        let name = match parameter.key {
+        let name = match binding.key {
             dir::GenericParameterKey::Symbol(symbol) => {
                 let symbol = module.bindings().get_symbol(symbol.local_id);
 
                 static_key_segment(symbol.key, module.strings())
             }
-            dir::GenericParameterKey::Generated(name) => {
-                Some(module.strings().get(name).to_string())
+            dir::GenericParameterKey::Anonymous => {
+                let generics = module.generics();
+                let position = generics.parameter_position(parameter.local_id);
+                let regions = region_names_before(generics, module, parameter.local_id);
+
+                Some(binding.canonical_name(position, regions.iter().map(String::as_str)))
             }
         };
 
@@ -370,4 +374,17 @@ fn static_key_segment(key: Option<dir::StaticKey>, strings: &StringPool) -> Opti
         dir::StaticKey::Name(name) => Some(strings.get(name).to_string()),
         dir::StaticKey::Index(index) => Some(index.to_string()),
     }
+}
+
+/// Return the region names one template declares ahead of one parameter.
+fn region_names_before(
+    generics: &dir::GenericTable<'_>,
+    module: &crate::generate::Module<'_>,
+    parameter: dir::LocalGenericParameterId,
+) -> Vec<String> {
+    generics.region_names_before(parameter, |symbol| {
+        let symbol = module.bindings().get_symbol(symbol.local_id);
+
+        static_key_segment(symbol.key, module.strings()).unwrap_or_default()
+    })
 }
