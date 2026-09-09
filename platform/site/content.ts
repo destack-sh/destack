@@ -25,6 +25,7 @@ export const collections: readonly Collection[] = [
     {
         title: "Language",
         route: "/docs/language/",
+        shortcut: "l",
         sources: [
             { directory: "language/docs", path: "language", hierarchy: [10] },
             {
