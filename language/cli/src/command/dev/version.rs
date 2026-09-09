@@ -84,8 +84,7 @@ impl Version {
         // reject leading zeros and other noncanonical representations
         if version.to_string() != text {
             return Err(format!(
-                "invalid version '{text}': expected canonical {}",
-                version
+                "invalid version '{text}': expected canonical {version}"
             ));
         }
 
