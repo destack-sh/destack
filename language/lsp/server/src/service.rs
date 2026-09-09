@@ -273,7 +273,7 @@ impl<S: LanguageServer> Service<Request> for LspService<S> {
 
         Box::pin(async move {
             if let Some(request_trace) = request_trace {
-                client.log_trace_record(request_trace).await?;
+                client.log_trace_record(request_trace);
             }
 
             // time request handling independently from trace publication
@@ -309,7 +309,7 @@ impl<S: LanguageServer> Service<Request> for LspService<S> {
                             .log_message(MessageType::ERROR, response_trace.message())
                             .await;
                     } else {
-                        client.log_trace_record(response_trace).await?;
+                        client.log_trace_record(response_trace);
                     }
                 }
             }
@@ -317,7 +317,7 @@ impl<S: LanguageServer> Service<Request> for LspService<S> {
             else if trace != TraceValue::Off {
                 let notification_trace =
                     TraceRecord::notification_finished(&method, started.elapsed());
-                client.log_trace_record(notification_trace).await?;
+                client.log_trace_record(notification_trace);
             }
 
             Ok(response)

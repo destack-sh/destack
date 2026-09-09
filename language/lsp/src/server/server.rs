@@ -10,9 +10,11 @@ use destack_lsp_types as lsp;
 use destack_query as query;
 use destack_repository::{
     Clock, DestackLayout, Environment, Execution, Host, Revision, Settings, Trace, TraceLevel,
-    TraceReport, TraceView,
+    TraceReport, TraceSnapshot, TraceView,
 };
-use destack_session::{ArtifactPriority, Executor};
+use destack_session::{
+    ArtifactPriority, ArtifactRunEvent, Executor, SessionEvent, SessionEventHandler,
+};
 use destack_source::{FileId, FileSystem, PatchSet, PhysicalFileSystem, TextRange};
 use destack_workspace::{
     DiagnosticRun, FileDiagnostics, FileEdit, QueryFile, QueryRun, RevisionPolicy, RunQueryInput,
@@ -218,7 +220,7 @@ impl DestackLanguageServer {
     }
 
     /// Report one completed workspace trace through standard LSP tracing.
-    async fn report_trace(
+    fn report_trace(
         &self,
         name: &'static str,
         record: LogRecord,
@@ -233,10 +235,25 @@ impl DestackLanguageServer {
         let is_detailed = trace.records_events();
         let view = TraceView::detailed(is_detailed);
         let snapshot = workspace
+            .session()
+            .repository()
             .snapshot_trace(revision, trace.as_ref(), view)
             .map_err(internal_error)?;
+        let record = record.field("revision", revision);
+        let (message, verbose) = Self::format_trace(name, record, snapshot, is_detailed);
+        self.client.log_trace(message, verbose);
+
+        Ok(())
+    }
+
+    /// Format one operation trace for the language client.
+    fn format_trace(
+        name: &'static str,
+        record: LogRecord,
+        snapshot: TraceSnapshot,
+        is_detailed: bool,
+    ) -> (String, Option<String>) {
         let mut record = record
-            .field("revision", revision)
             .field("duration_us", snapshot.total_micros)
             .field("attempts", snapshot.stats.attempts())
             .field("built", snapshot.stats.built)
@@ -287,10 +304,7 @@ impl DestackLanguageServer {
                 .events()
                 .render()
         });
-        self.client
-            .log_trace(message, verbose)
-            .await
-            .map_err(internal_error)
+        (message, verbose)
     }
 
     /// Wait for one scheduled query without blocking the async server.
@@ -315,8 +329,7 @@ impl DestackLanguageServer {
         if let Some(diagnostic_run_id) = diagnostic_run_id {
             record = record.field("diagnostic_run_id", diagnostic_run_id);
         }
-        self.report_trace(method.name(), record, workspace.as_ref(), revision, trace)
-            .await?;
+        self.report_trace(method.name(), record, workspace.as_ref(), revision, trace)?;
         let response = response.map_err(workspace_error)?;
 
         // reject results invalidated while the query was running
@@ -456,7 +469,54 @@ impl DestackLanguageServer {
     /// Prime one workspace's current revision at background priority.
     fn prime_workspace(&self, workspace: &Workspace) -> jsonrpc::Result<Revision> {
         let revision = self.session()?.workspace_revision(workspace)?;
-        workspace.prime(revision).map_err(workspace_error)?;
+        let trace = self.start_trace()?;
+
+        // report proactive work independently of foreground request traces
+        let events: Option<SessionEventHandler> = if trace.records_timings() {
+            let client = self.client.clone();
+            let trace = trace.clone();
+            let repository = workspace.session().repository();
+            Some(Arc::new(move |event| {
+                let SessionEvent::Run(ArtifactRunEvent::Finished {
+                    run_id,
+                    is_cancelled,
+                    is_aborted,
+                    ..
+                }) = event
+                else {
+                    return;
+                };
+
+                // snapshot the completed run with repository display names
+                trace.finish();
+                let is_detailed = trace.records_events();
+                let snapshot =
+                    repository.snapshot_trace(revision, &trace, TraceView::detailed(is_detailed));
+                let snapshot = match snapshot {
+                    Ok(snapshot) => snapshot,
+                    Err(error) => {
+                        client.report_error("workspace.prime.trace", internal_error(error));
+
+                        return;
+                    }
+                };
+
+                // send the same trace representation as foreground operations
+                let record = LogRecord::new("workspace.prime.finished")
+                    .field("revision", revision)
+                    .field("run_id", run_id)
+                    .field("cancelled", is_cancelled)
+                    .field("aborted", is_aborted);
+                let (message, verbose) =
+                    Self::format_trace("workspace.prime", record, snapshot, is_detailed);
+                client.log_trace(message, verbose);
+            }))
+        } else {
+            None
+        };
+        workspace
+            .prime(revision, trace, events)
+            .map_err(workspace_error)?;
 
         Ok(revision)
     }
@@ -535,8 +595,7 @@ impl DestackLanguageServer {
             workspace.as_ref(),
             revision,
             trace,
-        )
-        .await?;
+        )?;
 
         result
     }
@@ -592,8 +651,7 @@ impl DestackLanguageServer {
             workspace.as_ref(),
             revision,
             trace,
-        )
-        .await?;
+        )?;
 
         result
     }
@@ -630,8 +688,7 @@ impl DestackLanguageServer {
             workspace.as_ref(),
             revision,
             trace,
-        )
-        .await?;
+        )?;
 
         result
     }
@@ -727,8 +784,7 @@ impl DestackLanguageServer {
                     workspace.as_ref(),
                     revision,
                     trace,
-                )
-                .await?;
+                )?;
             }
         }
 
@@ -919,8 +975,7 @@ impl LanguageServer for DestackLanguageServer {
                 workspace.as_ref(),
                 revision,
                 trace,
-            )
-            .await?;
+            )?;
         }
 
         // build file operation filters for root notifications

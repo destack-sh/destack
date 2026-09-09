@@ -1,5 +1,3 @@
-//! Types for sending data to and from the language client.
-
 pub use self::log::LogRecord;
 pub use self::socket::{ClientSocket, RequestStream, ResponseSink};
 
@@ -110,23 +108,21 @@ impl Client {
         }
     }
 
-    /// Send one protocol trace message.
-    pub async fn log_trace(
-        &self,
-        message: impl Into<String>,
-        verbose: Option<String>,
-    ) -> Result<(), ExitedError> {
+    /// Write one protocol trace message without stalling toolchain work.
+    pub fn log_trace(&self, message: impl Into<String>, verbose: Option<String>) {
+        // apply the client's current trace preference
         let verbose = match self.trace_level() {
-            TraceValue::Off => return Ok(()),
+            TraceValue::Off => return,
             TraceValue::Messages => None,
             TraceValue::Verbose => verbose,
         };
+
+        // queue the trace through the ordinary log delivery
         let request = Request::from_notification::<notification::LogTrace>(LogTraceParams {
             message: message.into(),
             verbose,
         });
-        let mut tx = self.inner.tx.clone();
-        tx.send(request).await.map_err(|_| ExitedError(()))
+        self.write_log_notification(request);
     }
 
     /// Report one failed language server operation.
@@ -147,10 +143,10 @@ impl Client {
     }
 
     /// Send one structured protocol trace record.
-    pub(super) async fn log_trace_record(&self, record: TraceRecord) -> Result<(), ExitedError> {
+    pub(super) fn log_trace_record(&self, record: TraceRecord) {
         let (message, verbose) = record.into_parts();
 
-        self.log_trace(message, verbose).await
+        self.log_trace(message, verbose);
     }
 }
 
@@ -261,11 +257,17 @@ impl Client {
 
     /// Write one log message without stalling protocol work.
     fn write_log(&self, typ: MessageType, message: impl Display) {
-        use destack_lsp_types::notification::LogMessage;
-        let request = Request::from_notification::<LogMessage>(LogMessageParams {
+        let request = Request::from_notification::<notification::LogMessage>(LogMessageParams {
             typ,
             message: message.to_string(),
         });
+
+        self.write_log_notification(request);
+    }
+
+    /// Queue one log notification and report transport failure on stderr.
+    fn write_log_notification(&self, request: Request) {
+        // keep worker and protocol threads independent of client consumption
         let mut tx = self.inner.tx.clone();
 
         let error = match tx.try_send(request) {
@@ -273,6 +275,8 @@ impl Client {
             Err(error) if error.is_full() => "queue-full",
             Err(_) => "client-disconnected",
         };
+
+        // report failure independently of the unavailable protocol queue
         let record = LogRecord::new("lsp.log.failed").field("error", error);
         eprintln!("{record}");
     }
@@ -781,7 +785,7 @@ impl Service<Request> for Client {
 
         Box::pin(async move {
             if let Some(request_trace) = request_trace {
-                client.log_trace_record(request_trace).await?;
+                client.log_trace_record(request_trace);
             }
 
             // send the message and time traced client requests
@@ -801,7 +805,7 @@ impl Service<Request> for Client {
                             started.elapsed(),
                             is_verbose,
                         );
-                        client.log_trace_record(response_trace).await?;
+                        client.log_trace_record(response_trace);
                     }
 
                     Ok(Some(response))
