@@ -15,7 +15,7 @@ entry(v0: ref<Box, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;

@@ -1,13 +1,12 @@
-use destack_artifact::MirElaborated;
+use destack_artifact::{MirElaborated, MirInstantiated};
 use destack_core::StringPool;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::instantiate::Instantiated;
 use crate::{CompilerError, CompilerResult};
 
 use super::drop::{DestructorBuilder, DropPlan};
-use super::function::{BarrierInserter, BoxInserter, DropInserter, SafepointInserter};
+use super::function::{BoxInserter, DropInserter};
 
 /// State for one MIR elaboration.
 pub(crate) struct ElaborateState<'a> {
@@ -26,21 +25,35 @@ pub(crate) struct ElaborateState<'a> {
     /// Function and call effect table.
     pub(in crate::elaborate) effects: mir::EffectTable,
 
+    /// The module initializer, when one exists.
+    initializer: Option<mir::FunctionId>,
+    /// Dispatch tables.
+    dispatch: mir::DispatchTable,
+    /// Static profile counters.
+    profile: mir::ProfileTable,
+
     /// Strings needed by generated MIR names.
     pub(in crate::elaborate) strings: &'a StringPool,
 }
 
 impl<'a> ElaborateState<'a> {
     /// Create one elaboration over instantiated MIR.
-    pub(in crate::elaborate) fn new(instantiated: Instantiated, strings: &'a StringPool) -> Self {
+    pub(in crate::elaborate) fn new(
+        module: ModuleId,
+        instantiated: &MirInstantiated,
+        strings: &'a StringPool,
+    ) -> Self {
         Self {
-            module: instantiated.module,
-            tree: instantiated.tree,
-            target: instantiated.layout,
-            layouts: instantiated.layouts,
-            drops: instantiated.drops,
-            accesses: instantiated.accesses,
-            effects: instantiated.effects,
+            module,
+            initializer: instantiated.initializer,
+            tree: mir::Tree::clone(&instantiated.tree),
+            target: instantiated.target,
+            layouts: instantiated.layouts.clone(),
+            drops: instantiated.drops.clone(),
+            accesses: instantiated.accesses.clone(),
+            effects: instantiated.effects.clone(),
+            dispatch: instantiated.dispatch.clone(),
+            profile: instantiated.profile.clone(),
             strings,
         }
     }
@@ -49,7 +62,6 @@ impl<'a> ElaborateState<'a> {
     pub(in crate::elaborate) fn elaborate(
         &mut self,
         retention: &mir::RetentionTable,
-        safepoints: &mir::SafepointTable,
     ) -> CompilerResult<()> {
         // collect the source functions with bodies
         let functions = self
@@ -90,9 +102,6 @@ impl<'a> ElaborateState<'a> {
         // insert verified destruction into each source function
         DropInserter::new(&mut self.tree, &self.drops).insert(plans);
 
-        // poll at the safepoints
-        SafepointInserter::new(&mut self.tree, &functions).insert(safepoints);
-
         // complete layouts for types introduced by elaboration
         let mut layouts = mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.target);
         layouts
@@ -101,10 +110,6 @@ impl<'a> ElaborateState<'a> {
                 message: format!("elaborated MIR contains an invalid physical layout: {error}"),
             })?;
 
-        // record every store of references into managed storage for the collector
-        let pointer_bits = self.target.pointer_bits();
-        BarrierInserter::new(&mut self.tree, &self.layouts, pointer_bits).insert(&functions);
-
         Ok(())
     }
 
@@ -112,10 +117,14 @@ impl<'a> ElaborateState<'a> {
     pub(in crate::elaborate) fn finish(self) -> MirElaborated {
         MirElaborated {
             tree: self.tree,
+            target: self.target,
+            initializer: self.initializer,
             layouts: self.layouts,
             drops: self.drops,
             accesses: self.accesses,
             effects: self.effects,
+            dispatch: self.dispatch,
+            profile: self.profile,
         }
     }
 }

@@ -20,7 +20,7 @@ entry:
     );
 
     // generate only the heap placements reached by allocation operations
-    program.elaborate();
+    program.optimize();
     let item = program.type_by_name("Item");
     let local = program
         .lowered
@@ -58,7 +58,7 @@ entry:
 
     program.mark_drop_hook("Item", "dropItem");
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Item {
     value: ref<int32, unique, mutable, local>;
@@ -104,7 +104,7 @@ entry:
 
     program.mark_drop_hook("Item", "dropItem");
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Item {
     value: ref<int32, unique, mutable, local>;

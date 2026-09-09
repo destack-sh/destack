@@ -15,7 +15,7 @@ entry(v0: slice<Box, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;
@@ -77,7 +77,7 @@ entry(v0: slice<slice<Box, unique, mutable, local>, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;
@@ -164,7 +164,7 @@ entry(v0: slice<dynamic<Writer, managed, mutable, local>, unique, mutable, local
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Writer {

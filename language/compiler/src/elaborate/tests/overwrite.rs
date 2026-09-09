@@ -21,7 +21,7 @@ entry(v0: Box, v1: Box):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;
@@ -69,7 +69,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable, local>, v1: Box):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;

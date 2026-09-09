@@ -18,7 +18,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Pair {
     left: ref<int32, unique, mutable, local>;
@@ -68,7 +68,7 @@ entry(v0: dynamic<Writer, managed, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Writer {
@@ -105,7 +105,7 @@ entry(v0: slice<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Buffer {
     items: slice<int32, unique, mutable, local>;

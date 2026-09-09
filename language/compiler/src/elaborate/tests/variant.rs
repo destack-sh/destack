@@ -13,7 +13,7 @@ entry(v0: Value):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Value = variant<uint1> { 0uint1 = ref<int32, unique, mutable, local>; 1uint1 = int32; };
 
@@ -80,7 +80,7 @@ entry(v0: ref<Cell, borrowed, 'a, readonly, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Buffer {
     steps: ref<int32, unique, mutable, local>;

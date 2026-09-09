@@ -11,7 +11,7 @@ entry(v0: ref<int32, managed, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: ref<int32, managed, mutable, local>): void {
 entry(v0: ref<int32, managed, mutable, local>):
@@ -33,7 +33,7 @@ entry:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(): void {
 entry:
@@ -57,7 +57,7 @@ entry:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(): void {
 entry:
@@ -87,7 +87,7 @@ entry(v0: ref<User, managed, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type User {
@@ -118,7 +118,7 @@ entry(v0: slice<int32, managed, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: slice<int32, managed, mutable, local>): int32 {
 entry(v0: slice<int32, managed, mutable, local>):
@@ -147,7 +147,7 @@ entry(v0: Point):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Point {
     x: int32;
@@ -177,7 +177,7 @@ entry(v0: [Box; 0]):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;
@@ -202,7 +202,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -229,7 +229,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):

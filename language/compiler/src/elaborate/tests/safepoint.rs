@@ -21,7 +21,7 @@ done:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: boolean): void {
 entry(v0: boolean):
@@ -71,7 +71,7 @@ done:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
@@ -112,7 +112,7 @@ entry(v0: int32):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: int32): int32 {
 entry(v0: int32):
@@ -148,7 +148,7 @@ entry(v0: ref<Box, managed, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
@@ -197,7 +197,7 @@ cleanup:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
@@ -246,7 +246,7 @@ entry(v0: ref<Box, managed, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
@@ -286,7 +286,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void

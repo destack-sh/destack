@@ -24,7 +24,7 @@ entry(v0: Pair):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Pair {
     left: ref<int32, unique, mutable, local>;
@@ -67,7 +67,7 @@ entry(v0: Pair, v1: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Pair {
     left: ref<int32, unique, mutable, local>;
@@ -121,7 +121,7 @@ done:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
     local l0: ref<int32, unique, mutable, local>
@@ -167,7 +167,7 @@ done(v3: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -218,7 +218,7 @@ entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'frame & local>, borr
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Owner {
     value: int32;
@@ -258,7 +258,7 @@ entry(v0: ref<Box, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;

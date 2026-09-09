@@ -20,7 +20,7 @@ entry(v0: ref<int32, unique, mutable, local>):
     );
     program.mark_drop_hook("Box", "dropBox");
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;
@@ -70,7 +70,7 @@ entry(v0: ref<int32, unique, mutable, local>):
     );
     program.mark_drop_hook("Box", "dropBox");
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Box {
     value: ref<int32, unique, mutable, local>;

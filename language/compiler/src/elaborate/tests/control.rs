@@ -23,7 +23,7 @@ b2(v3: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -73,7 +73,7 @@ b2:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function consume(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -119,7 +119,7 @@ cleanup:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 external function callee(): int32
 
@@ -158,7 +158,7 @@ cleanup:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 external function callee(): int32
 

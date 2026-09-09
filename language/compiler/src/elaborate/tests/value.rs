@@ -11,7 +11,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: ref<int32, unique, mutable, local>): void {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -35,7 +35,7 @@ entry:
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(): void {
 entry:
@@ -64,7 +64,7 @@ entry(v0: dynamic<Writer, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Writer {
@@ -92,7 +92,7 @@ entry(v0: function<() => void, once, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: function<() => void, once, unique, mutable, local>): void {
 entry(v0: function<() => void, once, unique, mutable, local>):
@@ -115,7 +115,7 @@ entry(v0: T):
 }
 "#,
     );
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function hold<T>(v0: T): void {
 entry(v0: T):

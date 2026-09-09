@@ -23,7 +23,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<float64, unique, mutable, 
     );
 
     // elaborate both concrete type instances
-    program.elaborate();
+    program.optimize();
     let destructors = program
         .lowered
         .tree

@@ -26,7 +26,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Pair {
     left: ref<int32, unique, mutable, local>;
@@ -86,7 +86,7 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Pair {
     left: ref<int32, unique, mutable, local>;
@@ -136,7 +136,7 @@ entry(v0: Value):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 type Value = variant<uint1> { 0uint1 = ref<int32, unique, mutable, local>; 1uint1 = int32; };
 

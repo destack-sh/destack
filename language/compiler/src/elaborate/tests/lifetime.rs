@@ -12,7 +12,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function test(v0: ref<int32, unique, mutable, local>): int32 {
 entry(v0: ref<int32, unique, mutable, local>):
@@ -42,7 +42,7 @@ entry(v0: ref<int32, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 function later(): void {
 entry:
@@ -78,7 +78,7 @@ entry(v0: ref<Box, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
@@ -118,7 +118,7 @@ entry(v0: ref<Box, unique, mutable, local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
@@ -168,7 +168,7 @@ b1(v3: Holder<'frame & local>):
 "#,
     );
 
-    program.assert_elaborated(
+    program.assert_optimized(
         r#"
 @copy
 type Box {
