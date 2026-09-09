@@ -1536,12 +1536,6 @@ define_language_items! {
 
         /// `destack:math/identity`.
         identity {
-            /// Construction from a float literal.
-            FromFloatLiteral => (NewtypeInterface, "math/identity", "FromFloatLiteral"),
-
-            /// Construction from an integer literal.
-            FromIntegerLiteral => (NewtypeInterface, "math/identity", "FromIntegerLiteral"),
-
             /// Multiplicative identity protocol.
             One => (NewtypeInterface, "math/identity", "One"),
 

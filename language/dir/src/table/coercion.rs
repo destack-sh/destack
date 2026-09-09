@@ -138,6 +138,11 @@ pub enum CoercionAdjustment {
         /// The scalar type after this adjustment.
         target: GlobalTypeId,
     },
+    /// Wrap one backing value in its newtype, or unwrap it, like `number as UserId`.
+    Newtype {
+        /// The newtype or its backing after this adjustment.
+        target: GlobalTypeId,
+    },
     /// Materialize one fresh literal.
     Materialize {
         /// The representation after this adjustment.
@@ -226,6 +231,7 @@ impl CoercionAdjustment {
             | Self::Union { target, .. }
             | Self::Erase { target }
             | Self::Scalar { target }
+            | Self::Newtype { target }
             | Self::Materialize { target }
             | Self::Tuple { target }
             | Self::Manage { target }
@@ -242,6 +248,7 @@ impl CoercionAdjustment {
             Self::Union { .. } => "union",
             Self::Erase { .. } => "erase",
             Self::Scalar { .. } => "scalar",
+            Self::Newtype { .. } => "newtype",
             Self::Materialize { .. } => "materialize",
             Self::Tuple { .. } => "tuple",
             Self::Manage { .. } => "manage",

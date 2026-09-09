@@ -10,7 +10,8 @@ use crate::{
     Arena, Cardinality, GenericParameterBinding, GenericParameterKey, GenericTemplate,
     GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, Instance, InstanceKey, InstanceOrigin,
     Instantiation, LocalGenericParameterId, LocalGenericTemplateId, LocalInstanceId, LocalScopeId,
-    LocalSymbolId, SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
+    LocalSymbolId, MemoryParameter, SegmentView, TypeFold, TypeListId, VarianceModifier, Witness,
+    free_region_name,
 };
 
 /// Cumulative generic templates and parameters for one DIR module.
@@ -186,6 +187,56 @@ impl<'a> GenericTable<'a> {
         panic!("DIR generic template {template_id:?} is not visible")
     }
 
+    /// Return the names of the regions one template declares ahead of one parameter.
+    pub fn region_names_before(
+        &self,
+        parameter: LocalGenericParameterId,
+        symbol_name: impl FnMut(GlobalSymbolId) -> String,
+    ) -> Vec<String> {
+        let template = self.get_parameter(parameter).template;
+        let mut names = Vec::new();
+        self.push_region_names(template, Some(parameter), &mut names, symbol_name);
+
+        names
+    }
+
+    /// Push the names of the regions one template declares ahead of one parameter.
+    pub fn push_region_names(
+        &self,
+        template: LocalGenericTemplateId,
+        until: Option<LocalGenericParameterId>,
+        names: &mut Vec<String>,
+        mut symbol_name: impl FnMut(GlobalSymbolId) -> String,
+    ) {
+        for candidate in &self.get_template(template).parameters {
+            if Some(*candidate) == until {
+                return;
+            }
+            let binding = self.get_parameter(*candidate);
+            if binding.memory_parameter() != Some(MemoryParameter::Region) {
+                continue;
+            }
+            let name = match binding.key {
+                GenericParameterKey::Symbol(symbol) => symbol_name(symbol),
+                GenericParameterKey::Anonymous => {
+                    free_region_name(names.iter().map(String::as_str))
+                }
+            };
+            names.push(name);
+        }
+    }
+
+    /// Return the position of one parameter on its template.
+    pub fn parameter_position(&self, parameter_id: LocalGenericParameterId) -> usize {
+        let template = self.get_parameter(parameter_id).template;
+
+        self.get_template(template)
+            .parameters
+            .iter()
+            .position(|parameter| *parameter == parameter_id)
+            .unwrap_or_else(|| panic!("parameter {parameter_id:?} is missing from its template"))
+    }
+
     /// Get a generic parameter by id.
     pub fn get_parameter(&self, parameter_id: LocalGenericParameterId) -> &GenericParameterBinding {
         for segment in self.segments.iter() {
@@ -260,22 +311,6 @@ impl<'a> GenericTable<'a> {
         self.segments
             .iter()
             .flat_map(|segment| segment.iter_application_instances())
-    }
-
-    /// Iterate the application region rows across every segment.
-    pub fn iter_application_regions(
-        &self,
-    ) -> impl Iterator<Item = (GlobalTypeId, &[GlobalTypeId])> + '_ {
-        self.segments
-            .iter()
-            .flat_map(|segment| segment.iter_application_regions())
-    }
-
-    /// Return the region terms one application substitutes for its instance's bound regions.
-    pub fn application_regions(&self, ty: GlobalTypeId) -> Option<&[GlobalTypeId]> {
-        self.segments
-            .iter()
-            .find_map(|segment| segment.application_regions(ty))
     }
 
     /// Return the witness one closed type answers one interface application with.
@@ -378,8 +413,6 @@ pub struct GenericSegment {
     pub(crate) symbol_dependents: IndexMap<LocalSymbolId, Vec<GlobalTypeId>>,
     /// The allocated instance behind each selection a checked decision wrote.
     pub(crate) selection_instances: IndexMap<InstanceKey, LocalInstanceId>,
-    /// The region terms each closed application substitutes for its instance's bound regions.
-    pub(crate) application_regions: IndexMap<GlobalTypeId, Vec<GlobalTypeId>>,
     /// The witness each closed type answers each interface application with.
     pub(crate) witnesses: IndexMap<(GlobalTypeId, GlobalTypeId), Witness>,
     /// The bounds each parameter assumes with elided arguments filled.
@@ -408,7 +441,6 @@ impl GenericSegment {
             application_instances: IndexMap::default(),
             symbol_dependents: IndexMap::default(),
             selection_instances: IndexMap::default(),
-            application_regions: IndexMap::default(),
             witnesses: IndexMap::default(),
             parameter_bounds: IndexMap::default(),
             assumed_bounds: IndexMap::default(),
@@ -433,7 +465,6 @@ impl GenericSegment {
             application_instances: IndexMap::default(),
             symbol_dependents: IndexMap::default(),
             selection_instances: IndexMap::default(),
-            application_regions: IndexMap::default(),
             witnesses: IndexMap::default(),
             parameter_bounds: IndexMap::default(),
             assumed_bounds: IndexMap::default(),
@@ -623,7 +654,6 @@ impl GenericSegment {
             && self.application_instances.is_empty()
             && self.symbol_dependents.is_empty()
             && self.selection_instances.is_empty()
-            && self.application_regions.is_empty()
             && self.parameter_bounds.is_empty()
             && self.assumed_bounds.is_empty()
             && self.instance_symbols.is_empty()
@@ -710,25 +740,6 @@ impl GenericSegment {
     /// Return the allocated instance behind one selection a checked decision wrote.
     pub fn selection_instance(&self, selection: &InstanceKey) -> Option<LocalInstanceId> {
         self.selection_instances.get(selection).copied()
-    }
-
-    /// Record the region terms one closed application substitutes, in bound order.
-    pub fn bind_application_regions(&mut self, ty: GlobalTypeId, regions: Vec<GlobalTypeId>) {
-        self.application_regions.insert(ty, regions);
-    }
-
-    /// Return the region terms one application recorded in this segment.
-    pub fn application_regions(&self, ty: GlobalTypeId) -> Option<&[GlobalTypeId]> {
-        self.application_regions.get(&ty).map(Vec::as_slice)
-    }
-
-    /// Iterate the application region rows recorded by this segment.
-    pub fn iter_application_regions(
-        &self,
-    ) -> impl Iterator<Item = (GlobalTypeId, &[GlobalTypeId])> + '_ {
-        self.application_regions
-            .iter()
-            .map(|(ty, regions)| (*ty, regions.as_slice()))
     }
 
     /// Record the witness one closed type answers one interface application with.
@@ -880,11 +891,6 @@ impl TypeFold for GenericSegment {
         }
         for instantiation in &mut self.instantiations {
             instantiation.map_types(map)?;
-        }
-        for regions in self.application_regions.values_mut() {
-            for region in regions {
-                *region = map(*region)?;
-            }
         }
         for dependents in self.symbol_dependents.values_mut() {
             for dependent in dependents {

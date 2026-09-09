@@ -222,6 +222,19 @@ impl AutoInterface {
     }
 
     /// Return whether the compiler derives this interface field-wise without annotation.
+    /// Return the member name a derivation of this interface implements.
+    pub fn derived_member(self) -> Option<&'static str> {
+        match self {
+            Self::Clone => Some("clone"),
+            Self::Debug => Some("debug"),
+            Self::Display => Some("display"),
+            Self::Equal | Self::PartialEqual => Some("equal"),
+            Self::Hash => Some("hash"),
+            Self::Default => Some("default"),
+            _ => None,
+        }
+    }
+
     pub fn is_auto_derivable(self) -> bool {
         matches!(
             self,

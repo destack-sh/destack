@@ -494,6 +494,8 @@ pub struct MemberCandidate {
     pub callable_type: Option<GlobalTypeId>,
     /// The selected member declaration and its generic arguments.
     pub key: InstanceKey,
+    /// The regions the receiver instance supplies for the owner's region parameters.
+    pub regions: Vec<GenericArgumentBinding>,
 }
 
 /// Callable selected at a call site.
@@ -514,6 +516,8 @@ pub struct Call {
     pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
     pub return_type: GlobalTypeId,
+    /// The callee's region parameters bound at this call, the instantiation of its binders.
+    pub regions: Vec<GenericArgumentBinding>,
 }
 
 /// Callable selected at a call site.
@@ -1458,6 +1462,8 @@ pub struct ConstructDecision {
     pub arguments: Vec<ArgumentBinding>,
     /// The return type after static substitutions.
     pub return_type: GlobalTypeId,
+    /// The regions bound for the constructor's region parameters, the class's and its own.
+    pub regions: Vec<GenericArgumentBinding>,
 }
 
 impl ConstructDecision {
@@ -1466,11 +1472,13 @@ impl ConstructDecision {
         target: ConstructTarget,
         arguments: Vec<ArgumentBinding>,
         return_type: GlobalTypeId,
+        regions: Vec<GenericArgumentBinding>,
     ) -> Self {
         Self {
             target,
             arguments,
             return_type,
+            regions,
         }
     }
 }

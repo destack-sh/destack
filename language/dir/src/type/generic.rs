@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit,
-    LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, StringId, TypeFlags, TypeFold,
-    VarianceModifier, WhereRelation,
+    LanguageItem, LocalNodeIdAny, LocalScopeId, StaticKey, TypeFlags, TypeFold, VarianceModifier,
+    WhereRelation,
 };
 
 /// Unique identifier for generic templates.
@@ -203,8 +203,8 @@ impl MemoryParameter {
 pub enum GenericParameterKey {
     /// Explicit source symbol, like the `T` in `<T>`.
     Symbol(GlobalSymbolId),
-    /// Generated checked parameter key, like `L0` or `C0`.
-    Generated(StringId),
+    /// An induced or receiver parameter, named by its kind and template position when printed.
+    Anonymous,
 }
 
 /// One declaration of generic parameters.
@@ -324,6 +324,22 @@ pub struct GenericParameterBinding {
     pub is_variadic: bool,
     /// Whether type inference preserves exact argument literals.
     pub is_const: bool,
+}
+
+/// Return the first tick name free among the region names in scope, `'a` through `'z` and then
+/// each letter with a rising suffix.
+pub fn free_region_name<'a>(taken: impl IntoIterator<Item = &'a str>) -> String {
+    let taken: Vec<&str> = taken.into_iter().collect();
+
+    (0usize..)
+        .flat_map(|round| {
+            ('a'..='z').map(move |letter| match round {
+                0 => format!("'{letter}"),
+                round => format!("'{letter}{round}"),
+            })
+        })
+        .find(|candidate| !taken.contains(&candidate.as_str()))
+        .unwrap_or_else(|| unreachable!("the free region names are unbounded"))
 }
 
 impl TypeFold for GenericParameterBinding {
@@ -497,6 +513,24 @@ impl GenericParameterBinding {
         }
     }
 
+    /// Return the canonical name of one anonymous parameter: `this` for a receiver, the first
+    /// tick name free in scope for a region, and its kind letter with its position otherwise.
+    pub fn canonical_name<'a>(
+        &self,
+        position: usize,
+        regions_in_scope: impl IntoIterator<Item = &'a str>,
+    ) -> String {
+        match (self.origin, self.memory_parameter()) {
+            (GenericParameterOrigin::Receiver, _) => "this".to_string(),
+            (_, Some(MemoryParameter::Region)) => free_region_name(regions_in_scope),
+            (_, Some(MemoryParameter::Access)) => format!("A{position}"),
+            (_, Some(MemoryParameter::Ownership)) => format!("O{position}"),
+            (_, Some(MemoryParameter::Place)) => format!("P{position}"),
+            (_, Some(MemoryParameter::Space)) => format!("S{position}"),
+            (_, None) => format!("T{position}"),
+        }
+    }
+
     /// Return whether written arguments may bind this parameter.
     pub fn is_writable(&self) -> bool {
         matches!(self.origin, GenericParameterOrigin::Explicit) || self.memory_parameter().is_some()
@@ -517,8 +551,12 @@ impl GenericParameterBinding {
         self.induced_memory_parameter() == Some(MemoryParameter::Region)
     }
 
-    /// Return whether this parameter demands instances: regions erase and induced
-    /// memory parameters ground at the ambient space, so neither instantiates.
+    /// Return whether a type declaration's representation ranges over this parameter.
+    pub fn is_representation_parameter(&self) -> bool {
+        self.is_instance_parameter() || self.memory_parameter() == Some(MemoryParameter::Region)
+    }
+
+    /// Return whether this parameter demands instances.
     pub fn is_instance_parameter(&self) -> bool {
         match self.kind {
             GenericParameterKind::Type => true,

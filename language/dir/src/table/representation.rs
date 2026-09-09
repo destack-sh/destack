@@ -5,7 +5,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, SegmentView, Space};
+use crate::{GlobalSymbolId, GlobalTypeId, SegmentView, Space};
 
 /// Cumulative layout policies for one DIR module.
 #[derive(Debug, Clone)]
@@ -36,12 +36,20 @@ impl<'a> RepresentationTable<'a> {
         }
     }
 
-    /// Return whether one nominal declaration permits copying by structure.
-    pub fn copies(&self, symbol: GlobalSymbolId) -> Option<bool> {
+    /// Return whether one nominal declaration derives Copy, holding when its stored values do.
+    pub fn derives_copy(&self, symbol: GlobalSymbolId) -> Option<bool> {
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.copies(symbol))
+            .find_map(|segment| segment.derives_copy(symbol))
+    }
+
+    /// Return whether values of one visited type copy.
+    pub fn copies(&self, ty: GlobalTypeId) -> Option<bool> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.copies(ty))
     }
 
     /// Return the space one nominal declaration's instances live in.
@@ -58,8 +66,10 @@ impl<'a> RepresentationTable<'a> {
 pub struct RepresentationSegment {
     /// The module id of the representation segment.
     pub module_id: ModuleId,
-    /// Whether each nominal declaration permits copying by structure.
-    copies: IndexMap<GlobalSymbolId, bool>,
+    /// Whether each nominal declaration derives Copy, holding when its stored values do.
+    copy_derivations: IndexMap<GlobalSymbolId, bool>,
+    /// Whether values of each visited type copy.
+    copies: IndexMap<GlobalTypeId, bool>,
     /// The space each placed nominal declaration's instances live in.
     spaces: IndexMap<GlobalSymbolId, Space>,
 }
@@ -69,19 +79,30 @@ impl RepresentationSegment {
     pub fn new(module_id: ModuleId) -> Self {
         Self {
             module_id,
+            copy_derivations: IndexMap::default(),
             copies: IndexMap::default(),
             spaces: IndexMap::default(),
         }
     }
 
-    /// Set whether one nominal declaration permits copying by structure.
-    pub fn set_copies(&mut self, symbol: GlobalSymbolId, copies: bool) {
-        self.copies.insert(symbol, copies);
+    /// Set whether one nominal declaration derives Copy.
+    pub fn set_derives_copy(&mut self, symbol: GlobalSymbolId, derives_copy: bool) {
+        self.copy_derivations.insert(symbol, derives_copy);
     }
 
-    /// Return whether one nominal declaration permits copying by structure.
-    pub fn copies(&self, symbol: GlobalSymbolId) -> Option<bool> {
-        self.copies.get(&symbol).copied()
+    /// Return whether one nominal declaration derives Copy.
+    pub fn derives_copy(&self, symbol: GlobalSymbolId) -> Option<bool> {
+        self.copy_derivations.get(&symbol).copied()
+    }
+
+    /// Set whether values of one visited type copy.
+    pub fn set_copies(&mut self, ty: GlobalTypeId, copies: bool) {
+        self.copies.insert(ty, copies);
+    }
+
+    /// Return whether values of one visited type copy.
+    pub fn copies(&self, ty: GlobalTypeId) -> Option<bool> {
+        self.copies.get(&ty).copied()
     }
 
     /// Set the space one nominal declaration's instances live in.
@@ -96,6 +117,6 @@ impl RepresentationSegment {
 
     /// Return whether the segment commits no policy.
     pub fn is_empty(&self) -> bool {
-        self.copies.is_empty() && self.spaces.is_empty()
+        self.copy_derivations.is_empty() && self.copies.is_empty() && self.spaces.is_empty()
     }
 }
