@@ -1,33 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{MirDeclared, MirLowered};
+use destack_artifact::{MirDeclared, MirInstantiated, MirLowered, MirVerified};
 use destack_core::{FxIndexMap, StringPool};
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId};
 use destack_source::{ModuleId, TargetId};
 
 use crate::instantiate::function::Specialization;
+use crate::verify::VerifyState;
 use crate::{CompilerError, CompilerResult};
-
-/// One module's MIR after instantiation: its tree with every demanded instance body filled.
-pub(crate) struct Instantiated {
-    /// The module instantiated.
-    pub(crate) module: ModuleId,
-    /// Target ABI layout.
-    pub(crate) layout: mir::TargetLayout,
-    /// The MIR tree, template bodies cleared and instance bodies filled.
-    pub(crate) tree: mir::Tree,
-    /// Type layouts covering the instances.
-    pub(crate) layouts: mir::LayoutTable,
-    /// Drop hooks by type.
-    pub(crate) drops: mir::DropTable,
-    /// Memory accesses by instruction.
-    pub(crate) accesses: mir::AccessTable,
-    /// Function and call effects.
-    pub(crate) effects: mir::EffectTable,
-    /// The specializations the instantiation gave bodies.
-    pub(crate) specializations: Vec<mir::FunctionId>,
-}
 
 /// One module's MIR gaining the bodies its shared specializations declare.
 pub(crate) struct InstantiateState<'a> {
@@ -74,7 +55,7 @@ pub(crate) struct InstantiateState<'a> {
 }
 
 impl<'a> InstantiateState<'a> {
-    /// Open the instantiation of one module over its lowered MIR.
+    /// Create instantiation state from lowered MIR.
     pub(crate) fn new(
         module: ModuleId,
         lowered: Arc<MirLowered>,
@@ -114,6 +95,7 @@ impl<'a> InstantiateState<'a> {
 
     /// Give every shared specialization its template's body at its arguments.
     pub(crate) fn instantiate(&mut self) -> CompilerResult<()> {
+        // index the module's functions, globals, and templates
         self.index();
 
         // queue every shared specialization still without a body
@@ -123,7 +105,7 @@ impl<'a> InstantiateState<'a> {
             }
         }
 
-        // give each queued specialization its body, the calls it makes queueing more
+        // instantiate queued functions and record their bodies
         while let Some(instance) = self.pending.pop() {
             self.specialize(instance)?;
             self.specializations.push(instance);
@@ -133,13 +115,13 @@ impl<'a> InstantiateState<'a> {
     }
 
     /// Return the instantiated tables with layouts covering every specialization.
-    pub(crate) fn finish(mut self) -> CompilerResult<Instantiated> {
-        // yield to the engine until every declared tree an import reached is built
+    pub(crate) fn finish(mut self, verified: &MirVerified) -> CompilerResult<MirInstantiated> {
+        // return the blocked dependency before completing instantiation
         if let Some(blocked) = self.blocked.take() {
             return Err(blocked);
         }
 
-        // clear the template bodies, read by instantiation alone
+        // clear the generic template bodies
         let templates: Vec<_> = self
             .tree
             .iter_nodes::<mir::Function>()
@@ -150,21 +132,48 @@ impl<'a> InstantiateState<'a> {
             self.tree.get_mut(template).clear_body();
         }
 
+        // compute layouts for the instantiated types
         mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.layout)
             .layout_reachable_types()
             .map_err(|error| CompilerError::Internal {
                 message: format!("instance layouts failed: {error:?}"),
             })?;
 
-        Ok(Instantiated {
-            module: self.module,
-            layout: self.layout,
-            tree: self.tree,
+        // verify the instantiated functions
+        let source = &self.sources[&self.module];
+        let mut analyses = VerifyState::over(
+            &self.tree,
+            &self.drops,
+            &self.accesses,
+            &source.dispatch,
+            &self.effects,
+            self.layout,
+        );
+        analyses.verify_functions(&self.specializations);
+
+        // reject an instance that fails verification
+        if let Some(error) = analyses.take_errors().pop() {
+            return Err(CompilerError::Internal {
+                message: format!("a verified template failed at an instance: {error:?}"),
+            });
+        }
+
+        // merge retention requirements from generic and instantiated bodies
+        let mut retention = verified.retention.clone();
+        retention.extend(analyses.take_retention());
+        retention.sort();
+
+        Ok(MirInstantiated {
+            target: self.layout,
+            tree: Arc::new(self.tree),
+            initializer: source.initializer,
             layouts: self.layouts,
+            dispatch: source.dispatch.clone(),
             drops: self.drops,
             accesses: self.accesses,
             effects: self.effects,
-            specializations: self.specializations,
+            profile: source.profile.clone(),
+            retention,
         })
     }
 
@@ -225,6 +234,7 @@ impl<'a> InstantiateState<'a> {
 
     /// Give one specialization its template's body at the specialization's arguments.
     fn specialize(&mut self, instance: mir::FunctionId) -> CompilerResult<()> {
+        // read the instance arguments and generic template
         let arguments = self.tree.get(instance).arguments.clone();
         let (module, template) = self.template_definition(instance)?;
         let source = self.sources[&module].clone();
@@ -242,7 +252,7 @@ impl<'a> InstantiateState<'a> {
         };
         let body = specialization.body(&source.accesses)?;
 
-        // carry the template's effects over to the instance
+        // copy the template's effects to the instance
         let effect = source.effects.function(template).cloned();
         if let Some(effect) = effect {
             *self.effects.upsert_function(instance) = effect;

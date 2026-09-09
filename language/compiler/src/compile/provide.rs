@@ -79,6 +79,11 @@ impl Compiler {
                 profile,
                 target,
             } => self.collect_mir_verified(module, profile, target, context),
+            ArtifactKey::MirInstantiated {
+                module,
+                profile,
+                target,
+            } => self.collect_mir_instantiated(module, profile, target, context),
             ArtifactKey::MirElaborated {
                 module,
                 profile,
@@ -200,6 +205,11 @@ impl Compiler {
                 profile,
                 target,
             } => self.provide_mir_verified(module, profile, target, context),
+            ArtifactKey::MirInstantiated {
+                module,
+                profile,
+                target,
+            } => self.provide_mir_instantiated(module, profile, target, context),
             ArtifactKey::MirElaborated {
                 module,
                 profile,
