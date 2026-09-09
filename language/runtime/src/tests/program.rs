@@ -88,21 +88,23 @@ impl TestProgram {
 
     /// Build one linked Program through the compiler emission and link path.
     pub(crate) fn build(self) -> program::Program {
+        // build optimized MIR for the test module
         let package = PackageId::new(0);
         let module = ModuleId::new(package, 0);
         let optimized = self.optimized();
 
         // emit one relocatable object from the parsed MIR
-        let emitter = ObjectEmitter::new(module, &self.lowered, &optimized, [])
+        let emitter = ObjectEmitter::new(module, &optimized, [])
             .expect("runtime test MIR should emit object metadata");
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
             .expect("runtime test MIR should emit bytecode");
+
+        // emit native code when the test requests it
         let native = if self.is_native_compiled {
             Some(
                 NativeEmitter::new(
                     module,
-                    self.lowered.target,
                     &optimized,
                     &emitter,
                     &destack_repository::Target::native(),
@@ -114,6 +116,8 @@ impl TestProgram {
         } else {
             None
         };
+
+        // assemble the bytecode and native object representations
         let emitter = match native {
             Some(native) => emitter.native(native),
             None => emitter,
@@ -141,8 +145,9 @@ impl TestProgram {
         self
     }
 
-    /// Complete physical layouts and project optimized MIR for emission.
+    /// Complete physical layouts and build optimized MIR for emission.
     fn optimized(&self) -> MirOptimized {
+        // compute the physical layouts required by emission
         let tree = self.lowered.tree.clone();
         let mut layouts = self.lowered.layouts.clone();
         let mut builder = mir::LayoutBuilder::new(&tree, &mut layouts, self.lowered.target);
@@ -151,6 +156,8 @@ impl TestProgram {
             .expect("runtime test MIR layouts should build");
 
         MirOptimized {
+            target: self.lowered.target,
+            initializer: self.lowered.initializer,
             tree: mir::Tree::clone(&tree),
             layouts,
             dispatch: self.lowered.dispatch.clone(),

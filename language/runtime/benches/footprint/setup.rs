@@ -307,10 +307,10 @@ impl VmSetup {
     fn program(self) -> Arc<program::Program> {
         let package = PackageId::new(0);
         let module = ModuleId::new(package, 0);
-        let (lowered, optimized, strings) = self.build_mir();
+        let (optimized, strings) = self.build_mir();
 
         // emit one relocatable object through the production compiler path
-        let emitter = ObjectEmitter::new(module, &lowered, &optimized, [])
+        let emitter = ObjectEmitter::new(module, &optimized, [])
             .expect("footprint MIR should emit object metadata");
         let bytecode = BytecodeEmitter::new(module, &optimized, &emitter)
             .emit()
@@ -327,7 +327,7 @@ impl VmSetup {
     }
 
     /// Build the footprint MIR snapshots.
-    fn build_mir(self) -> (MirLowered, MirOptimized, StringPool) {
+    fn build_mir(self) -> (MirOptimized, StringPool) {
         let file = File::from_text(
             FileId::from_source_bytes(PROGRAM.as_bytes()),
             "<footprint.dsm>".to_string(),
@@ -369,6 +369,8 @@ impl VmSetup {
             .layout_reachable_types()
             .expect("footprint MIR layouts should build");
         let optimized = MirOptimized {
+            target: lowered.target,
+            initializer: lowered.initializer,
             tree: (*tree).clone(),
             layouts,
             dispatch: lowered.dispatch.clone(),
@@ -378,7 +380,7 @@ impl VmSetup {
             profile: lowered.profile.clone(),
         };
 
-        (lowered, optimized, strings)
+        (optimized, strings)
     }
 
     /// Create one worker heap.
