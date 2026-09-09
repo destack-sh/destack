@@ -37,8 +37,7 @@ import type { MirDeclared } from "./mir.js";
 import type { MirElaborated } from "./mir.js";
 import type { MirInstantiated } from "./mir.js";
 import type { MirLowered } from "./mir.js";
-import type { MirOptimizedGeneric } from "./mir.js";
-import type { MirOptimizedInstantiated } from "./mir.js";
+import type { MirOptimized } from "./mir.js";
 import type { ProgramAnalysis } from "./mir.js";
 import type { MirVerified } from "./mir.js";
 import type { Product } from "./product.js";
@@ -161,16 +160,10 @@ import {
 } from "./mir.js";
 import { decodeMirLowered, encodeMirLowered, fromJsonMirLowered, toJsonMirLowered } from "./mir.js";
 import {
-    decodeMirOptimizedGeneric,
-    encodeMirOptimizedGeneric,
-    fromJsonMirOptimizedGeneric,
-    toJsonMirOptimizedGeneric,
-} from "./mir.js";
-import {
-    decodeMirOptimizedInstantiated,
-    encodeMirOptimizedInstantiated,
-    fromJsonMirOptimizedInstantiated,
-    toJsonMirOptimizedInstantiated,
+    decodeMirOptimized,
+    encodeMirOptimized,
+    fromJsonMirOptimized,
+    toJsonMirOptimized,
 } from "./mir.js";
 import {
     decodeProgramAnalysis,
@@ -285,20 +278,10 @@ export type ArtifactPayload =
           readonly kind: "mirVerified";
           readonly mir_verified: MirVerified;
       }
-    /** Optimized generic MIR. */
-    | {
-          readonly kind: "mirOptimizedGeneric";
-          readonly mir_optimized_generic: MirOptimizedGeneric;
-      }
     /** Instantiated MIR. */
     | {
           readonly kind: "mirInstantiated";
           readonly mir_instantiated: MirInstantiated;
-      }
-    /** Optimized instantiated MIR. */
-    | {
-          readonly kind: "mirOptimizedInstantiated";
-          readonly mir_optimized_instantiated: MirOptimizedInstantiated;
       }
     /** MIR after required elaboration. */
     | {
@@ -309,6 +292,11 @@ export type ArtifactPayload =
     | {
           readonly kind: "mirAnalyzed";
           readonly mir_analyzed: MirAnalyzed;
+      }
+    /** Optimized MIR. */
+    | {
+          readonly kind: "mirOptimized";
+          readonly mir_optimized: MirOptimized;
       }
     /** Whole-program analysis for one profile and target. */
     | {
@@ -457,21 +445,9 @@ export const ArtifactPayload = {
         return { kind: "mirVerified", mir_verified };
     },
 
-    /** Optimized generic MIR. */
-    mirOptimizedGeneric(mir_optimized_generic: MirOptimizedGeneric): ArtifactPayload {
-        return { kind: "mirOptimizedGeneric", mir_optimized_generic };
-    },
-
     /** Instantiated MIR. */
     mirInstantiated(mir_instantiated: MirInstantiated): ArtifactPayload {
         return { kind: "mirInstantiated", mir_instantiated };
-    },
-
-    /** Optimized instantiated MIR. */
-    mirOptimizedInstantiated(
-        mir_optimized_instantiated: MirOptimizedInstantiated,
-    ): ArtifactPayload {
-        return { kind: "mirOptimizedInstantiated", mir_optimized_instantiated };
     },
 
     /** MIR after required elaboration. */
@@ -482,6 +458,11 @@ export const ArtifactPayload = {
     /** Per-module link graph for whole-program analysis. */
     mirAnalyzed(mir_analyzed: MirAnalyzed): ArtifactPayload {
         return { kind: "mirAnalyzed", mir_analyzed };
+    },
+
+    /** Optimized MIR. */
+    mirOptimized(mir_optimized: MirOptimized): ArtifactPayload {
+        return { kind: "mirOptimized", mir_optimized };
     },
 
     /** Whole-program analysis for one profile and target. */
@@ -635,68 +616,64 @@ export function encodeArtifactPayload(writer: BinaryWriter, value: ArtifactPaylo
             writer.writeUnsigned(17);
             encodeMirVerified(writer, value.mir_verified);
             return;
-        case "mirOptimizedGeneric":
-            writer.writeUnsigned(18);
-            encodeMirOptimizedGeneric(writer, value.mir_optimized_generic);
-            return;
         case "mirInstantiated":
-            writer.writeUnsigned(19);
+            writer.writeUnsigned(18);
             encodeMirInstantiated(writer, value.mir_instantiated);
             return;
-        case "mirOptimizedInstantiated":
-            writer.writeUnsigned(20);
-            encodeMirOptimizedInstantiated(writer, value.mir_optimized_instantiated);
-            return;
         case "mirElaborated":
-            writer.writeUnsigned(21);
+            writer.writeUnsigned(19);
             encodeMirElaborated(writer, value.mir_elaborated);
             return;
         case "mirAnalyzed":
-            writer.writeUnsigned(22);
+            writer.writeUnsigned(20);
             encodeMirAnalyzed(writer, value.mir_analyzed);
             return;
+        case "mirOptimized":
+            writer.writeUnsigned(21);
+            encodeMirOptimized(writer, value.mir_optimized);
+            return;
         case "programAnalysis":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             encodeProgramAnalysis(writer, value.program_analysis);
             return;
         case "moduleIndex":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(23);
             encodeModuleIndex(writer, value.module_index);
             return;
         case "programIndex":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(24);
             encodeProgramIndex(writer, value.program_index);
             return;
         case "moduleLinted":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(25);
             encodeModuleLinted(writer, value.module_linted);
             return;
         case "programLinted":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(26);
             encodeProgramLinted(writer, value.program_linted);
             return;
         case "script":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(27);
             encodeScript(writer, value.script);
             return;
         case "object":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(28);
             encodeObject(writer, value.object);
             return;
         case "asset":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(29);
             encodeAsset(writer, value.asset);
             return;
         case "bundle":
-            writer.writeUnsigned(31);
+            writer.writeUnsigned(30);
             encodeBundle(writer, value.bundle);
             return;
         case "program":
-            writer.writeUnsigned(32);
+            writer.writeUnsigned(31);
             writer.writeByteSlice(value.program);
             return;
         case "product":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(32);
             encodeProduct(writer, value.product);
             return;
     }
@@ -800,81 +777,76 @@ export function decodeArtifactPayload(reader: BinaryReader): ArtifactPayload {
             return { kind: "mirVerified", mir_verified };
         }
         case 18: {
-            const mir_optimized_generic = decodeMirOptimizedGeneric(reader);
-
-            return { kind: "mirOptimizedGeneric", mir_optimized_generic };
-        }
-        case 19: {
             const mir_instantiated = decodeMirInstantiated(reader);
 
             return { kind: "mirInstantiated", mir_instantiated };
         }
-        case 20: {
-            const mir_optimized_instantiated = decodeMirOptimizedInstantiated(reader);
-
-            return { kind: "mirOptimizedInstantiated", mir_optimized_instantiated };
-        }
-        case 21: {
+        case 19: {
             const mir_elaborated = decodeMirElaborated(reader);
 
             return { kind: "mirElaborated", mir_elaborated };
         }
-        case 22: {
+        case 20: {
             const mir_analyzed = decodeMirAnalyzed(reader);
 
             return { kind: "mirAnalyzed", mir_analyzed };
         }
-        case 23: {
+        case 21: {
+            const mir_optimized = decodeMirOptimized(reader);
+
+            return { kind: "mirOptimized", mir_optimized };
+        }
+        case 22: {
             const program_analysis = decodeProgramAnalysis(reader);
 
             return { kind: "programAnalysis", program_analysis };
         }
-        case 24: {
+        case 23: {
             const module_index = decodeModuleIndex(reader);
 
             return { kind: "moduleIndex", module_index };
         }
-        case 25: {
+        case 24: {
             const program_index = decodeProgramIndex(reader);
 
             return { kind: "programIndex", program_index };
         }
-        case 26: {
+        case 25: {
             const module_linted = decodeModuleLinted(reader);
 
             return { kind: "moduleLinted", module_linted };
         }
-        case 27: {
+        case 26: {
             const program_linted = decodeProgramLinted(reader);
 
             return { kind: "programLinted", program_linted };
         }
-        case 28: {
+        case 27: {
             const script = decodeScript(reader);
 
             return { kind: "script", script };
         }
-        case 29: {
+        case 28: {
             const object_ = decodeObject(reader);
 
             return { kind: "object", object: object_ };
         }
-        case 30: {
+        case 29: {
             const asset = decodeAsset(reader);
 
             return { kind: "asset", asset };
         }
-        case 31: {
+        case 30: {
             const bundle = decodeBundle(reader);
 
             return { kind: "bundle", bundle };
         }
-        case 32: {
+        case 31: {
             const program = reader.readByteSlice();
 
             return { kind: "program", program };
         }
-        case 33: {
+        case 32: {
             const product = decodeProduct(reader);
 
             return { kind: "product", product };
@@ -977,22 +949,10 @@ export function toJsonArtifactPayload(value: ArtifactPayload): Json {
                 kind: "mirVerified",
                 mir_verified: toJsonMirVerified(value.mir_verified),
             };
-        case "mirOptimizedGeneric":
-            return {
-                kind: "mirOptimizedGeneric",
-                mir_optimized_generic: toJsonMirOptimizedGeneric(value.mir_optimized_generic),
-            };
         case "mirInstantiated":
             return {
                 kind: "mirInstantiated",
                 mir_instantiated: toJsonMirInstantiated(value.mir_instantiated),
-            };
-        case "mirOptimizedInstantiated":
-            return {
-                kind: "mirOptimizedInstantiated",
-                mir_optimized_instantiated: toJsonMirOptimizedInstantiated(
-                    value.mir_optimized_instantiated,
-                ),
             };
         case "mirElaborated":
             return {
@@ -1003,6 +963,11 @@ export function toJsonArtifactPayload(value: ArtifactPayload): Json {
             return {
                 kind: "mirAnalyzed",
                 mir_analyzed: toJsonMirAnalyzed(value.mir_analyzed),
+            };
+        case "mirOptimized":
+            return {
+                kind: "mirOptimized",
+                mir_optimized: toJsonMirOptimized(value.mir_optimized),
             };
         case "programAnalysis":
             return {
@@ -1162,24 +1127,10 @@ export function fromJsonArtifactPayload(value: Json): ArtifactPayload {
                 kind,
                 mir_verified: fromJsonMirVerified(jsonField(object, "mir_verified")),
             };
-        case "mirOptimizedGeneric":
-            return {
-                kind,
-                mir_optimized_generic: fromJsonMirOptimizedGeneric(
-                    jsonField(object, "mir_optimized_generic"),
-                ),
-            };
         case "mirInstantiated":
             return {
                 kind,
                 mir_instantiated: fromJsonMirInstantiated(jsonField(object, "mir_instantiated")),
-            };
-        case "mirOptimizedInstantiated":
-            return {
-                kind,
-                mir_optimized_instantiated: fromJsonMirOptimizedInstantiated(
-                    jsonField(object, "mir_optimized_instantiated"),
-                ),
             };
         case "mirElaborated":
             return {
@@ -1190,6 +1141,11 @@ export function fromJsonArtifactPayload(value: Json): ArtifactPayload {
             return {
                 kind,
                 mir_analyzed: fromJsonMirAnalyzed(jsonField(object, "mir_analyzed")),
+            };
+        case "mirOptimized":
+            return {
+                kind,
+                mir_optimized: fromJsonMirOptimized(jsonField(object, "mir_optimized")),
             };
         case "programAnalysis":
             return {

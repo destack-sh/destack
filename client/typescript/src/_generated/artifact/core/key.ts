@@ -154,29 +154,9 @@ export type ArtifactKey =
           readonly profile: ProfileId;
           readonly target: TargetId;
       }
-    /** Optimized generic MIR. */
-    | {
-          readonly kind: "mirOptimizedGeneric";
-          /** The module containing the MIR. */
-          readonly module: ModuleId;
-          /** The semantic profile used to compile the module. */
-          readonly profile: ProfileId;
-          /** The compilation target. */
-          readonly target: TargetId;
-      }
     /** Instantiated MIR. */
     | {
           readonly kind: "mirInstantiated";
-          /** The module containing the MIR. */
-          readonly module: ModuleId;
-          /** The semantic profile used to compile the module. */
-          readonly profile: ProfileId;
-          /** The compilation target. */
-          readonly target: TargetId;
-      }
-    /** Optimized instantiated MIR. */
-    | {
-          readonly kind: "mirOptimizedInstantiated";
           /** The module containing the MIR. */
           readonly module: ModuleId;
           /** The semantic profile used to compile the module. */
@@ -196,6 +176,16 @@ export type ArtifactKey =
           readonly kind: "mirAnalyzed";
           readonly module: ModuleId;
           readonly profile: ProfileId;
+          readonly target: TargetId;
+      }
+    /** Optimized MIR. */
+    | {
+          readonly kind: "mirOptimized";
+          /** The module containing the MIR. */
+          readonly module: ModuleId;
+          /** The semantic profile used to compile the module. */
+          readonly profile: ProfileId;
+          /** The compilation target. */
           readonly target: TargetId;
       }
     /** Whole-program analysis for one profile and target. */
@@ -358,19 +348,9 @@ export const ArtifactKey = {
         return { kind: "mirVerified", module: module_, profile, target };
     },
 
-    /** Optimized generic MIR. */
-    mirOptimizedGeneric(module_: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
-        return { kind: "mirOptimizedGeneric", module: module_, profile, target };
-    },
-
     /** Instantiated MIR. */
     mirInstantiated(module_: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
         return { kind: "mirInstantiated", module: module_, profile, target };
-    },
-
-    /** Optimized instantiated MIR. */
-    mirOptimizedInstantiated(module_: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
-        return { kind: "mirOptimizedInstantiated", module: module_, profile, target };
     },
 
     /** MIR after required elaboration. */
@@ -381,6 +361,11 @@ export const ArtifactKey = {
     /** The symbol links one module contributes to whole-program analysis. */
     mirAnalyzed(module_: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
         return { kind: "mirAnalyzed", module: module_, profile, target };
+    },
+
+    /** Optimized MIR. */
+    mirOptimized(module_: ModuleId, profile: ProfileId, target: TargetId): ArtifactKey {
+        return { kind: "mirOptimized", module: module_, profile, target };
     },
 
     /** Whole-program analysis for one profile and target. */
@@ -549,90 +534,84 @@ export function encodeArtifactKey(writer: BinaryWriter, value: ArtifactKey): voi
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirOptimizedGeneric":
+        case "mirInstantiated":
             writer.writeUnsigned(18);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirInstantiated":
+        case "mirElaborated":
             writer.writeUnsigned(19);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirOptimizedInstantiated":
+        case "mirAnalyzed":
             writer.writeUnsigned(20);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirElaborated":
+        case "mirOptimized":
             writer.writeUnsigned(21);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
-        case "mirAnalyzed":
-            writer.writeUnsigned(22);
-            encodeModuleId(writer, value.module);
-            encodeProfileId(writer, value.profile);
-            encodeTargetId(writer, value.target);
-            return;
         case "programAnalysis":
-            writer.writeUnsigned(23);
+            writer.writeUnsigned(22);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
         case "moduleIndex":
-            writer.writeUnsigned(24);
+            writer.writeUnsigned(23);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeIndexKind(writer, value.kindValue);
             return;
         case "programIndex":
-            writer.writeUnsigned(25);
+            writer.writeUnsigned(24);
             encodeProfileId(writer, value.profile);
             encodeIndexKind(writer, value.kindValue);
             return;
         case "moduleLinted":
-            writer.writeUnsigned(26);
+            writer.writeUnsigned(25);
             encodeModuleId(writer, value.module);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
         case "programLinted":
-            writer.writeUnsigned(27);
+            writer.writeUnsigned(26);
             encodeProfileId(writer, value.profile);
             encodeTargetId(writer, value.target);
             return;
         case "script":
-            writer.writeUnsigned(28);
+            writer.writeUnsigned(27);
             encodeModuleId(writer, value.module);
             encodeTargetId(writer, value.target);
             return;
         case "object":
-            writer.writeUnsigned(29);
+            writer.writeUnsigned(28);
             encodeModuleId(writer, value.module);
             encodeTargetId(writer, value.target);
             return;
         case "asset":
-            writer.writeUnsigned(30);
+            writer.writeUnsigned(29);
             encodeModuleId(writer, value.module);
             encodeTargetId(writer, value.target);
             return;
         case "bundle":
-            writer.writeUnsigned(31);
+            writer.writeUnsigned(30);
             encodePackageId(writer, value.package);
             encodeTargetId(writer, value.target);
             return;
         case "program":
-            writer.writeUnsigned(32);
+            writer.writeUnsigned(31);
             encodePackageId(writer, value.package);
             encodeTargetId(writer, value.target);
             return;
         case "product":
-            writer.writeUnsigned(33);
+            writer.writeUnsigned(32);
             encodePackageId(writer, value.package);
             encodeProductId(writer, value.product);
             return;
@@ -826,7 +805,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
             const target = decodeTargetId(reader);
 
             return {
-                kind: "mirOptimizedGeneric",
+                kind: "mirInstantiated",
                 module: module_,
                 profile,
                 target,
@@ -838,7 +817,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
             const target = decodeTargetId(reader);
 
             return {
-                kind: "mirInstantiated",
+                kind: "mirElaborated",
                 module: module_,
                 profile,
                 target,
@@ -850,7 +829,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
             const target = decodeTargetId(reader);
 
             return {
-                kind: "mirOptimizedInstantiated",
+                kind: "mirAnalyzed",
                 module: module_,
                 profile,
                 target,
@@ -862,25 +841,13 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
             const target = decodeTargetId(reader);
 
             return {
-                kind: "mirElaborated",
+                kind: "mirOptimized",
                 module: module_,
                 profile,
                 target,
             };
         }
         case 22: {
-            const module_ = decodeModuleId(reader);
-            const profile = decodeProfileId(reader);
-            const target = decodeTargetId(reader);
-
-            return {
-                kind: "mirAnalyzed",
-                module: module_,
-                profile,
-                target,
-            };
-        }
-        case 23: {
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
 
@@ -890,7 +857,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 24: {
+        case 23: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const kindValue = decodeIndexKind(reader);
@@ -902,7 +869,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 kindValue,
             };
         }
-        case 25: {
+        case 24: {
             const profile = decodeProfileId(reader);
             const kindValue = decodeIndexKind(reader);
 
@@ -912,7 +879,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 kindValue,
             };
         }
-        case 26: {
+        case 25: {
             const module_ = decodeModuleId(reader);
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
@@ -924,7 +891,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 27: {
+        case 26: {
             const profile = decodeProfileId(reader);
             const target = decodeTargetId(reader);
 
@@ -934,7 +901,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 28: {
+        case 27: {
             const module_ = decodeModuleId(reader);
             const target = decodeTargetId(reader);
 
@@ -944,7 +911,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 29: {
+        case 28: {
             const module_ = decodeModuleId(reader);
             const target = decodeTargetId(reader);
 
@@ -954,7 +921,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 30: {
+        case 29: {
             const module_ = decodeModuleId(reader);
             const target = decodeTargetId(reader);
 
@@ -964,7 +931,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 31: {
+        case 30: {
             const package_ = decodePackageId(reader);
             const target = decodeTargetId(reader);
 
@@ -974,7 +941,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 32: {
+        case 31: {
             const package_ = decodePackageId(reader);
             const target = decodeTargetId(reader);
 
@@ -984,7 +951,7 @@ export function decodeArtifactKey(reader: BinaryReader): ArtifactKey {
                 target,
             };
         }
-        case 33: {
+        case 32: {
             const package_ = decodePackageId(reader);
             const product = decodeProductId(reader);
 
@@ -1107,23 +1074,9 @@ export function toJsonArtifactKey(value: ArtifactKey): Json {
                 profile: toJsonProfileId(value.profile),
                 target: toJsonTargetId(value.target),
             };
-        case "mirOptimizedGeneric":
-            return {
-                kind: "mirOptimizedGeneric",
-                module: toJsonModuleId(value.module),
-                profile: toJsonProfileId(value.profile),
-                target: toJsonTargetId(value.target),
-            };
         case "mirInstantiated":
             return {
                 kind: "mirInstantiated",
-                module: toJsonModuleId(value.module),
-                profile: toJsonProfileId(value.profile),
-                target: toJsonTargetId(value.target),
-            };
-        case "mirOptimizedInstantiated":
-            return {
-                kind: "mirOptimizedInstantiated",
                 module: toJsonModuleId(value.module),
                 profile: toJsonProfileId(value.profile),
                 target: toJsonTargetId(value.target),
@@ -1138,6 +1091,13 @@ export function toJsonArtifactKey(value: ArtifactKey): Json {
         case "mirAnalyzed":
             return {
                 kind: "mirAnalyzed",
+                module: toJsonModuleId(value.module),
+                profile: toJsonProfileId(value.profile),
+                target: toJsonTargetId(value.target),
+            };
+        case "mirOptimized":
+            return {
+                kind: "mirOptimized",
                 module: toJsonModuleId(value.module),
                 profile: toJsonProfileId(value.profile),
                 target: toJsonTargetId(value.target),
@@ -1326,21 +1286,7 @@ export function fromJsonArtifactKey(value: Json): ArtifactKey {
                 profile: fromJsonProfileId(jsonField(object, "profile")),
                 target: fromJsonTargetId(jsonField(object, "target")),
             };
-        case "mirOptimizedGeneric":
-            return {
-                kind,
-                module: fromJsonModuleId(jsonField(object, "module")),
-                profile: fromJsonProfileId(jsonField(object, "profile")),
-                target: fromJsonTargetId(jsonField(object, "target")),
-            };
         case "mirInstantiated":
-            return {
-                kind,
-                module: fromJsonModuleId(jsonField(object, "module")),
-                profile: fromJsonProfileId(jsonField(object, "profile")),
-                target: fromJsonTargetId(jsonField(object, "target")),
-            };
-        case "mirOptimizedInstantiated":
             return {
                 kind,
                 module: fromJsonModuleId(jsonField(object, "module")),
@@ -1355,6 +1301,13 @@ export function fromJsonArtifactKey(value: Json): ArtifactKey {
                 target: fromJsonTargetId(jsonField(object, "target")),
             };
         case "mirAnalyzed":
+            return {
+                kind,
+                module: fromJsonModuleId(jsonField(object, "module")),
+                profile: fromJsonProfileId(jsonField(object, "profile")),
+                target: fromJsonTargetId(jsonField(object, "target")),
+            };
+        case "mirOptimized":
             return {
                 kind,
                 module: fromJsonModuleId(jsonField(object, "module")),

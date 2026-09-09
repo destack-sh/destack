@@ -48,7 +48,7 @@ const artifactMethod: Method<
 > = {
     service: 5221210015570525267n,
     method: 10319401099963147929n,
-    fingerprint: 246886523982020204524834753860211878146n,
+    fingerprint: 237573176827536822648052671269982050917n,
     kind: "unary",
     idempotency: "noSideEffects",
     request: artifactMethodRequest,
@@ -71,7 +71,7 @@ const blobMethodResponse: Decoder<coreBlob.Blob> = {
 const blobMethod: Method<workspaceServiceArtifact.ArtifactRequest, coreBlob.Blob, never, never> = {
     service: 5221210015570525267n,
     method: 14685706198550658862n,
-    fingerprint: 263747966515585013167073654773466133940n,
+    fingerprint: 11640856985595453324324915293017145431n,
     kind: "unary",
     idempotency: "idempotent",
     request: blobMethodRequest,
@@ -133,7 +133,7 @@ const buildMethod: Method<
 > = {
     service: 5221210015570525267n,
     method: 1211703523183514908n,
-    fingerprint: 102400533154146184341849810784790283833n,
+    fingerprint: 228813061465772249834584630547276505760n,
     kind: "serverStreaming",
     idempotency: "unknown",
     request: buildMethodRequest,
@@ -458,7 +458,7 @@ const exportMethod: Method<
 > = {
     service: 5221210015570525267n,
     method: 3979786105473524246n,
-    fingerprint: 169167066059390130414578371041499969505n,
+    fingerprint: 99253246802687220379869672190437770468n,
     kind: "unary",
     idempotency: "unknown",
     request: exportMethodRequest,
