@@ -99,13 +99,9 @@ impl<'t, 'd> Importer<'t, 'd> {
                 .iter()
                 .map(|parameter| self.import_generic(source, parameter))
                 .collect();
-            let inserted = self.tree.insert_type_declaration(
-                declaration.name,
-                generics,
-                declaration.lifetimes,
-                reserved,
-                heritage,
-            );
+            let inserted =
+                self.tree
+                    .insert_type_declaration(declaration.name, generics, reserved, heritage);
             for attribute in source.attributes(source_declaration) {
                 self.tree.push_attribute(inserted, attribute.clone());
             }
@@ -134,7 +130,7 @@ impl<'t, 'd> Importer<'t, 'd> {
         let arguments = declared
             .arguments
             .iter()
-            .map(|argument| self.import_argument(source, *argument))
+            .map(|argument| self.import_argument(source, argument.clone()))
             .collect();
         let generics = declared
             .generics

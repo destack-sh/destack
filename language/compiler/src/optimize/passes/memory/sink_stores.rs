@@ -17,7 +17,7 @@ declare_pass! {
     /// function before(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     ///     v2: int32 = 7
     ///     store v1, v2
     ///     branch v0 => b1 | b2
@@ -33,7 +33,7 @@ declare_pass! {
     /// function after(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     ///     v2: int32 = 7
     ///     branch v0 => b1 | b2
     /// b1:
@@ -452,7 +452,7 @@ mod tests {
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 7
     store v1, v2
     branch v0 => b1 | b2
@@ -470,7 +470,7 @@ b2:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 7
     branch v0 => b1 | b2
 
@@ -499,7 +499,7 @@ b2:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 7
     store v1, v2
     branch v0 => b1 | b2
@@ -523,8 +523,8 @@ b2:
     #[test]
     fn test_sink_stores_skips_escaping_store() {
         let input = r#"
-function test(v0: boolean, v1: ref<int32, borrowed, mutable, static>): void {
-entry(v0: boolean, v1: ref<int32, borrowed, mutable, static>):
+function test(v0: boolean, v1: ref<int32, borrowed, 'static, mutable, static>): void {
+entry(v0: boolean, v1: ref<int32, borrowed, 'static, mutable, static>):
     v2: int32 = 1
     store v1, v2
     branch v0 => b1 | b2

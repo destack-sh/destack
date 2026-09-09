@@ -10,8 +10,8 @@ use destack_core::StringPool;
 fn test_format_pointer_sized_builtin_types() {
     assert_format(
         r#"
-function pointerSized(v0: isize, v1: usize, v2: typeDescriptor, v3: typeId): usize {
-entry(v0: isize, v1: usize, v2: typeDescriptor, v3: typeId):
+function pointerSized(v0: isize, v1: usize, v2: typeId): usize {
+entry(v0: isize, v1: usize, v2: typeId):
     return v1
 }
 "#,
@@ -94,8 +94,8 @@ entry(v0: Nullish, v1: null):
 fn test_format_reference_storage() {
     assert_format(
         r#"
-function storage(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, static>, v4: ref<int32, borrowed, mutable, shared static>): ref<int32, borrowed, mutable, shared> {
-entry(v0: ref<int32, borrowed, mutable, shared>, v1: ref<int32, borrowed, mutable, frame>, v2: ref<int32, borrowed, mutable, constant>, v3: ref<int32, borrowed, mutable, static>, v4: ref<int32, borrowed, mutable, shared static>):
+function storage<'a, 'b, 'c>(v0: ref<int32, borrowed, 'a, mutable, shared>, v1: ref<int32, borrowed, 'b, mutable, frame>, v2: ref<int32, borrowed, 'c, mutable, constant>, v3: ref<int32, borrowed, 'static, mutable, static>, v4: ref<int32, borrowed, 'static, mutable, shared static>): ref<int32, borrowed, 'a, mutable, shared> {
+entry(v0: ref<int32, borrowed, 'a, mutable, shared>, v1: ref<int32, borrowed, 'b, mutable, frame>, v2: ref<int32, borrowed, 'c, mutable, constant>, v3: ref<int32, borrowed, 'static, mutable, static>, v4: ref<int32, borrowed, 'static, mutable, shared static>):
     return v0
 }
 "#,
@@ -151,8 +151,8 @@ type Player<'LWorld, 'LMesh> {
     mesh: ref<float64, borrowed, 'LMesh, mutable, local>;
 }
 
-function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable, local>): void {
-entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable, local>):
+function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer, mutable, local>): void {
+entry(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer, mutable, local>):
     return
 }
 "#,
@@ -188,8 +188,8 @@ type Box<T, 'a> {
     value: ref<T, borrowed, 'a, readonly, local>;
 }
 
-function borrow(v0: Box<int32, 'static>): Box<int32, 'static> {
-entry(v0: Box<int32, 'static>):
+function borrow(v0: Box<int32, 'static & local>): Box<int32, 'static & local> {
+entry(v0: Box<int32, 'static & local>):
     return v0
 }
 "#,
@@ -405,13 +405,7 @@ fn test_format_synthetic_copy_marker() {
     let representation = tree.get(struct_type).clone();
     let pair = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     tree.define_type(pair, representation);
-    tree.insert_type_declaration(
-        declaration_name,
-        Vec::new(),
-        Vec::new(),
-        pair,
-        TypeHeritage::default(),
-    );
+    tree.insert_type_declaration(declaration_name, Vec::new(), pair, TypeHeritage::default());
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 
@@ -460,13 +454,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let representation = tree.get(struct_type).clone();
     let point = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     tree.define_type(point, representation);
-    tree.insert_type_declaration(
-        declaration_name,
-        Vec::new(),
-        Vec::new(),
-        point,
-        TypeHeritage::default(),
-    );
+    tree.insert_type_declaration(declaration_name, Vec::new(), point, TypeHeritage::default());
 
     let output = format_tree_with_options(&tree, &strings, FormatOptions::default());
 

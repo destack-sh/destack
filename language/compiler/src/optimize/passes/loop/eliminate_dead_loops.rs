@@ -454,8 +454,8 @@ entry:
     #[test]
     fn test_preserve_store_side_effects() {
         let input = r#"
-function test(v0: ref<int32, borrowed, mutable>, v1: int32): void {
-entry(v0: ref<int32, borrowed, mutable>, v1: int32):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32): void {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32):
     v2: boolean = false
     jump b1
 
@@ -693,13 +693,13 @@ b1(v6: int32):
     #[test]
     fn test_preserve_free_side_effects() {
         let input = r#"
-function test(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     v1: boolean = false
     jump b1
 
 b1:
-    free v0
+    release v0
     branch v1 => b1 | b2
 
 b2:

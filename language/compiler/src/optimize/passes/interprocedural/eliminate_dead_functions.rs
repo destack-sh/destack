@@ -187,36 +187,36 @@ entry:
         let mut test = TestProgram::new(
             r#"
 type Dropped {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
 type Allocated {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
 type Dead {
-    value: ref<int32, unique, mutable>;
+    value: ref<int32, unique, mutable, local>;
 }
 
 export function root(v0: Dropped): void {
 entry(v0: Dropped):
     drop v0
-    v1: ref<Allocated, managed, mutable> = new.zeroed Allocated
+    v1: ref<Allocated, managed, mutable, local> = new.zeroed Allocated
     return
 }
 
-function dropDropped(v0: ref<Dropped, borrowed, mutable, frame>): void {
-entry(v0: ref<Dropped, borrowed, mutable, frame>):
+function dropDropped<'a>(v0: ref<Dropped, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Dropped, borrowed, 'a, mutable, frame>):
     return
 }
 
-function dropAllocated(v0: ref<Allocated, borrowed, mutable>): void {
-entry(v0: ref<Allocated, borrowed, mutable>):
+function dropAllocated<'a>(v0: ref<Allocated, borrowed, 'a, mutable, local>): void {
+entry(v0: ref<Allocated, borrowed, 'a, mutable, local>):
     return
 }
 
-function dropDead(v0: ref<Dead, borrowed, mutable, frame>): void {
-entry(v0: ref<Dead, borrowed, mutable, frame>):
+function dropDead<'a>(v0: ref<Dead, borrowed, 'a, mutable, frame>): void {
+entry(v0: ref<Dead, borrowed, 'a, mutable, frame>):
     return
 }
 "#,

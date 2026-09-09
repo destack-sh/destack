@@ -41,7 +41,7 @@ function localAddr(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     return
 }
 "#,
@@ -192,9 +192,9 @@ entry(v0: int32):
     return v1
 }
 
-function place<T, space S, access A, const N: usize>(v0: ref<T, borrowed, A, S>, v1: [T; N]): ref<T, borrowed, A, S static> {
-entry(v0: ref<T, borrowed, A, S>, v1: [T; N]):
-    v2: ref<T, borrowed, A, S static> = cast.bit v0 -> ref<T, borrowed, A, S static>
+function place<T, space S, access A, const N: usize, 'a>(v0: ref<T, borrowed, 'a, A, S>, v1: [T; N]): ref<T, borrowed, 'a, A, S static> {
+entry(v0: ref<T, borrowed, 'a, A, S>, v1: [T; N]):
+    v2: ref<T, borrowed, 'a, A, S static> = cast.bit v0 -> ref<T, borrowed, 'a, A, S static>
     return v2
 }
 

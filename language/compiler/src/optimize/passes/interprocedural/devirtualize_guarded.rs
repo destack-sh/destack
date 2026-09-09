@@ -608,20 +608,20 @@ mod tests {
     fn test_devirtualize_guarded_rewrites_dynamic_instruction_call() {
         let input = r#"
 type Reader {
-    read: fn(dynamic<Reader, managed, mutable>) => int32;
+    read: fn(dynamic<Reader, managed, mutable, local>) => int32;
 }
 
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
-    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32
     v2: int32 = add v1, v1
     return v2
 }
@@ -640,27 +640,27 @@ entry(v0: dynamic<Reader, managed, mutable>):
         test.assert_output(
             r#"
 type Reader {
-    read: fn(dynamic<Reader, managed, mutable>) => int32;
+    read: fn(dynamic<Reader, managed, mutable, local>) => int32;
 }
 
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v3: typeId = dynamic.type v0
     check is.type v3, ReaderImpl => b1 | b2
 
 b1:
-    invoke callee(v0): (dynamic<Reader, managed, mutable>) => int32 => b3 | b4
+    invoke callee(v0): (dynamic<Reader, managed, mutable, local>) => int32 => b3 | b4
 
 b2:
-    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32 => b3 | b4
+    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32 => b3 | b4
 
 b3(v1: int32):
     v2: int32 = add v1, v1
@@ -678,20 +678,20 @@ b4:
     fn test_devirtualize_guarded_rewrites_dynamic_terminator_call() {
         let input = r#"
 type Reader {
-    read: fn(dynamic<Reader, managed, mutable>) => int32;
+    read: fn(dynamic<Reader, managed, mutable, local>) => int32;
 }
 
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
-    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32 => b1 | cleanup
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
+    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32 => b1 | cleanup
 b1(v1: int32):
     return v1
 
@@ -713,27 +713,27 @@ cleanup:
         test.assert_output(
             r#"
 type Reader {
-    read: fn(dynamic<Reader, managed, mutable>) => int32;
+    read: fn(dynamic<Reader, managed, mutable, local>) => int32;
 }
 
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v2: typeId = dynamic.type v0
     check is.type v2, ReaderImpl => b1 | b2
 
 b1:
-    invoke callee(v0): (dynamic<Reader, managed, mutable>) => int32 => b1_1 | cleanup
+    invoke callee(v0): (dynamic<Reader, managed, mutable, local>) => int32 => b1_1 | cleanup
 
 b2:
-    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32 => b1_1 | cleanup
+    invoke.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32 => b1_1 | cleanup
 
 b1_1(v1: int32):
     return v1
@@ -752,15 +752,15 @@ cleanup:
 type Reader { }
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
-    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32
     return v1
 }
 "#;
@@ -785,15 +785,15 @@ entry(v0: dynamic<Reader, managed, mutable>):
 type Reader { }
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
-    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32
     return v1
 }
 "#;
@@ -822,15 +822,15 @@ entry(v0: dynamic<Reader, managed, mutable>):
 type Reader { }
 type ReaderImpl { }
 
-function callee(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
+function callee(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
     v1: int32 = 7
     return v1
 }
 
-function test(v0: dynamic<Reader, managed, mutable>): int32 {
-entry(v0: dynamic<Reader, managed, mutable>):
-    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable>) => int32
+function test(v0: dynamic<Reader, managed, mutable, local>): int32 {
+entry(v0: dynamic<Reader, managed, mutable, local>):
+    v1: int32 = call.dynamic v0, Reader, 0(v0): (dynamic<Reader, managed, mutable, local>) => int32
     return v1
 }
 "#;

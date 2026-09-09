@@ -2578,7 +2578,7 @@ entry(v0: int64):
     v1: int32 = 7
     new.slice.uninit.try int32, v0 => b1(v1) | b2
 
-b1(v2: uninit<slice<int32, managed, mutable>>, v3: int32):
+b1(v2: uninit<slice<int32, managed, mutable, local>>, v3: int32):
     return v3
 
 b2:

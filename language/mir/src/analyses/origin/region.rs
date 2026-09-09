@@ -88,6 +88,9 @@ impl Origin {
             LifetimeTerm::Frame => Region::Frame,
             LifetimeTerm::Managed => Region::Managed,
             LifetimeTerm::Slot(slot) => Region::Lifetime(*slot),
+            LifetimeTerm::Parameter(index) => {
+                unreachable!("region parameter {index} of a type declaration reached a body")
+            }
         }))
     }
 

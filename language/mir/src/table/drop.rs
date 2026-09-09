@@ -158,7 +158,7 @@ impl DropTable {
                 .any(|case| self.child_requires_destructor(case.ty, storage, tree, seen)),
             // answer through the type an application stands for
             Type::Application { .. } => {
-                let (applied, _) = tree.split_lifetime_application(ty);
+                let applied = tree.represented(ty);
 
                 applied != ty && self.children_require_destructor(applied, storage, tree, seen)
             }

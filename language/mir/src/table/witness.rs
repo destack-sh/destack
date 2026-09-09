@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FunctionId, Global, LocalNodeId, Tree, TypeId, erase_lifetime};
+use crate::{FunctionId, Global, LocalNodeId, Tree, TypeId, erase_regions};
 
 /// The witness each closed type records for each interface it implements.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -56,9 +56,9 @@ pub struct WitnessType {
 impl WitnessTable {
     /// Insert one witness, replacing the one recorded for its concrete type and constraint.
     pub fn insert(&mut self, tree: &mut Tree, mut witness: Witness) {
-        // erase lifetimes so the witness keys on the bare type and interface
-        witness.concrete = erase_lifetime(tree, witness.concrete);
-        witness.constraint = erase_lifetime(tree, witness.constraint);
+        // erase the regions off the witness key
+        witness.concrete = erase_regions(tree, witness.concrete);
+        witness.constraint = erase_regions(tree, witness.constraint);
 
         // replace the witness already recorded for that pair, or append a new one
         let index = self.witnesses.iter().position(|candidate| {
@@ -77,8 +77,8 @@ impl WitnessTable {
 
     /// Return the witness recording how one type implements one interface.
     pub fn get(&self, tree: &mut Tree, concrete: TypeId, constraint: TypeId) -> Option<&Witness> {
-        let concrete = erase_lifetime(tree, concrete);
-        let constraint = erase_lifetime(tree, constraint);
+        let concrete = erase_regions(tree, concrete);
+        let constraint = erase_regions(tree, constraint);
 
         self.witnesses
             .iter()

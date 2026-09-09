@@ -1,8 +1,8 @@
 use std::fmt;
 
 use crate::{
-    Access, Attribute, Field, GenericArgument, Lifetime, LocalNodeId, Residence, Space, Static,
-    StaticId, Storage, Tree, Type, TypeId,
+    Access, Attribute, Field, GenericArgument, Lifetime, LifetimeTerm, LocalNodeId, Residence,
+    Space, Static, StaticId, Storage, Tree, Type, TypeId,
 };
 
 /// One substitution of template parameters by generic arguments, interned into the tree.
@@ -56,8 +56,8 @@ impl<'a> Substitution<'a> {
 
         // read a parameter off the arguments, or substitute the type's children
         match tree.get(ty).clone() {
-            Type::Parameter { index } => match self.arguments[index as usize] {
-                GenericArgument::Type(argument) => argument,
+            Type::Parameter { index } => match &self.arguments[index as usize] {
+                GenericArgument::Type(argument) => *argument,
                 argument => unreachable!("type parameter {index} bound to {argument:?}"),
             },
             definition => self.definition(definition),
@@ -76,21 +76,34 @@ impl<'a> Substitution<'a> {
             }
         }
 
-        // substitute the storage and access parameters the type names directly
+        // substitute the region, storage, and access parameters the type names directly
         let arguments = self.arguments;
         match &mut definition {
             Type::Dynamic {
-                storage, access, ..
+                lifetime,
+                storage,
+                access,
+                ..
             }
             | Type::Reference {
-                storage, access, ..
+                lifetime,
+                storage,
+                access,
+                ..
             }
             | Type::Slice {
-                storage, access, ..
+                lifetime,
+                storage,
+                access,
+                ..
             }
             | Type::Function {
-                storage, access, ..
+                lifetime,
+                storage,
+                access,
+                ..
             } => {
+                *lifetime = Self::lifetime(lifetime, arguments);
                 *storage = Self::storage(*storage, arguments);
                 *access = Self::access(*access, arguments);
             }
@@ -98,8 +111,10 @@ impl<'a> Substitution<'a> {
             _ => {}
         }
 
-        // substitute a fixed array's length
-        if let Type::FixedArray { length, .. } = &mut definition {
+        // substitute a fixed array's length and a vector's lane count
+        if let Type::FixedArray { length, .. } | Type::Vector { lanes: length, .. } =
+            &mut definition
+        {
             *length = self.value(*length);
         }
 
@@ -112,7 +127,7 @@ impl<'a> Substitution<'a> {
         {
             *base = self.ty(*base);
             for argument in applied.iter_mut() {
-                *argument = self.argument(*argument);
+                *argument = self.argument(argument.clone());
             }
 
             return self.resolve_type(definition);
@@ -144,6 +159,10 @@ impl<'a> Substitution<'a> {
     pub fn argument(&mut self, argument: GenericArgument) -> GenericArgument {
         match argument {
             GenericArgument::Type(ty) => GenericArgument::Type(self.ty(ty)),
+            GenericArgument::Region { lifetime, space } => GenericArgument::Region {
+                lifetime: Self::lifetime(&lifetime, self.arguments),
+                space: Self::space(space, self.arguments),
+            },
             GenericArgument::Space(space) => {
                 GenericArgument::Space(Self::space(space, self.arguments))
             }
@@ -154,11 +173,29 @@ impl<'a> Substitution<'a> {
         }
     }
 
-    /// Substitute one space parameter.
+    /// Substitute the region parameters one lifetime names.
+    fn lifetime(lifetime: &Lifetime, arguments: &[GenericArgument]) -> Lifetime {
+        let mut terms = Vec::new();
+        for term in &lifetime.terms {
+            match term {
+                LifetimeTerm::Parameter(index) => match &arguments[*index as usize] {
+                    GenericArgument::Region { lifetime, .. } => {
+                        terms.extend(lifetime.terms.iter().copied())
+                    }
+                    argument => unreachable!("region parameter {index} bound to {argument:?}"),
+                },
+                term => terms.push(*term),
+            }
+        }
+
+        Lifetime::new(terms)
+    }
+
+    /// Substitute one space parameter, a region parameter through its space.
     fn space(space: Space, arguments: &[GenericArgument]) -> Space {
         match space {
-            Space::Parameter(index) => match arguments[index as usize] {
-                GenericArgument::Space(space) => space,
+            Space::Parameter(index) => match &arguments[index as usize] {
+                GenericArgument::Space(space) | GenericArgument::Region { space, .. } => *space,
                 argument => unreachable!("space parameter {index} bound to {argument:?}"),
             },
             space => space,
@@ -179,8 +216,8 @@ impl<'a> Substitution<'a> {
     /// Substitute one access parameter.
     fn access(access: Access, arguments: &[GenericArgument]) -> Access {
         match access {
-            Access::Parameter(index) => match arguments[index as usize] {
-                GenericArgument::Access(access) => access,
+            Access::Parameter(index) => match &arguments[index as usize] {
+                GenericArgument::Access(access) => *access,
                 argument => unreachable!("access parameter {index} bound to {argument:?}"),
             },
             access => access,
@@ -190,27 +227,19 @@ impl<'a> Substitution<'a> {
     /// Substitute one value parameter.
     fn value(&self, value: StaticId) -> StaticId {
         match *self.tree().static_value(value) {
-            Static::Parameter(index) => match self.arguments[index as usize] {
-                GenericArgument::Value(value) => value,
+            Static::Parameter(index) => match &self.arguments[index as usize] {
+                GenericArgument::Value(value) => *value,
                 argument => unreachable!("value parameter {index} bound to {argument:?}"),
             },
             _ => value,
         }
     }
 
-    /// Return the template's definition at the arguments, keeping the applied lifetimes over it.
-    pub fn representation(&mut self, base: TypeId, lifetimes: &[Lifetime]) -> TypeId {
+    /// Return the template's definition at the arguments.
+    pub fn representation(&mut self, base: TypeId) -> TypeId {
         let definition = self.tree().get(base).clone();
-        let represented = self.definition(definition);
 
-        match lifetimes.is_empty() {
-            true => represented,
-            false => self.resolve_type(Type::Application {
-                base: represented,
-                arguments: Vec::new(),
-                lifetimes: lifetimes.to_vec(),
-            }),
-        }
+        self.definition(definition)
     }
 }
 

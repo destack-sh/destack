@@ -259,7 +259,7 @@ impl PlaceTable {
             .iter()
             .copied()
             .filter(|local| {
-                let (held, _) = tree.split_lifetime_application(tree.get(*local).ty);
+                let held = tree.represented(tree.get(*local).ty);
 
                 !exposed.contains(local) && tree.get(held).is_reference_representation()
             })

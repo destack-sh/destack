@@ -213,7 +213,7 @@ fn test_rewrite_source_pattern_diff() {
     );
     assert_eq!(
         text,
-        "--- a/main.ds\n+++ b/main.ds\n\n-   1│ fetch(\"/a\");\n+   1│ client.fetch(\"/a\");\n"
+        "--- a/main.ds\n+++ b/main.ds\n\n-   1│ fetch(\"/a\");\n+   1│ client.fetch(\"/a\");\n    2│ keep();\n"
     );
     assert!(output.data.commit.is_none());
     assert_eq!(test.source("main.ds"), source);

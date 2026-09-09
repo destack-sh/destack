@@ -11,10 +11,10 @@ use super::intern::{TypeEntry, TypeIndexKey};
 use crate::source::{Token, TokenType};
 use crate::{
     Access, Attribute, Block, BorrowedPath, CommentSpan, Copy, ExtentSlice, Field, FieldSpan,
-    FlagSlice, FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Lifetime,
-    LifetimeParameter, LifetimeTerm, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path,
-    Projection, Provenance, ProvenanceTable, ReferenceKind, Space, Static, StaticId, Storage,
-    SwitchCase, SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
+    FlagSlice, FloatType, Function, FunctionHeaderSpans, GenericArgument, Global, IndexSlice,
+    Instruction, Lifetime, Local, LocalNodeId, Node, NodeIndexEntry, NodeType, Path, Projection,
+    Provenance, ProvenanceTable, ReferenceKind, Space, Static, StaticId, Storage, SwitchCase,
+    SwitchCaseSlice, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
     TypedValueSpan, Value, ValueSlice, VariantCase,
 };
 
@@ -79,7 +79,6 @@ pub struct Tree {
     pub(crate) static_index: FxIndexMap<u64, SmallVec<[StaticId; 1]>>,
 
     /// Lifetime parameters keyed by type node.
-    pub(crate) lifetimes_by_type: FxIndexMap<LocalNodeId<Type>, Vec<LifetimeParameter>>,
 
     // externalized instruction payloads
     /// Flat buffer of MIR values.
@@ -161,7 +160,6 @@ impl Tree {
             canonical_index: FxIndexMap::default(),
             field_index: FxIndexMap::default(),
             static_index: FxIndexMap::default(),
-            lifetimes_by_type: FxIndexMap::default(),
 
             values: Vec::new(),
             indices: Vec::new(),
@@ -177,56 +175,6 @@ impl Tree {
         tree.source_text = Some(source_text);
         tree.tokens = tokens;
         tree
-    }
-
-    /// Substitute type-local lifetime slots with applied lifetimes.
-    pub fn substitute_lifetime(&self, lifetime: &Lifetime, lifetime_args: &[Lifetime]) -> Lifetime {
-        let mut terms = Vec::new();
-        for term in &lifetime.terms {
-            match term {
-                LifetimeTerm::Static => terms.push(LifetimeTerm::Static),
-                LifetimeTerm::Frame => terms.push(LifetimeTerm::Frame),
-                LifetimeTerm::Managed => terms.push(LifetimeTerm::Managed),
-                LifetimeTerm::Slot(slot) => {
-                    if let Some(lifetime) = lifetime_args.get(slot.0 as usize) {
-                        terms.extend(lifetime.terms.iter().copied());
-                    } else {
-                        terms.push(LifetimeTerm::Slot(*slot));
-                    }
-                }
-            }
-        }
-
-        Lifetime::new(terms)
-    }
-
-    /// Split one application into the type its lifetimes apply to and those lifetimes.
-    pub fn split_lifetime_application(&self, ty: TypeId) -> (TypeId, &[Lifetime]) {
-        let mut current = ty;
-        let mut outermost: &[Lifetime] = &[];
-        loop {
-            let Type::Application {
-                base,
-                arguments,
-                lifetimes,
-            } = self.get(current)
-            else {
-                return (current, outermost);
-            };
-            if outermost.is_empty() {
-                outermost = lifetimes;
-            }
-
-            // resolve through the representation, or the base while it stays reserved
-            let applied = match arguments.is_empty() {
-                true => *base,
-                false => self.representation(current).unwrap_or(*base),
-            };
-            if applied == current {
-                return (current, outermost);
-            }
-            current = applied;
-        }
     }
 
     /// Return the transparent representation type.
@@ -273,29 +221,17 @@ impl Tree {
             .then_some(storage)
     }
 
-    /// Return the explicit lifetime carried by a type.
+    /// Return the lifetime terms one type stores across its regions.
     pub fn type_lifetime(&self, ty: TypeId) -> Option<Lifetime> {
         let mut visited = FxIndexSet::default();
 
-        self.type_lifetime_inner(ty, &[], &mut visited)
-    }
-
-    /// Return the explicit lifetime carried by a type under applied lifetimes.
-    pub fn type_lifetime_with_lifetimes(
-        &self,
-        ty: TypeId,
-        lifetimes: &[Lifetime],
-    ) -> Option<Lifetime> {
-        let mut visited = FxIndexSet::default();
-
-        self.type_lifetime_inner(ty, lifetimes, &mut visited)
+        self.type_lifetime_inner(ty, &mut visited)
     }
 
     /// Return the explicit lifetime carried by a type.
     fn type_lifetime_inner(
         &self,
         ty: TypeId,
-        lifetime_args: &[Lifetime],
         visited: &mut FxIndexSet<LocalNodeId<Type>>,
     ) -> Option<Lifetime> {
         if !visited.insert(ty) {
@@ -312,16 +248,15 @@ impl Tree {
                 kind: ReferenceKind::Borrowed,
                 lifetime,
                 ..
-            } if !lifetime.is_empty() => Some(self.substitute_lifetime(lifetime, lifetime_args)),
+            } if !lifetime.is_empty() => Some(lifetime.clone()),
             Type::Reference {
                 kind,
                 lifetime,
                 pointee,
                 ..
             } => {
-                let own = (*kind == ReferenceKind::Borrowed)
-                    .then(|| self.substitute_lifetime(lifetime, lifetime_args));
-                let nested = self.type_lifetime_inner(*pointee, lifetime_args, visited);
+                let own = (*kind == ReferenceKind::Borrowed).then(|| lifetime.clone());
+                let nested = self.type_lifetime_inner(*pointee, visited);
                 let terms = own
                     .into_iter()
                     .chain(nested)
@@ -335,9 +270,8 @@ impl Tree {
                 element,
                 ..
             } => {
-                let own = (*kind == ReferenceKind::Borrowed)
-                    .then(|| self.substitute_lifetime(lifetime, lifetime_args));
-                let nested = self.type_lifetime_inner(*element, lifetime_args, visited);
+                let own = (*kind == ReferenceKind::Borrowed).then(|| lifetime.clone());
+                let nested = self.type_lifetime_inner(*element, visited);
                 let terms = own
                     .into_iter()
                     .chain(nested)
@@ -348,7 +282,7 @@ impl Tree {
             Type::Struct { fields, .. } => {
                 let nested_lifetimes = fields.iter().filter_map(|field| {
                     let field = self.get(*field);
-                    self.type_lifetime_inner(field.ty, lifetime_args, visited)
+                    self.type_lifetime_inner(field.ty, visited)
                 });
 
                 Some(Lifetime::new(
@@ -356,17 +290,17 @@ impl Tree {
                 ))
                 .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, lifetime_args, visited),
-            Type::Uninit { value } => self.type_lifetime_inner(*value, lifetime_args, visited),
+            Type::Newtype { inner, .. } => self.type_lifetime_inner(*inner, visited),
+            Type::Uninit { value } => self.type_lifetime_inner(*value, visited),
             Type::Variant {
                 discriminant,
                 cases,
                 ..
             } => {
-                let discriminant = self.type_lifetime_inner(*discriminant, lifetime_args, visited);
+                let discriminant = self.type_lifetime_inner(*discriminant, visited);
                 let nested_lifetimes = cases
                     .iter()
-                    .filter_map(|case| self.type_lifetime_inner(case.ty, lifetime_args, visited));
+                    .filter_map(|case| self.type_lifetime_inner(case.ty, visited));
 
                 Some(Lifetime::new(
                     discriminant
@@ -377,9 +311,9 @@ impl Tree {
                 .filter(|lifetime| !lifetime.is_empty())
             }
             Type::Tuple { elements, .. } => {
-                let nested_lifetimes = elements.iter().filter_map(|element| {
-                    self.type_lifetime_inner(*element, lifetime_args, visited)
-                });
+                let nested_lifetimes = elements
+                    .iter()
+                    .filter_map(|element| self.type_lifetime_inner(*element, visited));
 
                 Some(Lifetime::new(
                     nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
@@ -388,12 +322,20 @@ impl Tree {
             }
             Type::FixedArray { element, .. }
             | Type::Vector { element, .. }
-            | Type::Atomic { value: element } => {
-                self.type_lifetime_inner(*element, lifetime_args, visited)
+            | Type::Atomic { value: element } => self.type_lifetime_inner(*element, visited),
+            // collect the regions an application's arguments carry
+            Type::Application { arguments, .. } => {
+                let nested_lifetimes = arguments.iter().filter_map(|argument| match argument {
+                    GenericArgument::Region { lifetime, .. } => Some(lifetime.clone()),
+                    GenericArgument::Type(argument) => self.type_lifetime_inner(*argument, visited),
+                    _ => None,
+                });
+
+                Some(Lifetime::new(
+                    nested_lifetimes.flat_map(|lifetime| lifetime.terms.into_iter()),
+                ))
+                .filter(|lifetime| !lifetime.is_empty())
             }
-            Type::Application {
-                base, lifetimes, ..
-            } => self.type_lifetime_inner(*base, lifetimes, visited),
             _ => None,
         };
         visited.swap_remove(&ty);
@@ -467,30 +409,19 @@ impl Tree {
 
     /// Return borrowed reference-like paths carried by one type.
     pub fn type_borrowed_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
-        self.type_borrowed_paths_with_lifetimes(ty, &[], false)
+        self.collect_borrowed_paths(ty, false)
     }
 
     /// Return borrowed paths used for origin tracking.
     pub fn type_origin_paths(&self, ty: TypeId) -> Vec<BorrowedPath> {
-        self.type_borrowed_paths_with_lifetimes(ty, &[], true)
+        self.collect_borrowed_paths(ty, true)
     }
 
-    /// Return borrowed reference-like paths carried by one type under applied lifetimes.
-    pub fn type_borrowed_paths_with_lifetimes(
-        &self,
-        ty: TypeId,
-        lifetimes: &[Lifetime],
-        is_tracking: bool,
-    ) -> Vec<BorrowedPath> {
+    /// Return borrowed reference-like paths carried by one type.
+    fn collect_borrowed_paths(&self, ty: TypeId, is_tracking: bool) -> Vec<BorrowedPath> {
         let mut borrowed_paths = Vec::new();
 
-        self.collect_type_borrowed_paths(
-            ty,
-            lifetimes,
-            is_tracking,
-            Path::root(),
-            &mut borrowed_paths,
-        );
+        self.collect_type_borrowed_paths(ty, is_tracking, Path::root(), &mut borrowed_paths);
 
         borrowed_paths
     }
@@ -499,7 +430,6 @@ impl Tree {
     fn collect_type_borrowed_paths(
         &self,
         ty: TypeId,
-        lifetimes: &[Lifetime],
         is_tracking: bool,
         path: Path,
         borrowed_paths: &mut Vec<BorrowedPath>,
@@ -524,7 +454,7 @@ impl Tree {
                 access,
                 ..
             } => {
-                let lifetime = self.substitute_lifetime(lifetime, lifetimes);
+                let lifetime = lifetime.clone();
                 // track managed handles and empty borrows only for origin
                 let is_included = match kind {
                     ReferenceKind::Borrowed => is_tracking || !lifetime.is_empty(),
@@ -548,13 +478,7 @@ impl Tree {
                         index: index as u32,
                     });
 
-                    self.collect_type_borrowed_paths(
-                        field.ty,
-                        lifetimes,
-                        is_tracking,
-                        path,
-                        borrowed_paths,
-                    );
+                    self.collect_type_borrowed_paths(field.ty, is_tracking, path, borrowed_paths);
                 }
             }
             // descend into positional fields
@@ -564,26 +488,14 @@ impl Tree {
                         index: index as u32,
                     });
 
-                    self.collect_type_borrowed_paths(
-                        *element,
-                        lifetimes,
-                        is_tracking,
-                        path,
-                        borrowed_paths,
-                    );
+                    self.collect_type_borrowed_paths(*element, is_tracking, path, borrowed_paths);
                 }
             }
             // descend through transparent storage wrappers
             Type::Newtype { inner, .. }
             | Type::Uninit { value: inner }
             | Type::Atomic { value: inner } => {
-                self.collect_type_borrowed_paths(
-                    *inner,
-                    lifetimes,
-                    is_tracking,
-                    path,
-                    borrowed_paths,
-                );
+                self.collect_type_borrowed_paths(*inner, is_tracking, path, borrowed_paths);
             }
             // descend into each possible storage shape
             Type::Variant { cases, .. } => {
@@ -592,13 +504,7 @@ impl Tree {
                         .clone()
                         .with_projection(Projection::Variant { case: index as u32 });
 
-                    self.collect_type_borrowed_paths(
-                        case.ty,
-                        lifetimes,
-                        is_tracking,
-                        path,
-                        borrowed_paths,
-                    );
+                    self.collect_type_borrowed_paths(case.ty, is_tracking, path, borrowed_paths);
                 }
             }
             // record borrowed slices as leaves
@@ -608,7 +514,7 @@ impl Tree {
                 access,
                 ..
             } => {
-                let lifetime = self.substitute_lifetime(lifetime, lifetimes);
+                let lifetime = lifetime.clone();
                 if is_tracking || !lifetime.is_empty() {
                     borrowed_paths.push(BorrowedPath {
                         path,
@@ -634,7 +540,6 @@ impl Tree {
                     let mut element_paths = Vec::new();
                     self.collect_type_borrowed_paths(
                         *element,
-                        lifetimes,
                         is_tracking,
                         Path::root(),
                         &mut element_paths,
@@ -642,7 +547,7 @@ impl Tree {
                     if element_paths.is_empty() {
                         borrowed_paths.push(BorrowedPath {
                             path,
-                            lifetime: self.substitute_lifetime(lifetime, lifetimes),
+                            lifetime: lifetime.clone(),
                             access: *access,
                             kind: ReferenceKind::Managed,
                         });
@@ -652,7 +557,6 @@ impl Tree {
                 let mut element_paths = Vec::new();
                 self.collect_type_borrowed_paths(
                     *element,
-                    lifetimes,
                     is_tracking,
                     Path::root(),
                     &mut element_paths,
@@ -685,17 +589,11 @@ impl Tree {
                     });
                 }
             }
-            // substitute outer lifetime arguments
-            Type::Application {
-                base, lifetimes, ..
-            } => {
-                self.collect_type_borrowed_paths(
-                    *base,
-                    lifetimes,
-                    is_tracking,
-                    path,
-                    borrowed_paths,
-                );
+            // read an application through its representation, its base while undefined
+            Type::Application { base, .. } => {
+                let applied = self.representation(ty).unwrap_or(*base);
+
+                self.collect_type_borrowed_paths(applied, is_tracking, path, borrowed_paths);
             }
             _ => {}
         }
@@ -806,28 +704,6 @@ impl Tree {
         }
 
         None
-    }
-
-    /// Return lifetime parameters declared by one type.
-    pub fn type_lifetimes(&self, ty: LocalNodeId<Type>) -> &[LifetimeParameter] {
-        self.lifetimes_by_type
-            .get(&ty)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
-    }
-
-    /// Set lifetime parameters declared by one type.
-    pub fn set_type_lifetimes(&mut self, ty: LocalNodeId<Type>, lifetimes: Vec<LifetimeParameter>) {
-        assert!(
-            self.is_identified_type(ty),
-            "structural MIR types cannot own lifetime parameters"
-        );
-
-        if lifetimes.is_empty() {
-            self.lifetimes_by_type.shift_remove(&ty);
-        } else {
-            self.lifetimes_by_type.insert(ty, lifetimes);
-        }
     }
 
     /// Return the boolean type id.

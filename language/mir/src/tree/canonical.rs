@@ -50,7 +50,7 @@ impl Tree {
         self.types_equal_assuming(left, right, &mut assumed)
     }
 
-    /// Return whether two types share one representation, lifetimes aside.
+    /// Return whether two types share one representation, regions aside.
     pub fn same_representation(&self, left: TypeId, right: TypeId) -> bool {
         self.types_equal(self.represented(left), self.represented(right))
     }

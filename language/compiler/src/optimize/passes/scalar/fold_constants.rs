@@ -682,7 +682,7 @@ readonly global flag: boolean = true
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, readonly> = global.address flag
+    v0: ref<boolean, borrowed, 'static, readonly, local> = global.address flag
     v1: boolean = load v0
     v2: boolean = not v1
     return v2
@@ -702,7 +702,7 @@ global flag: boolean = true
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, mutable> = global.address flag
+    v0: ref<boolean, borrowed, 'static, mutable, local> = global.address flag
     v1: boolean = load v0
     v2: boolean = not v1
     return v2

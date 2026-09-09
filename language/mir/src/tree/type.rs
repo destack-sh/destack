@@ -378,8 +378,6 @@ pub enum Type {
     Usize,
     /// Floating point with concrete representation.
     Float(FloatType),
-    /// Runtime type descriptor handle.
-    TypeDescriptor,
     /// Compact 32-bit runtime type identity token.
     TypeId,
     /// One parameter of the enclosing template.
@@ -491,7 +489,7 @@ pub enum Type {
         /// The element type.
         element: TypeId,
         /// The number of lanes.
-        lanes: u32,
+        lanes: StaticId,
     },
     /// Bare function signature.
     FunctionSignature {
@@ -523,14 +521,12 @@ pub enum Type {
         signature: TypeId,
     },
 
-    /// Type use with applied generic and lifetime arguments.
+    /// Type use with applied generic arguments.
     Application {
         /// The type being applied.
         base: TypeId,
         /// The applied generic arguments, in template order.
         arguments: Vec<GenericArgument>,
-        /// The applied lifetime arguments.
-        lifetimes: Vec<Lifetime>,
     },
 }
 
@@ -662,7 +658,6 @@ impl Type {
             "usize" => Type::Usize,
             "float32" => Type::FLOAT32,
             "float64" => Type::FLOAT64,
-            "typeDescriptor" => Type::TypeDescriptor,
             "typeId" => Type::TypeId,
             _ => return None,
         })
@@ -735,7 +730,6 @@ impl Type {
                 | Type::Isize
                 | Type::Usize
                 | Type::Float(_)
-                | Type::TypeDescriptor
                 | Type::TypeId
                 | Type::Reference { .. }
                 | Type::Pointer { .. }
@@ -821,15 +815,6 @@ impl Type {
             | Type::Reference { lifetime, .. }
             | Type::Slice { lifetime, .. }
             | Type::Function { lifetime, .. } => *lifetime = replacement,
-            // an application applies its lifetimes as arguments
-            Type::Application { lifetimes, .. } => match replacement.is_empty() {
-                true => lifetimes.clear(),
-                false => {
-                    for lifetime in lifetimes.iter_mut() {
-                        *lifetime = replacement.clone();
-                    }
-                }
-            },
             _ => {}
         }
     }
@@ -947,7 +932,6 @@ impl Type {
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::TypeDescriptor
             | Type::TypeId
             | Type::Pointer { .. } => Copy::Yes,
 
@@ -1082,6 +1066,11 @@ pub enum GenericParameterDomain {
         /// The applied interfaces the parameter satisfies.
         bounds: Vec<TypeId>,
     },
+    /// The regions, an extent with its space.
+    Region {
+        /// The region parameters this one outlives, by generic index.
+        outlives: Vec<u32>,
+    },
     /// The memory spaces.
     Space,
     /// The reference accesses.
@@ -1094,10 +1083,17 @@ pub enum GenericParameterDomain {
 }
 
 /// One argument applied to a generic parameter.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum GenericArgument {
     /// A type.
     Type(TypeId),
+    /// A region: the extent a borrow lives within and the space it points into.
+    Region {
+        /// The extent.
+        lifetime: Lifetime,
+        /// The space.
+        space: Space,
+    },
     /// A memory space.
     Space(Space),
     /// A reference access.
@@ -1111,10 +1107,8 @@ pub enum GenericArgument {
 pub struct TypeDeclaration {
     /// The declaration name.
     pub name: StringId,
-    /// The generic parameters a template takes.
+    /// The generic parameters a template takes, regions among them.
     pub generics: Vec<GenericParameter>,
-    /// Lifetime parameters in type-local slot order.
-    pub lifetimes: Vec<LifetimeParameter>,
     /// The identified type.
     pub ty: TypeId,
     /// The directly inherited and implemented types.
@@ -1211,7 +1205,6 @@ impl Type {
             | Type::Isize
             | Type::Usize
             | Type::Float { .. }
-            | Type::TypeDescriptor
             | Type::TypeId => {}
         }
     }

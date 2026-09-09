@@ -358,14 +358,21 @@ impl OriginState {
             } => {
                 self.copy(cx, *argument, *destination);
             }
-            // keep the origin of the reference a reinterpret reads
+            // keep the origin the reinterpret reads
             Instruction::Intrinsic {
                 destination: Some(destination),
                 intrinsic: Intrinsic::Transmute,
                 arguments,
             } => {
                 if let [argument] = cx.tree.get_values(*arguments) {
-                    self.copy(cx, *argument, *destination);
+                    let argument_type = cx.function.expect_value_type(*argument);
+                    let storage = cx.tree.storage_type(TypeId::from(argument_type));
+                    match cx.tree.get(storage).reference_kind() {
+                        Some(ReferenceKind::Unique) => {
+                            self.insert(*destination, Origin::one(Region::Static));
+                        }
+                        _ => self.copy(cx, *argument, *destination),
+                    }
                 }
             }
             Instruction::NewZeroed { destination, .. }

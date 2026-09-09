@@ -929,7 +929,7 @@ entry:
 b1(v1: int32):
     return v1
 
-b2(v2: ref<int32, managed, readonly>):
+b2(v2: ref<int32, managed, readonly, local>):
     panic v2
 }
 "#;
@@ -949,7 +949,7 @@ entry:
 b1(v1: int32):
     return v1
 
-b2(v2: ref<int32, managed, readonly>):
+b2(v2: ref<int32, managed, readonly, local>):
     panic v2
 }
 "#;

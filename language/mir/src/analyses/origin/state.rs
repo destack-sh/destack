@@ -303,6 +303,29 @@ impl OriginState {
 
     /// Return origin paths carried by one value.
     pub fn value_bindings(&self, cx: &OriginContext<'_>, value: Value) -> Vec<(Path, Origin)> {
+        self.value_paths(cx, value)
+            .into_iter()
+            .map(|(path, origin, _)| (path, origin))
+            .collect()
+    }
+
+    /// Return the origin bound at each borrowed path of one value, the paths a store or return
+    /// proves against a lifetime; a managed handle keeps its storage alive by itself.
+    pub fn value_borrows(&self, cx: &OriginContext<'_>, value: Value) -> Vec<(Path, Origin)> {
+        self.value_paths(cx, value)
+            .into_iter()
+            .filter(|(_, _, kind)| *kind == ReferenceKind::Borrowed)
+            .map(|(path, origin, _)| (path, origin))
+            .collect()
+    }
+
+    /// Return the origin bound at each reference-like path of one value with the path's kind,
+    /// a value without reference paths bound whole as a borrow.
+    fn value_paths(
+        &self,
+        cx: &OriginContext<'_>,
+        value: Value,
+    ) -> Vec<(Path, Origin, ReferenceKind)> {
         let ty = cx.function.expect_value_type(value);
         let paths = cx.tree.type_origin_paths(TypeId::from(ty));
         if paths.is_empty() {
@@ -311,7 +334,7 @@ impl OriginState {
                 return Vec::new();
             }
 
-            return vec![(Path::root(), origin)];
+            return vec![(Path::root(), origin, ReferenceKind::Borrowed)];
         }
 
         paths
@@ -323,7 +346,6 @@ impl OriginState {
             })
             // skip handle paths holding no tracked handle
             .filter(|(_, origin, kind)| *kind == ReferenceKind::Borrowed || !origin.is_empty())
-            .map(|(path, origin, _)| (path, origin))
             .collect()
     }
 

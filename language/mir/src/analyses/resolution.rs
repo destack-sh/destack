@@ -34,7 +34,7 @@ impl ResolutionTable {
                     analysis: &mut analysis,
                 };
 
-                resolver.record_function();
+                resolver.collect_function();
             }
         }
 
@@ -89,14 +89,14 @@ struct DispatchResolver<'a, 'b> {
 
 impl<'a, 'b> DispatchResolver<'a, 'b> {
     /// Record dispatch targets in one function.
-    fn record_function(&mut self) {
+    fn collect_function(&mut self) {
         for &block_id in self.function.blocks() {
-            self.record_block(block_id);
+            self.collect_block(block_id);
         }
     }
 
     /// Record dispatch targets in one block.
-    fn record_block(&mut self, block_id: mir::BlockId) {
+    fn collect_block(&mut self, block_id: mir::BlockId) {
         let block = self.tree.get(block_id);
 
         // record call instructions

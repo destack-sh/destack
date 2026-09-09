@@ -566,7 +566,7 @@ entry(v0: int32):
             r#"
 function allocate(): void {
 entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
     release v0
     return
 }
@@ -670,15 +670,15 @@ entry:
     fn test_function_effects_propagate_direct_calls() {
         let program = TestProgram::new(
             r#"
-function allocate(): ref<int32, unique, mutable> {
+function allocate(): ref<int32, unique, mutable, local> {
 entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
     return v0
 }
 
-function root(): ref<int32, unique, mutable> {
+function root(): ref<int32, unique, mutable, local> {
 entry:
-    v0: ref<int32, unique, mutable> = call allocate(): () => ref<int32, unique, mutable>
+    v0: ref<int32, unique, mutable, local> = call allocate(): () => ref<int32, unique, mutable, local>
     return v0
 }
 "#,
@@ -702,15 +702,15 @@ entry:
     fn test_function_effects_propagate_virtual_calls() {
         let mut program = TestProgram::new(
             r#"
-function allocate(v0: int32): ref<int32, unique, mutable> {
+function allocate(v0: int32): ref<int32, unique, mutable, local> {
 entry(v0: int32):
-    v1: ref<int32, unique, mutable> = new.zeroed int32
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
     return v1
 }
 
-function root(v0: int32): ref<int32, unique, mutable> {
+function root(v0: int32): ref<int32, unique, mutable, local> {
 entry(v0: int32):
-    v1: ref<int32, unique, mutable> = call.virtual v0, int32, 0(v0): (int32) => ref<int32, unique, mutable>
+    v1: ref<int32, unique, mutable, local> = call.virtual v0, int32, 0(v0): (int32) => ref<int32, unique, mutable, local>
     return v1
 }
 "#,
@@ -833,8 +833,8 @@ entry(v0: fn(int32) => int32, v1: int32):
     fn test_function_effects_mark_panic_noreturn() {
         let program = TestProgram::new(
             r#"
-function fail(v0: ref<int32, managed, readonly>): void {
-entry(v0: ref<int32, managed, readonly>):
+function fail(v0: ref<int32, managed, readonly, local>): void {
+entry(v0: ref<int32, managed, readonly, local>):
     panic v0
 }
 "#,

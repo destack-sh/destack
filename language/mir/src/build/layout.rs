@@ -163,7 +163,6 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::Isize
             | Type::Usize
             | Type::Float(_)
-            | Type::TypeDescriptor
             | Type::TypeId
             | Type::Atomic { .. }
             | Type::Dynamic { .. }
@@ -197,20 +196,15 @@ impl<'tree> LayoutBuilder<'tree> {
 
         // transparent storage forms share their represented layout exactly
         let represented = match self.tree.get(ty) {
-            // lay out an application through its representation, a lifetime one through its base
-            Type::Application {
-                base, arguments, ..
-            } => match arguments.is_empty() {
-                true => Some(*base),
-                false => match self.tree.representation(TypeId::from(ty)) {
-                    Some(represented) => Some(represented),
-                    None => {
-                        return Err(self.unsupported(&format!(
-                            "an unrepresented application {:?}",
-                            self.tree.get(ty)
-                        )));
-                    }
-                },
+            // lay out an application through its representation
+            Type::Application { .. } => match self.tree.representation(TypeId::from(ty)) {
+                Some(represented) => Some(represented),
+                None => {
+                    return Err(self.unsupported(&format!(
+                        "an unrepresented application {:?}",
+                        self.tree.get(ty)
+                    )));
+                }
             },
             Type::Atomic { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
                 Some(*value)
@@ -265,12 +259,6 @@ impl<'tree> LayoutBuilder<'tree> {
                 let scalar = Scalar::new(Primitive::Integer {
                     width: self.target.pointer_bits(),
                 });
-
-                Ok(Layout::scalar(scalar, bytes, self.pointer_alignment()))
-            }
-            Type::TypeDescriptor => {
-                let bytes = self.pointer_bytes();
-                let scalar = self.reference_scalar();
 
                 Ok(Layout::scalar(scalar, bytes, self.pointer_alignment()))
             }
@@ -454,6 +442,12 @@ impl<'tree> LayoutBuilder<'tree> {
 
             // vectors store fixed scalar lanes inline
             Type::Vector { element, lanes, .. } => {
+                let lanes = self
+                    .tree
+                    .static_value(lanes)
+                    .length()
+                    .and_then(|lanes| u32::try_from(lanes).ok())
+                    .ok_or_else(|| self.unsupported("vector lane count"))?;
                 let element_layout = self.layout_type(element)?;
                 let element_layout = self.layouts.layout(element_layout);
                 let stride = element_layout

@@ -66,6 +66,22 @@ impl Formatter<'_> {
 
         Ok(printed.as_str().to_string())
     }
+
+    /// Format one type reference inside a function's lifetime and generic scope.
+    pub fn format_type_in(&self, function: FunctionId, ty: TypeId) -> FormatResult<String> {
+        let allocator = Allocator::default();
+        let mut formatter =
+            Formatter::new(self.tree, self.target_layout, self.strings, self.options);
+        formatter.enter_function(function);
+
+        // build the FIR document from the type
+        let document = destack_fir::format!(&allocator, formatter, [FormatTypeId(ty)])?;
+
+        // print the complete type reference
+        let printed = document.print()?;
+
+        Ok(printed.as_str().to_string())
+    }
 }
 
 /// Format one type in its expanded form, ignoring any named declaration.
@@ -89,9 +105,6 @@ pub(super) fn format_type_declaration<'a>(
     let attributes = declaration_id
         .map(|declaration_id| f.context().tree.attributes(declaration_id))
         .unwrap_or(attributes);
-    let lifetimes = declaration_id
-        .map(|declaration_id| f.context().tree.get(declaration_id).lifetimes.clone())
-        .unwrap_or_default();
     let generics = declaration_id
         .map(|declaration_id| f.context().tree.get(declaration_id).generics.clone())
         .unwrap_or_default();
@@ -125,8 +138,7 @@ pub(super) fn format_type_declaration<'a>(
         write_attributes(attributes, f)?;
     }
 
-    // format the definition under the declaration's lifetime and generic scope
-    let previous_lifetimes = f.context_mut().replace_lifetimes(lifetimes.clone());
+    // format the definition under the declaration's generic scope
     let previous_generics = f.context_mut().replace_generics(generics.clone());
     let is_imported = f
         .context()
@@ -137,28 +149,21 @@ pub(super) fn format_type_declaration<'a>(
         // print an opaque declaration without a definition
         _ if is_opaque => {
             write!(f, [token("type"), space()])?;
-            format_type_name(name, &generics, &lifetimes, f)?;
+            format_type_name(name, &generics, f)?;
             write!(f, [token(";")])
         }
-        Type::Struct { fields, .. } => format_struct_type_declaration(
-            name,
-            &generics,
-            declaration_id,
-            &lifetimes,
-            &heritage,
-            fields,
-            f,
-        ),
+        Type::Struct { fields, .. } => {
+            format_struct_type_declaration(name, &generics, declaration_id, &heritage, fields, f)
+        }
         _ => {
             write!(f, [token("type"), space()])?;
-            format_type_name(name, &generics, &lifetimes, f)?;
+            format_type_name(name, &generics, f)?;
             format_type_heritage(&heritage, f)?;
             write!(f, [space(), token("="), space()])?;
             format_type_expanded(f, type_id, ty)?;
             write!(f, [token(";")])
         }
     };
-    f.context_mut().replace_lifetimes(previous_lifetimes);
     f.context_mut().replace_generics(previous_generics);
 
     result
@@ -190,13 +195,12 @@ fn format_struct_type_declaration<'a>(
     name: &str,
     generics: &[GenericParameter],
     declaration_id: Option<LocalNodeId<TypeDeclaration>>,
-    lifetimes: &[LifetimeParameter],
     heritage: &TypeHeritage,
     fields: &[LocalNodeId<Field>],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [token("type"), space()])?;
-    format_type_name(name, generics, lifetimes, f)?;
+    format_type_name(name, generics, f)?;
     format_type_heritage(heritage, f)?;
     write!(f, [space(), token("{")])?;
 
@@ -356,7 +360,6 @@ fn format_type_maybe_named<'a>(
         Type::Isize => write!(f, [token("isize")]),
         Type::Usize => write!(f, [token("usize")]),
         Type::Float(float_type) => write!(f, [token(float_type.label())]),
-        Type::TypeDescriptor => write!(f, [token("typeDescriptor")]),
         Type::Parameter { index } => format_parameter(*index, f),
         Type::TypeId => write!(f, [token("typeId")]),
         Type::Atomic { value } => {
@@ -502,7 +505,7 @@ fn format_type_maybe_named<'a>(
                     FormatTypeId(*element),
                     token(","),
                     space(),
-                    copied_text(&lanes.to_string()),
+                    format_with(|f| format_static(*lanes, f)),
                     token(">")
                 ]
             )
@@ -542,11 +545,7 @@ fn format_type_maybe_named<'a>(
             format_reference_qualifiers(*kind, lifetime, *storage, *access, f)?;
             write!(f, [token(">")])
         }
-        Type::Application {
-            base,
-            arguments,
-            lifetimes,
-        } => format_type_application(*base, arguments, lifetimes, f),
+        Type::Application { base, arguments } => format_type_application(*base, arguments, f),
     }
 }
 
@@ -580,6 +579,14 @@ fn format_reference_qualifiers<'a>(
     write!(f, [token(","), space(), token(kind_token)])?;
     format_lifetime(lifetime, f)?;
     format_access(access, f)?;
+
+    // one region parameter naming the lifetime names the storage too
+    if let ([LifetimeTerm::Parameter(index)], Storage::Heap(Space::Parameter(parameter))) =
+        (lifetime.terms.as_slice(), storage)
+        && *index == parameter
+    {
+        return Ok(());
+    }
     write!(f, [token(","), space()])?;
     format_storage(storage, f)?;
 
@@ -615,15 +622,41 @@ pub(super) fn format_space<'a>(space: Space, f: &mut Writer<'a, '_>) -> FormatRe
 
 /// Format one generic argument.
 pub(super) fn format_generic_argument<'a>(
-    argument: GenericArgument,
+    argument: &GenericArgument,
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     match argument {
-        GenericArgument::Type(ty) => format_type_id(ty, f),
-        GenericArgument::Space(space) => format_space(space, f),
-        GenericArgument::Access(access) => format_access_name(access, f),
-        GenericArgument::Value(value) => format_static(value, f),
+        GenericArgument::Type(ty) => format_type_id(*ty, f),
+        GenericArgument::Region { lifetime, space } => format_region_argument(lifetime, *space, f),
+        GenericArgument::Space(space) => format_space(*space, f),
+        GenericArgument::Access(access) => format_access_name(*access, f),
+        GenericArgument::Value(value) => format_static(*value, f),
     }
+}
+
+/// Format one region argument: its extent, then its space unless one region parameter names both.
+fn format_region_argument<'a>(
+    lifetime: &Lifetime,
+    region_space: Space,
+    f: &mut Writer<'a, '_>,
+) -> FormatResult<()> {
+    // print an erased extent as the wildcard
+    if lifetime.is_empty() {
+        write!(f, [token("'_")])?;
+    } else {
+        format_lifetime_terms(lifetime, f)?;
+    }
+
+    // one region parameter names both coordinates
+    if let ([LifetimeTerm::Parameter(index)], Space::Parameter(parameter)) =
+        (lifetime.terms.as_slice(), region_space)
+        && *index == parameter
+    {
+        return Ok(());
+    }
+
+    write!(f, [space(), token("&"), space()])?;
+    format_space(region_space, f)
 }
 
 /// Format one generic argument list, elided when empty.
@@ -640,7 +673,7 @@ pub(super) fn format_generic_arguments<'a>(
         if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        format_generic_argument(*argument, f)?;
+        format_generic_argument(argument, f)?;
     }
 
     write!(f, [token(">")])
@@ -656,37 +689,20 @@ fn format_lifetime<'a>(lifetime: &Lifetime, f: &mut Writer<'a, '_>) -> FormatRes
     format_lifetime_terms(lifetime, f)
 }
 
-/// Format one type use with its applied generic and lifetime arguments.
+/// Format one type use with its applied generic arguments.
 fn format_type_application<'a>(
     base: TypeId,
     arguments: &[GenericArgument],
-    lifetimes: &[Lifetime],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     format_type_id(base, f)?;
 
     write!(f, [token("<")])?;
-    let mut written = 0;
-    for argument in arguments {
-        if written > 0 {
+    for (index, argument) in arguments.iter().enumerate() {
+        if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        written += 1;
-
-        format_generic_argument(*argument, f)?;
-    }
-
-    // erased lifetimes elide from the application
-    for lifetime in lifetimes {
-        if lifetime.is_empty() {
-            continue;
-        }
-        if written > 0 {
-            write!(f, [token(","), space()])?;
-        }
-        written += 1;
-
-        format_lifetime_terms(lifetime, f)?;
+        format_generic_argument(argument, f)?;
     }
     write!(f, [token(">")])
 }
@@ -746,6 +762,16 @@ pub(super) fn format_lifetime_terms<'a>(
                     write!(f, [copied_text(&format!("'l{}", index.0))])?;
                 }
             }
+            LifetimeTerm::Parameter(index) => {
+                let name = f
+                    .context()
+                    .parameter_name(*index)
+                    .unwrap_or_else(|| {
+                        unreachable!("region parameter {index} outside its declaration")
+                    })
+                    .to_string();
+                write!(f, [copied_text(&name)])?;
+            }
         }
     }
 
@@ -781,37 +807,20 @@ fn format_lifetimes<'a>(
 pub(super) fn format_type_name<'a>(
     name: &str,
     generics: &[GenericParameter],
-    lifetimes: &[LifetimeParameter],
     f: &mut Writer<'a, '_>,
 ) -> FormatResult<()> {
     write!(f, [copied_text(name)])?;
 
-    if generics.is_empty() && lifetimes.is_empty() {
+    if generics.is_empty() {
         return Ok(());
     }
 
     write!(f, [token("<")])?;
-    let mut written = 0;
-    for parameter in generics {
-        if written > 0 {
+    for (index, parameter) in generics.iter().enumerate() {
+        if index > 0 {
             write!(f, [token(","), space()])?;
         }
-        written += 1;
-
         format_generic_parameter(parameter, f)?;
-    }
-
-    for (index, lifetime) in lifetimes.iter().enumerate() {
-        if written > 0 {
-            write!(f, [token(","), space()])?;
-        }
-        written += 1;
-
-        let name = lifetime
-            .name
-            .map(|name| f.context().strings.get(name).to_string())
-            .unwrap_or_else(|| format!("'l{index}"));
-        write!(f, [copied_text(&name)])?;
     }
 
     write!(f, [token(">")])
@@ -832,6 +841,25 @@ pub(super) fn format_generic_parameter<'a>(
                     _ => write!(f, [space(), token("&"), space()])?,
                 }
                 format_type_id(*bound, f)?;
+            }
+
+            Ok(())
+        }
+        GenericParameterDomain::Region { outlives } => {
+            write!(f, [copied_text(&name)])?;
+            for (position, outlived) in outlives.iter().enumerate() {
+                match position {
+                    0 => write!(f, [token(":"), space()])?,
+                    _ => write!(f, [space(), token("&"), space()])?,
+                }
+                let outlived = f
+                    .context()
+                    .parameter_name(*outlived)
+                    .unwrap_or_else(|| {
+                        unreachable!("region parameter {outlived} outside its declaration")
+                    })
+                    .to_string();
+                write!(f, [copied_text(&outlived)])?;
             }
 
             Ok(())

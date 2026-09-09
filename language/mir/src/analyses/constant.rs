@@ -565,7 +565,7 @@ readonly global flag: boolean = true
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, readonly> = global.address flag
+    v0: ref<boolean, borrowed, 'static, readonly, local> = global.address flag
     v1: boolean = load v0
     return v1
 }
@@ -593,7 +593,7 @@ global flag: boolean = true
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, mutable> = global.address flag
+    v0: ref<boolean, borrowed, 'static, mutable, local> = global.address flag
     v1: boolean = load v0
     return v1
 }
@@ -621,7 +621,7 @@ readonly global flag: boolean = zeroinit
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, readonly> = global.address flag
+    v0: ref<boolean, borrowed, 'static, readonly, local> = global.address flag
     v1: boolean = load v0
     return v1
 }
@@ -718,7 +718,7 @@ entry(v0: int64):
     v1: boolean = true
     new.slice.uninit.try int32, v0 => b1(v1) | b2
 
-b1(v2: uninit<slice<int32, managed, mutable>>, v3: boolean):
+b1(v2: uninit<slice<int32, managed, mutable, local>>, v3: boolean):
     return v3
 
 b2:

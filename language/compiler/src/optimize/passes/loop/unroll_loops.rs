@@ -81,7 +81,7 @@ declare_pass! {
     ///     v9: boolean = lt v8, v2
     ///     branch v9 => b4(v7, v8) | b5(v7)
     /// b4(v10: uint32, v11: uint32):
-    ///     v12: ref<uint32, borrowed, mutable> = element.address v0, v11
+    ///     v12: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v11
     ///     store v12, v10
     ///     v13: uint32 = add v11, v3
     ///     jump b3(v10, v13)
@@ -3181,7 +3181,7 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v14: uint32 = add v12, v4
     jump b3(v11, v14)
@@ -3217,11 +3217,11 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v19: uint32 = 1
     v20: uint32 = add v8, v19
-    v21: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v21: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v21, v20
     v14: uint32 = add v12, v4
     jump b3(v11, v14)
@@ -3269,7 +3269,7 @@ b3(v9: uint32, v10: uint32, v11: uint32):
     branch v12 => b4(v9, v10, v11) | b5(v9)
 
 b4(v13: uint32, v14: uint32, v15: uint32):
-    v16: ref<uint32, borrowed, mutable> = element.address v0, v15
+    v16: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v15
     store v16, v13
     v17: uint32 = add v14, v4
     jump b3(v13, v17, v15)
@@ -3316,7 +3316,7 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v14: uint32 = add v12, v4
     v15: uint32 = add v11, v4
@@ -3364,7 +3364,7 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v14: uint32 = add v12, v4
     v15: uint32 = add v14, v4
@@ -3401,11 +3401,11 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v20: uint32 = 1
     v21: uint32 = add v8, v20
-    v22: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v22: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v22, v21
     v14: uint32 = add v12, v4
     v15: uint32 = add v14, v4
@@ -3453,7 +3453,7 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v14: uint32 = add v12, v4
     jump b3(v11, v14)
@@ -3488,19 +3488,19 @@ b3(v8: uint32, v9: uint32):
     branch v10 => b4(v8, v9) | b5(v8)
 
 b4(v11: uint32, v12: uint32):
-    v13: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v13, v11
     v31: uint32 = 1
     v32: uint32 = add v8, v31
-    v33: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v33: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v33, v32
     v34: uint32 = 2
     v35: uint32 = add v8, v34
-    v36: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v36: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v36, v35
     v37: uint32 = 3
     v38: uint32 = add v8, v37
-    v39: ref<uint32, borrowed, mutable> = element.address v0, v12
+    v39: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v12
     store v39, v38
     v14: uint32 = add v12, v4
     jump b3(v11, v14)
@@ -3527,7 +3527,7 @@ b9(v20: uint32, v21: uint32):
     branch v22 => b10(v20, v21) | b11(v20)
 
 b10(v23: uint32, v24: uint32):
-    v25: ref<uint32, borrowed, mutable> = element.address v0, v24
+    v25: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v24
     store v25, v23
     v26: uint32 = add v24, v4
     jump b9(v23, v26)

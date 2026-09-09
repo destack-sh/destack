@@ -7,8 +7,9 @@ use destack_source::{
 use crate::source::{Lexer, Token, TokenType};
 use crate::{
     Access, AccessTable, Block, DispatchTable, DropTable, EffectTable, Function, GenericArgument,
-    GenericParameter, GenericParameterDomain, Global, LayoutTable, LifetimeParameter, LifetimeSlot,
-    Local, LocalNodeId, Node, ProfileTable, Space, Static, TargetLayout, Tree, Type, Value,
+    GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter,
+    LifetimeSlot, LifetimeTerm, Local, LocalNodeId, Node, ProfileTable, Space, Static,
+    TargetLayout, Tree, Type, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -164,7 +165,7 @@ pub struct Parser {
     /// The number of blocks parsed in the current function so far.
     pub(super) parsed_block_count: usize,
     /// Lifetime names visible in the current signature/type body.
-    pub(super) lifetime_scopes: Vec<Vec<(String, LifetimeSlot)>>,
+    pub(super) lifetime_scopes: Vec<Vec<(String, LifetimeTerm)>>,
     /// Generic parameter names visible in the current signature/type body.
     pub(super) generic_scopes: Vec<Vec<(String, GenericParameter)>>,
     /// The module the parsed declarations belong to.
@@ -295,8 +296,11 @@ impl Parser {
         Ok(arguments)
     }
 
-    /// Parse one generic argument: a space, an access, a value, or a type.
+    /// Parse one generic argument: a region, a space, an access, a value, or a type.
     pub(super) fn parse_generic_argument(&mut self) -> ParseResult<GenericArgument> {
+        if self.peek_is(TokenType::Lifetime) {
+            return self.parse_region_argument();
+        }
         let token = self
             .peek()
             .ok_or_else(|| ParseError::unexpected_end("generic argument", self.pos()))?;
@@ -315,6 +319,10 @@ impl Parser {
                 GenericParameterDomain::Type { .. } => {
                     GenericArgument::Type(self.intern_type(Type::Parameter { index })?)
                 }
+                GenericParameterDomain::Region { .. } => GenericArgument::Region {
+                    lifetime: Lifetime::new([LifetimeTerm::Parameter(index)]),
+                    space: Space::Parameter(index),
+                },
                 GenericParameterDomain::Space => GenericArgument::Space(Space::Parameter(index)),
                 GenericParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
                 GenericParameterDomain::Value { .. } => {
@@ -419,6 +427,7 @@ impl Parser {
     /// Parse the generic arguments, generic parameters, and lifetime binders of a declaration.
     pub(super) fn parse_declaration_parameters(
         &mut self,
+        regions_as_generics: bool,
     ) -> ParseResult<(
         Vec<GenericArgument>,
         Vec<GenericParameter>,
@@ -431,11 +440,13 @@ impl Parser {
             return Ok((Vec::new(), Vec::new(), Vec::new()));
         }
 
-        // read the arguments, parameters, and lifetime binders in declaration order
+        // read the arguments, parameters, and lifetime binders in declaration order, a type
+        // declaration's regions among its generics and a function's in its own binder
         let mut arguments = Vec::new();
         let mut generics = Vec::new();
         let mut lifetimes = Vec::new();
         let mut lifetime_scope = Vec::new();
+        let mut outlives_names: Vec<(usize, Vec<(String, usize)>)> = Vec::new();
         let mut generic_scope: Vec<(String, GenericParameter)> = Vec::new();
         self.generic_scopes.push(Vec::new());
         while !self.peek_is(TokenType::GreaterThan) {
@@ -452,9 +463,34 @@ impl Parser {
                         name_token.start(),
                     ));
                 }
-                let slot = LifetimeSlot(lifetime_scope.len() as u32);
-                lifetime_scope.push((name.clone(), slot));
-                lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
+                if regions_as_generics {
+                    let index = generics.len();
+                    lifetime_scope.push((name.clone(), LifetimeTerm::Parameter(index as u32)));
+                    generics.push(GenericParameter {
+                        name: self.strings.intern(&name),
+                        domain: GenericParameterDomain::Region {
+                            outlives: Vec::new(),
+                        },
+                    });
+
+                    // read the regions this one outlives, resolved once every name is declared
+                    if self.eat_token_if(TokenType::Colon) {
+                        let mut outlived = Vec::new();
+                        loop {
+                            let token = self.eat_token(TokenType::Lifetime)?;
+                            let outlived_name = self.tree.source_text(token.span).to_string();
+                            outlived.push((outlived_name, token.start()));
+                            if !self.eat_token_if(TokenType::Ampersand) {
+                                break;
+                            }
+                        }
+                        outlives_names.push((index, outlived));
+                    }
+                } else {
+                    let slot = LifetimeSlot(lifetime_scope.len() as u32);
+                    lifetime_scope.push((name.clone(), LifetimeTerm::Slot(slot)));
+                    lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
+                }
             }
             // a generic parameter declaration
             else if let Some(parameter) = self.parse_generic_parameter_if(&generic_scope)? {
@@ -478,6 +514,24 @@ impl Parser {
         }
 
         self.eat_token(TokenType::GreaterThan)?;
+
+        // resolve the outlived region names against the declared regions
+        for (index, outlived) in outlives_names {
+            for (name, position) in outlived {
+                let term = lifetime_scope
+                    .iter()
+                    .find(|(candidate, _)| *candidate == name)
+                    .map(|(_, term)| *term);
+                let Some(LifetimeTerm::Parameter(outlived_index)) = term else {
+                    return Err(ParseError::invalid("region parameter", position));
+                };
+                let GenericParameterDomain::Region { outlives } = &mut generics[index].domain
+                else {
+                    unreachable!("a region parameter declared with another domain");
+                };
+                outlives.push(outlived_index);
+            }
+        }
         self.lifetime_scopes.push(lifetime_scope);
 
         Ok((arguments, generics, lifetimes))
@@ -597,7 +651,7 @@ impl Parser {
                 ));
             }
             let slot = LifetimeSlot(scope.len() as u32);
-            scope.push((name.clone(), slot));
+            scope.push((name.clone(), LifetimeTerm::Slot(slot)));
             lifetimes.push(LifetimeParameter::new(Some(self.strings.intern(&name))));
 
             if !self.eat_token_if(TokenType::Comma) {
@@ -633,17 +687,17 @@ impl Parser {
         Ok(())
     }
 
-    /// Parse one lifetime name against the active scope.
+    /// Parse one lifetime binder name against the active function scope.
     fn parse_scope_lifetime(&mut self) -> ParseResult<LifetimeSlot> {
         let token = self.eat_token(TokenType::Lifetime)?;
         let name = self.tree.source_text(token.span);
-        let slot = self.lifetime_scopes.last().and_then(|scope| {
+        let term = self.lifetime_scopes.last().and_then(|scope| {
             scope
                 .iter()
                 .find(|(candidate, _)| candidate == name)
-                .map(|(_, slot)| *slot)
+                .map(|(_, term)| *term)
         });
-        let Some(slot) = slot else {
+        let Some(LifetimeTerm::Slot(slot)) = term else {
             return Err(ParseError::invalid("lifetime parameter", token.start()));
         };
 
@@ -676,11 +730,11 @@ impl Parser {
     }
 
     /// Resolve one named lifetime in the visible lifetime scopes.
-    pub(super) fn lifetime_slot(&self, name: &str) -> Option<LifetimeSlot> {
+    pub(super) fn lifetime_term(&self, name: &str) -> Option<LifetimeTerm> {
         for scope in self.lifetime_scopes.iter().rev() {
-            for (candidate, slot) in scope {
+            for (candidate, term) in scope {
                 if candidate == name {
-                    return Some(*slot);
+                    return Some(*term);
                 }
             }
         }

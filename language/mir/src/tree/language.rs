@@ -18,10 +18,6 @@ pub enum LanguageItem {
     Zero,
     /// The interface of numbers with a multiplicative identity.
     One,
-    /// The interface of numbers an integer literal converts into.
-    FromIntegerLiteral,
-    /// The interface of numbers a float literal converts into.
-    FromFloatLiteral,
 }
 
 /// The attribute naming the language item of one declaration.
@@ -29,14 +25,12 @@ const ATTRIBUTE: &str = "languageItem";
 
 impl LanguageItem {
     /// Every language item.
-    const ALL: [LanguageItem; 7] = [
+    const ALL: [LanguageItem; 5] = [
         LanguageItem::Copy,
         LanguageItem::Clone,
         LanguageItem::Drop,
         LanguageItem::Zero,
         LanguageItem::One,
-        LanguageItem::FromIntegerLiteral,
-        LanguageItem::FromFloatLiteral,
     ];
 
     /// Return the stable `@languageItem` key.
@@ -47,8 +41,6 @@ impl LanguageItem {
             LanguageItem::Drop => "memory.Drop",
             LanguageItem::Zero => "math.Zero",
             LanguageItem::One => "math.One",
-            LanguageItem::FromIntegerLiteral => "math.FromIntegerLiteral",
-            LanguageItem::FromFloatLiteral => "math.FromFloatLiteral",
         }
     }
 

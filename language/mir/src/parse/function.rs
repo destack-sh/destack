@@ -144,7 +144,7 @@ impl Parser {
         let keyword_length = self.tree.source_text(keyword_token.span).len();
         let keyword_span = self.span_at(keyword_start, keyword_length);
         let (name, name_start) = self.parse_symbol_name()?;
-        let (arguments, generics, mut lifetimes) = self.parse_declaration_parameters()?;
+        let (arguments, generics, mut lifetimes) = self.parse_declaration_parameters(false)?;
         let name_span = if arguments.is_empty() && generics.is_empty() && lifetimes.is_empty() {
             self.span_at(name_start, name.len())
         } else {

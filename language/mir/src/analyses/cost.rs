@@ -441,8 +441,8 @@ mod tests {
     fn test_cost_model_counts_operation_families() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     v1: int32 = load v0
     v2: int32 = add v1, v1
     return v2
@@ -503,11 +503,11 @@ entry(v0: int32):
     fn test_cost_model_counts_memory_protocols() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutable>, v2: ref<int32, managed, mutable>): void {
-entry(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutable>, v2: ref<int32, managed, mutable>):
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borrowed, 'b, mutable, local>, v2: ref<int32, managed, mutable, local>): void {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<atomic<int32>, borrowed, 'b, mutable, local>, v2: ref<int32, managed, mutable, local>):
     v3: int32 = load v0
     store v0, v3
-    v4: ref<int32, unique, mutable> = new.zeroed int32
+    v4: ref<int32, unique, mutable, local> = new.zeroed int32
     barrier.write v4, v3, v3
     release v4
     drop v2
@@ -536,8 +536,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<atomic<int32>, borrowed, mutabl
     fn test_cost_model_uses_analysis_options() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     v1: int32 = load v0
     return v1
 }

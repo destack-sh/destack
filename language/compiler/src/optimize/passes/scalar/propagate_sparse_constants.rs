@@ -1358,7 +1358,7 @@ readonly global flag: boolean = true
 
 function test(): int32 {
 entry:
-    v0: ref<boolean, borrowed, readonly> = global.address flag
+    v0: ref<boolean, borrowed, 'static, readonly, local> = global.address flag
     v1: boolean = load v0
     branch v1 => b1 | b2
 
@@ -1385,7 +1385,7 @@ global flag: boolean = true
 
 function test(): int32 {
 entry:
-    v0: ref<boolean, borrowed, mutable> = global.address flag
+    v0: ref<boolean, borrowed, 'static, mutable, local> = global.address flag
     v1: boolean = load v0
     branch v1 => b1 | b2
 
@@ -1685,7 +1685,7 @@ readonly global pair: { int32, int32 } = {1int32, 2int32}
 
 function test(): int32 {
 entry:
-    v0: ref<{ int32, int32 }, borrowed, readonly> = global.address pair
+    v0: ref<{ int32, int32 }, borrowed, 'static, readonly, local> = global.address pair
     v1: { int32, int32 } = load v0
     v2: int32 = field.get v1, 1
     return v2
@@ -1705,7 +1705,7 @@ readonly global pair: (int32, int32) = zeroinit
 
 function test(): int32 {
 entry:
-    v0: ref<(int32, int32), borrowed, readonly> = global.address pair
+    v0: ref<(int32, int32), borrowed, 'static, readonly, local> = global.address pair
     v1: (int32, int32) = load v0
     v2: int32 = field.get v1, 0
     return v2
@@ -1725,7 +1725,7 @@ readonly global data: [uint8; 4] = b"test"
 
 function test(): uint8 {
 entry:
-    v0: ref<[uint8; 4], borrowed, readonly> = global.address data
+    v0: ref<[uint8; 4], borrowed, 'static, readonly, local> = global.address data
     v1: [uint8; 4] = load v0
     v2: int64 = 2
     v3: uint8 = field.get v1, 2

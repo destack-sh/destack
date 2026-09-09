@@ -351,9 +351,9 @@ mod tests {
     fn test_escape_marks_returned_allocation() {
         let program = TestProgram::new(
             r#"
-function test(): ref<int32, unique, mutable> {
+function test(): ref<int32, unique, mutable, local> {
 entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
     return v0
 }
 "#,
@@ -374,7 +374,7 @@ entry:
             r#"
 function test(): int32 {
 entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
     v1: int32 = 0
     return v1
 }
@@ -394,13 +394,13 @@ entry:
     fn test_escape_propagates_through_local_slots() {
         let program = TestProgram::new(
             r#"
-function test(): ref<int32, unique, mutable> {
-    local l0: ref<int32, unique, mutable>
+function test(): ref<int32, unique, mutable, local> {
+    local l0: ref<int32, unique, mutable, local>
 
 entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
     local.set l0, v0
-    v1: ref<int32, unique, mutable> = local.get l0
+    v1: ref<int32, unique, mutable, local> = local.get l0
     return v1
 }
 "#,
@@ -423,15 +423,15 @@ entry:
     fn test_escape_propagates_through_block_arguments() {
         let program = TestProgram::new(
             r#"
-function test(v0: boolean): ref<int32, unique, mutable> {
+function test(v0: boolean): ref<int32, unique, mutable, local> {
 entry(v0: boolean):
-    v1: ref<int32, unique, mutable> = new.zeroed int32
+    v1: ref<int32, unique, mutable, local> = new.zeroed int32
     branch v0 => b1(v1) | b2(v1)
 
-b1(v2: ref<int32, unique, mutable>):
+b1(v2: ref<int32, unique, mutable, local>):
     return v2
 
-b2(v3: ref<int32, unique, mutable>):
+b2(v3: ref<int32, unique, mutable, local>):
     return v3
 }
 "#,
@@ -458,11 +458,11 @@ b2(v3: ref<int32, unique, mutable>):
     fn test_escape_tracks_fallible_allocation_result() {
         let program = TestProgram::new(
             r#"
-function test(v0: int64): uninit<slice<int32, managed, mutable>> {
+function test(v0: int64): uninit<slice<int32, managed, mutable, local>> {
 entry(v0: int64):
     new.slice.uninit.try int32, v0 => b1 | b2
 
-b1(v1: uninit<slice<int32, managed, mutable>>):
+b1(v1: uninit<slice<int32, managed, mutable, local>>):
     return v1
 
 b2:
@@ -488,15 +488,15 @@ b2:
     fn test_escape_marks_call_arguments() {
         let program = TestProgram::new(
             r#"
-function sink(v0: ref<int32, unique, mutable>): void {
-entry(v0: ref<int32, unique, mutable>):
+function sink(v0: ref<int32, unique, mutable, local>): void {
+entry(v0: ref<int32, unique, mutable, local>):
     return
 }
 
 function test(): int32 {
 entry:
-    v0: ref<int32, unique, mutable> = new.zeroed int32
-    call sink(v0): (ref<int32, unique, mutable>) => void
+    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    call sink(v0): (ref<int32, unique, mutable, local>) => void
     v1: int32 = 0
     return v1
 }

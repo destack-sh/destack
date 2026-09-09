@@ -15,6 +15,9 @@ impl GenericArgument {
     pub fn mentions_parameter(&self, tree: &Tree) -> bool {
         match self {
             GenericArgument::Type(ty) => definition_mentions_parameter(tree, *ty, false),
+            GenericArgument::Region { lifetime, space } => {
+                lifetime.mentions_parameter() || matches!(space, Space::Parameter(_))
+            }
             GenericArgument::Space(space) => matches!(space, Space::Parameter(_)),
             GenericArgument::Access(access) => matches!(access, Access::Parameter(_)),
             GenericArgument::Value(value) => {
@@ -71,25 +74,39 @@ fn definition_mentions_parameter(tree: &Tree, ty: TypeId, root: bool) -> bool {
     }
 }
 
-/// Return whether the storage, access, or length written on one type is a parameter.
+/// Return whether the region, storage, access, or length written on one type is a parameter.
 fn mentions_memory_parameter(ty: &Type, tree: &Tree) -> bool {
     match ty {
         Type::Dynamic {
-            storage, access, ..
+            lifetime,
+            storage,
+            access,
+            ..
         }
         | Type::Reference {
-            storage, access, ..
+            lifetime,
+            storage,
+            access,
+            ..
         }
         | Type::Slice {
-            storage, access, ..
+            lifetime,
+            storage,
+            access,
+            ..
         }
         | Type::Function {
-            storage, access, ..
+            lifetime,
+            storage,
+            access,
+            ..
         } => {
-            matches!(storage.space(), Space::Parameter(_)) || matches!(access, Access::Parameter(_))
+            lifetime.mentions_parameter()
+                || matches!(storage.space(), Space::Parameter(_))
+                || matches!(access, Access::Parameter(_))
         }
         Type::Pointer { access, .. } => matches!(access, Access::Parameter(_)),
-        Type::FixedArray { length, .. } => {
+        Type::FixedArray { length, .. } | Type::Vector { lanes: length, .. } => {
             matches!(tree.static_value(*length), Static::Parameter(_))
         }
         _ => false,

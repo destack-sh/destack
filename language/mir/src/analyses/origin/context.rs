@@ -332,7 +332,7 @@ impl<'a> OriginContext<'a> {
             match term {
                 LifetimeTerm::Static => origin = origin.merge(&Origin::one(Region::Static)),
                 LifetimeTerm::Managed => origin = origin.merge(&Origin::one(Region::Managed)),
-                LifetimeTerm::Frame | LifetimeTerm::Slot(_) => {}
+                LifetimeTerm::Frame | LifetimeTerm::Slot(_) | LifetimeTerm::Parameter(_) => {}
             }
         }
 
@@ -349,6 +349,25 @@ impl<'a> OriginContext<'a> {
                 let argument = state.value_path(*argument, &path);
                 origin = origin.merge(&argument);
             }
+
+            // map the regions a borrowed parameter's pointee names through the place the
+            // argument addresses, the borrows that place holds flowing into the result
+            let Type::Reference {
+                kind: ReferenceKind::Borrowed,
+                pointee,
+                ..
+            } = self.tree.get(*parameter)
+            else {
+                continue;
+            };
+            let Some(nested) = self.tree.type_lifetime(*pointee) else {
+                continue;
+            };
+            if !Origin::from_lifetime(&nested).is_covered_by(lifetime, lifetimes) {
+                continue;
+            }
+            let place = self.places.get(*argument);
+            origin = origin.merge(&state.place(self, place));
         }
 
         origin

@@ -87,7 +87,6 @@ mod tests {
         let declaration = tree.insert_type_declaration(
             name,
             Vec::new(),
-            Vec::new(),
             ty,
             TypeHeritage {
                 extends,

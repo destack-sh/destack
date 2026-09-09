@@ -142,7 +142,7 @@ fn format_function_name<'a>(
         }
         written += 1;
 
-        format_generic_argument(*argument, f)?;
+        format_generic_argument(argument, f)?;
     }
 
     for parameter in &function.generics {

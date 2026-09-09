@@ -20,8 +20,8 @@ declare_pass! {
     ///     local l0: [int32; 16]
     ///     local l1: [int32; 16]
     /// b0(v0: uint32):
-    ///     v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    ///     v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    ///     v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    ///     v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
     ///     v3: uint32 = 0
     ///     v4: uint32 = 1
     ///     jump b1(v3)
@@ -29,10 +29,10 @@ declare_pass! {
     ///     v6: boolean = lt v5, v0
     ///     branch v6 => b2(v5) | b3
     /// b2(v7: uint32):
-    ///     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    ///     v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     ///     v9: int32 = 1
     ///     store v8, v9
-    ///     v10: ref<int32, borrowed, mutable, frame> = element.address v2, v7
+    ///     v10: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v7
     ///     v11: int32 = 2
     ///     store v10, v11
     ///     v12: uint32 = add v7, v4
@@ -47,8 +47,8 @@ declare_pass! {
     ///     local l0: [int32; 16]
     ///     local l1: [int32; 16]
     /// b0(v0: uint32):
-    ///     v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    ///     v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    ///     v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    ///     v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
     ///     v3: uint32 = 0
     ///     v4: uint32 = 1
     ///     jump b1(v3)
@@ -56,7 +56,7 @@ declare_pass! {
     ///     v6: boolean = lt v5, v0
     ///     branch v6 => b2(v5) | b4(v3)
     /// b2(v7: uint32):
-    ///     v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    ///     v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     ///     v9: int32 = 1
     ///     store v8, v9
     ///     v12: uint32 = add v7, v4
@@ -67,7 +67,7 @@ declare_pass! {
     ///     v14: boolean = lt v13, v0
     ///     branch v14 => b5(v13) | b3
     /// b5(v15: uint32):
-    ///     v10: ref<int32, borrowed, mutable, frame> = element.address v2, v15
+    ///     v10: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v15
     ///     v11: int32 = 2
     ///     store v10, v11
     ///     v16: uint32 = add v15, v4
@@ -763,8 +763,8 @@ function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -774,10 +774,10 @@ b1(v5: uint32):
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
-    v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: ref<int32, borrowed, mutable, frame> = element.address v2, v7
+    v10: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v7
     v11: int32 = 2
     store v10, v11
     v12: uint32 = add v7, v4
@@ -794,8 +794,8 @@ function test(v0: uint32): void {
     local l1: [int32; 16]
 
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -805,7 +805,7 @@ b1(v5: uint32):
     branch v6 => b2(v5) | b4(v3)
 
 b2(v7: uint32):
-    v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v12: uint32 = add v7, v4
@@ -819,7 +819,7 @@ b4(v13: uint32):
     branch v14 => b5(v13) | b3
 
 b5(v15: uint32):
-    v18: ref<int32, borrowed, mutable, frame> = element.address v2, v15
+    v18: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v15
     v19: int32 = 2
     store v18, v19
     v20: uint32 = add v15, v4
@@ -839,7 +839,7 @@ b5(v15: uint32):
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -849,10 +849,10 @@ b1(v4: uint32):
     branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
-    v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
-    v9: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v9: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v10: int32 = 2
     store v9, v10
     v11: uint32 = add v6, v3
@@ -875,7 +875,7 @@ b3:
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -886,7 +886,7 @@ b1(v4: uint32):
 
 b2(v6: uint32):
     call touch(v6): (uint32) => void
-    v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     v9: uint32 = add v6, v3
@@ -916,9 +916,9 @@ function test(v0: uint32): void {
     local l1: [int32; 16]
     local l2: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
-    v3: ref<[int32; 16], borrowed, mutable, frame> = local.address l2
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
+    v3: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l2
     v4: uint32 = 0
     v5: uint32 = 1
     jump b1(v4)
@@ -928,11 +928,11 @@ b1(v6: uint32):
     branch v7 => b2(v6) | b3
 
 b2(v8: uint32):
-    v9: ref<int32, borrowed, mutable, frame> = element.address v1, v8
+    v9: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v8
     v10: int32 = load v9
-    v11: ref<int32, borrowed, mutable, frame> = element.address v2, v8
+    v11: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v8
     store v11, v10
-    v12: ref<int32, borrowed, mutable, frame> = element.address v3, v8
+    v12: ref<int32, borrowed, 'frame, mutable, frame> = element.address v3, v8
     v13: int32 = 1
     store v12, v13
     v14: uint32 = add v8, v5
@@ -950,9 +950,9 @@ function test(v0: uint32): void {
     local l2: [int32; 16]
 
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
-    v3: ref<[int32; 16], borrowed, mutable, frame> = local.address l2
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
+    v3: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l2
     v4: uint32 = 0
     v5: uint32 = 1
     jump b1(v4)
@@ -962,9 +962,9 @@ b1(v6: uint32):
     branch v7 => b2(v6) | b4(v4)
 
 b2(v8: uint32):
-    v9: ref<int32, borrowed, mutable, frame> = element.address v1, v8
+    v9: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v8
     v10: int32 = load v9
-    v11: ref<int32, borrowed, mutable, frame> = element.address v2, v8
+    v11: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v8
     store v11, v10
     v14: uint32 = add v8, v5
     jump b1(v14)
@@ -977,7 +977,7 @@ b4(v15: uint32):
     branch v16 => b5(v15) | b3
 
 b5(v17: uint32):
-    v21: ref<int32, borrowed, mutable, frame> = element.address v3, v17
+    v21: ref<int32, borrowed, 'frame, mutable, frame> = element.address v3, v17
     v22: int32 = 1
     store v21, v22
     v23: uint32 = add v17, v5
@@ -1067,7 +1067,7 @@ b5(v11: uint32):
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1078,7 +1078,7 @@ b1(v4: uint32):
     branch v6 => b2(v4) | b3
 
 b2(v7: uint32):
-    v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
     v10: uint32 = add v7, v3
@@ -1101,7 +1101,7 @@ b3:
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1111,7 +1111,7 @@ b1(v4: uint32):
     branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
-    v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     v9: uint32 = add v6, v3
@@ -1134,7 +1134,7 @@ b3:
 function test(v0: boolean, v1: uint32): void {
     local l0: [int32; 16]
 entry(v0: boolean, v1: uint32):
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v3: uint32 = 0
     v4: uint32 = 1
     branch v0 => b2(v3) | b1(v3)
@@ -1147,7 +1147,7 @@ b2(v6: uint32):
     branch v7 => b3(v6) | b4
 
 b3(v8: uint32):
-    v9: ref<int32, borrowed, mutable, frame> = element.address v2, v8
+    v9: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v8
     v10: int32 = 1
     store v9, v10
     v11: uint32 = add v8, v4
@@ -1162,7 +1162,7 @@ b4:
 function test(v0: boolean, v1: uint32): void {
     local l0: [int32; 16]
 entry(v0: boolean, v1: uint32):
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v3: uint32 = 0
     v4: uint32 = 1
     branch v0 => b2(v3) | b1(v3)
@@ -1175,7 +1175,7 @@ b2(v6: uint32):
     branch v7 => b3(v6) | b4
 
 b3(v8: uint32):
-    v9: ref<int32, borrowed, mutable, frame> = element.address v2, v8
+    v9: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v8
     v10: int32 = 1
     store v9, v10
     v11: uint32 = add v8, v4
@@ -1199,8 +1199,8 @@ function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1210,10 +1210,10 @@ b1(v5: uint32):
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
-    v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     v9: int32 = 1
     store v8, v9
-    v10: ref<int32, borrowed, mutable, frame> = element.address v2, v7
+    v10: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v7
     v11: int32 = 2
     store v10, v11
     v12: uint32 = add v7, v4
@@ -1238,8 +1238,8 @@ function test(v0: uint32): void {
     local l0: [int32; 16]
     local l1: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
-    v2: ref<[int32; 16], borrowed, mutable, frame> = local.address l1
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
+    v2: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l1
     v3: uint32 = 0
     v4: uint32 = 1
     jump b1(v3)
@@ -1249,10 +1249,10 @@ b1(v5: uint32):
     branch v6 => b2(v5) | b3
 
 b2(v7: uint32):
-    v8: ref<int32, borrowed, mutable, frame> = element.address v1, v7
+    v8: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v7
     v9: uint32 = add v7, v4
     store v8, v9
-    v10: ref<int32, borrowed, mutable, frame> = element.address v2, v7
+    v10: ref<int32, borrowed, 'frame, mutable, frame> = element.address v2, v7
     store v10, v9
     v11: uint32 = add v7, v4
     jump b1(v11)
@@ -1274,7 +1274,7 @@ b3:
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1284,7 +1284,7 @@ b1(v4: uint32):
     branch v5 => b2(v4) | b3(v4)
 
 b2(v6: uint32):
-    v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     v9: uint32 = add v6, v3
@@ -1307,7 +1307,7 @@ b3(v10: uint32):
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1317,7 +1317,7 @@ b1(v4: uint32):
     branch v5 => b2(v4) | b4
 
 b2(v6: uint32):
-    v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     jump b3(v6)
@@ -1343,7 +1343,7 @@ b4:
 function test(v0: uint32): void {
     local l0: [int32; 16]
 entry(v0: uint32):
-    v1: ref<[int32; 16], borrowed, mutable, frame> = local.address l0
+    v1: ref<[int32; 16], borrowed, 'frame, mutable, frame> = local.address l0
     v2: uint32 = 0
     v3: uint32 = 1
     jump b1(v2)
@@ -1353,7 +1353,7 @@ b1(v4: uint32):
     branch v5 => b2(v4) | b3
 
 b2(v6: uint32):
-    v7: ref<int32, borrowed, mutable, frame> = element.address v1, v6
+    v7: ref<int32, borrowed, 'frame, mutable, frame> = element.address v1, v6
     v8: int32 = 1
     store v7, v8
     v9: boolean = lt v6, v0

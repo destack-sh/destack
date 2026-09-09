@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::rewrite::Substitution;
 use crate::{
-    Access, Attribute, Constant, Copy, Field, GenericParameter, Lifetime, LifetimeParameter,
-    LocalNodeId, ReferenceKind, SignatureParameter, Space, Storage, Symbol, Tree, Type,
-    TypeDeclaration, TypeHeritage, TypeId, VariantCase,
+    Access, Attribute, Constant, Copy, Field, GenericParameter, Lifetime, LocalNodeId,
+    ReferenceKind, SignatureParameter, Space, Storage, Symbol, Tree, Type, TypeDeclaration,
+    TypeHeritage, TypeId, VariantCase,
 };
 
 /// One stored MIR type.
@@ -184,12 +184,7 @@ impl Tree {
     /// Represent one application, deferring it until its base defines.
     fn represent(&mut self, id: TypeId) {
         // represent only an application with generic arguments
-        let Type::Application {
-            base,
-            arguments,
-            lifetimes,
-        } = self.get(id).clone()
-        else {
+        let Type::Application { base, arguments } = self.get(id).clone() else {
             return;
         };
         if arguments.is_empty() {
@@ -202,7 +197,7 @@ impl Tree {
         }
 
         // intern the base definition at the arguments
-        let representation = Substitution::new(self, &arguments).representation(base, &lifetimes);
+        let representation = Substitution::new(self, &arguments).representation(base);
         let local_id = self.node_local_id(id.id);
         let TypeEntry::Structural {
             representation: slot,
@@ -223,9 +218,16 @@ impl Tree {
         }
     }
 
-    /// Return the definition one type denotes, an application through its representation.
-    pub fn represented(&self, ty: TypeId) -> TypeId {
-        self.representation(ty).unwrap_or(ty)
+    /// Return the definition one type denotes, an application through its representation chain.
+    pub fn represented(&self, mut ty: TypeId) -> TypeId {
+        let mut steps = 0;
+        while let Some(representation) = self.representation(ty) {
+            ty = representation;
+            steps += 1;
+            assert!(steps < 1024, "a representation chain cycles at {ty:?}");
+        }
+
+        ty
     }
 
     /// Reserve one identified type for a recursive definition.
@@ -322,7 +324,6 @@ impl Tree {
         &mut self,
         name: StringId,
         generics: Vec<GenericParameter>,
-        lifetimes: Vec<LifetimeParameter>,
         ty: TypeId,
         heritage: TypeHeritage,
     ) -> LocalNodeId<TypeDeclaration> {
@@ -341,7 +342,6 @@ impl Tree {
         let declaration = TypeDeclaration {
             name,
             generics,
-            lifetimes,
             ty,
             heritage,
         };
@@ -450,7 +450,6 @@ impl Tree {
             | Type::Isize
             | Type::Usize
             | Type::Float(_)
-            | Type::TypeDescriptor
             | Type::TypeId
             | Type::Parameter { .. } => return id,
 
@@ -585,195 +584,16 @@ impl Tree {
                 signature: self.intern_representation(signature),
             },
 
-            // erase pure lifetime applications
-            Type::Application { base, .. } => return self.intern_representation(base),
+            // represent an application through its representation, its base while undefined
+            Type::Application { base, .. } => {
+                let applied = self.representation(id).unwrap_or(base);
+                assert!(applied != id, "a representation chain cycles at {id:?}");
+
+                return self.intern_representation(applied);
+            }
         };
 
         self.intern_type(representation)
-    }
-
-    /// Instantiate type-local lifetime slots with one complete argument list.
-    pub fn instantiate_type_lifetimes(&mut self, id: TypeId, arguments: &[Lifetime]) -> TypeId {
-        // identified types terminate recursive definitions and carry applications explicitly
-        if arguments.is_empty() || self.is_identified_type(id) {
-            return id;
-        }
-
-        let ty = self.get(id).clone();
-        let instantiated = match ty {
-            // leaves cannot contain lifetime slots
-            Type::Error
-            | Type::Never
-            | Type::Void
-            | Type::Null
-            | Type::Boolean
-            | Type::Character
-            | Type::Int { .. }
-            | Type::Isize
-            | Type::Usize
-            | Type::Float(_)
-            | Type::TypeDescriptor
-            | Type::TypeId
-            | Type::Parameter { .. } => return id,
-
-            // instantiate transparent and storage wrappers
-            Type::Atomic { value } => Type::Atomic {
-                value: self.instantiate_type_lifetimes(value, arguments),
-            },
-            Type::Dynamic {
-                kind,
-                lifetime,
-                constraint,
-                storage,
-                access,
-            } => Type::Dynamic {
-                kind,
-                lifetime: self.substitute_lifetime(&lifetime, arguments),
-                constraint: self.instantiate_type_lifetimes(constraint, arguments),
-                storage,
-                access,
-            },
-            Type::Uninit { value } => Type::Uninit {
-                value: self.instantiate_type_lifetimes(value, arguments),
-            },
-            Type::ManuallyDrop { value } => Type::ManuallyDrop {
-                value: self.instantiate_type_lifetimes(value, arguments),
-            },
-
-            // instantiate borrowed origin and nested value types
-            Type::Reference {
-                kind,
-                lifetime,
-                storage,
-                access,
-                pointee,
-            } => Type::Reference {
-                kind,
-                lifetime: self.substitute_lifetime(&lifetime, arguments),
-                storage,
-                access,
-                pointee: self.instantiate_type_lifetimes(pointee, arguments),
-            },
-            Type::Pointer { pointee, access } => Type::Pointer {
-                pointee: self.instantiate_type_lifetimes(pointee, arguments),
-                access,
-            },
-            Type::Slice {
-                kind,
-                lifetime,
-                element,
-                storage,
-                access,
-            } => Type::Slice {
-                kind,
-                lifetime: self.substitute_lifetime(&lifetime, arguments),
-                element: self.instantiate_type_lifetimes(element, arguments),
-                storage,
-                access,
-            },
-            // instantiate aggregate contents
-            Type::FixedArray { element, length } => Type::FixedArray {
-                element: self.instantiate_type_lifetimes(element, arguments),
-                length,
-            },
-            Type::Tuple { elements } => Type::Tuple {
-                elements: elements
-                    .into_iter()
-                    .map(|element| self.instantiate_type_lifetimes(element, arguments))
-                    .collect(),
-            },
-            Type::Struct { fields, copy } => {
-                let mut instantiated = Vec::with_capacity(fields.len());
-                for field_id in fields {
-                    let field = self.get(field_id).clone();
-                    let attributes = self.attributes(field_id).to_vec();
-                    let field = Field {
-                        name: field.name,
-                        ty: self.instantiate_type_lifetimes(field.ty, arguments),
-                    };
-                    instantiated.push(self.intern_field(field, attributes));
-                }
-
-                Type::Struct {
-                    fields: instantiated,
-                    copy,
-                }
-            }
-            Type::Newtype { inner, copy } => Type::Newtype {
-                inner: self.instantiate_type_lifetimes(inner, arguments),
-                copy,
-            },
-            Type::Variant {
-                discriminant,
-                cases,
-                copy,
-            } => Type::Variant {
-                discriminant: self.instantiate_type_lifetimes(discriminant, arguments),
-                cases: cases
-                    .into_iter()
-                    .map(|case| VariantCase {
-                        discriminant: case.discriminant,
-                        ty: self.instantiate_type_lifetimes(case.ty, arguments),
-                        is_boxed: case.is_boxed,
-                    })
-                    .collect(),
-                copy,
-            },
-            Type::Vector { element, lanes } => Type::Vector {
-                element: self.instantiate_type_lifetimes(element, arguments),
-                lanes,
-            },
-            // preserve signature-local binders, otherwise instantiate captured lifetimes
-            Type::FunctionSignature { lifetimes, .. } if !lifetimes.is_empty() => return id,
-            Type::FunctionSignature {
-                lifetimes,
-                parameters,
-                result,
-            } => Type::FunctionSignature {
-                lifetimes,
-                parameters: parameters
-                    .into_iter()
-                    .map(|parameter| SignatureParameter {
-                        ty: self.instantiate_type_lifetimes(parameter.ty, arguments),
-                    })
-                    .collect(),
-                result: self.instantiate_type_lifetimes(result, arguments),
-            },
-            Type::Function {
-                multiplicity,
-                kind,
-                lifetime,
-                signature,
-                storage,
-                access,
-            } => Type::Function {
-                multiplicity,
-                kind,
-                lifetime: self.substitute_lifetime(&lifetime, arguments),
-                signature: self.instantiate_type_lifetimes(signature, arguments),
-                storage,
-                access,
-            },
-            Type::FunctionPointer { signature } => Type::FunctionPointer {
-                signature: self.instantiate_type_lifetimes(signature, arguments),
-            },
-
-            // instantiate explicit applications without entering their identified base
-            Type::Application {
-                base,
-                arguments: type_arguments,
-                lifetimes,
-            } => Type::Application {
-                base,
-                arguments: type_arguments,
-                lifetimes: lifetimes
-                    .iter()
-                    .map(|lifetime| self.substitute_lifetime(lifetime, arguments))
-                    .collect(),
-            },
-        };
-
-        self.intern_type(instantiated)
     }
 
     /// Intern one field after normalizing its value representation.
@@ -798,7 +618,10 @@ impl Tree {
 mod tests {
     use destack_core::StringId;
 
-    use crate::{Access, Copy, Field, Lifetime, ReferenceKind, Space, Storage, Symbol, Tree, Type};
+    use crate::{
+        Access, Copy, Field, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
+        ReferenceKind, Space, Storage, Symbol, Tree, Type, TypeHeritage,
+    };
 
     /// Equal structural types and fields have one canonical identity.
     #[test]
@@ -982,29 +805,48 @@ mod tests {
         );
     }
 
-    /// Lifetime applications preserve identified runtime representations.
+    /// Applications differing in their region argument alone share one runtime representation.
     #[test]
-    fn test_intern_identified_lifetime_representations() {
+    fn test_intern_region_applications_share_one_representation() {
         let mut tree = Tree::new();
         let nominal = tree.reserve_type(Symbol::named(
             crate::TEST_MODULE,
             StringId::for_text("Nominal"),
         ));
         tree.define_type(nominal, Type::Void);
-        let local = tree.intern_type(Type::Application {
+        let region = GenericParameter {
+            name: StringId::for_text("'a"),
+            domain: GenericParameterDomain::Region {
+                outlives: Vec::new(),
+            },
+        };
+        tree.insert_type_declaration(
+            StringId::for_text("Nominal"),
+            vec![region],
+            nominal,
+            TypeHeritage::default(),
+        );
+        let frame = tree.intern_type(Type::Application {
             base: nominal,
-            arguments: Vec::new(),
-            lifetimes: vec![Lifetime::slot(0)],
+            arguments: vec![GenericArgument::Region {
+                lifetime: Lifetime::frame(),
+                space: Space::Local,
+            }],
         });
         let static_ = tree.intern_type(Type::Application {
             base: nominal,
-            arguments: Vec::new(),
-            lifetimes: vec![Lifetime::static_storage()],
+            arguments: vec![GenericArgument::Region {
+                lifetime: Lifetime::static_storage(),
+                space: Space::Local,
+            }],
         });
 
-        assert_ne!(local, static_);
-        assert_eq!(tree.intern_representation(local), nominal);
-        assert_eq!(tree.intern_representation(static_), nominal);
+        assert_ne!(frame, static_);
+        assert!(tree.same_representation(frame, static_));
+        assert_eq!(
+            tree.intern_representation(frame),
+            tree.intern_representation(static_)
+        );
     }
 
     /// Serialization preserves canonical structural and identified type ids.

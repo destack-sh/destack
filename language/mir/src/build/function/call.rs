@@ -11,11 +11,8 @@ impl<'a> FunctionBuilder<'a> {
         callee: Callee,
         signature: TypeId,
         argument_values: Vec<Value>,
+        result_type: TypeId,
     ) -> Option<Value> {
-        // resolve the call result
-        let result_type = self.signature_result_type(signature);
-        let result_type = self.expect_build(result_type);
-
         // omit SSA storage for void calls
         let destination = if matches!(self.tree.get(result_type), Type::Void) {
             None
@@ -66,6 +63,7 @@ impl<'a> FunctionBuilder<'a> {
             },
             TypeId::from(signature),
             arguments,
+            result,
         )
     }
 
@@ -148,7 +146,15 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Resolve the return type for one callable signature.
+    /// Return the result type one callable signature declares, the destination a call at that
+    /// signature defines without a caller-side type.
+    pub fn signature_result(&self, signature: TypeId) -> TypeId {
+        let result = self.signature_result_type(signature);
+
+        self.expect_build(result)
+    }
+
+    /// Return the result type one callable signature declares.
     fn signature_result_type(&self, signature: TypeId) -> Result<TypeId, BuildError> {
         let signature_type = self.tree.get(signature);
         match signature_type {

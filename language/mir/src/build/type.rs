@@ -45,12 +45,6 @@ impl ModuleBuilder {
     pub fn type_float(&mut self, float_type: FloatType) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::Float(float_type))
     }
-
-    /// Create a type descriptor handle type.
-    pub fn type_type_descriptor(&mut self) -> LocalNodeId<Type> {
-        self.tree.intern_type(Type::TypeDescriptor)
-    }
-
     /// Create a type id value type.
     pub fn type_type_id(&mut self) -> LocalNodeId<Type> {
         self.tree.intern_type(Type::TypeId)
@@ -103,6 +97,8 @@ impl ModuleBuilder {
 
     /// Create a vector type.
     pub fn type_vector(&mut self, element: LocalNodeId<Type>, lanes: u32) -> LocalNodeId<Type> {
+        let lanes = self.tree.intern_static(Static::Integer(i64::from(lanes)));
+
         self.tree.intern_type(Type::Vector { element, lanes })
     }
 

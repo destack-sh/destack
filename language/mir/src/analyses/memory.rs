@@ -1968,8 +1968,8 @@ mod tests {
     fn test_memory_linear_def_use() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     v1: int32 = 1
     store v0, v1
     v2: int32 = load v0
@@ -2011,8 +2011,8 @@ entry(v0: ref<int32, borrowed, mutable>):
     fn test_memory_phi_at_join() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>, v1: boolean): int32 {
-entry(v0: ref<int32, borrowed, mutable>, v1: boolean):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
@@ -2069,8 +2069,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2115,8 +2115,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int32 = 1
     store v0, v2
     v3: int32 = 2
@@ -2209,7 +2209,7 @@ function test(): int32 {
 entry:
     v0: int32 = 7
     local.set l0, v0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = load v1
     return v2
 }
@@ -2239,8 +2239,8 @@ entry:
     fn test_memory_free_effect_any() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, unique, mutable>): int32 {
-entry(v0: ref<int32, unique, mutable>):
+function test(v0: ref<int32, unique, mutable, local>): int32 {
+entry(v0: ref<int32, unique, mutable, local>):
     release v0
     v1: int32 = 0
     return v1
@@ -2276,9 +2276,9 @@ type Point {
     int32;
 }
 
-function test(): ref<Point, managed, mutable> {
+function test(): ref<Point, managed, mutable, local> {
 entry:
-    v0: ref<Point, managed, mutable> = new.zeroed Point
+    v0: ref<Point, managed, mutable, local> = new.zeroed Point
     return v0
 }
 "#,
@@ -2308,8 +2308,8 @@ entry:
     fn test_memory_memcpy_read_write_effects() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = load v0
@@ -2358,8 +2358,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
     fn test_memory_memcmp_read_effects() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
     v2: int64 = 4
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
     return v3
@@ -2391,8 +2391,8 @@ entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
     fn test_memory_volatile_marks_effects() {
         let mut test = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
     v1: int32 = load v0
     store v0, v1
     return v1
@@ -2451,8 +2451,8 @@ entry(v0: ref<int32, borrowed, mutable>):
     fn test_memory_atomic_marks_effects() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<atomic<int32>, borrowed, mutable>): int32 {
-entry(v0: ref<atomic<int32>, borrowed, mutable>):
+function test<'a>(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, local>):
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     return v1
@@ -2521,11 +2521,11 @@ entry:
     fn test_memory_call_is_any_def() {
         let test = TestProgram::new(
             r#"
-external function imported(ref<int32, borrowed, mutable>): void
+external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
 
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
-    call imported(v0): (ref<int32, borrowed, mutable>) => void
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
     v1: int32 = 0
     return v1
 }
@@ -2562,11 +2562,11 @@ entry(v0: ref<int32, borrowed, mutable>):
     fn test_memory_invoke_clobbers_continuation() {
         let test = TestProgram::new(
             r#"
-external function imported(ref<int32, borrowed, mutable>): void
+external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
 
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
-    invoke imported(v0): (ref<int32, borrowed, mutable>) => void => b1 | b2
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+    invoke imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void => b1 | b2
 
 b1:
     v1: int32 = load v0
@@ -2604,11 +2604,11 @@ b2:
     fn test_memory_skips_no_memory_call() {
         let mut test = TestProgram::new(
             r#"
-external function imported(ref<int32, borrowed, mutable>): void
+external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
 
-function test(v0: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>):
-    call imported(v0): (ref<int32, borrowed, mutable>) => void
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
     v1: int32 = 0
     return v1
 }
@@ -2636,11 +2636,11 @@ entry(v0: ref<int32, borrowed, mutable>):
         // build the test program
         let mut test = TestProgram::new(
             r#"
-external function imported(ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>): void
+external function imported<'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>): void
 
-function test(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>): int32 {
-entry(v0: ref<int32, borrowed, mutable>, v1: ref<int32, borrowed, mutable>):
-    call imported(v0, v1): (ref<int32, borrowed, mutable>, ref<int32, borrowed, mutable>) => void
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'b, mutable, local>):
+    call imported(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, mutable, local>, ref<int32, borrowed, 'b, mutable, local>) => void
     v2: int32 = 0
     return v2
 }
@@ -2718,8 +2718,8 @@ type Writer {
     second: int32;
 }
 
-function test(v0: dynamic<Writer, managed, readonly>): int32 {
-entry(v0: dynamic<Writer, managed, readonly>):
+function test(v0: dynamic<Writer, managed, readonly, local>): int32 {
+entry(v0: dynamic<Writer, managed, readonly, local>):
     v1: int32 = dynamic.read v0, 0
     v2: int32 = dynamic.read v0, 1
     v3: int32 = add v1, v2
@@ -2782,8 +2782,8 @@ entry(v0: dynamic<Writer, managed, readonly>):
     fn test_memory_loop_phi_in_header() {
         let test = TestProgram::new(
             r#"
-function test(v0: ref<int32, borrowed, mutable>, v1: int32): int32 {
-entry(v0: ref<int32, borrowed, mutable>, v1: int32):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32):
     v2: int32 = 0
     store v0, v2
     jump b1(v2)
@@ -2841,7 +2841,7 @@ entry:
     return v0
 
 b1:
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 1
     store v1, v2
     return v2

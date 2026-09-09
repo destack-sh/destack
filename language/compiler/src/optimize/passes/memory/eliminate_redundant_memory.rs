@@ -16,7 +16,7 @@ declare_pass! {
     /// function before(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     ///     v1: int32 = 7
     ///     store v0, v1
     ///     store v0, v1
@@ -29,7 +29,7 @@ declare_pass! {
     /// function after(): int32 {
     ///     local l0: int32
     /// b0:
-    ///     v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     ///     v1: int32 = 7
     ///     store v0, v1
     ///     v2: int32 = load v0
@@ -557,7 +557,7 @@ mod tests {
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     store v0, v1
@@ -569,7 +569,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     v2: int32 = load v0
@@ -589,7 +589,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     v2: int32 = 7
     store v0, v1
@@ -602,7 +602,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     v2: int32 = 7
     store v0, v1
@@ -623,7 +623,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = add v1, v2
@@ -638,7 +638,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = add v1, v2
@@ -661,7 +661,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = add v1, v2
@@ -676,7 +676,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = add v1, v2
@@ -699,7 +699,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = add v1, v2
@@ -714,7 +714,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 2
     v2: int32 = 3
     v3: int32 = add v1, v2
@@ -742,7 +742,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -760,7 +760,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -791,7 +791,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -823,7 +823,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -841,7 +841,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -872,7 +872,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -890,7 +890,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     call callee(): () => void
@@ -916,7 +916,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     v2: int32 = 9
     store v0, v1
@@ -938,7 +938,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 1
     v2: int32 = 2
     store v0, v1
@@ -961,7 +961,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     store v0, v1
@@ -1000,7 +1000,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = 7
     store v0, v1
     store v0, v1
@@ -1039,7 +1039,7 @@ entry:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 7
     branch v0 => b1 | b2
 
@@ -1061,7 +1061,7 @@ b3:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 7
     branch v0 => b1 | b2
 
@@ -1091,7 +1091,7 @@ b3:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = 7
     v3: int32 = 9
     branch v0 => b1 | b2
@@ -1155,7 +1155,7 @@ entry:
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1167,7 +1167,7 @@ entry:
 function test(): void {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int8 = 0
     v2: int64 = 4
     intrinsic.memory.raw.setBytes(v0, v1, v2)
@@ -1188,8 +1188,8 @@ function test(): void {
     local l0: int32
     local l1: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1201,8 +1201,8 @@ function test(): void {
     local l0: int32
     local l1: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     return
@@ -1222,8 +1222,8 @@ function test(): void {
     local l0: int32
     local l1: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int64 = 4
     v3: int64 = 8
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1245,8 +1245,8 @@ function test(): void {
     local l0: int32
     local l1: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int64 = 4
     v3: int32 = 7
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
@@ -1269,8 +1269,8 @@ function test(): void {
     local l0: int32
     local l1: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
@@ -1282,8 +1282,8 @@ function test(): void {
     local l0: int32
     local l1: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int64 = 4
     intrinsic.memory.raw.moveBytes(v0, v1, v2)
     return
@@ -1304,11 +1304,11 @@ type Bytes = [int8; 12];
 function test(): void {
     local l0: Bytes
 entry:
-    v0: ref<Bytes, borrowed, mutable, frame> = local.address l0
+    v0: ref<Bytes, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int64 = 0
     v2: int64 = 4
-    v3: ref<int8, borrowed, mutable> = element.address v0, v1
-    v4: ref<int8, borrowed, mutable> = element.address v0, v2
+    v3: ref<int8, borrowed, 'frame, mutable, local> = element.address v0, v1
+    v4: ref<int8, borrowed, 'frame, mutable, local> = element.address v0, v2
     v5: int64 = 8
     intrinsic.memory.raw.moveBytes(v4, v3, v5)
     intrinsic.memory.raw.moveBytes(v4, v3, v5)

@@ -378,7 +378,7 @@ impl MoveTable {
             },
             // expand an application through the type it stands for
             Type::Application { .. } => {
-                let (applied, _) = tree.split_lifetime_application(ty);
+                let applied = tree.represented(ty);
                 if applied != ty {
                     self.expand(parent, place, applied, tree);
                 }

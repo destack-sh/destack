@@ -41,6 +41,8 @@ pub enum LifetimeTerm {
     Managed,
     /// A lifetime slot in the current lifetime environment.
     Slot(LifetimeSlot),
+    /// A region parameter of the enclosing type declaration, by generic index.
+    Parameter(u32),
 }
 
 /// The lifetime one escaping borrowed value stays within.
@@ -123,6 +125,13 @@ impl Lifetime {
         self.terms.as_slice() == [LifetimeTerm::Frame]
     }
 
+    /// Return whether this lifetime names a region parameter of a type declaration.
+    pub fn mentions_parameter(&self) -> bool {
+        self.terms
+            .iter()
+            .any(|term| matches!(term, LifetimeTerm::Parameter(_)))
+    }
+
     /// Return whether this lifetime includes a slot.
     pub fn includes_slot(&self, index: u32) -> bool {
         self.terms
@@ -133,7 +142,10 @@ impl Lifetime {
     pub fn slot_indices(&self) -> impl Iterator<Item = u32> + '_ {
         self.terms.iter().filter_map(|term| match term {
             LifetimeTerm::Slot(index) => Some(index.0),
-            LifetimeTerm::Static | LifetimeTerm::Frame | LifetimeTerm::Managed => None,
+            LifetimeTerm::Static
+            | LifetimeTerm::Frame
+            | LifetimeTerm::Managed
+            | LifetimeTerm::Parameter(_) => None,
         })
     }
 
@@ -171,10 +183,14 @@ impl Lifetime {
             // managed storage stays alive while a borrow into it is held
             (
                 LifetimeTerm::Managed,
-                LifetimeTerm::Managed | LifetimeTerm::Frame | LifetimeTerm::Slot(_),
+                LifetimeTerm::Managed
+                | LifetimeTerm::Frame
+                | LifetimeTerm::Slot(_)
+                | LifetimeTerm::Parameter(_),
             ) => true,
-            (LifetimeTerm::Slot(_), LifetimeTerm::Frame) => true,
+            (LifetimeTerm::Slot(_) | LifetimeTerm::Parameter(_), LifetimeTerm::Frame) => true,
             (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) if left == right => true,
+            (LifetimeTerm::Parameter(left), LifetimeTerm::Parameter(right)) => left == right,
             (LifetimeTerm::Slot(left), LifetimeTerm::Slot(right)) => {
                 let index = left.0 as usize;
                 let is_visited = visited.get(index).copied().unwrap_or(false);

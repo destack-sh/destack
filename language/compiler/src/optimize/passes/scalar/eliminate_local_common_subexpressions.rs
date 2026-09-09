@@ -548,7 +548,7 @@ entry(v0: (int32, int32)):
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = add v1, v2
@@ -560,7 +560,7 @@ function test(): int32 {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = load v0
     v3: int32 = add v1, v1
     return v3
@@ -579,7 +579,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = 1
     store v0, v2
@@ -722,7 +722,7 @@ b2(v6: int32):
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     v3: int32 = load v0
@@ -749,7 +749,7 @@ entry:
 function test(): int32 {
     local l0: int32
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v1: int32 = load v0
     v2: int32 = load v0
     return v2

@@ -342,8 +342,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, borrowed, mutable, frame> = local.address l0
-    v1: ref<int32, borrowed, mutable, frame> = local.address l1
+    v0: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l1
     v2: int32 = 0
     return v2
 }
@@ -368,13 +368,13 @@ entry:
     fn test_alias_distinguishes_propagated_indices() {
         let program = TestProgram::new(
             r#"
-function test(v0: ref<[int32; 4], borrowed, mutable>): void {
-entry(v0: ref<[int32; 4], borrowed, mutable>):
+function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
+entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
     v1: uint64 = 0
     v2: uint64 = 1
     v3: uint64 = add v1, v2
-    v4: ref<int32, borrowed, mutable> = element.address v0, v1
-    v5: ref<int32, borrowed, mutable> = element.address v0, v3
+    v4: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v1
+    v5: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v3
     return
 }
 "#,

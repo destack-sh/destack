@@ -826,7 +826,7 @@ function callee(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = load v1
     return v2
 }

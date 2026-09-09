@@ -395,7 +395,6 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(
         | Type::Isize
         | Type::Usize
         | Type::Float { .. }
-        | Type::TypeDescriptor
         | Type::Parameter { .. }
         | Type::TypeId => {}
     }
@@ -410,7 +409,8 @@ fn walk_argument<V: NodeVisitor + ?Sized>(
     match argument {
         GenericArgument::Type(ty) => walk_type_id(visitor, tree, ty),
         GenericArgument::Value(value) => walk_static(visitor, tree, *value),
-        GenericArgument::Space(_) | GenericArgument::Access(_) => {}
+        GenericArgument::Region { .. } | GenericArgument::Space(_) | GenericArgument::Access(_) => {
+        }
     }
 }
 

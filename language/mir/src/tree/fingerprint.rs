@@ -47,7 +47,7 @@ impl TypeHasher {
         let mut hasher = Self::for_instance(base);
         hasher.hash_length(arguments.len());
         for argument in arguments {
-            hasher.hash_argument(*argument, tree);
+            hasher.hash_argument(argument, tree);
         }
 
         Symbol::from_raw(base.module(), hasher.hasher.finish_u64())
@@ -223,7 +223,6 @@ impl TypeHasher {
                 self.hasher.write_u8(8);
                 self.hash_float_type(*format);
             }
-            Type::TypeDescriptor => self.hasher.write_u8(9),
             Type::TypeId => self.hasher.write_u8(10),
             Type::Atomic { value } => {
                 self.hasher.write_u8(11);
@@ -324,7 +323,7 @@ impl TypeHasher {
             Type::Vector { element, lanes } => {
                 self.hasher.write_u8(22);
                 self.hash_type(*element, tree);
-                self.hasher.write_u32(*lanes);
+                self.hash_static(*lanes, tree);
             }
             Type::FunctionSignature {
                 lifetimes,
@@ -362,23 +361,13 @@ impl TypeHasher {
                 self.hasher.write_u8(27);
                 self.hash_type(*signature, tree);
             }
-            Type::Application {
-                base, arguments, ..
-            } if self.erase_lifetimes && arguments.is_empty() => {
-                self.hash_type(*base, tree);
-            }
-            Type::Application {
-                base,
-                arguments,
-                lifetimes,
-            } => {
+            Type::Application { base, arguments } => {
                 self.hasher.write_u8(30);
                 self.hash_type(*base, tree);
                 self.hash_length(arguments.len());
                 for argument in arguments {
-                    self.hash_argument(*argument, tree);
+                    self.hash_argument(argument, tree);
                 }
-                self.hash_lifetimes(lifetimes);
             }
             Type::Parameter { index } => {
                 self.hasher.write_u8(32);
@@ -388,23 +377,28 @@ impl TypeHasher {
     }
 
     /// Hash one generic argument.
-    fn hash_argument(&mut self, argument: GenericArgument, tree: &Tree) {
+    fn hash_argument(&mut self, argument: &GenericArgument, tree: &Tree) {
         match argument {
             GenericArgument::Type(ty) => {
                 self.hasher.write_u8(0);
-                self.hash_type(ty, tree);
+                self.hash_type(*ty, tree);
             }
             GenericArgument::Space(space) => {
                 self.hasher.write_u8(1);
-                self.hash_space(space);
+                self.hash_space(*space);
             }
             GenericArgument::Access(access) => {
                 self.hasher.write_u8(2);
-                self.hash_access(access);
+                self.hash_access(*access);
             }
             GenericArgument::Value(value) => {
                 self.hasher.write_u8(3);
-                self.hash_static(value, tree);
+                self.hash_static(*value, tree);
+            }
+            GenericArgument::Region { lifetime, space } => {
+                self.hasher.write_u8(4);
+                self.hash_lifetime(lifetime);
+                self.hash_space(*space);
             }
         }
     }
@@ -614,15 +608,11 @@ impl TypeHasher {
                     self.hasher.write_u32(slot.0);
                 }
                 LifetimeTerm::Managed => self.hasher.write_u8(3),
+                LifetimeTerm::Parameter(index) => {
+                    self.hasher.write_u8(4);
+                    self.hasher.write_u32(*index);
+                }
             }
-        }
-    }
-
-    /// Hash one ordered applied lifetime sequence.
-    fn hash_lifetimes(&mut self, lifetimes: &[Lifetime]) {
-        self.hash_length(lifetimes.len());
-        for lifetime in lifetimes {
-            self.hash_lifetime(lifetime);
         }
     }
 
@@ -782,7 +772,7 @@ mod tests {
         let second = GenericArgument::Type(second);
         let foreign_first = GenericArgument::Type(foreign_first);
         assert_ne!(
-            base.instantiate(&[first], &tree),
+            base.instantiate(std::slice::from_ref(&first), &tree),
             base.instantiate(&[second], &tree)
         );
         assert_eq!(

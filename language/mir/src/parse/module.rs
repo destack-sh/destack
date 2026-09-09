@@ -254,7 +254,7 @@ impl Parser {
 
                 let lifetime_scope_count = self.lifetime_scopes.len();
                 let parsed = self.parse_symbol_name().and_then(|(name, _)| {
-                    let (arguments, _, _) = self.parse_declaration_parameters()?;
+                    let (arguments, _, _) = self.parse_declaration_parameters(false)?;
 
                     Ok((name, arguments))
                 });
@@ -382,8 +382,8 @@ impl Parser {
 
         // declaration name
         let (name, name_start) = self.parse_symbol_name()?;
-        let (arguments, generics, lifetimes) = self.parse_declaration_parameters()?;
-        let name_span = if arguments.is_empty() && generics.is_empty() && lifetimes.is_empty() {
+        let (arguments, generics, _) = self.parse_declaration_parameters(true)?;
+        let name_span = if arguments.is_empty() && generics.is_empty() {
             self.span_at(name_start, name.len())
         } else {
             self.span_between(name_start, self.pos())
@@ -420,18 +420,13 @@ impl Parser {
         // record an opaque declaration and stop before a definition
         if self.eat_token_if(TokenType::Semicolon) {
             let name_id = self.strings.intern(&name);
-            let id = self.tree.insert_type_declaration(
-                name_id,
-                generics,
-                lifetimes.clone(),
-                type_id,
-                heritage,
-            );
+            let id = self
+                .tree
+                .insert_type_declaration(name_id, generics, type_id, heritage);
             self.tree
                 .set_text_span(id, self.span_from_parse_start(item_start));
             self.tree.set_keyword_span(id, keyword_span);
             self.tree.set_main_span(id, name_span);
-            self.tree.set_type_lifetimes(type_id, lifetimes);
             self.tree.set_attribute_spans(id, attribute_spans);
             self.type_declaration_definitions.insert(name.clone());
             self.pop_lifetime_scope();
@@ -490,20 +485,15 @@ impl Parser {
 
         // record declaration
         let name_id = self.strings.intern(&name);
-        let id = self.tree.insert_type_declaration(
-            name_id,
-            generics,
-            lifetimes.clone(),
-            type_id,
-            heritage,
-        );
+        let id = self
+            .tree
+            .insert_type_declaration(name_id, generics, type_id, heritage);
         self.tree
             .set_text_span(id, self.span_from_parse_start(item_start));
         self.tree.set_keyword_span(id, keyword_span);
         self.tree.set_main_span(id, name_span);
         self.tree
             .set_side_span(id, NodeSpanType::Region(NodeSpanRegion::Type), type_span);
-        self.tree.set_type_lifetimes(type_id, lifetimes);
         self.tree.set_attribute_spans(id, attribute_spans);
         self.tree.set_type_field_spans(id, field_spans);
         self.tree.set_type_declaration_spans(id, declaration_spans);

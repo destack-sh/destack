@@ -65,12 +65,12 @@ fn test_format_load_store_family() {
         r#"
 global counter: int32 = zeroinit
 
-function memory(v0: ref<int32, borrowed, mutable, local>): int32 {
+function memory<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
     local l0: int32
 
-entry(v0: ref<int32, borrowed, mutable, local>):
-    v1: ref<int32, borrowed, mutable, local> = global.address counter
-    v2: ref<int32, borrowed, mutable, frame> = local.address l0
+entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+    v1: ref<int32, borrowed, 'static, mutable, local> = global.address counter
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v3: int32 = load v0
     store v0, v3
     local.set l0, v3
@@ -88,8 +88,8 @@ entry(v0: ref<int32, borrowed, mutable, local>):
 fn test_format_atomic_load_store_and_fence_family() {
     assert_format(
         r#"
-function atomics(v0: ref<atomic<int32>, borrowed, mutable, frame>): int32 {
-entry(v0: ref<atomic<int32>, borrowed, mutable, frame>):
+function atomics<'a>(v0: ref<atomic<int32>, borrowed, 'a, mutable, frame>): int32 {
+entry(v0: ref<atomic<int32>, borrowed, 'a, mutable, frame>):
     v1: int32 = atomic.load v0, acquire, scope(device)
     atomic.store v0, v1, release, scope(device)
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
@@ -104,8 +104,8 @@ entry(v0: ref<atomic<int32>, borrowed, mutable, frame>):
 fn test_format_atomic_compare_exchange_and_rmw_family() {
     assert_format(
         r#"
-function atomics(v0: ref<atomic<uint32>, borrowed, mutable, frame>): uint32 {
-entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
+function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): uint32 {
+entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
@@ -121,8 +121,8 @@ entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
 fn test_format_atomic_compare_exchange_default_failure_ordering() {
     assert_format_eq(
         r#"
-function atomics(v0: ref<atomic<uint32>, borrowed, mutable, frame>): (uint32, boolean) {
-entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
+function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): (uint32, boolean) {
+entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)
@@ -130,8 +130,8 @@ entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
 }
 "#,
         r#"
-function atomics(v0: ref<atomic<uint32>, borrowed, mutable, frame>): (uint32, boolean) {
-entry(v0: ref<atomic<uint32>, borrowed, mutable, frame>):
+function atomics<'a>(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>): (uint32, boolean) {
+entry(v0: ref<atomic<uint32>, borrowed, 'a, mutable, frame>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas v0, v1, v2, acquireRelease, failure(acquire)

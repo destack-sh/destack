@@ -3,9 +3,9 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::{
     Access, BinaryOperator, Callee, Copy, ExecutionScope, FenceAccess, FloatType, FormatOptions,
-    Formatter, Lifetime, LifetimeParameter, MemoryOrdering, Multiplicity, Mutability,
-    ReferenceKind, Space, Storage, StorageSet, Symbol, TargetLayout, Tree, Type, TypeHeritage,
-    TypeId,
+    Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime, LifetimeTerm,
+    MemoryOrdering, Multiplicity, Mutability, ReferenceKind, Space, Storage, StorageSet, Symbol,
+    TargetLayout, Tree, Type, TypeHeritage, TypeId,
 };
 
 /// Format one test MIR tree.
@@ -295,6 +295,7 @@ fn test_build_calls_from_callee_and_signature() {
             },
             TypeId::from(identity_signature),
             vec![argument],
+            TypeId::from(i32_type),
         )
         .expect("identity returns a value");
     let void_result = builder.call(
@@ -304,6 +305,7 @@ fn test_build_calls_from_callee_and_signature() {
         },
         TypeId::from(sink_signature),
         vec![result],
+        TypeId::from(void_type),
     );
     assert_eq!(void_result, None);
     builder.return_(Some(result));
@@ -1320,27 +1322,28 @@ fn test_build_field_get_from_lifetime_applied_type() {
             copy: Copy::Yes,
         },
     );
-    module.tree_mut().insert_type_declaration(
-        user_name,
-        Vec::new(),
-        Vec::new(),
-        user,
-        TypeHeritage::default(),
-    );
+    module
+        .tree_mut()
+        .insert_type_declaration(user_name, Vec::new(), user, TypeHeritage::default());
 
-    // define a lifetime-polymorphic aggregate borrowing the user
+    // define a region-polymorphic aggregate borrowing the user
     let borrowed_user = module.type_reference(
         ReferenceKind::Borrowed,
-        Lifetime::slot(0),
+        Lifetime::new([LifetimeTerm::Parameter(0)]),
         user,
         Access::Readonly,
-        Storage::Heap(Space::Local),
+        Storage::Heap(Space::Parameter(0)),
     );
     let view_field_name = module.strings().intern("user");
     let view_field = module.field(Some(view_field_name), borrowed_user);
     let view_name = module.strings().intern("View");
-    let lifetime_name = module.strings().intern("'a");
-    let lifetime_parameters = vec![LifetimeParameter::new(Some(lifetime_name))];
+    let region_name = module.strings().intern("'a");
+    let region = GenericParameter {
+        name: region_name,
+        domain: GenericParameterDomain::Region {
+            outlives: Vec::new(),
+        },
+    };
     let view = module
         .tree_mut()
         .reserve_type(Symbol::named(crate::TEST_MODULE, view_name));
@@ -1351,22 +1354,20 @@ fn test_build_field_get_from_lifetime_applied_type() {
             copy: Copy::Yes,
         },
     );
-    module
-        .tree_mut()
-        .set_type_lifetimes(view, lifetime_parameters.clone());
     module.tree_mut().insert_type_declaration(
         view_name,
-        Vec::new(),
-        lifetime_parameters,
+        vec![region],
         view,
         TypeHeritage::default(),
     );
 
-    // project the field from one concrete lifetime application
+    // project the field from one concrete region application
     let static_view = module.tree_mut().intern_type(Type::Application {
         base: view,
-        arguments: Vec::new(),
-        lifetimes: vec![Lifetime::static_storage()],
+        arguments: vec![GenericArgument::Region {
+            lifetime: Lifetime::static_storage(),
+            space: Space::Local,
+        }],
     });
     let static_user = module.type_reference(
         ReferenceKind::Borrowed,
@@ -1399,11 +1400,11 @@ type User {
 
 @copy
 type View<'a> {
-    user: ref<User, borrowed, 'a, readonly, local>;
+    user: ref<User, borrowed, 'a, readonly>;
 }
 
-function getStatic(v0: View<'static>): ref<User, borrowed, 'static, readonly, local> {
-entry(v0: View<'static>):
+function getStatic(v0: View<'static & local>): ref<User, borrowed, 'static, readonly, local> {
+entry(v0: View<'static & local>):
     v1: ref<User, borrowed, 'static, readonly, local> = field.get v0, 0
     return v1
 }";

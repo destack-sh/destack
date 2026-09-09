@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::{AtomicRmwOperator, CastOperator};
+use crate::{AtomicRmwOperator, BinaryOperator, CastOperator, VectorReduceOperator};
 
 /// Machine intrinsic operations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -455,6 +455,7 @@ impl FromStr for Intrinsic {
             "memory.ptr.copyNonOverlapping" => Ok(Intrinsic::Memcpy),
             "memory.ptr.writeBytes" => Ok(Intrinsic::Memset),
             "memory.ptr.asReference" => Ok(Intrinsic::Transmute),
+            "memory.ptr.fromReference" => Ok(Intrinsic::Transmute),
             "memory.init.new" => Ok(Intrinsic::Transmute),
             "memory.init.assumeInit" => Ok(Intrinsic::Transmute),
             "memory.init.asPointer" => Ok(Intrinsic::Transmute),
@@ -671,6 +672,28 @@ pub enum IntrinsicInstruction {
     ProfileIncrement,
     /// Record one value under the named profile sampler.
     ProfileSample,
+    /// A reinterpretation of one value at the declared result representation.
+    Transmute,
+    /// A move of one owned value into managed storage.
+    Manage,
+    /// The erased payload pointer of one dynamic value.
+    DynamicPayload,
+    /// Read the concrete type id of one erased value.
+    DynamicType,
+    /// A vector with one value in every lane.
+    VectorSplat,
+    /// One vector lane.
+    VectorExtract,
+    /// A vector with one lane replaced.
+    VectorInsert,
+    /// A lane-wise selection between two vectors by a mask.
+    VectorSelect,
+    /// A lane-wise conversion to another element type.
+    VectorConvert,
+    /// A lane-wise comparison producing a mask.
+    VectorCompare(BinaryOperator),
+    /// A horizontal reduction of every lane.
+    VectorReduce(VectorReduceOperator),
 }
 
 impl IntrinsicInstruction {
@@ -723,6 +746,32 @@ impl IntrinsicInstruction {
             "sync.atomic.fetch.umax" => Self::AtomicRmw(AtomicRmwOperator::Max),
             "sync.atomic.fetch.umin" => Self::AtomicRmw(AtomicRmwOperator::Min),
             "sync.atomic.fetch.xor" => Self::AtomicRmw(AtomicRmwOperator::Xor),
+            "memory.phantom.new" => Self::InitZeroed,
+            "memory.owned.intoManaged" => Self::Manage,
+            "memory.unique.leak"
+            | "memory.manuallyDrop.new"
+            | "memory.manuallyDrop.intoInner"
+            | "memory.manuallyDrop.asReference" => Self::Transmute,
+            "memory.dynamic.payload" => Self::DynamicPayload,
+            "memory.dynamic.type" => Self::DynamicType,
+            "math.vector.splat" => Self::VectorSplat,
+            "math.vector.extract" => Self::VectorExtract,
+            "math.vector.insert" => Self::VectorInsert,
+            "math.vector.select" => Self::VectorSelect,
+            "math.vector.convert" => Self::VectorConvert,
+            "math.vector.equal" => Self::VectorCompare(BinaryOperator::Equal),
+            "math.vector.notEqual" => Self::VectorCompare(BinaryOperator::NotEqual),
+            "math.vector.less" => Self::VectorCompare(BinaryOperator::LessThan),
+            "math.vector.lessEqual" => Self::VectorCompare(BinaryOperator::LessEqual),
+            "math.vector.greater" => Self::VectorCompare(BinaryOperator::GreaterThan),
+            "math.vector.greaterEqual" => Self::VectorCompare(BinaryOperator::GreaterEqual),
+            "math.vector.reduce.add" => Self::VectorReduce(VectorReduceOperator::Add),
+            "math.vector.reduce.mul" => Self::VectorReduce(VectorReduceOperator::Multiply),
+            "math.vector.reduce.min" => Self::VectorReduce(VectorReduceOperator::Min),
+            "math.vector.reduce.max" => Self::VectorReduce(VectorReduceOperator::Max),
+            "math.vector.reduce.and" => Self::VectorReduce(VectorReduceOperator::And),
+            "math.vector.reduce.or" => Self::VectorReduce(VectorReduceOperator::Or),
+            "math.vector.reduce.xor" => Self::VectorReduce(VectorReduceOperator::Xor),
             _ => return None,
         };
 

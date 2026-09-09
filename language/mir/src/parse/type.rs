@@ -17,8 +17,10 @@ struct ReferenceQualifiers {
     kind: Option<ReferenceKind>,
     /// The explicit reference lifetime.
     lifetime: Lifetime,
-    /// The referenced storage.
-    storage: Storage,
+    /// Whether a lifetime was written, the erased wildcard among them.
+    has_lifetime: bool,
+    /// The referenced storage, written or named by the lifetime's region parameter.
+    storage: Option<Storage>,
     /// The exposed access mode.
     access: Option<Access>,
 }
@@ -29,7 +31,8 @@ impl ReferenceQualifiers {
         Self {
             kind: None,
             lifetime: Lifetime::empty(),
-            storage: Storage::Heap(Space::Local),
+            has_lifetime: false,
+            storage: None,
             access: None,
         }
     }
@@ -47,11 +50,21 @@ impl ReferenceQualifiers {
         if kind == ReferenceKind::Unique && !self.lifetime.is_empty() {
             return Err(ParseError::invalid("reference lifetime", pos));
         }
+        if kind == ReferenceKind::Borrowed && !self.has_lifetime {
+            return Err(ParseError::invalid("borrowed reference lifetime", pos));
+        }
+
+        // take the written storage, else the space of the one region parameter the lifetime names
+        let storage = match (self.storage, self.lifetime.terms.as_slice()) {
+            (Some(storage), _) => storage,
+            (None, [LifetimeTerm::Parameter(index)]) => Storage::Heap(Space::Parameter(*index)),
+            (None, _) => return Err(ParseError::invalid("reference storage", pos)),
+        };
 
         Ok(ResolvedReferenceQualifiers {
             kind,
             lifetime: self.lifetime,
-            storage: self.storage,
+            storage,
             access: self
                 .access
                 .ok_or_else(|| ParseError::invalid("reference access", pos))?,
@@ -86,8 +99,6 @@ impl Parser {
     pub(super) fn parse_type_use_part(&mut self) -> ParseResult<(TypeId, Span)> {
         let type_start = self.pos();
         let ty = self.parse_type()?;
-        let lifetimes = self.parse_type_lifetime_arguments()?;
-        let ty = self.apply_type_lifetimes(ty, lifetimes)?;
         let span = self.span_from_parse_start(type_start);
 
         Ok((ty, span))
@@ -126,21 +137,11 @@ impl Parser {
 
         let type_start = self.pos();
         match self.parse_type() {
-            Ok(ty) => match self.parse_type_lifetime_arguments() {
-                Ok(lifetimes) => {
-                    let ty = self
-                        .apply_type_lifetimes(ty, lifetimes)
-                        .unwrap_or_else(|error| {
-                            self.diagnostics
-                                .insert(error.to_diagnostic(self.blob, self.file_id));
-                            self.error_type()
-                        });
-                    let span = self.span_from_parse_start(type_start);
+            Ok(ty) => {
+                let span = self.span_from_parse_start(type_start);
 
-                    (ty, span)
-                }
-                Err(error) => self.recovered_type(error, true),
-            },
+                (ty, span)
+            }
             Err(error) => self.recovered_type(error, true),
         }
     }
@@ -161,62 +162,17 @@ impl Parser {
         (ty, span)
     }
 
-    /// Parse optional lifetime arguments on a type use.
-    pub(super) fn parse_type_lifetime_arguments(&mut self) -> ParseResult<Vec<Lifetime>> {
-        if !self.peek_type_lifetime_arguments() {
-            return Ok(Vec::new());
-        }
-
-        self.eat_token(TokenType::LessThan)?;
-        let mut lifetimes = Vec::new();
-        while !self.peek_is(TokenType::GreaterThan) {
-            lifetimes.push(self.parse_lifetime_union()?);
-
-            if !self.eat_token_if(TokenType::Comma) {
-                break;
-            }
-        }
-
-        self.eat_token(TokenType::GreaterThan)?;
-
-        Ok(lifetimes)
-    }
-
-    /// Apply parsed lifetime arguments to one type use.
-    pub(super) fn apply_type_lifetimes(
-        &mut self,
-        base: TypeId,
-        lifetimes: Vec<Lifetime>,
-    ) -> ParseResult<TypeId> {
-        self.apply_type_arguments(base, Vec::new(), lifetimes)
-    }
-
-    /// Apply generic and lifetime arguments to an identified base type.
+    /// Apply generic arguments to an identified base type.
     fn apply_type_arguments(
         &mut self,
         base: TypeId,
         arguments: Vec<GenericArgument>,
-        lifetimes: Vec<Lifetime>,
     ) -> ParseResult<TypeId> {
-        if arguments.is_empty() && lifetimes.is_empty() {
+        if arguments.is_empty() {
             return Ok(base);
         }
 
-        self.intern_type(Type::Application {
-            base,
-            arguments,
-            lifetimes,
-        })
-    }
-
-    /// Return whether the next tokens start type lifetime arguments.
-    fn peek_type_lifetime_arguments(&self) -> bool {
-        if !self.peek_is(TokenType::LessThan) {
-            return false;
-        }
-
-        self.peek_nth_token(1)
-            .is_some_and(|token| self.token_type(token) == TokenType::Lifetime)
+        self.intern_type(Type::Application { base, arguments })
     }
 
     /// Parse a type expression and append its span as one source segment.
@@ -428,7 +384,7 @@ impl Parser {
             "variant" => self.parse_variant_type()?,
             _ => {
                 self.bump();
-                let (arguments, lifetimes) = self.parse_identified_type_arguments()?;
+                let arguments = self.parse_identified_type_arguments()?;
                 let base = self
                     .type_declaration_map
                     .get(name)
@@ -437,30 +393,23 @@ impl Parser {
                         ParseError::invalid(&format!("identified type '{name}'"), start)
                     })?;
 
-                return self.apply_type_arguments(base, arguments, lifetimes);
+                return self.apply_type_arguments(base, arguments);
             }
         };
 
         self.intern_type(ty)
     }
 
-    /// Parse the generic and lifetime arguments on an identified type.
-    fn parse_identified_type_arguments(
-        &mut self,
-    ) -> ParseResult<(Vec<GenericArgument>, Vec<Lifetime>)> {
+    /// Parse the generic arguments on an identified type.
+    fn parse_identified_type_arguments(&mut self) -> ParseResult<Vec<GenericArgument>> {
         if !self.eat_token_if(TokenType::LessThan) {
-            return Ok((Vec::new(), Vec::new()));
+            return Ok(Vec::new());
         }
 
-        // parse the applied generic arguments, then the applied lifetime terms
+        // parse the applied arguments in template order
         let mut arguments = Vec::new();
-        let mut lifetimes = Vec::new();
         while !self.peek_is(TokenType::GreaterThan) {
-            if self.peek_is(TokenType::Lifetime) {
-                lifetimes.push(self.parse_lifetime_union()?);
-            } else {
-                arguments.push(self.parse_generic_argument()?);
-            }
+            arguments.push(self.parse_generic_argument()?);
 
             if !self.eat_token_if(TokenType::Comma) {
                 break;
@@ -469,7 +418,54 @@ impl Parser {
 
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok((arguments, lifetimes))
+        Ok(arguments)
+    }
+
+    /// Parse one region argument: its extent, then its space after `&`, one region parameter
+    /// naming both alone.
+    pub(super) fn parse_region_argument(&mut self) -> ParseResult<GenericArgument> {
+        let start = self.pos();
+        let lifetime = self.parse_lifetime_union()?;
+
+        // read the space, or take it from the one region parameter naming the extent
+        let space = if self.eat_token_if(TokenType::Ampersand) {
+            self.parse_space_argument()?
+        } else if let [LifetimeTerm::Parameter(index)] = lifetime.terms.as_slice() {
+            Space::Parameter(*index)
+        } else {
+            return Err(ParseError::invalid(
+                "region argument without a space",
+                start,
+            ));
+        };
+
+        Ok(GenericArgument::Region { lifetime, space })
+    }
+
+    /// Parse one space by its name or by a space or region parameter in scope.
+    fn parse_space_argument(&mut self) -> ParseResult<Space> {
+        let token = self
+            .peek()
+            .ok_or_else(|| ParseError::unexpected_end("region space", self.pos()))?;
+        let text = self.tree.source_text(token.span).to_string();
+        let start = token.start();
+        if let Some(space) = Space::from_name(&text) {
+            self.bump();
+
+            return Ok(space);
+        }
+        if let Some((index, parameter)) = self.generic_parameter(&text)
+            && matches!(
+                parameter.domain,
+                GenericParameterDomain::Space | GenericParameterDomain::Region { .. }
+            )
+        {
+            self.bump();
+
+            return Ok(Space::Parameter(index));
+        }
+
+        Err(ParseError::invalid("region space", start))
     }
 
     /// Parse a function pointer type.
@@ -590,13 +586,7 @@ impl Parser {
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::Comma)?;
-
-        let token = self.eat_token(TokenType::Integer)?;
-        let token_text = self.tree.source_text(token.span).to_string();
-        let lanes = token_text.parse().map_err(|_| {
-            ParseError::invalid(&format!("vector lane count '{token_text}'"), token.start())
-        })?;
-
+        let lanes = self.parse_length()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Vector { element, lanes })
@@ -1019,12 +1009,13 @@ impl Parser {
             .is_some_and(|token| self.token_type(token) == TokenType::Lifetime)
         {
             qualifiers.lifetime = self.parse_lifetime_union()?;
+            qualifiers.has_lifetime = true;
 
             return Ok(());
         }
 
         if let Some(storage) = self.parse_storage_if() {
-            qualifiers.storage = storage;
+            qualifiers.storage = Some(storage);
 
             return Ok(());
         }
@@ -1060,9 +1051,12 @@ impl Parser {
         let token = self.peek()?;
         let text = self.tree.source_text(token.span).to_string();
 
-        // read a space parameter in scope, static when the keyword follows
+        // read a space or region parameter in scope, static when the keyword follows
         if let Some((index, parameter)) = self.generic_parameter(&text)
-            && matches!(parameter.domain, GenericParameterDomain::Space)
+            && matches!(
+                parameter.domain,
+                GenericParameterDomain::Space | GenericParameterDomain::Region { .. }
+            )
         {
             self.bump();
             if self.eat_name_if("static") {
@@ -1094,6 +1088,16 @@ impl Parser {
 
     /// Parse one tick lifetime union.
     pub(super) fn parse_lifetime_union(&mut self) -> ParseResult<Lifetime> {
+        // read the erased extent as the wildcard
+        if self
+            .peek()
+            .is_some_and(|token| self.tree.source_text(token.span) == "'_")
+        {
+            self.bump();
+
+            return Ok(Lifetime::empty());
+        }
+
         let mut terms = vec![self.parse_lifetime_term()?];
         while self.eat_token_if(TokenType::Pipe) {
             terms.push(self.parse_lifetime_term()?);
@@ -1116,7 +1120,7 @@ impl Parser {
             return Ok(LifetimeTerm::Managed);
         }
 
-        let Some(slot) = self.lifetime_slot(name) else {
+        let Some(term) = self.lifetime_term(name) else {
             return Err(ParseError::invalid_with_length(
                 "lifetime name",
                 token.start(),
@@ -1124,7 +1128,7 @@ impl Parser {
             ));
         };
 
-        Ok(LifetimeTerm::Slot(slot))
+        Ok(term)
     }
 
     /// Return a canonical type id for the provided type shape.

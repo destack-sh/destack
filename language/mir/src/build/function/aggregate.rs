@@ -483,20 +483,10 @@ impl<'a> FunctionBuilder<'a> {
         owner: LocalNodeId<Type>,
         project: impl FnOnce(&Tree, &Type) -> BuildResult<LocalNodeId<Type>>,
     ) -> BuildResult<LocalNodeId<Type>> {
-        // project a closed application through its representation
-        let owner = match self.tree.get(owner) {
-            Type::Application { arguments, .. } if !arguments.is_empty() => {
-                self.tree.represented(TypeId::from(owner))
-            }
-            _ => TypeId::from(owner),
-        };
+        // project an application through its representation
+        let owner = self.tree.represented(TypeId::from(owner));
 
-        // project through the base and reinstantiate the applied lifetimes
-        let (base, arguments) = self.tree.split_lifetime_application(owner);
-        let arguments = arguments.to_vec();
-        let projected = project(self.tree, self.tree.get(base))?;
-
-        Ok(self.tree.instantiate_type_lifetimes(projected, &arguments))
+        project(self.tree, self.tree.get(owner))
     }
 
     /// Resolve one statically selected fixed-array element type.

@@ -12,9 +12,9 @@ declare_pass! {
     /// ```mir
     /// readonly global live: int32 = 1
     /// readonly global dead: int32 = 2
-    /// function root(): ref<int32, borrowed, readonly> {
+    /// function root<'a>(): ref<int32, borrowed, 'a, readonly, local> {
     /// b0:
-    ///     v0: ref<int32, borrowed, readonly> = global.address live
+    ///     v0: ref<int32, borrowed, 'static, readonly, local> = global.address live
     ///     return v0
     /// }
     /// ```
@@ -22,9 +22,9 @@ declare_pass! {
     /// ```mir
     /// readonly global live: int32 = 1
     /// external readonly global dead: int32
-    /// function root(): ref<int32, borrowed, readonly> {
+    /// function root<'a>(): ref<int32, borrowed, 'a, readonly, local> {
     /// b0:
-    ///     v0: ref<int32, borrowed, readonly> = global.address live
+    ///     v0: ref<int32, borrowed, 'static, readonly, local> = global.address live
     ///     return v0
     /// }
     /// ```
@@ -127,7 +127,7 @@ readonly global dead: int32 = 2
 
 function root(): int32 {
 entry:
-    v0: ref<int32, borrowed, readonly> = global.address live
+    v0: ref<int32, borrowed, 'static, readonly, local> = global.address live
     v1: int32 = load v0
     return v1
 }
@@ -140,7 +140,7 @@ external readonly global dead: int32
 
 function root(): int32 {
 entry:
-    v0: ref<int32, borrowed, readonly> = global.address live
+    v0: ref<int32, borrowed, 'static, readonly, local> = global.address live
     v1: int32 = load v0
     return v1
 }
@@ -159,9 +159,9 @@ readonly global live: int32 = 1
 
 readonly global dead: int32 = 2
 
-function root(): ref<int32, borrowed, readonly> {
+function root<'a>(): ref<int32, borrowed, 'a, readonly, local> {
 entry:
-    v0: ref<int32, borrowed, readonly> = global.address live
+    v0: ref<int32, borrowed, 'static, readonly, local> = global.address live
     return v0
 }
 "#;
@@ -171,9 +171,9 @@ readonly global live: int32 = 1
 
 external readonly global dead: int32
 
-function root(): ref<int32, borrowed, readonly> {
+function root<'a>(): ref<int32, borrowed, 'a, readonly, local> {
 entry:
-    v0: ref<int32, borrowed, readonly> = global.address live
+    v0: ref<int32, borrowed, 'static, readonly, local> = global.address live
     return v0
 }
 "#;

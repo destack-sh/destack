@@ -19,7 +19,7 @@ declare_pass! {
     /// function before(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     ///     branch v0 => b1 | b2
     /// b1:
     ///     jump b3
@@ -35,7 +35,7 @@ declare_pass! {
     /// function after(v0: boolean): int32 {
     ///     local l0: int32
     /// b0(v0: boolean):
-    ///     v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    ///     v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     ///     branch v0 => b1 | b2
     /// b1:
     ///     v4: int32 = load v1
@@ -542,7 +542,7 @@ mod tests {
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -566,7 +566,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -607,7 +607,7 @@ b2:
     jump b3
 
 b3:
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     v2: int32 = load v1
     return v2
 }
@@ -625,7 +625,7 @@ b3:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -654,7 +654,7 @@ b3:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -681,7 +681,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -725,7 +725,7 @@ external function readOnly(): void
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -766,7 +766,7 @@ b3:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -795,7 +795,7 @@ b3:
 function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -822,7 +822,7 @@ function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -856,7 +856,7 @@ b4:
 function test(v0: boolean): int32 {
     local l0: int32
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -882,7 +882,7 @@ function test(v0: boolean): int32 {
     local l0: int32
 
 entry(v0: boolean):
-    v1: ref<int32, borrowed, mutable, frame> = local.address l0
+    v1: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -916,7 +916,7 @@ b3(v7: int32):
 function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b2
 
 b1:
@@ -944,7 +944,7 @@ function test(v0: boolean, v1: boolean): int32 {
     local l0: int32
 
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, borrowed, mutable, frame> = local.address l0
+    v2: ref<int32, borrowed, 'frame, mutable, frame> = local.address l0
     branch v0 => b1 | b3
 
 b1:

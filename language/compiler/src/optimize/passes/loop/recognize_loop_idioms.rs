@@ -14,8 +14,8 @@ declare_pass! {
     /// Recognize loop idioms and replace them with memory intrinsics.
     ///
     /// ```mir
-    /// function before(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32): void {
-    /// b0(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32):
+    /// function before<'a>(v0: ref<[uint8; 8], borrowed, 'a, mutable, local>, v1: uint32): void {
+    /// b0(v0: ref<[uint8; 8], borrowed, 'a, mutable, local>, v1: uint32):
     ///     v2: uint32 = 0
     ///     v3: uint32 = 1
     ///     jump b1(v2)
@@ -23,7 +23,7 @@ declare_pass! {
     ///     v5: boolean = lt v4, v1
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    ///     v6: ref<uint8, borrowed, 'a, mutable, local> = element.address v0, v4
     ///     v7: uint8 = 0
     ///     store v6, v7
     ///     v8: uint32 = add v4, v3
@@ -34,19 +34,19 @@ declare_pass! {
     /// ```
     /// becomes:
     /// ```mir
-    /// function after(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32): void {
-    /// b0(v0: ref<[uint8; 8], borrowed, mutable>, v1: uint32):
+    /// function after<'a>(v0: ref<[uint8; 8], borrowed, 'a, mutable, local>, v1: uint32): void {
+    /// b0(v0: ref<[uint8; 8], borrowed, 'a, mutable, local>, v1: uint32):
     ///     v2: uint32 = 0
     ///     v3: uint32 = 1
     ///     v9: uint8 = 0
-    ///     v10: ref<uint8, borrowed, mutable> = element.address v0, v2
+    ///     v10: ref<uint8, borrowed, 'a, mutable, local> = element.address v0, v2
     ///     intrinsic.memory.raw.setBytes(v10, v9, v1)
     ///     jump b3
     /// b1(v4: uint32):
     ///     v5: boolean = lt v4, v1
     ///     branch v5 => b2 | b3
     /// b2:
-    ///     v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    ///     v6: ref<uint8, borrowed, 'a, mutable, local> = element.address v0, v4
     ///     v7: uint8 = 0
     ///     store v6, v7
     ///     v8: uint32 = add v4, v3
@@ -1331,7 +1331,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1348,7 +1348,7 @@ entry(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 1
     v9: uint8 = 0
-    v10: ref<uint8, borrowed, mutable, local> = element.project v0, v2
+    v10: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
     intrinsic.memory.raw.setBytes(v10, v9, v1)
     jump b3
 
@@ -1357,7 +1357,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable, local> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1388,7 +1388,7 @@ b1(v4: uint32):
     branch v5 => b2 | b4
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     jump b3(v4)
@@ -1408,7 +1408,7 @@ entry(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 1
     v10: uint8 = 0
-    v11: ref<uint8, borrowed, mutable, local> = element.project v0, v2
+    v11: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
     intrinsic.memory.raw.setBytes(v11, v10, v1)
     jump b4
 
@@ -1417,7 +1417,7 @@ b1(v4: uint32):
     branch v5 => b2 | b4
 
 b2:
-    v6: ref<uint8, borrowed, mutable, local> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     jump b3(v4)
@@ -1451,7 +1451,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1514,8 +1514,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable> = element.address v0, v5
-    v8: ref<uint8, borrowed, mutable> = element.address v1, v5
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint8, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
     v10: uint32 = add v5, v4
@@ -1531,8 +1531,8 @@ function test(v0: [uint8; 8], v1: [uint8; 8], v2: uint32): void {
 entry(v0: [uint8; 8], v1: [uint8; 8], v2: uint32):
     v3: uint32 = 0
     v4: uint32 = 1
-    v11: ref<uint8, borrowed, mutable, local> = element.project v0, v3
-    v12: ref<uint8, borrowed, mutable, local> = element.project v1, v3
+    v11: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v3
+    v12: ref<uint8, borrowed, 'frame, mutable, local> = element.project v1, v3
     intrinsic.memory.raw.copyBytes(v11, v12, v2)
     jump b3
 
@@ -1541,8 +1541,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable, local> = element.address v0, v5
-    v8: ref<uint8, borrowed, mutable, local> = element.address v1, v5
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint8, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
     v10: uint32 = add v5, v4
@@ -1573,7 +1573,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1589,8 +1589,8 @@ function test(v0: [uint8; 8], v1: uint32): void {
 entry(v0: [uint8; 8], v1: uint32):
     v2: uint32 = 0
     v3: uint32 = 1
-    v9: ref<uint8, borrowed, mutable, local> = element.project v0, v2
-    v10: ref<uint8, borrowed, mutable, local> = element.project v0, v2
+    v9: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
+    v10: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
     intrinsic.memory.raw.moveBytes(v9, v10, v1)
     jump b3
 
@@ -1599,7 +1599,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable, local> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1631,8 +1631,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint32, borrowed, mutable> = element.address v0, v5
-    v8: ref<uint32, borrowed, mutable> = element.address v1, v5
+    v7: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint32, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
     v10: uint32 = add v5, v3
@@ -1651,8 +1651,8 @@ entry(v0: [uint32; 8], v1: [uint32; 8]):
     v4: uint32 = 4
     v11: uint32 = 4
     v12: uint32 = mul v4, v11
-    v13: ref<uint32, borrowed, mutable, local> = element.project v0, v2
-    v14: ref<uint32, borrowed, mutable, local> = element.project v1, v2
+    v13: ref<uint32, borrowed, 'frame, mutable, local> = element.project v0, v2
+    v14: ref<uint32, borrowed, 'frame, mutable, local> = element.project v1, v2
     intrinsic.memory.raw.copyBytes(v13, v14, v12)
     jump b3
 
@@ -1661,8 +1661,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint32, borrowed, mutable, local> = element.address v0, v5
-    v8: ref<uint32, borrowed, mutable, local> = element.address v1, v5
+    v7: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint32, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
     v10: uint32 = add v5, v3
@@ -1694,8 +1694,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint32, borrowed, mutable> = element.address v0, v5
-    v8: ref<uint32, borrowed, mutable> = element.address v1, v5
+    v7: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint32, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
     v10: uint32 = add v5, v3
@@ -1715,8 +1715,8 @@ entry(v0: [uint32; 8], v1: [uint32; 8]):
     v11: uint32 = sub v4, v2
     v12: uint32 = 4
     v13: uint32 = mul v11, v12
-    v14: ref<uint32, borrowed, mutable, local> = element.project v0, v2
-    v15: ref<uint32, borrowed, mutable, local> = element.project v1, v2
+    v14: ref<uint32, borrowed, 'frame, mutable, local> = element.project v0, v2
+    v15: ref<uint32, borrowed, 'frame, mutable, local> = element.project v1, v2
     intrinsic.memory.raw.copyBytes(v14, v15, v13)
     jump b3
 
@@ -1725,8 +1725,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint32, borrowed, mutable, local> = element.address v0, v5
-    v8: ref<uint32, borrowed, mutable, local> = element.address v1, v5
+    v7: ref<uint32, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint32, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint32 = load v8
     store v7, v9
     v10: uint32 = add v5, v3
@@ -1757,7 +1757,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1781,7 +1781,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable, local> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1793,7 +1793,7 @@ b3:
 b4:
     v9: uint32 = sub v1, v2
     v10: uint8 = 0
-    v11: ref<uint8, borrowed, mutable, local> = element.project v0, v2
+    v11: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
     intrinsic.memory.raw.setBytes(v11, v10, v9)
     jump b3
 }
@@ -1818,8 +1818,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable> = element.address v0, v5
-    v8: ref<uint8, borrowed, mutable> = element.address v1, v5
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint8, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
     v10: uint32 = add v5, v4
@@ -1842,8 +1842,8 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable, local> = element.address v0, v5
-    v8: ref<uint8, borrowed, mutable, local> = element.address v1, v5
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
+    v8: ref<uint8, borrowed, 'frame, mutable, local> = element.address v1, v5
     v9: uint8 = load v8
     store v7, v9
     v10: uint32 = add v5, v4
@@ -1854,8 +1854,8 @@ b3:
 
 b4:
     v11: uint32 = sub v3, v2
-    v12: ref<uint8, borrowed, mutable, local> = element.project v0, v2
-    v13: ref<uint8, borrowed, mutable, local> = element.project v1, v2
+    v12: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
+    v13: ref<uint8, borrowed, 'frame, mutable, local> = element.project v1, v2
     intrinsic.memory.raw.copyBytes(v12, v13, v11)
     jump b3
 }
@@ -1880,7 +1880,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1903,7 +1903,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable, local> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = load v6
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1914,8 +1914,8 @@ b3:
 
 b4:
     v9: uint32 = sub v1, v2
-    v10: ref<uint8, borrowed, mutable, local> = element.project v0, v2
-    v11: ref<uint8, borrowed, mutable, local> = element.project v0, v2
+    v10: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
+    v11: ref<uint8, borrowed, 'frame, mutable, local> = element.project v0, v2
     intrinsic.memory.raw.moveBytes(v10, v11, v9)
     jump b3
 }
@@ -1941,7 +1941,7 @@ b1(v4: uint32):
     branch v5 => b2 | b3
 
 b2:
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -1975,7 +1975,7 @@ b2(v7: uint32):
     branch v2 => b3(v7) | b4(v7)
 
 b3(v8: uint32):
-    v9: ref<uint8, borrowed, mutable> = element.address v0, v8
+    v9: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v8
     v10: uint8 = 0
     store v9, v10
     jump b4(v8)
@@ -2014,7 +2014,7 @@ b2:
     jump b3(v7)
 
 b3(v8: uint32):
-    v9: ref<uint8, borrowed, mutable> = element.address v0, v5
+    v9: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
     v10: uint8 = 0
     store v9, v10
     v11: boolean = lt v8, v4
@@ -2053,7 +2053,7 @@ b1(v4: uint32, v5: [uint8; 8]):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable> = element.address v5, v4
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v5, v4
     v8: uint8 = 0
     store v7, v8
     v9: [uint8; 8] = field.set v5, 0, v8
@@ -2085,7 +2085,7 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable> = element.address v0, v5
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
     store v7, v1
     v8: uint32 = add v5, v4
     jump b1(v8)
@@ -2116,7 +2116,7 @@ b1(v4: uint32):
 
 b2:
     call touch(v4): (uint32) => void
-    v6: ref<uint8, borrowed, mutable> = element.address v0, v4
+    v6: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v4
     v7: uint8 = 0
     store v6, v7
     v8: uint32 = add v4, v3
@@ -2152,10 +2152,10 @@ b1(v5: uint32):
     branch v6 => b2 | b3
 
 b2:
-    v7: ref<uint8, borrowed, mutable> = element.address v0, v5
+    v7: ref<uint8, borrowed, 'frame, mutable, local> = element.address v0, v5
     v8: uint8 = 0
     store v7, v8
-    v9: ref<uint8, borrowed, mutable> = element.address v1, v5
+    v9: ref<uint8, borrowed, 'frame, mutable, local> = element.address v1, v5
     store v9, v8
     v10: uint32 = add v5, v4
     jump b1(v10)
