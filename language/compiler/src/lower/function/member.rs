@@ -1,8 +1,11 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::FunctionLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::function::call::ReceiverUse;
+use crate::lower::function::place::PlaceProjection;
+use crate::lower::function::union::UnionDispatch;
+use crate::lower::{FunctionLowerer, GenericScope};
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one member read through its resolution.
@@ -51,7 +54,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 projection,
                 ..
             } => {
-                let receiver = self.lower_adjusted_receiver(left, receiver, is_optional)?;
+                let receiver = self.lower_adjusted_receiver(
+                    left,
+                    receiver,
+                    is_optional,
+                    ReceiverUse::Storage,
+                )?;
 
                 self.lower_member_projection(receiver, projection)
             }
@@ -66,11 +74,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     ..
                 } = &**call
                 else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a dynamic property read".to_string(),
-                    }
-                    .into());
+                    return Err(self.unsupported("a dynamic property read"));
                 };
                 let value =
                     self.lower_function_target_call(left, call, function, None, is_optional)?;
@@ -83,12 +87,83 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::MemberTarget::Field(field) => {
                 self.lower_field_read(expression, left, field, is_optional)
             }
-            // reject every other member read
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("a '{}' member read", other.name()),
+            // read the declaration a member names, a type having no runtime value
+            dir::MemberTarget::Symbol(candidate) => {
+                let symbol = candidate.key.symbol;
+                let kind = self
+                    .lower
+                    .state(symbol.module_id)?
+                    .bindings
+                    .get_symbol(symbol.local_id)
+                    .kind;
+                if kind == dir::SymbolKind::AssociatedConst {
+                    return self.lower_associated_const_read(expression, candidate);
+                }
+
+                self.lower_resolved_value(expression, symbol)
             }
-            .into()),
+            // reject every other member read
+            other => Err(self.unsupported(format!("a '{}' member read", other.name()))),
+        }
+    }
+
+    /// Lower one associated const read at the witness or global answering it.
+    fn lower_associated_const_read(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        candidate: &dir::MemberCandidate,
+    ) -> CompilerResult<mir::Value> {
+        // read an implementer's const through its global
+        let symbol = candidate.key.symbol;
+        let owner = candidate.owner;
+        let is_requirement = matches!(
+            self.lower.definition(owner)?,
+            Some(dir::Definition::Interface(_))
+        );
+        if !is_requirement {
+            return self.lower_resolved_value(expression, symbol);
+        }
+
+        // read a requirement through the witness of the type it was read on
+        let receiver = self.static_receiver_type(candidate.receiver.source())?;
+        let owner_template = self
+            .lower
+            .definition(owner)?
+            .and_then(|definition| definition.template())
+            .map(|template| template.into_global(owner.module_id));
+        let chain = GenericScope::from_templates(self.lower, owner_template, None)?;
+        let arguments = self.selection_arguments(receiver, &candidate.key, &chain)?;
+        let (receiver, interface) =
+            self.lower_witness_types(owner, receiver, &chain, &arguments)?;
+        let Some(member) = self.lower.symbol_name(symbol)? else {
+            return Err(CompilerError::Internal {
+                message: "an associated const without a name".to_string(),
+            });
+        };
+        let ty = self.lower_type(self.node_type_id(expression)?)?;
+
+        Ok(self.builder.constant(
+            mir::Constant::Witness {
+                receiver,
+                interface,
+                member,
+            },
+            ty,
+        ))
+    }
+
+    /// Return the type one static member was read on, a type held in a static term unwrapped.
+    fn static_receiver_type(
+        &mut self,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let dir::Type::Static(value) = self.lower.ty(receiver)? else {
+            return Ok(receiver);
+        };
+        let statics = &self.lower.state(value.module_id)?.statics;
+        match statics.get_static_maybe(value.local_id) {
+            Some(dir::StaticTerm::Type { ty }) => Ok(*ty),
+            _ => Ok(receiver),
         }
     }
 
@@ -111,11 +186,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // read the single access selected for this subscript
         let resolution = self.subscript_decision(expression)?;
         let dir::OperationResolution::One(subscript) = resolution else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a subscript read on a union receiver".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a subscript read on a union receiver"));
         };
 
         // lower the read at the selected target
@@ -128,7 +199,12 @@ impl FunctionLowerer<'_, '_, '_> {
                     projection,
                     ..
                 } => {
-                    let receiver = self.lower_adjusted_receiver(left, &receiver, is_optional)?;
+                    let receiver = self.lower_adjusted_receiver(
+                        left,
+                        &receiver,
+                        is_optional,
+                        ReceiverUse::Storage,
+                    )?;
 
                     // evaluate the computed singleton key
                     if let Some(index) = index {
@@ -158,11 +234,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         self.lower.ty(domain)?,
                         dir::Type::Primitive(dir::PrimitiveType::String)
                     ) {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.lower.module.into(),
-                            construct: "a non-string signature key domain".to_string(),
-                        }
-                        .into());
+                        return Err(self.unsupported("a non-string signature key domain"));
                     }
                     let key = index.ok_or_else(|| CompilerError::Internal {
                         message: "a signature subscript read without a key expression".to_string(),
@@ -171,11 +243,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     self.lower_dynamic_signature_read(expression, left, key)
                 }
                 // reject every other subscript read
-                other => Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("a '{}' subscript read", other.name()),
-                }
-                .into()),
+                other => Err(self.unsupported(format!("a '{}' subscript read", other.name()))),
             },
             // call the resolved subscript getter
             dir::SubscriptTarget::Call(call) => {
@@ -188,11 +256,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     ..
                 } = &call
                 else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a dynamic subscript read".to_string(),
-                    }
-                    .into());
+                    return Err(self.unsupported("a dynamic subscript read"));
                 };
                 let value =
                     self.lower_function_target_call(left, &call, function, None, is_optional)?;
@@ -203,41 +267,43 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             // load the value behind the address the Index protocol returns
             dir::SubscriptTarget::Index(read) => {
-                if read.missing.is_some() {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "an Index read with a missing result".to_string(),
-                    }
-                    .into());
-                }
-
-                // require a directly dispatched Index call
-                let call = read.call;
-                let dir::Call {
-                    target:
-                        dir::CallableTarget::Symbol {
-                            function,
-                            dispatch: dir::FunctionDispatch::Direct,
-                        },
-                    ..
-                } = &call
-                else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a dynamic subscript read".to_string(),
-                    }
-                    .into());
-                };
-                let value =
-                    self.lower_function_target_call(left, &call, function, None, is_optional)?;
-                let value = value.ok_or_else(|| CompilerError::Internal {
-                    message: "a void result from a subscript read".to_string(),
-                })?;
                 let result_type = self.lower_type(read.dereference.ty)?;
+                let address = self.lower_index_address(left, read, is_optional)?;
 
-                Ok(self.builder.load(value, result_type))
+                Ok(self.builder.load(address, result_type))
             }
         }
+    }
+
+    /// Lower the address one Index protocol read returns.
+    pub(in crate::lower) fn lower_index_address(
+        &mut self,
+        left: dir::LocalNodeId<dir::Expression>,
+        read: dir::IndexRead,
+        is_optional: bool,
+    ) -> CompilerResult<mir::Value> {
+        if read.missing.is_some() {
+            return Err(self.internal("an Index read with a missing result"));
+        }
+
+        // require a directly dispatched Index call
+        let call = read.call;
+        let dir::Call {
+            target:
+                dir::CallableTarget::Symbol {
+                    function,
+                    dispatch: dir::FunctionDispatch::Direct,
+                },
+            ..
+        } = &call
+        else {
+            return Err(self.unsupported("a dynamic subscript read"));
+        };
+        let value = self.lower_function_target_call(left, &call, function, None, is_optional)?;
+
+        value.ok_or_else(|| CompilerError::Internal {
+            message: "a void result from a subscript read".to_string(),
+        })
     }
 
     /// Lower one field read.
@@ -255,10 +321,57 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.lower_dynamic_member_read(expression, left, field, &dispatch);
         }
 
+        // read a field of owned storage through its place, keeping the stored value whole
+        if let dir::MemberReceiver::Direct(receiver) = &field.receiver
+            && receiver.adjustments.is_empty()
+            && !is_optional
+            && self.is_owned_value_place(left, field.receiver.ty())?
+        {
+            return self.lower_field_place_read(expression, left, field);
+        }
+
         // lower the receiver the resolution selected
         let value = self.lower_member_receiver(left, &field.receiver, is_optional)?;
 
         self.lower_field_value(expression, value, field)
+    }
+
+    /// Lower one field read by projecting the receiver's place and loading the field.
+    fn lower_field_place_read(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        left: dir::LocalNodeId<dir::Expression>,
+        field: &dir::FieldResolution,
+    ) -> CompilerResult<mir::Value> {
+        // resolve the field's stored representation off the receiver's concrete type
+        let storage = self.field_storage(field)?;
+        let receiver = self.lower_type(field.receiver.ty())?;
+        let concrete = self.builder.tree().represented(receiver);
+        let stored = self.property_representation(concrete, storage.index as usize)?;
+
+        // load the field through the projected place
+        let mut place = self.receiver_place(left)?;
+        place.path.push(PlaceProjection::Field {
+            field: storage.index,
+            ty: stored,
+        });
+        let value = self.read_place(&place)?;
+
+        self.lower_narrowing(expression, value)
+    }
+
+    /// Return whether one expression names owned storage holding a value directly.
+    fn is_owned_value_place(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        // a reference receiver reads through its indirection
+        if self.lower.indirection(ty, &self.scope)?.is_some() {
+            return Ok(false);
+        }
+
+        self.names_storage(expression)
     }
 
     /// Lower one field read from its already adjusted receiver value.
@@ -272,25 +385,34 @@ impl FunctionLowerer<'_, '_, '_> {
         let receiver = field.receiver.ty();
         let indirect = self
             .lower
-            .peel_indirection(receiver)?
+            .indirection(receiver, &self.scope)?
             .map(|layer| layer.stored);
-        let stored = self.union_stored(indirect.unwrap_or(receiver))?;
-        if let dir::Type::Union(_) = self.lower.ty(stored)? {
-            return self.lower_union_field_read(expression, value, field, stored);
+        let subject = indirect.unwrap_or(receiver);
+        if self.lower.union_members_maybe(subject)?.is_some() {
+            return Err(CompilerError::Internal {
+                message: "a field read on an undispatched union receiver".to_string(),
+            });
         }
 
-        // resolve the selected storage field and result type
-        let index = self.member_field_index(field)?;
-        let result_type = self.lower_type(self.node_type_id(expression)?)?;
+        // resolve the selected storage field at its stored representation
+        let storage = self.field_storage(field)?;
 
         // load fields through addresses for reference receivers
-        if let Some(layer) = self.lower.peel_indirection(receiver)? {
-            let address = self.emit_field_address(value, index, result_type, layer.access);
+        let value = match self.innermost_field_address(value, receiver, &storage)? {
+            Some(address) => self.builder.load(address, storage.read),
+            None => self.builder.field_get(value, storage.index),
+        };
 
-            return Ok(self.builder.load(address, result_type));
-        }
+        self.lower_narrowing(expression, value)
+    }
 
-        Ok(self.builder.field_get(value, index))
+    /// Resolve one field's storage index and representation off its receiver representation.
+    fn field_storage(&mut self, field: &dir::FieldResolution) -> CompilerResult<FieldStorage> {
+        let index = self.member_field_index(field)?;
+        let read = field.ty;
+        let read = self.lower_type(read)?;
+
+        Ok(FieldStorage { index, read })
     }
 
     /// Lower one payload-free variant member to its case construction.
@@ -320,11 +442,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 union, cases, ty, ..
             } => self.lower_discriminant_value(receiver, *union, cases, *ty),
             // reject every other projection
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("a '{}' member projection", other.name()),
-            }
-            .into()),
+            other => Err(self.unsupported(format!("a '{}' member projection", other.name()))),
         }
     }
 
@@ -343,52 +461,11 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        // read the arms of the union the receiver carries
-        let source_members = self.union_members(union)?;
-
-        // read the result's literal arms while it stays an indexed union
-        let result = self.lower.ty(ty)?;
-        let is_singleton = result.singleton_literal().is_some();
-        let result_members = match result {
-            dir::Type::Union(_) if self.lower.scalar_literal_union(ty)?.is_some() => None,
-            dir::Type::Union(result) => Some(
-                self.lower
-                    .types(ty.module_id)?
-                    .type_ids(result.elements)
-                    .to_vec(),
-            ),
-            _ => None,
-        };
-
-        // map physical union cases to the projected source values
+        // map physical union cases to the literals they project
         let mut mappings = Vec::with_capacity(cases.len());
         for case in cases {
-            let Some(source_index) = source_members.iter().position(|arm| *arm == case.arm) else {
-                return Err(CompilerError::Internal {
-                    message: "a discriminant projection over an absent union arm".to_string(),
-                });
-            };
-
-            // select the result arm carrying this case's literal
-            let mut result_index = None;
-            if let Some(result_members) = &result_members {
-                for (index, member) in result_members.iter().enumerate() {
-                    let value = self.lower.ty(*member)?.singleton_literal();
-                    if value == Some(case.value) {
-                        result_index = Some(index as u32);
-                        break;
-                    }
-                }
-
-                if result_index.is_none() {
-                    return Err(CompilerError::Internal {
-                        message: "a discriminant projection value absent from its result type"
-                            .to_string(),
-                    });
-                }
-            }
-
-            mappings.push((source_index as i128, result_index, case.value));
+            let source_index = self.case(union, case.arm)?;
+            mappings.push((source_index as i128, case.value));
         }
 
         // dispatch on the physical tag and construct the corresponding source value
@@ -399,23 +476,27 @@ impl FunctionLowerer<'_, '_, '_> {
         let unreachable = self.builder.block();
         let blocks = mappings
             .iter()
-            .map(|(source, _, _)| (*source, self.builder.block()))
+            .map(|(source, _)| (*source, self.builder.block()))
             .collect::<Vec<_>>();
         self.builder.switch(tag, unreachable, blocks.clone());
 
-        // materialize the source-level property value in every reachable case
-        for ((_, result_index, literal), (_, block)) in mappings.into_iter().zip(blocks) {
+        // materialize the projected literal in every reachable case
+        for ((_, literal), (_, block)) in mappings.into_iter().zip(blocks) {
             self.builder.switch_to_block(block);
-            let value = match result_index {
-                Some(result_index) => self.builder.variant_new(result_type, result_index, None),
-                None if is_singleton => {
-                    self.builder.constant(mir::Constant::Undefined, result_type)
-                }
-                None => {
-                    let result_type = self.builder.tree().get(result_type).clone();
+            let value = match self.builder.tree().get(result_type) {
+                mir::Type::Variant { .. } => {
+                    let singleton = self.lower.singleton_type(self.builder.tree_mut(), &literal);
+                    let Some(case) = self.builder.tree().payload_case(result_type, singleton)
+                    else {
+                        return Err(CompilerError::Internal {
+                            message: "a discriminant projection value absent from its result type"
+                                .to_string(),
+                        });
+                    };
 
-                    self.lower_constant(literal, result_type)?
+                    self.builder.variant_new(result_type, case, None)
                 }
+                _ => self.lower_constant(literal, result_type)?,
             };
             self.builder.local_set(result, value);
             self.builder.jump(exit);
@@ -460,46 +541,38 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // require a direct receiver
         let dir::MemberReceiver::Direct(receiver) = receiver else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a member read through dynamic dispatch".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a member read through dynamic dispatch"));
         };
 
-        self.lower_adjusted_receiver(expression, receiver, is_optional)
+        self.lower_adjusted_receiver(expression, receiver, is_optional, ReceiverUse::Storage)
     }
 
     /// Return the storage index selected by one field resolution.
     pub(in crate::lower) fn member_field_index(
-        &self,
+        &mut self,
         field: &dir::FieldResolution,
     ) -> CompilerResult<u32> {
         // locate storage beneath every reference layer of the selected receiver
         let mut stored = field.receiver.ty();
-        while let Some(layer) = self.lower.peel_indirection(stored)? {
+        while let Some(layer) = self.lower.indirection(stored, &self.scope)? {
             if layer.stored == stored {
                 break;
             }
             stored = layer.stored;
         }
-        let mut stored = self.lower.peel_owned(stored)?;
+        let mut stored = self.lower.stored(stored)?;
 
         // follow transparent alias and newtype definitions, re-peeling their owners
         while let dir::Type::Application(application) = self.lower.ty(stored)? {
             let defined = match self.lower.definition(application.symbol)? {
-                Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                Some(dir::Definition::TypeAlias(_)) => {
+                    self.lower.symbol_type(application.symbol)?
+                }
                 Some(dir::Definition::Newtype(newtype)) => newtype.backing,
                 _ => break,
             };
 
-            // read the body through the application's own instance
-            let specialization = self
-                .lower
-                .application_specialization(stored, &application)?;
-            let defined = self.lower.instance_type(specialization, defined)?;
-
-            stored = self.lower.peel_owned(defined)?;
+            stored = self.lower.stored(defined)?;
         }
 
         // find the field's position in the storage the receiver declares
@@ -528,14 +601,10 @@ impl FunctionLowerer<'_, '_, '_> {
                 })
             }
             stored_head => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!(
-                        "a member read on a '{}' receiver",
-                        stored_head.variant_name()
-                    ),
-                }
-                .into());
+                return Err(self.unsupported(format!(
+                    "a member read on a '{}' receiver",
+                    stored_head.variant_name()
+                )));
             }
         };
 
@@ -553,43 +622,16 @@ impl FunctionLowerer<'_, '_, '_> {
         left: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::MemberAccess],
     ) -> CompilerResult<mir::Value> {
-        // read each arm's adjustment chain off its adjusted receiver
-        let mut chains = Vec::with_capacity(arms.len());
-        for arm in arms {
-            chains.push(self.union_arm_receiver(arm)?.adjustments.clone());
-        }
-
-        // take the shared prefix reaching the dispatched union
-        let prefix = shared_adjustment_prefix(&chains);
-
-        // reject an arm re-projecting the payload the dispatch selects
-        for chain in &chains {
-            if let Some(dir::ReceiverAdjustment::UnionPayload { .. }) = chain.get(prefix) {
-                return Err(CompilerError::Internal {
-                    message: "a union member arm re-projecting its dispatched payload".to_string(),
-                });
-            }
-        }
-
-        // evaluate the receiver once and walk the shared prefix to the union
-        let receiver = self.lower_expression(left)?;
-        let first = &chains[0];
-        let dispatch = self.lower_receiver_adjustments(receiver, &first[..prefix])?;
-        let union = match prefix {
-            0 => self.node_type_id(left)?,
-            _ => first[prefix - 1].ty(),
-        };
-        let members = self.union_members(union)?;
-
-        // route each arm by the case its narrowed receiver selects
-        let mut targets = Vec::with_capacity(arms.len());
-        let mut blocks = Vec::with_capacity(arms.len());
-        for arm in arms {
-            let position = self.union_case_position(&members, arm.receiver)?;
-            let block = self.builder.block();
-            targets.push((position, block));
-            blocks.push(block);
-        }
+        // route the arms, then evaluate the receiver once and walk the shared steps
+        let routes = self.union_dispatch(arms)?;
+        let UnionDispatch {
+            chains,
+            prefix,
+            targets,
+        } = &routes;
+        let (prefix, targets) = (*prefix, targets);
+        let receiver = self.lower_value(left)?;
+        let dispatch = self.lower_receiver_adjustments(receiver, &chains[0][..prefix])?;
 
         // dispatch on the value's own discriminant, loading it behind stored receivers
         let received = self.value_representation(dispatch)?;
@@ -622,6 +664,12 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
+        // join stored field arms by address
+        if stored && let Some(storages) = self.union_field_storage(arms)? {
+            return self
+                .lower_union_field_address_read(expression, dispatch, arms, &routes, &storages);
+        }
+
         // run each arm's narrowed read and join the member values
         let ty = self.node_type_id(expression)?;
         let representation = self.lower_type(ty)?;
@@ -629,9 +677,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .builder
             .local(representation, mir::Mutability::Immutable);
         let exit = self.builder.block();
-        for ((arm, chain), ((position, _), block)) in
-            arms.iter().zip(&chains).zip(targets.iter().zip(blocks))
-        {
+        for ((arm, chain), &(position, block)) in arms.iter().zip(chains).zip(targets) {
             self.builder.switch_to_block(block);
 
             // extract the dispatched arm payload, keeping stored receivers addressed
@@ -639,14 +685,18 @@ impl FunctionLowerer<'_, '_, '_> {
                 true => {
                     let target = self.lower_type(arm.receiver)?;
 
-                    self.builder
-                        .variant_payload_addr(dispatch, *position, target)
+                    self.builder.variant_payload_addr(
+                        dispatch,
+                        position,
+                        target,
+                        mir::AddressKind::Projection,
+                    )
                 }
-                false => self.builder.variant_payload(dispatch, *position),
+                false => self.builder.variant_payload(dispatch, position),
             };
 
             // narrow the payload through the arm's remaining adjustments
-            let narrowed = self.lower_receiver_adjustments(payload, &chain[prefix..])?;
+            let narrowed = self.lower_receiver_adjustments(payload, &chain[prefix + 1..])?;
 
             // read the member at the arm's selected target
             let value = match &arm.target {
@@ -657,16 +707,14 @@ impl FunctionLowerer<'_, '_, '_> {
                     self.lower_member_projection(narrowed, projection)?
                 }
                 other => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: format!("a '{}' member read on a union receiver", other.name()),
-                    }
-                    .into());
+                    return Err(self.unsupported(format!(
+                        "a '{}' member read on a union receiver",
+                        other.name()
+                    )));
                 }
             };
 
             // join the arm value at the member's committed representation
-            let value = self.adapt_to_representation(value, representation)?;
             self.builder.local_set(slot, value);
             self.builder.jump(exit);
         }
@@ -677,138 +725,109 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.local_get(slot))
     }
 
-    /// Return one union arm's adjusted receiver.
-    fn union_arm_receiver<'access>(
-        &self,
-        arm: &'access dir::MemberAccess,
-    ) -> CompilerResult<&'access dir::AdjustedReceiver> {
-        let adjusted = match &arm.target {
-            dir::MemberTarget::Field(field) => match &field.receiver {
-                dir::MemberReceiver::Direct(adjusted) => Some(adjusted),
-                _ => None,
-            },
-            dir::MemberTarget::Projection { receiver, .. } => Some(receiver),
-            _ => None,
-        };
+    /// Return every arm's field storage when the arms read one addressed field alike.
+    fn union_field_storage(
+        &mut self,
+        arms: &[dir::MemberAccess],
+    ) -> CompilerResult<Option<Vec<FieldStorage>>> {
+        let mut storages = Vec::with_capacity(arms.len());
+        for arm in arms {
+            let dir::MemberTarget::Field(field) = &arm.target else {
+                return Ok(None);
+            };
+            if self
+                .lower
+                .indirection(field.receiver.ty(), &self.scope)?
+                .is_none()
+            {
+                return Ok(None);
+            }
+            storages.push(self.field_storage(field)?);
+        }
 
-        adjusted.ok_or_else(|| CompilerError::Internal {
-            message: "a union member arm without an adjusted receiver".to_string(),
-        })
+        // require one read representation across the arms
+        let shared = storages
+            .iter()
+            .all(|storage| storage.read == storages[0].read);
+
+        Ok(shared.then_some(storages))
     }
 
-    /// Dispatch one shared field read over its union receiver's cases.
-    fn lower_union_field_read(
+    /// Dispatch one field read over addressed union arms, joining the field addresses.
+    fn lower_union_field_address_read(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        value: mir::Value,
-        field: &dir::FieldResolution,
-        union: dir::GlobalTypeId,
+        dispatch: mir::Value,
+        arms: &[dir::MemberAccess],
+        routes: &UnionDispatch,
+        storages: &[FieldStorage],
     ) -> CompilerResult<mir::Value> {
-        // settle the receiver to the bare dispatched variant value
-        let mut value = value;
-        loop {
-            let received = self.value_representation(value)?;
-            match self.builder.tree().get(received).clone() {
-                // load the union out of stored receivers holding a tagged payload
-                mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. }
-                    if matches!(
-                        self.builder.tree().get(pointee),
-                        mir::Type::Variant { .. }
-                            | mir::Type::Newtype { .. }
-                            | mir::Type::Reference { .. }
-                            | mir::Type::Pointer { .. }
-                    ) =>
-                {
-                    value = self.builder.load(value, pointee);
-                }
-                // unwrap enclosing newtype layers
-                mir::Type::Newtype { .. } => value = self.builder.field_get(value, 0),
-                // stop at the bare variant
-                mir::Type::Variant { .. } => break,
-                // reject an erased union layout until descriptor dispatch exists
-                _ => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a member read on an erased union layout".to_string(),
-                    }
-                    .into());
-                }
-            }
-        }
-
-        // route each case to its own block
-        let members = self.union_members(union)?;
-        let mut targets = Vec::with_capacity(members.len());
-        for index in 0..members.len() {
-            targets.push((index as u32, self.builder.block()));
-        }
-        self.builder.variant_switch(value, None, targets.clone());
-
-        // read the shared key off each case and join the values
-        let result_type = self.lower_type(self.node_type_id(expression)?)?;
-        let slot = self.builder.local(result_type, mir::Mutability::Immutable);
+        let prefix = routes.prefix;
         let exit = self.builder.block();
-        for (member, (position, block)) in members.iter().zip(targets) {
+        let mut slot = None;
+        for (((arm, chain), &(position, block)), storage) in arms
+            .iter()
+            .zip(&routes.chains)
+            .zip(&routes.targets)
+            .zip(storages)
+        {
             self.builder.switch_to_block(block);
 
-            // find the key's position on this case's nominal
-            let arm = self.lower.peel_owned(*member)?;
-            let dir::Type::Application(application) = self.lower.ty(arm)? else {
+            // address the dispatched arm payload and narrow it to the field's receiver
+            let target = self.lower_type(arm.receiver)?;
+            let payload = self.builder.variant_payload_addr(
+                dispatch,
+                position,
+                target,
+                mir::AddressKind::Projection,
+            );
+            let narrowed = self.lower_receiver_adjustments(payload, &chain[prefix + 1..])?;
+            let dir::MemberTarget::Field(field) = &arm.target else {
                 return Err(CompilerError::Internal {
-                    message: "a union field read on a structural arm".to_string(),
-                });
-            };
-            let fields = self.lower.nominal_fields(application.symbol)?;
-            let key = field.target.key();
-            let Some(index) = fields.iter().position(|stored| stored.key == key) else {
-                return Err(CompilerError::Internal {
-                    message: "a shared field absent from one union arm".to_string(),
+                    message: "an address-joined union arm outside a field read".to_string(),
                 });
             };
 
-            // read the field off the payload, loading through reference arms
-            let payload = self.builder.variant_payload(value, position);
-            let received = self.value_representation(payload)?;
-            let read = match self.builder.tree().get(received).clone() {
-                // read a stored arm through its field address
-                mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
-                    let address = self.emit_field_address(
-                        payload,
-                        index as u32,
-                        result_type,
-                        mir::Access::Readonly,
-                    );
-
-                    self.builder.load(address, result_type)
+            // join the field address at the arms' shared address representation
+            let Some(address) =
+                self.innermost_field_address(narrowed, field.receiver.ty(), storage)?
+            else {
+                return Err(CompilerError::Internal {
+                    message: "an address-joined union arm behind a value receiver".to_string(),
+                });
+            };
+            let slot = match slot {
+                Some(slot) => slot,
+                None => {
+                    let representation = self.value_representation(address)?;
+                    *slot.insert(
+                        self.builder
+                            .local(representation, mir::Mutability::Immutable),
+                    )
                 }
-                // read a value arm's field directly
-                _ => self.builder.field_get(payload, index as u32),
             };
-
-            // join the case value at the field's committed representation
-            let read = self.adapt_to_representation(read, result_type)?;
-            self.builder.local_set(slot, read);
+            self.builder.local_set(slot, address);
             self.builder.jump(exit);
         }
+        let Some(slot) = slot else {
+            return Err(CompilerError::Internal {
+                message: "a union field read without arms".to_string(),
+            });
+        };
 
-        // continue lowering at the exit block
+        // load the joined field once at the exit
         self.builder.switch_to_block(exit);
+        let address = self.builder.local_get(slot);
+        let value = self.builder.load(address, storages[0].read);
 
-        Ok(self.builder.local_get(slot))
+        self.lower_narrowing(expression, value)
     }
 }
 
-/// Return the length of the adjustment prefix every chain shares.
-fn shared_adjustment_prefix(chains: &[Vec<dir::ReceiverAdjustment>]) -> usize {
-    let Some(first) = chains.first() else {
-        return 0;
-    };
-
-    (0..first.len())
-        .take_while(|index| {
-            chains
-                .iter()
-                .all(|chain| chain.get(*index) == Some(&first[*index]))
-        })
-        .count()
+/// One field's storage index and read representation within its receiver.
+pub(in crate::lower) struct FieldStorage {
+    /// The field's index within the receiver's aggregate.
+    pub(in crate::lower) index: u32,
+    /// The representation the read produces.
+    pub(in crate::lower) read: mir::LocalNodeId<mir::Type>,
 }

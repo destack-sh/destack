@@ -3,6 +3,7 @@ mod binding;
 mod call;
 mod closure;
 mod control;
+mod derive;
 mod dynamic;
 mod generic;
 mod library;

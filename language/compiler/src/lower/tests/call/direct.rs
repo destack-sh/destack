@@ -14,20 +14,36 @@ function quad(x: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.double",
         r#"
 function test.main.double(v0: int32): int32 {
-entry(v0: int32):
-    v1: int32 = add v0, v0
-    return v1
-}
+    local l0: int32
 
-function test.main.quad(v0: int32): int32 {
 entry(v0: int32):
-    v1: int32 = call test.main.double(v0): (int32) => int32
+    local.set l0, v0
+    v1: int32 = local.get l0
+    v2: int32 = local.get l0
+    v3: int32 = add v1, v2
+    return v3
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.quad",
+        r#"
+function test.main.quad(v0: int32): int32 {
+    local l0: int32
+
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
     v2: int32 = call test.main.double(v1): (int32) => int32
-    return v2
+    v3: int32 = call test.main.double(v2): (int32) => int32
+    return v3
 }
 "#,
     );
@@ -46,18 +62,29 @@ function run(x: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.noop",
         r#"
 function test.main.noop(): void {
 entry:
     return
 }
+"#,
+    );
 
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.run",
+        r#"
 function test.main.run(v0: int32): int32 {
+    local l0: int32
+
 entry(v0: int32):
+    local.set l0, v0
     call test.main.noop(): () => void
-    return v0
+    v1: int32 = local.get l0
+    return v1
 }
 "#,
     );

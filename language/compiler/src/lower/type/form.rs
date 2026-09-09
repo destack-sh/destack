@@ -1,8 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
-use destack_source::ModuleId;
 
-use crate::lower::{LowerState, TypeLowerer};
+use crate::lower::{GenericScope, ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// One indirect layer peeled from a value type.
@@ -39,8 +38,8 @@ impl TypeLowerer<'_, '_> {
             dir::Form::Managed { place } => {
                 // enter the referent place for the duration of the layer
                 let saved = self.space;
-                if let Some(space) = self.lower.place_space(place)? {
-                    self.space = LowerState::mir_space(space);
+                if let Some(space) = self.lower_space(place)? {
+                    self.space = space;
                 }
 
                 // lower the reference and restore the ambient space
@@ -64,29 +63,32 @@ impl TypeLowerer<'_, '_> {
                 };
 
                 // split the declared region into its extent and referent place
-                let (region, borrow_access) = (borrow.region, borrow.access);
+                let (region, access_argument) = (borrow.region, borrow.access);
                 let (lifetime, spaces) = match self.lower.ty(region)? {
                     dir::Type::Region(pair) => (pair.extent, Some(pair.space)),
                     _ => (region, None),
                 };
 
                 // lower the extent and access the borrow declares
-                let lifetime = self
-                    .lower
-                    .lower_lifetime(lifetime, self.lifetime_parameters)?;
-                let borrow_access = self.lower.borrow_access(borrow_access)?;
+                let lifetime = self.lower.lower_lifetime(lifetime, self.scope)?;
+                let borrow_access = self.lower_access(access_argument)?;
 
-                // select the reference storage from the referent place,
-                //  keeping the ambient space for a parametric place
+                // select the reference storage from the referent place, a region parameter of a
+                // type declaration naming both coordinates, keeping the ambient space for an
+                // induced place
                 let saved = self.space;
                 if let Some(spaces) = spaces {
-                    if let Some(space) = self.lower.place_space(spaces)? {
-                        self.space = LowerState::mir_space(space);
+                    if let Some(space) = self.lower_space(spaces)? {
+                        self.space = space;
                     } else if matches!(self.lower.ty(spaces)?, dir::Type::Union(_)) {
                         return Err(CompilerError::Internal {
                             message: "borrow region carries a space join".to_string(),
                         });
                     }
+                } else if let dir::Type::Parameter(parameter) = self.lower.ty(region)?
+                    && let Some(index) = self.scope.parameter_index(parameter)
+                {
+                    self.space = mir::Space::Parameter(index);
                 }
 
                 // lower the reference and restore the ambient space
@@ -111,12 +113,34 @@ impl TypeLowerer<'_, '_> {
                 .lower_reference(
                     mir::ReferenceKind::Unique,
                     mir::Lifetime::empty(),
-                    access.unwrap_or(mir::Access::Exclusive),
+                    access.unwrap_or(mir::Access::Mutable),
                     form.value,
                 ),
 
             // hold storage directly for owned value families
             dir::Form::Owned => self.lower_pointee(form.value),
+        }
+    }
+
+    /// Return the element of one payload represented as a slice, through newtype layers.
+    fn slice_element(
+        &mut self,
+        payload: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        // read a slice payload's element as written, a nominal payload's through its representation
+        let lowered = match self.lower.ty(payload)? {
+            dir::Type::Slice(slice) => return Ok(Some(self.lower(slice.element)?)),
+            dir::Type::Application(_) | dir::Type::Reference(_) => self.lower(payload)?,
+            _ => return Ok(None),
+        };
+        let mut current = mir::TypeId::from(lowered);
+        loop {
+            let represented = self.tree.represented(current);
+            match self.tree.get(represented) {
+                mir::Type::Slice { element, .. } => return Ok(Some(*element)),
+                mir::Type::Newtype { inner, .. } => current = *inner,
+                _ => return Ok(None),
+            }
         }
     }
 
@@ -138,7 +162,6 @@ impl TypeLowerer<'_, '_> {
                 constraint,
                 storage: mir::Storage::heap(self.space),
                 access,
-                nullability: mir::Nullability::None,
             }));
         }
 
@@ -154,34 +177,60 @@ impl TypeLowerer<'_, '_> {
                 lifetime,
                 storage: mir::Storage::heap(self.space),
                 access,
-                nullability: mir::Nullability::None,
             }));
         }
 
         // fuse slice values with the layer into one fat descriptor
-        if let Some(slice) = self.lower.slice_pointee(payload)? {
-            let element = self.lower(slice.element)?;
-
+        if let Some(element) = self.slice_element(payload)? {
             return Ok(self.tree.intern_type(mir::Type::Slice {
                 kind,
                 lifetime,
                 element,
                 storage: mir::Storage::heap(self.space),
                 access,
-                nullability: mir::Nullability::None,
             }));
         }
 
-        // otherwise reference the lowered pointee thinly
+        // fuse a pointee represented as a fat reference with the layer
         let pointee = self.lower_pointee(payload)?;
+        let mut fat = self.tree.get(pointee).clone();
+        if let mir::Type::Function {
+            kind: fat_kind,
+            lifetime: fat_lifetime,
+            storage,
+            access: fat_access,
+            ..
+        }
+        | mir::Type::Dynamic {
+            kind: fat_kind,
+            lifetime: fat_lifetime,
+            storage,
+            access: fat_access,
+            ..
+        }
+        | mir::Type::Slice {
+            kind: fat_kind,
+            lifetime: fat_lifetime,
+            storage,
+            access: fat_access,
+            ..
+        } = &mut fat
+        {
+            *fat_kind = kind;
+            *fat_lifetime = lifetime;
+            *storage = mir::Storage::heap(self.space);
+            *fat_access = access;
 
+            return Ok(self.tree.intern_type(fat));
+        }
+
+        // otherwise reference the lowered pointee thinly
         Ok(self.tree.intern_type(mir::Type::Reference {
             kind,
             lifetime,
             storage: mir::Storage::heap(self.space),
             access,
             pointee,
-            nullability: mir::Nullability::None,
         }))
     }
 
@@ -193,11 +242,9 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let pointee = self.lower_pointee(payload)?;
 
-        Ok(self.tree.intern_type(mir::Type::Pointer {
-            pointee,
-            access,
-            nullability: mir::Nullability::None,
-        }))
+        Ok(self
+            .tree
+            .intern_type(mir::Type::Pointer { pointee, access }))
     }
 
     /// Lower one type as the pointee behind a reference or owner.
@@ -205,9 +252,14 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        // store a dependent pointee as its parameter
+        if self.scope.dependent_index(id).is_some() {
+            return self.lower(id);
+        }
+
         // store reference primitives as their representation classes
         let ty = self.lower.ty(id)?;
-        if let Some(item) = LowerState::representation_item(&ty) {
+        if let Some(item) = ModuleLowerer::representation_item(&ty) {
             let symbol = self.lower.language_item_symbol(item)?;
             let source = self.lower.symbol_type(symbol)?;
 
@@ -215,10 +267,8 @@ impl TypeLowerer<'_, '_> {
         }
 
         match ty {
-            // reject contextual this, which materialization resolves before lowering
-            dir::Type::This => Err(CompilerError::Internal {
-                message: "an unresolved contextual this".to_string(),
-            }),
+            // store an interface receiver as its parameter
+            dir::Type::This => self.lower(id),
             // store nominals as their declared type
             dir::Type::Application(_) => {
                 let nominal = self.lower_nominal(id)?;
@@ -245,7 +295,7 @@ impl TypeLowerer<'_, '_> {
         access: Option<mir::Access>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // reference families receive the access on their implicit managed layer
-        if self.lower.has_indirect_representation(id)? {
+        if self.lower.indirection(id, self.scope)?.is_some() {
             return self.lower_reference(
                 mir::ReferenceKind::Managed,
                 mir::Lifetime::empty(),
@@ -258,11 +308,12 @@ impl TypeLowerer<'_, '_> {
     }
 }
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Return the outermost indirect layer of one value type, when one exists.
-    pub(in crate::lower) fn peel_indirection(
-        &self,
+    pub(in crate::lower) fn indirection(
+        &mut self,
         id: dir::GlobalTypeId,
+        scope: &GenericScope,
     ) -> CompilerResult<Option<Indirection>> {
         match self.ty(id)? {
             // form layers select their indirection by constructor
@@ -274,12 +325,13 @@ impl LowerState<'_> {
                 })),
                 // borrowed layers expose their declared access
                 dir::Form::Borrowed(borrow) => {
-                    let Some(borrow) = self.types(id.module_id)?.borrow_form_maybe(borrow) else {
+                    let Some(borrow) = self.types(id.module_id)?.borrow_form_maybe(borrow).cloned()
+                    else {
                         return Err(CompilerError::Internal {
                             message: "a missing borrow form".to_string(),
                         });
                     };
-                    let access = self.borrow_access(borrow.access)?;
+                    let access = self.access_in(borrow.access, scope)?;
 
                     Ok(Some(Indirection {
                         stored: form.value,
@@ -288,7 +340,7 @@ impl LowerState<'_> {
                 }
                 // narrow the layer beneath views
                 dir::Form::Readonly => {
-                    let layer = self.peel_indirection(form.value)?;
+                    let layer = self.indirection(form.value, scope)?;
 
                     Ok(layer.map(|layer| Indirection {
                         access: mir::Access::Readonly,
@@ -299,70 +351,59 @@ impl LowerState<'_> {
                 dir::Form::Owned if self.is_reference_representation(form.value)? => {
                     Ok(Some(Indirection {
                         stored: form.value,
-                        access: mir::Access::Exclusive,
+                        access: mir::Access::Mutable,
                     }))
                 }
                 // owned values hold storage directly
                 dir::Form::Owned => Ok(None),
             },
 
-            // nullable unions reference through their representation
-            dir::Type::Union(union) => match self.decompose_nullish_union(id.module_id, &union)? {
-                Some((_, representation)) => self.peel_indirection(representation),
-                None => Ok(None),
-            },
-
             // bare reference families carry an implicit managed layer
-            _ => match self.has_indirect_representation(id)? {
-                true => Ok(Some(Indirection {
+            other => match self.base_default_ownership(&other)? {
+                dir::Ownership::Managed => Ok(Some(Indirection {
                     stored: id,
                     access: mir::Access::Mutable,
                 })),
-                false => Ok(None),
+                _ => Ok(None),
             },
         }
     }
 
     /// Return the storage base beneath one value's owner and view layers.
-    pub(in crate::lower) fn peel_owned(
-        &self,
+    pub(in crate::lower) fn stored(
+        &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         match self.ty(id)? {
-            // store the payload of owners and views directly
             dir::Type::Form(form) => match form.form {
-                dir::Form::Owned | dir::Form::Readonly => self.peel_owned(form.value),
+                dir::Form::Owned | dir::Form::Readonly => self.stored(form.value),
                 _ => Ok(id),
             },
             _ => Ok(id),
         }
     }
 
-    /// Return whether one type has an indirect runtime representation.
-    pub(in crate::lower) fn has_indirect_representation(
-        &self,
+    /// Return the ownership one type's outermost layer carries.
+    pub(in crate::lower) fn ownership(
+        &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
+    ) -> CompilerResult<dir::Ownership> {
         match self.ty(id)? {
-            // answer form layers by their outermost constructor
             dir::Type::Form(form) => match form.form {
-                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(true),
-                // intrinsic fat owners retain a unique reference representation
-                dir::Form::Owned => self.is_reference_representation(form.value),
+                dir::Form::Owned => Ok(dir::Ownership::Owned),
                 // views answer for the layer beneath
-                dir::Form::Readonly => self.has_indirect_representation(form.value),
+                dir::Form::Readonly => self.ownership(form.value),
+                dir::Form::Managed { .. } => Ok(dir::Ownership::Managed),
+                dir::Form::Borrowed(_) => Ok(dir::Ownership::Borrowed),
+                dir::Form::Raw => Ok(dir::Ownership::Raw),
             },
-
-            // answer every bare base, unions included, by its family default
-            other => {
-                Ok(self.base_default_ownership(id.module_id, &other)? == dir::Ownership::Managed)
-            }
+            other => self.base_default_ownership(&other),
         }
     }
 
     /// Return the concrete space one place singleton names.
     pub(in crate::lower) fn place_space(
-        &self,
+        &mut self,
         place: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Space>> {
         let space = match self.ty(place)? {
@@ -388,42 +429,41 @@ impl LowerState<'_> {
     }
 
     /// Return whether one value has an intrinsic reference representation.
-    fn is_reference_representation(&self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
-        let ty = self.ty(id)?;
-
-        Ok(matches!(
-            ty,
-            dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_)
-        ))
+    fn is_reference_representation(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        Ok(match self.ty(id)? {
+            dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => true,
+            // the callable newtype represents itself as the callable reference
+            dir::Type::Application(application) => {
+                self.language_item(application.symbol) == Some(dir::LanguageItem::Function)
+            }
+            _ => false,
+        })
     }
 
     /// Return the default ownership one named declaration's family carries.
     fn symbol_default_ownership(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::Ownership> {
-        Ok(match self.definition(symbol)? {
+        Ok(match self.definition(symbol)?.cloned() {
             // classes and interfaces default to managed
             Some(dir::Definition::Class(_) | dir::Definition::Interface(_)) => {
                 dir::Ownership::Managed
             }
             // follow a transparent alias default to its defined value
-            Some(dir::Definition::TypeAlias(alias)) if self.language_item(symbol).is_none() => {
-                let value = self.ty(alias.value)?;
+            Some(dir::Definition::TypeAlias(_)) if self.language_item(symbol).is_none() => {
+                let value = self.symbol_type(symbol)?;
+                let value = self.ty(value)?;
 
-                self.base_default_ownership(alias.value.module_id, &value)?
+                self.base_default_ownership(&value)?
             }
             // every other declaration defaults to owned
             _ => dir::Ownership::Owned,
         })
     }
 
-    /// Return the default ownership of one base type family declared in one module.
-    fn base_default_ownership(
-        &self,
-        module: ModuleId,
-        base: &dir::Type,
-    ) -> CompilerResult<dir::Ownership> {
+    /// Return the default ownership of one base type family.
+    fn base_default_ownership(&mut self, base: &dir::Type) -> CompilerResult<dir::Ownership> {
         Ok(match base {
             // default reference families to managed
             dir::Type::Dynamic(_)
@@ -456,25 +496,14 @@ impl LowerState<'_> {
             dir::Type::Variant(variant) => {
                 let owner = self.ty(variant.owner)?;
 
-                return self.base_default_ownership(variant.owner.module_id, &owner);
+                return self.base_default_ownership(&owner);
             }
 
-            // follow the reference representation of a nullish union, hold indexed unions directly
-            dir::Type::Union(union) => {
-                let Some((_, representation)) = self.decompose_nullish_union(module, union)? else {
-                    return Ok(dir::Ownership::Owned);
-                };
+            // hold unions directly as their variant
+            dir::Type::Union(_) => dir::Ownership::Owned,
 
-                match self.has_indirect_representation(representation)? {
-                    true => dir::Ownership::Managed,
-                    false => dir::Ownership::Owned,
-                }
-            }
-
-            // reject contextual this, which materialization resolves before lowering
-            dir::Type::This => Err(CompilerError::Internal {
-                message: "an unresolved contextual this".to_string(),
-            })?,
+            // own a parameter's value and an interface receiver until their arguments say otherwise
+            dir::Type::Parameter(_) | dir::Type::This => dir::Ownership::Owned,
 
             // reject every other head
             other => Err(LowerError::Unsupported {
@@ -484,130 +513,72 @@ impl LowerState<'_> {
         })
     }
 
-    /// Return the flattened members of one union, transparent aliases expanding in place.
-    pub(in crate::lower) fn flatten_union_members(
-        &self,
-        module: ModuleId,
-        union: &dir::UnionType,
+    /// Return the members one written type lowers as a union of, through forms and bare names.
+    pub(in crate::lower) fn union_members(
+        &mut self,
+        id: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let elements = self.types(module)?.type_ids(union.elements).to_vec();
-        let mut queue = std::collections::VecDeque::from(elements);
-        let mut members = Vec::new();
-        while let Some(element) = queue.pop_front() {
-            // peel owned forms and transparent aliases to the member's leaf
-            let mut leaf = self.peel_owned(element)?;
-            loop {
-                let dir::Type::Application(application) = self.ty(leaf)? else {
-                    break;
-                };
-                let Some(dir::Definition::TypeAlias(alias)) =
-                    self.definition(application.symbol)?
-                else {
-                    break;
-                };
-                let value = alias.value;
+        match self.union_members_maybe(id)? {
+            Some(members) => Ok(members),
+            None => {
+                let path = self.state(id.module_id)?.path.clone();
+                let ty = self.ty(id)?;
 
-                // read the body through the application's own instance
-                let specialization = self.application_specialization(leaf, &application)?;
-                let value = self.instance_type(specialization, value)?;
-                leaf = self.peel_owned(value)?;
+                Err(CompilerError::Internal {
+                    message: format!("a union {ty:?} of '{path}' without a union head"),
+                })
             }
+        }
+    }
 
-            // expand a nested union's members in declaration order
-            if let dir::Type::Union(nested) = self.ty(leaf)? {
-                let nested = self
-                    .types(leaf.module_id)?
-                    .type_ids(nested.elements)
-                    .to_vec();
-                for (offset, member) in nested.into_iter().enumerate() {
-                    queue.insert(offset, member);
-                }
+    /// Return the members a written type lowers as a union of, through forms and bare names.
+    pub(in crate::lower) fn union_members_maybe(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<Vec<dir::GlobalTypeId>>> {
+        let mut current = ty;
+        loop {
+            // read the reduction recorded at this written head, following it past the union
+            // families it lowers through
+            if let Some(reduced) = self.types(current.module_id)?.reduction(current) {
+                current = reduced;
 
                 continue;
             }
-
-            // keep each member once
-            if !members.contains(&leaf) {
-                members.push(leaf);
+            match self.ty(current)? {
+                dir::Type::Union(union) => {
+                    return Ok(Some(
+                        self.types(current.module_id)?
+                            .type_ids(union.elements)
+                            .to_vec(),
+                    ));
+                }
+                // step beneath the forms a stored receiver reads through
+                dir::Type::Form(form)
+                    if matches!(
+                        form.form,
+                        dir::Form::Owned | dir::Form::Readonly | dir::Form::Borrowed(_)
+                    ) =>
+                {
+                    current = form.value;
+                }
+                // read a bare alias or newtype name through its body
+                dir::Type::Application(application) if application.arguments.is_empty() => {
+                    current = match self.definition(application.symbol)? {
+                        Some(dir::Definition::TypeAlias(_)) => {
+                            self.symbol_type(application.symbol)?
+                        }
+                        Some(dir::Definition::Newtype(newtype)) => newtype.backing,
+                        _ => return Ok(None),
+                    };
+                }
+                _ => return Ok(None),
             }
         }
-
-        Ok(members)
-    }
-
-    /// Split one union into its nullish values and single reference representation.
-    pub(in crate::lower) fn decompose_nullish_union(
-        &self,
-        module: ModuleId,
-        union: &dir::UnionType,
-    ) -> CompilerResult<Option<(mir::Nullability, dir::GlobalTypeId)>> {
-        // split the flattened members into nullish values and reference representations
-        let mut nullability = (false, false);
-        let mut representations = Vec::new();
-        for id in self.flatten_union_members(module, union)? {
-            match self.ty(id)? {
-                // take nullish members onto the representation's spare values
-                dir::Type::Null => nullability.0 = true,
-                dir::Type::Undefined => nullability.1 = true,
-                _ => representations.push(id),
-            }
-        }
-
-        // require one reference member to carry the union
-        let &[representation] = representations.as_slice() else {
-            return Ok(None);
-        };
-        if !self.has_indirect_representation(representation)? {
-            return Ok(None);
-        }
-
-        // fold the nullish members into the nullability the representation admits
-        let nullability = match nullability {
-            (true, true) => mir::Nullability::NullOrUndefined,
-            (true, false) => mir::Nullability::Null,
-            (false, true) => mir::Nullability::Undefined,
-            (false, false) => {
-                return Err(CompilerError::Internal {
-                    message: "a union without a nullish member".to_string(),
-                });
-            }
-        };
-
-        Ok(Some((nullability, representation)))
     }
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Widen one lowered reference-like type with the nullish values it admits.
-    pub(in crate::lower) fn insert_nullability(
-        &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
-        nullability: mir::Nullability,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // widen through lifetime applications onto their base
-        if let mir::Type::Application { base, lifetimes } = self.tree.get(ty) {
-            let (base, lifetimes) = (*base, lifetimes.clone());
-            let base = self.insert_nullability(base, nullability)?;
-
-            return Ok(self.tree.intern_type(mir::Type::Application {
-                base: mir::TypeId::from(base),
-                lifetimes,
-            }));
-        }
-
-        // widen the lowered type in place
-        let mut ty = self.tree.get(ty).clone();
-        if !ty.set_nullability(nullability) {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("a nullable union over the '{ty:?}' representation"),
-            }
-            .into());
-        }
-
-        Ok(self.tree.intern_type(ty))
-    }
-
     /// Insert one reference type over a pointee in the ambient space.
     pub(in crate::lower) fn insert_reference(
         &mut self,
@@ -621,7 +592,6 @@ impl TypeLowerer<'_, '_> {
             storage: mir::Storage::heap(self.space),
             access,
             pointee,
-            nullability: mir::Nullability::None,
         })
     }
 
@@ -634,9 +604,12 @@ impl TypeLowerer<'_, '_> {
     }
 }
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Return the access of one borrow access singleton.
-    fn borrow_access(&self, access: dir::GlobalTypeId) -> CompilerResult<mir::Access> {
+    pub(in crate::lower) fn borrow_access(
+        &mut self,
+        access: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Access> {
         let access = self
             .memory_text(access)?
             .and_then(dir::Access::from_text)
@@ -644,24 +617,29 @@ impl LowerState<'_> {
                 message: "an unknown borrow access value".to_string(),
             })?;
 
-        Ok(match access {
+        Ok(ModuleLowerer::mir_access(access))
+    }
+
+    /// Return the MIR access one access type names, a parameter by its index.
+    pub(in crate::lower) fn access_in(
+        &mut self,
+        access: dir::GlobalTypeId,
+        scope: &GenericScope,
+    ) -> CompilerResult<mir::Access> {
+        if let dir::Type::Parameter(parameter) = self.ty(access)?
+            && let Some(index) = scope.parameter_index(parameter)
+        {
+            return Ok(mir::Access::Parameter(index));
+        }
+
+        self.borrow_access(access)
+    }
+
+    /// Return the MIR access one declared access names.
+    pub(in crate::lower) fn mir_access(access: dir::Access) -> mir::Access {
+        match access {
             dir::Access::Readonly => mir::Access::Readonly,
             dir::Access::Mutable => mir::Access::Mutable,
-            dir::Access::Exclusive => mir::Access::Exclusive,
-        })
+        }
     }
-}
-
-/// Return one type with its own top-level lifetime erased.
-pub(in crate::lower) fn erase_type_lifetime(
-    tree: &mut mir::Tree,
-    node: mir::LocalNodeId<mir::Type>,
-) -> mir::LocalNodeId<mir::Type> {
-    // keep the interned node when its lifetime is already empty
-    let erased = tree.get(node).erased_lifetime();
-    if erased == *tree.get(node) {
-        return node;
-    }
-
-    tree.intern_type(erased)
 }

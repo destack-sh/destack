@@ -6,7 +6,7 @@ use crate::{CompilerError, CompilerResult};
 impl FunctionLowerer<'_, '_, '_> {
     /// Return the type behind one expression node.
     pub(in crate::lower) fn node_type(
-        &self,
+        &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<dir::Type> {
         self.lower.ty(self.node_type_id(expression)?)
@@ -27,7 +27,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: format!("a missing type for node {}", node.local_id.id),
                 })?;
 
-        self.lower.instance_type(self.instance, ty)
+        Ok(ty)
     }
 
     /// Return the call resolution of one applying expression.

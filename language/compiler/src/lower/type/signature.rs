@@ -2,20 +2,18 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{LifetimeParameters, LowerState, TypeLowerer};
+use crate::lower::{GenericScope, ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl TypeLowerer<'_, '_> {
     /// Lower one checked callable signature into MIR parameter and result types.
-    fn lower_signature(
+    fn signature_types(
         &mut self,
         declared: dir::GlobalTypeId,
         widens_optional: bool,
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
-        // resolve the written signature through its materialized types
-        let declared = self.lower.instance_type(self.instance, declared)?;
         let (signature, owner) = self.lower.signature(declared)?;
-        let signature = self.lower.types(owner)?.signature(signature);
+        let signature = *self.lower.types(owner)?.signature(signature);
         let parameter_types = self
             .lower
             .types(owner)?
@@ -56,10 +54,7 @@ impl TypeLowerer<'_, '_> {
             return Ok(false);
         }
 
-        // ground the declared type through the instance
-        let grounded = self.lower.instance_type(self.instance, ty)?;
-
-        Ok(!self.lower.contains_undefined(grounded)?)
+        Ok(!self.lower.contains_undefined(ty)?)
     }
 
     /// Lower one checked callable signature into a MIR signature type.
@@ -73,9 +68,9 @@ impl TypeLowerer<'_, '_> {
     }
 }
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Return whether one type carries an undefined member.
-    fn contains_undefined(&self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
+    fn contains_undefined(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<bool> {
         match self.ty(ty)? {
             dir::Type::Undefined => Ok(true),
             dir::Type::Union(union) => {
@@ -96,15 +91,11 @@ impl LowerState<'_> {
         &mut self,
         tree: &mut mir::Tree,
         declared: dir::GlobalTypeId,
-        specialization: Option<(ModuleId, dir::LocalInstanceId)>,
-        lifetime_parameters: &LifetimeParameters,
+        scope: &GenericScope,
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
-        let pointer_bytes = self.pointer_bytes;
-        let mut lower = self
-            .type_lowerer(tree, pointer_bytes, lifetime_parameters)
-            .with_instance(specialization);
+        let mut lower = self.type_lowerer(tree, scope);
 
-        lower.lower_signature(declared, true)
+        lower.signature_types(declared, true)
     }
 
     /// Lower one binding signature at the host's exact calling convention.
@@ -112,12 +103,11 @@ impl LowerState<'_> {
         &mut self,
         tree: &mut mir::Tree,
         declared: dir::GlobalTypeId,
-        lifetime_parameters: &LifetimeParameters,
+        scope: &GenericScope,
     ) -> CompilerResult<(Vec<mir::TypeId>, mir::TypeId)> {
-        let pointer_bytes = self.pointer_bytes;
-        let mut lower = self.type_lowerer(tree, pointer_bytes, lifetime_parameters);
+        let mut lower = self.type_lowerer(tree, scope);
 
-        lower.lower_signature(declared, false)
+        lower.signature_types(declared, false)
     }
 }
 
@@ -143,7 +133,7 @@ impl TypeLowerer<'_, '_> {
             .into());
         }
 
-        self.lower_bare_signature(&signature, owner)
+        self.lower_bare_signature(&signature, owner, None, None)
     }
 
     /// Lower one signature, leaving any receiver to its dispatch.
@@ -151,21 +141,13 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         signature: &dir::FunctionSignatureType,
         module: ModuleId,
+        template: Option<dir::GlobalGenericTemplateId>,
+        declaration: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // reject asynchronous and generator signatures
-        if signature.asynchrony != dir::Asynchrony::Sync || signature.is_generator {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "an asynchronous function value".to_string(),
-            }
-            .into());
-        }
-
-        // close the signature over its own lifetime slots
-        let lifetime_parameters = match signature.template {
-            Some(template) => LifetimeParameters::from_template(self.lower, template)?,
-            None => LifetimeParameters::default(),
-        };
+        // close the signature over its own lifetime slots and dependents
+        let scope =
+            GenericScope::for_signature(self.lower, signature.template.or(template), declaration)?
+                .with_parameters_of(self.scope);
 
         // read the parameters the signature declares
         let declared = self
@@ -174,19 +156,12 @@ impl TypeLowerer<'_, '_> {
             .parameters(signature.parameters)
             .to_vec();
 
-        // decide the widening of each parameter before borrowing its scope
-        let mut widened = Vec::with_capacity(declared.len());
-        for parameter in &declared {
-            widened.push(self.widens_optional_parameter(parameter.ty, parameter.is_optional)?);
-        }
-
-        // lower the parameters under the signature scope
-        let mut types = self
-            .lower
-            .type_lowerer(self.tree, self.pointer_bytes, &lifetime_parameters)
-            .with_instance(self.instance);
+        // lower the parameters under the signature scope, keeping the interface's own this
+        let mut types = self.lower.type_lowerer(self.tree, &scope);
+        types.this_type = self.this_type;
         let mut parameters = Vec::with_capacity(declared.len());
-        for (parameter, widen) in declared.into_iter().zip(widened) {
+        for parameter in declared {
+            let widen = types.widens_optional_parameter(parameter.ty, parameter.is_optional)?;
             let mut ty = types.lower(parameter.ty)?;
 
             // widen defaulted parameters into their undefined representation
@@ -201,7 +176,7 @@ impl TypeLowerer<'_, '_> {
             Some(ty) => types.lower(ty)?,
             None => types.tree.void_type(),
         };
-        let lifetimes = lifetime_parameters.declarations(self.lower.strings);
+        let lifetimes = scope.declarations(self.lower.strings);
 
         Ok(self.tree.intern_type(mir::Type::FunctionSignature {
             lifetimes,

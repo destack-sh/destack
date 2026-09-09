@@ -4,10 +4,10 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{LifetimeParameters, LowerState, NominalInstance};
+use crate::lower::{GenericScope, ModuleLowerer, NominalInstance};
 use crate::{CompilerError, CompilerResult};
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Declare the constant globals backing the given string literals.
     pub(in crate::lower) fn declare_string_literals(
         &mut self,
@@ -80,11 +80,12 @@ impl LowerState<'_> {
 
         // insert the constant with its content as the initializer
         let mut global = mir::Global::constant(
+            self.module,
             name,
             nominal.storage,
             mir::GlobalInitializer::String(string),
         );
-        global.symbol = mir::Symbol::named(symbol);
+        global.symbol = mir::Symbol::language(symbol);
         let object = tree.insert(global);
 
         Ok((object, nominal.value))
@@ -108,14 +109,74 @@ impl LowerState<'_> {
 
         // insert the constant with its value as the initializer
         let mut global = mir::Global::constant(
+            self.module,
             name,
             nominal.storage,
             mir::GlobalInitializer::BigInt(bigint),
         );
-        global.symbol = mir::Symbol::named(symbol);
+        global.symbol = mir::Symbol::language(symbol);
         let object = tree.insert(global);
 
         Ok((object, nominal.value))
+    }
+
+    /// Return the zero-sized type of one singleton value.
+    pub(in crate::lower) fn singleton_type(
+        &mut self,
+        tree: &mut mir::Tree,
+        singleton: &dir::Literal,
+    ) -> mir::TypeId {
+        match singleton {
+            dir::Literal::Null => return tree.intern_type(mir::Type::Null),
+            dir::Literal::Undefined => return tree.intern_type(mir::Type::Void),
+            _ => {}
+        }
+
+        // reserve the identity the literal's name carries across modules
+        let name = self.singleton_name(singleton);
+        let name = self.strings.intern(&name);
+        let ty = tree.reserve_type(mir::Symbol::language(name));
+
+        // define the empty storage once
+        if tree.type_is_reserved(ty) {
+            tree.define_type(
+                ty,
+                mir::Type::Struct {
+                    fields: Vec::new(),
+                    copy: mir::Copy::Yes,
+                },
+            );
+            tree.insert_type_declaration(name, Vec::new(), ty, mir::TypeHeritage::default());
+        }
+
+        ty
+    }
+
+    /// Return the name one literal type declares under.
+    fn singleton_name(&self, singleton: &dir::Literal) -> String {
+        let text = match singleton {
+            dir::Literal::RegexString { content, flags } => {
+                let flags = flags.map_or("", |flags| self.strings.get(flags));
+
+                format!("{}/{flags}", self.strings.get(*content))
+            }
+            other => other
+                .template_text(self.strings)
+                .unwrap_or_else(|| unreachable!("every non-regex literal has text")),
+        };
+        let mut name = format!("literal.{}.", singleton.variant_name());
+        for character in text.chars() {
+            match character {
+                'a'..='z' | 'A'..='Z' | '0'..='9' | '_' | '.' | '/' | '-' => name.push(character),
+                other => {
+                    for byte in other.to_string().bytes() {
+                        name.push_str(&format!("#{byte:02x}"));
+                    }
+                }
+            }
+        }
+
+        name
     }
 
     /// Mirror one literal type's language item onto its MIR type declaration.
@@ -159,9 +220,8 @@ impl LowerState<'_> {
         // lower the nominal representation of the class the language item names
         let symbol = self.language_item_symbol(item)?;
         let source = self.symbol_type(symbol)?;
-        let lifetime_parameters = LifetimeParameters::default();
-        let pointer_bytes = self.pointer_bytes;
-        let mut lower = self.type_lowerer(tree, pointer_bytes, &lifetime_parameters);
+        let scope = GenericScope::default();
+        let mut lower = self.type_lowerer(tree, &scope);
         let nominal = lower.lower_nominal(source)?;
 
         // mirror the language item onto the lowered declaration

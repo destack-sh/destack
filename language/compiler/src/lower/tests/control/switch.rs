@@ -23,44 +23,48 @@ function classify(value: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.classify",
         r#"
 function test.main.classify(v0: int32): int32 {
     local l0: int32
+    local l1: int32
 
 entry(v0: int32):
+    local.set l0, v0
     v1: int32 = 0
-    local.set l0, v1
-    switch v0, b5, 1 => b2, 2 => b3
+    local.set l1, v1
+    v2: int32 = local.get l0
+    switch v2, b5, 1 => b2, 2 => b3
 
 b1:
-    v10: int32 = local.get l0
-    return v10
+    v11: int32 = local.get l1
+    return v11
 
 b2:
     breakpoint
-    v2: int32 = 10
-    local.set l0, v2
+    v3: int32 = 10
+    local.set l1, v3
     jump b3
 
 b3:
-    v3: int32 = local.get l0
-    v4: int32 = 2
-    v5: int32 = add v3, v4
-    local.set l0, v5
+    v4: int32 = local.get l1
+    v5: int32 = 2
+    v6: int32 = add v4, v5
+    local.set l1, v6
     jump b4
 
 b4:
-    v6: int32 = local.get l0
-    v7: int32 = 3
-    v8: int32 = add v6, v7
-    local.set l0, v8
+    v7: int32 = local.get l1
+    v8: int32 = 3
+    v9: int32 = add v7, v8
+    local.set l1, v9
     jump b1
 
 b5:
-    v9: int32 = 99
-    local.set l0, v9
+    v10: int32 = 99
+    local.set l1, v10
     jump b1
 }
 "#,
@@ -84,32 +88,43 @@ function select(value: int32, first: int32, second: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.select",
         r#"
 function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
+    local l0: int32
+    local l1: int32
+    local l2: int32
+
 entry(v0: int32, v1: int32, v2: int32):
-    v3: boolean = eq v0, v1
-    branch v3 => b2 | b5
+    local.set l0, v0
+    local.set l1, v1
+    local.set l2, v2
+    v3: int32 = local.get l0
+    v4: int32 = local.get l1
+    v5: boolean = eq v3, v4
+    branch v5 => b2 | b5
 
 b1:
     return
 
 b2:
-    v5: int32 = 1
-    return v5
+    v8: int32 = 1
+    return v8
 
 b3:
-    v6: int32 = 0
-    return v6
+    v9: int32 = 0
+    return v9
 
 b4:
-    v7: int32 = 2
-    return v7
+    v10: int32 = 2
+    return v10
 
 b5:
-    v4: boolean = eq v0, v2
-    branch v4 => b4 | b6
+    v6: int32 = local.get l2
+    v7: boolean = eq v3, v6
+    branch v7 => b4 | b6
 
 b6:
     jump b3
@@ -135,31 +150,36 @@ function isTwo(value: Meters): boolean {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.isTwo",
         r#"
 @copy
-type Meters = newtype<int32>;
+type test.main.Meters = newtype<int32>;
 
-function test.main.isTwo(v0: Meters): boolean {
-entry(v0: Meters):
-    v1: int32 = field.get v0, 0
-    v2: int32 = 2
-    v3: Meters = aggregate (v2)
-    v4: int32 = field.get v3, 0
-    v5: boolean = eq v1, v4
-    branch v5 => b2 | b4
+function test.main.isTwo(v0: test.main.Meters): boolean {
+    local l0: test.main.Meters
+
+entry(v0: test.main.Meters):
+    local.set l0, v0
+    v1: test.main.Meters = local.get l0
+    v2: int32 = field.get v1, 0
+    v3: int32 = 2
+    v4: test.main.Meters = aggregate (v3)
+    v5: int32 = field.get v4, 0
+    v6: boolean = eq v2, v5
+    branch v6 => b2 | b4
 
 b1:
     return
 
 b2:
-    v6: boolean = true
-    return v6
+    v7: boolean = true
+    return v7
 
 b3:
-    v7: boolean = false
-    return v7
+    v8: boolean = false
+    return v8
 
 b4:
     jump b3
@@ -183,25 +203,30 @@ function isTwo(value: 1 | 2): boolean {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.isTwo",
         r#"
 function test.main.isTwo(v0: int64): boolean {
+    local l0: int64
+
 entry(v0: int64):
-    v1: int64 = 2
-    v2: boolean = eq v0, v1
-    branch v2 => b2 | b4
+    local.set l0, v0
+    v1: int64 = local.get l0
+    v2: int64 = 2
+    v3: boolean = eq v1, v2
+    branch v3 => b2 | b4
 
 b1:
     return
 
 b2:
-    v3: boolean = true
-    return v3
+    v4: boolean = true
+    return v4
 
 b3:
-    v4: boolean = false
-    return v4
+    v5: boolean = false
+    return v5
 
 b4:
     jump b3
@@ -228,44 +253,53 @@ function isReady(state: Ready | Pending): boolean {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.isReady",
         r#"
 @copy
-type Ready = newtype<void>;
+type literal.boolean.true { }
 
 @copy
-type Pending = newtype<void>;
+type test.main.Ready = newtype<literal.boolean.true>;
 
-function test.main.isReady(v0: variant<uint1> { 0uint1 = Ready; 1uint1 = Pending; }): boolean {
-entry(v0: variant<uint1> { 0uint1 = Ready; 1uint1 = Pending; }):
-    v1: boolean = true
-    v2: Ready = aggregate ()
-    v3: variant<uint1> { 0uint1 = Ready; 1uint1 = Pending; } = variant.new 0, v2
-    v4: uint1 = variant.tag v0
-    v5: uint1 = variant.tag v3
-    v6: boolean = eq v4, v5
-    branch v6 => b2 | b4
+@copy
+type test.main.Pending = newtype<literal.boolean.false>;
+
+function test.main.isReady(v0: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; }): boolean {
+    local l0: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; }
+
+entry(v0: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; }):
+    local.set l0, v0
+    v1: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; } = local.get l0
+    v2: literal.boolean.true = zeroed
+    v3: test.main.Ready = aggregate (v2)
+    v4: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; } = variant.new 1, v3
+    v5: uint1 = variant.tag v1
+    v6: uint1 = variant.tag v4
+    v7: boolean = eq v5, v6
+    branch v7 => b2 | b4
 
 b1:
     return
 
 b2:
-    v7: boolean = true
-    return v7
+    v8: boolean = true
+    return v8
 
 b3:
-    v8: boolean = false
-    return v8
+    v9: boolean = false
+    return v9
 
 b4:
     jump b3
 }
 
-/// @layout.variant name=type@6 size=1 align=1
-/// @layout.discriminant owner=type@6 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@6 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@6 index=1 discriminant=1 payload_offset=1
+/// @layout.struct name=literal.boolean.true size=0 align=1
+/// @layout.variant name=type@9 size=1 align=1
+/// @layout.discriminant owner=type@9 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=1
 "#,
     );
 }

@@ -12,14 +12,30 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         let constraint = self.lower_dynamic_constraint(constraint)?;
 
-        Ok(self.tree.intern_type(mir::Type::Dynamic {
+        Ok(self.dynamic_over(constraint))
+    }
+
+    /// Lower one open shape, type algebra over a parameter, to the top dynamic reference.
+    pub(in crate::lower) fn lower_open_dynamic(
+        &mut self,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        let constraint = self.dynamic_shape_constraint(Vec::new(), false)?;
+
+        Ok(self.dynamic_over(constraint))
+    }
+
+    /// Reference one constraint shape through the erased dynamic representation.
+    fn dynamic_over(
+        &mut self,
+        constraint: mir::LocalNodeId<mir::Type>,
+    ) -> mir::LocalNodeId<mir::Type> {
+        self.tree.intern_type(mir::Type::Dynamic {
             kind: mir::ReferenceKind::Managed,
             lifetime: mir::Lifetime::empty(),
             constraint,
-            storage: mir::Storage::LocalHeap,
+            storage: mir::Storage::Heap(mir::Space::Local),
             access: mir::Access::Mutable,
-            nullability: mir::Nullability::None,
-        }))
+        })
     }
 
     /// Lower one constraint to its canonical shape type.
@@ -40,6 +56,8 @@ impl TypeLowerer<'_, '_> {
             }
             // leave the top constraint empty
             dir::Type::Unknown => (Vec::new(), false),
+            // leave a parameter's constraint to its argument
+            dir::Type::Parameter(_) => return self.lower(constraint),
             // dispatch interface instances through their declared members
             dir::Type::Application(instance)
                 if matches!(
@@ -59,6 +77,15 @@ impl TypeLowerer<'_, '_> {
             }
         };
 
+        self.dynamic_shape_constraint(properties, is_keyed)
+    }
+
+    /// Intern one constraint shape over its declared properties, registering its dispatch shape.
+    fn dynamic_shape_constraint(
+        &mut self,
+        properties: Vec<dir::TypeProperty>,
+        is_keyed: bool,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // build the constraint's fields and dispatch shape
         let mut fields = Vec::with_capacity(properties.len());
         let mut slots = Vec::with_capacity(properties.len());

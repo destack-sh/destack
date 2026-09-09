@@ -10,15 +10,23 @@ function widen(a: int32, b: uint32): int64 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.widen",
         r#"
 function test.main.widen(v0: int32, v1: uint32): int64 {
+    local l0: int32
+    local l1: uint32
+
 entry(v0: int32, v1: uint32):
-    v2: int64 = cast.extend.s v0 -> int64
-    v3: int64 = cast.extend.u v1 -> int64
-    v4: int64 = add v2, v3
-    return v4
+    local.set l0, v0
+    local.set l1, v1
+    v2: int32 = local.get l0
+    v3: int64 = cast.extend.s v2 -> int64
+    v4: uint32 = local.get l1
+    v5: int64 = cast.extend.u v4 -> int64
+    v6: int64 = add v3, v5
+    return v6
 }
 "#,
     );
@@ -37,13 +45,18 @@ function narrow(value: int64): int8 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.narrow",
         r#"
 function test.main.narrow(v0: int64): int8 {
+    local l0: int64
+
 entry(v0: int64):
-    v1: int8 = cast.truncate v0 -> int8
-    return v1
+    local.set l0, v0
+    v1: int64 = local.get l0
+    v2: int8 = cast.truncate v1 -> int8
+    return v2
 }
 "#,
     );
@@ -62,13 +75,18 @@ function reinterpret(value: usize): isize {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.reinterpret",
         r#"
 function test.main.reinterpret(v0: usize): isize {
+    local l0: usize
+
 entry(v0: usize):
-    v1: isize = cast.bit v0 -> isize
-    return v1
+    local.set l0, v0
+    v1: usize = local.get l0
+    v2: isize = cast.bit v1 -> isize
+    return v2
 }
 "#,
     );
@@ -84,15 +102,23 @@ function ratio(hits: uint32, total: int32): float64 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.ratio",
         r#"
 function test.main.ratio(v0: uint32, v1: int32): float64 {
+    local l0: uint32
+    local l1: int32
+
 entry(v0: uint32, v1: int32):
-    v2: float64 = cast.intToFloat.u v0 -> float64
-    v3: float64 = cast.intToFloat.s v1 -> float64
-    v4: float64 = div v2, v3
-    return v4
+    local.set l0, v0
+    local.set l1, v1
+    v2: uint32 = local.get l0
+    v3: float64 = cast.intToFloat.u v2 -> float64
+    v4: int32 = local.get l1
+    v5: float64 = cast.intToFloat.s v4 -> float64
+    v6: float64 = div v3, v5
+    return v6
 }
 "#,
     );
@@ -111,13 +137,18 @@ function whole(value: float64): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.whole",
         r#"
 function test.main.whole(v0: float64): int32 {
+    local l0: float64
+
 entry(v0: float64):
-    v1: int32 = cast.floatToIntSaturating.s v0 -> int32
-    return v1
+    local.set l0, v0
+    v1: float64 = local.get l0
+    v2: int32 = cast.floatToIntSaturating.s v1 -> int32
+    return v2
 }
 "#,
     );
@@ -133,8 +164,9 @@ function big(): int64 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.big",
         r#"
 function test.main.big(): int64 {
 entry:

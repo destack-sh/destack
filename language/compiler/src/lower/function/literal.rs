@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one scalar literal node to a constant at its representation.
@@ -12,43 +12,51 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         literal: dir::Literal,
     ) -> CompilerResult<mir::Value> {
-        // settle the object-backed literals before the scalar representations
-        let is_const = matches!(self.node_type(expression)?, dir::Type::Literal(_));
-        match literal {
-            // materialize a widened string through its constant object
-            dir::Literal::String(string) if !is_const => {
-                return self.lower_string_literal(string);
-            }
-            // materialize a widened bigint through its constant object
-            dir::Literal::Bigint(bigint) if !is_const => {
-                return self.lower_bigint_literal(bigint);
-            }
-            // leave a singleton string or bigint void
-            dir::Literal::String(_) | dir::Literal::Bigint(_) => {
-                let void = self.builder.tree_mut().intern_type(mir::Type::Void);
+        // a node typed by its literal is the value of that type
+        let ty = self.node_type_id(expression)?;
+        if let dir::Type::Literal(_) = self.lower.ty(ty)? {
+            let singleton = self.lower_type(ty)?;
 
-                return Ok(self.builder.constant(mir::Constant::Undefined, void));
-            }
-            // carry every scalar literal on through
-            _ => {}
+            return Ok(self.builder.constant(mir::Constant::Zeroed, singleton));
         }
 
         // materialize the literal at the representation its node commits to
-        let representation = self.literal_representation(expression, literal)?;
+        let representation = self.lower_type(ty)?;
 
         self.lower_constant(literal, representation)
     }
 
-    /// Lower one literal to a constant of one concrete representation type.
+    /// Lower one literal to a constant at one representation.
     pub(in crate::lower) fn lower_constant(
         &mut self,
         literal: dir::Literal,
-        representation: mir::Type,
+        representation: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        match (literal, representation) {
+        if self.is_singleton_representation(representation) {
+            return Ok(self.builder.constant(mir::Constant::Zeroed, representation));
+        }
+
+        // a singleton literal at a variant lives in the case holding its type
+        let stored = self
+            .builder
+            .tree()
+            .storage_type(mir::TypeId::from(representation));
+        if matches!(self.builder.tree().get(stored), mir::Type::Variant { .. })
+            && let Some(singleton) = self.singleton_representation(&literal)
+        {
+            let Some(case) = self.builder.tree().payload_case(stored, singleton) else {
+                return Err(CompilerError::Internal {
+                    message: "a singleton literal outside the variant's cases".to_string(),
+                });
+            };
+
+            return Ok(self.builder.variant_new(representation, case, None));
+        }
+
+        // lower the literal at its representation
+        match (literal, self.builder.tree().get(representation).clone()) {
             // pick the single boolean representation
             (dir::Literal::Boolean(value), _) => Ok(self.builder.bconst(value)),
-
             // materialize integers at their selected width and sign
             (dir::Literal::Integer(value), mir::Type::Int { width, is_signed }) => {
                 Ok(self.builder.iconst(value as i128, width, is_signed))
@@ -79,13 +87,6 @@ impl FunctionLowerer<'_, '_, '_> {
             (dir::Literal::String(string), _) => self.lower_string_literal(string),
             (dir::Literal::Bigint(bigint), _) => self.lower_bigint_literal(bigint),
 
-            // materialize undefined as the void unit in void positions
-            (dir::Literal::Undefined, representation @ mir::Type::Void) => {
-                let ty = self.builder.tree_mut().intern_type(representation);
-
-                Ok(self.builder.constant(mir::Constant::Undefined, ty))
-            }
-
             // reject every literal outside its representation
             (literal, _) => Err(CompilerError::Internal {
                 message: format!(
@@ -97,7 +98,10 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one string literal to its constant String object reference.
-    fn lower_string_literal(&mut self, string: StringId) -> CompilerResult<mir::Value> {
+    pub(in crate::lower) fn lower_string_literal(
+        &mut self,
+        string: StringId,
+    ) -> CompilerResult<mir::Value> {
         // declare the constant object on its first use
         if !self.lower.string_literals.contains_key(&string) {
             self.lower
@@ -110,7 +114,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 let global = *global;
                 let value = *value;
 
-                Ok(self.builder.global_addr(global, value))
+                Ok(self
+                    .builder
+                    .global_addr(global, value, mir::AddressKind::Borrow))
             }
             Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
             None => Err(CompilerError::Internal {
@@ -133,7 +139,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 let global = *global;
                 let value = *value;
 
-                Ok(self.builder.global_addr(global, value))
+                Ok(self
+                    .builder
+                    .global_addr(global, value, mir::AddressKind::Borrow))
             }
             Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
             None => Err(CompilerError::Internal {
@@ -142,44 +150,130 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return the concrete type carrying one literal node's value.
-    fn literal_representation(
+    /// Return the representation of one singleton literal, absent for a scalar literal.
+    fn singleton_representation(
+        &mut self,
+        literal: &dir::Literal,
+    ) -> Option<mir::LocalNodeId<mir::Type>> {
+        match literal {
+            dir::Literal::Undefined => Some(self.builder.tree_mut().intern_type(mir::Type::Void)),
+            dir::Literal::Null => Some(self.lower.singleton_type(self.builder.tree_mut(), literal)),
+            _ => None,
+        }
+    }
+
+    /// Return whether one representation holds a single value and no bytes, through newtypes.
+    pub(in crate::lower) fn is_singleton_representation(
+        &self,
+        representation: mir::LocalNodeId<mir::Type>,
+    ) -> bool {
+        let tree = self.builder.tree();
+        let mut representation = tree.represented(representation);
+        loop {
+            match tree.get(representation) {
+                mir::Type::Void | mir::Type::Null => return true,
+                mir::Type::Struct { fields, .. } => return fields.is_empty(),
+                mir::Type::Newtype { inner, .. } => representation = tree.represented(*inner),
+                _ => return false,
+            }
+        }
+    }
+
+    /// Lower one interpolated template through the calls it renders and joins with.
+    pub(in crate::lower) fn lower_template_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        literal: dir::Literal,
-    ) -> CompilerResult<mir::Type> {
-        // use the node's own type when concretely typed
+        value: &dir::TemplateLiteral,
+    ) -> CompilerResult<mir::Value> {
+        // a template without interpolations is its own constant text
+        let dir::TemplateLiteral::InterpolatedString { chunks, arguments } = value else {
+            return self.lower_scalar_literal(expression, dir::Literal::Undefined);
+        };
+
+        // read the calls this template renders and joins through
+        let node = expression.into_global_any(self.source);
+        let Some(decision) = self
+            .lower
+            .state(self.source)?
+            .decisions
+            .template_decision(node)
+            .cloned()
+        else {
+            return Err(CompilerError::Internal {
+                message: "an interpolated template without its recorded calls".to_string(),
+            });
+        };
+
+        // render each interpolation in source order
+        let arguments = arguments.clone();
+        if arguments.len() != decision.spans.len() {
+            return Err(CompilerError::Internal {
+                message: "an interpolated template recording a call for every span".to_string(),
+            });
+        }
+        let mut spans = Vec::with_capacity(arguments.len());
+        for (argument, call) in arguments.iter().zip(&decision.spans) {
+            let value = self.lower_argument(argument.into_global_any(self.source))?;
+            let Some(rendered) = self.lower_value_target_call(value, call)? else {
+                return Err(CompilerError::Internal {
+                    message: "a template span producing no text".to_string(),
+                });
+            };
+            spans.push(rendered);
+        }
+
+        // materialize the literal chunks the template writes between its spans
+        let mut texts = Vec::with_capacity(chunks.len());
+        for chunk in chunks {
+            let Some(text) = chunk.cooked else {
+                return Err(CompilerError::Internal {
+                    message: "an interpolated template chunk without its text".to_string(),
+                });
+            };
+            texts.push(self.lower_string_literal(text)?);
+        }
+
+        // join the chunks with the rendered spans
+        let dir::CallableTarget::Symbol { function, .. } = &decision.build.target else {
+            return Err(CompilerError::Internal {
+                message: "a template join outside a direct symbol target".to_string(),
+            });
+        };
+        let declared = self.resolve_callee(&function.key)?;
+        let parameters = self.signature_parameters(declared.signature)?;
+        let [chunk_slot, span_slot] = parameters.as_slice() else {
+            return Err(CompilerError::Internal {
+                message: "a template join without its chunk and span slots".to_string(),
+            });
+        };
+        let chunks = self.slot_frame_slice(texts, *chunk_slot)?;
+        let spans = self.slot_frame_slice(spans, *span_slot)?;
+        let Some(joined) = self.call(&declared, vec![chunks, spans]) else {
+            return Err(CompilerError::Internal {
+                message: "a template join producing no text".to_string(),
+            });
+        };
+
+        // adopt the owned text into the managed string the template reads as
         let ty = self.node_type_id(expression)?;
-        if !matches!(self.lower.ty(ty)?, dir::Type::Literal(_)) {
-            let representation = self.lower_type(ty)?;
+        let target = self.lower_type(ty)?;
 
-            return Ok(self.builder.tree().get(representation).clone());
-        }
+        self.adopt(joined, target)
+    }
 
-        match literal {
-            // pick the single boolean representation
-            dir::Literal::Boolean(_) => Ok(mir::Type::Boolean),
+    /// Store one value sequence in a frame slot, viewed at the slice slot it fills.
+    pub(in crate::lower) fn slot_frame_slice(
+        &mut self,
+        values: Vec<mir::Value>,
+        slot: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        let mir::Type::Slice { element, .. } = *self.builder.tree().get(slot) else {
+            return Err(CompilerError::Internal {
+                message: "a template join slot outside slice storage".to_string(),
+            });
+        };
+        let view = self.frame_slice(element, values)?;
 
-            // pick the character scalar representation
-            dir::Literal::Character(_) => Ok(mir::Type::Int {
-                width: 32,
-                is_signed: false,
-            }),
-
-            // require numeric literals to enter through a concrete value target
-            dir::Literal::Integer(_) | dir::Literal::Float(_) => Err(CompilerError::Internal {
-                message: format!(
-                    "a numeric literal expression {} without a concrete target",
-                    expression.id
-                ),
-            }),
-
-            // reject literal domains without scalar representations
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("{} literals", other.variant_name()),
-            }
-            .into()),
-        }
+        self.adopt(view, slot)
     }
 }

@@ -1,31 +1,33 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, StringId};
+use destack_core::{FxIndexMap, FxIndexSet, StringId};
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::r#type::form::erase_type_lifetime;
+use crate::lower::function::disposal::Disposal;
+use crate::lower::function::place::Place;
 use crate::lower::{
-    GenericInstanceKey, LifetimeParameters, LowerModuleState, LowerState, Lowered, NominalInstance,
+    DirModule, GenericInstanceKey, GenericScope, Memo, ModuleInitializer, ModuleLowerer,
+    NominalInstance,
 };
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 /// Lowering state for one function body.
 pub(in crate::lower) struct FunctionLowerer<'lower, 'builder, 'module> {
     // context
     /// The module lowering state.
-    pub(in crate::lower) lower: &'lower mut LowerState<'module>,
+    pub(in crate::lower) lower: &'lower mut ModuleLowerer<'module>,
     /// The function builder.
     pub(in crate::lower) builder: mir::FunctionBuilder<'builder>,
     /// The module declaring this function.
     pub(in crate::lower) source: ModuleId,
-    /// The materialized instance this function specializes, when generic.
-    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The polymorphic lifetime parameters of this function.
-    pub(in crate::lower) lifetime_parameters: LifetimeParameters,
+    pub(in crate::lower) scope: GenericScope,
     /// The class whose constructor this body runs, when it is one.
     pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
+    /// The fields this constructor body assigns through its receiver.
+    pub(in crate::lower) assigned_fields: FxIndexSet<dir::GlobalSymbolId>,
 
     // body state
     /// The lowered binding for each symbol.
@@ -34,28 +36,48 @@ pub(in crate::lower) struct FunctionLowerer<'lower, 'builder, 'module> {
     pub(in crate::lower) frames: FxIndexMap<dir::GlobalScopeId, mir::Value>,
     /// The receiver binding of the enclosing method, when one exists.
     pub(in crate::lower) this: Option<Binding>,
+    /// The lowered receiver of the intrinsic call being lowered, its argument 0.
+    pub(in crate::lower) intrinsic_receiver: Option<mir::Value>,
+    /// The producer binding of the enclosing generator body, when one exists.
+    pub(in crate::lower) producer: Option<Binding>,
+    /// The capture environment a coroutine entry forwards to its body.
+    pub(in crate::lower) captures: Option<mir::Value>,
+    /// The profile sites this body instruments.
+    pub(in crate::lower) profile: mir::FunctionProfileTable,
     /// The enclosing control statements, innermost last.
     pub(in crate::lower) controls: Vec<ControlFrame>,
+    /// The using resources awaiting disposal, outermost first.
+    pub(in crate::lower) disposals: Vec<Disposal>,
     /// The enclosing optional chains, innermost last.
     pub(in crate::lower) chains: Vec<ChainFrame>,
+    /// The enclosing try expressions catching residuals, innermost last.
+    pub(in crate::lower) tries: Vec<TryFrame>,
+}
+
+/// One active try expression catching the residuals its body propagates.
+pub(in crate::lower) struct TryFrame {
+    /// The try expression.
+    pub(in crate::lower) node: dir::LocalNodeId<dir::Expression>,
+    /// The local the caught residual lands in, with the type the catch declares it at.
+    pub(in crate::lower) residual: Option<(mir::LocalNodeId<mir::Local>, dir::GlobalTypeId)>,
+    /// The block the catch runs in.
+    pub(in crate::lower) catch: mir::LocalNodeId<mir::Block>,
+    /// The disposal depth the try body opened at.
+    pub(in crate::lower) disposals: usize,
 }
 
 /// One active optional chain.
 pub(in crate::lower) struct ChainFrame {
-    /// The chain's joined result representation.
-    pub(in crate::lower) representation: mir::LocalNodeId<mir::Type>,
-    /// The slot joining the chain value with its short circuit.
-    pub(in crate::lower) slot: mir::LocalNodeId<mir::Local>,
+    /// The place the chain value and its short circuit write.
+    pub(in crate::lower) destination: Place,
     /// The block resuming after the chain.
     pub(in crate::lower) exit: mir::LocalNodeId<mir::Block>,
 }
 
-/// One lowered value bound to a symbol.
+/// The home of one symbol.
 #[derive(Clone, Copy)]
 pub(in crate::lower) enum Binding {
-    /// An immutable SSA value.
-    Value(mir::Value),
-    /// A mutable local.
+    /// A frame local.
     Local(mir::LocalNodeId<mir::Local>),
     /// A field of a managed capture frame.
     Captured {
@@ -74,8 +96,12 @@ pub(in crate::lower) struct ControlFrame {
     pub(in crate::lower) label: Option<StringId>,
     /// The block `break` enters.
     pub(in crate::lower) break_target: mir::LocalNodeId<mir::Block>,
+    /// The disposal depth the statement opened at.
+    pub(in crate::lower) disposals: usize,
     /// The block `continue` enters when the statement is a loop.
     pub(in crate::lower) continue_target: Option<mir::LocalNodeId<mir::Block>>,
+    /// The place a valued break writes before leaving.
+    pub(in crate::lower) destination: Option<Place>,
 }
 
 /// One concrete function definition awaiting lowering.
@@ -88,24 +114,72 @@ pub(in crate::lower) struct FunctionDefinition {
     pub(in crate::lower) has_this: bool,
     /// The parameter symbols in order.
     pub(in crate::lower) parameters: Vec<dir::LocalSymbolId>,
-    /// The materialized instance this definition specializes, when generic.
-    pub(in crate::lower) instance: Option<(ModuleId, dir::LocalInstanceId)>,
     /// The polymorphic lifetime parameters of this definition.
-    pub(in crate::lower) lifetime_parameters: LifetimeParameters,
+    pub(in crate::lower) scope: GenericScope,
     /// The module declaring this body.
     pub(in crate::lower) source: destack_source::ModuleId,
-    /// The body expression.
-    pub(in crate::lower) expression: dir::LocalNodeId<dir::Expression>,
     /// The class this constructor body initializes, when one exists.
     pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
     /// The declared default expression of each parameter, in header order.
     pub(in crate::lower) defaults: Vec<Option<dir::LocalNodeId<dir::Expression>>>,
+    /// The body this definition lowers.
+    pub(in crate::lower) body: Body,
 }
 
-impl<'module> FunctionLowerer<'_, '_, 'module> {
+/// The body one queued definition lowers.
+#[derive(Clone, Copy)]
+pub(in crate::lower) enum Body {
+    /// The declared expression, lowered as the whole function.
+    Plain(dir::LocalNodeId<dir::Expression>),
+    /// The coroutine entry synthesized around its extracted body function.
+    CoroutineEntry {
+        /// The declared expression the extracted body lowers.
+        expression: dir::LocalNodeId<dir::Expression>,
+        /// The extracted body function receiving the environment.
+        body: mir::FunctionId,
+    },
+    /// The extracted coroutine body, its parameters rebound from the environment.
+    Coroutine(dir::LocalNodeId<dir::Expression>),
+    /// The synthesized default constructor storing a class's field initializers.
+    DefaultConstructor,
+}
+
+impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
+    /// Open the lowering of one body over its builder, the entry block current.
+    fn new(
+        lower: &'lower mut ModuleLowerer<'module>,
+        mut builder: mir::FunctionBuilder<'builder>,
+        source: ModuleId,
+        scope: GenericScope,
+        constructs: Option<dir::GlobalSymbolId>,
+    ) -> Self {
+        let entry = builder.block();
+        builder.switch_to_block(entry);
+
+        Self {
+            lower,
+            builder,
+            source,
+            scope,
+            constructs,
+            assigned_fields: FxIndexSet::default(),
+            values: FxIndexMap::default(),
+            frames: FxIndexMap::default(),
+            this: None,
+            intrinsic_receiver: None,
+            producer: None,
+            captures: None,
+            profile: mir::FunctionProfileTable::new(mir::FunctionHash::default()),
+            controls: Vec::new(),
+            disposals: Vec::new(),
+            chains: Vec::new(),
+            tries: Vec::new(),
+        }
+    }
+
     /// Lower one declared function body.
     pub(in crate::lower) fn lower(
-        lower: &mut LowerState<'_>,
+        lower: &mut ModuleLowerer<'_>,
         builder: &mut mir::ModuleBuilder,
         definition: FunctionDefinition,
     ) -> CompilerResult<()> {
@@ -115,44 +189,49 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             symbol,
             has_this,
             parameters,
-            instance,
-            lifetime_parameters,
+            scope,
             source,
-            expression,
             constructs,
             defaults,
+            body,
         } = definition;
 
         // open the declared body and stand up the lowering state around it
-        let builder = builder
-            .function_body(function)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unopened function body: {error}"),
-            })?;
-        let mut function = FunctionLowerer {
-            lower,
-            builder,
-            source,
-            instance,
-            lifetime_parameters,
-            values: FxIndexMap::default(),
-            frames: FxIndexMap::default(),
-            this: None,
-            constructs,
-            controls: Vec::new(),
-            chains: Vec::new(),
-        };
+        lower.state(source)?;
+        let function_id = function;
+        let body_builder =
+            builder
+                .function_body(function)
+                .map_err(|error| CompilerError::Internal {
+                    message: format!("an unopened function body: {error}"),
+                })?;
+        let mut function = FunctionLowerer::new(lower, body_builder, source, scope, constructs);
 
-        // bind the parameters in header order past any receiver
+        // home the parameters in header order past any receiver, an extracted body's from its environment
         let shift = has_this as usize;
-        for (index, symbol) in parameters.iter().enumerate() {
-            let value = function.builder.function_parameter(index + shift);
-            function.values.insert(*symbol, Binding::Value(value));
+        match body {
+            Body::Coroutine(_) => {
+                function.bind_coroutine_parameters(symbol, &parameters)?;
+
+                // home the producer a generator body receives as its leading parameter
+                if !function.function_parameters(function_id).is_empty() {
+                    let producer = function.builder.function_parameter(0);
+                    function.producer = Some(function.bind_receiver(producer)?);
+                }
+            }
+            _ => {
+                for (index, symbol) in parameters.iter().enumerate() {
+                    let value = function.builder.function_parameter(index + shift);
+                    let local = function.home(value);
+                    function.values.insert(*symbol, Binding::Local(local));
+                }
+            }
         }
 
-        // open the entry block
-        let entry = function.builder.block();
-        function.builder.switch_to_block(entry);
+        // anchor the body's synthesized nodes at the declaration
+        if let Some(anchor) = function.lower.declaration_anchor(symbol)? {
+            function.builder.replace_source(Some(anchor));
+        }
 
         // home the receiver ahead of anything reading it
         if has_this {
@@ -160,145 +239,89 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             function.this = Some(function.bind_receiver(value)?);
         }
 
+        // store the field initializers a synthesized constructor stands in for
+        if matches!(body, Body::DefaultConstructor) {
+            function.lower_field_initializers(symbol)?;
+            function.return_value(None)?;
+            function.finish()?;
+
+            return Ok(());
+        }
+
         // receive the closure environment before defaults can read captures
-        function.bind_captures(symbol)?;
+        let is_entry = matches!(body, Body::CoroutineEntry { .. });
+        function.bind_captures(symbol, is_entry)?;
 
         // resolve the defaulted parameters before anything reads them
         function.lower_parameter_defaults(&parameters, &defaults)?;
 
         // lift every parameter a nested scope captures into its frame
         for symbol in &parameters {
-            if let Some(Binding::Value(value)) = function.values.get(symbol).copied() {
-                function.bind_lifted(symbol.into_global(source), value)?;
+            let global = symbol.into_global(source);
+            if let Some(Binding::Local(local)) = function.values.get(symbol).copied()
+                && function.is_lifted(global)
+            {
+                let value = function.builder.local_get(local);
+                function.bind_lifted(global, value)?;
             }
         }
 
-        // store the declared field initializers before a base class constructor body
+        let expression = match body {
+            Body::Plain(expression)
+            | Body::CoroutineEntry { expression, .. }
+            | Body::Coroutine(expression) => expression,
+            Body::DefaultConstructor => unreachable!("a default constructor lowers no body"),
+        };
+        if let Some(class) = constructs {
+            let Some(assigned) = function.source().decisions.constructor_assignments(class) else {
+                return Err(CompilerError::Internal {
+                    message: "a constructor without its recorded field assignments".to_string(),
+                });
+            };
+            function.assigned_fields = assigned.iter().copied().collect();
+        }
+
+        // store the declared field defaults before a base class constructor body
         if let Some(owner) = constructs
             && !function.lower.class_extends_base(owner)?
         {
             function.lower_field_initializers(owner)?;
         }
 
-        // lower the body and finalize its blocks
-        function.lower_body(expression)?;
-        function.builder.seal_all_blocks();
-        function
-            .builder
-            .finish()
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unfinished function body: {error}"),
-            })?;
+        // synthesize the coroutine entry around its extracted body, else lower the body
+        match body {
+            Body::CoroutineEntry { body, .. } => {
+                function.lower_coroutine_entry(symbol, &parameters, body)?;
+            }
+            _ => function.lower_body(expression)?,
+        }
+
+        // register the profile sites the body instruments
+        let profile = function.finish()?;
+        if !profile.counters.is_empty() || !profile.samplers.is_empty() {
+            builder.profile_mut().insert_function(function_id, profile);
+        }
 
         Ok(())
     }
 
-    /// Lower one synthesized default constructor to its initializer prologue.
-    pub(in crate::lower) fn lower_default_constructor(
-        lower: &mut LowerState<'_>,
-        builder: &mut mir::ModuleBuilder,
-        class: dir::GlobalSymbolId,
-        instance: Option<(ModuleId, dir::LocalInstanceId)>,
-        function: mir::FunctionId,
-    ) -> CompilerResult<()> {
-        // open the synthesized body and stand up the lowering state around it
-        let builder = builder
-            .function_body(function)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unopened function body: {error}"),
-            })?;
-        let mut function = FunctionLowerer {
-            lower,
-            builder,
-            source: class.module_id,
-            instance,
-            lifetime_parameters: LifetimeParameters::default(),
-            values: FxIndexMap::default(),
-            frames: FxIndexMap::default(),
-            this: None,
-            constructs: None,
-            controls: Vec::new(),
-            chains: Vec::new(),
-        };
+    /// Seal the lowered body, answering the profile sites it instruments.
+    fn finish(self) -> CompilerResult<mir::FunctionProfileTable> {
+        let mut body = self.builder;
+        body.seal_all_blocks();
+        body.finish().map_err(|error| CompilerError::Internal {
+            message: format!("an unfinished function body: {error}"),
+        })?;
 
-        // open the entry block and home the receiver like any declared constructor
-        let entry = function.builder.block();
-        function.builder.switch_to_block(entry);
-        let value = function.builder.function_parameter(0);
-        function.this = Some(function.bind_receiver(value)?);
-
-        // store the declared field initializers the synthesized body stands in for
-        function.lower_field_initializers(class)?;
-
-        // close the constructor with a void return
-        function.builder.return_(None);
-        function.builder.seal_all_blocks();
-        function
-            .builder
-            .finish()
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unfinished function body: {error}"),
-            })?;
-
-        Ok(())
-    }
-
-    /// Lower one synthesized builtin clone to a copy of its receiver's pointee.
-    pub(in crate::lower) fn lower_builtin_clone(
-        lower: &mut LowerState<'_>,
-        builder: &mut mir::ModuleBuilder,
-        function: mir::FunctionId,
-        result: mir::TypeId,
-    ) -> CompilerResult<()> {
-        // open the synthesized body and stand up the lowering state around it
-        let module = lower.module;
-        let builder = builder
-            .function_body(function)
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unopened function body: {error}"),
-            })?;
-        let mut lowering = FunctionLowerer {
-            lower,
-            builder,
-            source: module,
-            instance: None,
-            lifetime_parameters: LifetimeParameters::default(),
-            values: FxIndexMap::default(),
-            frames: FxIndexMap::default(),
-            this: None,
-            constructs: None,
-            controls: Vec::new(),
-            chains: Vec::new(),
-        };
-
-        // copy the borrowed receiver's value and return it
-        let entry = lowering.builder.block();
-        lowering.builder.switch_to_block(entry);
-        let receiver = lowering.builder.function_parameter(0);
-        let value = lowering.builder.load(receiver, result);
-        lowering.builder.return_(Some(value));
-
-        // finalize the synthesized blocks
-        lowering.builder.seal_all_blocks();
-        lowering
-            .builder
-            .finish()
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unfinished function body: {error}"),
-            })?;
-
-        Ok(())
+        Ok(self.profile)
     }
 
     /// Lower the module initializer storing each runtime binding.
     pub(in crate::lower) fn lower_initializer(
-        lower: &mut LowerState<'_>,
+        lower: &mut ModuleLowerer<'_>,
         builder: &mut mir::ModuleBuilder,
         function: mir::FunctionId,
-        initializers: Vec<(
-            mir::LocalNodeId<mir::Global>,
-            dir::LocalNodeId<dir::Expression>,
-        )>,
+        initializers: Vec<ModuleInitializer>,
     ) -> CompilerResult<()> {
         // open the initializer body and stand up the lowering state around it
         let source = lower.module;
@@ -307,39 +330,30 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             .map_err(|error| CompilerError::Internal {
                 message: format!("an unopened function body: {error}"),
             })?;
-        let mut function = FunctionLowerer {
-            lower,
-            builder,
-            source,
-            instance: None,
-            lifetime_parameters: LifetimeParameters::default(),
-            values: FxIndexMap::default(),
-            frames: FxIndexMap::default(),
-            this: None,
-            constructs: None,
-            controls: Vec::new(),
-            chains: Vec::new(),
-        };
+        let mut function =
+            FunctionLowerer::new(lower, builder, source, GenericScope::default(), None);
 
-        // open the entry block
-        let entry = function.builder.block();
-        function.builder.switch_to_block(entry);
+        // run each step in source order
+        for initializer in initializers {
+            match initializer {
+                ModuleInitializer::Binding { global, value } => {
+                    let value = function.lower_value(value)?;
+                    function.builder.store_global(global, value);
+                }
+                ModuleInitializer::Statement(statement) => {
+                    // end the initializer at a terminated statement
+                    if function.lower_statement(statement)? {
+                        function.finish()?;
 
-        // store each binding in declaration order
-        for (global, expression) in initializers {
-            let value = function.lower_expression(expression)?;
-            function.builder.store_global(global, value);
+                        return Ok(());
+                    }
+                }
+            }
         }
 
         // close the initializer with a void return
-        function.builder.return_(None);
-        function.builder.seal_all_blocks();
-        function
-            .builder
-            .finish()
-            .map_err(|error| CompilerError::Internal {
-                message: format!("an unfinished function body: {error}"),
-            })?;
+        function.return_value(None)?;
+        function.finish()?;
 
         Ok(())
     }
@@ -348,22 +362,20 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     pub(in crate::lower) fn lower_foreign_expression(
         &mut self,
         module: ModuleId,
-        instance: Option<(ModuleId, dir::LocalInstanceId)>,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
         // swap into the declaring module with no local bindings in scope
+        self.lower.state(module)?;
         let source = std::mem::replace(&mut self.source, module);
-        let outer_instance = std::mem::replace(&mut self.instance, instance);
         let values = std::mem::take(&mut self.values);
         let frames = std::mem::take(&mut self.frames);
         let this = self.this.take();
 
         // lower the expression against the declaring module
-        let value = self.lower_expression(expression);
+        let value = self.lower_value(expression);
 
         // swap the enclosing body's state back in, keeping the outcome
         self.source = source;
-        self.instance = outer_instance;
         self.values = values;
         self.frames = frames;
         self.this = this;
@@ -391,7 +403,7 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
     }
 
     /// Return the state of the module declaring this function.
-    pub(in crate::lower) fn source(&self) -> &LowerModuleState {
+    pub(in crate::lower) fn source(&self) -> &DirModule {
         match self.lower.modules.get(&self.source) {
             Some(state) => state,
             None => unreachable!("the function source module is always loaded"),
@@ -410,15 +422,38 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
             })
     }
 
-    /// Allocate one join local typed as one expression's runtime type.
-    pub(in crate::lower) fn value_slot(
+    /// Return from the function, a value adapted to the declared result representation.
+    pub(in crate::lower) fn return_value(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Local>> {
-        let ty = self.node_type_id(expression)?;
-        let ty = self.lower_type(ty)?;
+        value: Option<mir::Value>,
+    ) -> CompilerResult<()> {
+        let value = match value {
+            Some(value) => {
+                // leave a diverged value, its path ending before the return
+                let representation = self.value_representation(value)?;
+                if matches!(self.builder.tree().get(representation), mir::Type::Never) {
+                    self.builder.unreachable();
 
-        Ok(self.builder.local(ty, mir::Mutability::Mutable))
+                    return Ok(());
+                }
+
+                Some(value)
+            }
+            None => None,
+        };
+        self.builder.return_(value);
+
+        Ok(())
+    }
+
+    /// Lower one generic argument under the enclosing template.
+    pub(in crate::lower) fn lower_generic_argument(
+        &mut self,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::GenericArgument> {
+        self.lower
+            .type_lowerer(self.builder.tree_mut(), &self.scope)
+            .lower_generic_argument(argument)
     }
 
     /// Return the representation of one type, lowering it at first read.
@@ -426,29 +461,16 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // resolve the written id through its materialized types
-        let id = self.lower.instance_type(self.instance, id)?;
-
-        // lower the representation once for every body that reads it
-        if !self.lower.representations.contains_key(&id) {
-            let pointer_bytes = self.builder.pointer_bytes();
-            let outcome = self
-                .lower
-                .type_lowerer(
-                    self.builder.tree_mut(),
-                    pointer_bytes,
-                    &self.lifetime_parameters,
-                )
-                .with_instance(self.instance)
-                .lower(id);
-            Self::bank(&mut self.lower.representations, id, outcome)?;
-        }
-
-        // read the banked outcome, cascading the kept failure
-        match &self.lower.representations[&id] {
-            Ok(node) => Ok(*node),
-            Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
-        }
+        self.memoized(
+            id,
+            |lower| &mut lower.representations,
+            |function| {
+                function
+                    .lower
+                    .type_lowerer(function.builder.tree_mut(), &function.scope)
+                    .lower(id)
+            },
+        )
     }
 
     /// Return the dispatch shape of one constraint, lowering it at first read.
@@ -456,29 +478,16 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // resolve the written id through its materialized types
-        let id = self.lower.instance_type(self.instance, id)?;
-
-        // lower the dispatch shape once for every body that reads it
-        if !self.lower.constraints.contains_key(&id) {
-            let pointer_bytes = self.builder.pointer_bytes();
-            let outcome = self
-                .lower
-                .type_lowerer(
-                    self.builder.tree_mut(),
-                    pointer_bytes,
-                    &self.lifetime_parameters,
-                )
-                .with_instance(self.instance)
-                .lower_dynamic_constraint(id);
-            Self::bank(&mut self.lower.constraints, id, outcome)?;
-        }
-
-        // read the banked outcome, cascading the kept failure
-        match &self.lower.constraints[&id] {
-            Ok(shape) => Ok(*shape),
-            Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
-        }
+        self.memoized(
+            id,
+            |lower| &mut lower.constraints,
+            |function| {
+                function
+                    .lower
+                    .type_lowerer(function.builder.tree_mut(), &function.scope)
+                    .lower_dynamic_constraint(id)
+            },
+        )
     }
 
     /// Return the declared instance key of one instantiated callable.
@@ -488,55 +497,9 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         receiver: Option<dir::GlobalTypeId>,
         types: &[dir::GlobalTypeId],
     ) -> CompilerResult<GenericInstanceKey> {
-        // lower the receiver into a static type argument
-        let receiver = match receiver {
-            Some(ty) => {
-                let node = self.lower_type(ty)?;
-                let node = erase_type_lifetime(self.builder.tree_mut(), node);
-                let ty = mir::TypeId::from(node);
-                Some(self.builder.tree_mut().intern_static(mir::Static::Type(ty)))
-            }
-            None => None,
-        };
-
-        // bind each concrete argument as a static
-        let mut arguments = Vec::with_capacity(types.len());
-        for ty in types {
-            // skip lifetime arguments
-            if self.lower.type_is_lifetime(*ty)? {
-                continue;
-            }
-
-            match self.lower.place_space(*ty)? {
-                // local place arguments canonicalize onto the plain declaration
-                Some(dir::Space::Local) => {}
-                // other place arguments bind their space
-                Some(space) => {
-                    let space = LowerState::mir_space(space);
-                    let argument = self
-                        .builder
-                        .tree_mut()
-                        .intern_static(mir::Static::Space(space));
-                    arguments.push(argument);
-                }
-                // every other argument binds a type
-                None => {
-                    let node = self.lower_type(*ty)?;
-                    let node = erase_type_lifetime(self.builder.tree_mut(), node);
-                    let argument = self
-                        .builder
-                        .tree_mut()
-                        .intern_static(mir::Static::Type(mir::TypeId::from(node)));
-                    arguments.push(argument);
-                }
-            }
-        }
-
-        Ok(GenericInstanceKey {
-            symbol,
-            receiver,
-            arguments,
-        })
+        self.lower
+            .type_lowerer(self.builder.tree_mut(), &self.scope)
+            .generic_instance_key(symbol, receiver, types)
     }
 
     /// Return the nominal instance beneath one value type, lowering it at first read.
@@ -545,102 +508,81 @@ impl<'module> FunctionLowerer<'_, '_, 'module> {
         id: dir::GlobalTypeId,
     ) -> CompilerResult<NominalInstance> {
         // peel the value type down to the nominal it stores
-        let stored = match self.lower.peel_indirection(id)? {
+        let stored = match self.lower.indirection(id, &self.scope)? {
             Some(reference) => reference.stored,
-            None => self.lower.peel_owned(id)?,
+            None => self.lower.stored(id)?,
         };
 
-        // lower the nominal instance once for every body that reads it
-        if !self.lower.stored_nominals.contains_key(&stored) {
-            let dir::Type::Application(_) = self.lower.ty(stored)? else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "a nominal read of a '{}' type",
-                        self.lower.ty(stored)?.variant_name()
-                    ),
-                });
+        let dir::Type::Application(_) = self.lower.ty(stored)? else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "a nominal read of a '{}' type",
+                    self.lower.ty(stored)?.variant_name()
+                ),
+            });
+        };
+
+        self.memoized(
+            stored,
+            |lower| &mut lower.stored_nominals,
+            |function| {
+                function
+                    .lower
+                    .type_lowerer(function.builder.tree_mut(), &function.scope)
+                    .lower_nominal(stored)
+            },
+        )
+    }
+
+    /// Lower one key once for every body that reads it, a reported diagnostic cascading to
+    /// each later read.
+    fn memoized<T: Clone>(
+        &mut self,
+        key: dir::GlobalTypeId,
+        memo: impl for<'m> Fn(&'m mut ModuleLowerer<'module>) -> &'m mut Memo<dir::GlobalTypeId, T>,
+        lower: impl FnOnce(&mut Self) -> CompilerResult<T>,
+    ) -> CompilerResult<T> {
+        if !memo(self.lower).contains_key(&key) {
+            let outcome = match lower(self) {
+                Ok(value) => Ok(value),
+                Err(CompilerError::Diagnostic(diagnostic)) => Err(Arc::from(diagnostic)),
+                Err(error) => return Err(error),
             };
-            let pointer_bytes = self.builder.pointer_bytes();
-            let outcome = self
-                .lower
-                .type_lowerer(
-                    self.builder.tree_mut(),
-                    pointer_bytes,
-                    &self.lifetime_parameters,
-                )
-                .with_instance(self.instance)
-                .lower_nominal(stored);
-            Self::bank(&mut self.lower.stored_nominals, stored, outcome)?;
+            memo(self.lower).insert(key, outcome);
         }
 
-        // read the banked outcome, cascading the kept failure
-        match &self.lower.stored_nominals[&stored] {
-            Ok(nominal) => Ok(nominal.clone()),
+        match &memo(self.lower)[&key] {
+            Ok(value) => Ok(value.clone()),
             Err(diagnostic) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
         }
     }
 
-    /// Bank one lowering outcome under its key for every body that reads it.
-    fn bank<T>(
-        outcomes: &mut FxIndexMap<dir::GlobalTypeId, Lowered<T>>,
-        key: dir::GlobalTypeId,
-        outcome: CompilerResult<T>,
-    ) -> CompilerResult<()> {
-        match outcome {
-            // keep the lowered value
-            Ok(value) => {
-                outcomes.insert(key, Ok(value));
-            }
-            // keep the diagnostic so every later read cascades it
-            Err(CompilerError::Diagnostic(diagnostic)) => {
-                outcomes.insert(key, Err(Arc::from(diagnostic)));
-            }
-            // raise every internal failure straight out
-            Err(error) => return Err(error),
-        }
-
-        Ok(())
-    }
-
-    /// Intern one reference type over a lowered pointee in one storage.
+    /// Intern one reference type over a lowered pointee in one storage at one lifetime.
     pub(in crate::lower) fn insert_reference(
         &mut self,
         kind: mir::ReferenceKind,
+        lifetime: mir::Lifetime,
         access: mir::Access,
         storage: mir::Storage,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> mir::LocalNodeId<mir::Type> {
         self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind,
-            lifetime: mir::Lifetime::empty(),
+            lifetime,
             storage,
             access,
             pointee,
-            nullability: mir::Nullability::None,
         })
     }
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one expression through its coercion, anchoring its emitted MIR at its extent.
-    pub(in crate::lower) fn lower_expression(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-    ) -> CompilerResult<mir::Value> {
-        self.lower_anchored(expression, |lower| {
-            // lower an uncoerced expression as its own value
-            let Some(coercion) = lower.coercion(expression) else {
-                return lower.lower_expression_value(expression);
-            };
+    /// Return whether one representation copies inside this function's generics.
+    pub(in crate::lower) fn copies(&self, ty: mir::TypeId) -> bool {
+        let tree = self.builder.tree();
+        let function = tree.get(self.builder.function_id());
 
-            // walk the coercion path from the classified source to its target
-            let target = coercion.target();
-            let source = lower.lower.instance_type(lower.instance, coercion.source)?;
-            let value = lower.coercion_source(expression, source)?;
-            let value = lower.lower_adjustments(value, source, &coercion.adjustments)?;
-
-            lower.materialize_coercion_value(value, target)
-        })
+        mir::Copy::decide(tree, ty, &function.generics).is_yes()
     }
 
     /// Lower one expression to the value it produces.
@@ -648,6 +590,18 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
+        // run a diverging jump for its control flow, then yield its dead value
+        if matches!(
+            self.source().tree().get(expression),
+            dir::Expression::Return { .. }
+                | dir::Expression::Break { .. }
+                | dir::Expression::Continue { .. }
+        ) {
+            self.lower_statement(expression)?;
+
+            return self.dead_value(expression);
+        }
+
         // lower by the expression's own syntax
         match self.source().tree().get(expression).clone() {
             // read the value behind a name
@@ -660,6 +614,13 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // materialize a scalar literal
             dir::Expression::Literal(literal) => self.lower_scalar_literal(expression, literal),
+
+            // render and join an interpolated template
+            dir::Expression::TemplateExpression { value }
+                if matches!(value, dir::TemplateLiteral::InterpolatedString { .. }) =>
+            {
+                self.lower_template_expression(expression, &value)
+            }
 
             // bind a closure declaration as a function value
             dir::Expression::Declaration(declaration) => {
@@ -674,11 +635,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let environment = self.capture_environment(symbol)?;
                 match self.lower_function_value(expression, symbol, environment)? {
                     Some(value) => Ok(value),
-                    None => Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a non-callable declaration expression".to_string(),
-                    }
-                    .into()),
+                    None => Err(self.internal("a non-callable declaration expression")),
                 }
             }
 
@@ -690,11 +647,7 @@ impl FunctionLowerer<'_, '_, '_> {
             } => {
                 let resolution = self.operator_decision(expression)?;
                 let dir::OperationResolution::One(application) = resolution else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a binary operator on union operands".to_string(),
-                    }
-                    .into());
+                    return Err(self.unsupported("a binary operator on union operands"));
                 };
                 match application {
                     dir::OperatorApplication::Binary {
@@ -715,6 +668,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     },
                     // dispatch protocol operators as left.method(right)
                     dir::OperatorApplication::Binary {
+                        operator,
                         target: dir::OperatorTarget::Call(call),
                         ..
                     } => match &*call {
@@ -725,7 +679,11 @@ impl FunctionLowerer<'_, '_, '_> {
                                     dispatch: dir::FunctionDispatch::Direct,
                                 },
                             ..
-                        } => self.lower_operator_method(left, &call, function),
+                        } => {
+                            let value = self.lower_operator_method(left, &call, function)?;
+
+                            self.lower_comparison_result(operator, value, call.return_type)
+                        }
                         _ => Err(CompilerError::Internal {
                             message: "a non-callable binary operator".to_string(),
                         }),
@@ -740,13 +698,20 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Unary { operator: _, right } => {
                 let resolution = self.operator_decision(expression)?;
                 let dir::OperationResolution::One(application) = resolution else {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a unary operator on a union operand".to_string(),
-                    }
-                    .into());
+                    return Err(self.unsupported("a unary operator on a union operand"));
                 };
                 match application {
+                    // read the value one reference addresses
+                    dir::OperatorApplication::Unary {
+                        operator: dir::UnaryOperator::Dereference,
+                        target: dir::OperatorTarget::Builtin(_),
+                        ..
+                    } => {
+                        let reference = self.lower_value(right)?;
+                        let pointee = self.lower_type(self.node_type_id(expression)?)?;
+
+                        Ok(self.builder.load(reference, pointee))
+                    }
                     dir::OperatorApplication::Unary {
                         operator,
                         target: dir::OperatorTarget::Builtin(operand),
@@ -775,16 +740,39 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             }
 
-            // join the arm values of a match
-            dir::Expression::Match { value, arms } => self.lower_match(expression, value, &arms),
+            // join the arms of a match, a block, or a loop through a destination
+            dir::Expression::Match { .. }
+            | dir::Expression::Block(_)
+            | dir::Expression::Loop { .. }
+            | dir::Expression::Try { .. } => self.lower_joined(expression),
 
-            // join the arm values of a ternary
-            dir::Expression::If {
-                form: dir::IfForm::Ternary,
-                condition,
-                then_expression,
-                else_expression,
-            } => self.lower_ternary(expression, &condition, then_expression, else_expression),
+            // take the value an assignment writes
+            dir::Expression::Assign {
+                left,
+                operator,
+                right,
+            } => match self.lower_assign(expression, left, operator, right)? {
+                Some(value) => Ok(value),
+                None => Err(self.internal("a member write in value position")),
+            },
+
+            // read a checked expression as its own value
+            dir::Expression::Satisfies {
+                expression: inner, ..
+            } => self.lower_value(inner),
+
+            // build the range family its written bounds name
+            dir::Expression::RangeExpression { start, end, .. } => {
+                self.lower_range_expression(expression, start, end)
+            }
+
+            // repeat one value across its fixed array storage
+            dir::Expression::FixedArrayExpression { value, .. } => {
+                self.lower_fixed_array_expression(expression, value)
+            }
+
+            // join the arm values of a value if or ternary
+            dir::Expression::If { .. } => self.lower_joined(expression),
 
             // build an anonymous object
             dir::Expression::ObjectExpression { properties } => {
@@ -803,22 +791,46 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_tuple_expression(expression, &elements)
             }
 
-            // read the receiver binding
+            // read the receiver binding, projecting a flow-narrowed read onto its narrowing
             dir::Expression::This => {
                 let Some(binding) = self.this else {
                     return Err(CompilerError::Internal {
                         message: "a this outside a method body".to_string(),
                     });
                 };
+                let value = self.read_binding(binding);
+                let value = self.constructed_this(expression, value)?;
 
-                Ok(self.read_binding(binding))
+                self.lower_narrowing(expression, value)
+            }
+
+            // read the receiver at the base its heritage prefixes
+            dir::Expression::Super => {
+                let Some(binding) = self.this else {
+                    return Err(CompilerError::Internal {
+                        message: "a super outside a method body".to_string(),
+                    });
+                };
+                let value = self.read_binding(binding);
+                let base = self.lower_type(self.node_type_id(expression)?)?;
+
+                self.adopt(value, base)
+            }
+
+            // read the callable one instantiation selects
+            dir::Expression::Instantiation { left, .. } => {
+                let symbol = self
+                    .lower
+                    .resolved_symbol(left.into_global_any(self.source))?;
+
+                self.lower_resolved_value(expression, symbol)
             }
 
             // borrow the operand's place
             dir::Expression::BorrowOf { right, .. } => {
                 let target = self.lower_type(self.node_type_id(expression)?)?;
 
-                self.lower_borrowed_place(right, target)
+                self.lower_borrowed_place(right, target, mir::AddressKind::Borrow)
             }
 
             // read a member
@@ -867,8 +879,28 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_tree(&resolution)
             }
 
-            // call and take the value it produces
-            dir::Expression::Call { .. } => {
+            // assert the operand onto the cases it holds
+            dir::Expression::Must { left, .. } => self.lower_must(expression, left),
+
+            // continue with the output a propagating try projection produces
+            dir::Expression::Maybe { left, .. } => self.lower_maybe(expression, left),
+
+            // test the operand against the recorded runtime predicate
+            dir::Expression::Is { value, .. } | dir::Expression::InstanceOf { value, .. } => {
+                self.lower_guard(expression, value)
+            }
+
+            // resume with the value the generator's consumer sends
+            dir::Expression::Yield { .. } => {
+                let value = self.lower_yield(expression)?;
+
+                value.ok_or_else(|| CompilerError::Internal {
+                    message: "a void yield in value position".to_string(),
+                })
+            }
+
+            // call and take the value it produces, awaits running their recorded park call
+            dir::Expression::Call { .. } | dir::Expression::Await { .. } => {
                 let value = self.lower_call(expression)?;
 
                 // return the value the call produced
@@ -887,7 +919,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 // yield the unique inhabitant of a zero sized result
                 let result_type = self.lower_type(ty)?;
                 if matches!(self.builder.tree().get(result_type), mir::Type::Void) {
-                    return Ok(self.builder.constant(mir::Constant::Undefined, result_type));
+                    return Ok(self.builder.constant(mir::Constant::Zeroed, result_type));
                 }
 
                 // reject a call that produced no value in value position
@@ -897,11 +929,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // reject every other expression
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("'{}' expressions", other.variant_name()),
-            }
-            .into()),
+            other => Err(self.unsupported(format!("'{}' expressions", other.variant_name()))),
         }
     }
 }

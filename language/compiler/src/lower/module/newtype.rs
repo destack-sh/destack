@@ -16,7 +16,9 @@ impl TypeLowerer<'_, '_> {
     ) -> CompilerResult<Vec<NominalField>> {
         // take the intrinsic representation for compiler-known newtypes
         if matches!(self.lower.ty(definition.backing)?, dir::Type::Intrinsic) {
-            self.lower_intrinsic(symbol, ty, arguments)?;
+            let representation = self.lower_intrinsic(symbol, arguments)?;
+            let representation = self.tree.get(representation).clone();
+            self.tree.define_type(ty, representation);
 
             return Ok(Vec::new());
         }

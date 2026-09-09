@@ -1,8 +1,11 @@
+use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_mir::substitute_type;
 
 use crate::lower::FunctionLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::function::call::ReceiverUse;
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Erase one concrete value behind its constraint's dynamic representation.
@@ -15,21 +18,13 @@ impl FunctionLowerer<'_, '_, '_> {
         // reject narrowing back out of an erased representation
         let dynamic = self.lower_type(target)?;
         let mir::Type::Dynamic { .. } = *self.builder.tree().get(dynamic) else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "narrowing an erased value to its payload".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("narrowing an erased value to its payload"));
         };
 
         // register the implementer pair behind this erasure for the dispatch tables
-        let resolved_source = self.lower.instance_type(self.instance, source)?;
-        let resolved_target = self.lower.instance_type(self.instance, target)?;
-        self.lower.declare_implementer(
-            self.builder.tree_mut(),
-            resolved_source,
-            resolved_target,
-        )?;
+        let scope = self.scope.erased();
+        self.lower
+            .declare_implementer(self.builder.tree_mut(), source, target, &scope)?;
 
         // bind object types behind their managed reference representation
         if let dir::Type::Object(_) = self.lower.ty(source)? {
@@ -76,11 +71,7 @@ impl FunctionLowerer<'_, '_, '_> {
             ..
         } = *self.source().tree().get(callee)
         else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a dynamic call without a member callee".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a dynamic call without a member callee"));
         };
         let Some(name) = name else {
             return Err(CompilerError::Internal {
@@ -88,10 +79,24 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
+        let receiver =
+            self.lower_adjusted_receiver(receiver, &dispatch.receiver, false, ReceiverUse::Value)?;
+
+        self.lower_dynamic_slot_call(receiver, name, dispatch, &resolution.arguments)
+    }
+
+    /// Call one constraint slot by name on an adjusted erased receiver value.
+    pub(in crate::lower) fn lower_dynamic_slot_call(
+        &mut self,
+        receiver: mir::Value,
+        name: StringId,
+        dispatch: &dir::DynamicDispatch,
+        arguments: &[dir::ArgumentBinding],
+    ) -> CompilerResult<Option<mir::Value>> {
         // select the constraint's declared slot and signature
-        let receiver = self.lower_adjusted_receiver(receiver, &dispatch.receiver, false)?;
         let constraint = self.lower_constraint(dispatch.constraint)?;
-        let Some(shape) = self.lower.dynamic_shapes.get(&constraint) else {
+        let Some((shape, applied)) = self.lower.dynamic_shape(self.builder.tree(), constraint)
+        else {
             return Err(CompilerError::Internal {
                 message: "a dynamic call without a registered constraint shape".to_string(),
             });
@@ -114,9 +119,14 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        // call the selected slot at its declared signature
+        // call the selected slot at its signature under the interface's arguments
+        let signature = match applied.is_empty() {
+            true => signature,
+            false => substitute_type(self.builder.tree_mut(), signature, &applied),
+        };
         let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
-        let values = self.lower_call_arguments(&resolution.arguments, &parameters, None)?;
+        let values = self.lower_call_arguments(arguments, &parameters, None)?;
+        let result = self.builder.signature_result(mir::TypeId::from(signature));
 
         Ok(self.builder.call(
             mir::Callee::Dynamic {
@@ -126,6 +136,7 @@ impl FunctionLowerer<'_, '_, '_> {
             },
             mir::TypeId::from(signature),
             values,
+            result,
         ))
     }
 
@@ -139,17 +150,15 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // read the member name the constraint slot declares
         let dir::StaticKey::Name(name) = field.target.key() else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a computed member read through dynamic dispatch".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a computed member read through dynamic dispatch"));
         };
 
         // select the slot behind the name in the constraint shape
-        let receiver = self.lower_adjusted_receiver(left, &dispatch.receiver, false)?;
+        let receiver =
+            self.lower_adjusted_receiver(left, &dispatch.receiver, false, ReceiverUse::Value)?;
         let constraint = self.lower_constraint(dispatch.constraint)?;
-        let Some(shape) = self.lower.dynamic_shapes.get(&constraint) else {
+        let Some((shape, applied)) = self.lower.dynamic_shape(self.builder.tree(), constraint)
+        else {
             return Err(CompilerError::Internal {
                 message: "a dynamic read without a registered constraint shape".to_string(),
             });
@@ -174,6 +183,16 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a dynamic read of an undeclared constraint member".to_string(),
             });
         };
+
+        // read the slot at its signature under the interface's arguments
+        let signature = match (applied.is_empty(), signature) {
+            (false, Some(signature)) => Some(substitute_type(
+                self.builder.tree_mut(),
+                signature,
+                &applied,
+            )),
+            (_, signature) => signature,
+        };
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
 
         // call a getter slot at its declared signature
@@ -187,6 +206,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     },
                     mir::TypeId::from(signature),
                     Vec::new(),
+                    mir::TypeId::from(result_type),
                 );
 
                 value.ok_or_else(|| CompilerError::Internal {
@@ -210,8 +230,8 @@ impl FunctionLowerer<'_, '_, '_> {
         key: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
         let result_type = self.lower_type(self.node_type_id(expression)?)?;
-        let receiver = self.lower_expression(left)?;
-        let key = self.lower_expression(key)?;
+        let receiver = self.lower_value(left)?;
+        let key = self.lower_value(key)?;
 
         Ok(self.builder.dynamic_find(receiver, key, result_type))
     }

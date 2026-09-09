@@ -8,7 +8,7 @@ impl TypeLowerer<'_, '_> {
     /// Lower one value enum declaration to its variant type.
     pub(in crate::lower) fn lower_enum(
         &mut self,
-        _symbol: dir::GlobalSymbolId,
+        symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
         ty: mir::LocalNodeId<mir::Type>,
         copy: mir::Copy,
@@ -53,17 +53,9 @@ impl TypeLowerer<'_, '_> {
 
         // build the variant cases in declaration order
         let storage = self.tree.intern_type(mir::Type::Void);
-        let mut fields = Vec::new();
+        let fields = self.lower.nominal_fields(symbol)?;
         let mut variants = Vec::new();
-        for (variant, value) in definition.variants().zip(values) {
-            // record the variant member
-            fields.push(NominalField {
-                key: variant.key,
-                symbol: variant.symbol,
-                is_optional: false,
-                initializer: None,
-            });
-
+        for (_, value) in definition.variants().zip(values) {
             // build the case beside the discriminant it carries
             let discriminant = match integer.is_signed() {
                 true => mir::Constant::Int {
@@ -79,6 +71,7 @@ impl TypeLowerer<'_, '_> {
             variants.push(mir::VariantCase {
                 discriminant,
                 ty: storage,
+                is_boxed: false,
             });
         }
 

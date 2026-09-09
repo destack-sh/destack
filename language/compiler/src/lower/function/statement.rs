@@ -1,8 +1,7 @@
 use destack_dir as dir;
-use destack_mir as mir;
 
 use crate::lower::{Binding, FunctionLowerer};
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one statement, returning whether it terminated the block.
@@ -14,21 +13,23 @@ impl FunctionLowerer<'_, '_, '_> {
             match lower.source().tree().get(statement).clone() {
                 // return the function result
                 dir::Expression::Return { value } => {
-                    let value = value
-                        .map(|value| lower.lower_expression(value))
-                        .transpose()?;
-                    lower.builder.return_(value);
+                    let value = value.map(|value| lower.lower_value(value)).transpose()?;
+                    lower.dispose_down_to(0)?;
+                    lower.return_value(value)?;
 
                     Ok(true)
                 }
 
+                // bind the resources of a using, disposed at the scope exit
+                dir::Expression::Using { declarators, .. } => {
+                    lower.lower_using(&declarators)?;
+
+                    Ok(false)
+                }
+
                 // bind the declarators of a let
-                dir::Expression::Let {
-                    mutability,
-                    declarators,
-                    ..
-                } => {
-                    lower.lower_let(mutability, &declarators)?;
+                dir::Expression::Let { declarators, .. } => {
+                    lower.lower_let(&declarators)?;
 
                     Ok(false)
                 }
@@ -79,9 +80,16 @@ impl FunctionLowerer<'_, '_, '_> {
                 // dispatch on the matched value
                 dir::Expression::Match { value, arms } => lower.lower_match_statement(value, &arms),
 
+                // run the body, its residuals caught, then the finally on every way out
+                dir::Expression::Try {
+                    body,
+                    catch,
+                    finally,
+                } => Ok(!lower.lower_try(statement, body, catch, finally, None)?),
+
                 // run an optional chain for its effects
                 dir::Expression::Chain { .. } => {
-                    lower.lower_expression(statement)?;
+                    lower.lower_value(statement)?;
 
                     Ok(false)
                 }
@@ -106,6 +114,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 // loop unconditionally
                 dir::Expression::Loop { label, body } => lower.lower_loop(label, body),
 
+                // iterate the source through its recorded protocol calls
+                dir::Expression::ForEach {
+                    label,
+                    binding,
+                    iterator,
+                    body,
+                    ..
+                } => lower.lower_for_each(statement, label, binding, iterator, body),
+
                 // break out of the enclosing statement
                 dir::Expression::Break { label, value } => lower.lower_break(label, value),
 
@@ -121,19 +138,22 @@ impl FunctionLowerer<'_, '_, '_> {
                     Ok(false)
                 }
 
-                // call in statement position
-                dir::Expression::Call { .. } => {
+                // call in statement position, an await running its recorded park call
+                dir::Expression::Call { .. } | dir::Expression::Await { .. } => {
                     lower.lower_call(statement)?;
 
                     Ok(false)
                 }
 
-                // reject every other statement
-                other => Err(LowerError::Unsupported {
-                    anchor: lower.lower.module.into(),
-                    construct: format!("'{}' statements", other.variant_name()),
+                // yield in statement position
+                dir::Expression::Yield { .. } => {
+                    lower.lower_yield(statement)?;
+
+                    Ok(false)
                 }
-                .into()),
+
+                // reject every other statement
+                other => Err(lower.unsupported(format!("'{}' statements", other.variant_name()))),
             }
         })
     }
@@ -141,7 +161,6 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one let statement's declarators.
     fn lower_let(
         &mut self,
-        mutability: dir::Mutability,
         declarators: &[dir::LocalNodeId<dir::Declarator>],
     ) -> CompilerResult<()> {
         for declarator_id in declarators {
@@ -149,18 +168,14 @@ impl FunctionLowerer<'_, '_, '_> {
             let declarator = self.source().tree().get(*declarator_id);
             let (pattern, value) = (declarator.pattern, declarator.value);
             let Some(value) = value else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "an uninitialized let binding".to_string(),
-                }
-                .into());
+                return Err(self.unsupported("an uninitialized let binding"));
             };
 
             // bind destructuring patterns through the pattern walker
             let dir::Pattern::Binding { pattern: None, .. } = self.source().tree().get(pattern)
             else {
-                let value = self.lower_expression(value)?;
-                self.lower_pattern_bindings(pattern, value, mutability)?;
+                let place = self.lower_place(value)?;
+                self.lower_anchored(value, |lower| lower.lower_pattern_bindings(pattern, &place))?;
 
                 continue;
             };
@@ -173,28 +188,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             };
 
-            // evaluate the initializer
-            let value = self.lower_expression(value)?;
-
-            // give lifted bindings their frame home ahead of local storage
-            if self.bind_lifted(symbol, value)? {
-                continue;
-            }
-
-            // keep immutable bindings as pure values; give mutable ones a local
-            let binding = match mutability {
-                dir::Mutability::Immutable => Binding::Value(value),
-                _ => {
-                    let ty = self.lower.symbol_type(symbol)?;
-                    let ty = self.lower_type(ty)?;
-                    let local = self.builder.local(ty, mir::Mutability::Mutable);
-                    self.builder.local_set(local, value);
-
-                    Binding::Local(local)
-                }
-            };
-
-            self.values.insert(symbol.local_id, binding);
+            // evaluate the initializer and bind it
+            let value = self.lower_value(value)?;
+            self.bind_symbol(symbol, value)?;
         }
 
         Ok(())
@@ -213,11 +209,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // read the value bound for the parameter on entry
             let symbol = parameters[index];
-            let Some(Binding::Value(incoming)) = self.values.get(&symbol).copied() else {
+            let Some(Binding::Local(home)) = self.values.get(&symbol).copied() else {
                 return Err(CompilerError::Internal {
-                    message: "a defaulted parameter without its bound value".to_string(),
+                    message: "a defaulted parameter without its home".to_string(),
                 });
             };
+            let incoming = self.builder.local_get(home);
 
             // keep the parameters already incoming at their bound type
             let ty = self.lower.symbol_type(symbol.into_global(self.source))?;
@@ -228,9 +225,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // unwrap the present value or evaluate the default
             let resolved = self.lower_absent_fallback(incoming, exact, |lower| {
-                lower.lower_expression(default).map(Some)
+                lower.lower_value(default).map(Some)
             })?;
-            self.values.insert(symbol, Binding::Value(resolved));
+            let local = self.home(resolved);
+            self.values.insert(symbol, Binding::Local(local));
         }
 
         Ok(())

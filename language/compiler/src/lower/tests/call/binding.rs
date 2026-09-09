@@ -22,26 +22,15 @@ function sample(): float64 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.sample",
         r#"
 function test.main.sample(): float64 {
 entry:
     v0: float64 = call destack.clock.now(): () => float64
     return v0
 }
-
-@binding("destack.clock.now", {
-    provider: "host",
-    effect: "external",
-    replay: "forbidden",
-    affinity: "worker",
-    requires: ["host.time.clock.read"],
-    platforms: ["linux"],
-    families: ["unix"],
-    hosts: ["native"]
-})
-external function destack.clock.now(): float64
 "#,
     );
 }
@@ -67,32 +56,51 @@ function read(value: &readonly User): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.User.constructor",
         r#"
-type User {
+type test.main.User {
     id: int32;
 }
 
-function test.main.User.constructor(v0: ref<uninit<User>, borrowed, exclusive, local>): void {
-entry(v0: ref<uninit<User>, borrowed, exclusive, local>):
-    v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
-    store v2, v1
+function test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>): void {
+    local l0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>
+
+entry(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>):
+    local.set l0, v0
+    v1: ref<uninit<test.main.User>, borrowed, 'a, mutable, local> = local.get l0
+    v2: int32 = 0
+    v3: ref<uninit<int32>, borrowed, 'a, mutable, local> = field.project v1, 0
+    store v3, v2
     return
 }
 
-function test.main.read<'a>(v0: ref<User, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<User, borrowed, 'a, readonly, local>):
-    v1: int32 = call host.user.inspect(v0): <'a>(ref<User, borrowed, 'a, readonly, local>) => int32
-    return v1
+/// @layout.struct name=test.main.User size=4 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.read",
+        r#"
+type test.main.User {
+    id: int32;
 }
 
-@binding("host.user.inspect", { provider: "host", effect: "external" })
-external function host.user.inspect<'a>(ref<User, borrowed, 'a, readonly, local>): int32
+function test.main.read<'a>(v0: ref<test.main.User, borrowed, 'a, readonly, local>): int32 {
+    local l0: ref<test.main.User, borrowed, 'a, readonly, local>
 
-/// @layout.struct name=User size=4 align=4
-/// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
+entry(v0: ref<test.main.User, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    v1: ref<test.main.User, borrowed, 'a, readonly, local> = local.get l0
+    v2: int32 = call host.user.inspect(v1): <'a>(ref<test.main.User, borrowed, 'a, readonly, local>) => int32
+    return v2
+}
+
+/// @layout.struct name=test.main.User size=4 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
 "#,
     );
 }
@@ -109,14 +117,22 @@ function run(): void {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
+    session.assert_mir_function("main.ds", "test.main.greet", r#"
 function test.main.greet(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): void {
+    local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
+
 entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
+    local.set l0, v0
     return
 }
 
+/// @layout.variant name=type@3 size=1 align=1
+/// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
+"#);
+
+    session.assert_mir_function("main.ds", "test.main.run", r#"
 function test.main.run(): void {
 entry:
     v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1
@@ -128,6 +144,5 @@ entry:
 /// @layout.discriminant owner=type@3 kind=niche offset=0 byte_len=1 bit_offset=0 bit_len=8 untagged=0 niche_start=2
 /// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=0
 /// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
-"#,
-    );
+"#);
 }

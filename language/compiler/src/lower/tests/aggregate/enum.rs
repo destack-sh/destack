@@ -18,29 +18,34 @@ function pick(flag: boolean): Mode {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.pick",
         r#"
 @copy
-type Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
+type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
-function test.main.pick(v0: boolean): Mode {
+function test.main.pick(v0: boolean): test.main.Mode {
+    local l0: boolean
+
 entry(v0: boolean):
-    branch v0 => b1 | b2
+    local.set l0, v0
+    v1: boolean = local.get l0
+    branch v1 => b1 | b2
 
 b1:
-    v1: Mode = variant.new 0
-    return v1
+    v2: test.main.Mode = variant.new 0
+    return v2
 
 b2:
-    v2: Mode = variant.new 1
-    return v2
+    v3: test.main.Mode = variant.new 1
+    return v3
 }
 
-/// @layout.variant name=Mode size=1 align=1
-/// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=Mode index=0 discriminant=1 payload_offset=1
-/// @layout.case owner=Mode index=1 discriminant=2 payload_offset=1
+/// @layout.variant name=test.main.Mode size=1 align=1
+/// @layout.discriminant owner=test.main.Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=test.main.Mode index=0 discriminant=1 payload_offset=1
+/// @layout.case owner=test.main.Mode index=1 discriminant=2 payload_offset=1
 "#,
     );
 }
@@ -70,64 +75,85 @@ function fallback(mode: Mode): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.describe",
         r#"
 @copy
-type Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
+type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
-function test.main.describe(v0: Mode): int32 {
-    local l0: int32
+function test.main.describe(v0: test.main.Mode): int32 {
+    local l0: test.main.Mode
+    local l1: int32
 
-entry(v0: Mode):
-    variant.switch v0, 0 => b1, 1 => b2, else b3
+entry(v0: test.main.Mode):
+    local.set l0, v0
+    v1: test.main.Mode = local.get l0
+    variant.switch v1, 0 => b1, 1 => b2, else b3
 
 b1:
-    v1: int32 = 10
-    local.set l0, v1
+    v2: int32 = 10
+    local.set l1, v2
     jump b4
 
 b2:
-    v2: int32 = 20
-    local.set l0, v2
+    v3: int32 = 20
+    local.set l1, v3
     jump b4
 
 b3:
     unreachable
 
 b4:
-    v3: int32 = local.get l0
-    return v3
+    v4: int32 = local.get l1
+    return v4
 }
 
-function test.main.fallback(v0: Mode): int32 {
-    local l0: int32
+/// @layout.variant name=test.main.Mode size=1 align=1
+/// @layout.discriminant owner=test.main.Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=test.main.Mode index=0 discriminant=1 payload_offset=1
+/// @layout.case owner=test.main.Mode index=1 discriminant=2 payload_offset=1
+"#,
+    );
 
-entry(v0: Mode):
-    variant.switch v0, 0 => b1, else b2
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.fallback",
+        r#"
+@copy
+type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
+
+function test.main.fallback(v0: test.main.Mode): int32 {
+    local l0: test.main.Mode
+    local l1: int32
+
+entry(v0: test.main.Mode):
+    local.set l0, v0
+    v1: test.main.Mode = local.get l0
+    variant.switch v1, 0 => b1, else b2
 
 b1:
-    v1: int32 = 10
-    local.set l0, v1
+    v2: int32 = 10
+    local.set l1, v2
     jump b4
 
 b2:
-    v2: int32 = 0
-    local.set l0, v2
+    v3: int32 = 0
+    local.set l1, v3
     jump b4
 
 b3:
     unreachable
 
 b4:
-    v3: int32 = local.get l0
-    return v3
+    v4: int32 = local.get l1
+    return v4
 }
 
-/// @layout.variant name=Mode size=1 align=1
-/// @layout.discriminant owner=Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=Mode index=0 discriminant=1 payload_offset=1
-/// @layout.case owner=Mode index=1 discriminant=2 payload_offset=1
+/// @layout.variant name=test.main.Mode size=1 align=1
+/// @layout.discriminant owner=test.main.Mode kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=test.main.Mode index=0 discriminant=1 payload_offset=1
+/// @layout.case owner=test.main.Mode index=1 discriminant=2 payload_offset=1
 "#,
     );
 }

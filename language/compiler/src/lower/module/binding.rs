@@ -2,18 +2,18 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::LowerState;
+use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Return the checked declaration carried by one binding decorator.
     pub(in crate::lower) fn decorator_binding(
-        &self,
+        &mut self,
         application: &dir::DecoratorApplication,
     ) -> CompilerResult<mir::Binding> {
         // read the name and options the decorator carries
-        let arguments = self.decorator_arguments(application)?;
-        let [name, options] = arguments else {
+        let arguments = self.decorator_arguments(application)?.to_vec();
+        let [name, options] = arguments.as_slice() else {
             return Err(CompilerError::Internal {
                 message: "a binding decorator without a name and options".to_string(),
             });

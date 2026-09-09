@@ -14,22 +14,34 @@ function advance(current: char): char {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.advance",
         r#"
+@copy
+type literal.character.z { }
+
 function test.main.advance(v0: uint32): uint32 {
+    local l0: uint32
+
 entry(v0: uint32):
-    v1: uint32 = 122
-    v2: boolean = eq v0, v1
-    branch v2 => b1 | b2
+    local.set l0, v0
+    v1: uint32 = local.get l0
+    v2: literal.character.z = zeroed
+    v3: uint32 = 122
+    v4: boolean = eq v1, v3
+    branch v4 => b1 | b2
 
 b1:
-    v3: uint32 = 97
-    return v3
+    v5: uint32 = 97
+    return v5
 
 b2:
-    return v0
+    v6: uint32 = local.get l0
+    return v6
 }
+
+/// @layout.struct name=literal.character.z size=0 align=1
 "#,
     );
 }

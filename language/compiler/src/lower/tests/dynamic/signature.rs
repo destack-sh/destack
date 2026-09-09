@@ -13,32 +13,30 @@ export function pick(counts: Counts, key: string): int32 | undefined {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type Counts = dynamic<{  }, managed, mutable, local>;
+    session.assert_mir_function("main.ds", "test.main.pick", r#"
+type test.main.Counts = dynamic<{  }, managed, mutable, local>;
 
-type String {
-    codeUnits: slice<uint16, unique, exclusive, local>;
+@languageItem("string.String")
+type String;
+
+function test.main.pick(v0: test.main.Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = void; 1uint1 = int32; } {
+    local l0: test.main.Counts
+    local l1: ref<String, managed, mutable, local>
+
+entry(v0: test.main.Counts, v1: ref<String, managed, mutable, local>):
+    local.set l0, v0
+    local.set l1, v1
+    v2: test.main.Counts = local.get l0
+    v3: ref<String, managed, mutable, local> = local.get l1
+    v4: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = dynamic.find v2, v3
+    return v4
 }
 
-function test.main.pick(v0: Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
-entry(v0: Counts, v1: ref<String, managed, mutable, local>):
-    v2: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v0, v1
-    return v2
-}
-
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@1 size=0 align=1
 /// @layout.variant name=type@13 size=8 align=4
 /// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
-
-/// @dispatch.shape constraint=type@1
-"#,
-    );
+"#);
 }
 
 /// Read one keyed view over a concrete object through its Record type.
@@ -54,30 +52,28 @@ export function pick(counts: Counts, key: string): int32 | undefined {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type Counts = dynamic<{  }, managed, mutable, local>;
+    session.assert_mir_function("main.ds", "test.main.pick", r#"
+type test.main.Counts = dynamic<{  }, managed, mutable, local>;
 
-type String {
-    codeUnits: slice<uint16, unique, exclusive, local>;
+@languageItem("string.String")
+type String;
+
+function test.main.pick(v0: test.main.Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = void; 1uint1 = int32; } {
+    local l0: test.main.Counts
+    local l1: ref<String, managed, mutable, local>
+
+entry(v0: test.main.Counts, v1: ref<String, managed, mutable, local>):
+    local.set l0, v0
+    local.set l1, v1
+    v2: test.main.Counts = local.get l0
+    v3: ref<String, managed, mutable, local> = local.get l1
+    v4: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = dynamic.find v2, v3
+    return v4
 }
 
-function test.main.pick(v0: Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
-entry(v0: Counts, v1: ref<String, managed, mutable, local>):
-    v2: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v0, v1
-    return v2
-}
-
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
-/// @layout.struct name=type@1 size=0 align=1
 /// @layout.variant name=type@13 size=8 align=4
 /// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
 /// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
-
-/// @dispatch.shape constraint=type@1
-"#,
-    );
+"#);
 }

@@ -15,33 +15,43 @@ export function make(): shared Counter {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type Counter {
+    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+type test.main.Counter {
     value: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, shared>): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive, shared>):
-    v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive, shared> = field.address v0, 0
-    store v2, v1
+function test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>): void {
+    local l0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>
+
+entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>):
+    local.set l0, v0
+    v1: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared> = local.get l0
+    v2: int32 = 0
+    v3: ref<uninit<int32>, borrowed, 'a, mutable, shared> = field.project v1, 0
+    store v3, v2
     return
 }
 
-function test.main.make(): ref<Counter, managed, mutable, shared> {
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+"#);
+
+    session.assert_mir_function("main.ds", "test.main.make", r#"
+type test.main.Counter {
+    value: int32;
+}
+
+function test.main.make(): ref<test.main.Counter, managed, mutable, shared> {
 entry:
-    v0: ref<Counter, managed, mutable, shared> = new.zeroed Counter
-    v1: ref<uninit<Counter>, borrowed, exclusive, shared> = cast.bit v0 -> ref<uninit<Counter>, borrowed, exclusive, shared>
-    call test.main.Counter.constructor(v1): (ref<uninit<Counter>, borrowed, exclusive, shared>) => void
+    v0: ref<test.main.Counter, managed, mutable, shared> = new.zeroed test.main.Counter
+    v1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable, shared> = cast.bit v0 -> ref<uninit<test.main.Counter>, borrowed, 'managed, mutable, shared>
+    call test.main.Counter.constructor(v1): <'a>(ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>) => void
     return v0
 }
 
-/// @layout.struct name=Counter size=4 align=4
-/// @layout.field owner=Counter index=0 name=value offset=0 size=4 align=4
-"#,
-    );
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+"#);
 }
 
 /// Lower explicitly placed fields into their written spaces' reference storage.
@@ -61,18 +71,18 @@ export struct Cache {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type User { }
+type test.main.User { }
 
 @copy
-type Cache {
-    localUser: ref<User, managed, mutable, local>;
-    sharedUser: ref<User, managed, mutable, shared>;
+type test.main.Cache {
+    localUser: ref<test.main.User, managed, mutable, local>;
+    sharedUser: ref<test.main.User, managed, mutable, shared>;
 }
 
-/// @layout.struct name=User size=0 align=1
-/// @layout.struct name=Cache size=16 align=8
-/// @layout.field owner=Cache index=0 name=localUser offset=0 size=8 align=8
-/// @layout.field owner=Cache index=1 name=sharedUser offset=8 size=8 align=8
+/// @layout.struct name=test.main.User size=0 align=1
+/// @layout.struct name=test.main.Cache size=16 align=8
+/// @layout.field owner=test.main.Cache index=0 name=localUser offset=0 size=8 align=8
+/// @layout.field owner=test.main.Cache index=1 name=sharedUser offset=8 size=8 align=8
 "#,
     );
 }
@@ -94,26 +104,20 @@ export function keep(user: User): User {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type User { }
+    session.assert_mir_function("main.ds", "test.main.keep", r#"
+type test.main.User { }
 
-@copy
-type Holder {
-    user: ref<User, managed, mutable, shared>;
+function test.main.keep(v0: ref<test.main.User, managed, mutable, local>): ref<test.main.User, managed, mutable, local> {
+    local l0: ref<test.main.User, managed, mutable, local>
+
+entry(v0: ref<test.main.User, managed, mutable, local>):
+    local.set l0, v0
+    v1: ref<test.main.User, managed, mutable, local> = local.get l0
+    return v1
 }
 
-function test.main.keep(v0: ref<User, managed, mutable, local>): ref<User, managed, mutable, local> {
-entry(v0: ref<User, managed, mutable, local>):
-    return v0
-}
-
-/// @layout.struct name=User size=0 align=1
-/// @layout.struct name=Holder size=8 align=8
-/// @layout.field owner=Holder index=0 name=user offset=0 size=8 align=8
-"#,
-    );
+/// @layout.struct name=test.main.User size=0 align=1
+"#);
 }
 
 /// Lower one instance of a place generic function per space its calls require.
@@ -135,32 +139,50 @@ export function run(user: User, team: Team): void {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type User { }
+    session.assert_mir_function("main.ds", "test.main.run", r#"
+type test.main.User { }
 
-type Team { }
+type test.main.Team { }
 
-function test.main.run(v0: ref<User, managed, mutable, local>, v1: ref<Team, managed, mutable, shared>): void {
-entry(v0: ref<User, managed, mutable, local>, v1: ref<Team, managed, mutable, shared>):
-    v2: ref<User, managed, mutable, local> = call test.main.keep<ref<User, managed, mutable, local>>(v0): (ref<User, managed, mutable, local>) => ref<User, managed, mutable, local>
-    v3: ref<Team, managed, mutable, shared> = call test.main.keep<ref<Team, managed, mutable, shared>, shared>(v1): (ref<Team, managed, mutable, shared>) => ref<Team, managed, mutable, shared>
+function test.main.run(v0: ref<test.main.User, managed, mutable, local>, v1: ref<test.main.Team, managed, mutable, shared>): void {
+    local l0: ref<test.main.User, managed, mutable, local>
+    local l1: ref<test.main.Team, managed, mutable, shared>
+
+entry(v0: ref<test.main.User, managed, mutable, local>, v1: ref<test.main.Team, managed, mutable, shared>):
+    local.set l0, v0
+    local.set l1, v1
+    v2: ref<test.main.User, managed, mutable, local> = local.get l0
+    v3: ref<ref<test.main.User, managed, mutable, local>, managed, mutable, local> = call test.main.keep<ref<test.main.User, managed, mutable, local>>(v2): (ref<ref<test.main.User, managed, mutable, local>, managed, mutable, local>) => ref<ref<test.main.User, managed, mutable, local>, managed, mutable, local>
+    v4: ref<test.main.Team, managed, mutable, shared> = local.get l1
+    v5: ref<ref<test.main.Team, managed, mutable, shared>, managed, mutable, shared> = call test.main.keep<ref<test.main.Team, managed, mutable, shared>, shared>(v4): (ref<ref<test.main.Team, managed, mutable, shared>, managed, mutable, shared>) => ref<ref<test.main.Team, managed, mutable, shared>, managed, mutable, shared>
     return
 }
 
-function test.main.keep<ref<User, managed, mutable, local>>(v0: ref<User, managed, mutable, local>): ref<User, managed, mutable, local> {
-entry(v0: ref<User, managed, mutable, local>):
-    return v0
-}
+/// @layout.struct name=test.main.User size=0 align=1
+/// @layout.struct name=test.main.Team size=0 align=1
+"#);
 
-function test.main.keep<ref<Team, managed, mutable, shared>, shared>(v0: ref<Team, managed, mutable, shared>): ref<Team, managed, mutable, shared> {
-entry(v0: ref<Team, managed, mutable, shared>):
-    return v0
-}
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.keep<ref<test.main.User, managed, mutable, local>>",
+        r#"
+type test.main.User { }
 
-/// @layout.struct name=User size=0 align=1
-/// @layout.struct name=Team size=0 align=1
+shared function test.main.keep<ref<test.main.User, managed, mutable, local>>(v0: ref<ref<test.main.User, managed, mutable, local>, managed, mutable, local>): ref<ref<test.main.User, managed, mutable, local>, managed, mutable, local>;
+
+/// @layout.struct name=test.main.User size=0 align=1
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.keep<ref<test.main.Team, managed, mutable, shared>, shared>",
+        r#"
+type test.main.Team { }
+
+shared function test.main.keep<ref<test.main.Team, managed, mutable, shared>, shared>(v0: ref<ref<test.main.Team, managed, mutable, shared>, managed, mutable, shared>): ref<ref<test.main.Team, managed, mutable, shared>, managed, mutable, shared>;
+
+/// @layout.struct name=test.main.Team size=0 align=1
 "#,
     );
 }
@@ -181,36 +203,56 @@ export shared class Counter {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type Counter {
+    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+type test.main.Counter {
     value: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, shared>): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive, shared>):
-    v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive, shared> = field.address v0, 0
-    store v2, v1
+function test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>): void {
+    local l0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>
+
+entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared>):
+    local.set l0, v0
+    v1: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, shared> = local.get l0
+    v2: int32 = 0
+    v3: ref<uninit<int32>, borrowed, 'a, mutable, shared> = field.project v1, 0
+    store v3, v2
     return
 }
 
-function test.main.Counter.bump(v0: ref<Counter, managed, mutable, shared>): int32 {
-entry(v0: ref<Counter, managed, mutable, shared>):
-    v1: ref<int32, borrowed, mutable, shared> = field.address v0, 0
-    v2: int32 = load v1
-    v3: int32 = 1
-    v4: int32 = add v2, v3
-    v5: ref<int32, borrowed, mutable, shared> = field.address v0, 0
-    store v5, v4
-    v6: ref<int32, borrowed, mutable, shared> = field.address v0, 0
-    v7: int32 = load v6
-    return v7
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
+"#);
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Counter.bump",
+        r#"
+type test.main.Counter {
+    value: int32;
 }
 
-/// @layout.struct name=Counter size=4 align=4
-/// @layout.field owner=Counter index=0 name=value offset=0 size=4 align=4
+function test.main.Counter.bump(v0: ref<test.main.Counter, managed, mutable, shared>): int32 {
+    local l0: ref<test.main.Counter, managed, mutable, shared>
+
+entry(v0: ref<test.main.Counter, managed, mutable, shared>):
+    local.set l0, v0
+    v1: ref<test.main.Counter, managed, mutable, shared> = local.get l0
+    v2: ref<test.main.Counter, managed, mutable, shared> = local.get l0
+    v3: ref<int32, borrowed, 'managed, readonly, shared> = field.project v2, 0
+    v4: int32 = load v3
+    v5: int32 = 1
+    v6: int32 = add v4, v5
+    v7: ref<int32, borrowed, 'managed, mutable, shared> = field.project v1, 0
+    store v7, v6
+    v8: ref<test.main.Counter, managed, mutable, shared> = local.get l0
+    v9: ref<int32, borrowed, 'managed, readonly, shared> = field.project v8, 0
+    v10: int32 = load v9
+    return v10
+}
+
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
 "#,
     );
 }
@@ -229,18 +271,23 @@ export function submit(): shared Job {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.submit",
         r#"
-type Job { }
+type test.main.Job { }
 
-function test.main.submit(): ref<Job, managed, mutable, shared> {
+function test.main.submit(): ref<test.main.Job, managed, mutable, shared> {
+    local l0: ref<test.main.Job, managed, mutable, shared>
+
 entry:
-    v0: ref<Job, managed, mutable, shared> = new.zeroed Job
-    return v0
+    v0: ref<test.main.Job, managed, mutable, shared> = new.zeroed test.main.Job
+    local.set l0, v0
+    v1: ref<test.main.Job, managed, mutable, shared> = local.get l0
+    return v1
 }
 
-/// @layout.struct name=Job size=0 align=1
+/// @layout.struct name=test.main.Job size=0 align=1
 "#,
     );
 }
@@ -264,30 +311,61 @@ export shared struct Batch {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Array<int32> {
-    storage: slice<uninit<int32>, unique, exclusive, local>;
+@languageItem("collections.Array")
+type Array<T> {
+    storage: slice<uninit<T>, unique, mutable, local>;
     count: isize;
     allocated: usize;
 }
 
-type Report { }
+type test.main.Report { }
 
 @copy
-type Batch {
+type test.main.Batch {
     values: ref<Array<int32>, managed, mutable, shared>;
-    report: ref<Report, managed, mutable, shared>;
+    report: ref<test.main.Report, managed, mutable, shared>;
 }
 
+@languageItem("memory.Drop")
+type Drop { }
+
+@languageItem("memory.Clone")
+type Clone { }
+
+@languageItem("math.Zero")
+type Zero { }
+
+@languageItem("math.One")
+type One { }
+
+external function Drop.drop<this: Drop, 'a>(ref<this, borrowed, 'a, mutable, local>): void
+
+external function Array.Drop.drop<T, 'a>(ref<Array<T>, borrowed, 'a, mutable, local>): void
+
+shared function Array.Drop.drop<int32, 'a>(v0: ref<Array<int32>, borrowed, 'a, mutable, local>): void;
+
+/// @layout.struct name=test.main.Report size=0 align=1
+/// @layout.struct name=test.main.Batch size=16 align=8
+/// @layout.field owner=test.main.Batch index=0 name=values offset=0 size=8 align=8
+/// @layout.field owner=test.main.Batch index=1 name=report offset=8 size=8 align=8
+/// @layout.struct name=Drop size=0 align=1
+/// @layout.struct name=Clone size=0 align=1
+/// @layout.struct name=Zero size=0 align=1
+/// @layout.struct name=One size=0 align=1
 /// @layout.struct name=Array<int32> size=32 align=8
 /// @layout.field owner=Array<int32> index=0 name=storage offset=0 size=16 align=8
 /// @layout.field owner=Array<int32> index=1 name=count offset=16 size=8 align=8
 /// @layout.field owner=Array<int32> index=2 name=allocated offset=24 size=8 align=8
-/// @layout.struct name=Report size=0 align=1
-/// @layout.struct name=Batch size=16 align=8
-/// @layout.field owner=Batch index=0 name=values offset=0 size=8 align=8
-/// @layout.field owner=Batch index=1 name=report offset=8 size=8 align=8
+/// @layout.struct name=type@18 size=32 align=8
+/// @layout.field owner=type@18 index=0 name=storage offset=0 size=16 align=8
+/// @layout.field owner=type@18 index=1 name=count offset=16 size=8 align=8
+/// @layout.field owner=type@18 index=2 name=allocated offset=24 size=8 align=8
 
-/// @dispatch.shape constraint=type@14 function=describe
+/// @dispatch.shape constraint=type@21 function=describe
+/// @dispatch.shape constraint=type@28 function=drop
+/// @dispatch.shape constraint=type@41 function=clone function=cloneFrom
+/// @dispatch.shape constraint=type@47 function=zero
+/// @dispatch.shape constraint=type@51 function=one
 "#,
     );
 }
@@ -318,25 +396,26 @@ export function read(holder: Holder): void {
         )
         .build();
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.read",
         r#"
-type test.state.User { }
+type test.state.User;
 
 @copy
-type test.state.Holder {
-    user: ref<test.state.User, managed, mutable, shared>;
-}
+type test.state.Holder;
 
 function test.main.read(v0: test.state.Holder): void {
+    local l0: test.state.Holder
+    local l1: ref<test.state.User, managed, mutable, shared>
+
 entry(v0: test.state.Holder):
-    v1: ref<test.state.User, managed, mutable, shared> = field.get v0, 0
+    local.set l0, v0
+    v1: test.state.Holder = local.get l0
+    v2: ref<test.state.User, managed, mutable, shared> = field.get v1, 0
+    local.set l1, v2
     return
 }
-
-/// @layout.struct name=test.state.User size=0 align=1
-/// @layout.struct name=test.state.Holder size=8 align=8
-/// @layout.field owner=test.state.Holder index=0 name=user offset=0 size=8 align=8
 "#,
     );
 }
@@ -357,58 +436,103 @@ export class Gauge {
 declare const shared_gauge: shared Gauge;
 
 export function poll(): int32 {
-    const local_gauge = new Gauge();
-    return local_gauge.read() + shared_gauge.read();
+    const localGauge = new Gauge();
+    return localGauge.read() + shared_gauge.read();
 }
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.Gauge.constructor",
         r#"
-type Gauge {
+type test.main.Gauge {
     level: int32;
 }
 
-global test.main.shared_gauge: ref<Gauge, managed, mutable, shared> = zeroinit
+function test.main.Gauge.constructor<'a>(v0: ref<uninit<test.main.Gauge>, borrowed, 'a, mutable, local>): void {
+    local l0: ref<uninit<test.main.Gauge>, borrowed, 'a, mutable, local>
 
-function test.main.Gauge.constructor(v0: ref<uninit<Gauge>, borrowed, exclusive, local>): void {
-entry(v0: ref<uninit<Gauge>, borrowed, exclusive, local>):
-    v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
-    store v2, v1
+entry(v0: ref<uninit<test.main.Gauge>, borrowed, 'a, mutable, local>):
+    local.set l0, v0
+    v1: ref<uninit<test.main.Gauge>, borrowed, 'a, mutable, local> = local.get l0
+    v2: int32 = 0
+    v3: ref<uninit<int32>, borrowed, 'a, mutable, local> = field.project v1, 0
+    store v3, v2
     return
 }
 
-function test.main.Gauge.read(v0: ref<Gauge, managed, mutable, local>): int32 {
-entry(v0: ref<Gauge, managed, mutable, local>):
-    v1: ref<int32, borrowed, mutable, local> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
+/// @layout.struct name=test.main.Gauge size=4 align=4
+/// @layout.field owner=test.main.Gauge index=0 name=level offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Gauge.read",
+        r#"
+type test.main.Gauge {
+    level: int32;
+}
+
+function test.main.Gauge.read(v0: ref<test.main.Gauge, managed, mutable, local>): int32 {
+    local l0: ref<test.main.Gauge, managed, mutable, local>
+
+entry(v0: ref<test.main.Gauge, managed, mutable, local>):
+    local.set l0, v0
+    v1: ref<test.main.Gauge, managed, mutable, local> = local.get l0
+    v2: ref<int32, borrowed, 'managed, readonly, local> = field.project v1, 0
+    v3: int32 = load v2
+    return v3
+}
+
+/// @layout.struct name=test.main.Gauge size=4 align=4
+/// @layout.field owner=test.main.Gauge index=0 name=level offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.poll",
+        r#"
+type test.main.Gauge {
+    level: int32;
 }
 
 function test.main.poll(): int32 {
+    local l0: ref<test.main.Gauge, managed, mutable, local>
+
 entry:
-    v0: ref<Gauge, managed, mutable, local> = new.zeroed Gauge
-    v1: ref<uninit<Gauge>, borrowed, exclusive, local> = cast.bit v0 -> ref<uninit<Gauge>, borrowed, exclusive, local>
-    call test.main.Gauge.constructor(v1): (ref<uninit<Gauge>, borrowed, exclusive, local>) => void
-    v2: int32 = call test.main.Gauge.read(v0): (ref<Gauge, managed, mutable, local>) => int32
-    v3: ref<ref<Gauge, managed, mutable, shared>, borrowed, readonly, static> = global.address test.main.shared_gauge
-    v4: ref<Gauge, managed, mutable, shared> = load v3
-    v5: int32 = call test.main.Gauge.read<shared>(v4): (ref<Gauge, managed, mutable, shared>) => int32
-    v6: int32 = add v2, v5
-    return v6
+    v0: ref<test.main.Gauge, managed, mutable, local> = new.zeroed test.main.Gauge
+    v1: ref<uninit<test.main.Gauge>, borrowed, 'managed, mutable, local> = cast.bit v0 -> ref<uninit<test.main.Gauge>, borrowed, 'managed, mutable, local>
+    call test.main.Gauge.constructor(v1): <'a>(ref<uninit<test.main.Gauge>, borrowed, 'a, mutable, local>) => void
+    local.set l0, v0
+    v2: ref<test.main.Gauge, managed, mutable, local> = local.get l0
+    v3: int32 = call test.main.Gauge.read(v2): (ref<test.main.Gauge, managed, mutable, local>) => int32
+    v4: ref<ref<test.main.Gauge, managed, mutable, shared>, borrowed, readonly, static> = global.project test.main.shared_gauge
+    v5: ref<test.main.Gauge, managed, mutable, shared> = load v4
+    v6: int32 = call test.main.Gauge.read<shared>(v5): (ref<test.main.Gauge, managed, mutable, local>) => int32
+    v7: int32 = add v3, v6
+    return v7
 }
 
-function test.main.Gauge.read<shared>(v0: ref<Gauge, managed, mutable, shared>): int32 {
-entry(v0: ref<Gauge, managed, mutable, shared>):
-    v1: ref<int32, borrowed, mutable, shared> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
+/// @layout.struct name=test.main.Gauge size=4 align=4
+/// @layout.field owner=test.main.Gauge index=0 name=level offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Gauge.read<shared>",
+        r#"
+type test.main.Gauge {
+    level: int32;
 }
 
-/// @layout.struct name=Gauge size=4 align=4
-/// @layout.field owner=Gauge index=0 name=level offset=0 size=4 align=4
+shared function test.main.Gauge.read<shared>(v0: ref<test.main.Gauge, managed, mutable, local>): int32;
+
+/// @layout.struct name=test.main.Gauge size=4 align=4
+/// @layout.field owner=test.main.Gauge index=0 name=level offset=0 size=4 align=4
 "#,
     );
 }
@@ -436,47 +560,73 @@ export function sharedUser(): shared User {
 "#,
     );
 
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-type User {
+    session.assert_mir_function("main.ds", "test.main.User.constructor", r#"
+type test.main.User {
     id: int32;
 }
 
-function test.main.User.constructor(v0: ref<uninit<User>, borrowed, exclusive, local>, v1: int32): void {
-entry(v0: ref<uninit<User>, borrowed, exclusive, local>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable, local> = field.address v0, 0
-    store v2, v1
+function test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>, v1: int32): void {
+    local l0: int32
+    local l1: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>
+
+entry(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>, v1: int32):
+    local.set l0, v1
+    local.set l1, v0
+    v2: ref<uninit<test.main.User>, borrowed, 'a, mutable, local> = local.get l1
+    v3: int32 = local.get l0
+    v4: ref<uninit<int32>, borrowed, 'a, mutable, local> = field.project v2, 0
+    store v4, v3
     return
 }
 
-function test.main.localUser(): ref<User, managed, mutable, local> {
+/// @layout.struct name=test.main.User size=4 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+"#);
+
+    session.assert_mir_function("main.ds", "test.main.localUser", r#"
+type test.main.User {
+    id: int32;
+}
+
+function test.main.localUser(): ref<test.main.User, managed, mutable, local> {
 entry:
     v0: int32 = 1
-    v1: ref<User, managed, mutable, local> = new.zeroed User
-    v2: ref<uninit<User>, borrowed, exclusive, local> = cast.bit v1 -> ref<uninit<User>, borrowed, exclusive, local>
-    call test.main.User.constructor(v2, v0): (ref<uninit<User>, borrowed, exclusive, local>, int32) => void
+    v1: ref<test.main.User, managed, mutable, local> = new.zeroed test.main.User
+    v2: ref<uninit<test.main.User>, borrowed, 'managed, mutable, local> = cast.bit v1 -> ref<uninit<test.main.User>, borrowed, 'managed, mutable, local>
+    call test.main.User.constructor(v2, v0): <'a>(ref<uninit<test.main.User>, borrowed, 'a, mutable, local>, int32) => void
     return v1
 }
 
-function test.main.sharedUser(): ref<User, managed, mutable, shared> {
+/// @layout.struct name=test.main.User size=4 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+"#);
+
+    session.assert_mir_function("main.ds", "test.main.sharedUser", r#"
+type test.main.User {
+    id: int32;
+}
+
+function test.main.sharedUser(): ref<test.main.User, managed, mutable, shared> {
 entry:
     v0: int32 = 2
-    v1: ref<User, managed, mutable, shared> = new.zeroed User
-    v2: ref<uninit<User>, borrowed, exclusive, shared> = cast.bit v1 -> ref<uninit<User>, borrowed, exclusive, shared>
-    call test.main.User.constructor<shared>(v2, v0): (ref<uninit<User>, borrowed, exclusive, shared>, int32) => void
+    v1: ref<test.main.User, managed, mutable, shared> = new.zeroed test.main.User
+    v2: ref<uninit<test.main.User>, borrowed, 'managed, mutable, shared> = cast.bit v1 -> ref<uninit<test.main.User>, borrowed, 'managed, mutable, shared>
+    call test.main.User.constructor<shared>(v2, v0): <'a>(ref<uninit<test.main.User>, borrowed, 'a, mutable, local>, int32) => void
     return v1
 }
 
-function test.main.User.constructor<shared>(v0: ref<uninit<User>, borrowed, exclusive, shared>, v1: int32): void {
-entry(v0: ref<uninit<User>, borrowed, exclusive, shared>, v1: int32):
-    v2: ref<uninit<int32>, borrowed, mutable, shared> = field.address v0, 0
-    store v2, v1
-    return
+/// @layout.struct name=test.main.User size=4 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+"#);
+
+    session.assert_mir_function("main.ds", "test.main.User.constructor<shared>", r#"
+type test.main.User {
+    id: int32;
 }
 
-/// @layout.struct name=User size=4 align=4
-/// @layout.field owner=User index=0 name=id offset=0 size=4 align=4
-"#,
-    );
+shared function test.main.User.constructor<shared, 'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>, v1: int32): void;
+
+/// @layout.struct name=test.main.User size=4 align=4
+/// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
+"#);
 }

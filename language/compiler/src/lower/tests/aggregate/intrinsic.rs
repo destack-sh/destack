@@ -17,12 +17,12 @@ newtype Reading = Dynamic<Meter>;
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Meter { }
+type test.main.Meter { }
 
 @copy
-type Reading = newtype<dynamic<Meter, managed, mutable, local>>;
+type test.main.Reading = newtype<dynamic<test.main.Meter, managed, mutable, local>>;
 
-/// @layout.struct name=Meter size=0 align=1
+/// @layout.struct name=test.main.Meter size=0 align=1
 
 /// @dispatch.shape constraint=type@1 function=read
 "#,
@@ -33,8 +33,7 @@ type Reading = newtype<dynamic<Meter, managed, mutable, local>>;
 fn test_lower_atomic_storage_to_an_atomic_cell() {
     let session = TestSession::single(
         r#"
-@languageItem("sync.Atomic")
-newtype Atomic<T> = intrinsic;
+import { Atomic } from "destack:sync";
 
 newtype Counter = Atomic<int32>;
 "#,
@@ -43,9 +42,15 @@ newtype Counter = Atomic<int32>;
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type Atomic<int32> = atomic<int32>;
+@copy
+type test.main.Counter = newtype<atomic<int32>>;
 
-type Counter = newtype<Atomic<int32>>;
+@languageItem("memory.Clone")
+type Clone { }
+
+/// @layout.struct name=Clone size=0 align=1
+
+/// @dispatch.shape constraint=type@4 function=clone function=cloneFrom
 "#,
     );
 }
@@ -63,36 +68,14 @@ newtype Slot = UnsafeCell<int32>;
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type UnsafeCell<int32> = int32;
-
 @copy
-type Slot = newtype<UnsafeCell<int32>>;
+type test.main.Slot = newtype<int32>;
 "#,
     );
 }
 
 #[test]
-fn test_lower_the_lifetime_marker_without_a_representation() {
-    let session = TestSession::single(
-        r#"
-@languageItem("memory.Lifetime")
-newtype Lifetime = intrinsic;
-
-newtype Meters = int32;
-"#,
-    );
-
-    session.assert_mir_lowered(
-        "main.ds",
-        r#"
-@copy
-type Meters = newtype<int32>;
-"#,
-    );
-}
-
-#[test]
-fn test_lower_reflected_type_to_a_type_descriptor() {
+fn test_lower_reflected_type_to_a_type_id() {
     let session = TestSession::single(
         r#"
 import { Type } from "destack:reflect";
@@ -103,14 +86,17 @@ export function accept(descriptor: Type<int32>): Type<int32> {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.accept",
         r#"
-type Type<int32> = typeDescriptor;
+function test.main.accept(v0: typeId): typeId {
+    local l0: typeId
 
-function test.main.accept(v0: Type<int32>): Type<int32> {
-entry(v0: Type<int32>):
-    return v0
+entry(v0: typeId):
+    local.set l0, v0
+    v1: typeId = local.get l0
+    return v1
 }
 "#,
     );

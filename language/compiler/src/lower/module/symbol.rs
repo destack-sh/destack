@@ -2,26 +2,39 @@ use std::hash::Hasher;
 
 use destack_core::StableHasher;
 use destack_dir as dir;
+use destack_source::Span;
 
-use crate::lower::{LowerError, LowerState};
+use crate::lower::{LowerError, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Return the type of one symbol.
     pub(in crate::lower) fn symbol_type(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         self.types(symbol.module_id)?
             .get_symbol_type_id(symbol)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("a missing type for symbol {symbol:?}"),
+            .ok_or_else(|| {
+                let record = self
+                    .state(symbol.module_id)
+                    .map(|state| state.bindings.get_symbol(symbol.local_id));
+                let name = record
+                    .ok()
+                    .and_then(|record| record.name())
+                    .map(|name| self.strings.get(name).to_string());
+                let kind = self
+                    .state(symbol.module_id)
+                    .map(|state| state.bindings.get_symbol(symbol.local_id).kind);
+                CompilerError::Internal {
+                    message: format!("a missing type for the {kind:?} symbol {name:?} {symbol:?}"),
+                }
             })
     }
 
     /// Return the declared name of one symbol in its owning module.
     pub(in crate::lower) fn symbol_name(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<destack_core::StringId>> {
         let bindings = &self.state(symbol.module_id)?.bindings;
@@ -40,24 +53,61 @@ impl LowerState<'_> {
         hasher.finish_u64()
     }
 
+    /// Return the declaring node id and source extent of one symbol, when it has an extent.
+    pub(in crate::lower) fn declaration_anchor(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<(u32, Span)>> {
+        let Some(node) = self.declaration_node(symbol)? else {
+            return Ok(None);
+        };
+        let span = self
+            .state(node.module_id)?
+            .tree()
+            .get_source_extent_by_id(node.local_id.id);
+
+        Ok(span.map(|span| (node.local_id.id, span)))
+    }
+
+    /// Return the node declaring one symbol.
+    pub(in crate::lower) fn declaration_node(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<dir::GlobalNodeIdAny>> {
+        let state = self.state(symbol.module_id)?;
+
+        Ok(state.bindings.get_symbol(symbol.local_id).declaration)
+    }
+
     /// Return the module-qualified lexical path of one symbol.
     pub(in crate::lower) fn symbol_path(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<String> {
         // walk the lexical path of the symbol's owners
         let module = symbol.module_id;
-        let state = self.state(module)?;
-        let local_path = state.bindings.symbol_path(symbol.local_id);
-        let mut names = Vec::with_capacity(local_path.symbols().len());
-        for symbol in local_path.symbols() {
+        let segments: Vec<_> = {
+            let state = self.state(module)?;
+            let local_path = state.bindings.symbol_path(symbol.local_id);
+            local_path
+                .symbols()
+                .iter()
+                .map(|symbol| {
+                    let name = state.bindings.get_symbol(*symbol).name();
+                    let closure = Self::closure_segment(&state.bindings, *symbol);
+                    (*symbol, name, closure)
+                })
+                .collect()
+        };
+        let mut names = Vec::with_capacity(segments.len());
+        for (symbol, name, closure) in segments {
             // synthesize stable names for anonymous segments such as closures
-            match state.bindings.get_symbol(*symbol).name() {
+            match name {
                 Some(name) => names.push(self.strings.get(name).to_string()),
                 None => {
                     let segment = match self.member_role(symbol.into_global(module))? {
                         Some(dir::FunctionRole::Constructor) => "constructor".to_string(),
-                        _ => Self::closure_segment(&state.bindings, *symbol),
+                        _ => closure,
                     };
                     names.push(segment);
                 }
@@ -69,7 +119,7 @@ impl LowerState<'_> {
 
     /// Qualify one name under its module path, keeping standard library names bare.
     pub(in crate::lower) fn qualified_name(
-        &self,
+        &mut self,
         module: destack_source::ModuleId,
         name: &str,
     ) -> CompilerResult<String> {
@@ -85,24 +135,17 @@ impl LowerState<'_> {
 
     /// Return the symbol declared at one node in its owning module.
     pub(in crate::lower) fn symbol_declared_at(
-        &self,
+        &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        // find the symbol whose declaration is this node
-        let bindings = &self.state(node.module_id)?.bindings;
-        for id in bindings.symbol_ids() {
-            let symbol = bindings.get_symbol(id);
-            if symbol.declaration == Some(node) {
-                return Ok(Some(id.into_global(node.module_id)));
-            }
-        }
+        let declared = self.state(node.module_id)?.declared_symbol(node);
 
-        Ok(None)
+        Ok(declared.map(|symbol| symbol.into_global(node.module_id)))
     }
 
     /// Return the resolved symbol behind one name reference.
     pub(in crate::lower) fn resolved_symbol(
-        &self,
+        &mut self,
         node: dir::GlobalNodeIdAny,
     ) -> CompilerResult<dir::GlobalSymbolId> {
         let state = self.state(node.module_id)?;
@@ -133,7 +176,7 @@ impl LowerState<'_> {
 
     /// Return whether one intersection operand names an interface constraint.
     pub(in crate::lower) fn is_interface_operand(
-        &self,
+        &mut self,
         id: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
         let dir::Type::Application(instance) = self.ty(id)? else {
@@ -153,15 +196,36 @@ impl LowerState<'_> {
 
     /// Return the definition of one symbol in its owning module.
     pub(in crate::lower) fn definition(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<&dir::Definition>> {
         Ok(self.state(symbol.module_id)?.definitions.definition(symbol))
     }
 
-    /// Return whether one definition declares parameters beyond the memory kinds.
+    /// Return whether one definition's template writes a type parameter of its own.
+    pub(in crate::lower) fn definition_has_written_parameters(
+        &mut self,
+        module: destack_source::ModuleId,
+        definition: &dir::Definition,
+    ) -> CompilerResult<bool> {
+        let Some(template) = definition.template() else {
+            return Ok(false);
+        };
+        let generics = &self.state(module)?.generics;
+        let template = generics.get_template(template);
+        let written = template.parameters.iter().any(|parameter| {
+            let parameter = generics.get_parameter(*parameter);
+            parameter.origin != dir::GenericParameterOrigin::Receiver
+                && parameter.is_representation_parameter()
+        });
+
+        Ok(written)
+    }
+
+    /// Return whether one definition's representation ranges over any parameter, the receiver
+    /// among them.
     pub(in crate::lower) fn definition_is_parameterized(
-        &self,
+        &mut self,
         module: destack_source::ModuleId,
         definition: &dir::Definition,
     ) -> CompilerResult<bool> {
@@ -169,22 +233,21 @@ impl LowerState<'_> {
             return Ok(false);
         };
 
-        // skip memory parameters, which ground at each use
+        // skip induced place parameters
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
-        for parameter in &template.parameters {
-            let parameter = generics.get_parameter(*parameter);
-            if parameter.memory_parameter().is_none() {
-                return Ok(true);
-            }
-        }
+        let parameterized = template.parameters.iter().any(|parameter| {
+            generics
+                .get_parameter(*parameter)
+                .is_representation_parameter()
+        });
 
-        Ok(false)
+        Ok(parameterized)
     }
 
     /// Return the declared member role of one symbol, when its owner declares it.
     fn member_role(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::FunctionRole>> {
         let state = self.state(symbol.module_id)?;

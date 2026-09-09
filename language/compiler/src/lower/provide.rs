@@ -1,17 +1,28 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey, DirBound,
-    DirChecked, DirDeclared, DirElaborated, DirExpanded, DirMaterialized, DirParsed,
-};
-use destack_core::FxIndexMap;
-use destack_repository::{ProfileId, ProviderContext, ProviderError};
+use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
+use destack_mir as mir;
+use destack_repository::{ProfileId, ProviderContext};
 use destack_source::{ModuleId, TargetId};
 
-use crate::lower::{LowerModuleState, LowerState};
+use crate::lower::{LowerPhase, ModuleLowerer};
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 impl Compiler {
+    /// Collect the inputs declaring one module's MIR for one target.
+    pub(crate) fn collect_mir_declared(
+        &self,
+        module: ModuleId,
+        profile: ProfileId,
+        target: TargetId,
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<ArtifactDependencySet> {
+        let mut dependencies = self.dir_stage_dependencies(module, profile);
+        self.observe_package_config(context, target.package_id(), &mut dependencies)?;
+
+        Ok(dependencies)
+    }
+
     /// Collect the lowering inputs for one module and target.
     pub(crate) fn collect_mir(
         &self,
@@ -20,78 +31,80 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require(ArtifactKey::dir_parsed(module));
-        dependencies.require(ArtifactKey::dir_bound(module, profile));
-        dependencies.require(ArtifactKey::dir_expanded(module, profile));
-        dependencies.require(ArtifactKey::dir_checked(module, profile));
-        dependencies.require(ArtifactKey::dir_materialized(module, profile));
-
-        // require the artifact stack of every reachable module
-        for reachable in self.reachable_modules(module, profile, context, &mut dependencies)? {
-            dependencies.require(ArtifactKey::dir_parsed(reachable));
-            dependencies.require(ArtifactKey::dir_bound(reachable, profile));
-            dependencies.require(ArtifactKey::dir_expanded(reachable, profile));
-            dependencies.require(ArtifactKey::dir_checked(reachable, profile));
-            dependencies.require(ArtifactKey::dir_materialized(reachable, profile));
-        }
-
-        // observe package config for target resolution
+        let mut dependencies = self.dir_stage_dependencies(module, profile);
+        dependencies.require(ArtifactKey::mir_declared(module, profile, target));
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
-
         Ok(dependencies)
     }
 
-    /// Return other modules reachable through one module's reference graph.
-    fn reachable_modules(
+    /// Return the requirements on one module's own DIR stages.
+    fn dir_stage_dependencies(
         &self,
         module: ModuleId,
         profile: ProfileId,
-        context: &dyn ProviderContext,
-        dependencies: &mut ArtifactDependencySet,
-    ) -> CompilerResult<Vec<ModuleId>> {
-        // require the root module's graph edges before reading the module graph
-        let graph_key = ArtifactKey::module_graph(profile);
-        dependencies.require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
-        let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.module_graph_reader(profile) {
-            Ok(graph) => graph,
-            Err(ProviderError::Blocked { .. }) => {
-                dependencies.mark_partial();
-
-                return Ok(Vec::new());
-            }
-            Err(error) => return Err(error.into()),
-        };
-
-        // require the graph edges of every module reachable from the roots
-        let roots = self.lowering_roots(module, profile, context)?;
-        let reachable = graph.reachable(&roots)?;
-        for current in reachable.iter().copied() {
-            dependencies
-                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(current));
+    ) -> ArtifactDependencySet {
+        let mut dependencies = ArtifactDependencySet::default();
+        for key in ArtifactKey::dir_stages(module, profile) {
+            dependencies.require(key);
         }
+        dependencies.require_payload(ArtifactKey::environment_bound(profile));
 
-        // collect every reachable module other than this one
-        let modules = reachable
-            .into_iter()
-            .filter(|reachable| *reachable != module)
-            .collect();
-
-        Ok(modules)
+        dependencies
     }
 
-    /// Return one module's reachability roots, seeded with the global modules.
-    fn lowering_roots(
+    /// Return the ABI layout of one target.
+    fn lower_target_layout(
+        &self,
+        context: &dyn ProviderContext,
+        target: TargetId,
+    ) -> CompilerResult<mir::TargetLayout> {
+        let target_config =
+            self.target_or_builtin(context, target)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: format!("a missing configuration for the target '{target}'"),
+                })?;
+
+        Ok(self
+            .target_layout(&target_config, target)
+            .map_err(|message| LowerError::InvalidTarget {
+                anchor: target.package_id().into(),
+                package: target.package_id(),
+                target,
+                message,
+            })?)
+    }
+
+    /// Declare one module's MIR for one target.
+    pub(crate) fn provide_mir_declared(
         &self,
         module: ModuleId,
         profile: ProfileId,
+        target: TargetId,
         context: &dyn ProviderContext,
-    ) -> CompilerResult<Vec<ModuleId>> {
-        let mut roots = vec![module];
-        roots.extend(self.load_global_module_ids(profile, context)?);
+    ) -> CompilerResult<ArtifactPayload> {
+        let target_layout = self.lower_target_layout(context, target)?;
+        let artifacts = self.artifact_reader(context);
+        let environment = artifacts
+            .read::<EnvironmentBound>(profile)
+            .map_err(CompilerError::from)?;
+        let strings = self.repository.string_pool();
+        let mut lower = ModuleLowerer::new(
+            module,
+            LowerPhase::Declare,
+            strings,
+            target,
+            target_layout,
+            self,
+            context,
+            artifacts,
+            profile,
+            environment,
+        );
 
-        Ok(roots)
+        // leave the failed declarations out, the module's own lowering reporting them
+        let (declared, _) = lower.declare()?;
+
+        Ok(ArtifactPayload::MirDeclared(Arc::new(declared)))
     }
 
     /// Lower one module for one target.
@@ -102,116 +115,26 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // resolve the target configuration and its memory layout
-        let target_config =
-            self.target_or_builtin(context, target)?
-                .ok_or_else(|| CompilerError::Internal {
-                    message: format!("a missing configuration for the target '{target}'"),
-                })?;
-        let target_layout = self
-            .target_layout(&target_config, target)
-            .map_err(|message| LowerError::InvalidTarget {
-                anchor: target.package_id().into(),
-                package: target.package_id(),
-                target,
-                message,
-            })?;
+        let target_layout = self.lower_target_layout(context, target)?;
 
-        // read the artifact stack of the module being lowered
+        // lower the module against the environment and the repository string pool
         let artifacts = self.artifact_reader(context);
-        let parsed = artifacts
-            .read::<DirParsed>(module)
+        let environment = artifacts
+            .read::<EnvironmentBound>(profile)
             .map_err(CompilerError::from)?;
-        let bound = artifacts
-            .read::<DirBound>((module, profile))
-            .map_err(CompilerError::from)?;
-        let expanded = artifacts
-            .read::<DirExpanded>((module, profile))
-            .map_err(CompilerError::from)?;
-        let declared = artifacts
-            .read::<DirDeclared>((module, profile))
-            .map_err(CompilerError::from)?;
-        let elaborated = artifacts
-            .read::<DirElaborated>((module, profile))
-            .map_err(CompilerError::from)?;
-        let checked = artifacts
-            .read::<DirChecked>((module, profile))
-            .map_err(CompilerError::from)?;
-        let materialized = artifacts
-            .read::<DirMaterialized>((module, profile))
-            .map_err(CompilerError::from)?;
-
-        // resolve the import closure seeded with the global modules
-        let graph = artifacts
-            .module_graph_reader(profile)
-            .map_err(CompilerError::from)?;
-        let roots = self.lowering_roots(module, profile, context)?;
-        let reachable = graph.reachable(&roots)?;
-
-        // load the state of every other reachable module
-        let mut modules = FxIndexMap::default();
-        for reachable in reachable {
-            if reachable == module {
-                continue;
-            }
-
-            // read the artifact stack of one reachable module
-            let parsed = artifacts
-                .read::<DirParsed>(reachable)
-                .map_err(CompilerError::from)?;
-            let bound = artifacts
-                .read::<DirBound>((reachable, profile))
-                .map_err(CompilerError::from)?;
-            let expanded = artifacts
-                .read::<DirExpanded>((reachable, profile))
-                .map_err(CompilerError::from)?;
-            let declared = artifacts
-                .read::<DirDeclared>((reachable, profile))
-                .map_err(CompilerError::from)?;
-            let elaborated = artifacts
-                .read::<DirElaborated>((reachable, profile))
-                .map_err(CompilerError::from)?;
-            let checked = artifacts
-                .read::<DirChecked>((reachable, profile))
-                .map_err(CompilerError::from)?;
-            let materialized = artifacts
-                .read::<DirMaterialized>((reachable, profile))
-                .map_err(CompilerError::from)?;
-            let path = self.module_symbol_path(context, reachable)?;
-            modules.insert(
-                reachable,
-                LowerModuleState::new(
-                    parsed,
-                    &bound,
-                    &expanded,
-                    &declared,
-                    &elaborated,
-                    &checked,
-                    &materialized,
-                    path,
-                ),
-            );
-        }
-
-        // insert the state of the module being lowered
-        let path = self.module_symbol_path(context, module)?;
-        modules.insert(
-            module,
-            LowerModuleState::new(
-                parsed,
-                &bound,
-                &expanded,
-                &declared,
-                &elaborated,
-                &checked,
-                &materialized,
-                path,
-            ),
-        );
-
-        // lower the module against the repository string pool
         let strings = self.repository.string_pool();
-        let mut lower = LowerState::new(module, strings, modules, target_layout);
+        let mut lower = ModuleLowerer::new(
+            module,
+            LowerPhase::Lower,
+            strings,
+            target,
+            target_layout,
+            self,
+            context,
+            artifacts,
+            profile,
+            environment,
+        );
         let (lowered, mut errors) = lower.lower()?;
 
         // emit every lowering diagnostic and fail the artifact on the last
@@ -226,11 +149,7 @@ impl Compiler {
     }
 
     /// Return the canonical symbol path of one module.
-    ///
-    /// Named packages namespace their modules as `{package}.{path}` with the
-    /// module path relative to the package root; the anonymous root package
-    /// contributes its module paths bare.
-    fn module_symbol_path(
+    pub(in crate::lower) fn module_symbol_path(
         &self,
         context: &dyn ProviderContext,
         module: ModuleId,

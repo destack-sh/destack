@@ -66,10 +66,11 @@ fn test_lower_library() {
     assert_snapshot(
         report,
         r"
-FAIL assert/assert.ds :: error[unsupported-lower-construct]: unsupported construct: 'Is' expressions
+ok   assert/assert.ds
 ok   assert/index.ds
 ok   async/abort.ds
 ok   async/awaitable.ds
+ok   async/channel.ds
 ok   async/fiber.ds
 ok   async/generator.ds
 ok   async/index.ds
@@ -78,7 +79,7 @@ ok   async/mutex.ds
 ok   async/notify.ds
 ok   async/once.ds
 ok   async/poll.ds
-FAIL async/promise.ds :: an unsubstituted type parameter of 'PromiseWaiter'
+ok   async/promise.ds
 ok   async/reader.ds
 ok   async/result.ds
 ok   async/rwlock.ds
@@ -134,7 +135,7 @@ ok   decorator/derive.ds
 ok   decorator/diagnostic.ds
 ok   decorator/index.ds
 ok   decorator/intrinsic.ds
-FAIL decorator/representation.ds :: an unreduced 'Operation' type
+ok   decorator/representation.ds
 ok   decorator/restriction.ds
 ok   decorator/safety.ds
 ok   decorator/stability.ds
@@ -210,7 +211,7 @@ ok   memory/arc/arc.ds
 ok   memory/arc/index.ds
 ok   memory/arc/weak.ds
 ok   memory/arena/arena.ds
-FAIL memory/arena/bump.ds :: error[unsupported-lower-construct]: unsupported construct: a bare generic reference outside its instance selection
+ok   memory/arena/bump.ds
 ok   memory/arena/index.ds
 ok   memory/binding/advise.ds
 ok   memory/binding/index.ds
@@ -282,8 +283,7 @@ ok   ops/subscript.ds
 ok   ops/try.ds
 ok   prelude.ds
 ok   profile/index.ds
-FAIL profile/instrument.ds :: error[unsupported-lower-construct]: unsupported construct: the 'profile.increment' intrinsic
-FAIL profile/instrument.ds :: error[unsupported-lower-construct]: unsupported construct: the 'profile.sample' intrinsic
+ok   profile/instrument.ds
 ok   random/binding/entropy.ds
 ok   random/binding/index.ds
 ok   random/binding/random.ds
@@ -358,12 +358,12 @@ ok   telemetry/index.ds
 ok   telemetry/log.ds
 ok   telemetry/metric.ds
 ok   telemetry/record.ds
-FAIL telemetry/trace.ds :: an adapted value LocalNodeId { id: 86 } outside every case of LocalNodeId { id: 85 }
+ok   telemetry/trace.ds
 ok   test/artifact.ds
 ok   test/body.ds
 ok   test/case.ds
 ok   test/context.ds
-FAIL test/expect.ds :: an adapted value outside its declared representation
+FAIL test/expect.ds :: a 'null' literal outside its representation
 ok   test/fixture.ds
 ok   test/hook.ds
 ok   test/id.ds
@@ -404,6 +404,7 @@ ok   topology/label.ds
 ok   topology/topology.ds
 ok   tree/builder.ds
 ok   tree/index.ds
+ok   types/boolean.ds
 ok   types/function.ds
 ok   types/index.ds
 ok   types/object.ds

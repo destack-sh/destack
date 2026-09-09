@@ -15,24 +15,32 @@ function diagonal(a: int32, b: int32): Point {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.diagonal",
         r#"
 @copy
-type Point {
+type test.main.Point {
     x: int32;
     y: int32;
 }
 
-function test.main.diagonal(v0: int32, v1: int32): Point {
+function test.main.diagonal(v0: int32, v1: int32): test.main.Point {
+    local l0: int32
+    local l1: int32
+
 entry(v0: int32, v1: int32):
-    v2: Point = aggregate (v0, v1)
-    return v2
+    local.set l0, v0
+    local.set l1, v1
+    v2: int32 = local.get l0
+    v3: int32 = local.get l1
+    v4: test.main.Point = aggregate (v2, v3)
+    return v4
 }
 
-/// @layout.struct name=Point size=8 align=4
-/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
+/// @layout.struct name=test.main.Point size=8 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.main.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -53,26 +61,37 @@ function sample(flag: boolean, weight: float64, count: int32): Sample {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.sample",
         r#"
 @copy
-type Sample {
+type test.main.Sample {
     flag: boolean;
     weight: float64;
     count: int32;
 }
 
-function test.main.sample(v0: boolean, v1: float64, v2: int32): Sample {
+function test.main.sample(v0: boolean, v1: float64, v2: int32): test.main.Sample {
+    local l0: boolean
+    local l1: float64
+    local l2: int32
+
 entry(v0: boolean, v1: float64, v2: int32):
-    v3: Sample = aggregate (v0, v1, v2)
-    return v3
+    local.set l0, v0
+    local.set l1, v1
+    local.set l2, v2
+    v3: boolean = local.get l0
+    v4: float64 = local.get l1
+    v5: int32 = local.get l2
+    v6: test.main.Sample = aggregate (v3, v4, v5)
+    return v6
 }
 
-/// @layout.struct name=Sample size=16 align=8
-/// @layout.field owner=Sample index=0 name=flag offset=12 size=1 align=1
-/// @layout.field owner=Sample index=1 name=weight offset=0 size=8 align=8
-/// @layout.field owner=Sample index=2 name=count offset=8 size=4 align=4
+/// @layout.struct name=test.main.Sample size=16 align=8
+/// @layout.field owner=test.main.Sample index=0 name=flag offset=12 size=1 align=1
+/// @layout.field owner=test.main.Sample index=1 name=weight offset=0 size=8 align=8
+/// @layout.field owner=test.main.Sample index=2 name=count offset=8 size=4 align=4
 "#,
     );
 }
@@ -91,21 +110,18 @@ function identity(value: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.identity",
         r#"
-@copy
-type Metadata {
-    value: int32;
-}
-
 function test.main.identity(v0: int32): int32 {
-entry(v0: int32):
-    return v0
-}
+    local l0: int32
 
-/// @layout.struct name=Metadata size=4 align=4
-/// @layout.field owner=Metadata index=0 name=value offset=0 size=4 align=4
+entry(v0: int32):
+    local.set l0, v0
+    v1: int32 = local.get l0
+    return v1
+}
 "#,
     );
 }

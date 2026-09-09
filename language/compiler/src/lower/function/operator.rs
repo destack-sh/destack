@@ -2,9 +2,133 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::function::assign::UnionMemberStore;
+use crate::lower::function::call::ReceiverUse;
+use crate::lower::function::place::Place;
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Map one comparison operator's protocol result onto its boolean.
+    pub(in crate::lower) fn lower_comparison_result(
+        &mut self,
+        operator: dir::BinaryOperator,
+        value: mir::Value,
+        return_type: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Value> {
+        if !operator.is_comparison() || operator.is_equality() {
+            return Ok(value);
+        }
+
+        // a total comparison answers an ordering directly
+        let Some(members) = self.lower.union_members_maybe(return_type)? else {
+            return self.lower_ordering_test(operator, value, return_type);
+        };
+
+        // a partial comparison answers an ordering in one case, false outside it
+        let ordering = self
+            .lower
+            .language_item_symbol(dir::LanguageItem::Ordering)?;
+        let mut selected = None;
+        for member in members {
+            if let dir::Type::Application(application) = self.lower.ty(member)?
+                && application.symbol == ordering
+            {
+                selected = Some(member);
+            }
+        }
+        let Some(member) = selected else {
+            return Err(CompilerError::Internal {
+                message: "a partial comparison without an ordering case".to_string(),
+            });
+        };
+        let position = self.case(return_type, member)? as usize;
+        let boolean = self.builder.tree().boolean_type();
+        let result = self.builder.local(boolean, mir::Mutability::Immutable);
+        let present = self.builder.block();
+        let absent = self.builder.block();
+        let exit = self.builder.block();
+        let place = Place::local(self.home(value));
+        self.branch_place_case(&place, position as u32, present, absent)?;
+
+        // test the ordering the present case holds
+        self.builder.switch_to_block(present);
+        let ordering_value = self.builder.variant_payload(value, position as u32);
+        let tested = self.lower_ordering_test(operator, ordering_value, member)?;
+        self.builder.local_set(result, tested);
+        self.builder.jump(exit);
+
+        // answer false for an absent ordering
+        self.builder.switch_to_block(absent);
+        let unordered = self.builder.bconst(false);
+        self.builder.local_set(result, unordered);
+        self.builder.jump(exit);
+
+        self.builder.switch_to_block(exit);
+
+        Ok(self.builder.local_get(result))
+    }
+
+    /// Test one ordering value for the case a comparison operator names.
+    fn lower_ordering_test(
+        &mut self,
+        operator: dir::BinaryOperator,
+        value: mir::Value,
+        ordering: dir::GlobalTypeId,
+    ) -> CompilerResult<mir::Value> {
+        // name the case the operator tests and whether it holds or is excluded
+        let (case, holds) = match operator {
+            dir::BinaryOperator::LessThan => ("Less", true),
+            dir::BinaryOperator::GreaterThan => ("Greater", true),
+            dir::BinaryOperator::LessThanOrEqual => ("Greater", false),
+            dir::BinaryOperator::GreaterThanOrEqual => ("Less", false),
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "an ordering test outside a comparison operator".to_string(),
+                });
+            }
+        };
+
+        // find the case's discriminant through the enum declaring it
+        let dir::Type::Application(application) = self.lower.ty(ordering)? else {
+            return Err(CompilerError::Internal {
+                message: "an ordering outside its enum application".to_string(),
+            });
+        };
+        let Some(dir::Definition::Enum(definition)) =
+            self.lower.definition(application.symbol)?.cloned()
+        else {
+            return Err(CompilerError::Internal {
+                message: "an ordering without its enum definition".to_string(),
+            });
+        };
+        let key = dir::LanguageItem::Ordering.member(case).key;
+        let Some(index) = definition.variant_by_key(key).map(|variant| variant.symbol) else {
+            return Err(CompilerError::Internal {
+                message: format!("an ordering without its '{case}' case"),
+            });
+        };
+        let index = self.lower.variant_position(application.symbol, index)?;
+        let representation = self.lower_type(ordering)?;
+        let mir::Type::Variant { cases, .. } = self.builder.tree().get(representation).clone()
+        else {
+            return Err(CompilerError::Internal {
+                message: "an ordering outside a variant representation".to_string(),
+            });
+        };
+        let discriminant = cases[index as usize].discriminant.clone();
+
+        // compare the tag with that discriminant
+        let tag = self.builder.variant_tag(value);
+        let tag_type = self.value_representation(tag)?;
+        let expected = self.builder.constant(discriminant, tag_type);
+        let operator = match holds {
+            true => mir::BinaryOperator::Equal,
+            false => mir::BinaryOperator::NotEqual,
+        };
+
+        Ok(self.builder.binary(operator, tag, expected))
+    }
+
     /// Lower one protocol operator through its selected method candidate.
     pub(in crate::lower) fn lower_operator_method(
         &mut self,
@@ -30,14 +154,14 @@ impl FunctionLowerer<'_, '_, '_> {
         right: dir::LocalNodeId<dir::Expression>,
         operand: &dir::BuiltinOperand,
     ) -> CompilerResult<mir::Value> {
-        // require a scalar operand
-        let operand = self.lower_operand(right, operand)?;
-        let LoweredOperand::Scalar { value, .. } = operand else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("the '{}' operator on this representation", operator.text()),
-            }
-            .into());
+        // require a scalar operand, a parameter's instance deciding its format
+        let operand = self.lower_builtin_operand(right, operand)?;
+        let (LoweredOperand::Scalar { value, .. } | LoweredOperand::Polymorphic(value)) = operand
+        else {
+            return Err(self.unsupported(format!(
+                "the '{}' operator on this representation",
+                operator.text()
+            )));
         };
 
         match operator {
@@ -50,46 +174,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(self.builder.unary(mir::UnaryOperator::Not, value))
             }
             // reject every other unary operator
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("the '{}' operator", other.text()),
-            }
-            .into()),
+            other => Err(self.unsupported(format!("the '{}' operator", other.text()))),
         }
-    }
-
-    /// Join one present reference at the coalesce result representation.
-    fn coalesce_present_value(
-        &mut self,
-        value: mir::Value,
-        result: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::Value> {
-        // enter the present case of an optional variant result
-        if let mir::Type::Variant { cases, .. } = self.builder.tree().get(result).clone() {
-            // require the absent case beside exactly one present case
-            let Some(mir::NullishCase::Case(absent)) = self.builder.tree().undefined_case(result)
-            else {
-                return Err(CompilerError::Internal {
-                    message: "a coalesce variant result without an absent case".to_string(),
-                });
-            };
-            let [_, _] = cases.as_slice() else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a coalesce joining a union of several present cases".to_string(),
-                }
-                .into());
-            };
-
-            // adapt the value into the remaining present case
-            let present = 1 - absent;
-            let payload = cases[present as usize].ty;
-            let payload = self.adapt_to_representation(value, payload)?;
-
-            return Ok(self.builder.variant_new(result, present, Some(payload)));
-        }
-
-        self.adapt_to_representation(value, result)
     }
 
     /// Lower one nullish coalescing operation over its variant or niched representation.
@@ -102,104 +188,47 @@ impl FunctionLowerer<'_, '_, '_> {
         // pre-classify both representations without lowering either operand
         let source = self.node_type_id(left)?;
         let representation = self.lower_type(source)?;
-        let result = self.lower_type(self.node_type_id(expression)?)?;
+        let result_ty = self.node_type_id(expression)?;
+        let result = self.lower_type(result_ty)?;
 
         // narrow variant representations through their undefined case
         if matches!(
             self.builder.tree().get(representation),
             mir::Type::Variant { .. }
         ) {
-            let value = self.lower_expression(left)?;
-            if self.builder.tree().undefined_case(representation).is_none() {
-                return self.adapt_to_representation(value, result);
+            let value = self.lower_value(left)?;
+            if self.absent_case(representation).is_none() {
+                return self.adopt(value, result);
             }
 
             return self.lower_absent_fallback(value, result, |lower| {
-                lower.lower_coalesce_fallback(right, result)
+                lower.lower_coalesce_fallback(right, result_ty)
             });
         }
 
-        // keep the value of a never-absent operand
-        let Some(nullability) = self.builder.tree().get(representation).nullability() else {
-            let value = self.lower_expression(left)?;
+        // keep the value of an operand no variant stores absent
+        let value = self.lower_value(left)?;
 
-            return self.adapt_to_representation(value, result);
-        };
-
-        // keep the value of a never-nullish reference
-        let value = self.lower_expression(left)?;
-        if nullability == mir::Nullability::None {
-            return self.adapt_to_representation(value, result);
-        }
-
-        // test the nullish niches the representation declares
-        let mut is_nullish = None;
-        if nullability.admits(mir::Nullish::Undefined) {
-            let undefined = self
-                .builder
-                .constant(mir::Constant::Undefined, representation);
-            is_nullish = Some(
-                self.builder
-                    .binary(mir::BinaryOperator::Equal, value, undefined),
-            );
-        }
-        if nullability.admits(mir::Nullish::Null) {
-            let null = self.builder.constant(mir::Constant::Null, representation);
-            let test = self.builder.binary(mir::BinaryOperator::Equal, value, null);
-            is_nullish = Some(match is_nullish {
-                Some(nullish) => self.builder.binary(mir::BinaryOperator::Or, nullish, test),
-                None => test,
-            });
-        }
-        let Some(is_nullish) = is_nullish else {
-            return Err(CompilerError::Internal {
-                message: "a nullable representation without a nullish test".to_string(),
-            });
-        };
-
-        // short-circuit the right operand behind the nullish test
-        let join_value = self.builder.local(result, mir::Mutability::Mutable);
-        let keep_block = self.builder.block();
-        let right_block = self.builder.block();
-        let join = self.builder.block();
-        self.builder.branch(is_nullish, right_block, keep_block);
-
-        // keep the present reference at the joined result representation
-        self.builder.switch_to_block(keep_block);
-        let kept = self.coalesce_present_value(value, result)?;
-        self.builder.local_set(join_value, kept);
-        self.builder.jump(join);
-
-        // evaluate the fallback only when the reference is nullish
-        self.builder.switch_to_block(right_block);
-        if let Some(fallback) = self.lower_coalesce_fallback(right, result)? {
-            self.builder.local_set(join_value, fallback);
-            self.builder.jump(join);
-        }
-
-        // continue in the joined block
-        self.builder.switch_to_block(join);
-
-        Ok(self.builder.local_get(join_value))
+        self.adopt(value, result)
     }
 
     /// Lower one coalesce fallback, terminating instead of joining for never arms.
     fn lower_coalesce_fallback(
         &mut self,
         right: dir::LocalNodeId<dir::Expression>,
-        result: mir::LocalNodeId<mir::Type>,
+        result_ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<mir::Value>> {
         // end the block of a never-typed fallback without a value
         if matches!(self.node_type(right)?, dir::Type::Never) {
-            self.lower_expression(right)?;
+            self.lower_value(right)?;
 
             return Ok(None);
         }
 
-        // evaluate the fallback at the result representation
-        let fallback = self.lower_expression(right)?;
+        // evaluate the fallback at the result type its record converts it to
+        let operand = self.lower_operand(right)?;
 
-        Ok(Some(self.adapt_to_representation(fallback, result)?))
+        Ok(Some(self.as_value(operand, result_ty)?))
     }
 
     /// Lower one short-circuiting logical operation over boolean operands.
@@ -215,17 +244,13 @@ impl FunctionLowerer<'_, '_, '_> {
             self.node_type(expression)?,
             dir::Type::Primitive(dir::PrimitiveType::Boolean)
         ) {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a union-valued logical operation".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a union-valued logical operation"));
         }
 
         // branch on the left value to short-circuit the right operand
-        let join_value = self.value_slot(expression)?;
-        let value = self.lower_expression(left)?;
-        self.builder.local_set(join_value, value);
+        let destination = self.join_place(expression)?;
+        let value = self.lower_value(left)?;
+        self.write_place(&destination, value)?;
         let right_block = self.builder.block();
         let join = self.builder.block();
         match operator {
@@ -237,14 +262,14 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // overwrite the join value when the right operand runs
         self.builder.switch_to_block(right_block);
-        let value = self.lower_expression(right)?;
-        self.builder.local_set(join_value, value);
-        self.builder.jump(join);
+        if self.lower_into(right, &destination)? {
+            self.builder.jump(join);
+        }
 
         // continue in the joined block
         self.builder.switch_to_block(join);
 
-        Ok(self.builder.local_get(join_value))
+        self.read_place(&destination)
     }
 
     /// Lower one statement-position update operator through its place.
@@ -266,22 +291,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        // resolve the updated place
-        let resolution = self.assignment_decision(target)?;
-        let place = self.place(&resolution)?;
-
-        // rewrite the place by one over its representation
-        let current = self.read_place(&place)?;
-        let one_type = self
-            .builder
-            .value_type(current)
-            .ok_or_else(|| CompilerError::Internal {
-                message: "a lowered update operand without a type".to_string(),
-            })?;
-        let one_type = self.builder.tree().get(one_type).clone();
-        let one = self.lower_constant(dir::Literal::Integer(1), one_type)?;
-
-        // select the operation the update names and store the result
+        // select the operation the update names
         let operator = match operator {
             dir::UnaryOperator::PostIncrement | dir::UnaryOperator::PreIncrement => {
                 dir::BinaryOperator::Add
@@ -289,10 +299,43 @@ impl FunctionLowerer<'_, '_, '_> {
             _ => dir::BinaryOperator::Subtract,
         };
         let operator = self.binary_operator(operator)?;
+
+        // dispatch a union member update over its recorded arms
+        let resolution = self.assignment_decision(target)?;
+        if let dir::WriteResolution::Member(member) = &resolution.write
+            && !matches!(member, dir::OperationResolution::One(_))
+        {
+            let arms = member.arms().to_vec();
+
+            return self.lower_union_member_write(
+                target,
+                UnionMemberStore::Update(operator),
+                &arms,
+            );
+        }
+
+        // rewrite the place by one over its representation
+        let place = self.place(&resolution)?;
+        let current = self.read_place(&place)?;
+        let one_type = self
+            .builder
+            .value_type(current)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "a lowered update operand without a type".to_string(),
+            })?;
+        let one = self.one_value(one_type)?;
         let value = self.builder.binary(operator, current, one);
         self.write_place(&place, value)?;
 
         Ok(())
+    }
+
+    /// Build the constant one at a value representation.
+    pub(in crate::lower) fn one_value(
+        &mut self,
+        representation: mir::LocalNodeId<mir::Type>,
+    ) -> CompilerResult<mir::Value> {
+        self.lower_constant(dir::Literal::Integer(1), representation)
     }
 
     /// Lower one resolved DIR binary operator into its type-neutral MIR operation.
@@ -332,11 +375,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // reject every other operator
             other => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("the '{}' operator", other.text()),
-                }
-                .into());
+                return Err(self.unsupported(format!("the '{}' operator", other.text())));
             }
         })
     }
@@ -354,6 +393,8 @@ pub(in crate::lower) enum LoweredOperand {
     },
     /// One address-bearing value.
     Address(mir::Value),
+    /// One value of a parameter type, its instance deciding the scalar format or identity.
+    Polymorphic(mir::Value),
     /// One materialized variant value and its logical representation.
     Variant {
         /// The lowered value.
@@ -361,12 +402,13 @@ pub(in crate::lower) enum LoweredOperand {
         /// The type defining the cases.
         representation: dir::GlobalTypeId,
     },
-    /// The unmaterialized null value.
-    Null,
-    /// The unmaterialized undefined value.
-    Undefined,
-    /// One payload-free value.
-    Singleton,
+    /// One value its type holds alone: null, undefined, or a literal.
+    Singleton {
+        /// The zero-sized type.
+        ty: mir::LocalNodeId<mir::Type>,
+        /// The literal the type holds, absent for an empty nominal.
+        literal: Option<dir::Literal>,
+    },
 }
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -385,8 +427,9 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(result);
         }
 
-        let left = self.lower_operand(left, &operands[0])?;
-        let right = self.lower_operand(right, &operands[1])?;
+        // lower both operands and apply the builtin operator
+        let left = self.lower_builtin_operand(left, &operands[0])?;
+        let right = self.lower_builtin_operand(right, &operands[1])?;
 
         self.lower_binary_operands(left, operator, right)
     }
@@ -404,8 +447,9 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(result);
         }
 
-        let left = self.lower_operand(left, &operands[0])?;
-        let right = self.lower_operand(right, &operands[1])?;
+        // compare the operands' representations
+        let left = self.lower_builtin_operand(left, &operands[0])?;
+        let right = self.lower_builtin_operand(right, &operands[1])?;
         let equal = self.lower_representation_equality(left, right)?;
 
         match operator {
@@ -436,7 +480,7 @@ impl FunctionLowerer<'_, '_, '_> {
             && let Some(access) = self.discriminant_access(left)
         {
             let equal = self.lower_discriminant_comparison(left, literal, &access)?;
-            self.lower_expression(right)?;
+            self.lower_value(right)?;
 
             Some(equal)
         }
@@ -444,10 +488,20 @@ impl FunctionLowerer<'_, '_, '_> {
         else if let Some(literal) = left_literal
             && let Some(access) = self.discriminant_access(right)
         {
-            self.lower_expression(left)?;
+            self.lower_value(left)?;
             let equal = self.lower_discriminant_comparison(right, literal, &access)?;
 
             Some(equal)
+        }
+        // test a nullish literal at the place of a move-only operand
+        else if let Some(nullish) = Self::nullish_operand(&self.node_type(right)?)
+            && self.tests_at_place(left)?
+        {
+            Some(self.lower_nullish_place_test(left, nullish)?)
+        } else if let Some(nullish) = Self::nullish_operand(&self.node_type(left)?)
+            && self.tests_at_place(right)?
+        {
+            Some(self.lower_nullish_place_test(right, nullish)?)
         }
         // leave all other operand pairs to their selected equality representation
         else {
@@ -473,6 +527,51 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         Ok(Some(result))
+    }
+
+    /// Return the nullish type one operand's type is, when it is one.
+    fn nullish_operand(ty: &dir::Type) -> Option<dir::Type> {
+        match ty {
+            dir::Type::Null => Some(dir::Type::Null),
+            dir::Type::Undefined => Some(dir::Type::Undefined),
+            _ => None,
+        }
+    }
+
+    /// Return whether one operand tests its case at its place, a read moving the variant it holds.
+    fn tests_at_place(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<bool> {
+        if !self.is_place_expression(expression) {
+            return Ok(false);
+        }
+        let representation = self.operand_representation(expression)?;
+        let variant = self.lower_type(representation)?;
+        let is_variant = matches!(self.builder.tree().get(variant), mir::Type::Variant { .. });
+
+        Ok(is_variant && !self.copies(mir::TypeId::from(variant)))
+    }
+
+    /// Lower one nullish test reading the case tag at the operand's place.
+    fn lower_nullish_place_test(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        nullish: dir::Type,
+    ) -> CompilerResult<mir::Value> {
+        let representation = self.operand_representation(expression)?;
+        let variant = self.lower_type(representation)?;
+        let place = self.receiver_place(expression)?;
+        let address = self.place_address(&place, mir::Access::Readonly)?;
+        let tag = self.builder.variant_tag_load(address, variant);
+        let singleton = match nullish {
+            dir::Type::Null => self
+                .lower
+                .singleton_type(self.builder.tree_mut(), &dir::Literal::Null),
+            _ => self.builder.tree_mut().intern_type(mir::Type::Void),
+        };
+
+        self.lower_case_tag_test(tag, variant, singleton)
     }
 
     /// Return a discriminant member access selected for one expression.
@@ -536,9 +635,9 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // evaluate the discriminant receiver and computed key exactly once
-        let receiver = self.lower_adjusted_receiver(left, &receiver, false)?;
+        let receiver = self.lower_adjusted_receiver(left, &receiver, false, ReceiverUse::Value)?;
         if let Some(index) = index {
-            self.lower_expression(index)?;
+            self.lower_value(index)?;
         }
         let tag = self.lower_discriminant_tag(receiver, union)?;
 
@@ -546,12 +645,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(arm) = arm else {
             return Ok(self.builder.bconst(false));
         };
-        let members = self.union_members(union)?;
-        let Some(index) = members.iter().position(|member| *member == arm) else {
-            return Err(CompilerError::Internal {
-                message: "a discriminant comparison over an absent union arm".to_string(),
-            });
-        };
+        let index = self.case(union, arm)?;
 
         // compare the tag with a constant of its exact integer representation
         let tag_type = self.value_representation(tag)?;
@@ -575,10 +669,10 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         // read through a single indirect layer
         let ty = self.node_type_id(expression)?;
-        let Some(layer) = self.lower.peel_indirection(ty)? else {
+        let Some(layer) = self.lower.indirection(ty, &self.scope)? else {
             return Ok(ty);
         };
-        if self.lower.peel_indirection(layer.stored)?.is_some() {
+        if self.lower.indirection(layer.stored, &self.scope)?.is_some() {
             return Ok(ty);
         }
 
@@ -586,7 +680,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one builtin operand.
-    pub(in crate::lower) fn lower_operand(
+    pub(in crate::lower) fn lower_builtin_operand(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         operand: &dir::BuiltinOperand,
@@ -602,20 +696,37 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         }
 
-        // leave standalone nullish values unmaterialized until they meet a reference
-        let mut representation = self.lower.instance_type(self.instance, operand.ty)?;
+        // a nullish operand is the singleton of its type
+        let mut representation = operand.ty;
         match self.node_type(expression)? {
-            dir::Type::Null => return Ok(LoweredOperand::Null),
-            dir::Type::Undefined => return Ok(LoweredOperand::Undefined),
+            dir::Type::Null => {
+                let ty = self
+                    .lower
+                    .singleton_type(self.builder.tree_mut(), &dir::Literal::Null);
+
+                return Ok(LoweredOperand::Singleton {
+                    ty,
+                    literal: Some(dir::Literal::Null),
+                });
+            }
+            dir::Type::Undefined => {
+                let ty = self.builder.tree_mut().intern_type(mir::Type::Void);
+
+                return Ok(LoweredOperand::Singleton {
+                    ty,
+                    literal: Some(dir::Literal::Undefined),
+                });
+            }
             _ => {}
         }
 
         // evaluate the operand at its own representation
-        let mut value = self.lower_expression(expression)?;
+        let lowered = self.lower_operand(expression)?;
+        let mut value = self.as_value(lowered, representation)?;
 
         // read inline values through their indirect representations
-        if let Some(layer) = self.lower.peel_indirection(representation)?
-            && !self.lower.has_indirect_representation(layer.stored)?
+        if let Some(layer) = self.lower.indirection(representation, &self.scope)?
+            && !self.lower.indirection(layer.stored, &self.scope)?.is_some()
         {
             representation = layer.stored;
             let pointee = self.lower_type(representation)?;
@@ -638,20 +749,27 @@ impl FunctionLowerer<'_, '_, '_> {
                 break;
             };
             let Some(dir::Definition::Newtype(definition)) =
-                self.lower.definition(instance.symbol)?
+                self.lower.definition(instance.symbol)?.cloned()
             else {
                 break;
             };
-            if self.type_is_singleton(definition.backing)? {
-                return Ok(LoweredOperand::Singleton);
-            }
 
             value = self.builder.field_get(value, 0);
             representation = definition.backing;
         }
 
-        // classify the operand by the representation it lowered to
+        // classify the operand by its lowered representation
         let ty = self.value_representation(value)?;
+        if self.is_singleton_representation(ty) {
+            let literal = match self.lower.ty(representation)? {
+                dir::Type::Literal(literal) => Some(literal),
+                dir::Type::Null => Some(dir::Literal::Null),
+                dir::Type::Undefined | dir::Type::Void => Some(dir::Literal::Undefined),
+                _ => None,
+            };
+
+            return Ok(LoweredOperand::Singleton { ty, literal });
+        }
         let ty = self.builder.tree().get(ty);
 
         // preserve aggregate representations even when every case shares scalar behavior
@@ -711,6 +829,8 @@ impl FunctionLowerer<'_, '_, '_> {
             | mir::Type::Reference { .. }
             | mir::Type::Pointer { .. }
             | mir::Type::Slice { .. } => Ok(LoweredOperand::Address(value)),
+            // leave a parameter's representation to its instance
+            mir::Type::Parameter { .. } => Ok(LoweredOperand::Polymorphic(value)),
             // reject every other representation
             _ => Err(CompilerError::Internal {
                 message: "an equality type outside a supported representation".to_string(),
@@ -730,22 +850,58 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return whether one type has one value and no runtime payload.
-    fn type_is_singleton(&self, mut ty: dir::GlobalTypeId) -> CompilerResult<bool> {
-        loop {
-            match self.lower.ty(ty)? {
-                dir::Type::Literal(_) | dir::Type::Null | dir::Type::Undefined => return Ok(true),
-                dir::Type::Application(instance) => {
-                    let Some(dir::Definition::Newtype(definition)) =
-                        self.lower.definition(instance.symbol)?
-                    else {
-                        return Ok(false);
-                    };
-                    ty = definition.backing;
-                }
-                _ => return Ok(false),
-            }
-        }
+    /// Materialize the literal of a singleton meeting a scalar at that scalar.
+    fn materialize_singleton_operand(
+        &mut self,
+        left: LoweredOperand,
+        right: LoweredOperand,
+    ) -> CompilerResult<(LoweredOperand, LoweredOperand)> {
+        let (scalar, literal, is_left_scalar) = match (left, right) {
+            (
+                LoweredOperand::Scalar { value, domain },
+                LoweredOperand::Singleton {
+                    literal: Some(literal),
+                    ..
+                },
+            ) => ((value, Some(domain)), literal, true),
+            (
+                LoweredOperand::Singleton {
+                    literal: Some(literal),
+                    ..
+                },
+                LoweredOperand::Scalar { value, domain },
+            ) => ((value, Some(domain)), literal, false),
+            (
+                LoweredOperand::Polymorphic(value),
+                LoweredOperand::Singleton {
+                    literal: Some(literal),
+                    ..
+                },
+            ) => ((value, None), literal, true),
+            (
+                LoweredOperand::Singleton {
+                    literal: Some(literal),
+                    ..
+                },
+                LoweredOperand::Polymorphic(value),
+            ) => ((value, None), literal, false),
+            pair => return Ok(pair),
+        };
+        let (value, domain) = scalar;
+        let representation = self.value_representation(value)?;
+        let constant = self.lower_constant(literal, representation)?;
+        let materialized = match domain {
+            Some(domain) => LoweredOperand::Scalar {
+                value: constant,
+                domain,
+            },
+            None => LoweredOperand::Polymorphic(constant),
+        };
+
+        Ok(match is_left_scalar {
+            true => (left, materialized),
+            false => (materialized, right),
+        })
     }
 
     /// Lower one binary operation over already evaluated operands.
@@ -755,6 +911,16 @@ impl FunctionLowerer<'_, '_, '_> {
         operator: dir::BinaryOperator,
         right: LoweredOperand,
     ) -> CompilerResult<mir::Value> {
+        // apply the operator over two parameter operands as their instance decides
+        let (left, right) = self.materialize_singleton_operand(left, right)?;
+        if let (LoweredOperand::Polymorphic(left), LoweredOperand::Polymorphic(right)) =
+            (&left, &right)
+        {
+            let operator = self.binary_operator(operator)?;
+
+            return Ok(self.builder.binary(operator, *left, *right));
+        }
+
         // require two scalar operands, else compare by address
         let (
             LoweredOperand::Scalar {
@@ -802,15 +968,99 @@ impl FunctionLowerer<'_, '_, '_> {
             ) => {
                 self.lower_variant_equality(left_representation, left, right_representation, right)
             }
-            // reject a variant compared against a non-variant
-            (LoweredOperand::Variant { .. }, _) | (_, LoweredOperand::Variant { .. }) => {
-                Err(CompilerError::Internal {
-                    message: "equality operands in different runtime representations".to_string(),
-                })
-            }
+            // compare a variant against one member value through the case that stores it
+            (
+                LoweredOperand::Variant {
+                    value,
+                    representation,
+                },
+                leaf,
+            )
+            | (
+                leaf,
+                LoweredOperand::Variant {
+                    value,
+                    representation,
+                },
+            ) => self.lower_variant_member_equality(value, representation, leaf),
             // compare two leaf operands
             (left, right) => self.lower_leaf_equality(left, right),
         }
+    }
+
+    /// Lower equality between one variant and a value of one of its cases.
+    fn lower_variant_member_equality(
+        &mut self,
+        variant: mir::Value,
+        representation: dir::GlobalTypeId,
+        leaf: LoweredOperand,
+    ) -> CompilerResult<mir::Value> {
+        // compare a singleton through the tag of the case holding it
+        let leaf_value = match leaf {
+            LoweredOperand::Singleton { ty, .. } => {
+                let tag = self.builder.variant_tag(variant);
+                let held = self.value_representation(variant)?;
+
+                return self.lower_case_tag_test(tag, held, ty);
+            }
+            LoweredOperand::Scalar { value, .. }
+            | LoweredOperand::Address(value)
+            | LoweredOperand::Polymorphic(value) => value,
+            LoweredOperand::Variant { .. } => unreachable!("variants compare case by case"),
+        };
+
+        // find the case stored at the member's representation
+        let leaf_type = self.value_representation(leaf_value)?;
+        let leaf_type = self.builder.tree().represented(leaf_type);
+        let mut selected = None;
+        for member in self.lower.union_members(representation)? {
+            let case = self.lower_type(member)?;
+            if self.builder.tree().represented(case) == leaf_type {
+                selected = Some((self.case(representation, member)?, member));
+                break;
+            }
+        }
+        let Some((index, member)) = selected else {
+            return Err(CompilerError::Internal {
+                message: "equality operands in different runtime representations".to_string(),
+            });
+        };
+
+        // compare the payload when the variant holds that case, else answer false
+        let boolean = self.builder.tree_mut().intern_type(mir::Type::Boolean);
+        let result = self.builder.local(boolean, mir::Mutability::Immutable);
+        let compare = self.builder.block();
+        let unequal = self.builder.block();
+        let exit = self.builder.block();
+        self.builder
+            .variant_switch(variant, Some(unequal), vec![(index, compare)]);
+        self.builder.switch_to_block(compare);
+        let payload = self.builder.variant_payload(variant, index);
+        let payload = self.classify_equality_operand(member, None, payload)?;
+        let equal = self.lower_leaf_equality(payload, leaf)?;
+        self.builder.local_set(result, equal);
+        self.builder.jump(exit);
+        self.builder.switch_to_block(unequal);
+        let value = self.builder.bconst(false);
+        self.builder.local_set(result, value);
+        self.builder.jump(exit);
+        self.builder.switch_to_block(exit);
+
+        Ok(self.builder.local_get(result))
+    }
+
+    /// Return the members of one union in case order.
+    fn members_by_case(
+        &mut self,
+        union: dir::GlobalTypeId,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        let mut members = Vec::new();
+        for member in self.lower.union_members(union)? {
+            members.push((self.case(union, member)?, member));
+        }
+        members.sort_by_key(|(case, _)| *case);
+
+        Ok(members.into_iter().map(|(_, member)| member).collect())
     }
 
     /// Lower equality between two values of one indexed variant representation.
@@ -821,9 +1071,9 @@ impl FunctionLowerer<'_, '_, '_> {
         right_representation: dir::GlobalTypeId,
         right: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        // require both variants to declare the same case count
-        let left_members = self.union_members(left_representation)?;
-        let right_members = self.union_members(right_representation)?;
+        // pair the members of both variants by the case each stores at
+        let left_members = self.members_by_case(left_representation)?;
+        let right_members = self.members_by_case(right_representation)?;
         if left_members.len() != right_members.len() {
             return Err(CompilerError::Internal {
                 message: "equality variants with different case counts".to_string(),
@@ -839,9 +1089,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // answer with the discriminant alone for payload-free variants
         let mut is_payload_free = true;
-        for (left, right) in left_members.iter().zip(&right_members) {
-            is_payload_free &= self.type_is_singleton(*left)?;
-            is_payload_free &= self.type_is_singleton(*right)?;
+        for member in left_members.iter().chain(&right_members) {
+            let representation = self.lower_type(*member)?;
+            is_payload_free &= self.is_singleton_representation(representation);
         }
         if is_payload_free {
             return Ok(same_case);
@@ -867,17 +1117,20 @@ impl FunctionLowerer<'_, '_, '_> {
             self.builder.switch_to_block(block);
             let left_member = left_members[index as usize];
             let right_member = right_members[index as usize];
-            let equal =
-                if self.type_is_singleton(left_member)? && self.type_is_singleton(right_member)? {
-                    self.builder.bconst(true)
-                } else {
-                    let left = self.builder.variant_payload(left, index);
-                    let left = self.classify_equality_operand(left_member, None, left)?;
-                    let right = self.builder.variant_payload(right, index);
-                    let right = self.classify_equality_operand(right_member, None, right)?;
+            let left_representation = self.lower_type(left_member)?;
+            let right_representation = self.lower_type(right_member)?;
+            let equal = if self.is_singleton_representation(left_representation)
+                && self.is_singleton_representation(right_representation)
+            {
+                self.builder.bconst(true)
+            } else {
+                let left = self.builder.variant_payload(left, index);
+                let left = self.classify_equality_operand(left_member, None, left)?;
+                let right = self.builder.variant_payload(right, index);
+                let right = self.classify_equality_operand(right_member, None, right)?;
 
-                    self.lower_representation_equality(left, right)?
-                };
+                self.lower_representation_equality(left, right)?
+            };
             self.builder.local_set(result, equal);
             self.builder.jump(exit);
         }
@@ -898,9 +1151,25 @@ impl FunctionLowerer<'_, '_, '_> {
         left: LoweredOperand,
         right: LoweredOperand,
     ) -> CompilerResult<mir::Value> {
-        // treat payload-free values as equal
-        if matches!(left, LoweredOperand::Singleton) && matches!(right, LoweredOperand::Singleton) {
-            return Ok(self.builder.bconst(true));
+        // fold two singletons by type identity
+        if let (
+            LoweredOperand::Singleton { ty: left, .. },
+            LoweredOperand::Singleton { ty: right, .. },
+        ) = (left, right)
+        {
+            return Ok(self.builder.bconst(left == right));
+        }
+
+        // a singleton meeting a scalar materializes its literal at the scalar
+        let (left, right) = self.materialize_singleton_operand(left, right)?;
+
+        // compare two parameter operands as their instance decides
+        if let (LoweredOperand::Polymorphic(left), LoweredOperand::Polymorphic(right)) =
+            (&left, &right)
+        {
+            return Ok(self
+                .builder
+                .binary(mir::BinaryOperator::Equal, *left, *right));
         }
 
         // compare two scalar operands directly and anything else by address
@@ -931,11 +1200,7 @@ impl FunctionLowerer<'_, '_, '_> {
             left_domain,
             dir::ScalarDomain::String | dir::ScalarDomain::Bigint
         ) {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("{left_domain:?} value equality"),
-            }
-            .into());
+            return Err(self.unsupported(format!("{left_domain:?} value equality")));
         }
         let operator = self.binary_operator(dir::BinaryOperator::EqualStrict)?;
 
@@ -954,75 +1219,49 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::BinaryOperator::EqualStrict | dir::BinaryOperator::Equal => true,
             dir::BinaryOperator::NotEqualStrict | dir::BinaryOperator::NotEqual => false,
             other => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("the '{}' operator on pointers or references", other.text()),
-                }
-                .into());
+                return Err(self.unsupported(format!(
+                    "the '{}' operator on pointers or references",
+                    other.text()
+                )));
             }
         };
 
-        // fold comparisons with no runtime representation
-        match (left, right) {
-            (LoweredOperand::Null, LoweredOperand::Null)
-            | (LoweredOperand::Undefined, LoweredOperand::Undefined) => {
-                return Ok(self.builder.bconst(is_equal));
-            }
-            (LoweredOperand::Null, LoweredOperand::Undefined)
-            | (LoweredOperand::Undefined, LoweredOperand::Null) => {
-                return Ok(self.builder.bconst(!is_equal));
-            }
-            _ => {}
+        // fold two singletons by their types
+        if let (
+            LoweredOperand::Singleton { ty: left, .. },
+            LoweredOperand::Singleton { ty: right, .. },
+        ) = (left, right)
+        {
+            return Ok(self.builder.bconst((left == right) == is_equal));
         }
 
-        // compare a nullish literal with the variant case tag carrying it
-        let variant_nullish = match (&left, &right) {
-            (
-                LoweredOperand::Variant {
-                    value,
-                    representation,
-                },
-                LoweredOperand::Null,
-            )
-            | (
-                LoweredOperand::Null,
-                LoweredOperand::Variant {
-                    value,
-                    representation,
-                },
-            ) => Some((*value, *representation, dir::Type::Null)),
-            (
-                LoweredOperand::Variant {
-                    value,
-                    representation,
-                },
-                LoweredOperand::Undefined,
-            )
-            | (
-                LoweredOperand::Undefined,
-                LoweredOperand::Variant {
-                    value,
-                    representation,
-                },
-            ) => Some((*value, *representation, dir::Type::Undefined)),
+        // compare a singleton with the variant case tag holding it
+        let variant_singleton = match (&left, &right) {
+            (LoweredOperand::Variant { value, .. }, LoweredOperand::Singleton { ty, .. })
+            | (LoweredOperand::Singleton { ty, .. }, LoweredOperand::Variant { value, .. }) => {
+                Some((*value, *ty))
+            }
             _ => None,
         };
-        if let Some((value, representation, nullish)) = variant_nullish {
-            return self.lower_variant_nullish_equality(value, representation, nullish, is_equal);
+        if let Some((value, singleton)) = variant_singleton {
+            let tag = self.builder.variant_tag(value);
+            let held = self.value_representation(value)?;
+            let equal = self.lower_case_tag_test(tag, held, singleton)?;
+
+            return Ok(match is_equal {
+                true => equal,
+                false => self.builder.unary(mir::UnaryOperator::Not, equal),
+            });
         }
 
-        // materialize nullish niches at the compared address representation
+        // compare an address with the null it may hold
         let (left, right) = match (left, right) {
             (LoweredOperand::Address(left), LoweredOperand::Address(right)) => (left, right),
-            (LoweredOperand::Address(address), nullish) => {
-                let nullish = self.lower_nullish(nullish, address)?;
+            (LoweredOperand::Address(address), LoweredOperand::Singleton { ty, .. })
+            | (LoweredOperand::Singleton { ty, .. }, LoweredOperand::Address(address)) => {
+                let null = self.lower_null_address(ty, address)?;
 
-                (address, nullish)
-            }
-            (nullish, LoweredOperand::Address(address)) => {
-                let nullish = self.lower_nullish(nullish, address)?;
-
-                (nullish, address)
+                (address, null)
             }
             _ => {
                 return Err(CompilerError::Internal {
@@ -1038,67 +1277,52 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.binary(operator, left, right))
     }
 
-    /// Lower equality between one variant value and the nullish case it may hold.
-    fn lower_variant_nullish_equality(
+    /// Test one case tag against the case of a variant holding one payload type.
+    fn lower_case_tag_test(
         &mut self,
-        value: mir::Value,
-        representation: dir::GlobalTypeId,
-        nullish: dir::Type,
-        is_equal: bool,
+        tag: mir::Value,
+        variant: mir::LocalNodeId<mir::Type>,
+        payload: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        // select the union case declaring the compared nullish type
-        let members = self.union_members(representation)?;
-        let mut selected = None;
-        for (index, member) in members.iter().enumerate() {
-            if self.lower.ty(*member)? == nullish {
-                selected = Some(index);
-
-                break;
-            }
-        }
-        let Some(index) = selected else {
+        // select the case holding the payload
+        let variant = self.resolved_type(variant);
+        let Some(case) = self.builder.tree().payload_case(variant, payload) else {
             return Err(CompilerError::Internal {
-                message: "a nullish comparison outside the variant's declared cases".to_string(),
+                message: "a case test outside the variant's cases".to_string(),
+            });
+        };
+        let mir::Type::Variant { cases, .. } = self.builder.tree().get(variant).clone() else {
+            return Err(CompilerError::Internal {
+                message: "a case test outside a variant".to_string(),
             });
         };
 
-        // compare the discriminant with the selected case index
-        let tag = self.builder.variant_tag(value);
+        // compare the tag with the case's discriminant
         let tag_type = self.value_representation(tag)?;
-        let mir::Type::Int { width, is_signed } = *self.builder.tree().get(tag_type) else {
-            return Err(CompilerError::Internal {
-                message: "a non-integer lowered discriminant tag".to_string(),
-            });
-        };
-        let expected = self.builder.iconst(index as i128, width, is_signed);
-        let equal = self
-            .builder
-            .binary(mir::BinaryOperator::Equal, tag, expected);
+        let discriminant = cases[case as usize].discriminant.clone();
+        let expected = self.builder.constant(discriminant, tag_type);
 
-        match is_equal {
-            true => Ok(equal),
-            false => Ok(self.builder.unary(mir::UnaryOperator::Not, equal)),
-        }
+        Ok(self
+            .builder
+            .binary(mir::BinaryOperator::Equal, tag, expected))
     }
 
-    /// Materialize one nullish operand at an address value's representation.
-    fn lower_nullish(
+    /// Materialize the null one address value compares with, the singleton being null.
+    fn lower_null_address(
         &mut self,
-        operand: LoweredOperand,
+        singleton: mir::LocalNodeId<mir::Type>,
         address: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        // materialize the nullish constant at the address representation
+        let null = self
+            .lower
+            .singleton_type(self.builder.tree_mut(), &dir::Literal::Null);
+        if singleton != null {
+            return Err(CompilerError::Internal {
+                message: "an address compared with a singleton other than null".to_string(),
+            });
+        }
         let representation = self.value_representation(address)?;
-        let constant = match operand {
-            LoweredOperand::Null => mir::Constant::Null,
-            LoweredOperand::Undefined => mir::Constant::Undefined,
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "a non-nullish lowered equality operand".to_string(),
-                });
-            }
-        };
 
-        Ok(self.builder.constant(constant, representation))
+        Ok(self.builder.constant(mir::Constant::Null, representation))
     }
 }

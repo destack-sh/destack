@@ -3,10 +3,13 @@ use destack_dir as dir;
 use destack_mir as mir;
 use smallvec::SmallVec;
 
-use crate::lower::{FunctionDeclaration, FunctionDefinition, GenericInstanceKey, LowerState};
+use crate::lower::{
+    FunctionDeclaration, FunctionDefinition, GenericInstanceKey, GenericScope, LowerPhase,
+    ModuleInitializer, ModuleLowerer,
+};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Declare every identity the module's bodies build against.
     pub(in crate::lower) fn declare_module(
         &mut self,
@@ -15,10 +18,10 @@ impl LowerState<'_> {
         let mut errors = Vec::new();
 
         // lower every concrete nominal declaration owned by this module
-        self.lower_nominal_declarations(tree)?;
+        self.lower_nominal_declarations(tree, &mut errors)?;
 
         // define the synthesized constructors beside their class declarations
-        self.declare_default_constructors(tree)?;
+        self.declare_default_constructors(tree, &mut errors)?;
 
         // declare every callable header ahead of the bodies
         let mut bodies = Vec::new();
@@ -45,16 +48,9 @@ impl LowerState<'_> {
 
                     continue;
                 }
-                // report every other module-level statement
-                ref other => {
-                    let error = LowerError::Unsupported {
-                        anchor: self.module.into(),
-                        construct: format!("a module-level '{}' statement", other.variant_name()),
-                    };
-                    match CompilerError::from(error) {
-                        CompilerError::Diagnostic(diagnostic) => errors.push(diagnostic),
-                        error => return Err(error),
-                    }
+                // run every other root as a module initializer statement
+                _ => {
+                    self.initializers.push(ModuleInitializer::Statement(root));
 
                     continue;
                 }
@@ -64,9 +60,9 @@ impl LowerState<'_> {
             self.declare_root(tree, declaration, &mut bodies, &mut errors)?;
         }
 
-        // declare every closed callable instance
-        let instances = self.declare_instances(tree, &mut errors)?;
-        bodies.extend(instances);
+        // declare the polymorphic function of every template
+        let templates = self.declare_templates(tree, &mut errors)?;
+        bodies.extend(templates);
 
         Ok((bodies, errors))
     }
@@ -101,19 +97,33 @@ impl LowerState<'_> {
             | dir::Declaration::Module(_) => (None, SmallVec::<[_; 8]>::new()),
         };
 
-        // declare one function body, deferring generics to their instances
-        if let Some(body) = body {
-            // defer generic functions to declare_instances
+        // declare one function body, polymorphic over its template parameters
+        let declares_header = body.is_some()
+            || (self.phase == LowerPhase::Declare
+                && matches!(
+                    self.local().tree().get(declaration),
+                    dir::Declaration::Function(_)
+                ));
+        if declares_header {
             let node = declaration.into_global_any(self.module);
-            if let Some(symbol) = self.symbol_declared_at(node)?
-                && self.signature_has_parameters_beyond_extents(self.symbol_type(symbol)?)?
-            {
+
+            let Some(symbol) = self.symbol_declared_at(node)? else {
+                return Err(CompilerError::Internal {
+                    message: "a missing symbol for one function declaration".to_string(),
+                });
+            };
+
+            // leave a template to its polymorphic declaration
+            let chain = self.callable_scope(symbol, None, false)?;
+            if chain.count() > 0 {
                 return Ok(());
             }
 
             // accumulate unsupported diagnostics; abort on internal failures
-            match self.declare_function(tree, declaration, body) {
-                Ok(body) => bodies.push(body),
+            let key = GenericInstanceKey::non_generic(symbol);
+            match self.declare_callable(tree, &key, &GenericScope::default()) {
+                Ok(Some(body)) => bodies.push(body),
+                Ok(None) => {}
                 Err(CompilerError::Diagnostic(diagnostic)) => {
                     let symbol = self.symbol_declared_at(node)?;
                     self.bank_failed_callable(symbol, diagnostic, errors);
@@ -157,15 +167,7 @@ impl LowerState<'_> {
         let node = declaration.into_global_any(self.module);
         let owner_symbol = self.symbol_declared_at(node)?;
 
-        // defer the members of generic owners to declare_instances
-        if let Some(owner) = owner_symbol
-            && self.owner_has_instance_parameters(owner)?
-        {
-            return Ok(());
-        }
-
-        // declare each member of the concrete owner, accumulating unsupported
-        //  diagnostics and aborting on internal failures
+        // declare each member of the owner, accumulating unsupported diagnostics
         for member in members {
             match self.declare_member(tree, owner_symbol, *member, bodies) {
                 Ok(()) => {}
@@ -204,7 +206,12 @@ impl LowerState<'_> {
                 ..
             } => (signature.role, *is_static, *body),
 
-            // skip field and type members
+            // declare the global behind an associated const
+            dir::Member::AssociatedConst { value: Some(_), .. } => {
+                return self.declare_associated_const(tree, member);
+            }
+
+            // skip field, type, and requirement members
             dir::Member::Field { .. }
             | dir::Member::AssociatedType { .. }
             | dir::Member::AssociatedConst { .. } => return Ok(()),
@@ -233,10 +240,10 @@ impl LowerState<'_> {
             }
         };
 
-        // skip bodiless members
-        let Some(body) = body else {
+        // skip a member the declaration leaves bodiless
+        if body.is_none() {
             return Ok(());
-        };
+        }
 
         // reject the roles without a runtime callable
         match role {
@@ -264,17 +271,6 @@ impl LowerState<'_> {
             });
         };
 
-        // defer the members of parameterized owners to declare_instances
-        let is_parameterized = match self.definition(owner_symbol)? {
-            Some(definition) => {
-                self.definition_is_parameterized(owner_symbol.module_id, definition)?
-            }
-            None => false,
-        };
-        if is_parameterized {
-            return Ok(());
-        }
-
         // read the member symbol from its definition
         let node = member.into_global_any(self.module);
         let Some(symbol) = self.method_symbol(owner_symbol, node)? else {
@@ -283,13 +279,17 @@ impl LowerState<'_> {
             });
         };
 
-        // defer generic members to declare_instances
-        if self.signature_has_parameters_beyond_extents(self.symbol_type(symbol)?)? {
+        // leave a template to its polymorphic declaration
+        let chain = self.callable_scope(symbol, Some(owner_symbol), is_static)?;
+        if chain.count() > 0 {
             return Ok(());
         }
 
         // declare the header and queue its body
-        bodies.push(self.declare_method(tree, owner_symbol, symbol, member, body, is_static)?);
+        let key = GenericInstanceKey::non_generic(symbol);
+        if let Some(definition) = self.declare_callable(tree, &key, &GenericScope::default())? {
+            bodies.push(definition);
+        }
 
         Ok(())
     }

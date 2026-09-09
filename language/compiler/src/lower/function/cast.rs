@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
+use crate::CompilerResult;
 use crate::lower::FunctionLowerer;
-use crate::{CompilerResult, LowerError};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one explicit cast expression.
@@ -11,28 +11,17 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // read the scalar representation the cast targets
-        let target = self.node_type(expression)?;
-        let target = self.lower.scalar_type(&target)?;
+        // materialize a literal source directly at the cast target
+        if let dir::Type::Literal(literal) = self.node_type(value)?
+            && self.coercion(value).is_none()
+        {
+            let target = self.lower_type(self.node_type_id(expression)?)?;
 
-        // materialize literal sources directly at the cast target
-        if let dir::Type::Literal(literal) = self.node_type(value)? {
             return self.lower_constant(literal, target);
         }
 
-        // hand the value through unchanged when it already carries the target
-        let source = self.node_type(value)?;
-        let source = self.lower.scalar_type(&source)?;
-        let lowered = self.lower_expression(value)?;
-        if source == target {
-            return Ok(lowered);
-        }
-
-        // convert between the two scalar representations
-        let operator = self.cast_operator(&source, &target)?;
-        let target = self.builder.tree_mut().intern_type(target);
-
-        Ok(self.builder.cast(operator, lowered, target))
+        // apply the adjustment sema recorded on the operand
+        self.lower_value(value)
     }
 
     /// Select the conversion between two concrete scalar representations.
@@ -114,11 +103,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let source = self.scalar_name(source);
                 let target = self.scalar_name(target);
 
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("a cast from {source} to {target}"),
-                }
-                .into());
+                return Err(self.internal(format!("a cast from {source} to {target}")));
             }
         })
     }
@@ -153,7 +138,7 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(());
         }
 
-        // evaluate every remaining const value outside its coercion
+        // run every remaining const expression for its effects, its value living in its type
         self.lower_expression_value(expression)?;
 
         Ok(())

@@ -16,26 +16,27 @@ function origin(): Point {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.origin",
         r#"
 @copy
-type Point {
+type test.main.Point {
     x: int32;
     y: int32;
 }
 
-function test.main.origin(): Point {
+function test.main.origin(): test.main.Point {
 entry:
     v0: int32 = 0
     v1: int32 = 0
-    v2: Point = aggregate (v0, v1)
+    v2: test.main.Point = aggregate (v0, v1)
     return v2
 }
 
-/// @layout.struct name=Point size=8 align=4
-/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
+/// @layout.struct name=test.main.Point size=8 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.main.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -56,24 +57,29 @@ function abscissa(point: Point): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.abscissa",
         r#"
 @copy
-type Point {
+type test.main.Point {
     x: int32;
     y: int32;
 }
 
-function test.main.abscissa(v0: Point): int32 {
-entry(v0: Point):
-    v1: int32 = field.get v0, 0
-    return v1
+function test.main.abscissa(v0: test.main.Point): int32 {
+    local l0: test.main.Point
+
+entry(v0: test.main.Point):
+    local.set l0, v0
+    v1: test.main.Point = local.get l0
+    v2: int32 = field.get v1, 0
+    return v2
 }
 
-/// @layout.struct name=Point size=8 align=4
-/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
+/// @layout.struct name=test.main.Point size=8 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.main.Point index=1 name=y offset=4 size=4 align=4
 "#,
     );
 }
@@ -99,37 +105,43 @@ function diagonal(size: int32): Segment {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.diagonal",
         r#"
 @copy
-type Point {
+type test.main.Point {
     x: int32;
     y: int32;
 }
 
 @copy
-type Segment {
-    start: Point;
-    end: Point;
+type test.main.Segment {
+    start: test.main.Point;
+    end: test.main.Point;
 }
 
-function test.main.diagonal(v0: int32): Segment {
+function test.main.diagonal(v0: int32): test.main.Segment {
+    local l0: int32
+
 entry(v0: int32):
+    local.set l0, v0
     v1: int32 = 0
     v2: int32 = 0
-    v3: Point = aggregate (v1, v2)
-    v4: Point = aggregate (v0, v0)
-    v5: Segment = aggregate (v3, v4)
-    return v5
+    v3: test.main.Point = aggregate (v1, v2)
+    v4: int32 = local.get l0
+    v5: int32 = local.get l0
+    v6: test.main.Point = aggregate (v4, v5)
+    v7: test.main.Segment = aggregate (v3, v6)
+    return v7
 }
 
-/// @layout.struct name=Point size=8 align=4
-/// @layout.field owner=Point index=0 name=x offset=0 size=4 align=4
-/// @layout.field owner=Point index=1 name=y offset=4 size=4 align=4
-/// @layout.struct name=Segment size=16 align=4
-/// @layout.field owner=Segment index=0 name=start offset=0 size=8 align=4
-/// @layout.field owner=Segment index=1 name=end offset=8 size=8 align=4
+/// @layout.struct name=test.main.Point size=8 align=4
+/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.field owner=test.main.Point index=1 name=y offset=4 size=4 align=4
+/// @layout.struct name=test.main.Segment size=16 align=4
+/// @layout.field owner=test.main.Segment index=0 name=start offset=0 size=8 align=4
+/// @layout.field owner=test.main.Segment index=1 name=end offset=8 size=8 align=4
 "#,
     );
 }
@@ -149,21 +161,29 @@ function make(name: &[uint8]): void {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.make",
         r#"
-type Entry<'a> {
-    name: slice<uint8, borrowed, 'a, mutable, local>;
+@copy
+type test.main.Entry<'a> {
+    name: slice<uint8, borrowed, 'a, mutable>;
 }
 
 function test.main.make<'a>(v0: slice<uint8, borrowed, 'a, mutable, local>): void {
+    local l0: slice<uint8, borrowed, 'a, mutable, local>
+    local l1: test.main.Entry<'a & local>
+
 entry(v0: slice<uint8, borrowed, 'a, mutable, local>):
-    v1: Entry<'a> = aggregate (v0)
+    local.set l0, v0
+    v1: slice<uint8, borrowed, 'a, mutable, local> = local.get l0
+    v2: test.main.Entry<'a & local> = aggregate (v1)
+    local.set l1, v2
     return
 }
 
-/// @layout.struct name=Entry size=16 align=8
-/// @layout.field owner=Entry index=0 name=name offset=0 size=16 align=8
+/// @layout.struct name=test.main.Entry<'a & local> size=16 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=0 name=name offset=0 size=16 align=8
 "#,
     );
 }
@@ -187,38 +207,77 @@ class Counter {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.Counter.constructor",
         r#"
-type Counter {
+type test.main.Counter {
     total: int32;
 }
 
-function test.main.Counter.constructor(v0: ref<uninit<Counter>, borrowed, exclusive, local>): void {
-entry(v0: ref<uninit<Counter>, borrowed, exclusive, local>):
-    v1: int32 = 0
-    v2: ref<uninit<int32>, borrowed, exclusive, local> = field.address v0, 0
-    store v2, v1
+function test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>): void {
+    local l0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>
+
+entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>):
+    local.set l0, v0
+    v1: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local> = local.get l0
+    v2: int32 = 0
+    v3: ref<uninit<int32>, borrowed, 'a, mutable, local> = field.project v1, 0
+    store v3, v2
     return
 }
 
-function test.main.Counter.read<'a>(v0: ref<Counter, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<Counter, borrowed, 'a, readonly, local>):
-    v1: ref<int32, borrowed, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
-    return v2
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=total offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Counter.read",
+        r#"
+type test.main.Counter {
+    total: int32;
 }
 
-function test.main.Counter.double<'a>(v0: ref<Counter, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<Counter, borrowed, 'a, readonly, local>):
-    v1: int32 = call test.main.Counter.read(v0): <'a>(ref<Counter, borrowed, 'a, readonly, local>) => int32
-    v2: int32 = 2
-    v3: int32 = mul v1, v2
+function test.main.Counter.read<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>): int32 {
+    local l0: ref<test.main.Counter, borrowed, 'a, readonly, local>
+
+entry(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    v1: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v2: ref<int32, borrowed, 'a, readonly, local> = field.project v1, 0
+    v3: int32 = load v2
     return v3
 }
 
-/// @layout.struct name=Counter size=4 align=4
-/// @layout.field owner=Counter index=0 name=total offset=0 size=4 align=4
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=total offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Counter.double",
+        r#"
+type test.main.Counter {
+    total: int32;
+}
+
+function test.main.Counter.double<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>): int32 {
+    local l0: ref<test.main.Counter, borrowed, 'a, readonly, local>
+
+entry(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    v1: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v2: int32 = call test.main.Counter.read(v1): <'a>(ref<test.main.Counter, borrowed, 'a, readonly, local>) => int32
+    v3: int32 = 2
+    v4: int32 = mul v2, v3
+    return v4
+}
+
+/// @layout.struct name=test.main.Counter size=4 align=4
+/// @layout.field owner=test.main.Counter index=0 name=total offset=0 size=4 align=4
 "#,
     );
 }
@@ -239,26 +298,27 @@ function make(): Options {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.make",
         r#"
 @copy
-type Options {
+type test.main.Options {
     count: int32;
-    limit: variant<uint1> { 0uint1 = int32; 1uint1 = void; };
+    limit: variant<uint1> { 0uint1 = void; 1uint1 = int32; };
 }
 
-function test.main.make(): Options {
+function test.main.make(): test.main.Options {
 entry:
     v0: int32 = 1
-    v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 1
-    v2: Options = aggregate (v0, v1)
+    v1: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = variant.new 0
+    v2: test.main.Options = aggregate (v0, v1)
     return v2
 }
 
-/// @layout.struct name=Options size=12 align=4
-/// @layout.field owner=Options index=0 name=count offset=0 size=4 align=4
-/// @layout.field owner=Options index=1 name=limit offset=4 size=8 align=4
+/// @layout.struct name=test.main.Options size=12 align=4
+/// @layout.field owner=test.main.Options index=0 name=count offset=0 size=4 align=4
+/// @layout.field owner=test.main.Options index=1 name=limit offset=4 size=8 align=4
 /// @layout.variant name=type@5 size=8 align=4
 /// @layout.discriminant owner=type@5 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
 /// @layout.case owner=type@5 index=0 discriminant=0 payload_offset=4
@@ -283,26 +343,27 @@ function make(): Counter {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.make",
         r#"
 @copy
-type Counter {
+type test.main.Counter {
     count: int32;
     label: int32;
 }
 
-function test.main.make(): Counter {
+function test.main.make(): test.main.Counter {
 entry:
     v0: int32 = 3
     v1: int32 = 7
-    v2: Counter = aggregate (v0, v1)
+    v2: test.main.Counter = aggregate (v0, v1)
     return v2
 }
 
-/// @layout.struct name=Counter size=8 align=4
-/// @layout.field owner=Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.field owner=Counter index=1 name=label offset=4 size=4 align=4
+/// @layout.struct name=test.main.Counter size=8 align=4
+/// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
+/// @layout.field owner=test.main.Counter index=1 name=label offset=4 size=4 align=4
 "#,
     );
 }
@@ -332,14 +393,12 @@ function make(): Counter {
         )
         .build();
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.make",
         r#"
 @copy
-type test.counter.Counter {
-    count: int32;
-    label: int32;
-}
+type test.counter.Counter;
 
 function test.main.make(): test.counter.Counter {
 entry:
@@ -348,10 +407,6 @@ entry:
     v2: test.counter.Counter = aggregate (v0, v1)
     return v2
 }
-
-/// @layout.struct name=test.counter.Counter size=8 align=4
-/// @layout.field owner=test.counter.Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.field owner=test.counter.Counter index=1 name=label offset=4 size=4 align=4
 "#,
     );
 }
@@ -372,26 +427,380 @@ function fill(): Slot<int32> {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.fill",
         r#"
 @copy
-type Slot<int32> {
-    value: int32;
+type test.main.Slot<T> {
+    value: T;
     index: isize;
 }
 
-function test.main.fill(): Slot<int32> {
+function test.main.fill(): test.main.Slot<int32> {
 entry:
     v0: int32 = 9
     v1: isize = 0
-    v2: Slot<int32> = aggregate (v0, v1)
+    v2: test.main.Slot<int32> = aggregate (v0, v1)
     return v2
 }
 
-/// @layout.struct name=Slot<int32> size=16 align=8
-/// @layout.field owner=Slot<int32> index=0 name=value offset=8 size=4 align=4
-/// @layout.field owner=Slot<int32> index=1 name=index offset=0 size=8 align=8
+/// @layout.struct name=test.main.Slot<int32> size=16 align=8
+/// @layout.field owner=test.main.Slot<int32> index=0 name=value offset=8 size=4 align=4
+/// @layout.field owner=test.main.Slot<int32> index=1 name=index offset=0 size=8 align=8
+"#,
+    );
+}
+
+#[test]
+fn test_lower_a_conditional_field_borrow_into_a_struct_literal() {
+    let session = TestSession::single(
+        r#"
+struct Entry<'a> {
+    name: &'a readonly string;
+    unit?: &'a readonly string | undefined;
+}
+
+function write(entry: &readonly Entry): void {}
+
+class Counter {
+    readonly name: string;
+    readonly unit?: string;
+
+    constructor(name: string, unit?: string) {
+        this.name = name;
+        this.unit = unit;
+    }
+
+    add(&readonly this): void {
+        const entry = Entry {
+            name: &readonly this.name,
+            unit: this.unit == undefined ? undefined : &readonly this.unit,
+        };
+        write(&readonly entry);
+    }
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Counter.add",
+        r#"
+@languageItem("string.String")
+type String;
+
+type test.main.Counter {
+    name: ref<String, managed, mutable, local>;
+    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
+}
+
+@copy
+type test.main.Entry<'a> {
+    name: ref<String, borrowed, 'a, readonly>;
+    unit: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly>; };
+}
+
+function test.main.Counter.add<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>): void {
+    local l0: ref<test.main.Counter, borrowed, 'a, readonly, local>
+    local l1: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; }
+    local l2: test.main.Entry<'a & local>
+
+entry(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    v1: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v2: ref<ref<String, managed, readonly, local>, borrowed, 'a, readonly, local> = field.project v1, 0
+    v3: ref<String, managed, readonly, local> = load v2
+    v4: ref<String, borrowed, 'a, readonly, local> = cast.bit v3 -> ref<String, borrowed, 'a, readonly, local>
+    v5: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v6: ref<variant<uint1> { 0uint1 = void; 1uint1 = ref<String, managed, readonly, local>; }, borrowed, 'a, readonly, local> = field.project v5, 1
+    v7: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, managed, readonly, local>; } = load v6
+    v8: uint1 = variant.tag v7
+    v9: uint1 = 0
+    v10: boolean = eq v8, v9
+    branch v10 => b1 | b2
+
+b1:
+    v11: void = zeroed
+    v12: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; } = variant.new 0
+    local.set l1, v12
+    jump b3
+
+b2:
+    v13: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v14: ref<variant<uint1> { 0uint1 = void; 1uint1 = ref<String, managed, readonly, local>; }, borrowed, 'a, readonly, local> = field.project v13, 1
+    v15: uint1 = variant.tag.load v14
+    switch v15, b5, 1 => b4
+
+b3:
+    v20: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; } = local.get l1
+    v21: test.main.Entry<'a & local> = aggregate (v4, v20)
+    local.set l2, v21
+    v22: ref<test.main.Entry<'a & local>, borrowed, 'frame, readonly, local> = local.address l2
+    call test.main.write(v22): <'a, 'b>(ref<test.main.Entry<'a & local>, borrowed, 'b, readonly, local>) => void
+    return
+
+b4:
+    v16: ref<ref<String, managed, readonly, local>, borrowed, 'a, readonly, local> = variant.payload.project v14, 1
+    v17: ref<String, managed, readonly, local> = load v16
+    v18: ref<String, borrowed, 'a, readonly, local> = cast.bit v17 -> ref<String, borrowed, 'a, readonly, local>
+    v19: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; } = variant.new 1, v18
+    local.set l1, v19
+    jump b3
+
+b5:
+    panic
+}
+
+/// @layout.struct name=test.main.Counter size=16 align=8
+/// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
+/// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.struct name=test.main.Entry<'a & local> size=16 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=0 name=name offset=0 size=8 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=1 name=unit offset=8 size=8 align=8
+/// @layout.variant name=type@24 size=8 align=8
+/// @layout.discriminant owner=type@24 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
+/// @layout.case owner=type@24 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@24 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@69 size=8 align=8
+/// @layout.discriminant owner=type@69 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
+/// @layout.case owner=type@69 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@69 index=1 discriminant=1 payload_offset=0
+"#,
+    );
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.write",
+        r#"
+@copy
+type test.main.Entry<'a> {
+    name: ref<String, borrowed, 'a, readonly>;
+    unit: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly>; };
+}
+
+function test.main.write<'a, 'b>(v0: ref<test.main.Entry<'a & local>, borrowed, 'b, readonly, local>): void {
+    local l0: ref<test.main.Entry<'a & local>, borrowed, 'b, readonly, local>
+
+entry(v0: ref<test.main.Entry<'a & local>, borrowed, 'b, readonly, local>):
+    local.set l0, v0
+    return
+}
+
+/// @layout.struct name=test.main.Entry<'a & local> size=16 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=0 name=name offset=0 size=8 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=1 name=unit offset=8 size=8 align=8
+"#,
+    );
+
+    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+@languageItem("string.String")
+type String;
+
+type test.main.Counter {
+    name: ref<String, managed, mutable, local>;
+    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
+}
+
+function test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>, v1: ref<String, managed, mutable, local>, v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: ref<String, managed, mutable, local>
+    local l1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
+    local l2: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>
+
+entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>, v1: ref<String, managed, mutable, local>, v2: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }):
+    local.set l0, v1
+    local.set l1, v2
+    local.set l2, v0
+    v3: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local> = local.get l2
+    v4: ref<String, managed, mutable, local> = local.get l0
+    v5: ref<uninit<ref<String, managed, mutable, local>>, borrowed, 'a, mutable, local> = field.project v3, 0
+    store v5, v4
+    v6: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local> = local.get l2
+    v7: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = local.get l1
+    v8: ref<uninit<variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }>, borrowed, 'a, mutable, local> = field.project v6, 1
+    store v8, v7
+    return
+}
+
+/// @layout.struct name=test.main.Counter size=16 align=8
+/// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
+/// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.variant name=type@11 size=8 align=8
+/// @layout.discriminant owner=type@11 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@11 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@11 index=1 discriminant=1 payload_offset=0
+"#);
+
+    session.assert_mir_function("main.ds", "test.main.Counter.add", r#"
+@languageItem("string.String")
+type String;
+
+type test.main.Counter {
+    name: ref<String, managed, mutable, local>;
+    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
+}
+
+@copy
+type test.main.Entry<'a> {
+    name: ref<String, borrowed, 'a, readonly>;
+    unit: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly>; };
+}
+
+function test.main.Counter.add<'a>(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>): void {
+    local l0: ref<test.main.Counter, borrowed, 'a, readonly, local>
+    local l1: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; }
+    local l2: test.main.Entry<'a & local>
+
+entry(v0: ref<test.main.Counter, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    v1: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v2: ref<ref<String, managed, readonly, local>, borrowed, 'a, readonly, local> = field.project v1, 0
+    v3: ref<String, managed, readonly, local> = load v2
+    v4: ref<String, borrowed, 'a, readonly, local> = cast.bit v3 -> ref<String, borrowed, 'a, readonly, local>
+    v5: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v6: ref<variant<uint1> { 0uint1 = void; 1uint1 = ref<String, managed, readonly, local>; }, borrowed, 'a, readonly, local> = field.project v5, 1
+    v7: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, managed, readonly, local>; } = load v6
+    v8: uint1 = variant.tag v7
+    v9: uint1 = 0
+    v10: boolean = eq v8, v9
+    branch v10 => b1 | b2
+
+b1:
+    v11: void = zeroed
+    v12: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; } = variant.new 0
+    local.set l1, v12
+    jump b3
+
+b2:
+    v13: ref<test.main.Counter, borrowed, 'a, readonly, local> = local.get l0
+    v14: ref<variant<uint1> { 0uint1 = void; 1uint1 = ref<String, managed, readonly, local>; }, borrowed, 'a, readonly, local> = field.project v13, 1
+    v15: uint1 = variant.tag.load v14
+    switch v15, b5, 1 => b4
+
+b3:
+    v20: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; } = local.get l1
+    v21: test.main.Entry<'a & local> = aggregate (v4, v20)
+    local.set l2, v21
+    v22: ref<test.main.Entry<'a & local>, borrowed, 'frame, readonly, local> = local.address l2
+    call test.main.write(v22): <'a, 'b>(ref<test.main.Entry<'a & local>, borrowed, 'b, readonly, local>) => void
+    return
+
+b4:
+    v16: ref<ref<String, managed, readonly, local>, borrowed, 'a, readonly, local> = variant.payload.project v14, 1
+    v17: ref<String, managed, readonly, local> = load v16
+    v18: ref<String, borrowed, 'a, readonly, local> = cast.bit v17 -> ref<String, borrowed, 'a, readonly, local>
+    v19: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly, local>; } = variant.new 1, v18
+    local.set l1, v19
+    jump b3
+
+b5:
+    panic
+}
+
+/// @layout.struct name=test.main.Counter size=16 align=8
+/// @layout.field owner=test.main.Counter index=0 name=name offset=0 size=8 align=8
+/// @layout.field owner=test.main.Counter index=1 name=unit offset=8 size=8 align=8
+/// @layout.struct name=test.main.Entry<'a & local> size=16 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=0 name=name offset=0 size=8 align=8
+/// @layout.field owner=test.main.Entry<'a & local> index=1 name=unit offset=8 size=8 align=8
+/// @layout.variant name=type@24 size=8 align=8
+/// @layout.discriminant owner=type@24 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
+/// @layout.case owner=type@24 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@24 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@69 size=8 align=8
+/// @layout.discriminant owner=type@69 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
+/// @layout.case owner=type@69 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@69 index=1 discriminant=1 payload_offset=0
+"#);
+}
+
+#[test]
+fn test_lower_a_parameter_place_first_borrowed_inside_a_branch() {
+    let session = TestSession::single(
+        r#"
+struct Meter {
+    value: int32;
+}
+
+function read(meter: &readonly Meter): int32 {
+    return meter.value;
+}
+
+function main(pick: boolean, meter: Meter): int32 {
+    let first = if (pick) { read(&meter) } else { 0 };
+    return first + read(&meter);
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.read",
+        r#"
+@copy
+type test.main.Meter {
+    value: int32;
+}
+
+function test.main.read<'a>(v0: ref<test.main.Meter, borrowed, 'a, readonly, local>): int32 {
+    local l0: ref<test.main.Meter, borrowed, 'a, readonly, local>
+
+entry(v0: ref<test.main.Meter, borrowed, 'a, readonly, local>):
+    local.set l0, v0
+    v1: ref<test.main.Meter, borrowed, 'a, readonly, local> = local.get l0
+    v2: ref<int32, borrowed, 'a, readonly, local> = field.project v1, 0
+    v3: int32 = load v2
+    return v3
+}
+
+/// @layout.struct name=test.main.Meter size=4 align=4
+/// @layout.field owner=test.main.Meter index=0 name=value offset=0 size=4 align=4
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.main",
+        r#"
+@copy
+type test.main.Meter {
+    value: int32;
+}
+
+function test.main.main(v0: boolean, v1: test.main.Meter): int32 {
+    local l0: boolean
+    local l1: test.main.Meter
+    local l2: int32
+    local l3: int32
+
+entry(v0: boolean, v1: test.main.Meter):
+    local.set l0, v0
+    local.set l1, v1
+    v2: boolean = local.get l0
+    branch v2 => b1 | b2
+
+b1:
+    v3: ref<test.main.Meter, borrowed, 'frame, mutable, local> = local.address l1
+    v4: int32 = call test.main.read(v3): <'a>(ref<test.main.Meter, borrowed, 'a, readonly, local>) => int32
+    local.set l2, v4
+    jump b3
+
+b2:
+    v5: int32 = 0
+    local.set l2, v5
+    jump b3
+
+b3:
+    v6: int32 = local.get l2
+    local.set l3, v6
+    v7: int32 = local.get l3
+    v8: ref<test.main.Meter, borrowed, 'frame, mutable, local> = local.address l1
+    v9: int32 = call test.main.read(v8): <'a>(ref<test.main.Meter, borrowed, 'a, readonly, local>) => int32
+    v10: int32 = add v7, v9
+    return v10
+}
+
+/// @layout.struct name=test.main.Meter size=4 align=4
+/// @layout.field owner=test.main.Meter index=0 name=value offset=0 size=4 align=4
 "#,
     );
 }

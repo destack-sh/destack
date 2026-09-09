@@ -10,23 +10,30 @@ function both(a: boolean, b: boolean): boolean {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.both",
         r#"
 function test.main.both(v0: boolean, v1: boolean): boolean {
     local l0: boolean
+    local l1: boolean
+    local l2: boolean
 
 entry(v0: boolean, v1: boolean):
     local.set l0, v0
-    branch v0 => b1 | b2
+    local.set l1, v1
+    v2: boolean = local.get l0
+    local.set l2, v2
+    branch v2 => b1 | b2
 
 b1:
-    local.set l0, v1
+    v3: boolean = local.get l1
+    local.set l2, v3
     jump b2
 
 b2:
-    v2: boolean = local.get l0
-    return v2
+    v4: boolean = local.get l2
+    return v4
 }
 "#,
     );
@@ -42,23 +49,30 @@ function either(a: boolean, b: boolean): boolean {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.either",
         r#"
 function test.main.either(v0: boolean, v1: boolean): boolean {
     local l0: boolean
+    local l1: boolean
+    local l2: boolean
 
 entry(v0: boolean, v1: boolean):
     local.set l0, v0
-    branch v0 => b2 | b1
+    local.set l1, v1
+    v2: boolean = local.get l0
+    local.set l2, v2
+    branch v2 => b2 | b1
 
 b1:
-    local.set l0, v1
+    v3: boolean = local.get l1
+    local.set l2, v3
     jump b2
 
 b2:
-    v2: boolean = local.get l0
-    return v2
+    v4: boolean = local.get l2
+    return v4
 }
 "#,
     );
@@ -74,37 +88,38 @@ function label(name: string | undefined): string | undefined {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
-type String {
-    codeUnits: slice<uint16, unique, exclusive, local>;
-}
+    session.assert_mir_function("main.ds", "test.main.label", r#"
+@languageItem("string.String")
+type String;
 
-function test.main.label(v0: ref<String, managed, mutable, undefined, local>): ref<String, managed, mutable, undefined, local> {
-    local l0: ref<String, managed, mutable, local>
+function test.main.label(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }): variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } {
+    local l0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }
+    local l1: ref<String, managed, mutable, local>, readonly
 
-entry(v0: ref<String, managed, mutable, undefined, local>):
-    v1: ref<String, managed, mutable, undefined, local> = undefined
-    v2: boolean = eq v0, v1
-    branch v2 => b2 | b1
+entry(v0: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }):
+    local.set l0, v0
+    v1: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = local.get l0
+    variant.switch v1, 1 => b2, else b1
 
 b1:
-    v3: ref<String, managed, mutable, local> = cast.bit v0 -> ref<String, managed, mutable, local>
-    local.set l0, v3
+    v2: ref<String, managed, mutable, local> = variant.payload v1, 0
+    local.set l1, v2
     jump b3
 
 b2:
-    v4: void = undefined
-    v5: ref<String, managed, mutable, local> = cast.bit v4 -> ref<String, managed, mutable, local>
-    local.set l0, v5
+    v3: ref<String, managed, mutable, local> = global.address string.0
+    local.set l1, v3
     jump b3
 
 b3:
-    v6: ref<String, managed, mutable, local> = local.get l0
-    v7: ref<String, managed, mutable, undefined, local> = cast.bit v6 -> ref<String, managed, mutable, undefined, local>
-    return v7
+    v4: ref<String, managed, mutable, local> = local.get l1
+    v5: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v4
+    return v5
 }
 
-/// @layout.struct name=String size=16 align=8
-/// @layout.field owner=String index=0 name=codeUnits offset=0 size=16 align=8
+/// @layout.variant name=type@8 size=8 align=8
+/// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@8 index=1 discriminant=1 payload_offset=0
 "#);
 }

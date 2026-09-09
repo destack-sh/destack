@@ -10,14 +10,19 @@ function nudge(x: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.nudge",
         r#"
 function test.main.nudge(v0: int32): int32 {
+    local l0: int32
+
 entry(v0: int32):
-    v1: int32 = 2
-    v2: int32 = shl v0, v1
-    return v2
+    local.set l0, v0
+    v1: int32 = local.get l0
+    v2: int32 = 2
+    v3: int32 = shl v1, v2
+    return v3
 }
 "#,
     );
@@ -33,15 +38,25 @@ function mask(x: uint32, m: uint32): uint32 {
 "#,
     );
 
-    session.assert_mir_lowered(
+    session.assert_mir_function(
         "main.ds",
+        "test.main.mask",
         r#"
 function test.main.mask(v0: uint32, v1: uint32): uint32 {
+    local l0: uint32
+    local l1: uint32
+
 entry(v0: uint32, v1: uint32):
-    v2: uint32 = and v0, v1
-    v3: uint32 = xor v0, v1
-    v4: uint32 = or v2, v3
-    return v4
+    local.set l0, v0
+    local.set l1, v1
+    v2: uint32 = local.get l0
+    v3: uint32 = local.get l1
+    v4: uint32 = and v2, v3
+    v5: uint32 = local.get l0
+    v6: uint32 = local.get l1
+    v7: uint32 = xor v5, v6
+    v8: uint32 = or v4, v7
+    return v8
 }
 "#,
     );

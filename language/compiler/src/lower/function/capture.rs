@@ -3,13 +3,35 @@ use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
 use crate::lower::function::lower::Binding;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
+
+/// One entry stored in a synthesized closure environment.
+enum EnvironmentEntry {
+    /// A captured binding stored by value.
+    Direct {
+        /// The captured symbol.
+        symbol: dir::GlobalSymbolId,
+        /// The captured symbol's declared type.
+        ty: dir::GlobalTypeId,
+    },
+    /// The captured receiver stored by value.
+    This {
+        /// The receiver's declared type.
+        ty: dir::GlobalTypeId,
+    },
+    /// A lifted managed frame stored by reference.
+    Frame {
+        /// The lifted frame the closure reads through.
+        frame: dir::LocalCaptureFrameId,
+    },
+}
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Bind the captured environment of one closure body.
+    /// Bind the captured environment of one closure body, a once body taking it whole.
     pub(in crate::lower) fn bind_captures(
         &mut self,
         symbol: dir::GlobalSymbolId,
+        is_entry: bool,
     ) -> CompilerResult<()> {
         let Some(capture) = self.source().captures.capture(symbol) else {
             return Ok(());
@@ -18,26 +40,112 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(());
         }
 
-        // load the hidden environment as the lifted frame
+        // receive the environment at the kind the callable owns it in
         let capture = capture.clone();
-        let frame_id = self.managed_frame(&capture)?;
-        let frame = self.source().captures.get_frame(frame_id).clone();
-        let frame_type = self.lower_type(frame.ty)?;
-        let environment = self.builder.function_environment_current(frame_type);
-        self.frames.insert(frame.scope, environment);
+        let entries = self.environment_entries(&capture)?;
+        let kind = self.environment_kind(&capture);
+        let (pointee, reference) = self.environment_types(&entries, kind)?;
+        let environment = self.received_environment(reference);
 
-        // bind each captured symbol through its frame field
-        for captured in &capture.captures {
-            let symbol = captured.symbol();
-            let Some(field) = frame.fields.iter().position(|entry| entry.symbol == symbol) else {
-                return Err(CompilerError::Internal {
-                    message: "a managed capture outside its lifted frame".to_string(),
-                });
-            };
+        // take an owned environment out of its allocation, an entry leaving it to its body
+        let taken = match (kind, is_entry) {
+            (mir::ReferenceKind::Unique, false) => {
+                let taken = self.builder.load(environment, pointee);
+                self.builder.release(environment);
+
+                Some(taken)
+            }
+            _ => None,
+        };
+
+        // unpack values, the receiver, and frame references from the environment
+        for (index, entry) in entries.iter().enumerate() {
+            let index = index as u32;
+            match entry {
+                EnvironmentEntry::Direct { symbol, ty } => {
+                    let ty = self.lower_type(*ty)?;
+                    let binding = match taken {
+                        // home a taken value in the frame
+                        Some(taken) => {
+                            let value = self.builder.field_get(taken, index);
+                            let local = self.builder.local(ty, mir::Mutability::Mutable);
+                            self.builder.local_set(local, value);
+
+                            Binding::Local(local)
+                        }
+                        // read a shared value through its environment field
+                        None => Binding::Captured {
+                            frame: environment,
+                            field: index,
+                            ty,
+                        },
+                    };
+                    self.values.insert(symbol.local_id, binding);
+                }
+                EnvironmentEntry::This { ty } => {
+                    let ty = self.lower_type(*ty)?;
+                    let value = self.environment_field(taken, environment, index, ty);
+                    let local = self.home(value);
+                    self.this = Some(Binding::Local(local));
+                }
+                EnvironmentEntry::Frame { frame } => {
+                    let frame = self.source().captures.get_frame(*frame).clone();
+                    let frame_type = self.lower_type(frame.ty)?;
+                    let loaded = self.environment_field(taken, environment, index, frame_type);
+                    self.frames.insert(frame.scope, loaded);
+                    self.bind_frame_captures(&capture, &frame, frame_type, loaded)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Read one environment field, off the taken value or through the environment reference.
+    fn environment_field(
+        &mut self,
+        taken: Option<mir::Value>,
+        environment: mir::Value,
+        index: u32,
+        ty: mir::LocalNodeId<mir::Type>,
+    ) -> mir::Value {
+        match taken {
+            Some(taken) => self.builder.field_get(taken, index),
+            None => {
+                let address = self.field_address(environment, index, ty, mir::Access::Readonly);
+
+                self.builder.load(address, ty)
+            }
+        }
+    }
+
+    /// Return the kind one closure owns its environment in, as its capture record decides.
+    fn environment_kind(&self, capture: &dir::Capture) -> mir::ReferenceKind {
+        match capture.ownership {
+            dir::Ownership::Owned => mir::ReferenceKind::Unique,
+            _ => mir::ReferenceKind::Managed,
+        }
+    }
+
+    /// Bind the fields of one lifted frame the closure captures through it.
+    fn bind_frame_captures(
+        &mut self,
+        capture: &dir::Capture,
+        frame: &dir::CaptureFrame,
+        frame_type: mir::LocalNodeId<mir::Type>,
+        environment: mir::Value,
+    ) -> CompilerResult<()> {
+        for (field, entry) in frame.fields.iter().enumerate() {
+            let is_captured = capture.captures.iter().any(|captured| {
+                matches!(captured, dir::CapturedBinding::Manage { symbol, .. } if *symbol == entry.symbol)
+            });
+            if !is_captured {
+                continue;
+            }
             let field = field as u32;
             let ty = self.frame_field_type(frame_type, field)?;
             self.values.insert(
-                symbol.local_id,
+                entry.symbol.local_id,
                 Binding::Captured {
                     frame: environment,
                     field,
@@ -47,6 +155,24 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         Ok(())
+    }
+
+    /// Return the environment reference type one capturing callable receives.
+    pub(in crate::lower) fn capture_environment_type(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        let Some(capture) = self.source().captures.capture(symbol) else {
+            return Ok(None);
+        };
+        if capture.captures.is_empty() && capture.this.is_none() {
+            return Ok(None);
+        }
+        let capture = capture.clone();
+        let entries = self.environment_entries(&capture)?;
+        let kind = self.environment_kind(&capture);
+
+        Ok(Some(self.environment_types(&entries, kind)?.1))
     }
 
     /// Return the environment frame of one closure creation, when it captures.
@@ -61,13 +187,153 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         }
 
-        // allocate or reuse the frame this closure closes over
+        // aggregate values, the receiver, and frame references on the heap
         let capture = capture.clone();
-        let frame_id = self.managed_frame(&capture)?;
-        let frame = self.source().captures.get_frame(frame_id).clone();
-        let environment = self.allocate_frame_maybe(frame.scope, frame.ty)?;
+        let entries = self.environment_entries(&capture)?;
+        let mut values = Vec::with_capacity(entries.len());
+        for entry in &entries {
+            let value = match entry {
+                EnvironmentEntry::Direct { symbol, .. } => {
+                    let Some(binding) = self.values.get(&symbol.local_id).copied() else {
+                        return Err(CompilerError::Internal {
+                            message: "a captured binding without a home".to_string(),
+                        });
+                    };
 
-        Ok(Some(environment))
+                    self.read_binding(binding)
+                }
+                EnvironmentEntry::This { ty } => {
+                    let Some(binding) = self.this else {
+                        return Err(CompilerError::Internal {
+                            message: "a captured receiver outside a method".to_string(),
+                        });
+                    };
+                    let value = self.read_binding(binding);
+
+                    self.constructed_this_at(*ty, value)?
+                }
+                EnvironmentEntry::Frame { frame } => {
+                    let frame = self.source().captures.get_frame(*frame).clone();
+
+                    self.allocate_frame_maybe(frame.scope, frame.ty)?
+                }
+            };
+            values.push(value);
+        }
+
+        // build the environment the body reads its captures out of
+        let kind = self.environment_kind(&capture);
+        let (pointee, reference) = self.environment_types(&entries, kind)?;
+        let aggregate = self.builder.aggregate(pointee, values);
+
+        Ok(Some(self.builder.new_complete(aggregate, reference)))
+    }
+
+    /// Return the capture environment this body receives, either forwarded or read from the frame.
+    fn received_environment(&mut self, reference: mir::LocalNodeId<mir::Type>) -> mir::Value {
+        match self.captures {
+            Some(environment) => environment,
+            None => self.builder.function_environment_current(reference),
+        }
+    }
+
+    /// Return the entries one environment stores: the captures, the receiver, then each frame.
+    fn environment_entries(
+        &mut self,
+        capture: &dir::Capture,
+    ) -> CompilerResult<Vec<EnvironmentEntry>> {
+        let mut entries = Vec::new();
+        for captured in &capture.captures {
+            match captured {
+                dir::CapturedBinding::Manage { .. } => {}
+                dir::CapturedBinding::Copy { symbol, ty }
+                | dir::CapturedBinding::Move { symbol, ty } => {
+                    entries.push(EnvironmentEntry::Direct {
+                        symbol: *symbol,
+                        ty: *ty,
+                    });
+                }
+                dir::CapturedBinding::Borrow { .. } => {
+                    return Err(self.unsupported("a 'borrow' closure capture"));
+                }
+            }
+        }
+        if let Some(receiver) = &capture.this {
+            match receiver.mode {
+                dir::CaptureMode::Copy | dir::CaptureMode::Move | dir::CaptureMode::Manage => {
+                    entries.push(EnvironmentEntry::This { ty: receiver.ty });
+                }
+                dir::CaptureMode::Borrow => {
+                    return Err(self.unsupported("a 'borrow' receiver capture"));
+                }
+            }
+        }
+        for frame in &capture.frames {
+            entries.push(EnvironmentEntry::Frame { frame: *frame });
+        }
+
+        Ok(entries)
+    }
+
+    /// Intern the struct and reference types of one synthesized environment.
+    fn environment_types(
+        &mut self,
+        entries: &[EnvironmentEntry],
+        kind: mir::ReferenceKind,
+    ) -> CompilerResult<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)> {
+        let mut slots = Vec::with_capacity(entries.len());
+        for entry in entries {
+            let ty = match entry {
+                EnvironmentEntry::Direct { ty, .. } | EnvironmentEntry::This { ty } => {
+                    self.lower_type(*ty)?
+                }
+                EnvironmentEntry::Frame { frame } => {
+                    let frame = self.source().captures.get_frame(*frame).clone();
+
+                    self.lower_type(frame.ty)?
+                }
+            };
+            slots.push(ty);
+        }
+
+        Ok(self.environment_reference_types(&slots, kind))
+    }
+
+    /// Intern the struct holding one environment's slots and the reference addressing it.
+    pub(in crate::lower) fn environment_reference_types(
+        &mut self,
+        slots: &[mir::LocalNodeId<mir::Type>],
+        kind: mir::ReferenceKind,
+    ) -> (mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>) {
+        let fields = slots
+            .iter()
+            .map(|ty| {
+                self.builder.tree_mut().intern_field(
+                    mir::Field {
+                        name: None,
+                        ty: mir::TypeId::from(*ty),
+                    },
+                    Vec::new(),
+                )
+            })
+            .collect();
+        let pointee = self.builder.tree_mut().intern_type(mir::Type::Struct {
+            fields,
+            copy: mir::Copy::No,
+        });
+        let lifetime = match kind {
+            mir::ReferenceKind::Borrowed => mir::Lifetime::frame(),
+            _ => mir::Lifetime::empty(),
+        };
+        let reference = self.builder.tree_mut().intern_type(mir::Type::Reference {
+            kind,
+            lifetime,
+            storage: mir::Storage::Heap(mir::Space::Local),
+            access: mir::Access::Mutable,
+            pointee,
+        });
+
+        (pointee, reference)
     }
 
     /// Bind one declared symbol through its lifted frame, when one lifts it.
@@ -84,7 +350,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let frame = self.allocate_frame_maybe(scope, frame_ty)?;
         let frame_type = self.lower_type(frame_ty)?;
         let ty = self.frame_field_type(frame_type, field)?;
-        let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
+        let address = self.field_address(frame, field, ty, mir::Access::Mutable);
         self.builder.store(address, value);
         self.values
             .insert(symbol.local_id, Binding::Captured { frame, field, ty });
@@ -92,42 +358,9 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(true)
     }
 
-    /// Return the single managed frame one capture collapses onto.
-    fn managed_frame(&self, capture: &dir::Capture) -> CompilerResult<dir::LocalCaptureFrameId> {
-        // reject receiver captures, which live outside any lifted frame
-        if capture.this.is_some() {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a closure capturing 'this'".to_string(),
-            }
-            .into());
-        }
-
-        // reject every capture mode outside managed lifting
-        for captured in &capture.captures {
-            let mode = match captured.mode() {
-                dir::CaptureMode::Manage => continue,
-                dir::CaptureMode::Borrow => "borrow",
-                dir::CaptureMode::Copy => "copy",
-                dir::CaptureMode::Move => "move",
-            };
-
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("a '{mode}' closure capture"),
-            }
-            .into());
-        }
-
-        // require exactly one frame to carry the capture
-        match capture.frames.as_slice() {
-            [frame] => Ok(*frame),
-            _ => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a closure capturing across scopes".to_string(),
-            }
-            .into()),
-        }
+    /// Return whether a nested scope captures one symbol into a frame.
+    pub(in crate::lower) fn is_lifted(&self, symbol: dir::GlobalSymbolId) -> bool {
+        self.lifted_field(symbol).is_some()
     }
 
     /// Return the lifted frame field declared for one symbol, when one lifts it.

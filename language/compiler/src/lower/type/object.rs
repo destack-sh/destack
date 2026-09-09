@@ -86,14 +86,37 @@ impl TypeLowerer<'_, '_> {
             });
         };
 
-        // lower the property's read type
-        let value = self.lower(read)?;
-        if !property.is_optional {
+        self.optional_storage_representation(read, property.is_optional)
+    }
+
+    /// Lower one property's storage, holding undefined beside an optional property's value.
+    pub(in crate::lower) fn optional_storage_representation(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        is_optional: bool,
+    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+        if !is_optional {
+            return self.lower(ty);
+        }
+
+        // keep a variant already holding an undefined case
+        let value = self.lower(ty)?;
+        let cases = match self.tree.get(value) {
+            mir::Type::Variant { cases, .. } => cases.iter().map(|case| case.ty).collect(),
+            _ => Vec::new(),
+        };
+        if cases
+            .iter()
+            .any(|case| matches!(self.tree.get(*case), mir::Type::Void))
+        {
             return Ok(value);
         }
 
-        // widen an optional property to store its absent case as undefined
-        self.insert_optional_representation(value)
+        // grow a variant over its own cases, else beside the value
+        let mut payloads = if cases.is_empty() { vec![value] } else { cases };
+        payloads.push(self.tree.intern_type(mir::Type::Void));
+
+        Ok(self.insert_union_variant(payloads))
     }
 
     /// Wrap one representation to store its absent values as undefined.
@@ -101,26 +124,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         value: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // niche optional reference representations in their spare values
-        let nullability = match self.tree.get(value) {
-            mir::Type::Reference { nullability, .. }
-            | mir::Type::Slice { nullability, .. }
-            | mir::Type::Dynamic { nullability, .. }
-            | mir::Type::Function { nullability, .. } => Some(*nullability),
-            _ => None,
-        };
-        if let Some(nullability) = nullability {
-            let nullability = match nullability {
-                mir::Nullability::None | mir::Nullability::Undefined => mir::Nullability::Undefined,
-                mir::Nullability::Null | mir::Nullability::NullOrUndefined => {
-                    mir::Nullability::NullOrUndefined
-                }
-            };
-
-            return self.insert_nullability(value, nullability);
-        }
-
-        // grow a variant case for optional value representations
+        // grow a variant case beside the value, the layout niching references
         let undefined = self.tree.intern_type(mir::Type::Void);
 
         Ok(self.insert_union_variant(vec![value, undefined]))

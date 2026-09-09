@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::LowerState;
+use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
 /// The implementation selected for one externally implemented callable.
@@ -18,10 +18,10 @@ pub(in crate::lower) enum CallableImplementation {
     },
 }
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Return the intrinsic or binding decoration on one callable.
     pub(in crate::lower) fn callable_implementation(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<CallableImplementation>> {
         let state = self.state(symbol.module_id)?;
@@ -30,7 +30,12 @@ impl LowerState<'_> {
         };
 
         // find the callable implementation among the declaration's decorators
-        for application in state.decorators.applications_for_owner(node) {
+        let applications: Vec<_> = state
+            .decorators
+            .applications_for_owner(node)
+            .cloned()
+            .collect();
+        for application in &applications {
             let dir::DecoratorTarget::LanguageItem { item, .. } = application.resolution.target
             else {
                 continue;
@@ -57,7 +62,7 @@ impl LowerState<'_> {
 
     /// Return the evaluated string named by one application's first argument.
     fn decorator_name(
-        &self,
+        &mut self,
         application: &dir::DecoratorApplication,
     ) -> CompilerResult<Option<String>> {
         let arguments = self.decorator_arguments(application)?;
@@ -75,7 +80,7 @@ impl LowerState<'_> {
 
     /// Return the checked backing arguments carried by one decorator.
     pub(in crate::lower) fn decorator_arguments(
-        &self,
+        &mut self,
         application: &dir::DecoratorApplication,
     ) -> CompilerResult<&[dir::StaticTerm]> {
         // read the static value the decorator carries

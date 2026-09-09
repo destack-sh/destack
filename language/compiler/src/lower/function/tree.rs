@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one tree literal through its resolution.
@@ -83,15 +83,11 @@ impl FunctionLowerer<'_, '_, '_> {
         values: Vec<mir::Value>,
     ) -> CompilerResult<mir::Value> {
         let dir::CallableTarget::Symbol { function, .. } = &call.target else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "an indirect tree component call".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("an indirect tree component call"));
         };
         // call the selected function instance
-        let id = self.selection_function(&function.key)?;
-        let value = self.builder.call_function(id, values);
+        let id = self.resolve_callee(&function.key)?;
+        let value = self.call(&id, values);
 
         value.ok_or_else(|| CompilerError::Internal {
             message: "a void tree call used as a value".to_string(),
@@ -108,7 +104,6 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let representation = self.lower_type(argument_type)?;
-        let representation = self.builder.tree().get(representation).clone();
 
         self.lower_constant(literal, representation)
     }
@@ -120,11 +115,7 @@ impl FunctionLowerer<'_, '_, '_> {
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
         let dir::Type::Application(_) = self.lower.ty(attributes)? else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a structural tree attribute type".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a structural tree attribute type"));
         };
 
         self.lower_tree_aggregate(attributes, resolution)
@@ -144,7 +135,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let representation = self.lower_nominal(attributes)?;
         let ty = self.lower_type(attributes)?;
-        let nominal = self.lower.nominal(&representation.key)?;
+        let nominal = self.lower.nominal(representation.key.symbol)?;
         let members = nominal
             .fields
             .iter()
@@ -175,11 +166,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut ordered = Vec::with_capacity(fields.len());
         for field in fields {
             let Some((_, value)) = values.iter().find(|(key, _)| *key == field) else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a defaulted tree attribute".to_string(),
-                }
-                .into());
+                return Err(self.unsupported("a defaulted tree attribute"));
             };
             ordered.push(*value);
         }
@@ -200,7 +187,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 });
             };
 
-            return self.lower_expression(expression);
+            return self.lower_value(expression);
         }
 
         // take the text of a written attribute
@@ -210,7 +197,6 @@ impl FunctionLowerer<'_, '_, '_> {
             None => dir::Literal::Boolean(true),
         };
         let representation = self.lower_type(attribute.ty)?;
-        let representation = self.builder.tree().get(representation).clone();
 
         self.lower_constant(literal, representation)
     }
@@ -229,7 +215,6 @@ impl FunctionLowerer<'_, '_, '_> {
                 // materialize a text child as a string constant
                 dir::TreeChildBinding::Text { value, ty } => {
                     let representation = self.lower_type(*ty)?;
-                    let representation = self.builder.tree().get(representation).clone();
                     values.push(self.lower_constant(dir::Literal::String(*value), representation)?);
                 }
                 // lower an expression child
@@ -239,15 +224,11 @@ impl FunctionLowerer<'_, '_, '_> {
                             message: "a non-expression tree child value".to_string(),
                         });
                     };
-                    values.push(self.lower_expression(expression)?);
+                    values.push(self.lower_value(expression)?);
                 }
                 // reject a spread child
                 dir::TreeChildBinding::Spread { .. } => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a spread tree child".to_string(),
-                    }
-                    .into());
+                    return Err(self.unsupported("a spread tree child"));
                 }
             }
         }
@@ -279,6 +260,7 @@ impl FunctionLowerer<'_, '_, '_> {
             construct.return_type,
             constructor,
             &key.arguments,
+            &construct.regions,
             vec![props],
         )
     }

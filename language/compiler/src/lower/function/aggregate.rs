@@ -4,7 +4,7 @@ use destack_mir as mir;
 use crate::lower::{
     FunctionLowerer, NominalField, constructor_receiver_type, nominal_receiver_storage,
 };
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 /// One declared field an object literal constructs.
 struct ConstructionField {
@@ -37,11 +37,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.lower_class_construct(resolution, key, constructor)
             }
             // reject construction through a class value
-            dir::ConstructTarget::Dynamic { .. } => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a dynamically dispatched construction".to_string(),
+            dir::ConstructTarget::Dynamic { .. } => {
+                Err(self.unsupported("a dynamically dispatched construction"))
             }
-            .into()),
         }
     }
 
@@ -74,11 +72,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::ClassConstructor::Declared { symbol } => Some(*symbol),
             dir::ClassConstructor::Default => None,
             other => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("a {} super constructor", other.name()),
-                }
-                .into());
+                return Err(self.internal(format!("a {} super constructor", other.name())));
             }
         };
 
@@ -98,16 +92,33 @@ impl FunctionLowerer<'_, '_, '_> {
                 if symbol == selection.symbol {
                     self.ensure_default_constructor(selection.symbol, &selection.arguments)?;
                 }
-                let key = self.selection_key(symbol, selection)?;
-
-                Some(self.function(&key)?)
+                Some(self.resolve_callee_of(symbol, selection)?)
             }
             None => None,
         };
 
-        // call the base constructor over the narrowed receiver
-        if let Some(function) = function {
-            let parameters = self.function_parameters(function);
+        // call the base constructor over the narrowed receiver, a synthesized one at the base's
+        // instance bindings
+        if let (Some(mut function), Some(symbol)) = (function, target) {
+            let lifetime = self.reborrow_lifetime(this);
+            let (scope, regions) = match symbol == selection.symbol {
+                true => (
+                    self.lower.class_constructor_scope(symbol)?,
+                    selection.arguments.as_slice(),
+                ),
+                false => (
+                    self.lower.symbol_scope(symbol)?,
+                    resolution.regions.as_slice(),
+                ),
+            };
+            self.instantiate_signature(
+                &mut function.parameters,
+                &mut function.result,
+                &scope,
+                regions,
+                Some(lifetime),
+            )?;
+            let parameters = function.parameters.clone();
             let Some((receiver, parameters)) = parameters.split_first() else {
                 return Err(CompilerError::Internal {
                     message: "a base constructor without a declared receiver slot".to_string(),
@@ -118,7 +129,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .cast(mir::CastOperator::Bitcast, this, *receiver);
             let mut values = vec![receiver];
             values.extend(self.lower_call_arguments(&resolution.arguments, parameters, None)?);
-            self.builder.call_function(function, values);
+            self.call(&function, values);
         }
 
         // store the derived field initializers once the base storage settles
@@ -129,7 +140,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // yield the void value a super call produces
         let void = self.builder.tree_mut().intern_type(mir::Type::Void);
 
-        Ok(self.builder.constant(mir::Constant::Undefined, void))
+        Ok(self.builder.constant(mir::Constant::Zeroed, void))
     }
 
     /// Lower one class construction to an allocation and its constructor call.
@@ -143,9 +154,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let values = match constructor {
             // bind the written arguments to the declared parameters after the receiver
             dir::ClassConstructor::Declared { symbol } => {
-                let key = self.selection_key(*symbol, selection)?;
-                let function = self.function(&key)?;
-                let parameters = self.function_parameters(function);
+                let function = self.resolve_callee_of(*symbol, selection)?;
+                let parameters = self.signature_parameters(function.signature)?;
                 let Some((_, parameters)) = parameters.split_first() else {
                     return Err(CompilerError::Internal {
                         message: "a constructor without a declared receiver slot".to_string(),
@@ -158,11 +168,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::ClassConstructor::Default => Vec::new(),
             // reject every remaining constructor kind
             other => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("a {other:?} constructor"),
-                }
-                .into());
+                return Err(self.internal(format!("a {other:?} constructor")));
             }
         };
 
@@ -170,16 +176,19 @@ impl FunctionLowerer<'_, '_, '_> {
             resolution.return_type,
             constructor,
             &selection.arguments,
+            &resolution.regions,
             values,
         )
     }
 
-    /// Lower one class construction over its evaluated argument values.
+    /// Lower one class construction over its evaluated argument values, a declared constructor
+    /// instantiated at the regions the construction bound.
     pub(in crate::lower) fn lower_class_instance(
         &mut self,
         return_type: dir::GlobalTypeId,
         constructor: &dir::ClassConstructor,
         generic_arguments: &[dir::GenericArgumentBinding],
+        regions: &[dir::GenericArgumentBinding],
         arguments: Vec<mir::Value>,
     ) -> CompilerResult<mir::Value> {
         // lower the return form and its class representation
@@ -202,11 +211,14 @@ impl FunctionLowerer<'_, '_, '_> {
             let slot = self.builder.local(pointee, mir::Mutability::Mutable);
             let address = self.insert_reference(
                 mir::ReferenceKind::Borrowed,
-                mir::Access::Exclusive,
+                mir::Lifetime::frame(),
+                mir::Access::Mutable,
                 mir::Storage::Frame,
                 pointee,
             );
-            let address = self.builder.local_addr(slot, address);
+            let address = self
+                .builder
+                .local_addr(slot, address, mir::AddressKind::Borrow);
 
             (Some(slot), address)
         };
@@ -216,26 +228,32 @@ impl FunctionLowerer<'_, '_, '_> {
             // call the constructor the class declares
             dir::ClassConstructor::Declared { symbol } => {
                 // select the declared instance from the substituted class arguments
-                let bindings = self
-                    .lower
-                    .instance_bindings(generic_arguments, self.instance)?;
-                let instance: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-                let key = self.generic_instance_key(*symbol, None, &instance)?;
-                let function = self.function(&key)?;
+                let bindings = self.lower.instance_bindings(generic_arguments)?;
+                let selection = dir::InstanceKey::new(*symbol, bindings);
+                let mut function = self.resolve_callee_of(*symbol, &selection)?;
+                let lifetime = self.reborrow_lifetime(storage);
+                let scope = self.lower.symbol_scope(*symbol)?;
+                self.instantiate_signature(
+                    &mut function.parameters,
+                    &mut function.result,
+                    &scope,
+                    regions,
+                    Some(lifetime),
+                )?;
                 let receiver = self.constructed_receiver(storage, pointee)?;
 
                 // bind the constructor arguments after the receiver
                 let mut values = Vec::with_capacity(arguments.len() + 1);
                 values.push(receiver);
                 values.extend(arguments);
-                self.builder.call_function(function, values);
+                self.call(&function, values);
             }
             // call the synthesized constructor a defaulted class stands in for
             dir::ClassConstructor::Default => {
                 // peel the return form down to the constructed class
-                let stored = match self.lower.peel_indirection(return_type)? {
+                let stored = match self.lower.indirection(return_type, &self.scope)? {
                     Some(reference) => reference.stored,
-                    None => self.lower.peel_owned(return_type)?,
+                    None => self.lower.stored(return_type)?,
                 };
                 let dir::Type::Application(application) = self.lower.ty(stored)? else {
                     return Err(CompilerError::Internal {
@@ -246,29 +264,30 @@ impl FunctionLowerer<'_, '_, '_> {
                 // synthesize the call only where the class stores initializers
                 let class = application.symbol;
                 if self.lower.class_has_field_initializers(class)? {
-                    let bindings = self
-                        .lower
-                        .instance_bindings(generic_arguments, self.instance)?;
-                    self.lower.declare_default_constructor(
+                    let bindings = self.lower.instance_bindings(generic_arguments)?;
+                    let constructor = self.lower.declare_default_constructor(
                         self.builder.tree_mut(),
                         class,
                         &bindings,
+                        &self.scope,
                     )?;
-                    let instance: Vec<_> =
-                        bindings.iter().map(|binding| binding.argument).collect();
-                    let key = self.generic_instance_key(class, None, &instance)?;
-                    let function = self.function(&key)?;
+                    let mut selected = self.callee_of(constructor);
+                    let lifetime = self.reborrow_lifetime(storage);
+                    let scope = self.lower.class_constructor_scope(class)?;
+                    self.instantiate_signature(
+                        &mut selected.parameters,
+                        &mut selected.result,
+                        &scope,
+                        generic_arguments,
+                        Some(lifetime),
+                    )?;
                     let receiver = self.constructed_receiver(storage, pointee)?;
-                    self.builder.call_function(function, vec![receiver]);
+                    self.call(&selected, vec![receiver]);
                 }
             }
             // reject every remaining constructor kind
             other => {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: format!("a {other:?} constructor"),
-                }
-                .into());
+                return Err(self.internal(format!("a {other:?} constructor")));
             }
         }
 
@@ -281,21 +300,64 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(object)
     }
 
-    /// Bitcast one constructed storage to its exclusive uninitialized receiver.
+    /// Bitcast one constructed storage to the exclusive uninitialized receiver the instantiated
+    /// constructor takes.
     fn constructed_receiver(
         &mut self,
         storage: mir::Value,
         pointee: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<mir::Value> {
-        // read the receiver type the constructor declares
+        // reborrow the storage as the uninitialized receiver the constructor fills
+        let lifetime = self.reborrow_lifetime(storage);
         let representation = self.value_representation(storage)?;
         let receiver_storage = nominal_receiver_storage(self.builder.tree(), representation);
         let receiver =
-            constructor_receiver_type(self.builder.tree_mut(), pointee, receiver_storage);
+            constructor_receiver_type(self.builder.tree_mut(), pointee, receiver_storage, lifetime);
 
         Ok(self
             .builder
             .cast(mir::CastOperator::Bitcast, storage, receiver))
+    }
+
+    /// Read the object a constructor's receiver fills once the body reads this as a value.
+    pub(in crate::lower) fn constructed_this(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        value: mir::Value,
+    ) -> CompilerResult<mir::Value> {
+        let ty = self.node_type_id(expression)?;
+
+        self.constructed_this_at(ty, value)
+    }
+
+    /// Read the object a constructor's receiver fills as one this type, the managed reference
+    /// of a heap class.
+    pub(in crate::lower) fn constructed_this_at(
+        &mut self,
+        ty: dir::GlobalTypeId,
+        value: mir::Value,
+    ) -> CompilerResult<mir::Value> {
+        let received = self.value_representation(value)?;
+        let tree = self.builder.tree();
+        let mir::Type::Reference { pointee, .. } = tree.get(mir::TypeId::from(received)) else {
+            return Ok(value);
+        };
+        if !matches!(tree.get(*pointee), mir::Type::Uninit { .. }) {
+            return Ok(value);
+        }
+        let target = self.lower_type(ty)?;
+        let is_managed = matches!(
+            self.builder.tree().get(target),
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Managed,
+                ..
+            }
+        );
+        if !is_managed {
+            return Ok(value);
+        }
+
+        Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target))
     }
 
     /// Lower one newtype construction to a single-value aggregate.
@@ -313,11 +375,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let dir::ArgumentSource::Provided(source) = binding.source else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a defaulted newtype argument".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a defaulted newtype argument"));
         };
 
         // detect singleton newtypes storing no runtime value
@@ -347,36 +405,38 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // lower the constructed nominal beneath its owner and view forms
         let ty = self.node_type_id(expression)?;
-        let ty = self.lower.peel_owned(ty)?;
+        let ty = self.lower.stored(ty)?;
         let dir::Type::Application(_) = self.lower.ty(ty)? else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a structural object construction".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a structural object construction"));
         };
         let application = ty;
-        let nominal = self.lower_nominal(ty)?;
-        let ty = self.lower_type(ty)?;
-        let nominal = self.lower.nominal(&nominal.key)?;
+        let instance = self.lower_nominal(ty)?;
+        let storage = mir::TypeId::from(instance.storage);
+        let is_class = matches!(
+            self.lower.definition(instance.key.symbol)?,
+            Some(dir::Definition::Class(_))
+        );
+        let nominal = self.lower.nominal(instance.key.symbol)?;
         let fields = nominal.fields.clone();
+
+        // build a class literal at its object storage, a value family at its representation
+        let ty = match is_class {
+            true => instance.storage,
+            false => self.lower_type(ty)?,
+        };
 
         // gather each property value under its field name
         let mut values = Vec::with_capacity(properties.len());
         for property in properties {
             let dir::Property::Field { name, value, .. } = self.source().tree().get(*property)
             else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a method or spread property".to_string(),
-                }
-                .into());
+                return Err(self.unsupported("a method or spread property"));
             };
             values.push((dir::StaticKey::from(*name), *value));
         }
 
-        // collect the field storage types behind the nominal, peeling lifetime applications
-        let (storage, _) = self.builder.tree().split_lifetime_application(ty);
+        // collect the field storage types behind the nominal's object
+        let storage = self.builder.tree().represented(storage);
         let storage_fields = match self.builder.tree().get(storage) {
             mir::Type::Struct { fields, .. } => fields.clone(),
             _ => {
@@ -395,7 +455,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     if let Some(value) =
                         self.lower_omitted_field(application, storage, index, &field)?
                     {
-                        ordered.push(value);
+                        ordered.push((index, value));
                     }
 
                     continue;
@@ -403,17 +463,13 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 // store the undefined case for absent optional fields
                 if field.is_optional {
-                    ordered.push(self.lower_absent_property(storage, index)?);
+                    ordered.push((index, self.lower_absent_property(storage, index)?));
 
                     continue;
                 }
 
                 // reject an omitted field without an initializer
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "an omitted field without an initializer".to_string(),
-                }
-                .into());
+                return Err(self.internal("an omitted field without an initializer"));
             };
 
             // skip singleton literal fields storing no runtime value
@@ -430,27 +486,33 @@ impl FunctionLowerer<'_, '_, '_> {
                 continue;
             }
 
-            // store the written value at the field's own case
-            let value = self.lower_expression(*value)?;
-            let representation = self.property_representation(storage, index)?;
-            ordered.push(self.adapt_to_representation(value, representation)?);
+            // store the written value at the field's storage
+            let value = self.lower_value(*value)?;
+            ordered.push((index, value));
         }
 
-        Ok(self.builder.aggregate(ty, ordered))
+        // drop the field indices, keeping the values in storage order
+        let values = ordered.into_iter().map(|(_, value)| value).collect();
+
+        Ok(self.builder.aggregate(ty, values))
     }
 
-    /// Declare the synthesized default constructor one construction reaches.
+    /// Declare the synthesized default constructor one construction calls.
     fn ensure_default_constructor(
         &mut self,
         class: dir::GlobalSymbolId,
         generic_arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<()> {
-        let bindings = self
-            .lower
-            .instance_bindings(generic_arguments, self.instance)?;
+        let bindings = self.lower.instance_bindings(generic_arguments)?;
 
-        self.lower
-            .declare_default_constructor(self.builder.tree_mut(), class, &bindings)
+        self.lower.declare_default_constructor(
+            self.builder.tree_mut(),
+            class,
+            &bindings,
+            &self.scope,
+        )?;
+
+        Ok(())
     }
 
     /// Store the declared field initializers through one constructor receiver.
@@ -459,7 +521,7 @@ impl FunctionLowerer<'_, '_, '_> {
         owner: dir::GlobalSymbolId,
     ) -> CompilerResult<()> {
         // require the class definition behind the owner
-        let Some(definition) = self.lower.definition(owner)? else {
+        let Some(definition) = self.lower.definition(owner)?.cloned() else {
             return Err(CompilerError::Internal {
                 message: "a constructor body without its class definition".to_string(),
             });
@@ -467,15 +529,19 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // offset own initializers past the base's chained fields
         let total = self.lower.nominal_fields(owner)?.len();
-        let own = self.lower.instance_fields(definition.members());
+        let own = self.lower.instance_fields(definition.members())?;
         let inherited = total
             .checked_sub(own.len())
             .ok_or_else(|| CompilerError::Internal {
                 message: "a class chaining fewer fields than it declares".to_string(),
             })?;
 
-        // skip a class whose own fields declare no initializer
-        if own.iter().all(|field| field.initializer.is_none()) {
+        // continue for a class with unassigned fields declaring an initializer or an absence
+        let is_defaulted = |field: &NominalField| {
+            !self.assigned_fields.contains(&field.symbol)
+                && (field.initializer.is_some() || field.is_optional)
+        };
+        if !own.iter().any(is_defaulted) {
             return Ok(());
         }
 
@@ -494,12 +560,21 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a constructor receiver outside a reference".to_string(),
             });
         };
-        let (concrete, _) = self.builder.tree().split_lifetime_application(*pointee);
+        let concrete = self.builder.tree().represented(*pointee);
 
-        // store each declared initializer at the field it belongs to
+        // store each declared default at the field it belongs to, skipping assigned fields
         for (index, field) in own.iter().enumerate() {
             let index = inherited + index;
+            if self.assigned_fields.contains(&field.symbol) {
+                continue;
+            }
+
+            // store the absence an optional field holds until a constructor assigns it
             let Some(initializer) = field.initializer else {
+                if field.is_optional {
+                    self.store_field_absence(this, concrete, index as u32)?;
+                }
+
                 continue;
             };
 
@@ -524,7 +599,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // evaluate the initializer outside the constructor's bindings, keeping this live
             let values = std::mem::take(&mut self.values);
             let frames = std::mem::take(&mut self.frames);
-            let value = self.lower_expression(expression);
+            let value = self.lower_value(expression);
             self.values = values;
             self.frames = frames;
             let value = value?;
@@ -535,27 +610,51 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // store the initialized value at its declared representation
-            let value = self.adapt_to_representation(value, representation)?;
-            let address =
-                self.emit_field_address(this, index as u32, representation, mir::Access::Exclusive);
-            self.builder.store(address, value);
+            self.lower_anchored(expression, |function| {
+                let address = function.field_address(
+                    this,
+                    index as u32,
+                    representation,
+                    mir::Access::Mutable,
+                );
+                function.builder.store(address, value);
+
+                Ok(())
+            })?;
         }
+
+        Ok(())
+    }
+
+    /// Store undefined at one optional field a constructor may leave unassigned.
+    fn store_field_absence(
+        &mut self,
+        this: mir::Value,
+        owner: mir::LocalNodeId<mir::Type>,
+        index: u32,
+    ) -> CompilerResult<()> {
+        // skip a void representation
+        let representation = self.property_representation(owner, index as usize)?;
+        if matches!(self.builder.tree().get(representation), mir::Type::Void) {
+            return Ok(());
+        }
+
+        // store the undefined sentinel at the field's representation
+        let value = self.lower_constant(dir::Literal::Undefined, representation)?;
+        let address = self.field_address(this, index, representation, mir::Access::Mutable);
+        self.builder.store(address, value);
 
         Ok(())
     }
 
     /// Return whether one initializer is a scalar literal computing nothing.
     fn is_literal_initializer(
-        &self,
+        &mut self,
         module: destack_source::ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
         // read the initializer out of its declaring module
-        let Some(declaring) = self.lower.modules.get(&module) else {
-            return Err(CompilerError::Internal {
-                message: "a field initializer read outside its loaded module".to_string(),
-            });
-        };
+        let declaring = self.lower.state(module)?;
 
         Ok(matches!(
             declaring.tree().get(expression),
@@ -590,18 +689,14 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // evaluate the initializer inside the constructed instance
-        let dir::Type::Application(applied) = self.lower.ty(application)? else {
+        let dir::Type::Application(_) = self.lower.ty(application)? else {
             return Err(CompilerError::Internal {
                 message: "a field initializer read outside an application type".to_string(),
             });
         };
-        let specialization = self
-            .lower
-            .application_specialization(application, &applied)?;
-        let value =
-            self.lower_foreign_expression(initializer.module_id, specialization, expression)?;
+        let value = self.lower_foreign_expression(initializer.module_id, expression)?;
 
-        Ok(Some(self.adapt_to_representation(value, representation)?))
+        Ok(Some(value))
     }
 
     /// Lower one tuple expression to an aggregate value.
@@ -618,13 +713,9 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut values = Vec::with_capacity(elements.len());
         for element in elements {
             let dir::Argument::Positional { value } = self.source().tree().get(*element) else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a spread tuple element".to_string(),
-                }
-                .into());
+                return Err(self.unsupported("a spread tuple element"));
             };
-            values.push(self.lower_expression(*value)?);
+            values.push(self.lower_value(*value)?);
         }
 
         Ok(self.builder.aggregate(ty, values))
@@ -649,16 +740,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 for element in elements {
                     let dir::Argument::Positional { value } = self.source().tree().get(*element)
                     else {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.lower.module.into(),
-                            construct: "a spread slice element".to_string(),
-                        }
-                        .into());
+                        return Err(self.unsupported("a spread slice element"));
                     };
                     values.push(value.into_global_any(self.lower.module));
                 }
 
-                self.lower_rest_pack(&values, slice.element, None)
+                self.lower_rest_pack(&values, slice.element, None, false)
             }
             // build every other array through its pack constructor
             _ => self
@@ -679,11 +766,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let committed = self.representation_type_id(expression)?;
         let declared = self.construction_fields(committed)?;
         let Some(declared) = declared else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "an object literal outside its concrete class".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("an object literal outside its concrete class"));
         };
 
         // gather each written value under its property name
@@ -691,21 +774,14 @@ impl FunctionLowerer<'_, '_, '_> {
         for property in properties {
             let dir::Property::Field { name, value, .. } = self.source().tree().get(*property)
             else {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a method or spread object property".to_string(),
-                }
-                .into());
+                return Err(self.unsupported("a method or spread object property"));
             };
             written.push((dir::StaticKey::from(*name), *value));
         }
 
         // lower the declared representation and the struct storage construction fills
         let representation = self.lower_type(committed)?;
-        let (base, _) = self
-            .builder
-            .tree()
-            .split_lifetime_application(representation);
+        let base = self.builder.tree().represented(representation);
         let (concrete, reference) = match self.builder.tree().get(base) {
             mir::Type::Reference { pointee, .. } => (*pointee, Some(representation)),
             mir::Type::Struct { .. } => (base, None),
@@ -731,17 +807,14 @@ impl FunctionLowerer<'_, '_, '_> {
                         dir::Expression::Literal(_)
                     );
                     if is_void && is_literal {
-                        values.push(
-                            self.builder
-                                .constant(mir::Constant::Undefined, representation),
-                        );
+                        values.push(self.builder.constant(mir::Constant::Zeroed, representation));
 
                         continue;
                     }
 
-                    // store the written value at the property's declared representation
-                    let value = self.lower_expression(*value)?;
-                    values.push(self.adapt_to_representation(value, representation)?);
+                    // store the written value at the property's storage
+                    let value = self.lower_value(*value)?;
+                    values.push(value);
                 }
                 // store the undefined case for absent optional properties
                 None if field.is_optional => {
@@ -781,7 +854,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 // read a nominal's fields, following alias applications on the way
                 dir::Type::Application(instance) => {
                     let aliased = match self.lower.definition(instance.symbol)? {
-                        Some(dir::Definition::TypeAlias(alias)) => alias.value,
+                        Some(dir::Definition::TypeAlias(_)) => {
+                            self.lower.symbol_type(instance.symbol)?
+                        }
                         Some(dir::Definition::Class(_) | dir::Definition::Struct(_)) => {
                             let fields = self.lower.nominal_fields(instance.symbol)?;
 
@@ -823,104 +898,6 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Adapt one lowered value into its declared representation.
-    pub(in crate::lower) fn adapt_to_representation(
-        &mut self,
-        value: mir::Value,
-        representation: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::Value> {
-        // store a value already at its representation type directly
-        let value_type = self.value_representation(value)?;
-        if value_type == representation {
-            return Ok(value);
-        }
-
-        // look through lifetime applications
-        let (value_base, _) = self.builder.tree().split_lifetime_application(value_type);
-        let (representation_base, _) = self
-            .builder
-            .tree()
-            .split_lifetime_application(representation);
-        if value_base == representation_base {
-            return Ok(value);
-        }
-
-        // pass distinct identities sharing one structure unchanged
-        if self.builder.tree().types_equal(
-            mir::TypeId::from(value_base),
-            mir::TypeId::from(representation_base),
-        ) {
-            return Ok(value);
-        }
-
-        // store no value in erased zero-sized representations such as variant tags
-        if matches!(
-            self.builder.tree().get(representation_base),
-            mir::Type::Void
-        ) {
-            return Ok(self
-                .builder
-                .constant(mir::Constant::Undefined, representation_base));
-        }
-
-        // reinterpret reference kind changes over the shared fat representation
-        if self
-            .builder
-            .tree()
-            .get(representation_base)
-            .is_reference_representation()
-        {
-            // pass values whose heads match under erased lifetimes
-            let source = self.builder.tree().get(value_base).erased_lifetime();
-            let target = self
-                .builder
-                .tree()
-                .get(representation_base)
-                .erased_lifetime();
-            if source == target {
-                return Ok(value);
-            }
-
-            return Ok(self
-                .builder
-                .cast(mir::CastOperator::Bitcast, value, representation));
-        }
-
-        // pass values whose contents match the representation
-        if self.builder.tree().types_equal(
-            mir::TypeId::from(value_base),
-            mir::TypeId::from(representation_base),
-        ) {
-            return Ok(self
-                .builder
-                .cast(mir::CastOperator::Bitcast, value, representation));
-        }
-
-        // select the representation case the value type declares
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(representation_base) else {
-            return Err(CompilerError::Internal {
-                message: "an adapted value outside its declared representation".to_string(),
-            });
-        };
-        let Some(case) = cases.iter().position(|case| {
-            case.ty == mir::TypeId::from(value_base)
-                || self
-                    .builder
-                    .tree()
-                    .types_equal(case.ty, mir::TypeId::from(value_type))
-        }) else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "an adapted value {value_type:?} outside every case of {representation:?}"
-                ),
-            });
-        };
-
-        Ok(self
-            .builder
-            .variant_new(representation_base, case as u32, Some(value)))
-    }
-
     /// Materialize the undefined case of one absent optional property.
     fn lower_absent_property(
         &mut self,
@@ -928,55 +905,22 @@ impl FunctionLowerer<'_, '_, '_> {
         index: usize,
     ) -> CompilerResult<mir::Value> {
         let representation = self.property_representation(concrete, index)?;
+        let Some(absent) = self.absent_value(representation) else {
+            return Err(CompilerError::Internal {
+                message: "an absent optional property without an undefined case".to_string(),
+            });
+        };
 
-        self.absent_representation_value(representation)
-    }
-
-    /// Materialize the undefined case of one optional representation.
-    pub(in crate::lower) fn absent_representation_value(
-        &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::Value> {
-        match self.builder.tree().undefined_case(representation) {
-            // select the void case of a variant representation
-            Some(mir::NullishCase::Case(case)) => {
-                Ok(self.builder.variant_new(representation, case, None))
-            }
-            // store undefined directly in niched nullable representations
-            Some(mir::NullishCase::Niche) => Ok(self
-                .builder
-                .constant(mir::Constant::Undefined, representation)),
-            // reject an optional representation lowered without an undefined case
-            None => Err(CompilerError::Internal {
-                message: "an optional value lowered without its undefined case".to_string(),
-            }),
-        }
-    }
-
-    /// Return the value one omitted argument passes at its representation.
-    pub(in crate::lower) fn absent_argument_value(
-        &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
-    ) -> mir::Value {
-        match self.builder.tree().undefined_case(representation) {
-            // select the void case of a variant representation
-            Some(mir::NullishCase::Case(case)) => {
-                self.builder.variant_new(representation, case, None)
-            }
-            // niched and headerless representations take the bare placeholder
-            Some(mir::NullishCase::Niche) | None => self
-                .builder
-                .constant(mir::Constant::Undefined, representation),
-        }
+        Ok(absent)
     }
 
     /// Return the declared representation type of one concrete class property.
-    fn property_representation(
-        &self,
+    pub(in crate::lower) fn property_representation(
+        &mut self,
         concrete: mir::LocalNodeId<mir::Type>,
         index: usize,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        let tree = self.builder.tree();
+        let tree = self.builder.tree_mut();
 
         // unwrap uninitialized storage to the layout its value holds
         let mut concrete = concrete;
@@ -984,13 +928,85 @@ impl FunctionLowerer<'_, '_, '_> {
             concrete = *value;
         }
 
-        // read the field representation out of the struct layout
-        let mir::Type::Struct { fields, .. } = tree.get(concrete) else {
+        // read the field representation off the struct layout, an application through its own
+        let concrete = tree.represented(mir::TypeId::from(concrete));
+        let Some(field) = tree.get(concrete).field_type(index as u32, tree) else {
             return Err(CompilerError::Internal {
                 message: "a property representation outside a struct layout".to_string(),
             });
         };
 
-        Ok(tree.get(fields[index]).ty)
+        Ok(field)
+    }
+
+    /// Lower one range expression to the range family its bounds name.
+    pub(in crate::lower) fn lower_range_expression(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        start: Option<dir::LocalNodeId<dir::Expression>>,
+        end: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<mir::Value> {
+        // read the range family the node's type names
+        let ty = self.node_type_id(expression)?;
+        let ty = self.lower.stored(ty)?;
+        let representation = self.lower_type(ty)?;
+        let storage = self
+            .builder
+            .tree()
+            .storage_type(mir::TypeId::from(representation));
+
+        // store each written bound under the member it names
+        let mir::Type::Struct { fields, .. } = self.builder.tree().get(storage).clone() else {
+            return Err(CompilerError::Internal {
+                message: "a range family outside struct storage".to_string(),
+            });
+        };
+        let mut values = vec![None; fields.len()];
+        for (bound, member) in [(start, "start"), (end, "end")] {
+            let Some(bound) = bound else {
+                continue;
+            };
+            let index = self.language_member_field(ty, member)?;
+            values[index as usize] = Some(self.lower_value(bound)?);
+        }
+
+        // require every declared bound of the selected family
+        let mut ordered = Vec::with_capacity(values.len());
+        for value in values {
+            let Some(value) = value else {
+                return Err(CompilerError::Internal {
+                    message: "a range family with an unwritten bound".to_string(),
+                });
+            };
+            ordered.push(value);
+        }
+
+        Ok(self.builder.aggregate(representation, ordered))
+    }
+
+    /// Lower one fixed array expression by repeating its value.
+    pub(in crate::lower) fn lower_fixed_array_expression(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        // read the repeated length off the lowered representation
+        let representation = self.lower_type(self.node_type_id(expression)?)?;
+        let mir::Type::FixedArray { length, .. } = *self.builder.tree().get(representation) else {
+            return Err(CompilerError::Internal {
+                message: "a fixed array expression outside fixed array storage".to_string(),
+            });
+        };
+
+        // repeat the value across the declared length
+        let Some(length) = self.builder.tree().static_value(length).length() else {
+            return Err(CompilerError::Internal {
+                message: "a fixed array expression at an open length".to_string(),
+            });
+        };
+        let value = self.lower_value(value)?;
+        let values = vec![value; length as usize];
+
+        Ok(self.builder.aggregate(representation, values))
     }
 }

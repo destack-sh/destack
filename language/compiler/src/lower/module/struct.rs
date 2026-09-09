@@ -14,18 +14,12 @@ impl TypeLowerer<'_, '_> {
         copy: mir::Copy,
     ) -> CompilerResult<Vec<NominalField>> {
         // gather the instance fields in declaration order
-        let fields = self.lower.instance_fields(&definition.members);
+        let fields = self.lower.instance_fields(&definition.members)?;
 
         // lower each field's type into a field node
         let mut field_nodes = Vec::with_capacity(fields.len());
         for field in &fields {
-            let ty = self.lower.symbol_type(field.symbol)?;
-            let mut ty = self.lower(ty)?;
-
-            // widen optional fields to store their absent case as undefined
-            if field.is_optional {
-                ty = self.insert_optional_representation(ty)?;
-            }
+            let ty = self.optional_storage_representation(field.ty, field.is_optional)?;
 
             // intern the field name when it has text
             let name = match field.key {

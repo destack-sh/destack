@@ -1,8 +1,8 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{Binding, FunctionLowerer, GenericInstanceKey};
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::{Binding, FunctionLowerer, GenericInstanceKey, Instance};
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Materialize one callable declaration as a function value.
@@ -12,12 +12,22 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
-        // bind the selected instance at the reference's lowered type
-        let declared = self.representation_type_id(expression)?;
-        let key = self.function_reference_key(expression, symbol)?;
+        // bind the selected instance at the callable form its context stores it beneath
+        let declared = match self.coercion(expression) {
+            Some(coercion)
+                if matches!(
+                    coercion.adjustments.as_slice(),
+                    [dir::CoercionAdjustment::Representation { .. }]
+                ) =>
+            {
+                coercion.target()
+            }
+            _ => self.representation_type_id(expression)?,
+        };
+        let instance = self.function_reference_instance(expression, symbol)?;
         let ty = self.lower_type(declared)?;
 
-        self.bind_function_value(ty, &key, environment)
+        self.bind_function_value(ty, instance, environment)
     }
 
     /// Materialize one callable reference at its coercion-selected instance.
@@ -27,14 +37,13 @@ impl FunctionLowerer<'_, '_, '_> {
         target: dir::GlobalTypeId,
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<mir::Value> {
-        // key the instance by the coercion's selected arguments
-        let bindings = self.lower.instance_bindings(arguments, self.instance)?;
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let key = self.generic_instance_key(symbol, None, &arguments)?;
+        // select the instance by the coercion's selected arguments
+        let bindings = self.lower.instance_bindings(arguments)?;
+        let instance = self.instance_of(symbol, &dir::InstanceKey::new(symbol, bindings))?;
         let ty = self.lower_type(target)?;
 
         // require a callable representation
-        match self.bind_function_value(ty, &key, None)? {
+        match self.bind_function_value(ty, instance, None)? {
             Some(value) => Ok(value),
             None => Err(CompilerError::Internal {
                 message: "an instantiated reference outside a callable type".to_string(),
@@ -42,12 +51,12 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Return the instance key selected by one callable reference.
-    fn function_reference_key(
+    /// Return the instance selected by one callable reference.
+    fn function_reference_instance(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<GenericInstanceKey> {
+    ) -> CompilerResult<Instance> {
         // read the instance selected at this reference
         let node = expression.into_global_any(self.source);
         let selected = self
@@ -79,91 +88,88 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         }
 
-        // key explicitly applied references by their recorded arguments
+        // select explicitly applied references by their recorded arguments
         if let Some(selection) = selected
             && !selection.arguments.is_empty()
         {
-            let bindings = self
-                .lower
-                .instance_bindings(&selection.arguments, self.instance)?;
-            let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
+            return self.instance_of(symbol, &selection);
+        }
 
-            // resolve the receiver through the enclosing instance's types
-            let receiver = match selection.receiver {
-                Some(receiver) => Some(self.lower.instance_type(self.instance, receiver)?),
-                None => None,
-            };
+        // declare a body-local closure once, polymorphic over the enclosing template
+        if symbol.module_id == self.source
+            && matches!(
+                self.source().tree().get(expression),
+                dir::Expression::Declaration(_)
+            )
+        {
+            let key = GenericInstanceKey::non_generic(symbol);
 
-            return self.generic_instance_key(symbol, receiver, &arguments);
+            return self.function(&key).map(Instance::Declared);
         }
 
         // reject a generic reference whose instantiating coercion selected no instance
         let declared = self.lower.symbol_type(symbol)?;
-        if !self
-            .lower
-            .signature_template_parameters(declared)?
-            .is_empty()
-        {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a generic function reference without an instantiating conversion"
-                    .to_string(),
-            }
-            .into());
+        let is_callable = matches!(
+            self.lower.ty(declared)?,
+            dir::Type::Function(_) | dir::Type::FunctionSignature(_)
+        );
+        if is_callable && !self.lower.signature_type_parameters(declared)?.is_empty() {
+            return Err(self.unsupported(
+                "a generic function reference without an instantiating conversion".to_string(),
+            ));
         }
 
-        Ok(GenericInstanceKey::non_generic(symbol))
+        self.function(&GenericInstanceKey::non_generic(symbol))
+            .map(Instance::Declared)
     }
 
     /// Emit one function value of one lowered callable type.
     fn bind_function_value(
         &mut self,
         ty: mir::LocalNodeId<mir::Type>,
-        key: &GenericInstanceKey,
+        instance: Instance,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
+        let (function, arguments) = match instance {
+            Instance::Declared(function) => (function, Vec::new()),
+            Instance::Applied {
+                template,
+                arguments,
+            } => (template, arguments),
+        };
+
         // emit by the callable representation
         match self.builder.tree().get(ty) {
             // pair fat function values with their environment
-            mir::Type::Function {
-                kind,
-                lifetime,
-                storage,
-                access,
-                ..
-            } => {
-                let kind = *kind;
-                let lifetime = lifetime.clone();
-                let storage = *storage;
-                let access = *access;
-                let function = self.function(key)?;
-
-                // pair environment-free values with a null environment
+            mir::Type::Function { .. } => {
+                // pair environment-free values with the absent environment
                 let environment = match environment {
                     Some(environment) => environment,
                     None => {
-                        let pointee = self.builder.tree_mut().intern_type(mir::Type::Void);
-                        let environment =
-                            self.builder.tree_mut().intern_type(mir::Type::Reference {
-                                kind,
-                                lifetime,
-                                storage,
-                                access,
-                                pointee,
-                                nullability: mir::Nullability::Null,
+                        let tree = self.builder.tree_mut();
+                        let environment = tree.ensure_function_environment_type();
+                        let void = tree.void_type();
+                        let Some(absent) = tree.payload_case(environment, void) else {
+                            return Err(CompilerError::Internal {
+                                message: "a function environment without its absent case"
+                                    .to_string(),
                             });
+                        };
 
-                        self.builder.constant(mir::Constant::Null, environment)
+                        self.builder.variant_new(environment, absent, None)
                     }
                 };
 
-                Ok(Some(self.builder.function_bind(function, ty, environment)))
+                Ok(Some(self.builder.function_bind(
+                    function,
+                    arguments,
+                    ty,
+                    environment,
+                )))
             }
             // emit thin function pointers directly
             mir::Type::FunctionPointer { .. } => {
-                let function = self.function(key)?;
-
-                Ok(Some(self.builder.function_addr(function, ty)))
+                Ok(Some(self.builder.function_addr(function, arguments, ty)))
             }
             // leave every other representation without a value
             _ => Ok(None),
@@ -174,11 +180,10 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn read_binding(&mut self, binding: Binding) -> mir::Value {
         // read by the storage the binding holds
         match binding {
-            Binding::Value(value) => value,
             Binding::Local(local) => self.builder.local_get(local),
             // load captured bindings through their frame field
             Binding::Captured { frame, field, ty } => {
-                let address = self.emit_field_address(frame, field, ty, mir::Access::Mutable);
+                let address = self.field_address(frame, field, ty, mir::Access::Readonly);
 
                 self.builder.load(address, ty)
             }
@@ -193,11 +198,21 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // read a local binding, else a module or callable declaration
         match self.values.get(&symbol.local_id).copied() {
-            Some(binding) => Ok(self.read_binding(binding)),
+            Some(binding) => {
+                let value = self.read_binding(binding);
+
+                // project a flow-narrowed read onto its recorded narrowing
+                self.lower_narrowing(expression, value)
+            }
             // load module constants through their globals
             None => {
-                if let Some(global) = self.module_constant_global(symbol)? {
+                if let Some(global) = self.constant_global(symbol)? {
                     return Ok(self.builder.load_global(global));
+                }
+
+                // read a const parameter as the value its instantiation binds
+                if let Some(value) = self.lower_parameter_value(expression, symbol)? {
+                    return Ok(value);
                 }
 
                 // materialize callable declarations as function values
@@ -205,43 +220,43 @@ impl FunctionLowerer<'_, '_, '_> {
                     return Ok(value);
                 }
 
-                Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a module or captured binding".to_string(),
-                }
-                .into())
+                Err(self.unsupported("a module or captured binding"))
             }
         }
     }
 
-    /// Return the declared global behind one module constant.
-    fn module_constant_global(
+    /// Lower one reference to a const parameter of the enclosing template.
+    fn lower_parameter_value(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let Some(parameter) = self
+            .lower
+            .state(symbol.module_id)?
+            .generics
+            .parameter_by_symbol(symbol)
+        else {
+            return Ok(None);
+        };
+        let parameter = parameter.into_global(symbol.module_id);
+        let Some(index) = self.scope.parameter_index(parameter) else {
+            return Err(CompilerError::Internal {
+                message: "a const parameter read outside its template".to_string(),
+            });
+        };
+        let ty = self.lower_type(self.node_type_id(expression)?)?;
+
+        Ok(Some(
+            self.builder.constant(mir::Constant::Parameter(index), ty),
+        ))
+    }
+
+    /// Return the declared global behind one constant binding, a foreign one imported.
+    pub(in crate::lower) fn constant_global(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
-        // declare the imported constant on its first read
-        if !self.lower.globals.contains_key(&symbol) {
-            // skip local constants and non-binding symbols
-            if symbol.module_id == self.lower.module || !self.lower.is_module_binding(symbol)? {
-                return Ok(None);
-            }
-
-            self.lower
-                .declare_imported_constant(self.builder.tree_mut(), symbol)?;
-        }
-
-        // read the global this module declared or imported
-        match self.lower.globals.get(&symbol) {
-            Some(Ok(global)) => Ok(Some(*global)),
-            // cascade the recorded declaration failure
-            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
-            None => {
-                let path = self.lower.symbol_path(symbol)?;
-
-                Err(CompilerError::Internal {
-                    message: format!("a missing global behind the constant '{path}'"),
-                })
-            }
-        }
+        self.lower.constant_global(self.builder.tree_mut(), symbol)
     }
 }

@@ -3,8 +3,10 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::lower::{ChainFrame, ControlFrame};
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::function::call::ReceiverUse;
+use crate::lower::function::lower::{Binding, ChainFrame, ControlFrame};
+use crate::lower::function::place::Place;
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one if statement, returning whether every arm terminated.
@@ -52,47 +54,6 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(false)
     }
 
-    /// Lower one ternary expression, joining the arm values.
-    pub(in crate::lower) fn lower_ternary(
-        &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
-        condition: &dir::Condition,
-        then_expression: dir::LocalNodeId<dir::Expression>,
-        else_expression: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<mir::Value> {
-        // require the else arm
-        let Some(else_expression) = else_expression else {
-            return Err(CompilerError::Internal {
-                message: "a missing else arm on one ternary".to_string(),
-            });
-        };
-
-        // branch on the condition with a join local for the arm values
-        let condition = self.lower_condition(condition)?;
-        let join_value = self.value_slot(expression)?;
-        let then_block = self.builder.block();
-        let else_block = self.builder.block();
-        let join = self.builder.block();
-        self.builder.branch(condition, then_block, else_block);
-
-        // write the join local in the then arm
-        self.builder.switch_to_block(then_block);
-        let value = self.lower_expression(then_expression)?;
-        self.builder.local_set(join_value, value);
-        self.builder.jump(join);
-
-        // write the join local in the else arm
-        self.builder.switch_to_block(else_block);
-        let value = self.lower_expression(else_expression)?;
-        self.builder.local_set(join_value, value);
-        self.builder.jump(join);
-
-        // read the arm value at the join
-        self.builder.switch_to_block(join);
-
-        Ok(self.builder.local_get(join_value))
-    }
-
     /// Lower one while or do-while loop.
     pub(in crate::lower) fn lower_while(
         &mut self,
@@ -117,7 +78,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // lower the body, looping back through the condition header
         self.builder.switch_to_block(body_block);
-        let terminated = self.lower_loop_body(label, header, exit, body)?;
+        let terminated = self.lower_loop_body(label, header, exit, body, None, None)?;
         if !terminated {
             self.builder.jump(header);
         }
@@ -153,7 +114,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(header);
         match condition {
             Some(condition) => {
-                let condition = self.lower_expression(condition)?;
+                let condition = self.lower_value(condition)?;
                 self.builder.branch(condition, body_block, exit);
             }
             None => self.builder.jump(body_block),
@@ -161,7 +122,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // lower the body, routing continue through the increment
         self.builder.switch_to_block(body_block);
-        let terminated = self.lower_loop_body(label, continue_block, exit, body)?;
+        let terminated = self.lower_loop_body(label, continue_block, exit, body, None, None)?;
         if !terminated {
             self.builder.jump(continue_block);
         }
@@ -185,19 +146,16 @@ impl FunctionLowerer<'_, '_, '_> {
         label: Option<StringId>,
         body: dir::LocalNodeId<dir::Block>,
     ) -> CompilerResult<bool> {
-        // loop the body onto itself
         let body_block = self.builder.block();
         let exit = self.builder.block();
         self.builder.jump(body_block);
         self.builder.switch_to_block(body_block);
 
         // loop back to the body when it falls through
-        let terminated = self.lower_loop_body(label, body_block, exit, body)?;
+        let terminated = self.lower_loop_body(label, body_block, exit, body, None, None)?;
         if !terminated {
             self.builder.jump(body_block);
         }
-
-        // continue lowering after the loop
         self.builder.switch_to_block(exit);
 
         Ok(false)
@@ -209,17 +167,21 @@ impl FunctionLowerer<'_, '_, '_> {
         label: Option<StringId>,
         value: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<bool> {
-        // reject a break carrying a value
-        if value.is_some() {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a valued break".to_string(),
+        // write the carried value into the destination its target reads
+        if let Some(value) = value {
+            let Some(destination) = self.break_frame(label)?.destination.clone() else {
+                return Err(CompilerError::Internal {
+                    message: "a valued break outside a valued loop".to_string(),
+                });
+            };
+            if !self.lower_into(value, &destination)? {
+                return Ok(true);
             }
-            .into());
         }
 
-        // jump to the enclosing statement's exit
-        let target = self.break_target(label)?;
+        // dispose the resources of the scopes the break leaves, then jump to the exit
+        let (target, disposals) = self.break_target(label)?;
+        self.dispose_down_to(disposals)?;
         self.builder.jump(target);
 
         Ok(true)
@@ -230,22 +192,245 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         label: Option<StringId>,
     ) -> CompilerResult<bool> {
-        let target = self.continue_target(label)?;
+        // dispose the resources of the scopes the continue leaves, then jump to the next pass
+        let (target, disposals) = self.continue_target(label)?;
+        self.dispose_down_to(disposals)?;
         self.builder.jump(target);
 
         Ok(true)
     }
 
-    /// Lower one loop body under its control frame.
-    fn lower_loop_body(
+    /// Lower one for-of loop through its recorded iteration protocol calls.
+    pub(in crate::lower) fn lower_for_each(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        label: Option<StringId>,
+        binding: dir::ForEachBinding,
+        iterator: dir::LocalNodeId<dir::Expression>,
+        body: dir::LocalNodeId<dir::Block>,
+    ) -> CompilerResult<bool> {
+        let node = expression.into_global_any(self.source);
+        let Some(decision) = self
+            .lower
+            .state(self.source)?
+            .decisions
+            .iteration_decision(node)
+            .cloned()
+        else {
+            return Err(CompilerError::Internal {
+                message: "a for-of loop without its recorded iteration calls".to_string(),
+            });
+        };
+
+        // open the iterator over the source, homing it for the borrows next takes
+        let opened = match &decision.iterator.target {
+            dir::CallableTarget::Symbol { function, .. } => self.lower_function_target_call(
+                iterator,
+                &decision.iterator,
+                function,
+                None,
+                false,
+            )?,
+            dir::CallableTarget::Dynamic {
+                dispatch,
+                function: dir::DynamicFunction::Symbol(symbol),
+                ..
+            } => {
+                let receiver = self.lower_adjusted_receiver(
+                    iterator,
+                    &dispatch.receiver,
+                    false,
+                    ReceiverUse::Value,
+                )?;
+
+                self.lower_dynamic_symbol_call(
+                    receiver,
+                    dispatch,
+                    *symbol,
+                    &decision.iterator.arguments,
+                )?
+            }
+            _ => {
+                return Err(self.unsupported("a virtual iterator call"));
+            }
+        };
+        let Some(opened) = opened else {
+            return Err(CompilerError::Internal {
+                message: "an iterator call producing no iterator".to_string(),
+            });
+        };
+        let home = self.bind_receiver(opened)?;
+        let awaited = match &decision.awaits {
+            Some(awaited) => {
+                let dir::CallableTarget::Symbol { function, .. } = &awaited.call.target else {
+                    return Err(CompilerError::Internal {
+                        message: "an iteration await outside a direct symbol target".to_string(),
+                    });
+                };
+
+                Some((
+                    self.resolve_callee(&function.key)?,
+                    awaited.call.return_type,
+                    awaited.target,
+                ))
+            }
+            None => None,
+        };
+        let result_type = match awaited {
+            Some((_, parked, dir::AwaitTarget::Result)) => parked,
+            _ => decision.next.return_type,
+        };
+        let (yield_member, return_member) = self.language_members(
+            result_type,
+            dir::LanguageItem::IteratorYield,
+            dir::LanguageItem::IteratorReturn,
+        )?;
+        let yielded = self.case(result_type, yield_member)?;
+        let finished = self.case(result_type, return_member)?;
+
+        // advance in the header, dispatching each result on its case
+        let header = self.builder.block();
+        let body_block = self.builder.block();
+        let exit = self.builder.block();
+        self.builder.jump(header);
+        self.builder.switch_to_block(header);
+        let advanced = match &decision.next.target {
+            // borrow the homed iterator at the declared receiver slot
+            dir::CallableTarget::Symbol { function, .. } => {
+                let mut next_function = self.resolve_callee(&function.key)?;
+                self.instantiate_symbol_callee(
+                    &mut next_function,
+                    function.key.symbol,
+                    &decision.next,
+                )?;
+                let parameters = next_function.parameters.clone();
+                let Some((&receiver_slot, _)) = parameters.split_first() else {
+                    return Err(CompilerError::Internal {
+                        message: "an iterator advance without its receiver slot".to_string(),
+                    });
+                };
+                let place = self.binding_home(home)?;
+                let receiver =
+                    self.borrow_place(&place, receiver_slot, mir::AddressKind::Borrow)?;
+
+                self.call(&next_function, vec![receiver])
+            }
+            // dispatch through the erased iterator's constraint slot
+            dir::CallableTarget::Dynamic {
+                dispatch,
+                function: dir::DynamicFunction::Symbol(symbol),
+                ..
+            } => {
+                let receiver = self.read_binding(home);
+                let receiver =
+                    self.lower_receiver_adjustments(receiver, &dispatch.receiver.adjustments)?;
+
+                self.lower_dynamic_symbol_call(
+                    receiver,
+                    dispatch,
+                    *symbol,
+                    &decision.next.arguments,
+                )?
+            }
+            _ => {
+                return Err(self.unsupported("a virtual iterator advance"));
+            }
+        };
+        let Some(mut result) = advanced else {
+            return Err(CompilerError::Internal {
+                message: "an iterator advance producing no result".to_string(),
+            });
+        };
+        if let Some((await_function, _, dir::AwaitTarget::Result)) = &awaited {
+            let Some(parked) = self.call(await_function, vec![result]) else {
+                return Err(CompilerError::Internal {
+                    message: "an iteration await producing no result".to_string(),
+                });
+            };
+            result = parked;
+        }
+
+        // read through the result's newtype layers to its variant
+        let result = self.read_through_newtypes(result)?;
+        self.builder
+            .variant_switch(result, None, vec![(yielded, body_block), (finished, exit)]);
+
+        // bind the yielded value and run the body
+        self.builder.switch_to_block(body_block);
+        let payload = self.builder.variant_payload(result, yielded);
+        let index = self.union_case_value_field(yield_member)?;
+        let mut value = self.builder.field_get(payload, index);
+        if let Some((await_function, _, dir::AwaitTarget::Element)) = &awaited {
+            let Some(parked) = self.call(await_function, vec![value]) else {
+                return Err(CompilerError::Internal {
+                    message: "an element await producing no value".to_string(),
+                });
+            };
+            value = parked;
+        }
+        let pattern = match binding {
+            dir::ForEachBinding::Pattern {
+                pattern,
+                keyword: Some(_),
+            }
+            | dir::ForEachBinding::Using { pattern, .. } => pattern,
+            dir::ForEachBinding::Pattern { keyword: None, .. } => {
+                return Err(self.unsupported("a for-of assignment binding"));
+            }
+        };
+        let place = Place::local(self.home(value));
+        self.lower_pattern_bindings(pattern, &place)?;
+
+        // queue the disposal a using binding runs after every pass
+        let resource = match (binding, decision.disposal.clone()) {
+            (dir::ForEachBinding::Using { pattern, .. }, Some(disposal)) => {
+                let node = pattern.into_global_any(self.source);
+                let Some(symbol) = self.lower.symbol_declared_at(node)? else {
+                    return Err(CompilerError::Internal {
+                        message: "a missing symbol for one for-of using binding".to_string(),
+                    });
+                };
+                let Some(home) = self.values.get(&symbol.local_id).copied() else {
+                    return Err(CompilerError::Internal {
+                        message: "a for-of using binding without a home".to_string(),
+                    });
+                };
+
+                Some((home, disposal))
+            }
+            _ => None,
+        };
+        let terminated = self.lower_loop_body(label, header, exit, body, resource, None)?;
+        if !terminated {
+            self.builder.jump(header);
+        }
+
+        // continue lowering after the loop
+        self.builder.switch_to_block(exit);
+
+        Ok(false)
+    }
+
+    /// Lower one loop body under its control frame, disposing a per-pass resource after every pass.
+    pub(in crate::lower) fn lower_loop_body(
         &mut self,
         label: Option<StringId>,
         continue_target: mir::LocalNodeId<mir::Block>,
         exit: mir::LocalNodeId<mir::Block>,
         body: dir::LocalNodeId<dir::Block>,
+        resource: Option<(Binding, dir::DisposalDecision)>,
+        destination: Option<Place>,
     ) -> CompilerResult<bool> {
-        self.enter_control(label, exit, Some(continue_target));
+        // open the disposal frame ahead of the resource
+        self.enter_control(label, exit, Some(continue_target), destination);
+        let depth = self.open_disposals();
+        if let Some((home, decision)) = resource {
+            self.queue_disposal(home, decision);
+        }
+
+        // run the pass, disposing the resource on fallthrough
         let terminated = self.lower_block(body)?;
+        self.close_disposals(depth, terminated)?;
         self.leave_control();
 
         Ok(terminated)
@@ -258,27 +443,26 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // reject a binding condition
         let Some(condition) = condition.as_expression() else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a binding condition".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a binding condition"));
         };
 
-        self.lower_expression(condition)
+        self.lower_value(condition)
     }
 
-    /// Enter one statement's break and continue targets.
+    /// Enter one statement's break and continue targets, a break value landing at the join.
     pub(in crate::lower) fn enter_control(
         &mut self,
         label: Option<StringId>,
         break_target: mir::LocalNodeId<mir::Block>,
         continue_target: Option<mir::LocalNodeId<mir::Block>>,
+        destination: Option<Place>,
     ) {
         self.controls.push(ControlFrame {
             label,
             break_target,
+            disposals: self.disposals.len(),
             continue_target,
+            destination,
         });
     }
 
@@ -287,12 +471,8 @@ impl FunctionLowerer<'_, '_, '_> {
         self.controls.pop();
     }
 
-    /// Return the block one break targets.
-    fn break_target(
-        &self,
-        label: Option<StringId>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
-        // take the labeled frame, or the innermost one for a bare break
+    /// Return the frame one break leaves: the labeled one, or the innermost for a bare break.
+    fn break_frame(&self, label: Option<StringId>) -> CompilerResult<&ControlFrame> {
         let frame = match label {
             None => self.controls.last(),
             Some(label) => self
@@ -303,20 +483,26 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // require an enclosing breakable statement
-        let Some(frame) = frame else {
-            return Err(CompilerError::Internal {
-                message: "a missing enclosing statement for one break".to_string(),
-            });
-        };
-
-        Ok(frame.break_target)
+        frame.ok_or_else(|| CompilerError::Internal {
+            message: "a missing enclosing statement for one break".to_string(),
+        })
     }
 
-    /// Return the block one continue targets.
+    /// Return the block one break targets and the disposal depth its statement opened at.
+    fn break_target(
+        &self,
+        label: Option<StringId>,
+    ) -> CompilerResult<(mir::LocalNodeId<mir::Block>, usize)> {
+        let frame = self.break_frame(label)?;
+
+        Ok((frame.break_target, frame.disposals))
+    }
+
+    /// Return the block one continue targets and the disposal depth its loop opened at.
     fn continue_target(
         &self,
         label: Option<StringId>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Block>> {
+    ) -> CompilerResult<(mir::LocalNodeId<mir::Block>, usize)> {
         // take the innermost loop frame carrying the label
         let frame = self.controls.iter().rev().find(|frame| {
             frame.continue_target.is_some()
@@ -327,13 +513,15 @@ impl FunctionLowerer<'_, '_, '_> {
         });
 
         // require an enclosing loop
-        let Some(target) = frame.and_then(|frame| frame.continue_target) else {
+        let Some((target, disposals)) =
+            frame.and_then(|frame| Some((frame.continue_target?, frame.disposals)))
+        else {
             return Err(CompilerError::Internal {
                 message: "a missing enclosing loop for one continue".to_string(),
             });
         };
 
-        Ok(target)
+        Ok((target, disposals))
     }
 
     /// Lower one optional chain, joining its value with the short-circuit undefined.
@@ -342,30 +530,23 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         inner: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<mir::Value> {
-        // stage the joined result slot and the exit block
-        let ty = self.node_type_id(expression)?;
-        let representation = self.lower_type(ty)?;
-        let slot = self
-            .builder
-            .local(representation, mir::Mutability::Immutable);
+        // stage the destination and the exit block
+        let destination = self.join_place(expression)?;
         let exit = self.builder.block();
 
         // lower the chained accesses under the frame their guards exit through
         self.chains.push(ChainFrame {
-            representation,
-            slot,
+            destination: destination.clone(),
             exit,
         });
-        let value = self.lower_expression(inner)?;
+        let falls_through = self.lower_into(inner, &destination)?;
         self.chains.pop();
-
-        // join the completed chain value
-        let value = self.adapt_to_representation(value, representation)?;
-        self.builder.local_set(slot, value);
-        self.builder.jump(exit);
+        if falls_through {
+            self.builder.jump(exit);
+        }
         self.builder.switch_to_block(exit);
 
-        Ok(self.builder.local_get(slot))
+        self.read_place(&destination)
     }
 
     /// Branch one optional receiver, short-circuiting the enclosing chain when it is absent.
@@ -377,39 +558,22 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(frame) = self.chains.last() else {
             return Ok(value);
         };
-        let (representation, slot, exit) = (frame.representation, frame.slot, frame.exit);
+        let (destination, exit) = (frame.destination.clone(), frame.exit);
 
-        // branch the receiver on its undefined case
-        let received = self.value_representation(value)?;
-        let present = self.builder.block();
-        let absent = self.builder.block();
-        match self.builder.tree().get(received).clone() {
-            // split a variant receiver on its undefined case
-            mir::Type::Variant { .. } => {
-                let Some(mir::NullishCase::Case(case)) =
-                    self.builder.tree().undefined_case(received)
-                else {
-                    return Ok(value);
-                };
-                self.builder
-                    .variant_switch(value, Some(present), vec![(case, absent)]);
-            }
-            // compare a nullable reference receiver against undefined
-            other if other.is_reference_representation() => {
-                let undefined = self.builder.constant(mir::Constant::Undefined, received);
-                let is_absent = self
-                    .builder
-                    .binary(mir::BinaryOperator::Equal, value, undefined);
-                self.builder.branch(is_absent, absent, present);
-            }
-            // fall back to passing the receiver through
-            _ => return Ok(value),
-        }
+        // branch the receiver on its nullish cases, passing a present receiver through
+        let Some((present, absent)) = self.split_absent(value)? else {
+            return Ok(value);
+        };
 
         // short-circuit the chain with undefined when the receiver is absent
         self.builder.switch_to_block(absent);
-        let undefined = self.absent_representation_value(representation)?;
-        self.builder.local_set(slot, undefined);
+        let representation = self.place_type(&destination)?;
+        let Some(undefined) = self.absent_value(representation) else {
+            return Err(CompilerError::Internal {
+                message: "an optional chain without an undefined case".to_string(),
+            });
+        };
+        self.write_place(&destination, undefined)?;
         self.builder.jump(exit);
 
         // continue the chain with the whole receiver

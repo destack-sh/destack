@@ -2,16 +2,15 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
-use crate::lower::function::lower::Binding;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::function::place::{Place, PlaceProjection, PlaceRoot};
+use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Bind every symbol one irrefutable pattern selects from a value.
+    /// Bind every symbol one irrefutable pattern selects from a place.
     pub(in crate::lower) fn lower_pattern_bindings(
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
-        value: mir::Value,
-        mutability: dir::Mutability,
+        place: &Place,
     ) -> CompilerResult<()> {
         match self.pattern_decision(pattern)? {
             // bind nothing for a wildcard
@@ -20,18 +19,19 @@ impl FunctionLowerer<'_, '_, '_> {
             // bind the whole value, then match any nested pattern over it
             dir::PatternDecision::Bind(binding) => {
                 if let Some(symbol) = binding.symbol {
-                    self.bind_pattern_symbol(symbol, value, mutability)?;
+                    let value = self.read_pattern_binding(symbol, place)?;
+                    self.bind_symbol(symbol, value)?;
                 }
 
                 if let Some(nested) = binding.pattern {
                     let nested = self.pattern_node(nested)?;
-                    self.lower_pattern_bindings(nested, value, mutability)?;
+                    self.lower_pattern_bindings(nested, place)?;
                 }
 
                 Ok(())
             }
 
-            // project each declared field out of the destructured value
+            // project each declared field out of the destructured place
             dir::PatternDecision::Destructure(resolution) => {
                 let (fields, rest) = match &*resolution {
                     dir::PatternDestructureResolution::Nominal(nominal) => {
@@ -41,35 +41,30 @@ impl FunctionLowerer<'_, '_, '_> {
                         (&object.fields, object.rest.as_deref())
                     }
                     dir::PatternDestructureResolution::Tuple(tuple) => (&tuple.fields, None),
-                    // reject a sequence destructure
-                    dir::PatternDestructureResolution::Sequence(_) => {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.lower.module.into(),
-                            construct: "a sequence destructure".to_string(),
-                        }
-                        .into());
+                    dir::PatternDestructureResolution::Sequence(sequence) => {
+                        (&sequence.fields, sequence.rest.as_deref())
                     }
                 };
 
                 // bind each named field
                 for field in fields {
-                    self.lower_destructured_field(field, value, mutability)?;
+                    self.lower_destructured_field(field, place)?;
                 }
 
                 // bind the trailing rest field
                 if let Some(rest) = rest {
-                    self.lower_destructured_field(rest, value, mutability)?;
+                    self.lower_destructured_field(rest, place)?;
                 }
 
                 Ok(())
             }
 
-            // project the value once, then match the nested pattern
+            // project the place once, then match the nested pattern
             dir::PatternDecision::Project(resolution) => {
-                let projected = self.lower_pattern_projection(&resolution.projection, value)?;
+                let projected = self.lower_pattern_projection(&resolution.projection, place)?;
                 if let Some(nested) = resolution.pattern {
                     let nested = self.pattern_node(nested)?;
-                    self.lower_pattern_bindings(nested, projected, mutability)?;
+                    self.lower_pattern_bindings(nested, &projected)?;
                 }
 
                 Ok(())
@@ -78,27 +73,23 @@ impl FunctionLowerer<'_, '_, '_> {
             // fall back to the default value when the selected value is undefined
             dir::PatternDecision::Default(resolution) => {
                 let nested = self.pattern_node(resolution.pattern)?;
-                let value = self.lower_defaulted_input(nested, value, resolution.value)?;
+                let value = self.lower_defaulted_input(nested, place, resolution.value)?;
 
-                self.lower_pattern_bindings(nested, value, mutability)
+                self.lower_pattern_bindings(nested, &value)
             }
 
             // unwrap the required value, trapping when it is absent
             dir::PatternDecision::Must(resolution) => {
                 let nested = self.pattern_node(resolution.pattern)?;
-                let value = self.lower_required_input(nested, value)?;
+                let value = self.lower_required_input(nested, place)?;
 
-                self.lower_pattern_bindings(nested, value, mutability)
+                self.lower_pattern_bindings(nested, &value)
             }
 
             // reject variant payload patterns
             dir::PatternDecision::Variant(resolution) => {
                 if resolution.predicate.projection.is_some() {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a variant payload pattern".to_string(),
-                    }
-                    .into());
+                    return Err(self.unsupported("a variant payload pattern"));
                 }
 
                 Ok(())
@@ -113,11 +104,10 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_destructured_field(
         &mut self,
         field: &dir::PatternFieldResolution,
-        value: mir::Value,
-        mutability: dir::Mutability,
+        place: &Place,
     ) -> CompilerResult<()> {
-        // project the field out of the destructured value
-        let projected = self.lower_pattern_projection(&field.projection, value)?;
+        // project the field out of the destructured place
+        let projected = self.lower_pattern_projection(&field.projection, place)?;
 
         // bind the declared symbol directly for a bare field
         let Some(nested) = field.pattern else {
@@ -126,123 +116,220 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: "a missing symbol for one destructured field".to_string(),
                 });
             };
+            let value = self.read_pattern_binding(symbol, &projected)?;
 
-            return self.bind_pattern_symbol(symbol, projected, mutability);
+            return self.bind_symbol(symbol, value);
         };
 
-        // otherwise match the nested pattern over the projected value
+        // otherwise match the nested pattern over the projected place
         let nested = self.pattern_node(nested)?;
 
-        self.lower_pattern_bindings(nested, projected, mutability)
+        self.lower_pattern_bindings(nested, &projected)
     }
 
-    /// Project one pattern input value through its selected projection.
+    /// Read one binding's value from its place, a binding declared as a borrow of the place's
+    /// value borrowing it.
+    fn read_pattern_binding(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        place: &Place,
+    ) -> CompilerResult<mir::Value> {
+        let declared = self.lower.symbol_type(symbol)?;
+        let declared = self.lower_type(declared)?;
+        let held = self.place_type(place)?;
+        let borrows = matches!(
+            self.builder.tree().get(declared),
+            mir::Type::Reference {
+                kind: mir::ReferenceKind::Borrowed,
+                ..
+            }
+        ) && !self
+            .builder
+            .tree()
+            .same_representation(mir::TypeId::from(held), mir::TypeId::from(declared));
+        match borrows {
+            true => self.borrow_place(place, declared, mir::AddressKind::Borrow),
+            false => self.read_place(place),
+        }
+    }
+
+    /// Project one pattern input place through its selected projection.
     pub(in crate::lower) fn lower_pattern_projection(
         &mut self,
         projection: &dir::ProjectionResolution,
-        value: mir::Value,
-    ) -> CompilerResult<mir::Value> {
+        place: &Place,
+    ) -> CompilerResult<Place> {
         let dir::OperationResolution::One(projection) = projection else {
-            return Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a destructure over a union receiver".to_string(),
-            }
-            .into());
+            return Err(self.unsupported("a destructure over a union receiver"));
         };
 
         match projection {
-            // read the selected layout field
-            dir::Projection::Field(field) => self.project_pattern_field(value, field),
+            // select the layout field
+            dir::Projection::Field(field) => self.project_pattern_field(place, field),
 
-            // unwrap the single newtype payload
-            dir::Projection::NewtypePayload { .. } => Ok(self.builder.field_get(value, 0)),
+            // select the single newtype payload
+            dir::Projection::NewtypePayload { .. } => {
+                let ty = self.place_type(place)?;
+                let ty = self.builder.tree().represented(ty);
+                let mir::Type::Newtype { inner, .. } = *self.builder.tree().get(ty) else {
+                    return Err(CompilerError::Internal {
+                        message: "a newtype projection over a place without a newtype".to_string(),
+                    });
+                };
+                let mut place = place.clone();
+                place.path.push(PlaceProjection::Field {
+                    field: 0,
+                    ty: inner,
+                });
+
+                Ok(place)
+            }
 
             // materialize the statically absent field as undefined
             dir::Projection::Absent { ty } => {
                 let absent_type = self.lower_type(*ty)?;
+                let absent = self.builder.constant(mir::Constant::Zeroed, absent_type);
 
-                Ok(self.builder.constant(mir::Constant::Undefined, absent_type))
+                Ok(Place::local(self.home(absent)))
             }
 
-            // duplicated and moved inputs keep the value they carry
-            dir::Projection::Copy { .. } | dir::Projection::Move { .. } => Ok(value),
+            // duplicated and moved inputs keep the place they name
+            dir::Projection::Copy { .. } | dir::Projection::Move { .. } => Ok(place.clone()),
 
-            // load the pointee behind a dereferenced input
+            // read through the selected sequence call
+            dir::Projection::Call(call) => {
+                let value = self.read_place(place)?;
+                let read = self.lower_value_target_call(value, call)?;
+                let read = read.ok_or_else(|| CompilerError::Internal {
+                    message: "a void result from a projection call".to_string(),
+                })?;
+
+                Ok(Place::local(self.home(read)))
+            }
+
+            // read through the selected subscript
+            dir::Projection::Subscript(subscript) => match &subscript.target {
+                dir::SubscriptTarget::Call(call) => {
+                    let value = self.read_place(place)?;
+                    let read = self.lower_value_target_call(value, call)?;
+                    let read = read.ok_or_else(|| CompilerError::Internal {
+                        message: "a void result from a subscript projection".to_string(),
+                    })?;
+
+                    Ok(Place::local(self.home(read)))
+                }
+                dir::SubscriptTarget::Index(read) => {
+                    if read.missing.is_some() {
+                        return Err(self.internal("an Index read with a missing result"));
+                    }
+                    let value = self.read_place(place)?;
+                    let address = self.lower_value_target_call(value, &read.call)?;
+                    let address = address.ok_or_else(|| CompilerError::Internal {
+                        message: "a void result from an Index projection".to_string(),
+                    })?;
+                    let received = self.value_representation(address)?;
+                    let Some(access) = self.rooted_access(received) else {
+                        return Err(CompilerError::Internal {
+                            message: "an Index projection without a reference".to_string(),
+                        });
+                    };
+
+                    Ok(Place {
+                        root: PlaceRoot::Reference {
+                            value: address,
+                            access,
+                        },
+                        path: Vec::new(),
+                    })
+                }
+                dir::SubscriptTarget::Member(_) => {
+                    Err(self.unsupported("a member subscript projection"))
+                }
+            },
+
+            // keep the place a view strip dereferences
+            dir::Projection::Dereference(dereference) if self.is_view_strip(dereference)? => {
+                Ok(place.clone())
+            }
+
+            // address the pointee behind a dereferenced input
             dir::Projection::Dereference(_) => {
-                let representation = self.value_representation(value)?;
-                let mir::Type::Reference { pointee, .. } = self.builder.tree().get(representation)
-                else {
+                let value = self.read_place(place)?;
+                let received = self.value_representation(value)?;
+                let Some(access) = self.rooted_access(received) else {
                     return Err(CompilerError::Internal {
                         message: "a dereferenced pattern input outside a reference".to_string(),
                     });
                 };
-                let pointee = *pointee;
 
-                Ok(self.builder.load(value, pointee))
+                Ok(Place {
+                    root: PlaceRoot::Reference { value, access },
+                    path: Vec::new(),
+                })
             }
 
             // reject every other pattern projection
-            other => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: format!("a '{}' pattern projection", other.name()),
-            }
-            .into()),
+            other => Err(self.unsupported(format!("a '{}' pattern projection", other.name()))),
         }
     }
 
-    /// Read one selected layout field out of a pattern input value.
+    /// Select one layout field of a pattern input place, projecting behind a held handle.
     fn project_pattern_field(
         &mut self,
-        value: mir::Value,
+        place: &Place,
         field: &dir::FieldResolution,
-    ) -> CompilerResult<mir::Value> {
-        // resolve the field's position and lowered type
-        let receiver = field.receiver.ty();
+    ) -> CompilerResult<Place> {
         let index = self.member_field_index(field)?;
-        let result = self.lower_type(field.ty)?;
+        let ty = self.lower_type(field.ty)?;
 
-        // load fields through addresses for reference receivers
-        if let Some(layer) = self.lower.peel_indirection(receiver)? {
-            let address = self.emit_field_address(value, index, result, layer.access);
+        // select the union member the field resolves against before projecting into it
+        let receiver = field.receiver.ty();
+        let member = match self.lower.indirection(receiver, &self.scope)? {
+            Some(layer) => layer.stored,
+            None => self.lower.stored(receiver)?,
+        };
+        let place = self.downcast_place(place.clone(), member)?;
+        let mut place = self.through_handle(place)?;
+        place.path.push(PlaceProjection::Field { field: index, ty });
 
-            return Ok(self.builder.load(address, result));
-        }
-
-        Ok(self.builder.field_get(value, index))
+        Ok(place)
     }
 
-    /// Resolve one optional pattern input to its present payload or default.
+    /// Resolve one optional pattern input to the place of its present payload or default.
     fn lower_defaulted_input(
         &mut self,
         nested: dir::LocalNodeId<dir::Pattern>,
-        value: mir::Value,
+        place: &Place,
         default: dir::GlobalNodeIdAny,
-    ) -> CompilerResult<mir::Value> {
+    ) -> CompilerResult<Place> {
         // read the representation the nested pattern was checked at and the default expression
         let exact = self.pattern_representation(nested)?;
         let default = default
             .local_id
             .try_into_typed::<dir::Expression>()
             .map_err(|message| CompilerError::Internal { message })?;
+        let value = self.read_place(place)?;
+        let value =
+            self.lower_absent_fallback(value, exact, |lower| lower.lower_value(default).map(Some))?;
 
-        self.lower_absent_fallback(value, exact, |lower| {
-            lower.lower_expression(default).map(Some)
-        })
+        Ok(Place::local(self.home(value)))
     }
 
-    /// Unwrap one required pattern input, trapping when it is absent.
+    /// Unwrap one required pattern input into the place of its payload, trapping when absent.
     fn lower_required_input(
         &mut self,
         nested: dir::LocalNodeId<dir::Pattern>,
-        value: mir::Value,
-    ) -> CompilerResult<mir::Value> {
+        place: &Place,
+    ) -> CompilerResult<Place> {
         let exact = self.pattern_representation(nested)?;
-
-        self.lower_absent_fallback(value, exact, |lower| {
+        let value = self.read_place(place)?;
+        let value = self.lower_absent_fallback(value, exact, |lower| {
             lower.builder.unreachable();
 
             Ok(None)
-        })
+        })?;
+
+        Ok(Place::local(self.home(value)))
     }
 
     /// Branch one possibly absent value into its present payload or fallback.
@@ -277,9 +364,7 @@ impl FunctionLowerer<'_, '_, '_> {
         match self.builder.tree().get(representation).clone() {
             // split an optional variant on its undefined case
             mir::Type::Variant { cases, .. } => {
-                let Some(mir::NullishCase::Case(absent)) =
-                    self.builder.tree().undefined_case(representation)
-                else {
+                let Some(absent) = self.absent_case(representation) else {
                     return Err(CompilerError::Internal {
                         message: "an optional pattern input without its undefined case".to_string(),
                     });
@@ -307,7 +392,6 @@ impl FunctionLowerer<'_, '_, '_> {
                     // extract the sole payload
                     [sole] => {
                         let payload = self.builder.variant_payload(value, *sole as u32);
-                        let payload = self.adapt_to_representation(payload, exact)?;
                         self.builder.local_set(slot, payload);
                         self.builder.jump(join);
                     }
@@ -328,36 +412,18 @@ impl FunctionLowerer<'_, '_, '_> {
                             .collect();
                         self.builder.variant_switch(value, None, targets);
 
-                        // rebuild each payload at its narrowed case index
-                        for (narrowed, (case, block)) in
-                            present.iter().copied().zip(arms).enumerate()
-                        {
+                        // rebuild each payload at its case in the narrowed variant
+                        for (case, block) in present.iter().copied().zip(arms) {
                             self.builder.switch_to_block(block);
                             let payload = self.builder.variant_payload(value, case as u32);
-                            let rebuilt =
-                                self.builder
-                                    .variant_new(exact, narrowed as u32, Some(payload));
+                            let payload_type = cases[case].payload(self.builder.tree());
+                            let narrowed = self.payload_case(exact, payload_type)?;
+                            let rebuilt = self.builder.variant_new(exact, narrowed, Some(payload));
                             self.builder.local_set(slot, rebuilt);
                             self.builder.jump(join);
                         }
                     }
                 }
-            }
-            // compare a reference input against undefined
-            other if other.is_reference_representation() => {
-                let undefined = self
-                    .builder
-                    .constant(mir::Constant::Undefined, representation);
-                let is_absent = self
-                    .builder
-                    .binary(mir::BinaryOperator::Equal, value, undefined);
-                self.builder.branch(is_absent, absent_block, present_block);
-
-                // keep the present value at the exact representation
-                self.builder.switch_to_block(present_block);
-                let kept = self.builder.cast(mir::CastOperator::Bitcast, value, exact);
-                self.builder.local_set(slot, kept);
-                self.builder.jump(join);
             }
             // reject every other input shape
             _ => {
@@ -378,37 +444,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(join);
 
         Ok(self.builder.local_get(slot))
-    }
-
-    /// Bind one pattern symbol at its home, mirroring let bindings.
-    fn bind_pattern_symbol(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        value: mir::Value,
-        mutability: dir::Mutability,
-    ) -> CompilerResult<()> {
-        // give lifted bindings their frame home ahead of local storage
-        if self.bind_lifted(symbol, value)? {
-            return Ok(());
-        }
-
-        // keep immutable bindings as pure values; give mutable ones a local
-        let binding = match mutability {
-            dir::Mutability::Immutable => Binding::Value(value),
-            _ => {
-                let ty = self.lower.symbol_type(symbol)?;
-                let ty = self.lower_type(ty)?;
-                let value = self.adapt_to_representation(value, ty)?;
-                let local = self.builder.local(ty, mir::Mutability::Mutable);
-                self.builder.local_set(local, value);
-
-                Binding::Local(local)
-            }
-        };
-
-        self.values.insert(symbol.local_id, binding);
-
-        Ok(())
     }
 
     /// Return the lowered representation one pattern node was checked at.

@@ -18,15 +18,16 @@ impl TypeLowerer<'_, '_> {
 
         // embed the base storage first, grounded through its heritage application
         if let Some(heritage) = &definition.extends {
-            let base = self.lower.instance_type(self.instance, heritage.ty)?;
-            let base = self.lower.peel_owned(base)?;
+            let base = heritage.ty;
+            let base = self.lower.stored(base)?;
             let dir::Type::Application(_) = self.lower.ty(base)? else {
                 return Err(CompilerError::Internal {
                     message: "a class heritage outside an application type".to_string(),
                 });
             };
             let storage = self.lower_nominal(base)?.storage;
-            let (storage, _) = self.tree.split_lifetime_application(storage);
+            self.lower.fill_heritage(self.tree, storage)?;
+            let storage = self.tree.represented(storage);
             let mir::Type::Struct {
                 fields: base_nodes, ..
             } = self.tree.get(storage)
@@ -38,11 +39,10 @@ impl TypeLowerer<'_, '_> {
             field_nodes.extend(base_nodes.iter().copied());
         }
 
-        // lower each own field's type into a field node
-        let own = self.lower.instance_fields(&definition.members);
+        // lower each own field's stored type into a field node
+        let own = self.lower.instance_fields(&definition.members)?;
         for field in &own {
-            let ty = self.lower.symbol_type(field.symbol)?;
-            let ty = self.lower(ty)?;
+            let ty = self.optional_storage_representation(field.ty, field.is_optional)?;
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),
                 _ => None,

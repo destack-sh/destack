@@ -1,10 +1,10 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionLowerer, LifetimeParameters, LowerState};
+use crate::lower::{FunctionLowerer, GenericScope, ModuleInitializer, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Declare one global for each binding of one module-level let.
     pub(in crate::lower) fn declare_module_constants(
         &mut self,
@@ -33,43 +33,130 @@ impl LowerState<'_> {
                 }
                 .into());
             };
-            let term = self.module_constant(symbol)?.filter(Self::is_constant_term);
-
-            // declare a mutable global for bindings the module initializer stores
-            let Some(term) = term else {
-                let declared = self.symbol_type(symbol)?;
-                let ty = self.constant_type(tree, declared)?;
-                let name = self.constant_name(symbol)?;
-                let name = self.strings.intern(&name);
-                let global = tree.insert(mir::Global::new(
-                    name,
-                    ty,
-                    mir::Mutability::Mutable,
-                    mir::GlobalInitializer::zero(),
-                ));
-                self.index_language_declaration(global, symbol)?;
-                self.globals.insert(symbol, Ok(global));
-
-                // store runtime bindings from the module initializer
-                if let Some(value) = self.local().tree().get(*declarator).value {
-                    self.initializers.push((global, value));
-                }
-
-                continue;
-            };
-
-            // declare the constant under its module-qualified name
-            let declared = self.symbol_type(symbol)?;
-            let initializer = self.constant_initializer(tree, &term, declared)?;
-            let ty = self.constant_type(tree, declared)?;
-            let name = self.constant_name(symbol)?;
-            let name = self.strings.intern(&name);
-            let global = tree.insert(mir::Global::constant(name, ty, initializer));
-            self.index_language_declaration(global, symbol)?;
-            self.globals.insert(symbol, Ok(global));
+            let value = self.local().tree().get(*declarator).value;
+            self.declare_constant(tree, symbol, value)?;
         }
 
         Ok(())
+    }
+
+    /// Declare the constant global behind one associated const, its value static by sema's rule.
+    pub(in crate::lower) fn declare_associated_const(
+        &mut self,
+        tree: &mut mir::Tree,
+        member: dir::LocalNodeId<dir::Member>,
+    ) -> CompilerResult<()> {
+        let node = member.into_global_any(self.module);
+        let Some(symbol) = self.symbol_declared_at(node)? else {
+            return Err(CompilerError::Internal {
+                message: "a missing symbol for one associated const".to_string(),
+            });
+        };
+        let Some(term) = self.module_constant(symbol)?.filter(Self::is_constant_term) else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "an associated const '{}' without its static term",
+                    self.symbol_path(symbol)?
+                ),
+            });
+        };
+
+        self.declare_constant_global(tree, symbol, &term)
+    }
+
+    /// Declare the global behind one constant binding.
+    fn declare_constant(
+        &mut self,
+        tree: &mut mir::Tree,
+        symbol: dir::GlobalSymbolId,
+        value: Option<dir::LocalNodeId<dir::Expression>>,
+    ) -> CompilerResult<()> {
+        // declare the constant when its value evaluates
+        if let Some(term) = self.module_constant(symbol)?.filter(Self::is_constant_term) {
+            return self.declare_constant_global(tree, symbol, &term);
+        }
+
+        // declare a mutable global for a binding the module initializer stores
+        let declared = self.symbol_type(symbol)?;
+        let ty = self.constant_type(tree, declared)?;
+        let name = self.symbol_path(symbol)?;
+        let name = self.strings.intern(&name);
+        let global = tree.insert(mir::Global::new(
+            self.module,
+            name,
+            ty,
+            mir::Mutability::Mutable,
+            mir::GlobalInitializer::zero(),
+        ));
+        self.index_language_declaration(tree, global, symbol);
+        self.globals.insert(symbol, Ok(global));
+
+        // store the runtime value from the module initializer
+        if let Some(value) = value {
+            self.initializers
+                .push(ModuleInitializer::Binding { global, value });
+        }
+
+        Ok(())
+    }
+
+    /// Declare the constant global behind one evaluated term under its qualified name.
+    fn declare_constant_global(
+        &mut self,
+        tree: &mut mir::Tree,
+        symbol: dir::GlobalSymbolId,
+        term: &dir::StaticTerm,
+    ) -> CompilerResult<()> {
+        let declared = self.symbol_type(symbol)?;
+        let initializer = self.constant_initializer(tree, term, declared)?;
+        let ty = self.constant_type(tree, declared)?;
+        let name = self.symbol_path(symbol)?;
+        let name = self.strings.intern(&name);
+        let global = tree.insert(mir::Global::constant(self.module, name, ty, initializer));
+        self.index_language_declaration(tree, global, symbol);
+        self.globals.insert(symbol, Ok(global));
+
+        Ok(())
+    }
+
+    /// Return the global behind one constant, a foreign one imported on first read.
+    pub(in crate::lower) fn constant_global(
+        &mut self,
+        tree: &mut mir::Tree,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
+        // import a foreign constant on its first read
+        if !self.globals.contains_key(&symbol) {
+            if symbol.module_id == self.module || !self.is_constant_binding(symbol)? {
+                return Ok(None);
+            }
+            let name = self.symbol_path(symbol)?;
+            let name = self.strings.intern(&name);
+            let Some(global) = self.import_global(
+                tree,
+                symbol.module_id,
+                mir::Symbol::named(symbol.module_id, name),
+            )?
+            else {
+                return Ok(None);
+            };
+            let global = tree.insert(global);
+            self.index_language_declaration(tree, global, symbol);
+            self.globals.insert(symbol, Ok(global));
+        }
+
+        // read the global this module declared or imported
+        match self.globals.get(&symbol) {
+            Some(Ok(global)) => Ok(Some(*global)),
+            // cascade the recorded declaration failure
+            Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
+            None => Err(CompilerError::Internal {
+                message: format!(
+                    "a missing global behind the constant '{}'",
+                    self.symbol_path(symbol)?
+                ),
+            }),
+        }
     }
 
     /// Lower the module initializer storing every runtime binding.
@@ -89,6 +176,7 @@ impl LowerState<'_> {
         let name = format!("{path}.@init");
         let header = builder.function_header(&name).result(void);
         let function = builder.declare_function(header);
+        builder.tree_mut().get_mut(function).linkage = mir::Linkage::Export;
 
         // lower every stored binding into its body
         FunctionLowerer::lower_initializer(self, builder, function, initializers)?;
@@ -96,22 +184,25 @@ impl LowerState<'_> {
         Ok(Some(function))
     }
 
-    /// Return whether one symbol names a module-level value binding.
-    pub(in crate::lower) fn is_module_binding(
-        &self,
+    /// Return whether one symbol names a module-level variable or an associated const.
+    pub(in crate::lower) fn is_constant_binding(
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
-        // require a variable declared in the root scope
         let state = self.state(symbol.module_id)?;
         let declared = state.bindings.get_symbol(symbol.local_id);
         let scope = state.bindings.get_scope(declared.scope);
 
-        Ok(declared.kind == dir::SymbolKind::Variable && scope.is_root())
+        Ok(match declared.kind {
+            dir::SymbolKind::Variable => scope.is_root(),
+            dir::SymbolKind::AssociatedConst => true,
+            _ => false,
+        })
     }
 
     /// Return the evaluated constant behind one module binding, when one exists.
     fn module_constant(
-        &self,
+        &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::StaticTerm>> {
         // read the evaluated static behind the symbol
@@ -121,21 +212,6 @@ impl LowerState<'_> {
         };
 
         Ok(statics.get_static_maybe(id.local_id).cloned())
-    }
-
-    /// Return the module-qualified name of one constant binding.
-    pub(in crate::lower) fn constant_name(
-        &self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<String> {
-        // require a named binding
-        let Some(name) = self.symbol_name(symbol)? else {
-            return Err(CompilerError::Internal {
-                message: "a module constant without a name".to_string(),
-            });
-        };
-
-        self.qualified_name(symbol.module_id, self.strings.get(name))
     }
 
     /// Return whether one static term lowers to a constant initializer.
@@ -157,12 +233,19 @@ impl LowerState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::GlobalInitializer> {
         match term {
-            // initialize scalars at their lowered representation
+            // initialize scalars at their lowered representation, a singleton holding no bytes
             dir::StaticTerm::Literal { value } => {
-                let pointer_bytes = self.pointer_bytes;
                 let representation = self.constant_type(tree, ty)?;
                 let representation = tree.get(representation).clone();
-                let constant = self.scalar_constant(*value, &representation, pointer_bytes)?;
+                let is_singleton = match &representation {
+                    mir::Type::Void | mir::Type::Null => true,
+                    mir::Type::Struct { fields, .. } => fields.is_empty(),
+                    _ => false,
+                };
+                if is_singleton {
+                    return Ok(mir::GlobalInitializer::zero());
+                }
+                let constant = self.scalar_constant(*value, &representation, self.pointer_bytes)?;
 
                 Ok(mir::GlobalInitializer::Scalar(constant))
             }
@@ -178,7 +261,7 @@ impl LowerState<'_> {
                     });
                 };
                 let Some(dir::Definition::Newtype(newtype)) =
-                    self.definition(application.symbol)?
+                    self.definition(application.symbol)?.cloned()
                 else {
                     return Err(CompilerError::Internal {
                         message: "a newtype constant without its definition".to_string(),
@@ -225,11 +308,9 @@ impl LowerState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
         // lower the type outside any lifetime parameters
-        let pointer_bytes = self.pointer_bytes;
-        let lifetime_parameters = LifetimeParameters::default();
+        let scope = GenericScope::default();
 
-        self.type_lowerer(tree, pointer_bytes, &lifetime_parameters)
-            .lower(ty)
+        self.type_lowerer(tree, &scope).lower(ty)
     }
 
     /// Build one scalar constant at its lowered representation.

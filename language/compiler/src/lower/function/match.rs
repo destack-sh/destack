@@ -3,7 +3,8 @@ use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
 use crate::lower::function::operator::LoweredOperand;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::function::place::{Place, PlaceProjection, PlaceRoot};
+use crate::{CompilerError, CompilerResult};
 
 /// One match arm tested as a candidate in source order.
 struct Candidate {
@@ -22,6 +23,7 @@ struct Candidate {
 }
 
 /// One match arm body.
+#[derive(Clone, Copy)]
 enum ArmBody {
     /// An expression arm body.
     Expression(dir::LocalNodeId<dir::Expression>),
@@ -38,17 +40,14 @@ struct CaseBlock {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Lower one match expression to a variant switch joining its arm values.
-    pub(in crate::lower) fn lower_match(
+    /// Lower one match expression into a destination, each arm writing it.
+    pub(in crate::lower) fn lower_match_into(
         &mut self,
-        expression: dir::LocalNodeId<dir::Expression>,
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
-    ) -> CompilerResult<mir::Value> {
-        let slot = self.value_slot(expression)?;
-        self.lower_match_arms(value, arms, Some(slot))?;
-
-        Ok(self.builder.local_get(slot))
+        destination: &Place,
+    ) -> CompilerResult<bool> {
+        self.lower_match_arms(value, arms, Some(destination))
     }
 
     /// Lower one match statement, running each arm body as statements.
@@ -57,9 +56,164 @@ impl FunctionLowerer<'_, '_, '_> {
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
     ) -> CompilerResult<bool> {
-        self.lower_match_arms(value, arms, None)?;
+        Ok(!self.lower_match_arms(value, arms, None)?)
+    }
 
-        Ok(false)
+    /// Address one scrutinee: the place it names, a reference scrutinee the place behind it.
+    pub(in crate::lower) fn scrutinee_place(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Place> {
+        let is_indirect = self.indirect_storage(expression)?;
+        if !is_indirect && self.is_place_expression(expression) && self.names_storage(expression)? {
+            return self.receiver_place(expression);
+        }
+        let value = self.lower_value(expression)?;
+        if is_indirect {
+            let declared = self.storage_type(expression)?;
+
+            return self.reference_target(value, declared);
+        }
+
+        Ok(Place::local(self.home(value)))
+    }
+
+    /// Return the place one reference value addresses, read through its stored references.
+    pub(in crate::lower) fn reference_target(
+        &mut self,
+        value: mir::Value,
+        declared: dir::GlobalTypeId,
+    ) -> CompilerResult<Place> {
+        let Some((reference, _)) = self.innermost_reference(value, Some(declared))? else {
+            return Ok(Place::local(self.home(value)));
+        };
+        let received = self.value_representation(reference)?;
+        let Some(access) = self.rooted_access(received) else {
+            return Ok(Place::local(self.home(reference)));
+        };
+
+        Ok(Place {
+            root: PlaceRoot::Reference {
+                value: reference,
+                access,
+            },
+            path: Vec::new(),
+        })
+    }
+
+    /// Project one place onto the case holding a member, a place outside a variant kept whole.
+    pub(in crate::lower) fn downcast_place(
+        &mut self,
+        place: Place,
+        member: dir::GlobalTypeId,
+    ) -> CompilerResult<Place> {
+        let mut projected = self.through_newtypes(place.clone())?;
+        if self.place_variant(&projected)?.is_none() {
+            return Ok(place);
+        }
+        let payload = self.lower_type(member)?;
+        projected
+            .path
+            .push(PlaceProjection::Downcast { ty: payload });
+
+        Ok(projected)
+    }
+
+    /// Project one place through the newtype layers wrapping its variant.
+    fn through_newtypes(&mut self, mut place: Place) -> CompilerResult<Place> {
+        loop {
+            let ty = self.resolved_type(self.place_type(&place)?);
+            let mir::Type::Newtype { inner, .. } = *self.builder.tree().get(ty) else {
+                return Ok(place);
+            };
+            place.path.push(PlaceProjection::Field {
+                field: 0,
+                ty: inner,
+            });
+        }
+    }
+
+    /// Return the variant one place holds, when it holds one.
+    fn place_variant(
+        &mut self,
+        place: &Place,
+    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
+        let ty = self.place_type(place)?;
+        let ty = self.builder.tree().storage_type(mir::TypeId::from(ty));
+
+        Ok(matches!(self.builder.tree().get(ty), mir::Type::Variant { .. }).then_some(ty))
+    }
+
+    /// Switch on the case one variant place holds.
+    pub(in crate::lower) fn switch_place(
+        &mut self,
+        place: &Place,
+        default: Option<mir::LocalNodeId<mir::Block>>,
+        targets: Vec<(u32, mir::LocalNodeId<mir::Block>)>,
+    ) -> CompilerResult<()> {
+        if let PlaceRoot::Local(local) = place.root
+            && self.copies_local(local)
+        {
+            let value = self.read_place(place)?;
+            self.builder.variant_switch(value, default, targets);
+
+            return Ok(());
+        }
+        let Some(variant) = self.place_variant(place)? else {
+            return Err(CompilerError::Internal {
+                message: "a case switch over a place without a variant".to_string(),
+            });
+        };
+        let address = self.place_address(place, mir::Access::Readonly)?;
+        let tag = self.builder.variant_tag_load(address, variant);
+        let default = match default {
+            Some(default) => default,
+            None => {
+                let unreached = self.builder.block();
+                let resumed = self.builder.current_block();
+                self.builder.switch_to_block(unreached);
+                self.builder.unreachable();
+                self.builder.switch_to_block(resumed);
+
+                unreached
+            }
+        };
+        let targets = targets
+            .into_iter()
+            .map(|(case, block)| (case as i128, block))
+            .collect();
+        self.builder.switch(tag, default, targets);
+
+        Ok(())
+    }
+
+    /// Branch on whether one variant place holds one case.
+    pub(in crate::lower) fn branch_place_case(
+        &mut self,
+        place: &Place,
+        case: u32,
+        pass: mir::LocalNodeId<mir::Block>,
+        fail: mir::LocalNodeId<mir::Block>,
+    ) -> CompilerResult<()> {
+        self.switch_place(place, Some(fail), vec![(case, pass)])
+    }
+
+    /// Project the payload of one case out of a variant place.
+    fn downcast(&mut self, place: &Place, case: u32) -> CompilerResult<Place> {
+        let Some(variant) = self.place_variant(place)? else {
+            return Err(CompilerError::Internal {
+                message: "a payload projection over a place without a variant".to_string(),
+            });
+        };
+        let Some(payload) = self.builder.tree().case_payload(variant, case) else {
+            return Err(CompilerError::Internal {
+                message: "a payload projection outside the variant's cases".to_string(),
+            });
+        };
+        let mut place = place.clone();
+        place.path.push(PlaceProjection::Downcast { ty: payload });
+
+        Ok(place)
     }
 
     /// Lower one match to a variant switch over source-order candidate chains.
@@ -67,24 +221,12 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         value: dir::LocalNodeId<dir::Expression>,
         arms: &[dir::LocalNodeId<dir::MatchArm>],
-        join: Option<mir::LocalNodeId<mir::Local>>,
-    ) -> CompilerResult<()> {
-        // evaluate the matched value once before dispatch
-        let matched = self.lower_expression(value)?;
+        destination: Option<&Place>,
+    ) -> CompilerResult<bool> {
+        // address the scrutinee once, dispatching a newtype on its wrapped payload
+        let matched = self.scrutinee_place(value)?;
         let scrutinee = self.node_type_id(value)?;
-
-        // dispatch newtype scrutinees on their wrapped payload
-        let dispatch = match self.builder.value_type(matched) {
-            Some(representation)
-                if matches!(
-                    self.builder.tree().get(representation),
-                    mir::Type::Newtype { .. }
-                ) =>
-            {
-                self.builder.field_get(matched, 0)
-            }
-            _ => matched,
-        };
+        let dispatch = self.through_newtypes(matched.clone())?;
 
         // parse each arm into a source-order candidate
         let mut candidates = Vec::with_capacity(arms.len());
@@ -96,14 +238,6 @@ impl FunctionLowerer<'_, '_, '_> {
                     guard,
                     body,
                 } => (*pattern, guard.clone(), ArmBody::Expression(*body)),
-                // reject a block arm where the match joins a value
-                dir::MatchArm::Block { .. } if join.is_some() => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a block match arm".to_string(),
-                    }
-                    .into());
-                }
                 // take a block arm's body
                 dir::MatchArm::Block {
                     pattern,
@@ -131,22 +265,6 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // dispatch once over the variant discriminant when any arm selects a case
         if candidates.iter().any(|candidate| candidate.case.is_some()) {
-            // require a materialized variant representation for case dispatch
-            let representation = self.builder.value_type(dispatch);
-            let is_variant = representation.is_some_and(|representation| {
-                matches!(
-                    self.builder.tree().get(representation),
-                    mir::Type::Variant { .. }
-                )
-            });
-            if !is_variant {
-                return Err(LowerError::Unsupported {
-                    anchor: self.lower.module.into(),
-                    construct: "a match over an indirect scrutinee".to_string(),
-                }
-                .into());
-            }
-
             // route each case to its first accepting candidate, preserving source order
             let mut targets: Vec<(u32, mir::LocalNodeId<mir::Block>)> = Vec::new();
             for candidate in &candidates {
@@ -168,8 +286,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .iter()
                 .find(|candidate| candidate.case.is_none())
                 .map_or(exhaust, |candidate| candidate.block);
-            self.builder
-                .variant_switch(dispatch, Some(default), targets);
+            self.switch_place(&dispatch, Some(default), targets)?;
         }
         // otherwise run the candidate chain from the first arm
         else {
@@ -191,27 +308,27 @@ impl FunctionLowerer<'_, '_, '_> {
                     .iter()
                     .find(|next| next.case.is_none() || next.case == candidate.case)
                     .map_or(exhaust, |next| next.block),
-                None => self.match_continuation(dispatch, &candidates, position, exhaust)?,
+                None => self.match_continuation(&dispatch, &candidates, position, exhaust)?,
             };
 
-            // read the case payload for a destructured variant arm
+            // project the case payload for a destructured variant arm
             let destructures = matches!(candidate.decision, dir::PatternDecision::Destructure(_));
             let input = match candidate.case {
-                Some(index) if destructures => self.builder.variant_payload(dispatch, index),
-                _ => matched,
+                Some(index) if destructures => self.downcast(&dispatch, index)?,
+                _ => matched.clone(),
             };
 
             // test the fields beneath a dispatched case
             if candidate.case.is_some() {
-                self.lower_pattern_field_tests(&candidate.decision, input, fail)?;
+                self.lower_pattern_field_tests(&candidate.decision, &input, fail)?;
             }
             // otherwise test every refutable leg of the pattern
             else {
-                self.lower_pattern_tests(candidate.pattern, input, fail)?;
+                self.lower_pattern_tests(candidate.pattern, &input, fail)?;
             }
 
             // bind the accepted pattern before its guard and body
-            self.lower_pattern_bindings(candidate.pattern, input, dir::Mutability::Immutable)?;
+            self.lower_pattern_bindings(candidate.pattern, &input)?;
 
             // test the guard over its bindings
             if let Some(guard) = &candidate.guard {
@@ -222,21 +339,19 @@ impl FunctionLowerer<'_, '_, '_> {
                 self.builder.switch_to_block(accepted);
             }
 
-            // run the accepted arm's body
-            match candidate.body {
-                // write an expression arm's value into the join slot
-                ArmBody::Expression(body) => {
-                    let value = self.lower_expression(body)?;
-                    if let Some(slot) = join {
-                        self.builder.local_set(slot, value);
-                    }
+            // run the accepted arm's body into the destination, a terminated arm ending there
+            let falls_through = match (candidate.body, destination) {
+                (ArmBody::Expression(body), Some(destination)) => {
+                    self.lower_into(body, destination)?
                 }
-                // run a block arm's statements, a terminated block skips the exit jump
-                ArmBody::Block(body) => {
-                    if self.lower_block(body)? {
-                        continue;
-                    }
+                (ArmBody::Expression(body), None) => !self.lower_statement(body)?,
+                (ArmBody::Block(body), Some(destination)) => {
+                    self.lower_block_into(body, destination)?
                 }
+                (ArmBody::Block(body), None) => !self.lower_block(body)?,
+            };
+            if !falls_through {
+                continue;
             }
 
             // leave the arm at the exit block
@@ -247,7 +362,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(exhaust);
 
         // trap a value match, its arms cover the scrutinee
-        if join.is_some() {
+        if destination.is_some() {
             self.builder.unreachable();
         }
         // fall a statement match through to the exit
@@ -255,16 +370,17 @@ impl FunctionLowerer<'_, '_, '_> {
             self.builder.jump(exit);
         }
 
-        // continue lowering at the exit block
+        // continue lowering at the exit block when any arm reaches it
+        let is_exited = self.builder.is_entered(exit);
         self.builder.switch_to_block(exit);
 
-        Ok(())
+        Ok(is_exited)
     }
 
     /// Build the continuation one failed caseless candidate re-dispatches through.
     fn match_continuation(
         &mut self,
-        dispatch: mir::Value,
+        dispatch: &Place,
         candidates: &[Candidate],
         position: usize,
         exhaust: mir::LocalNodeId<mir::Block>,
@@ -300,8 +416,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let resumed = self.builder.current_block();
         let continuation = self.builder.block();
         self.builder.switch_to_block(continuation);
-        self.builder
-            .variant_switch(dispatch, Some(default), targets);
+        self.switch_place(dispatch, Some(default), targets)?;
         self.builder.switch_to_block(resumed);
 
         Ok(continuation)
@@ -311,7 +426,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_pattern_tests(
         &mut self,
         pattern: dir::LocalNodeId<dir::Pattern>,
-        value: mir::Value,
+        place: &Place,
         fail: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<()> {
         let decision = self.pattern_decision(pattern)?;
@@ -324,7 +439,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 Some(nested) => {
                     let nested = self.pattern_node(nested)?;
 
-                    self.lower_pattern_tests(nested, value, fail)
+                    self.lower_pattern_tests(nested, place, fail)
                 }
                 None => Ok(()),
             },
@@ -336,25 +451,25 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::PatternDecision::Test(resolution) => {
                 let predicate = resolution.predicate.clone();
 
-                self.lower_predicate_test(&predicate, value, fail)
+                self.lower_predicate_test(&predicate, place, fail)
             }
 
             // test the selected variant's predicate over the input
             dir::PatternDecision::Variant(resolution) => {
                 let predicate = resolution.predicate.clone();
 
-                self.lower_predicate_test(&predicate, value, fail)
+                self.lower_predicate_test(&predicate, place, fail)
             }
 
             // project the input once, then test the nested pattern
             dir::PatternDecision::Project(resolution) => {
                 let projection = resolution.projection.clone();
-                let projected = self.lower_pattern_projection(&projection, value)?;
+                let projected = self.lower_pattern_projection(&projection, place)?;
                 match resolution.pattern {
                     Some(nested) => {
                         let nested = self.pattern_node(nested)?;
 
-                        self.lower_pattern_tests(nested, projected, fail)
+                        self.lower_pattern_tests(nested, &projected, fail)
                     }
                     None => Ok(()),
                 }
@@ -362,7 +477,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // test each destructured field's nested pattern
             dir::PatternDecision::Destructure(_) => {
-                self.lower_pattern_field_tests(&decision, value, fail)
+                self.lower_pattern_field_tests(&decision, place, fail)
             }
 
             // accept the first or-branch whose tests pass
@@ -373,17 +488,8 @@ impl FunctionLowerer<'_, '_, '_> {
                     let branch = self.pattern_node(*branch)?;
 
                     // reject a binding or-branch, its bindings would join inconsistently
-                    if !matches!(
-                        self.pattern_decision(branch)?,
-                        dir::PatternDecision::Ignore
-                            | dir::PatternDecision::Test(_)
-                            | dir::PatternDecision::Variant(_)
-                    ) {
-                        return Err(LowerError::Unsupported {
-                            anchor: self.lower.module.into(),
-                            construct: "a binding or-pattern branch".to_string(),
-                        }
-                        .into());
+                    if self.pattern_binds(branch) {
+                        return Err(self.unsupported("a binding or-pattern branch"));
                     }
 
                     // continue a failed branch at the next alternative
@@ -394,7 +500,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     };
 
                     // test the branch, accepting it when it passes
-                    self.lower_pattern_tests(branch, value, next)?;
+                    self.lower_pattern_tests(branch, place, next)?;
                     self.builder.jump(accepted);
                     if next != fail {
                         self.builder.switch_to_block(next);
@@ -413,7 +519,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_pattern_field_tests(
         &mut self,
         decision: &dir::PatternDecision,
-        value: mir::Value,
+        place: &Place,
         fail: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<()> {
         // read the fields a destructure declares
@@ -435,8 +541,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 continue;
             };
             let nested = self.pattern_node(nested)?;
-            let projected = self.lower_pattern_projection(&field.projection, value)?;
-            self.lower_pattern_tests(nested, projected, fail)?;
+            let projected = self.lower_pattern_projection(&field.projection, place)?;
+            self.lower_pattern_tests(nested, &projected, fail)?;
         }
 
         Ok(())
@@ -446,7 +552,7 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_predicate_test(
         &mut self,
         predicate: &dir::Predicate,
-        value: mir::Value,
+        place: &Place,
         fail: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<()> {
         match &predicate.test {
@@ -454,11 +560,11 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::PredicateTest::Unary(test) => {
                 // project the tested operand out of the input
                 let input = match &test.input {
-                    dir::PredicateOperand::Direct(_) => value,
+                    dir::PredicateOperand::Direct(_) => place.clone(),
                     dir::PredicateOperand::Projected(projection) => {
                         let projection = dir::OperationResolution::One((**projection).clone());
 
-                        self.lower_pattern_projection(&projection, value)?
+                        self.lower_pattern_projection(&projection, place)?
                     }
                 };
 
@@ -477,17 +583,17 @@ impl FunctionLowerer<'_, '_, '_> {
 
                     // compare the input against the literal at its representation
                     dir::PredicateCondition::Literal(literal) => {
-                        self.lower_literal_test(*literal, input, fail)
+                        self.lower_literal_test(*literal, &input, fail)
                     }
 
                     // bound the input inside the scalar interval
                     dir::PredicateCondition::Range(range) => {
+                        let input = self.read_place(&input)?;
                         let representation = self.value_representation(input)?;
-                        let representation = self.builder.tree().get(representation).clone();
 
                         // test the committed lower bound
                         if let Some(start) = range.start {
-                            let start = self.lower_constant(start, representation.clone())?;
+                            let start = self.lower_constant(start, representation)?;
                             let low = self.builder.binary(
                                 mir::BinaryOperator::GreaterEqual,
                                 input,
@@ -514,14 +620,25 @@ impl FunctionLowerer<'_, '_, '_> {
                         Ok(())
                     }
 
+                    // select the union case a type test names on a variant input
+                    dir::PredicateCondition::Primitive(_)
+                    | dir::PredicateCondition::Type(_)
+                    | dir::PredicateCondition::Subtype(_)
+                        if let Some(case) =
+                            self.union_case_test(&test.input, &test.condition)? =>
+                    {
+                        let pass = self.builder.block();
+                        self.branch_place_case(&input, case, pass, fail)?;
+                        self.builder.switch_to_block(pass);
+                        Ok(())
+                    }
+
                     // reject a runtime type test until the dynamic representation exists
                     dir::PredicateCondition::Primitive(_)
                     | dir::PredicateCondition::Type(_)
-                    | dir::PredicateCondition::Subtype(_) => Err(LowerError::Unsupported {
-                        anchor: self.lower.module.into(),
-                        construct: "a runtime type test pattern".to_string(),
+                    | dir::PredicateCondition::Subtype(_) => {
+                        Err(self.unsupported("a runtime type test pattern"))
                     }
-                    .into()),
                 }
             }
 
@@ -537,7 +654,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     };
 
                     // test the alternative, accepting it when it passes
-                    self.lower_predicate_test(alternative, value, next)?;
+                    self.lower_predicate_test(alternative, place, next)?;
                     self.builder.jump(accepted);
                     if next != fail {
                         self.builder.switch_to_block(next);
@@ -551,47 +668,90 @@ impl FunctionLowerer<'_, '_, '_> {
             }
 
             // reject a membership test until the dynamic representation exists
-            dir::PredicateTest::Membership(_) => Err(LowerError::Unsupported {
-                anchor: self.lower.module.into(),
-                construct: "a membership test pattern".to_string(),
-            }
-            .into()),
+            dir::PredicateTest::Membership(_) => Err(self.unsupported("a membership test pattern")),
         }
+    }
+
+    /// Lower one `is` expression to the boolean its recorded predicate decides.
+    pub(in crate::lower) fn lower_guard(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        value: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<mir::Value> {
+        let node = expression.into_global_any(self.source);
+        let predicate = match self
+            .lower
+            .state(self.source)?
+            .decisions
+            .guard_decision(node)
+            .cloned()
+        {
+            Some(dir::GuardDecision::Is(guard)) => guard.predicate,
+            Some(dir::GuardDecision::InstanceOf(guard)) => guard.predicate,
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: "a guard expression without its recorded predicate".to_string(),
+                });
+            }
+        };
+
+        // branch on the predicate, joining the verdict in a slot
+        let input = self.scrutinee_place(value)?;
+        let boolean = self.lower_type(self.node_type_id(expression)?)?;
+        let verdict = self.builder.local(boolean, mir::Mutability::Immutable);
+        let fail = self.builder.block();
+        let exit = self.builder.block();
+        self.lower_predicate_test(&predicate, &input, fail)?;
+        let accepted = self
+            .builder
+            .constant(mir::Constant::Boolean { value: true }, boolean);
+        self.builder.local_set(verdict, accepted);
+        self.builder.jump(exit);
+        self.builder.switch_to_block(fail);
+        let rejected = self
+            .builder
+            .constant(mir::Constant::Boolean { value: false }, boolean);
+        self.builder.local_set(verdict, rejected);
+        self.builder.jump(exit);
+        self.builder.switch_to_block(exit);
+
+        Ok(self.builder.local_get(verdict))
     }
 
     /// Branch one literal comparison over its input, rejecting to the fail block.
     fn lower_literal_test(
         &mut self,
         literal: dir::Literal,
-        input: mir::Value,
+        input: &Place,
         fail: mir::LocalNodeId<mir::Block>,
     ) -> CompilerResult<()> {
-        let representation = self.value_representation(input)?;
+        let representation = self.place_type(input)?;
 
-        // split a variant input on its absent case for nullish literals
-        if matches!(literal, dir::Literal::Undefined | dir::Literal::Null)
-            && matches!(
-                self.builder.tree().get(representation),
-                mir::Type::Variant { .. }
-            )
-        {
-            let Some(mir::NullishCase::Case(absent)) =
-                self.builder.tree().undefined_case(representation)
-            else {
+        // accept a literal against a value its single-valued type already fixes
+        if self.is_singleton_representation(representation) {
+            return Ok(());
+        }
+
+        // switch a variant input onto the case holding a singleton literal
+        if let Some(variant) = self.place_variant(input)? {
+            let singleton = match literal {
+                dir::Literal::Undefined => self.builder.tree_mut().intern_type(mir::Type::Void),
+                literal => self.lower.singleton_type(self.builder.tree_mut(), &literal),
+            };
+            let Some(case) = self.builder.tree().payload_case(variant, singleton) else {
                 return Err(CompilerError::Internal {
-                    message: "a nullish literal test without an absent case".to_string(),
+                    message: "a singleton literal test outside the variant's cases".to_string(),
                 });
             };
             let accepted = self.builder.block();
-            self.builder
-                .variant_switch(input, Some(fail), vec![(absent, accepted)]);
+            self.branch_place_case(input, case, accepted, fail)?;
             self.builder.switch_to_block(accepted);
 
             return Ok(());
         }
 
         // compare every other input against the literal constant
-        let representation = self.builder.tree().get(representation).clone();
+        let input = self.read_place(input)?;
         let expected = self.lower_constant(literal, representation)?;
         let equal = self
             .builder
@@ -643,9 +803,9 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // lower the shared scrutinee operand once
         let matched = match &matched_operand {
-            Some(operand) => Some(self.lower_operand(value, operand)?),
+            Some(operand) => Some(self.lower_builtin_operand(value, operand)?),
             None => {
-                self.lower_expression(value)?;
+                self.lower_value(value)?;
 
                 None
             }
@@ -698,7 +858,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a switch case with a non-builtin equality resolution".to_string(),
                     });
                 };
-                let selected = self.lower_operand(selector, &operands[1])?;
+                let selected = self.lower_builtin_operand(selector, &operands[1])?;
                 let equal = self.lower_representation_equality(
                     matched.ok_or_else(|| CompilerError::Internal {
                         message: "a switch case without a scrutinee operand".to_string(),
@@ -713,7 +873,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // route break out of the switch
-        self.enter_control(None, exit, None);
+        self.enter_control(None, exit, None, None);
 
         // preserve source-order fallthrough between adjacent case bodies
         for (index, case) in lowered_cases.iter().enumerate() {
@@ -829,18 +989,61 @@ impl FunctionLowerer<'_, '_, '_> {
         scrutinee: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<u32> {
-        // find the member declaring the narrowed nominal
-        for (index, member) in self.union_members(scrutinee)?.into_iter().enumerate() {
-            let member = self.lower.peel_owned(member)?;
-            if let dir::Type::Application(instance) = self.lower.ty(member)?
+        // find the member declaring the narrowed nominal, the scrutinee read through its forms
+        let scrutinee = match self.lower.indirection(scrutinee, &self.scope)? {
+            Some(layer) => layer.stored,
+            None => self.lower.stored(scrutinee)?,
+        };
+        for member in self.lower.union_members(scrutinee)? {
+            let base = self.lower.stored(member)?;
+            if let dir::Type::Application(instance) = self.lower.ty(base)?
                 && instance.symbol == symbol
             {
-                return Ok(index as u32);
+                return self.case(scrutinee, member);
             }
         }
 
         Err(CompilerError::Internal {
             message: "a destructured nominal outside the matched union".to_string(),
         })
+    }
+
+    /// Return whether one pattern introduces a binding anywhere beneath it.
+    fn pattern_binds(&self, pattern: dir::LocalNodeId<dir::Pattern>) -> bool {
+        let tree = self.source().tree();
+        match tree.get(pattern) {
+            dir::Pattern::Binding { .. } => true,
+            dir::Pattern::Wildcard
+            | dir::Pattern::Expression { .. }
+            | dir::Pattern::Range { .. } => false,
+            dir::Pattern::Must(inner)
+            | dir::Pattern::Default { pattern: inner, .. }
+            | dir::Pattern::BorrowOf { right: inner, .. }
+            | dir::Pattern::MoveOf { right: inner, .. }
+            | dir::Pattern::DereferenceOf { right: inner } => self.pattern_binds(*inner),
+            dir::Pattern::Union { patterns } => {
+                patterns.iter().any(|pattern| self.pattern_binds(*pattern))
+            }
+            dir::Pattern::Tuple { fields }
+            | dir::Pattern::NominalTuple { fields, .. }
+            | dir::Pattern::Sequence { fields }
+            | dir::Pattern::Object { fields }
+            | dir::Pattern::NominalObject { fields, .. } => fields.iter().any(|field| {
+                match tree.get(*field) {
+                    // bind a shorthand field at its own name
+                    dir::PatternField::Named { pattern: None, .. } => true,
+                    dir::PatternField::Named {
+                        pattern: Some(inner),
+                        ..
+                    }
+                    | dir::PatternField::Computed { pattern: inner, .. }
+                    | dir::PatternField::Positional { pattern: inner }
+                    | dir::PatternField::Rest {
+                        pattern: Some(inner),
+                    } => self.pattern_binds(*inner),
+                    dir::PatternField::Rest { pattern: None } | dir::PatternField::Elision => false,
+                }
+            }),
+        }
     }
 }

@@ -5,7 +5,7 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::{FunctionDeclaration, GenericInstanceKey, LifetimeParameters, LowerState};
+use crate::lower::{FunctionDeclaration, GenericInstanceKey, GenericScope, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 /// The concrete implementer behind one erasure.
@@ -20,20 +20,18 @@ pub(in crate::lower) enum Implementer {
     },
 }
 
-impl LowerState<'_> {
+impl ModuleLowerer<'_> {
     /// Declare the implementer behind one erasure.
     pub(in crate::lower) fn declare_implementer(
         &mut self,
         tree: &mut mir::Tree,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
+        scope: &GenericScope,
     ) -> CompilerResult<()> {
         // read the constraint from the erased target
-        let pointer_bytes = self.pointer_bytes;
-        let lifetimes = LifetimeParameters::default();
-        let dynamic = self
-            .type_lowerer(tree, pointer_bytes, &lifetimes)
-            .lower(target)?;
+        let lifetimes = scope.erased();
+        let dynamic = self.type_lowerer(tree, &lifetimes).lower(target)?;
         let mir::Type::Dynamic { constraint, .. } = *tree.get(dynamic) else {
             return Err(CompilerError::Internal {
                 message: "a value erased outside a dynamic target".to_string(),
@@ -42,9 +40,7 @@ impl LowerState<'_> {
 
         // register the concrete object's written property names
         if let dir::Type::Object(shape) = self.ty(source)? {
-            let reference = self
-                .type_lowerer(tree, pointer_bytes, &lifetimes)
-                .lower(source)?;
+            let reference = self.type_lowerer(tree, &lifetimes).lower(source)?;
             let mir::Type::Reference { pointee, .. } = *tree.get(reference) else {
                 return Err(CompilerError::Internal {
                     message: "an object class without a reference representation".to_string(),
@@ -69,7 +65,7 @@ impl LowerState<'_> {
         // take the applied class behind the erased source
         let dir::Type::Application(instance) = self.ty(source)? else {
             // read the dispatch shape the constraint registered
-            let Some(shape) = self.dynamic_shapes.get(&constraint) else {
+            let Some((shape, _)) = self.dynamic_shape(tree, constraint) else {
                 return Err(CompilerError::Internal {
                     message: "an erasure without a registered constraint shape".to_string(),
                 });
@@ -89,7 +85,7 @@ impl LowerState<'_> {
 
         // lower the applied class at its concrete arguments
         let concrete = self
-            .type_lowerer(tree, pointer_bytes, &lifetimes)
+            .type_lowerer(tree, &lifetimes)
             .lower_nominal(source)?
             .storage;
 
@@ -166,7 +162,7 @@ impl LowerState<'_> {
 
     /// Derive the dispatch entries one implementer supplies for the constraint slots.
     fn dispatch_entries(
-        &self,
+        &mut self,
         slots: &[mir::DynamicSlot],
         implementer: &Implementer,
         fields: &[(StringId, u32)],

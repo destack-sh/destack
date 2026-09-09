@@ -1,9 +1,10 @@
 use destack_core::{FxIndexMap, StringId};
 use destack_dir as dir;
 use destack_mir as mir;
+use destack_mir::substitute_type;
 
-use crate::lower::{NominalField, TypeLowerer};
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::{GenericScope, NominalField, TypeLowerer};
+use crate::{CompilerResult, LowerError};
 
 /// One named member of a flattened interface.
 enum InterfaceMember {
@@ -22,15 +23,39 @@ enum InterfaceMember {
 }
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one interface declaration to its dynamic constraint type.
+    /// Lower one interface declaration to its constraint storage and dispatch shape.
     pub(in crate::lower) fn lower_interface(
         &mut self,
         definition: dir::InterfaceDefinition,
         ty: mir::LocalNodeId<mir::Type>,
     ) -> CompilerResult<Vec<NominalField>> {
+        let (fields, field_nodes, slots) = self.interface_shape(&definition)?;
+
+        // define the constraint storage from its field nodes
+        self.tree.define_type(
+            ty,
+            mir::Type::Struct {
+                fields: field_nodes,
+                copy: mir::Copy::No,
+            },
+        );
+        self.register_interface_shape(ty, slots);
+
+        Ok(fields)
+    }
+
+    /// Return one interface's stored fields, their nodes, and its dispatch slots.
+    pub(in crate::lower) fn interface_shape(
+        &mut self,
+        definition: &dir::InterfaceDefinition,
+    ) -> CompilerResult<(
+        Vec<NominalField>,
+        Vec<mir::LocalNodeId<mir::Field>>,
+        Vec<mir::DynamicSlot>,
+    )> {
         // flatten the interface and its bases into one member list by name
         let mut entries = FxIndexMap::default();
-        self.collect_interface_members(&definition, &mut entries)?;
+        self.collect_interface_members(definition, &mut entries)?;
 
         // split the flattened members into storage fields and dispatch slots
         let mut fields = Vec::new();
@@ -49,16 +74,15 @@ impl TypeLowerer<'_, '_> {
             }
         }
 
-        // define the constraint storage from its field nodes
-        self.tree.define_type(
-            ty,
-            mir::Type::Struct {
-                fields: field_nodes,
-                copy: mir::Copy::No,
-            },
-        );
+        Ok((fields, field_nodes, slots))
+    }
 
-        // register the constraint's unkeyed dispatch shape once
+    /// Register one constraint's unkeyed dispatch shape once.
+    pub(in crate::lower) fn register_interface_shape(
+        &mut self,
+        ty: mir::LocalNodeId<mir::Type>,
+        slots: Vec<mir::DynamicSlot>,
+    ) {
         self.lower
             .dynamic_shapes
             .entry(ty)
@@ -67,8 +91,6 @@ impl TypeLowerer<'_, '_> {
                 slots,
                 is_keyed: false,
             });
-
-        Ok(fields)
     }
 
     /// Collect one interface's members into a flattened list keyed by name.
@@ -98,34 +120,55 @@ impl TypeLowerer<'_, '_> {
                 }
             };
 
-            // flatten the base members through the applied base instance's types
+            // lower the base members under the base's own parameters, then apply the arguments
             let arguments = self
                 .lower
                 .types(base.module_id)?
                 .type_ids(application.arguments)
                 .to_vec();
-            let base_instance = match arguments.is_empty() {
-                true => None,
-                false => {
-                    let specialization =
-                        self.lower.application_specialization(base, &application)?;
-                    if specialization.is_none() {
-                        let path = self.lower.symbol_path(application.symbol)?;
+            let mut lowered = Vec::with_capacity(arguments.len());
+            for argument in &arguments {
+                lowered.push(self.lower_generic_argument(*argument)?);
+            }
+            let template = base_definition
+                .template
+                .map(|template| template.into_global(application.symbol.module_id));
+            let base_parameters = GenericScope::from_templates(self.lower, None, template)?;
+            let mut base_entries = FxIndexMap::default();
+            self.under(&base_parameters)
+                .collect_interface_members(&base_definition, &mut base_entries)?;
+            for (name, entry) in base_entries {
+                let entry = match entry {
+                    InterfaceMember::Field { node, field } => {
+                        let ty = substitute_type(self.tree, self.tree.get(node).ty, &lowered);
+                        let node = self.tree.intern_field(
+                            mir::Field {
+                                name: Some(name),
+                                ty,
+                            },
+                            Vec::new(),
+                        );
 
-                        return Err(CompilerError::Internal {
-                            message: format!("a missing instance of '{path}'"),
-                        });
+                        InterfaceMember::Field { node, field }
                     }
-
-                    specialization
-                }
-            };
-            self.nested(base_instance)
-                .collect_interface_members(&base_definition, entries)?;
+                    InterfaceMember::Method { slot } => InterfaceMember::Method {
+                        slot: match slot {
+                            mir::DynamicSlot::Function { name, signature } => {
+                                mir::DynamicSlot::Function {
+                                    name,
+                                    signature: substitute_type(self.tree, signature, &lowered),
+                                }
+                            }
+                            other => other,
+                        },
+                    },
+                };
+                entries.insert(name, entry);
+            }
         }
 
         // lower each property into a field node and dispatch slot
-        let fields = self.lower.instance_fields(&definition.members);
+        let fields = self.lower.instance_fields(&definition.members)?;
         for field in fields {
             // lower the declared property type and read its written name
             let declared = self.lower.symbol_type(field.symbol)?;
@@ -155,9 +198,7 @@ impl TypeLowerer<'_, '_> {
                 continue;
             };
 
-            // resolve the declared signature through the materialized instance
             let declared = self.lower.symbol_type(method.symbol)?;
-            let declared = self.lower.instance_type(self.instance, declared)?;
             let dir::Type::FunctionSignature(signature) = self.lower.ty(declared)? else {
                 return Err(LowerError::Unsupported {
                     anchor: self.lower.module.into(),
@@ -168,22 +209,37 @@ impl TypeLowerer<'_, '_> {
 
             // skip methods declaring their own type parameters
             let signature = *self.lower.types(declared.module_id)?.signature(signature);
-            if let Some(template) = signature.template {
+            let template = signature.template.or_else(|| {
+                self.lower
+                    .state(method.symbol.module_id)
+                    .ok()?
+                    .generics
+                    .template_by_symbol(method.symbol)
+                    .map(|template| template.into_global(method.symbol.module_id))
+            });
+            if let Some(template) = template {
                 let generics = &self.lower.state(template.module_id)?.generics;
                 let is_generic = generics
                     .get_template(template.local_id)
                     .parameters
                     .iter()
                     .any(|parameter| {
-                        generics.get_parameter(*parameter).kind == dir::GenericParameterKind::Type
+                        let binding = generics.get_parameter(*parameter);
+
+                        binding.kind == dir::GenericParameterKind::Type && binding.is_writable()
                     });
                 if is_generic {
                     continue;
                 }
             }
 
-            // leave the receiver to the dispatch and lower the bare signature
-            let signature = self.lower_bare_signature(&signature, declared.module_id)?;
+            // lower the bare signature under the method's own template
+            let signature = self.lower_bare_signature(
+                &signature,
+                declared.module_id,
+                template,
+                Some(method.symbol),
+            )?;
 
             // key the slot by the name the method declares
             let Some(name) = self.lower.symbol_name(method.symbol)? else {
