@@ -21,4 +21,4 @@ relay.name;
 
 - deep readonly
 - const is *not* readonly (just like in TS)
-- const is however overwrite stable
+- const bindings are never reassigned

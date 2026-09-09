@@ -16,11 +16,12 @@ description: As soon as we pass and store references, we need to make sure those
 -  (inference only locally within functions, no induced generics beyond that)
 - fortunately, we barely write code by hand anymore unless we want to, most use cases for this will be in libraries most users will never see, so whatever. it works, we know it works, it's safe.
 
-- a `&T` borrow of owned storage is exclusive by structural proof, as in Rust; borrows of managed storage may alias, and writes through them stay safe because managed memory is only freed at parks and replaced owned values drop deferred
+- a `&T` borrow of owned storage is exclusive by structural proof, as in Rust; borrows of managed storage may alias, and writes through them stay safe because managed memory is only reclaimed at parks, so a value replaced through an alias stays alive while a borrow reaches into it
 
-- borrows into managed storage retain and pin every managed object in the borrowed path until the borrow's last use
+- borrows into managed storage are traced by address on the non-moving heap, so the objects they reach into stay alive across parks until the borrow's last use
 
 - owned and borrowed sources may remain live across `await` and `yield` (a borrow rooted in local managed storage must end at the next suspension point)
+- borrow into shared storage are always readonly
 
 ```ds:src/borrowing.ds
 function write(storage: &exclusive uint8[], index: isize, value: uint8): void {
