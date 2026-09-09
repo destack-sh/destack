@@ -278,6 +278,8 @@ pub struct DirChecked {
     pub captures: Arc<dir::CaptureSegment>,
     /// Flow conclusions.
     pub flows: Arc<dir::FlowSegment>,
+    /// Whether the values of each checked type copy.
+    pub representations: Arc<dir::RepresentationSegment>,
 }
 
 /// Materialized DIR for one module under one profile.
@@ -466,6 +468,7 @@ impl DirView {
         let mut flows = Vec::new();
         let mut coercions = Vec::new();
         let mut captures = Vec::new();
+        let mut representations = Vec::new();
 
         // append each retained stage's segments in stage order
         if let Some(declared) = &declared {
@@ -491,6 +494,7 @@ impl DirView {
             resolutions.push(elaborated.resolutions.clone());
             decisions.push(elaborated.decisions.clone());
             flows.push(elaborated.flows.clone());
+            representations.push(elaborated.representations.clone());
         }
         if let Some(checked) = &checked {
             bindings.push(checked.bindings.clone());
@@ -504,10 +508,8 @@ impl DirView {
             flows.push(checked.flows.clone());
             coercions.push(checked.coercions.clone());
             captures.push(checked.captures.clone());
+            representations.push(checked.representations.clone());
         }
-        let representations = elaborated.as_ref().map(|elaborated| {
-            dir::RepresentationTable::from_segments(vec![elaborated.representations.clone()])
-        });
         if let Some(materialized) = &materialized {
             bindings.push(materialized.bindings.clone());
             types.push(materialized.types.clone());
@@ -540,7 +542,7 @@ impl DirView {
             flows: stacked(flows, dir::FlowTable::from_segments),
             coercions: stacked(coercions, dir::CoercionTable::from_segments),
             captures: stacked(captures, dir::CaptureTable::from_segments),
-            representations,
+            representations: stacked(representations, dir::RepresentationTable::from_segments),
         }
     }
 
