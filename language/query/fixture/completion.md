@@ -181,6 +181,36 @@ const result = formatN;
 @completion.item label=formatName kind=function replace=main.ds#prefix suffix="(name: string, width: int32): string" insert="formatName(${1:name}, ${2:width})$0" snippet=true matches=0,1,2,3,4,5,6
 ```
 
+### Complete dollar-prefixed names
+
+Call completion preserves dollar signs in function and parameter names.
+
+```ds main.ds
+function fixture$read($value: int32): int32 { return $value; }
+
+const result = fixture$rea;
+               ^^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label="fixture$read" kind=function replace=main.ds#prefix suffix="($value: int32): int32" insert="fixture\\$read(${1:\\$value})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
+```
+
+### Complete destructured parameters
+
+Call completion preserves the complete destructuring pattern in its parameter placeholder.
+
+```ds main.ds
+function fixtureRead({ value }: { value: int32 }): int32 { return value; }
+
+const result = fixtureRea;
+               ^^^^^^^^^^ prefix
+```
+
+```query completion main.ds#prefix@end
+@completion.item label=fixtureRead kind=function replace=main.ds#prefix suffix="({ value }: { value: int32 }): int32" insert="fixtureRead(${1:{ value \\}})$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9
+```
+
 ### Complete an imported function alias
 
 An imported alias keeps its local name and uses the target declaration's callable type.
@@ -1334,6 +1364,56 @@ const result = FixturePoin;
 @completion.item label=FixturePoint kind=struct replace=main.ds#prefix insert="FixturePoint { x: ${1}, y: ${2} }$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10
 ```
 
+### Complete dollar-prefixed fields
+
+Struct and object completions preserve dollar signs in their field names.
+
+```ds main.ds
+struct Fixture$Point {
+    $value: int32;
+}
+
+const result = Fixture$Poin;
+               ^^^^^^^^^^^^ structure
+const point: Fixture$Point = {
+    $val
+    ^^^^ field
+};
+```
+
+```query completion main.ds#structure@end
+@completion.item label="Fixture$Point" kind=struct replace=main.ds#structure insert="Fixture\\$Point { \\$value: ${1} }$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+```
+
+```query completion main.ds#field@end
+@completion.item label="$value" kind=field replace=main.ds#field suffix=": int32" insert="\\$value: ${1}" snippet=true matches=0,1,2,3
+```
+
+### Complete quoted and numeric fields
+
+Struct and object completions format quoted and numeric property keys.
+
+```ds main.ds
+struct FixtureRecord {
+    "display-name": string;
+    42: int32;
+}
+
+const result = FixtureRecor;
+               ^^^^^^^^^^^^ structure
+const record: FixtureRecord = { };
+                               ^ field
+```
+
+```query completion main.ds#structure@end
+@completion.item label=FixtureRecord kind=struct replace=main.ds#structure insert="FixtureRecord { \"display-name\": ${1}, 42: ${2} }$0" snippet=true matches=0,1,2,3,4,5,6,7,8,9,10,11
+```
+
+```query completion main.ds#field@start
+@completion.item label=display-name kind=field replace=main.ds#field suffix=": string" insert="\"display-name\": ${1}" snippet=true
+@completion.item label=42 kind=field replace=main.ds#field suffix=": int32" insert="42: ${1}" snippet=true
+```
+
 ### Complete a newtype constructor
 
 A newtype completion includes its constructor signature and call snippet.
@@ -1588,6 +1668,35 @@ consume(candidate);
 ```query completion main.ds#prefix@end
 @completion.item label=candidateZulu kind=constant replace=main.ds#prefix suffix=": int32" preselect=true matches=0,1,2,3,4,5,6,7,8
 @completion.item label=candidateAlpha kind=constant replace=main.ds#prefix suffix=": string" matches=0,1,2,3,4,5,6,7,8
+```
+
+### Prefer the expected constructor argument type
+
+Class and newtype arguments rank candidates by their recorded parameter types.
+
+```ds main.ds
+class NumberBox {
+    constructor(value: int32) {}
+}
+newtype NumberId = int32;
+
+const candidateAlpha: string = "";
+const candidateZulu: int32 = 1;
+
+new NumberBox(candidate);
+              ^^^^^^^^^ classArgument
+NumberId(candidate);
+         ^^^^^^^^^ newtypeArgument
+```
+
+```query completion main.ds#classArgument@end
+@completion.item label=candidateZulu kind=constant replace=main.ds#classArgument suffix=": int32" preselect=true matches=0,1,2,3,4,5,6,7,8
+@completion.item label=candidateAlpha kind=constant replace=main.ds#classArgument suffix=": string" matches=0,1,2,3,4,5,6,7,8
+```
+
+```query completion main.ds#newtypeArgument@end
+@completion.item label=candidateZulu kind=constant replace=main.ds#newtypeArgument suffix=": int32" preselect=true matches=0,1,2,3,4,5,6,7,8
+@completion.item label=candidateAlpha kind=constant replace=main.ds#newtypeArgument suffix=": string" matches=0,1,2,3,4,5,6,7,8
 ```
 
 ### Prefer an exact name over the expected type
