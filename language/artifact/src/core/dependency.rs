@@ -63,6 +63,13 @@ impl PackageSetFingerprint {
 pub enum SourceDependency {
     /// One source file and its exact bytes.
     File { file: FileId, blob: BlobId },
+    /// One package configuration and its resolved dependencies.
+    Package {
+        package: PackageId,
+        fingerprint: u128,
+    },
+    /// One module's contributing files and loader configuration.
+    Module { module: ModuleId, fingerprint: u128 },
     /// The complete repository package set.
     Packages { fingerprint: PackageSetFingerprint },
     /// The complete repository module set.
@@ -78,6 +85,10 @@ pub enum SourceDependency {
 pub enum SourceDependencyKey {
     /// One source file's content.
     File(FileId),
+    /// One package configuration and its resolved dependencies.
+    Package(PackageId),
+    /// One module's contributing files and loader configuration.
+    Module(ModuleId),
     /// The repository package set.
     Packages,
     /// The repository module set.
@@ -260,6 +271,8 @@ impl SourceDependency {
     pub const fn key(self) -> SourceDependencyKey {
         match self {
             Self::File { file, .. } => SourceDependencyKey::File(file),
+            Self::Package { package, .. } => SourceDependencyKey::Package(package),
+            Self::Module { module, .. } => SourceDependencyKey::Module(module),
             Self::Packages { .. } => SourceDependencyKey::Packages,
             Self::Modules { .. } => SourceDependencyKey::Modules,
             Self::ModulePath { file, .. } => SourceDependencyKey::ModulePath(file),

@@ -40,6 +40,15 @@ impl ArtifactTable {
         self.entries.get(version)?.upgrade()
     }
 
+    /// Return retained candidates from newest to oldest.
+    pub fn candidates(&self, key: ArtifactKey) -> Vec<Arc<ArtifactEntry>> {
+        let Some(candidates) = self.candidates.get(&key) else {
+            return Vec::new();
+        };
+
+        candidates.iter().rev().filter_map(Weak::upgrade).collect()
+    }
+
     /// Return one live successful result available as an incremental base.
     pub fn base(&self, key: ArtifactKey) -> Option<Arc<ArtifactEntry>> {
         let candidates = self.candidates.get(&key)?;
