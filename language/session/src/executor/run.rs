@@ -1,4 +1,4 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
@@ -126,6 +126,16 @@ impl ArtifactRun {
         self.executor.cancel_run(&self.state);
     }
 
+    /// Let scheduled work finish independently and retain cancellation access.
+    pub fn detach(mut self) -> ArtifactCancellation {
+        let cancellation = self.cancellation();
+        self.state.detach();
+        self.executor.finish_completed_run(&self.state);
+        self.is_finished = true;
+
+        cancellation
+    }
+
     /// Wait until this run's initial roots have ready payloads.
     pub async fn wait_ready(&self) -> Result<(), SessionError> {
         self.executor
@@ -182,9 +192,9 @@ impl Drop for ArtifactRun {
             return;
         }
 
-        self.state.abandon();
+        self.state.detach();
         self.executor.cancel_run(&self.state);
-        self.executor.finish_abandoned_run(&self.state);
+        self.executor.finish_detached_run(&self.state);
     }
 }
 
@@ -217,6 +227,7 @@ impl ArtifactCancellation {
         };
 
         executor.cancel_run(&state);
+        executor.finish_detached_run(&state);
     }
 }
 
@@ -236,10 +247,12 @@ pub(super) struct ArtifactRunState {
     error: Mutex<Option<SessionError>>,
     /// Whether this run was cancelled.
     is_cancelled: AtomicBool,
-    /// Whether the owning run handle was dropped before waiting.
-    is_abandoned: AtomicBool,
+    /// Whether the run continues without a requesting handle.
+    is_detached: AtomicBool,
     /// Whether this run published its terminal lifecycle.
     is_finished: AtomicBool,
+    /// Worker attempts that have not finished recording.
+    active_attempts: AtomicUsize,
     /// The trace for this run.
     trace: Arc<Trace>,
     /// Whether this run owns and finishes its trace.
@@ -263,7 +276,7 @@ impl std::fmt::Debug for ArtifactRunState {
             .field("revision", &self.revision)
             .field("priority", &self.priority)
             .field("is_cancelled", &self.is_cancelled)
-            .field("is_abandoned", &self.is_abandoned)
+            .field("is_detached", &self.is_detached)
             .field("is_finished", &self.is_finished)
             .field("trace", &self.trace)
             .field("is_trace_owner", &self.is_trace_owner)
@@ -295,8 +308,9 @@ impl ArtifactRunState {
             priority,
             error: Mutex::new(None),
             is_cancelled: AtomicBool::new(false),
-            is_abandoned: AtomicBool::new(false),
+            is_detached: AtomicBool::new(false),
             is_finished: AtomicBool::new(false),
+            active_attempts: AtomicUsize::new(0),
             trace,
             is_trace_owner,
             started_at,
@@ -364,19 +378,34 @@ impl ArtifactRunState {
         self.is_cancelled.load(Ordering::Acquire)
     }
 
-    /// Mark this run as abandoned by its owning handle.
-    pub(super) fn abandon(&self) {
-        self.is_abandoned.store(true, Ordering::Release);
+    /// Detach this run from its requesting handle.
+    pub(super) fn detach(&self) {
+        self.is_detached.store(true, Ordering::Release);
     }
 
-    /// Return whether this run was abandoned by its owning handle.
-    pub(super) fn is_abandoned(&self) -> bool {
-        self.is_abandoned.load(Ordering::Acquire)
+    /// Return whether this run has no requesting handle.
+    pub(super) fn is_detached(&self) -> bool {
+        self.is_detached.load(Ordering::Acquire)
     }
 
     /// Return whether this run published its terminal lifecycle.
     pub(super) fn is_finished(&self) -> bool {
         self.is_finished.load(Ordering::Acquire)
+    }
+
+    /// Start recording one claimed worker attempt.
+    pub(super) fn begin_attempt(&self) {
+        self.active_attempts.fetch_add(1, Ordering::AcqRel);
+    }
+
+    /// Finish recording one claimed worker attempt.
+    pub(super) fn end_attempt(&self) {
+        self.active_attempts.fetch_sub(1, Ordering::AcqRel);
+    }
+
+    /// Return whether any worker still records into this run.
+    pub(super) fn is_executing(&self) -> bool {
+        self.active_attempts.load(Ordering::Acquire) != 0
     }
 
     /// Publish this run's terminal lifecycle once.
@@ -387,21 +416,21 @@ impl ArtifactRunState {
 
         self.trace.span("run.clean", || {
             scheduler.remove_run(self.id);
-
-            // publish the run outcome and elapsed time
-            if let Some(started_at) = self.started_at {
-                self.emit_run(ArtifactRunEvent::Finished {
-                    run_id: self.id,
-                    is_cancelled: self.is_cancelled(),
-                    is_aborted: self.is_aborted(),
-                    elapsed: started_at.elapsed(),
-                });
-            }
         });
 
         // finish only traces created for this standalone run
         if self.is_trace_owner {
             self.trace.finish();
+        }
+
+        // publish completion after all run work has been recorded
+        if let Some(started_at) = self.started_at {
+            self.emit_run(ArtifactRunEvent::Finished {
+                run_id: self.id,
+                is_cancelled: self.is_cancelled(),
+                is_aborted: self.is_aborted(),
+                elapsed: started_at.elapsed(),
+            });
         }
     }
 

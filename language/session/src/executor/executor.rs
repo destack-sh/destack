@@ -305,21 +305,25 @@ impl Executor {
     ) -> Poll<Result<(), SessionError>> {
         // register before reading state so concurrent worker changes cannot be missed
         run.register(context.waker());
-        if let Some(error) = run.error() {
-            return Poll::Ready(Err(error));
-        }
-        if run.is_cancelled() {
-            let is_executing = self.scheduler.is_run_executing(run.id());
-            if self.execution == Execution::Threaded && is_executing {
-                return Poll::Pending;
+        let outcome = if let Some(error) = run.error() {
+            Some(Err(error))
+        } else if run.is_cancelled() {
+            Some(Err(SessionError::Cancelled))
+        } else {
+            match self.roots_satisfy(run.session(), tasks, goal) {
+                Ok(true) => Some(Ok(())),
+                Ok(false) => None,
+                Err(error) => Some(Err(error)),
             }
+        };
 
-            return Poll::Ready(Err(SessionError::Cancelled));
-        }
-        match self.roots_satisfy(run.session(), tasks, goal) {
-            Ok(true) => return Poll::Ready(Ok(())),
-            Ok(false) => {}
-            Err(error) => return Poll::Ready(Err(error)),
+        // wait for worker recording before returning a terminal result
+        if let Some(outcome) = outcome {
+            return if run.is_executing() {
+                Poll::Pending
+            } else {
+                Poll::Ready(outcome)
+            };
         }
 
         // threaded workers wake the registered run after scheduler changes
@@ -365,6 +369,7 @@ impl Executor {
                 self.roots_satisfy(run.session(), run.roots(), ArtifactRunGoal::Ready),
                 Ok(true) | Err(SessionError::ArtifactFailed { .. })
             );
+        let is_complete = is_complete && !run.is_executing();
         if is_complete {
             self.finish_run(run);
         }
@@ -372,9 +377,9 @@ impl Executor {
         is_complete
     }
 
-    /// Finish one abandoned run when no worker still records into it.
-    pub(super) fn finish_abandoned_run(&self, run: &ArtifactRunState) {
-        if run.is_abandoned() && !self.scheduler.is_run_executing(run.id()) {
+    /// Finish one detached run when no worker still records into it.
+    pub(super) fn finish_detached_run(&self, run: &ArtifactRunState) {
+        if run.is_detached() && !run.is_executing() {
             self.finish_run(run);
         }
     }

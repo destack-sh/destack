@@ -157,23 +157,61 @@ impl Scheduler {
 
     /// Mark one task as terminal and wake unblocked dependents.
     pub(super) fn mark_done(&self, task: Task) {
-        let mut state = self.state.lock();
-        state.mark_done(task);
-        state.wake_runs();
-        self.wake_ready(&mut state);
+        // finish shared tasks before testing their detached consumers
+        let completed = {
+            let mut state = self.state.lock();
+            let consumers = state.mark_done(task);
+            state.wake_runs();
+            self.wake_ready(&mut state);
+            state.completed_runs(task, consumers)
+        };
+
+        // publish completion outside the scheduler lock
+        for run in completed {
+            run.finish(self);
+        }
     }
 
     /// Abort every run waiting on one failed task.
     pub(super) fn abort(&self, task: Task, error: SessionError) {
-        let mut state = self.state.lock();
-        state.abort(task, error);
-        state.wake_runs();
-        self.ready.notify_all();
+        // abort consumers and collect detached runs ready to finish
+        let completed = {
+            let mut state = self.state.lock();
+            let consumers = state.abort(task, error);
+            state.wake_runs();
+            self.ready.notify_all();
+            state.completed_runs(task, consumers)
+        };
+
+        // publish completion outside the scheduler lock
+        for run in completed {
+            run.finish(self);
+        }
     }
 
-    /// Return whether a worker is still recording into one run.
-    pub(super) fn is_run_executing(&self, run_id: ArtifactRunId) -> bool {
-        self.state.lock().is_run_executing(run_id)
+    /// Release one worker attempt and finish its detached run when complete.
+    pub(super) fn finish_attempt(&self, run: &ArtifactRunState) {
+        // release recording before checking remaining scheduled work
+        run.end_attempt();
+
+        // check again under the scheduler lock because another worker may claim work
+        let is_complete = run.is_detached() && !run.is_executing() && {
+            let state = self.state.lock();
+            !run.is_executing()
+                && (run.is_cancelled()
+                    || run.is_aborted()
+                    || !state
+                        .tasks
+                        .values()
+                        .any(|entry| entry.runs.contains(&run.id())))
+        };
+
+        // publish completion before waking the requester
+        if is_complete {
+            run.finish(self);
+        }
+
+        run.wake();
     }
 
     /// Stop workers once current tasks return.
@@ -220,6 +258,7 @@ impl Scheduler {
             };
             entry.state = TaskState::Running;
             entry.active_run = Some(run.id());
+            run.begin_attempt();
             state.running += 1;
             let pending_set = entry.pending_set.take();
             state.wake_runs();
@@ -232,6 +271,29 @@ impl Scheduler {
 }
 
 impl SchedulerState {
+    /// Return detached runs whose roots have completed or whose work aborted.
+    fn completed_runs(
+        &self,
+        task: Task,
+        consumers: Vec<ArtifactRunId>,
+    ) -> Vec<Arc<ArtifactRunState>> {
+        consumers
+            .iter()
+            .filter_map(|id| self.runs.get(id))
+            .filter(|run| {
+                run.is_detached()
+                    && (run.is_aborted() || run.roots().contains(&task))
+                    && !run.is_executing()
+                    && (run.is_aborted()
+                        || !self
+                            .tasks
+                            .values()
+                            .any(|entry| entry.runs.contains(&run.id())))
+            })
+            .cloned()
+            .collect()
+    }
+
     /// Wake every run after scheduler state changes.
     fn wake_runs(&self) {
         for run in self.runs.values() {
@@ -332,9 +394,12 @@ impl SchedulerState {
         let priority = run.priority();
 
         if let Some(entry) = self.tasks.get_mut(&task) {
-            if !entry.runs.contains(&run_id) {
-                entry.runs.push(run_id);
+            // stop at tasks already visited by this consumer
+            if entry.runs.contains(&run_id) {
+                return;
             }
+            entry.runs.push(run_id);
+            let dependencies = entry.waiting_on.clone();
 
             // promote ready shared work for a foreground consumer
             if priority.precedes(entry.priority) {
@@ -342,6 +407,11 @@ impl SchedulerState {
                 if entry.state == TaskState::Ready {
                     self.push_ready(task, priority);
                 }
+            }
+
+            // retain and promote the prerequisites of shared waiting work
+            for dependency in dependencies {
+                self.enqueue(dependency, run_id);
             }
 
             return;
@@ -450,9 +520,9 @@ impl SchedulerState {
     }
 
     /// Mark one task as terminal and wake unblocked dependents.
-    fn mark_done(&mut self, task: Task) {
+    fn mark_done(&mut self, task: Task) -> Vec<ArtifactRunId> {
         let Some(entry) = self.tasks.remove(&task) else {
-            return;
+            return Vec::new();
         };
         if entry.state == TaskState::Running {
             self.running -= 1;
@@ -475,13 +545,19 @@ impl SchedulerState {
             }
         }
 
-        self.abort_stalled_runs();
+        // include runs aborted when the remaining dependency graph stalls
+        let mut consumers = entry.runs;
+        consumers.extend(self.abort_stalled_runs());
+        consumers.sort_unstable_by_key(|run| run.0);
+        consumers.dedup();
+
+        consumers
     }
 
     /// Abort every active run waiting on one failed task.
-    fn abort(&mut self, task: Task, error: SessionError) {
+    fn abort(&mut self, task: Task, error: SessionError) -> Vec<ArtifactRunId> {
         let Some(entry) = self.tasks.get(&task) else {
-            return;
+            return Vec::new();
         };
         let mut runs = entry.runs.clone();
         if let Some(active_run) = entry.active_run
@@ -497,16 +573,16 @@ impl SchedulerState {
             }
         }
 
-        self.mark_done(task);
+        self.mark_done(task)
     }
 
     /// Abort runs whose remaining tasks form a closed dependency cycle.
-    fn abort_stalled_runs(&self) {
+    fn abort_stalled_runs(&self) -> HashSet<ArtifactRunId> {
+        let mut aborted = HashSet::new();
         if !self.is_stalled() {
-            return;
+            return aborted;
         }
 
-        let mut aborted = HashSet::new();
         for entry in self.tasks.values() {
             for run_id in &entry.runs {
                 if !aborted.insert(*run_id) {
@@ -523,6 +599,8 @@ impl SchedulerState {
                 }
             }
         }
+
+        aborted
     }
 
     /// Return whether every remaining task is waiting on another task.
@@ -533,12 +611,5 @@ impl SchedulerState {
                 .tasks
                 .values()
                 .all(|entry| entry.state == TaskState::Waiting)
-    }
-
-    /// Return whether a worker is still recording into one run.
-    fn is_run_executing(&self, run_id: ArtifactRunId) -> bool {
-        self.tasks
-            .iter()
-            .any(|(_, entry)| entry.state == TaskState::Running && entry.active_run == Some(run_id))
     }
 }

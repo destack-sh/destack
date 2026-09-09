@@ -3,14 +3,15 @@ use std::sync::Arc;
 use std::thread;
 
 use destack_artifact::{
-    ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactVersion, BuildId, IndexKind,
+    ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactVersion, BuildId, DirImported,
+    DirParsed, IndexKind,
 };
 use destack_repository as repository;
 use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, Repository, Revision, RevisionPin,
-    Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
+    ArtifactReader, DestackLayoutOverride, Environment, Execution, Host, Repository, Revision,
+    RevisionPin, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
 };
-use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId, Uri};
 use futures::executor::block_on;
 use parking_lot::Mutex;
 
@@ -31,6 +32,50 @@ pub(crate) struct TestSession {
 }
 
 impl TestSession {
+    /// Open fresh repository state over the same files, host, and executor.
+    fn reopen(&self) -> Self {
+        let (repository, revision) = Repository::open(
+            self.root.clone(),
+            self.repository.host().clone(),
+            Settings::default(),
+            DestackLayoutOverride::default(),
+        )
+        .unwrap();
+        let repository = Arc::new(repository);
+        let revision = Mutex::new(repository.pin(revision).unwrap());
+        let session = Session::new(repository.clone(), self.session.executor()).unwrap();
+
+        Self {
+            root: self.root.clone(),
+            repository,
+            revision,
+            session,
+        }
+    }
+
+    /// Read artifacts selected by the current revision.
+    fn artifacts(&self) -> ArtifactReader<'_> {
+        self.repository.artifact_reader(self.revision())
+    }
+
+    /// Return the resolved import targets of one completed module.
+    fn imports(&self, key: ArtifactKey) -> Vec<Option<ModuleId>> {
+        let imported = self
+            .artifacts()
+            .read::<DirImported>((key.module_id().unwrap(), key.profile_id().unwrap()))
+            .unwrap();
+
+        imported.modules.iter().map(|edge| edge.target).collect()
+    }
+
+    /// Return the selected version of a completed artifact.
+    fn version(&self, key: ArtifactKey) -> ArtifactVersion {
+        self.repository
+            .artifact_version(self.revision(), &key)
+            .unwrap()
+            .unwrap()
+    }
+
     /// Open one test session from files below the default root.
     pub(crate) fn open(files: &[(&str, &str)]) -> Result<Self, SessionError> {
         Self::create(files, 1, Execution::Cooperative)
@@ -238,14 +283,312 @@ impl TestSession {
 
     /// Return the latest detailed trace snapshot.
     fn trace(&self, trace: &Trace) -> TraceSnapshot {
-        trace
-            .snapshot(
-                TraceView::Detailed,
-                |_| Ok::<_, ()>(None),
-                |_| Ok::<_, ()>(None),
-            )
+        self.repository
+            .snapshot_trace(self.revision(), trace, TraceView::Detailed)
             .unwrap()
     }
+}
+
+/// Preserve builtin imports when an unrelated workspace package appears.
+#[test]
+fn test_reuse_builtin_imports_after_adding_a_package() {
+    let session = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{
+  "workspace": { "packages": ["packages/*"] }
+}
+"#,
+        ),
+        (
+            "packages/app/destack.json",
+            r#"{
+  "name": "app"
+}
+"#,
+        ),
+        (
+            "packages/app/main.ds",
+            r#"export const value = 1;
+"#,
+        ),
+    ])
+    .unwrap();
+    let revision = session.revision();
+    let profile = session.profile_id(
+        revision,
+        session.module_id("packages/app/main.ds", revision),
+        "js",
+    );
+    let module = session
+        .repository
+        .module_id_for_uri(
+            revision,
+            &Uri::from_string("destack://memory/capability.ds"),
+        )
+        .unwrap()
+        .unwrap();
+    let key = ArtifactKey::dir_imported(module, profile);
+    assert_eq!(session.provide(key), ArtifactOutcome::Ok);
+    let before = session.version(key);
+
+    // add an unrelated package without changing any builtin source
+    session.edit_text(
+        "packages/other/destack.json",
+        r#"{
+  "name": "other"
+}
+"#,
+    );
+    assert_eq!(session.provide(key), ArtifactOutcome::Ok);
+    assert_eq!(session.version(key), before);
+}
+
+/// Parse conditional files added to an existing module.
+#[test]
+fn test_parse_added_conditional_file() {
+    let session = TestSession::open(&[(
+        "main.ds",
+        r#"export const value = 1;
+"#,
+    )])
+    .unwrap();
+    let module = session.module_id("main.ds", session.revision());
+    let key = ArtifactKey::dir_parsed(module);
+    assert_eq!(session.provide(key), ArtifactOutcome::Ok);
+    let before = session.version(key);
+
+    session.edit_text(
+        "main.test.ds",
+        r#"export const example = 2;
+"#,
+    );
+    assert_eq!(
+        session.module_id("main.test.ds", session.revision()),
+        module
+    );
+    assert_eq!(session.provide(key), ArtifactOutcome::Ok);
+    assert_ne!(session.version(key), before);
+    let parsed = session.artifacts().read::<DirParsed>(module).unwrap();
+    let files = parsed
+        .files
+        .iter()
+        .map(|file| file.file_id)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        files,
+        [
+            session.repository.file_id(&session.root.join("main.ds")),
+            session
+                .repository
+                .file_id(&session.root.join("main.test.ds")),
+        ]
+    );
+}
+
+/// Reuse retained library imports when a fresh repository opens the same host.
+#[test]
+fn test_reuse_builtin_imports_across_repositories() {
+    let original = TestSession::open(&[(
+        "main.ds",
+        r#"export const value = 1;
+"#,
+    )])
+    .unwrap();
+    let revision = original.revision();
+    let module = original
+        .repository
+        .module_id_for_uri(
+            revision,
+            &Uri::from_string("destack://memory/capability.ds"),
+        )
+        .unwrap()
+        .unwrap();
+    let profile = original.profile_id(revision, original.module_id("main.ds", revision), "js");
+    let key = ArtifactKey::dir_imported(module, profile);
+    assert_eq!(original.provide(key), ArtifactOutcome::Ok);
+    let version = original.version(key);
+
+    // open fresh revision state while retaining the original artifacts
+    let reopened = original.reopen();
+    assert_eq!(reopened.provide(key), ArtifactOutcome::Ok);
+    assert_eq!(reopened.version(key), version);
+}
+
+/// Parse authored library sources when they replace retained embedded modules.
+#[test]
+fn test_replace_embedded_module() {
+    let original = TestSession::open(&[]).unwrap();
+    let module = original
+        .repository
+        .module_id_for_uri(
+            original.revision(),
+            &Uri::from_string("destack://memory/capability.ds"),
+        )
+        .unwrap()
+        .unwrap();
+    let key = ArtifactKey::dir_parsed(module);
+    assert_eq!(original.provide(key), ArtifactOutcome::Ok);
+    let before = original.version(key);
+
+    // reopen the same host with an authored replacement and the retained parse
+    for (path, content) in [
+        (
+            "destack.json",
+            r#"{ "name": "destack" }
+"#,
+        ),
+        (
+            "src/memory/capability.ds",
+            r#"export const replacement = 1;
+"#,
+        ),
+    ] {
+        original
+            .repository
+            .file_system()
+            .write(&original.root.join(path), content.as_bytes())
+            .unwrap();
+    }
+    let reopened = original.reopen();
+    assert_eq!(
+        reopened.module_id("src/memory/capability.ds", reopened.revision()),
+        module
+    );
+    assert_eq!(reopened.provide(key), ArtifactOutcome::Ok);
+    assert_ne!(reopened.version(key), before);
+    let parsed = reopened.artifacts().read::<DirParsed>(module).unwrap();
+    let files = parsed
+        .files
+        .iter()
+        .map(|file| file.file_id)
+        .collect::<Vec<_>>();
+    assert_eq!(
+        files,
+        [reopened
+            .repository
+            .file_id(&reopened.root.join("src/memory/capability.ds"))]
+    );
+}
+
+/// Resolve builtin imports after missing exports and source files become available.
+#[test]
+fn test_resolve_added_builtin_imports() {
+    let session = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{ "workspace": { "packages": ["packages/*"] } }
+"#,
+        ),
+        (
+            "packages/library/destack.json",
+            r#"{ "name": "destack" }
+"#,
+        ),
+        (
+            "packages/library/src/index.ds",
+            r#"import { value } from "./value";
+"#,
+        ),
+        (
+            "packages/app/destack.json",
+            r#"{ "name": "app" }
+"#,
+        ),
+        (
+            "packages/app/main.ds",
+            r#"import { value } from "destack:example";
+"#,
+        ),
+    ])
+    .unwrap();
+    let keys = ["packages/library/src/index.ds", "packages/app/main.ds"]
+        .map(|path| session.profile_key(path, "js", ArtifactKey::dir_imported));
+    let before = keys.map(|key| {
+        session.provide(key);
+        assert_eq!(session.imports(key), [None]);
+
+        session.version(key)
+    });
+
+    session.edit_text(
+        "packages/library/src/value.ds",
+        r#"export const value = 1;
+"#,
+    );
+    let target = session.module_id("packages/library/src/value.ds", session.revision());
+    for (key, expected) in keys.into_iter().zip([Some(target), None]) {
+        session.provide(key);
+        assert_eq!(session.imports(key), [expected]);
+    }
+
+    session.edit_text(
+        "packages/library/destack.json",
+        r#"{
+  "name": "destack",
+  "exports": { "./example": { "kind": "module", "path": "src/value.ds" } }
+}
+"#,
+    );
+    for (key, before) in keys.into_iter().zip(before) {
+        assert_eq!(session.provide(key), ArtifactOutcome::Ok);
+        assert_ne!(session.version(key), before);
+        assert_eq!(session.imports(key), [Some(target)]);
+    }
+}
+
+/// Reconsider imports when a declared workspace dependency becomes available.
+#[test]
+fn test_resolve_added_workspace_dependency() {
+    let session = TestSession::open(&[
+        (
+            "destack.json",
+            r#"{
+  "workspace": { "packages": ["packages/*"] }
+}
+"#,
+        ),
+        (
+            "packages/app/destack.json",
+            r#"{
+  "name": "app",
+  "dependencies": { "other": { "source": "workspace" } }
+}
+"#,
+        ),
+        (
+            "packages/app/main.ds",
+            r#"import { value } from "other";
+"#,
+        ),
+    ])
+    .unwrap();
+    let key = session.profile_key("packages/app/main.ds", "js", ArtifactKey::dir_imported);
+    session.provide(key);
+    let before = session.version(key);
+
+    session.edit_text(
+        "packages/other/destack.json",
+        r#"{
+  "name": "other",
+  "exports": { ".": { "kind": "module", "path": "index.ds" } }
+}
+"#,
+    );
+    session.edit_text(
+        "packages/other/index.ds",
+        r#"export const value = 1;
+"#,
+    );
+    assert_eq!(session.provide(key), ArtifactOutcome::Ok);
+    assert_ne!(session.version(key), before);
+    assert_eq!(
+        session.imports(key),
+        [Some(session.module_id(
+            "packages/other/index.ds",
+            session.revision()
+        ))]
+    );
 }
 
 #[test]

@@ -398,74 +398,50 @@ export const result = value;
     assert_eq!(warm, cold);
     assert_eq!(TraceCounts::from_trace(&warm_trace), TraceCounts::default());
 
-    // precise const types propagate
-    test.edit_text(
-        "src/dep.ds",
+    // recheck the importer after value and documentation edits to its dependency
+    let mut previous = cold;
+    for content in [
         r#"export const value = 2;
 "#,
-    );
-
-    let (edited, edited_trace) = test.check("src/index.ds", "js");
-    assert_ne!(edited, cold);
-
-    // require exact terminal work after the semantic edit
-    let mut edited_artifacts = edited_trace
-        .attempts
-        .iter()
-        .filter(|attempt| attempt.outcome != "parked")
-        .map(|attempt| (attempt.outcome.as_str(), attempt.name.as_str()))
-        .collect::<Vec<_>>();
-    edited_artifacts.sort_unstable();
-    assert_eq!(
-        edited_artifacts,
-        [
-            ("built", "dir.bind"),
-            ("built", "dir.check"),
-            ("built", "dir.declare"),
-            ("built", "dir.elaborate"),
-            ("built", "dir.elaborate"),
-            ("built", "dir.expand"),
-            ("built", "dir.export"),
-            ("built", "dir.import"),
-            ("built", "dir.parse"),
-            ("built", "dir.resolve"),
-        ],
-    );
-    // documentation changes the checked dependency closure
-    test.edit_text(
-        "src/dep.ds",
         r#"export const value = 2;
 
 /// The dependency value.
 "#,
-    );
+    ] {
+        test.edit_text("src/dep.ds", content);
+        let (current, trace) = test.check("src/index.ds", "js");
+        assert_ne!(current, previous);
+        previous = current;
 
-    let (commented, commented_trace) = test.check("src/index.ds", "js");
-    assert_ne!(commented, edited);
-
-    // require documentation to invalidate checked compiler input
-    let mut commented_artifacts = commented_trace
-        .attempts
-        .iter()
-        .filter(|attempt| attempt.outcome != "parked")
-        .map(|attempt| (attempt.outcome.as_str(), attempt.name.as_str()))
-        .collect::<Vec<_>>();
-    commented_artifacts.sort_unstable();
-    assert_eq!(
-        commented_artifacts,
-        [
-            ("built", "dir.bind"),
-            ("built", "dir.check"),
-            ("built", "dir.declare"),
-            ("built", "dir.elaborate"),
-            ("built", "dir.elaborate"),
-            ("built", "dir.expand"),
-            ("built", "dir.export"),
-            ("built", "dir.import"),
-            ("built", "dir.parse"),
-            ("built", "dir.resolve"),
-        ],
-    );
+        // verify exact work in the changed dependency and its importer
+        let mut artifacts = trace
+            .attempts
+            .iter()
+            .filter(|attempt| attempt.outcome != "parked")
+            .map(|attempt| {
+                (
+                    attempt.outcome.as_str(),
+                    attempt.name.as_str(),
+                    attempt.label.as_deref(),
+                )
+            })
+            .collect::<Vec<_>>();
+        artifacts.sort_unstable();
+        assert_eq!(
+            artifacts,
+            [
+                ("built", "dir.bind", Some("file://src/dep.ds")),
+                ("built", "dir.check", Some("file://src/index.ds")),
+                ("built", "dir.declare", Some("file://src/dep.ds")),
+                ("built", "dir.elaborate", Some("file://src/dep.ds")),
+                ("built", "dir.expand", Some("file://src/dep.ds")),
+                ("built", "dir.export", Some("file://src/dep.ds")),
+                ("built", "dir.import", Some("file://src/dep.ds")),
+                ("built", "dir.parse", Some("file://src/dep.ds")),
+                ("built", "dir.resolve", Some("file://src/dep.ds")),
+            ],
+        );
+    }
 }
 
 #[test]

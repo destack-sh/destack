@@ -23,6 +23,7 @@ impl SessionState {
             .module(revision, module_id)?
             .ok_or(SessionError::ModuleNotTracked { module_id })?;
         let mut dependencies = ArtifactDependencySet::default();
+        dependencies.observe(self.repository().module_dependency(revision, module_id)?);
 
         // code modules observe every contributing source file
         if module.loader.is_code() {

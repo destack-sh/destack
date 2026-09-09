@@ -127,15 +127,7 @@ impl Worker {
             }
         }
 
-        // wake a cancelled waiter after its last active attempt
-        if run.is_cancelled() {
-            run.wake();
-        }
-
-        // finish an abandoned trace after its last active attempt
-        if run.is_abandoned() && !self.scheduler.is_run_executing(run.id()) {
-            run.finish(&self.scheduler);
-        }
+        self.scheduler.finish_attempt(&run);
     }
 
     /// Provide one claimed task per the repository's plan.
@@ -190,11 +182,13 @@ impl Worker {
                 let failure = ArtifactFailure::requirement(failed_dependency);
                 let diagnostics = Vec::new();
                 let result = recorder.span("commit", || {
-                    self.fail(state, run, task, dependencies, diagnostics, failure)
+                    self.fail(state, task, dependencies, diagnostics, failure)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
+                result?;
+                self.finish_failed(run, task);
 
-                result
+                Ok(())
             }
             // run the provider over the exact dependency set
             Ok(ArtifactPlan::Build {
@@ -271,11 +265,13 @@ impl Worker {
             }
             Err(error) => {
                 let result = recorder.span("commit", || {
-                    self.fail_provider(state, &attempt, run, task, dependencies, *error)
+                    self.fail_provider(state, &attempt, task, dependencies, *error)
                 });
                 recorder.finish(ArtifactAttemptOutcome::Failed);
+                result?;
+                self.finish_failed(run, task);
 
-                result
+                Ok(())
             }
         }
     }
@@ -318,7 +314,6 @@ impl Worker {
         &self,
         state: &SessionState,
         attempt: &ProviderAttempt,
-        run: &ArtifactRunState,
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
         error: ProviderError,
@@ -329,10 +324,10 @@ impl Worker {
             ProviderError::RequirementFailed { key } => {
                 let failure = ArtifactFailure::requirement(key);
 
-                self.fail(state, run, task, dependencies, diagnostics, failure)
+                self.fail(state, task, dependencies, diagnostics, failure)
             }
             ProviderError::Failed { failure } => {
-                self.fail(state, run, task, dependencies, diagnostics, failure)
+                self.fail(state, task, dependencies, diagnostics, failure)
             }
             ProviderError::Corrupt { version: corrupt } => Err(SessionError::Internal {
                 detail: format!(
@@ -354,31 +349,30 @@ impl Worker {
         }
     }
 
-    /// Mark one ready task terminal and emit its finished event.
+    /// Emit one completed task before releasing its dependents.
     fn finish_ready(&self, run: &ArtifactRunState, task: Task) {
-        self.scheduler.mark_done(task);
-
         run.emit_task(SessionEvent::TaskFinished {
             run_id: run.id(),
             artifact_key: task.key,
         });
+
+        self.scheduler.mark_done(task);
     }
 
-    /// Mark one failed task terminal and emit its failed event.
+    /// Emit one failed task before releasing its dependents.
     fn finish_failed(&self, run: &ArtifactRunState, task: Task) {
-        self.scheduler.mark_done(task);
-
         run.emit_task(SessionEvent::TaskFailed {
             run_id: run.id(),
             artifact_key: task.key,
         });
+
+        self.scheduler.mark_done(task);
     }
 
-    /// Record one artifact failure and emit its failed event.
+    /// Commit one artifact failure.
     fn fail(
         &self,
         state: &SessionState,
-        run: &ArtifactRunState,
         task: Task,
         dependencies: Arc<[ArtifactDependency]>,
         diagnostics: Vec<DiagnosticRecord>,
@@ -391,8 +385,6 @@ impl Worker {
             diagnostics,
             failure,
         )?;
-
-        self.finish_failed(run, task);
 
         Ok(())
     }
