@@ -111,6 +111,7 @@ warning[no-redundant-type-constraint]: generic constraint is implied
 
 -   1│ function identity<T: unknown>(value: T): T {
 +   1│ function identity<T>(value: T): T {
+    2│     return value;
 "#,
         );
         session.assert_fixes(

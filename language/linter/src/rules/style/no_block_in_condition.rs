@@ -213,6 +213,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function wait(isReady: boolean): void {
 -   2│     while (do { isReady }) {}
 +   2│     while (isReady) {}
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -254,6 +255,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function wait(value: { ready: boolean | undefined } | null): void {
 -   2│     while (let { ready } = value && do { ready ?? false }) {}
 +   2│     while (let { ready } = value && (ready ?? false)) {}
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -336,6 +338,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function choose(value: int32): int32 {
 -   2│     return match (do { value }) {
 +   2│     return match (value) {
+    3│         selected => selected
 "#,
         );
         session.assert_fixes(
@@ -385,6 +388,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function choose(value: int32): void {
 -   2│     switch (do { value }) {
 +   2│     switch (value) {
+    3│         case 0:
 "#,
         );
         session.assert_fixes(
@@ -431,6 +435,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function choose(isReady: boolean, hasValue: boolean): string {
 -   2│     return do { isReady ? hasValue : false } ? "ready" : "waiting";
 +   2│     return (isReady ? hasValue : false) ? "ready" : "waiting";
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -472,6 +477,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function choose(isReady: boolean, hasValue: boolean): string {
 -   2│     return do { (isReady && hasValue) } ? "ready" : "waiting";
 +   2│     return (isReady && hasValue) ? "ready" : "waiting";
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -513,6 +519,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     1│ function count(): void {
 -   2│     for (let index = 0; do { index < 3 }; index++) {}
 +   2│     for (let index = 0; index < 3; index++) {}
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -559,6 +566,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     2│     return match (value) {
 -   3│         value if (do { value > 0 }) => value
 +   3│         value if (value > 0) => value
+    4│         _ => 0
 "#,
         );
         session.assert_fixes(
@@ -608,6 +616,7 @@ warning[no-block-in-condition]: control-flow input is a block expression
     2│     return match (value) {
 -   3│         pair if (let (number, ready) = pair && do { ready }) => number
 +   3│         pair if (let (number, ready) = pair && ready) => number
+    4│         _ => 0
 "#,
         );
         session.assert_fixes(

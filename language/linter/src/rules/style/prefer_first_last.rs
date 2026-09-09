@@ -173,6 +173,7 @@ warning[prefer-first-last]: endpoint lookup uses a numeric index
     1│ function last(values: int32[]): int32 | undefined {
 -   2│     return values.at(-1);
 +   2│     return values.last();
+    3│ }
 "#,
         );
         session.assert_fixes(

@@ -148,6 +148,7 @@ warning[manual-filter-map]: mapped array is filtered only for defined values
     1│ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 -   2│     return values.map((value) => value).filter((value) => value !== undefined);
 +   2│     return values.filterMap((value) => value);
+    3│ }
 "#,
         );
         session.assert_suggestions(

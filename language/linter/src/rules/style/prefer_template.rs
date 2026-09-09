@@ -215,6 +215,7 @@ warning[prefer-template]: string concatenation obscures a template
     1│ function greeting(name: string): string {
 -   2│     return name + " says hello";
 +   2│     return `${name} says hello`;
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -277,6 +278,7 @@ warning[prefer-template]: string concatenation obscures a template
     1│ function describe(name: string): string {
 -   2│     return "line\nliteral \${value}: " + name;
 +   2│     return `line\nliteral \${value}: ${name}`;
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -359,6 +361,7 @@ warning[prefer-template]: string concatenation obscures a template
     1│ function greeting(first: string, last: string): string {
 -   2│     return "hello, " + first + " " + last + "!";
 +   2│     return `hello, ${first} ${last}!`;
+    3│ }
 "#,
         );
         session.assert_fixes(

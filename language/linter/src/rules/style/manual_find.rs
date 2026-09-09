@@ -237,6 +237,7 @@ warning[manual-find]: loop manually finds its first matching value
 -   6│     }
 -   7│     return undefined;
 +   2│     return values.find((value) => value > 0);
+    8│ }
 "#,
         );
         session.assert_suggestions(

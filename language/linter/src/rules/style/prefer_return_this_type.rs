@@ -151,6 +151,7 @@ warning[prefer-return-this-type]: method only returns its receiver
     1│ class Builder {
 -   2│     clear(flag: boolean): Builder {
 +   2│     clear(flag: boolean): this {
+    3│         if (flag) {
 "#,
         );
         session.assert_fixes(

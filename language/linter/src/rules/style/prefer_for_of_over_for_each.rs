@@ -277,10 +277,10 @@ warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
     1│ function copy(values: int32[], output: int32[]): void {
 -   2│     values.forEach((value) => {
 +   2│     for (const value of values) {
-
     3│         output.push(value);
 -   4│     });
 +   4│     }
+    5│ }
 "#,
         );
         session.assert_suggestions(

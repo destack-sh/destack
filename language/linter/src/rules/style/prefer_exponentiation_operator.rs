@@ -139,6 +139,7 @@ warning[prefer-exponentiation-operator]: Math.pow call obscures exponentiation
     1│ function power(left: number, right: number, exponent: number): number {
 -   2│     return Math.pow(left + right, exponent + 1);
 +   2│     return (left + right) ** (exponent + 1);
+    3│ }
 "#,
         );
         session.assert_fixes(

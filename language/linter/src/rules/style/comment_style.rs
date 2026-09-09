@@ -385,6 +385,7 @@ warning[comment-style]: comment uses non-canonical delimiter spacing
 
 -   1│ //build the session index
 +   1│ // build the session index
+    2│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -426,6 +427,7 @@ warning[comment-style]: comment uses non-canonical delimiter spacing
 
 -   1│ ///# Sessions
 +   1│ /// # Sessions
+    2│ function sessions(): int32 {
 "#,
         );
         session.assert_fixes(
@@ -469,6 +471,7 @@ warning[comment-style]: ordinary comment continuation is not indented
     1│ // build the session index from every configured source
 -   2│ // before publishing the completed index
 +   2│ //  before publishing the completed index
+    3│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -509,6 +512,7 @@ warning[comment-style]: multiple comment sentences begin on one physical line
 -   1│ // build the session index. Return the completed index.
 +   1│ // build the session index.
 +   2│ // Return the completed index.
+    2│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -577,6 +581,7 @@ warning[comment-style]: prose sentence begins with lowercase prose
     1│ // build the session index.
 -   2│ // return the completed index.
 +   2│ // Return the completed index.
+    3│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -616,6 +621,7 @@ warning[comment-style]: ordinary comment begins with uppercase prose
 
 -   1│ // NOTE #Performance: Build this index once.
 +   1│ // NOTE #Performance: build this index once.
+    2│ const sessions = 1;
 
 warning[comment-style]: comment uses non-canonical punctuation
  ──▶ main.ds:1:44
@@ -632,6 +638,7 @@ warning[comment-style]: comment uses non-canonical punctuation
 
 -   1│ // NOTE #Performance: Build this index once.
 +   1│ // NOTE #Performance: Build this index once
+    2│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -670,6 +677,7 @@ warning[comment-style]: comment uses non-canonical punctuation
 
 -   1│ // build the session index.
 +   1│ // build the session index
+    2│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -728,6 +736,7 @@ warning[comment-style]: documentation summary is not separated from following pr
 
     1│ /// Return the active session.
 +   2│ ///
+    2│ /// The caller owns the returned value.
 "#,
         );
         session.assert_fixes(
@@ -775,6 +784,7 @@ warning[comment-style]: documentation summary is not separated from following pr
 +   1│ /// Return the active session.
 +   2│ ///
 +   3│ /// The caller owns the returned value.
+    2│ function session(): int32 {
 "#,
         );
         session.assert_fixes(
@@ -857,6 +867,7 @@ warning[comment-style]: comment uses non-canonical punctuation
 
 -   1│ /// Return the active session:
 +   1│ /// Return the active session.
+    2│ ///
 "#,
         );
         session.assert_fixes(
@@ -903,6 +914,7 @@ warning[comment-style]: comment line exceeds 100 columns
 -   1│ /// Return the authenticated `Session<T>` after validating every configured policy for the current incoming request.
 +   1│ /// Return the authenticated `Session<T>` after validating every configured policy for the current
 +   2│ /// incoming request.
+    2│ function authenticate(): int32 {
 "#,
         );
         session.assert_fixes(
@@ -948,6 +960,7 @@ warning[comment-style]: comment line exceeds 100 columns
 -   1│ /// Return [the authenticated session](https://example.com/session) after validating every configured policy for the current request.
 +   1│ /// Return [the authenticated session](https://example.com/session) after validating every
 +   2│ /// configured policy for the current request.
+    2│ function authenticate(): int32 {
 "#,
         );
         session.assert_fixes(
@@ -990,6 +1003,7 @@ warning[comment-style]: comment line exceeds 100 columns
 -   1│ // build the authenticated session index after validating every configured policy for the current incoming request
 +   1│ // build the authenticated session index after validating every configured policy for the current
 +   2│ //  incoming request
+    2│ const sessions = 1;
 "#,
         );
         session.assert_fixes(
@@ -1030,6 +1044,7 @@ warning[comment-style]: multiple comment sentences begin on one physical line
 -   1│ // build the authenticated session index after validating every configured policy for the incoming request. Return the completed index.
 +   1│ // build the authenticated session index after validating every configured policy for the incoming request.
 +   2│ // Return the completed index.
+    2│ const sessions = 1;
 
 warning[comment-style]: comment line exceeds 100 columns
  ──▶ main.ds:1:1
@@ -1047,6 +1062,7 @@ warning[comment-style]: comment line exceeds 100 columns
 -   1│ // build the authenticated session index after validating every configured policy for the incoming request. Return the completed index.
 +   1│ // build the authenticated session index after validating every configured policy for the incoming
 +   2│ //  request. Return the completed index.
+    2│ const sessions = 1;
 "#,
         );
         session.assert_fixes(

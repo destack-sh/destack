@@ -201,6 +201,7 @@ warning[imprecise-float-operation]: expanded logarithm loses precision near zero
     1│ function offsetLog(value: float64): float64 {
 -   2│     return (1.0 + value).log();
 +   2│     return value.log1p();
+    3│ }
 "#,
         );
         session.assert_suggestions(

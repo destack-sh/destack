@@ -140,6 +140,7 @@ warning[no-redundant-label]: label does not change the control target
     1│ outer: loop {
 -   2│     break outer;
 +   2│     break;
+    3│ }
 "#,
         );
         session.assert_fixes(

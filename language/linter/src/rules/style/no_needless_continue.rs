@@ -107,6 +107,7 @@ warning[no-needless-continue]: continue repeats the end of this iteration
 
     3│         value;
 -   4│         continue;
+    5│     }
 "#,
         );
         session.assert_fixes(

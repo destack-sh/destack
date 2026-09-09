@@ -364,7 +364,7 @@ function value<T: Default>(result: Ok<T> | Err<string>): T {
         let session = TestSession::dir(
             &MANUAL_UNWRAP_OR_DEFAULT,
             r#"
-function value<T: Default>(result: &readonly Result<T, string>): T {
+function value<T: Default & Copy>(result: &readonly Result<T, string>): T {
     return match (result) {
         Ok { value } => value
         Err { error: _ } => T.default()

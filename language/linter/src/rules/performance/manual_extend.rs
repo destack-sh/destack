@@ -298,6 +298,7 @@ warning[manual-extend]: loop inserts every source value
 -   3│         target.push(value);
 -   4│     }
 +   2│     target.extend(source);
+    5│ }
 "#,
         );
         session.assert_suggestions(

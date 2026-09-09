@@ -252,6 +252,7 @@ warning[manual-map]: loop manually collects mapped values
 -   5│     }
 -   6│     return result;
 +   2│     return values.map((value) => value * 2);
+    7│ }
 "#,
         );
         session.assert_suggestions(

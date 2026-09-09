@@ -101,6 +101,7 @@ warning[no-useless-return]: return is redundant at the end of this function
 
     2│     value;
 -   3│     return;
+    4│ }
 "#,
         );
         session.assert_fixes(

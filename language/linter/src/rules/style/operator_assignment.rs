@@ -162,6 +162,7 @@ warning[operator-assignment]: assignment repeats its target
     4│ function advance(counter: Counter): void {
 -   5│     counter.value = counter.value * 2;
 +   5│     counter.value *= 2;
+    6│ }
 "#,
         );
         session.assert_fixes(
@@ -257,6 +258,7 @@ warning[operator-assignment]: assignment repeats its target
    15│     let result = current;
 -  16│     result = result + next;
 +  16│     result += next;
+   17│     return result;
 "#,
         );
         session.assert_fixes(

@@ -258,6 +258,7 @@ warning[iter-cloned-collect]: collection is copied through its iterator
     5│ function copy(values: &readonly Label[]): Label[] {
 -   6│     return values.iterator().cloned().toArray();
 +   6│     return values.clone();
+    7│ }
 "#,
         );
         session.assert_fixes(

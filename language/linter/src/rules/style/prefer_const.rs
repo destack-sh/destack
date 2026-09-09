@@ -472,6 +472,7 @@ warning[prefer-const]: binding is never reassigned
     8│ function increment(counter: Counter): Counter {
 -   9│     let result = counter;
 +   9│     const result = counter;
+   10│     result.increment();
 "#,
         );
         session.assert_fixes(

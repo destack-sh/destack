@@ -223,6 +223,7 @@ warning[unused-peekable]: peekable iterator is never peeked
     1│ function consume(values: int32[]): void {
 -   2│     const iterator = values.iterator().peekable();
 +   2│     const iterator = values.iterator();
+    3│     iterator.next();
 "#,
         );
         session.assert_fixes(

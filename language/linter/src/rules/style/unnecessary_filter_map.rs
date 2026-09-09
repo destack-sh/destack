@@ -120,6 +120,7 @@ warning[unnecessary-filter-map]: filterMap callback always returns a defined val
     1│ function increment(values: int32[]): int32[] {
 -   2│     return values.filterMap((value) => value + 1);
 +   2│     return values.map((value) => value + 1);
+    3│ }
 "#,
         );
         session.assert_suggestions(

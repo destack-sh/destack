@@ -159,6 +159,7 @@ warning[prefer-length-over-count]: array iterator is counted in full
     1│ function length(values: int32[]): isize {
 -   2│     return values.iterator().count();
 +   2│     return values.length;
+    3│ }
 "#,
         );
         session.assert_fixes(

@@ -191,6 +191,7 @@ warning[no-needless-boolean-branch]: conditional only restates its condition
 -   5│         return true;
 -   6│     }
 +   2│     return !condition;
+    7│ }
 "#,
         );
         session.assert_fixes(
@@ -272,6 +273,7 @@ warning[no-needless-boolean-branch]: conditional only restates its condition
     1│ function inactive(condition: boolean): boolean {
 -   2│     return condition ? false : true;
 +   2│     return !condition;
+    3│ }
 "#,
         );
         session.assert_fixes(

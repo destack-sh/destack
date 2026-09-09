@@ -314,6 +314,7 @@ warning[prefer-single-call]: array calls `push` repeatedly
 -   2│     values.push(1);
 -   3│     values.push(2);
 +   2│     values.push(1, 2);
+    4│ }
 "#,
         );
         session.assert_fixes(

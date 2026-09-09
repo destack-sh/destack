@@ -201,6 +201,7 @@ warning[no-template-curly-in-string]: regular string contains interpolation synt
     1│ function source(name: string): string {
 -   2│     return "\\\\${name}";
 +   2│     return `\\\\${name}`;
+    3│ }
 "#,
         );
     }

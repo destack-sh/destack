@@ -178,6 +178,7 @@ warning[manual-fill]: index loop assigns one value to every element
 -   3│         values[index] = 0;
 -   4│     }
 +   2│     values.fill(0);
+    5│ }
 "#,
         );
         session.assert_suggestions(

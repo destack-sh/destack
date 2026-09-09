@@ -166,6 +166,7 @@ warning[dot-notation]: static member uses bracket notation
     1│ function name(user: { name: string } | null): string | undefined {
 -   2│     return user?.["name"];
 +   2│     return user?.name;
+    3│ }
 "#,
         );
         session.assert_fixes(

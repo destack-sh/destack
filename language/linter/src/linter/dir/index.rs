@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
-    DirResolved, DirView, EnvironmentBound, IndexKind,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported,
+    DirParsed, DirResolved, DirView, EnvironmentBound, IndexKind,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;

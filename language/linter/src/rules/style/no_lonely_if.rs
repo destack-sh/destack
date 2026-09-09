@@ -200,6 +200,7 @@ warning[no-lonely-if]: else block contains only another if
 -   7│         }
 +   4│     } else if (value < 0) {
 +   5│         return "negative";
+    8│     }
 "#,
         );
         session.assert_fixes(

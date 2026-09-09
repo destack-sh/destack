@@ -142,6 +142,7 @@ warning[no-useless-constructor]: constructor repeats implicit construction
 
     1│ class Token {
 -   2│     constructor() {}
+    3│ }
 "#,
         );
         session.assert_fixes(

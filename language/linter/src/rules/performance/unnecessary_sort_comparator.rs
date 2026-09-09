@@ -195,6 +195,7 @@ warning[unnecessary-sort-comparator]: comparator reproduces natural ordering
     1│ function order(values: int32[]): void {
 -   2│     values.sort((left, right) => left.compare(right));
 +   2│     values.sort();
+    3│ }
 "#,
         );
         session.assert_fixes(

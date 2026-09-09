@@ -219,6 +219,7 @@ warning[double-comparisons]: two comparisons express one relationship
     1│ function atLeast(left: int32, right: int32): boolean {
 -   2│     return left > right || left === right;
 +   2│     return left >= right;
+    3│ }
 "#,
         );
         session.assert_fixes(
@@ -260,6 +261,7 @@ warning[double-comparisons]: two comparisons express one relationship
     1│ function above(left: int32, right: int32): boolean {
 -   2│     return left >= right && left !== right;
 +   2│     return left > right;
+    3│ }
 "#,
         );
         session.assert_fixes(

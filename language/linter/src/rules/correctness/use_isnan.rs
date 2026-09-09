@@ -378,6 +378,7 @@ warning[use-isnan]: equality cannot test for NaN
     1│ function isPresent(value: float64): boolean {
 -   2│     return value !== 0.0 / 0.0;
 +   2│     return !value.isNaN();
+    3│ }
 "#,
         );
 
@@ -421,6 +422,7 @@ warning[use-isnan]: equality cannot test for NaN
     1│ function isMissing(value: float64): boolean {
 -   2│     return value === NaN;
 +   2│     return value.isNaN();
+    3│ }
 "#,
         );
     }
@@ -456,6 +458,7 @@ warning[use-isnan]: equality cannot test for NaN
     1│ function isMissing(value: float64): boolean {
 -   2│     return value === -NaN;
 +   2│     return value.isNaN();
+    3│ }
 "#,
         );
     }
@@ -491,6 +494,7 @@ warning[use-isnan]: equality cannot test for NaN
     1│ function isMissing(value: float64): boolean {
 -   2│     return Number.NaN === value;
 +   2│     return value.isNaN();
+    3│ }
 "#,
         );
     }
@@ -629,6 +633,7 @@ warning[use-isnan]: equality cannot test for NaN
     2│ function isMissing(value: float64): boolean {
 -   3│     return value === Missing;
 +   3│     return value.isNaN();
+    4│ }
 "#,
         );
     }

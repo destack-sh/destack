@@ -359,6 +359,7 @@ warning[suboptimal-float-operation]: general exponentiation computes a square ro
     1│ function root(value: float64): float64 {
 -   2│     return value ** 0.5;
 +   2│     return value.sqrt();
+    3│ }
 "#,
         );
         session.assert_suggestions(

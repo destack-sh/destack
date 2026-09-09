@@ -153,8 +153,8 @@ warning[no-drop-of-trivial-value]: value requires no destruction
     fn test_reports_borrowed_reference() {
         let session = TestSession::mir(
             &NO_DROP_OF_TRIVIAL_VALUE,
-            r#"function discard(v0: ref<int32, borrowed, readonly, local>): void {
-entry(v0: ref<int32, borrowed, readonly, local>):
+            r#"function discard<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly, local>):
     drop v0
     return
 }
@@ -166,8 +166,8 @@ entry(v0: ref<int32, borrowed, readonly, local>):
 warning[no-drop-of-trivial-value]: value requires no destruction
  ──▶ main.mir:3:5
   │
-1 │ function discard(v0: ref<int32, borrowed, readonly, local>): void {
-2 │ entry(v0: ref<int32, borrowed, readonly, local>):
+1 │ function discard<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): void {
+2 │ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
 3 │     drop v0
   │     ^^^^^^^
 4 │     return

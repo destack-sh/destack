@@ -144,6 +144,7 @@ warning[yoda]: comparison puts its literal first
     1│ function isLarge(value: int32): boolean {
 -   2│     return 10 < value;
 +   2│     return value > 10;
+    3│ }
 "#,
         );
         session.assert_fixes(

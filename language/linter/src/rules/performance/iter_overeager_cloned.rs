@@ -347,6 +347,7 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
     7│ function prefix(values: Iterator<&readonly Label>, count: isize): Iterator<Label> {
 -   8│     return values.cloned().take(count);
 +   8│     return values.take(count).cloned();
+    9│ }
 "#,
         );
         session.assert_suggestions(

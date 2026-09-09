@@ -241,6 +241,7 @@ warning[needless-collect]: Iterator is materialized only to read its length
     1│ function length(values: Iterator<int32>): isize {
 -   2│     return values.toArray().length;
 +   2│     return values.count();
+    3│ }
 "#,
         );
         session.assert_fixes(

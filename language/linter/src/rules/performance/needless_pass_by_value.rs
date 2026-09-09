@@ -379,9 +379,9 @@ entry(v0: Packet):
             r#"
 type Packet { code: int32; }
 
-function packetCode(v0: ref<Packet, borrowed, readonly>): int32 {
-entry(v0: ref<Packet, borrowed, readonly>):
-    v1: ref<int32, borrowed, readonly> = field.address v0, 0
+function packetCode<'a>(v0: ref<Packet, borrowed, 'a, readonly, local>): int32 {
+entry(v0: ref<Packet, borrowed, 'a, readonly, local>):
+    v1: ref<int32, borrowed, 'a, readonly, local> = field.address v0, 0
     v2: int32 = load v1
     return v2
 }

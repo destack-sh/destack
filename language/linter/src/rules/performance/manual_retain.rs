@@ -164,6 +164,7 @@ warning[manual-retain]: owned array is replaced by its own filtered values
     2│     let values = input;
 -   3│     values = values.filter((value) => value > 0);
 +   3│     values.retain((value) => value > 0);
+    4│     return values;
 "#,
         );
         session.assert_suggestions(

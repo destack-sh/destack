@@ -133,6 +133,7 @@ warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
     2│     let total: int32 = 0;
 -   3│     for (const value of values.iterator()) {
 +   3│     for (const value of values) {
+    4│         total += value;
 "#,
         );
         session.assert_fixes(

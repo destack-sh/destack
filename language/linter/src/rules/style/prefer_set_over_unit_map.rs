@@ -143,6 +143,7 @@ warning[prefer-set-over-unit-map]: Map value type carries no information
 
 -   1│ function collect(): Map<string, void> {
 +   1│ function collect(): Set<string> {
+    2│     return new Map<string, void>();
 
 warning[prefer-set-over-unit-map]: Map value type carries no information
  ──▶ main.ds:2:28
@@ -160,6 +161,7 @@ warning[prefer-set-over-unit-map]: Map value type carries no information
     1│ function collect(): Map<string, void> {
 -   2│     return new Map<string, void>();
 +   2│     return new Set<string>();
+    3│ }
 "#,
         );
         session.assert_suggestions(

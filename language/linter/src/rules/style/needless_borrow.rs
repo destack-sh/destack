@@ -144,6 +144,7 @@ warning[needless-borrow]: borrow is immediately dereferenced
     1│ function sum(left: int32, right: int32): int32 {
 -   2│     return *(&(left + right));
 +   2│     return (left + right);
+    3│ }
 "#,
         );
         session.assert_fixes(

@@ -182,6 +182,7 @@ warning[unused-enumerate-index]: indexed iteration index is unused
     1│ function copy(values: int32[], output: int32[]): void {
 -   2│     for (const (_, value) of values.entries()) {
 +   2│     for (const value of values) {
+    3│         output.push(value);
 "#,
         );
         session.assert_fixes(

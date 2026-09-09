@@ -234,6 +234,7 @@ warning[no-identity-operation]: operation has an identity operand
     1│ function retain(value: bigint): bigint {
 -   2│     return 1n * value;
 +   2│     return value;
+    3│ }
 "#,
         );
         session.assert_fixes(

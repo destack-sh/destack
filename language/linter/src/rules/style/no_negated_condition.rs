@@ -274,6 +274,7 @@ warning[no-negated-condition]: two-way branch uses a negated condition
     1│ function status(left: int32, right: int32): string {
 -   2│     return left != right ? "different" : "same";
 +   2│     return left == right ? "same" : "different";
+    3│ }
 "#,
         );
         session.assert_fixes(

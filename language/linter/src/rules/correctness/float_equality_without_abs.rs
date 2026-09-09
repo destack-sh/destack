@@ -154,6 +154,7 @@ warning[float-equality-without-abs]: floating-point difference is compared witho
     1│ function approximatelyEqual(left: float64, right: float64): boolean {
 -   2│     return left - right < Number.EPSILON;
 +   2│     return (left - right).abs() < Number.EPSILON;
+    3│ }
 "#,
         );
         session.assert_suggestions(

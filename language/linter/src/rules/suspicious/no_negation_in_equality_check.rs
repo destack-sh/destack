@@ -135,6 +135,7 @@ warning[no-negation-in-equality-check]: left equality operand is negated
     1│ function differs(left: boolean, right: boolean): boolean {
 -   2│     return !(/* left */ left) === /* right */ right;
 +   2│     return !((/* left */ left) === /* right */ right);
+    3│ }
 "#,
         );
         session.assert_suggestions(

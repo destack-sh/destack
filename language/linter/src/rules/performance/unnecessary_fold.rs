@@ -231,6 +231,7 @@ warning[unnecessary-fold]: boolean accumulator duplicates a terminal predicate
     1│ function containsPositive(values: int32[]): boolean {
 -   2│     return values.reduce((found, value) => found || value > 0, false);
 +   2│     return values.some((value) => value > 0);
+    3│ }
 "#,
         );
         session.assert_suggestions(

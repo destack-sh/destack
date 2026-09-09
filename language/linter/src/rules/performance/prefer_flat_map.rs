@@ -141,6 +141,7 @@ warning[prefer-flat-map]: mapped array is immediately flattened
     1│ function pairs(values: int32[]): int32[] {
 -   2│     return values.map((value) => [value, value]).flat();
 +   2│     return values.flatMap((value) => [value, value]);
+    3│ }
 "#,
         );
         session.assert_fixes(

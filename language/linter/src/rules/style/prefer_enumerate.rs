@@ -246,9 +246,9 @@ warning[prefer-enumerate]: iteration maintains its index manually
 -   2│     let index: isize = 0;
 -   3│     for (const value of values) {
 +   2│     for (const (index, value) of values.entries()) {
-
     4│         output.push(index);
 -   5│         index++;
+    6│     }
 "#,
         );
         session.assert_suggestions(

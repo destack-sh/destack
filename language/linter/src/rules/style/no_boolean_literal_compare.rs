@@ -212,6 +212,7 @@ warning[no-boolean-literal-compare]: boolean literal comparison is unnecessary
     1│ function active(value: boolean): boolean {
 -   2│     return value == true;
 +   2│     return value;
+    3│ }
 "#,
         );
         session.assert_fixes(

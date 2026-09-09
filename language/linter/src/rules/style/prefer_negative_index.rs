@@ -233,6 +233,7 @@ warning[prefer-negative-index]: at index is expressed relative to array length
     1│ function read(values: int32[]): int32 | undefined {
 -   2│     return values.at((values.length as isize) - (1 + 1));
 +   2│     return values.at(-(1 + 1));
+    3│ }
 "#,
         );
         session.assert_fixes(

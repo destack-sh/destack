@@ -174,6 +174,7 @@ warning[no-redundant-match-guard]: equality guard can be expressed by the patter
     2│     return match (value) {
 -   3│         matched if (1 === matched) => "one"
 +   3│         1 => "one"
+    4│         _ => "other"
 "#,
         );
         session.assert_fixes(

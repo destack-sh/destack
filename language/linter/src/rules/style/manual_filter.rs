@@ -278,6 +278,7 @@ warning[manual-filter]: loop manually collects matching values
 -   7│     }
 -   8│     return result;
 +   2│     return values.filter((value) => value > 0);
+    9│ }
 "#,
         );
         session.assert_suggestions(

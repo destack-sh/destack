@@ -571,6 +571,7 @@ warning[prefer-array-search]: filtered array is used only for its first element
     1│ function firstPositive(values: int32[]): int32 | undefined {
 -   2│     return values.filter((value) => value > 0).at(0);
 +   2│     return values.find((value) => value > 0);
+    3│ }
 "#,
         );
         session.assert_suggestions(

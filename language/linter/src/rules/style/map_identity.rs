@@ -167,6 +167,7 @@ warning[map-identity]: array is mapped through the identity function
     1│ function identity(values: ^int32[]): ^int32[] {
 -   2│     return values.map((value) => value);
 +   2│     return values;
+    3│ }
 "#,
         );
         session.assert_fixes(
