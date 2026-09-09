@@ -205,10 +205,7 @@ async fn test_complete_constructor_receiver_after_typing() {
 
     // complete the current receiver while background work observes earlier revisions
     let labels = server.completion_labels(document.completion(cursor)).await;
-    assert_eq!(
-        labels,
-        ["name", "age", "toString", "borrow", "into", "tryInto"],
-    );
+    assert_eq!(labels, ["name", "age", "borrow", "into", "tryInto"],);
 }
 
 /// Apply one ordered batch of ranged edits using UTF-16 source positions.

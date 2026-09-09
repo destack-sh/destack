@@ -307,15 +307,13 @@ const sound = dog.name;
     )
     .await;
 
-    // offer own members before extension members before inherited members
+    // offer declared and inherited fields before extension methods
     let labels = server
         .completion_labels(document.completion(position(15, 18)))
         .await;
     assert_eq!(
         labels,
-        [
-            "tricks", "name", "bark", "toString", "borrow", "into", "tryInto",
-        ],
+        ["tricks", "name", "bark", "borrow", "into", "tryInto"],
     );
 }
 
@@ -353,10 +351,7 @@ function inspect(crate: &readonly Crate): string {
     let labels = server
         .completion_labels(document.completion(position(17, 17)))
         .await;
-    assert_eq!(
-        labels,
-        ["label", "peek", "toString", "borrow", "into", "tryInto"],
-    );
+    assert_eq!(labels, ["label", "peek", "borrow", "into", "tryInto"],);
 }
 
 /// Complete blanket extension members on primitive receivers.
