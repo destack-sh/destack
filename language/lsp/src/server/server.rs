@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::iter;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
@@ -17,7 +17,7 @@ use destack_session::{
 };
 use destack_source::{FileId, FileSystem, PatchSet, PhysicalFileSystem, TextRange};
 use destack_workspace::{
-    DiagnosticRun, FileDiagnostics, FileEdit, QueryFile, QueryRun, RevisionPolicy, RunQueryInput,
+    DiagnosticOutcome, DiagnosticRun, FileEdit, QueryFile, QueryRun, RevisionPolicy, RunQueryInput,
     RunQueryResponse, Workspace,
 };
 use serde_json::to_value;
@@ -28,7 +28,7 @@ use super::{
 };
 use crate::query::{
     CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
-    IntoSource, QueryContinuation, SemanticTokenStream,
+    IntoSource, QueryContinuation, SemanticTokenStream, WorkspaceDiagnostics,
 };
 
 /// Slow artifact attempts included in verbose LSP traces.
@@ -357,30 +357,35 @@ impl DestackLanguageServer {
         &self,
         workspace: Arc<Workspace>,
         run: DiagnosticRun,
-    ) -> jsonrpc::Result<(Revision, Vec<FileDiagnostics>)> {
+    ) -> jsonrpc::Result<(Revision, DiagnosticOutcome)> {
         let revision = run.revision();
         let artifact_run_id = run.artifact_run_id();
-        let record = LogRecord::new("diagnostics.started")
-            .field("mode", "pull")
-            .field("revision", revision)
-            .field("run_id", artifact_run_id);
-        self.client.log(record);
+        let is_tracing = self.client.trace_level() != lsp::TraceValue::Off;
+        if is_tracing {
+            let record = LogRecord::new("diagnostics.started")
+                .field("mode", "pull")
+                .field("revision", revision)
+                .field("run_id", artifact_run_id);
+            self.client.log_trace(record.to_string(), None);
+        }
 
         // complete and report the exact diagnostic operation
         let started = Instant::now();
         let outcome = run.wait().await;
-        let files = outcome.diagnostics.len();
-        let failures = outcome.failures.len();
-        let status = if failures == 0 { "ok" } else { "error" };
-        let record = LogRecord::new("diagnostics.finished")
-            .field("mode", "pull")
-            .field("revision", revision)
-            .field("run_id", artifact_run_id)
-            .field("status", status)
-            .field("files", files)
-            .field("failures", failures)
-            .field("duration_us", started.elapsed().as_micros());
-        self.client.log(record);
+        if is_tracing {
+            let files = outcome.diagnostics.len();
+            let failures = outcome.failures.len();
+            let status = if failures == 0 { "ok" } else { "error" };
+            let record = LogRecord::new("diagnostics.finished")
+                .field("mode", "pull")
+                .field("revision", revision)
+                .field("run_id", artifact_run_id)
+                .field("status", status)
+                .field("files", files)
+                .field("failures", failures)
+                .field("duration_us", started.elapsed().as_micros());
+            self.client.log_trace(record.to_string(), None);
+        }
 
         // reject the workspace when it changed while diagnostics were running
         let current = self.session()?.workspace_revision(workspace.as_ref())?;
@@ -388,13 +393,7 @@ impl DestackLanguageServer {
             return Err(jsonrpc::Error::content_modified());
         }
 
-        // report run failures without discarding completed diagnostics
-        for failure in outcome.failures {
-            self.client
-                .report_error("diagnostics.read", workspace_error(failure));
-        }
-
-        Ok((revision, outcome.diagnostics))
+        Ok((revision, outcome))
     }
 
     /// Register file watchers with the client.
@@ -824,12 +823,19 @@ impl DestackLanguageServer {
             self.prime_workspace(&workspace)?;
             self.schedule_diagnostics(workspace)?;
         }
-        self.client.log(
-            LogRecord::new("files.changed")
+
+        // report semantic changes and trace notifications that leave projects unchanged
+        if project_count > 0 || self.client.trace_level() != lsp::TraceValue::Off {
+            let record = LogRecord::new("files.reconciled")
                 .field("files", file_count)
                 .field("projects", project_count)
-                .field("duration_us", started.elapsed().as_micros()),
-        );
+                .field("duration_us", started.elapsed().as_micros());
+            if project_count > 0 {
+                self.client.log(record);
+            } else {
+                self.client.log_trace(record.to_string(), None);
+            }
+        }
 
         Ok(())
     }
@@ -1385,7 +1391,14 @@ impl LanguageServer for DestackLanguageServer {
                 ArtifactPriority::Foreground,
             )
             .map_err(workspace_error)?;
-        let (revision, mut diagnostics) = self.wait_diagnostics(workspace.clone(), run).await?;
+        let (revision, outcome) = self.wait_diagnostics(workspace.clone(), run).await?;
+
+        // report failures while retaining completed file diagnostics
+        for failure in outcome.failures {
+            self.client
+                .report_error("diagnostics.read", workspace_error(failure));
+        }
+        let mut diagnostics = outcome.diagnostics;
         if diagnostics.len() > 1 {
             return Err(internal_error(format!(
                 "workspace returned {} diagnostic files for one source file",
@@ -1443,59 +1456,83 @@ impl LanguageServer for DestackLanguageServer {
         &self,
         params: lsp::WorkspaceDiagnosticParams,
     ) -> jsonrpc::Result<lsp::WorkspaceDiagnosticReportResult> {
-        let previous_ids: std::collections::HashMap<String, String> = params
+        // retain previous results until a current report replaces them
+        let mut previous_ids: BTreeMap<_, _> = params
             .previous_result_ids
             .into_iter()
-            .map(|entry| (entry.uri.to_string(), entry.value))
+            .map(|entry| (entry.uri, entry.value))
             .collect();
-
         let mut items = Vec::new();
+        let mut is_complete = true;
+        let mut documents = HashMap::new();
+
         for workspace in self.session()?.workspaces() {
-            // schedule every source module at the current workspace revision
+            // reuse completed reports for the exact workspace revision
             let revision = self.session()?.workspace_revision(workspace.as_ref())?;
-            let run = workspace
-                .start_diagnostics(revision, ArtifactPriority::Foreground)
-                .map_err(workspace_error)?;
-            let (revision, diagnostics) = self.wait_diagnostics(workspace.clone(), run).await?;
-            let documents = self.session()?.documents(workspace.as_ref(), revision)?;
-            let publisher = DiagnosticPublisher::new(self.client.clone(), workspace, documents);
+            let reports = self
+                .diagnostics()?
+                .workspaces
+                .lock()
+                .get(workspace.root())
+                .filter(|diagnostics| diagnostics.revision == revision)
+                .cloned();
+            let reports = if let Some(reports) = reports {
+                reports
+            } else {
+                // collect and encode diagnostics once per requested revision
+                let run = workspace
+                    .start_diagnostics(revision, ArtifactPriority::Foreground)
+                    .map_err(workspace_error)?;
+                let (_, outcome) = self.wait_diagnostics(workspace.clone(), run).await?;
+                let documents = self.session()?.documents(workspace.as_ref(), revision)?;
+                let publisher =
+                    DiagnosticPublisher::new(self.client.clone(), workspace.clone(), documents);
+                let reports = outcome
+                    .diagnostics
+                    .iter()
+                    .map(|diagnostics| publisher.report(diagnostics))
+                    .collect::<jsonrpc::Result<Vec<_>>>()?;
+                let reports = Arc::new(WorkspaceDiagnostics { revision, reports });
 
-            // encode every diagnostic file from this workspace
-            for file_diagnostics in diagnostics {
-                let document = publisher.document(&file_diagnostics)?;
-                let uri = document.uri;
-                let version = document.version.map(i64::from);
-                let documents = publisher.load_documents(&file_diagnostics)?;
-                let diagnostics = file_diagnostics.diagnostics;
-                let result_id = DiagnosticPublisher::result_id(&diagnostics);
-                let uri_string = uri.to_string();
-                let report = if previous_ids.get(&uri_string) == Some(&result_id) {
-                    lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
-                        lsp::WorkspaceUnchangedDocumentDiagnosticReport {
-                            uri,
-                            version,
-                            unchanged_document_diagnostic_report:
-                                lsp::UnchangedDocumentDiagnosticReport { result_id },
-                        },
-                    )
+                // retain only complete results and report all provisioning failures
+                if outcome.failures.is_empty() {
+                    self.diagnostics()?
+                        .workspaces
+                        .lock()
+                        .insert(workspace.root().to_path_buf(), reports.clone());
                 } else {
-                    let lsp_diagnostics = diagnostics
-                        .into_iter()
-                        .map(|diagnostic| documents.diagnostic(&diagnostic))
-                        .collect::<jsonrpc::Result<Vec<_>>>()?;
+                    is_complete = false;
+                    for failure in outcome.failures {
+                        self.client
+                            .report_error("diagnostics.read", workspace_error(failure));
+                    }
+                }
 
-                    lsp::WorkspaceDocumentDiagnosticReport::Full(
-                        lsp::WorkspaceFullDocumentDiagnosticReport {
-                            uri,
-                            version,
-                            full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
-                                result_id: Some(result_id),
-                                items: lsp_diagnostics,
-                            },
+                reports
+            };
+
+            // apply client result IDs and current editor versions independently
+            documents.extend(self.session()?.documents(workspace.as_ref(), revision)?);
+            items.extend(reports.reports(&mut previous_ids, &documents));
+        }
+
+        // clear previous diagnostics for resolved errors and removed files
+        if is_complete {
+            for (uri, _) in previous_ids {
+                let version = uri
+                    .to_file_path()
+                    .and_then(|path| documents.get(path.as_ref()))
+                    .map(|document| i64::from(document.version));
+                items.push(lsp::WorkspaceDocumentDiagnosticReport::Full(
+                    lsp::WorkspaceFullDocumentDiagnosticReport {
+                        uri,
+                        version,
+                        full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                            result_id: None,
+                            items: Vec::new(),
                         },
-                    )
-                };
-                items.push(report);
+                    },
+                ));
             }
         }
 

@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::Hash;
 use std::iter;
 use std::path::{Path, PathBuf};
@@ -7,8 +7,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
 use destack_core::StableHasher;
-use destack_lsp_server::{Client, LogRecord, jsonrpc};
+use destack_lsp_server::{Client, LogRecord, UriExt, jsonrpc};
 use destack_lsp_types as lsp;
+use destack_repository::Revision;
 use destack_session::ArtifactPriority;
 use destack_source::{
     Diagnostic, DiagnosticLabel, DiagnosticReference, DiagnosticSeverity, DiagnosticTag,
@@ -25,6 +26,17 @@ use crate::server::{ProjectId, ProjectSet, internal_error, workspace_error};
 pub(crate) struct DiagnosticDelivery {
     /// Active diagnostic delivery mode.
     mode: DiagnosticDeliveryMode,
+    /// Completed workspace diagnostics at each root's latest requested revision.
+    pub(crate) workspaces: Mutex<HashMap<PathBuf, Arc<WorkspaceDiagnostics>>>,
+}
+
+/// Completed workspace diagnostics at one source revision.
+#[derive(Debug)]
+pub(crate) struct WorkspaceDiagnostics {
+    /// Source revision used to produce the reports.
+    pub(crate) revision: Revision,
+    /// Complete document reports.
+    pub(crate) reports: Vec<lsp::WorkspaceFullDocumentDiagnosticReport>,
 }
 
 /// Active diagnostic delivery mode.
@@ -41,6 +53,7 @@ impl DiagnosticDelivery {
     pub(crate) fn pull(is_refresh_supported: bool) -> Self {
         Self {
             mode: DiagnosticDeliveryMode::Pull(PullDiagnostics::new(is_refresh_supported)),
+            workspaces: Mutex::new(HashMap::new()),
         }
     }
 
@@ -48,6 +61,7 @@ impl DiagnosticDelivery {
     pub(crate) fn push() -> Self {
         Self {
             mode: DiagnosticDeliveryMode::Push(PushDiagnostics::default()),
+            workspaces: Mutex::new(HashMap::new()),
         }
     }
 
@@ -68,6 +82,9 @@ impl DiagnosticDelivery {
 
     /// Remove diagnostics owned by one workspace root.
     pub(crate) async fn remove_root(&self, root: &Path, client: &Client) {
+        // release cached diagnostics with their project
+        self.workspaces.lock().remove(root);
+
         match &self.mode {
             DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client.clone()),
             DiagnosticDeliveryMode::Push(diagnostics) => {
@@ -82,6 +99,42 @@ impl DiagnosticDelivery {
             DiagnosticDeliveryMode::Pull(diagnostics) => diagnostics.schedule(client.clone()),
             DiagnosticDeliveryMode::Push(diagnostics) => diagnostics.remove_file(uri, client).await,
         }
+    }
+}
+
+impl WorkspaceDiagnostics {
+    /// Select full or unchanged document reports with current editor versions.
+    pub(crate) fn reports<'a>(
+        &'a self,
+        previous_ids: &'a mut BTreeMap<lsp::Uri, String>,
+        documents: &'a HashMap<PathBuf, lsp::VersionedTextDocumentIdentifier>,
+    ) -> impl Iterator<Item = lsp::WorkspaceDocumentDiagnosticReport> + 'a {
+        self.reports.iter().map(|report| {
+            // compare client results independently of current editor versions
+            let version = report
+                .uri
+                .to_file_path()
+                .and_then(|path| documents.get(path.as_ref()))
+                .map(|document| i64::from(document.version));
+            let previous_id = previous_ids.remove(&report.uri);
+            let result_id = &report.full_document_diagnostic_report.result_id;
+
+            if let Some(result_id) = previous_id.filter(|value| Some(value) == result_id.as_ref()) {
+                lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
+                    lsp::WorkspaceUnchangedDocumentDiagnosticReport {
+                        uri: report.uri.clone(),
+                        version,
+                        unchanged_document_diagnostic_report:
+                            lsp::UnchangedDocumentDiagnosticReport { result_id },
+                    },
+                )
+            } else {
+                let mut report = report.clone();
+                report.version = version;
+
+                lsp::WorkspaceDocumentDiagnosticReport::Full(report)
+            }
+        })
     }
 }
 
@@ -115,6 +168,31 @@ impl DiagnosticPublisher {
         diagnostics.hash(&mut hasher);
 
         format!("{:x}", hasher.finish_u64())
+    }
+
+    /// Encode a complete workspace document report.
+    pub(crate) fn report(
+        &self,
+        diagnostics: &FileDiagnostics,
+    ) -> jsonrpc::Result<lsp::WorkspaceFullDocumentDiagnosticReport> {
+        // encode the complete diagnostic payload at its source revision
+        let document = self.document(diagnostics)?;
+        let documents = self.load_documents(diagnostics)?;
+        let result_id = Self::result_id(&diagnostics.diagnostics);
+        let items = diagnostics
+            .diagnostics
+            .iter()
+            .map(|diagnostic| documents.diagnostic(diagnostic))
+            .collect::<jsonrpc::Result<Vec<_>>>()?;
+
+        Ok(lsp::WorkspaceFullDocumentDiagnosticReport {
+            uri: document.uri,
+            version: document.version.map(i64::from),
+            full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+                result_id: Some(result_id),
+                items,
+            },
+        })
     }
 
     /// Return one diagnostic file's optional versioned document identifier.
