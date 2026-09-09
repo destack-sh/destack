@@ -1,3 +1,5 @@
+use std::fs;
+
 use destack_lsp_types as lsp;
 
 use super::tests::{MANIFEST, TestServer, range, replace, replace_document};
@@ -147,8 +149,10 @@ async fn test_return_workspace_diagnostics() {
 
     // return the exact diagnostic for every semantic workspace
     let request = server.workspace_diagnostics(Vec::new());
-    let report = server.request(request).await.unwrap();
-    let lsp::WorkspaceDiagnosticReportResult::Report(mut report) = report else {
+    let original = server.request(request).await.unwrap();
+    let request = server.workspace_diagnostics(Vec::new());
+    server.assert_request(request, Ok(original.clone())).await;
+    let lsp::WorkspaceDiagnosticReportResult::Report(mut report) = original.clone() else {
         panic!("workspace diagnostics returned a partial report");
     };
     let [lsp::WorkspaceDocumentDiagnosticReport::Full(full)] = report.items.as_mut_slice() else {
@@ -184,17 +188,74 @@ async fn test_return_workspace_diagnostics() {
         uri: document.uri().clone(),
         value: result_id.clone(),
     };
+    let mut unchanged = lsp::WorkspaceUnchangedDocumentDiagnosticReport {
+        uri: document.uri().clone(),
+        version: None,
+        unchanged_document_diagnostic_report: lsp::UnchangedDocumentDiagnosticReport { result_id },
+    };
     let expected = lsp::WorkspaceDiagnosticReportResult::Report(lsp::WorkspaceDiagnosticReport {
         items: vec![lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
-            lsp::WorkspaceUnchangedDocumentDiagnosticReport {
-                uri: document.uri().clone(),
-                version: None,
-                unchanged_document_diagnostic_report: lsp::UnchangedDocumentDiagnosticReport {
-                    result_id,
-                },
-            },
+            unchanged.clone(),
         )],
     });
+    let request = server.workspace_diagnostics(vec![previous.clone()]);
+    server.assert_request(request, Ok(expected)).await;
+
+    // update editor versions without changing the diagnostic result
+    server.open(&document, 1, source).await;
+    for version in [2, 3] {
+        server
+            .change(&document, version, [replace_document(source)])
+            .await;
+        unchanged.version = Some(i64::from(version));
+        let expected =
+            lsp::WorkspaceDiagnosticReportResult::Report(lsp::WorkspaceDiagnosticReport {
+                items: vec![lsp::WorkspaceDocumentDiagnosticReport::Unchanged(
+                    unchanged.clone(),
+                )],
+            });
+        let request = server.workspace_diagnostics(vec![previous.clone()]);
+        server.assert_request(request, Ok(expected)).await;
+    }
+
+    // clear diagnostics when the editor resolves the error
+    server
+        .change(&document, 4, [replace_document("const value = 1;\n")])
+        .await;
+    let request = server.workspace_diagnostics(vec![previous.clone()]);
+    let cleared = server.request(request).await.unwrap();
+    let mut empty = lsp::WorkspaceFullDocumentDiagnosticReport {
+        uri: document.uri().clone(),
+        version: Some(4),
+        full_document_diagnostic_report: lsp::FullDocumentDiagnosticReport {
+            result_id: None,
+            items: Vec::new(),
+        },
+    };
+    assert_eq!(
+        cleared,
+        lsp::WorkspaceDiagnosticReportResult::Report(lsp::WorkspaceDiagnosticReport {
+            items: vec![lsp::WorkspaceDocumentDiagnosticReport::Full(empty.clone())],
+        })
+    );
+
+    // clear diagnostics again when closing restores the file and it is then removed
+    server.close(&document).await;
+    let request = server.workspace_diagnostics(Vec::new());
+    server.assert_request(request, Ok(original)).await;
+    fs::remove_file(server.root().join("main.ds")).unwrap();
+    server
+        .notify::<lsp::notification::DidChangeWatchedFiles>(lsp::DidChangeWatchedFilesParams {
+            changes: vec![lsp::FileEvent {
+                uri: document.uri().clone(),
+                typ: lsp::FileChangeType::DELETED,
+            }],
+        })
+        .await;
     let request = server.workspace_diagnostics(vec![previous]);
+    empty.version = None;
+    let expected = lsp::WorkspaceDiagnosticReportResult::Report(lsp::WorkspaceDiagnosticReport {
+        items: vec![lsp::WorkspaceDocumentDiagnosticReport::Full(empty)],
+    });
     server.assert_request(request, Ok(expected)).await;
 }
